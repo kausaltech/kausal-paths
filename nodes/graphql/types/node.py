@@ -66,7 +66,8 @@ markdown = MarkdownIt('commonmark', {'html': True})
 
 @sb.type
 class QuantityKindType:
-    id: str
+    id: sb.ID
+    identifier: sb.ID = sb.field(description='Stable identifier of the quantity kind. Currently an alias of `id`.')
     label: str
     icon: str | None
     qudt_iri: str | None
@@ -78,7 +79,8 @@ class QuantityKindType:
     @classmethod
     def from_kind(cls, kind: QuantityKind) -> QuantityKindType:
         return cls(
-            id=kind.id,
+            id=sb.ID(kind.id),
+            identifier=sb.ID(kind.id),
             label=str(kind.label),
             icon=kind.icon,
             qudt_iri=kind.qudt_iri,
@@ -411,23 +413,6 @@ class NodeInterface(UserPermissionsMixin):
         if nc is None or nc.copy_of_id is None:
             return None
         return NodeConfig.objects.filter(pk=nc.copy_of_id).values_list('uuid', flat=True).first()
-
-    @sb.field(
-        graphql_type=list[Annotated['InstanceModelLogEntryType', sb.lazy('nodes.graphql.types.change_history')]],
-        description='Row-level change history for this node, newest first.',
-        deprecation_reason='Use editor.changeHistory instead.',
-    )
-    @staticmethod
-    def change_history(
-        root: 'Node',
-        info: gql.Info,
-        limit: int = 50,
-        before: datetime | None = None,
-    ) -> list[Any]:
-        editor = _node_editor_fields(root, info)
-        if editor is None:
-            return []
-        return NodeEditorFields.change_history(editor, info, limit=limit, before=before)
 
     @sb.field
     @staticmethod

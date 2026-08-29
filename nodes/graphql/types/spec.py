@@ -63,6 +63,8 @@ class InputPortDeclarationType:
     label: str | None = sb.field(description='Presentation fallback for the role before a port carries its own label.')
     multi: bool = sb.field(description='One port instance accepting many bindings as a homogeneous aggregate.')
     repeatable: bool = sb.field(description='Many heterogeneous port instances of this role (e.g. each factor of a product).')
+    required: bool = sb.field(description='Whether computation requires at least one binding for this role.')
+    aggregation: str | None = sb.field(description='Operation combining a multi port into one delivered value.')
     min_count: int
     default_count: int = sb.field(description='Port instances created by default at node creation.')
     instantiated_port_ids: list[UUID]
@@ -86,6 +88,8 @@ class InputPortDeclarationType:
             label=str(declaration.label) if declaration.label else None,
             multi=declaration.multi,
             repeatable=declaration.repeatable,
+            required=declaration.required,
+            aggregation=declaration.aggregation,
             min_count=declaration.min_count,
             default_count=declaration.effective_default_count,
             instantiated_port_ids=instantiated,
@@ -101,6 +105,8 @@ class InputPortType(StrawberryPydanticType[InputPortDef]):
     quantity: auto
     unit: auto
     multi: auto
+    paired_output_port_id: auto
+    is_editable: auto
     required_dimensions: list[DimensionRef]
     supported_dimensions: list[DimensionRef] = sb.field(
         deprecation_reason='Never had solver semantics; effectiveShape carries the derived shape.',
@@ -129,6 +135,8 @@ class InputPortType(StrawberryPydanticType[InputPortDef]):
             quantity=spec.quantity,
             unit=spec.unit,
             multi=spec.multi,
+            paired_output_port_id=spec.paired_output_port_id,
+            is_editable=spec.is_editable,
             required_dimensions=spec.required_dimensions,
             supported_dimensions=spec.supported_dimensions,
             bindings=bindings,

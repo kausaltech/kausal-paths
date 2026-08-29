@@ -44,6 +44,41 @@ if TYPE_CHECKING:
     from paths.context import InstanceSpecificCache
 
 
+def instance_config_for_page(page: PathsPage) -> InstanceConfig | None:
+    """
+    Name the instance whose page tree holds this page, in any language.
+
+    Matched on `translation_key`, which is the same value on every locale's row of a page. Wagtail keeps
+    one page object per locale, so an instance's tree is several sibling subtrees at depth 2 — one per
+    language — and `InstanceConfig.root_page` names the primary language's row only. Asking instead
+    whether a page *is* that row, which is what the reverse relation `instance_config_root` answers, is
+    locale-specific and so answers no for every translated page. That raised `DoesNotExist` for all of
+    them in the Wagtail admin, unnoticed because wagtail-localize's `before_edit_page` hook intercepts
+    the edit view while a synced translation is enabled, and one always was.
+
+    **Not keyed on the page's type**, unlike kausal-watch's equivalent (`AplansPage.plan`), which can
+    look for a `PlanRootPage` ancestor because `create_default_pages` guarantees one. Paths puts no such
+    constraint on `InstanceConfig.root_page`, and a real instance was found with an `OutcomePage` as
+    its root. Keying on the type finds nothing there — including for the primary language, which is how
+    that assumption gets caught.
+
+    The deepest matching ancestor wins, so a tree nested inside another instance's resolves to the
+    inner one rather than to whichever row the database happened to return first.
+    """
+    keys = list(page.get_ancestors(inclusive=True).order_by('-depth').values_list('translation_key', flat=True))
+    if not keys:
+        return None
+    by_key = {
+        config.root_page.translation_key: config
+        for config in InstanceConfig.objects.filter(root_page__translation_key__in=keys).select_related('root_page')
+        # `root_page` is nullable, and the filter above already excludes a null one — a null cannot
+        # match a translation key. Stated rather than asserted so the reader and the type checker get
+        # the same answer.
+        if config.root_page is not None
+    }
+    return next((by_key[key] for key in keys if key in by_key), None)
+
+
 class PathsAdminPageForm(WagtailAdminPageForm):
     instance: PathsPage
 
@@ -61,8 +96,10 @@ class PathsAdminPageForm(WagtailAdminPageForm):
             pp = cast('PathsPage', self.parent_page)
         if hasattr(pp, 'instance_config_root'):
             return pp.instance_config_root
-        root_page = pp.get_ancestors(inclusive=True).filter(depth__gte=2, instance_config_root__isnull=False).get()
-        return cast('PathsPage', root_page).instance_config_root
+        instance_config = instance_config_for_page(pp)
+        if instance_config is None:
+            raise InstanceConfig.DoesNotExist(f'No instance owns page {pp.pk}')
+        return instance_config
 
 
 class PathsPageManager[PageT: PathsPage](PageModelManager[PageT, PageQuerySet[PageT]]):

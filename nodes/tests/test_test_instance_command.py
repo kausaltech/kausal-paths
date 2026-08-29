@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Any, cast
 import loguru
 import pytest
 
-from nodes.management.commands.test_instance import CheckState, Command, InstanceDetail, NodeDetail
+from nodes.management.commands.test_instance import CheckState, Command, InstanceDetail, NodeDetail, resolve_all_nodes
 
 if TYPE_CHECKING:
     from nodes.context import Context
@@ -52,6 +52,19 @@ def make_command(*, reference_failed: bool) -> Command:
     return command
 
 
+@pytest.mark.parametrize(
+    ('store', 'all_nodes', 'outcomes_only', 'expected'),
+    [
+        (True, False, False, True),
+        (True, False, True, False),
+        (False, False, False, False),
+        (False, True, False, True),
+    ],
+)
+def test_resolve_all_nodes(*, store: bool, all_nodes: bool, outcomes_only: bool, expected: bool) -> None:
+    assert resolve_all_nodes(store=store, all_nodes=all_nodes, outcomes_only=outcomes_only) is expected
+
+
 @pytest.mark.parametrize(('reference_failed', 'expected'), [(True, True), (False, False)])
 def test_run_nodes_uses_instance_failure_as_comparison_fallback(
     monkeypatch: pytest.MonkeyPatch, *, reference_failed: bool, expected: bool
@@ -89,3 +102,13 @@ def test_failed_instance_detected_from_instance_details() -> None:
     state = CheckState(instance_details=[InstanceDetail(instance_id='test-instance', failure_at='nodes')])
 
     assert state.has_failed_instance('test-instance')
+
+
+def test_successful_instances_excludes_both_failure_representations() -> None:
+    state = CheckState(
+        checked_instances={'passing', 'failed-set', 'failed-detail'},
+        failed_instances={'failed-set'},
+        instance_details=[InstanceDetail(instance_id='failed-detail', failure_at='init')],
+    )
+
+    assert state.successful_instances() == {'passing'}

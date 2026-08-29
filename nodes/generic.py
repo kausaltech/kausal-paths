@@ -16,6 +16,8 @@ from common import polars as ppl
 from common.polars import PathsDataFrame
 from nodes.actions.action import ActionNode
 from nodes.calc import extend_last_historical_value_pl, extend_to_history_pl
+from nodes.constraints.port_roles import PortRoleInferenceResult
+from nodes.defs.port_def import InputPortDeclaration
 from nodes.node import NodeMetric
 from nodes.units import Quantity, Unit, unit_registry
 from params.param import BoolParameter, NumberParameter, StringParameter
@@ -37,12 +39,14 @@ from .operands import resolve_input_nodes
 from .simple import SimpleNode
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Sequence
     from typing import Any
 
     from kausal_common.perf.perf_context import PerfAttrs, PerfSpanEntry
 
     from nodes.context import Context
+    from nodes.defs.port_def import InputPortDef
+    from nodes.instance_graph import NodeMeta
     from nodes.node import Node
     from params import Parameter
 
@@ -60,6 +64,11 @@ class GenericNode(SimpleNode):
     """
 
     explanation = _('Multiply input nodes whose unit does not match the output. Add the rest.')
+
+    # GenericDataset has always interpolated its inputs. The loader uses this
+    # marker for export compatibility, but attaches the op only when the
+    # concrete loader remains GenericDataset; framework tags replace it.
+    interpolates_input_datasets_by_default: ClassVar[bool] = True
 
     global_parameters = ['use_observations']
 
@@ -1216,6 +1225,22 @@ class IterativeNode(GenericNode):
 class CoalesceNode(GenericNode):
     explanation = _("""Coalesces the empty values with the values from the node with the tag 'coalesce'.""")
     DEFAULT_OPERATIONS = 'multiply,coalesce,add'
+    primary_port = InputPortDeclaration(role='primary', required=False, label=_('Primary input'))
+    secondary_port = InputPortDeclaration(role='secondary', required=False, label=_('Secondary input'))
+    input_port_declarations = (primary_port, secondary_port)
+
+    @classmethod
+    def infer_legacy_port_roles(cls, meta: NodeMeta, candidates: Sequence[InputPortDef]) -> PortRoleInferenceResult:
+        result = PortRoleInferenceResult()
+        for port in candidates:
+            tags = {tag for binding in meta.bindings_for_port(port.id) for tag in binding.tags}
+            if 'primary' in tags:
+                result.classify(port, 'primary', "binding tag 'primary'")
+            elif 'secondary' in tags:
+                result.classify(port, 'secondary', "binding tag 'secondary'")
+            else:
+                result.refuse(port, 'no primary/secondary legacy tag')
+        return result
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -1227,21 +1252,18 @@ class CoalesceNode(GenericNode):
         if df is None:
             raise NodeError(self, 'Cannot apply coalesce because no PathsDataFrame is available.')
 
-        primary = self.get_input_nodes(tag='primary')
-        secondary = self.get_input_nodes(tag='secondary')
-        if len(primary) == 1 and len(secondary) == 0:
-            node = primary[0]
-            df_co = node.get_output_pl(target_node=self)
+        primary = self.get_input(self.primary_port)
+        secondary = self.get_input(self.secondary_port)
+        if primary is not None and secondary is None:
+            df_co = primary
             df = df_co.paths.coalesce_df(df, how='outer', debug=self.debug, id=self.id)
-        elif len(primary) == 0 and len(secondary) == 1:
-            node = secondary[0]
-            df_co = node.get_output_pl(target_node=self)
+        elif primary is None and secondary is not None:
+            df_co = secondary
             df = df.paths.coalesce_df(df_co, how='outer', debug=self.debug, id=self.id)
         else:
             raise NodeError(
                 self,
-                ("Coalesce requires exactly one input with tag 'primary' or 'secondary'; got %d primary, %d secondary.")
-                % (len(primary), len(secondary)),
+                'Coalesce requires exactly one input with tag primary or secondary.',
             )
         return df
 
@@ -1624,28 +1646,39 @@ class DatasetReduceNode(GenericNode):
     allowed_parameters: ClassVar[list[Parameter[Any]]] = [
         BoolParameter(local_id='relative_goal'),
     ]
+    historical_port = InputPortDeclaration(role='historical', required=True, label=_('Historical input'))
+    goal_port = InputPortDeclaration(role='goal', required=True, label=_('Goal input'))
+    input_port_declarations = (historical_port, goal_port)
 
-    def compute(self) -> PathsDataFrame:  # noqa: PLR0915
-        n = self.get_input_node(tag='historical', required=False)
-        if n is None:
-            df = self.get_input_dataset_pl(tag='historical')
-            if FORECAST_COLUMN not in df.columns:
-                df = df.with_columns(pl.lit(value=False).alias(FORECAST_COLUMN))
+    @classmethod
+    def infer_legacy_port_roles(cls, meta: NodeMeta, candidates: Sequence[InputPortDef]) -> PortRoleInferenceResult:
+        result = PortRoleInferenceResult()
+        for port in candidates:
+            tags = {tag for binding in meta.bindings_for_port(port.id) for tag in binding.tags}
+            if 'historical' in tags:
+                result.classify(port, 'historical', "binding tag 'historical'")
+            elif 'goal' in tags:
+                result.classify(port, 'goal', "binding tag 'goal'")
+            else:
+                result.refuse(port, 'no historical/goal legacy tag')
+        return result
+
+    def compute(self) -> PathsDataFrame:
+        df = self.get_input(self.historical_port)
+        assert df is not None
+        if FORECAST_COLUMN not in df.columns:
+            df = df.with_columns(pl.lit(value=False).alias(FORECAST_COLUMN))
             assert len(df.metric_cols) == 1
-            df = df.rename({df.metric_cols[0]: VALUE_COLUMN})
+            if df.metric_cols[0] != VALUE_COLUMN:
+                df = df.rename({df.metric_cols[0]: VALUE_COLUMN})
         else:
-            df = n.get_output_pl(target_node=self)
             df = df.filter(~pl.col(FORECAST_COLUMN))  # FIXME FOR DIFF
 
         max_hist_year = df[YEAR_COLUMN].max()
         df = df.filter(pl.col(YEAR_COLUMN) == max_hist_year)
 
-        goal_input_df = self.get_input_dataset_pl(tag='goal', required=False)
-        if goal_input_df is None:
-            goal_input_node = self.get_input_node(tag='goal', required=True)
-            goal_input_df = goal_input_node.get_output_pl(target_node=self)
-        assert goal_input_df is not None
-        gdf = goal_input_df
+        gdf = self.get_input(self.goal_port)
+        assert gdf is not None
 
         gdf = gdf.paths.cast_index_to_str()
         df = df.paths.cast_index_to_str()

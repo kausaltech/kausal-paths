@@ -21,8 +21,8 @@ from kausal_common.datasets.tests.factories import (
 )
 
 from nodes.defs.instance_defs import InstanceModelSpec, YearsSpec
-from nodes.defs.node_defs import NodeSpec, SimpleConfig
-from nodes.defs.port_def import InputPortDef, OutputPortDef
+from nodes.defs.node_defs import ActionConfig, NodeSpec, SimpleConfig
+from nodes.defs.port_def import InputPortDef, OutputPortDef, pair_input_ports_to_outputs
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory, NodeConfigFactory, _port_id, register_dimensions
 from nodes.units import unit_registry
 
@@ -36,6 +36,7 @@ gql = str
 pytestmark = pytest.mark.django_db
 
 SIMPLE_NODE_CLASS = 'nodes.simple.SimpleNode'
+ADDITIVE_ACTION_CLASS = 'nodes.actions.simple.AdditiveAction'
 
 
 @pytest.fixture
@@ -189,6 +190,60 @@ def test_add_port_then_bind_a_dataset_metric_to_it(gql_client: PathsTestClient, 
     ]
 
 
+def test_additive_action_binds_two_metrics_of_the_same_dataset_to_paired_ports(
+    gql_client: PathsTestClient, db_instance_config: InstanceConfig
+) -> None:
+    from nodes.models import NodeInputPortBinding
+
+    energy_output = OutputPortDef(
+        id=_port_id('energy_output'),
+        identifier='energy',
+        column_id='energy',
+        quantity='energy',
+        unit=unit_registry.parse_units('kWh'),
+    )
+    cost_output = OutputPortDef(
+        id=_port_id('cost_output'),
+        identifier='cost',
+        column_id='cost',
+        quantity='currency',
+        unit=unit_registry.parse_units('EUR'),
+    )
+    outputs = [energy_output, cost_output]
+    inputs = pair_input_ports_to_outputs([], outputs, role='input', keep_unpaired=False)
+    action = NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='multi_impact_action',
+        spec=_node_spec(
+            type_config=ActionConfig(node_class=ADDITIVE_ACTION_CLASS),
+            input_ports=inputs,
+            output_ports=outputs,
+        ),
+    )
+    dataset, energy_metric = _dataset_with_metric(db_instance_config, identifier='impacts', metric='energy', unit='kWh')
+    cost_metric = DatasetMetricFactory.create(schema=dataset.schema, name='cost', label='Cost', unit='EUR')
+
+    for port, metric in zip(inputs, (energy_metric, cost_metric), strict=True):
+        result = gql_client.query_data(
+            BIND_DATASET,
+            variables={
+                'instanceId': str(db_instance_config.pk),
+                'nodeId': str(action.uuid),
+                'input': {
+                    'portId': str(port.id),
+                    'datasetId': str(dataset.uuid),
+                    'metricId': str(metric.uuid),
+                },
+            },
+        )['instanceEditor']['nodeEditor']['bindDataset']
+        assert result['portRef']['portId'] == str(port.id)
+
+    rows = list(NodeInputPortBinding.objects.filter(node=action).order_by('port_id'))
+    assert len(rows) == 2
+    assert {row.dataset_id for row in rows} == {dataset.pk}
+    assert {row.metric_id for row in rows} == {energy_metric.pk, cost_metric.pk}
+
+
 def test_a_port_can_be_addressed_by_its_identifier(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
     node = NodeConfigFactory.create(
         instance=db_instance_config,
@@ -278,6 +333,66 @@ def test_transformations_are_replaced_as_a_whole_list(gql_client: PathsTestClien
     assert last['categories'] == ['electricity']
     assert last['flatten'] is True
     assert updated['tags'] == ['inventory_only']
+
+
+def test_old_editor_rewrites_preserve_hidden_temporal_ops(
+    gql_client: PathsTestClient,
+    db_instance_config: InstanceConfig,
+):
+    """A client built before the new union members neither sees nor deletes them."""
+    from nodes.defs.transform_def import ExtendOp, InterpolateOp
+    from nodes.models import NodeInputPortBinding
+
+    NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='consumer',
+        spec=_node_spec(
+            input_ports=[InputPortDef(id=_port_id('input'), identifier='heating', unit=unit_registry.parse_units('kt/a'))]
+        ),
+    )
+    _dataset_with_metric(db_instance_config)
+    binding_id = gql_client.query_data(
+        BIND_DATASET,
+        variables={
+            'instanceId': str(db_instance_config.pk),
+            'nodeId': 'consumer',
+            'input': {'portId': 'heating', 'datasetId': 'heating', 'metricId': 'Energy'},
+        },
+    )['instanceEditor']['nodeEditor']['bindDataset']['id']
+    row = NodeInputPortBinding.objects.get(uuid=binding_id)
+    full_pipeline = [*row.dataset_spec.transformations, InterpolateOp(), ExtendOp()]
+    row.dataset_spec = row.dataset_spec.model_copy(update={'transformations': full_pipeline})
+    row.transformations = full_pipeline
+    row.save(update_fields=['dataset_spec', 'transformations'])
+
+    updated = gql_client.query_data(
+        UPDATE_BINDING,
+        variables={
+            'instanceId': str(db_instance_config.pk),
+            'bindingId': binding_id,
+            'input': {
+                'transformations': [
+                    {'selectMetric': True},
+                    {'indexTemporal': True},
+                    {'remapLegacyYears': True},
+                ],
+            },
+        },
+    )['instanceEditor']['bindingEditor']['updateDatasetBinding']
+
+    assert [op['kind'] for op in updated['transformations']] == [
+        'select_metric',
+        'index_temporal',
+        'remap_legacy_years',
+    ]
+    row.refresh_from_db()
+    assert [op.kind for op in row.dataset_spec.transformations] == [
+        'select_metric',
+        'index_temporal',
+        'remap_legacy_years',
+        'interpolate',
+        'extend',
+    ]
 
 
 def test_dropping_the_generated_metric_selection_is_rejected(gql_client: PathsTestClient, db_instance_config: InstanceConfig):

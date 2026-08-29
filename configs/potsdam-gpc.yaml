@@ -41,7 +41,7 @@ include:
 
 params:
 - id: weather_correction
-  label_de: Wetterkorrektur durchführen?
+  label_de: Witterungsbereinigung durchführen?
   value: true
   is_customizable: true
   is_visible: true

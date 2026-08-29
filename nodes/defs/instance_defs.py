@@ -65,6 +65,7 @@ class DatasetRepoSpec(I18nBaseModel):
 class ActionGroup(I18nBaseModel):
     """A named group of action nodes."""
 
+    uuid: UUID
     id: ActionGroupIdentifier
     name: I18nString | None = None
     color: str | None = None

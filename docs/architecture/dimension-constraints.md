@@ -748,7 +748,9 @@ The ops:
 | `rename_column` | dataset | Legacy wide-DVC column labels. |
 | `rename_item` | dataset | Category value remapping. |
 | `set_forecast_from` | dataset | Sets the forecast **qualifier**; see `metric-dataframe.md`. |
-| `interpolate` | dataset | Fills gaps and sets the interpolation qualifier. |
+| `interpolate` | dataset | Fills missing interior years linearly; the interpolation qualifier follows the `MetricDataFrame` migration. |
+| `backfill` | dataset | Copies the first known value backwards over existing leading null rows. |
+| `extend` | dataset | Carries the last historical value to the instance model end year. |
 
 There is deliberately no `select_column` op: metric selection is the
 binding's source reference, not a transformation.

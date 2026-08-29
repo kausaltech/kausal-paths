@@ -41,6 +41,7 @@ if TYPE_CHECKING:
     from nodes.edges import Edge
     from nodes.explanations import NodeExplanationSystem
     from nodes.instance import Instance
+    from nodes.instance_graph import InstanceGraph
     from nodes.instance_serialization import DatasetPortSnapshot, EdgeSnapshot, InstanceSnapshot, NodeSnapshot
     from nodes.models import InstanceConfig
     from nodes.node import Node, NodeMetric
@@ -521,6 +522,8 @@ class InstanceLoader:
     _node_visualizations: dict[str, list[dict[str, Any]]]
     # Snapshot-path dataset-binding stash (see _stash_snapshot_bindings).
     _snapshot_dataset_ports: dict[UUID, list[DatasetPortSnapshot]]
+    _instance_graph: InstanceGraph
+    _runtime_datasets: dict[tuple[UUID, int, str], Dataset]
 
     @staticmethod
     def wrap_with_span[**P, R, SC: InstanceLoader](
@@ -550,6 +553,8 @@ class InstanceLoader:
         from nodes.generic import GenericNode
         from nodes.simple import AdditiveNode
 
+        uses_generic_dataset = issubclass(node_class, GenericNode) and not issubclass(node_class, AdditiveNode)
+
         ds_config = config.get('input_datasets')
         datasets: list[Dataset] = []
 
@@ -566,7 +571,7 @@ class InstanceLoader:
         # `input_dataset_processors` entry forces it on for every binding, while a class
         # default is only a default and yields to a binding that says `interpolate: false`.
         # See docs/plans/additive-multiplicative-modernization.md.
-        class_interpolate = node_class.interpolates_input_datasets_by_default
+        class_interpolate = node_class.interpolates_input_datasets_by_default and not uses_generic_dataset
         ds_interpolate = False
         idp_confs = config.get('input_dataset_processors', [])
         if idp_confs:
@@ -586,10 +591,6 @@ class InstanceLoader:
                 elif class_interpolate and 'interpolate' not in ds:
                     ds_def.interpolate = True
 
-            ds_obj: Dataset | None = None
-            if issubclass(node_class, GenericNode) and not issubclass(node_class, AdditiveNode):
-                ds_obj = GenericDataset.from_def(ds_def, self.context)
-
             # The class declares whether its datasets take framework measure
             # overlays; the tag is the per-binding opt-in for other classes.
             use_framework_ds = 'framework_measure_data' in ds_def.tags or (
@@ -597,6 +598,7 @@ class InstanceLoader:
             )
             use_obs_ds = 'observation_dataset' in ds_def.tags
             use_city_ds = 'city_data' in ds_def.tags
+            ds_obj: Dataset | None = None
             if use_obs_ds:
                 from frameworks.datasets import ObservationDataset
 
@@ -607,8 +609,8 @@ class InstanceLoader:
                 # Prefer a DB-stored dataset when one exists for this instance.
                 # FrameworkMeasureDVCDataset2 handles both cases: when db_dataset_obj is
                 # provided it loads from DB, otherwise falls through to DVC. Either way,
-                # post_process() runs and handles the uuid dimension and any framework
-                # measure datapoint overrides correctly.
+                # The transformation pipeline and post-transform hook handle the uuid
+                # dimension and any framework measure datapoint overrides correctly.
                 # Future: if both a DB dataset and framework measure datapoints exist,
                 # the DB values should be loaded first and then overridden by the
                 # framework measures where available. That case doesn't arise yet, so
@@ -646,8 +648,15 @@ class InstanceLoader:
                     ds_obj = DBDataset.from_def(ds_def, self.context, db_dataset_obj=ds_db_obj)
 
             if ds_obj is None:
-                ds_obj = DVCDataset.from_def(ds_def, self.context)
-            ds_obj.interpolate = ds_interpolate or ds_def.interpolate
+                if uses_generic_dataset:
+                    # These were unconditional inside GenericDataset itself.
+                    # Attach them only after framework and DB-backed replacements
+                    # have been ruled out, so the concrete loader owns its defaults.
+                    ds_def.interpolate = True
+                    ds_def.extend = True
+                    ds_obj = GenericDataset.from_def(ds_def, self.context)
+                else:
+                    ds_obj = DVCDataset.from_def(ds_def, self.context)
             datasets.append(ds_obj)
 
         if 'historical_values' in config or 'forecast_values' in config:
@@ -867,9 +876,9 @@ class InstanceLoader:
                 if tc.decision_level is not None:
                     node.decision_level = tc.decision_level
                 if tc.group is not None:
-                    ag = next((ag for ag in self.instance.action_groups if ag.id == tc.group), None)
+                    ag = next((ag for ag in self.instance.action_groups if ag.uuid == tc.group), None)
                     if ag is None:
-                        self._init_failure(node, "Action group '%s' not found" % tc.group)
+                        self._init_failure(node, "Action group with UUID '%s' not found" % tc.group)
                     else:
                         node.group = ag
                 if tc.parent is not None:
@@ -919,7 +928,7 @@ class InstanceLoader:
                 raise Exception('Node %s (%s) has no quantity set' % (identifier, node_class.__name__))
         return metrics, unit, quantity
 
-    def make_node_from_snapshot(self, node_class: type[Node], n: NodeSnapshot) -> Node:  # noqa: C901
+    def make_node_from_snapshot(self, node_class: type[Node], n: NodeSnapshot) -> Node:  # noqa: C901, PLR0912
         """Native ``make_node`` twin: construct a runtime node from typed snapshot state."""
         spec = n.spec
         assert spec is not None
@@ -949,6 +958,18 @@ class InstanceLoader:
         if extra.tags:
             ds_fragment['tags'] = list(extra.tags)
         datasets = self._make_node_datasets(ds_fragment, node_class, unit)
+        if dataset_ports:
+            group_keys: list[tuple[int, str]] = []
+            for port in dataset_ports:
+                key = (port.dataset_index, port.dataset)
+                if key not in group_keys:
+                    group_keys.append(key)
+            if len(group_keys) != len(datasets):
+                raise ValueError(
+                    f'Node {identifier}: {len(group_keys)} dataset binding groups produced {len(datasets)} runtime datasets'
+                )
+            for (dataset_index, dataset_id), dataset in zip(group_keys, datasets, strict=True):
+                self._runtime_datasets[(n.uuid, dataset_index, dataset_id)] = dataset
 
         node: Node = node_class(
             id=identifier,
@@ -975,6 +996,7 @@ class InstanceLoader:
             input_dimension_ids=spec.input_dimensions or None,
             output_metrics=metrics,
             config_location=None,
+            spec=spec,
         )
         if node.id in self._input_nodes or node.id in self._output_nodes:
             raise Exception('Node %s is already configured' % node.id)
@@ -1169,6 +1191,77 @@ class InstanceLoader:
 
     def _setup_edges(self) -> None:
         self._setup_edges_from_snapshot()
+
+    def _setup_runtime_inputs(self) -> None:  # noqa: C901, PLR0912
+        """Attach graph bindings to runtime sources without mutating the cached graph models."""
+        from collections import defaultdict
+
+        from nodes.defs.binding_def import DatasetBindingDef, EdgeBindingDef
+        from nodes.instance_serialization import DatasetPortSnapshot, EdgeSnapshot
+        from nodes.runtime_input import RuntimeInputBinding
+
+        runtime_by_uuid = {
+            meta.id: self.context.get_node(meta.identifier) for meta in self._instance_graph.nodes if meta.identifier is not None
+        }
+        bindings_by_target: defaultdict[UUID, list[RuntimeInputBinding]] = defaultdict(list)
+        snapshot_bindings = list(self.snapshot.bindings_with_positions())
+        if len(snapshot_bindings) != len(self._instance_graph.bindings):
+            raise ValueError('InstanceGraph and source snapshot disagree on input binding count')
+
+        for definition, (snapshot_binding, _position) in zip(self._instance_graph.bindings, snapshot_bindings, strict=True):
+            try:
+                target_meta = definition.target_node
+            except ValueError:
+                if self.tolerate_node_failures:
+                    continue
+                raise
+            target = runtime_by_uuid.get(target_meta.id)
+            if target is None or not target.input_port_declarations:
+                # Unmigrated classes keep using the legacy edge/dataset views,
+                # whose persisted port UUIDs need not match the exported spec.
+                continue
+            try:
+                target_port = definition.target_port
+            except ValueError:
+                if self.tolerate_node_failures:
+                    continue
+                raise
+            role = target_meta.role_for_input_port(target_port)
+            if role is None:
+                continue
+
+            if isinstance(definition, EdgeBindingDef):
+                if not isinstance(snapshot_binding, EdgeSnapshot):
+                    raise TypeError(f'Binding {definition.id}: graph/snapshot kind mismatch')
+                source = runtime_by_uuid[definition.source_node.id]
+            elif isinstance(definition, DatasetBindingDef):
+                if not isinstance(snapshot_binding, DatasetPortSnapshot):
+                    raise TypeError(f'Binding {definition.id}: graph/snapshot kind mismatch')
+                source = self._runtime_datasets[(snapshot_binding.node, snapshot_binding.dataset_index, snapshot_binding.dataset)]
+            else:
+                raise TypeError(f'Unsupported binding definition {type(definition).__name__}')
+
+            bindings_by_target[target_meta.id].append(
+                RuntimeInputBinding.from_graph_binding(
+                    definition,
+                    port_role=role,
+                    source=source,
+                    target=target,
+                )
+            )
+
+        for node_id, node in runtime_by_uuid.items():
+            bindings = bindings_by_target.get(node_id, [])
+            fixed_role = node.legacy_fixed_dataset_input_role
+            if fixed_role is not None:
+                from nodes.datasets import FixedDataset
+
+                bindings.extend(
+                    RuntimeInputBinding.from_legacy_fixed_dataset(dataset, target=node, port_role=fixed_role)
+                    for dataset in node.input_dataset_instances
+                    if isinstance(dataset, FixedDataset)
+                )
+            node.bind_runtime_inputs(bindings, node_meta=self._instance_graph.node_by_id[node_id])
 
     def _setup_subactions(self) -> None:
         from nodes.actions.action import ActionNode
@@ -1503,6 +1596,7 @@ class InstanceLoader:
         self.setup_nodes()
         self.setup_actions()
         self.setup_edges()
+        self._setup_runtime_inputs()
         self.setup_impact_overviews()
         self.setup_scenarios()
         self.setup_normalizations()
@@ -1588,7 +1682,76 @@ class InstanceLoader:
     def _stash_snapshot_bindings(self, snapshot: InstanceSnapshot) -> None:
         """Group dataset bindings per node for construction, the same way the config-dict shim grouped them."""
         from collections import defaultdict
+        from uuid import NAMESPACE_URL, uuid5
 
+        from nodes.defs.graph import DatasetMeta, DatasetMetricMeta
+        from nodes.instance_graph import build_instance_graph
+
+        graph_snapshot = snapshot
+        is_yaml = getattr(self, 'yaml_file_path', None) is not None
+        if is_yaml or not snapshot.datasets:
+            catalog = list(snapshot.datasets)
+            if not catalog and self.instance_config is not None and not is_yaml:
+                from nodes.instance_serialization import build_instance_snapshot
+
+                catalog.extend(build_instance_snapshot(self.instance_config).datasets)
+
+            specs_by_node = {node.uuid: node.spec for node in snapshot.nodes if node.spec is not None}
+            datasets_by_id = {dataset.id: dataset for dataset in catalog}
+            datasets_by_identifier = {dataset.identifier: dataset for dataset in catalog if dataset.identifier is not None}
+            for binding in snapshot.dataset_bindings:
+                dataset = datasets_by_id.get(binding.dataset_uuid) if binding.dataset_uuid is not None else None
+                if dataset is None:
+                    dataset = datasets_by_identifier.get(binding.dataset)
+
+                if dataset is None:
+                    dataset_uuid = binding.dataset_uuid or uuid5(
+                        NAMESPACE_URL,
+                        f'kausal-paths:runtime-dataset:{snapshot.metadata.uuid}:{binding.dataset}',
+                    )
+                    dataset = DatasetMeta(
+                        id=dataset_uuid,
+                        identifier=binding.dataset,
+                        schema_id=uuid5(NAMESPACE_URL, f'kausal-paths:runtime-dataset-schema:{dataset_uuid}'),
+                        is_external_placeholder=True,
+                    )
+                    catalog.append(dataset)
+                    datasets_by_id[dataset.id] = dataset
+                    datasets_by_identifier[binding.dataset] = dataset
+
+                metric = dataset.metric_by_id.get(binding.metric_uuid) if binding.metric_uuid is not None else None
+                if metric is None:
+                    metric = next((item for item in dataset.metrics if item.identifier == binding.metric), None)
+                if metric is not None:
+                    continue
+
+                metric_uuid = binding.metric_uuid or uuid5(
+                    NAMESPACE_URL,
+                    f'kausal-paths:runtime-dataset-metric:{dataset.id}:{binding.metric}',
+                )
+                spec = specs_by_node[binding.node]
+                unit = spec.input_port_by_id[binding.port_id].unit
+                updated_dataset = dataset.model_copy(
+                    update={
+                        'metrics': (
+                            *dataset.metrics,
+                            DatasetMetricMeta(
+                                id=metric_uuid,
+                                identifier=binding.metric,
+                                unit=str(unit) if unit is not None else '',
+                            ),
+                        )
+                    }
+                )
+                catalog[catalog.index(dataset)] = updated_dataset
+                datasets_by_id[updated_dataset.id] = updated_dataset
+                if updated_dataset.identifier is not None:
+                    datasets_by_identifier[updated_dataset.identifier] = updated_dataset
+
+            graph_snapshot = snapshot.model_copy(update={'datasets': catalog})
+
+        self._instance_graph = build_instance_graph(graph_snapshot)
+        self._runtime_datasets = {}
         ports_by_node: defaultdict[UUID, list[DatasetPortSnapshot]] = defaultdict(list)
         for port in sorted(snapshot.dataset_bindings, key=lambda p: (p.node, p.dataset_index, str(p.port_id))):
             ports_by_node[port.node].append(port)

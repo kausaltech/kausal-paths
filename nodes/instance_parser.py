@@ -229,6 +229,9 @@ class InstanceConfigParser:
             self._resolved_node_uuids[identifier] = node_uuid
         return node_uuid
 
+    def _action_group_uuid(self, identifier: str) -> UUID:
+        return self._uuid_from_identifiers(['action-group', identifier])
+
     # -- top level ------------------------------------------------------------
 
     def parse(self) -> InstanceSnapshot:
@@ -264,6 +267,11 @@ class InstanceConfigParser:
             parsed.output_ports = self._build_output_ports(parsed)
         for parsed in self.nodes.values():
             parsed.input_ports = self._build_input_ports(parsed)
+            from nodes.actions.simple import AdditiveAction
+            from nodes.defs.port_def import pair_input_ports_to_outputs
+
+            if issubclass(parsed.node_class, AdditiveAction):
+                parsed.input_ports = pair_input_ports_to_outputs(parsed.input_ports, parsed.output_ports, role='input')
 
         spec = self._parse_instance_spec()
         node_snapshots = [self._build_node_snapshot(parsed) for parsed in self.nodes.values()]
@@ -484,6 +492,7 @@ class InstanceConfigParser:
         for idx, agc in enumerate(config.get('action_groups', [])):
             agcs.append(
                 ActionGroup(
+                    uuid=self._action_group_uuid(agc['id']),
                     id=agc['id'],
                     name=_require_trans_string(dict(agc), 'name'),
                     color=agc.get('color'),
@@ -807,6 +816,9 @@ class InstanceConfigParser:
 
     def _parse_node_datasets(self, parsed: _ParsedNode) -> None:
         """Mirror ``_make_node_datasets`` for the binding definitions (no data loading)."""
+        from nodes.generic import GenericNode
+        from nodes.simple import AdditiveNode
+
         config = parsed.config
         ds_config = config.get('input_datasets')
         if ds_config is None:
@@ -814,7 +826,8 @@ class InstanceConfigParser:
 
         # Mirror the loader: a processor entry forces interpolation on, a class default
         # yields to an explicit `interpolate:` on the binding.
-        class_interpolate = parsed.node_class.interpolates_input_datasets_by_default
+        uses_generic_dataset = issubclass(parsed.node_class, GenericNode) and not issubclass(parsed.node_class, AdditiveNode)
+        class_interpolate = parsed.node_class.interpolates_input_datasets_by_default and not uses_generic_dataset
         ds_interpolate = False
         idp_confs = config.get('input_dataset_processors', [])
         if idp_confs:
@@ -1260,7 +1273,7 @@ class InstanceConfigParser:
             no_effect_value = getattr(parsed.node_class, 'no_effect_value', None)
         return ActionConfig(
             decision_level=decision_level,
-            group=group,
+            group=self._action_group_uuid(group) if group is not None else None,
             parent=config.get('parent'),
             no_effect_value=no_effect_value,
             node_class=node_class,
@@ -1290,12 +1303,13 @@ class InstanceConfigParser:
         historical_values = config.get('historical_values') or None
         forecast_values = config.get('forecast_values') or None
         # The export path derives processors from the dataset *instances*
-        # (any with interpolate=True). A config-level processor on a node
+        # (any with an interpolate op). A config-level processor on a node
         # with no datasets is therefore dropped — reproduce that.
         processors: list[str] = []
         has_idp = bool(config.get('input_dataset_processors'))
         if not parsed.node_class.interpolates_input_datasets_by_default and (
-            any(ds_def.interpolate for ds_def in parsed.dataset_defs) or (parsed.has_fixed_dataset and has_idp)
+            any(any(op.kind == 'interpolate' for op in ds_def.to_transformations()) for ds_def in parsed.dataset_defs)
+            or (parsed.has_fixed_dataset and has_idp)
         ):
             processors = ['LinearInterpolation']
         tags = config.get('tags')

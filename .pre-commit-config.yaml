@@ -34,3 +34,16 @@ repos:
         language: script
         require_serial: true
         entry: kausal_common/development/git-hooks/mypy-pre-push.sh
+
+      # data/ is gitignored, so pre-commit never hands the hooks above any of its files and
+      # `ruff check data/` walks straight past it. That code is published to the private
+      # scripts repo and committed there, so it gets the same checks -- see the script.
+      # It is a no-op wherever data/ holds no Python.
+      - id: lint-data-dir
+        name: Check data/ with Ruff and Mypy
+        stages: [pre-push, manual]
+        language: script
+        pass_filenames: false
+        always_run: true
+        require_serial: true
+        entry: tools/lint-data-dir.sh

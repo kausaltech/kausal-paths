@@ -19,6 +19,7 @@ from pydantic import Field, field_validator
 from kausal_common.i18n.pydantic import I18nBaseModel, I18nStringInstance
 
 from paths.identifiers import Identifier
+from paths.refs import QuantityKindRef
 
 if TYPE_CHECKING:
     from nodes.dimensions import Dimension as RuntimeDimension, DimensionCategory as RuntimeDimensionCategory
@@ -26,6 +27,21 @@ if TYPE_CHECKING:
 
 class DatasetSpec(I18nBaseModel):
     forecast_from: int | None = None
+
+    def to_json(self) -> dict[str, Any]:
+        return self.model_dump(mode='json', exclude_defaults=True)
+
+
+class DatasetMetricSpec(I18nBaseModel):
+    """
+    KP-only payload of `DatasetMetric.spec`.
+
+    `quantity` declares what the metric measures (one of the registered
+    quantity kinds); a null quantity means "any" for port-compatibility
+    checks.
+    """
+
+    quantity: QuantityKindRef | None = None
 
     def to_json(self) -> dict[str, Any]:
         return self.model_dump(mode='json', exclude_defaults=True)

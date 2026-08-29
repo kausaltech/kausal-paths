@@ -390,11 +390,15 @@ def make_empty_instance_spec() -> InstanceModelSpec:
     return InstanceModelSpec()
 
 
-YAML_SPEC_VERSION = 3
+YAML_SPEC_VERSION = 4
 """Version of the lightweight YAML-to-InstanceModelSpec materialization."""
 
 
-def make_minimal_instance_spec(instance: Instance | Mapping[str, Any]) -> InstanceModelSpec:
+def make_minimal_instance_spec(
+    instance: Instance | Mapping[str, Any],
+    *,
+    instance_uuid: UUID | None = None,
+) -> InstanceModelSpec:
     """
     Build the computation-only ``InstanceModelSpec``.
 
@@ -404,6 +408,13 @@ def make_minimal_instance_spec(instance: Instance | Mapping[str, Any]) -> Instan
     """
     if isinstance(instance, Mapping):
         features = InstanceFeatures.model_validate(instance.get('features') or {})
+        if instance_uuid is None:
+            instance_uuid = uuid.uuid3(uuid.NAMESPACE_URL, f'kausal-paths:instance:{instance.get("id", "")}')
+        action_groups: list[ActionGroup] = []
+        for raw_group in instance.get('action_groups', []):
+            group = dict(raw_group)
+            group.setdefault('uuid', uuid.uuid3(instance_uuid, f'action-group:{group["id"]}'))
+            action_groups.append(ActionGroup.model_validate(group))
         return InstanceModelSpec(
             years=YearsSpec(
                 reference=instance.get('reference_year'),
@@ -413,7 +424,7 @@ def make_minimal_instance_spec(instance: Instance | Mapping[str, Any]) -> Instan
                 model_end=instance.get('model_end_year'),
             ),
             features=features,
-            action_groups=[ActionGroup.model_validate(dict(group)) for group in instance.get('action_groups', [])],
+            action_groups=action_groups,
             theme_identifier=instance.get('theme_identifier'),
         )
 
@@ -1337,7 +1348,7 @@ class InstanceConfig(
         from kausal_common.i18n.pydantic import set_i18n_context
 
         with set_i18n_context(primary_language, other_languages):
-            spec = make_minimal_instance_spec(data)
+            spec = make_minimal_instance_spec(data, instance_uuid=self.uuid)
         mtime_hash = yaml_conf.meta.mtime_hash or yaml_conf.meta.calculate_mtime_hash()
         return spec, primary_language, other_languages, mtime_hash
 

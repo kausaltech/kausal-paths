@@ -133,6 +133,11 @@ def export_node_spec(node: Node) -> NodeSpec:
     type_config = _export_type_config(node)
     input_ports = _export_input_ports(node)
     output_ports = _export_output_ports(node)
+    from nodes.actions.simple import AdditiveAction
+    from nodes.defs.port_def import pair_input_ports_to_outputs
+
+    if isinstance(node, AdditiveAction):
+        input_ports = pair_input_ports_to_outputs(input_ports, output_ports, role='input')
     params = _export_node_params(node)
 
     # Capture dimension IDs.
@@ -194,7 +199,7 @@ def _export_type_config(node: Node) -> FormulaConfig | ActionConfig | SimpleConf
     if isinstance(node, ActionNode):
         return ActionConfig(
             decision_level=node.decision_level,
-            group=node.group.id if node.group is not None else None,
+            group=node.group.uuid if node.group is not None else None,
             parent=node.parent_action.id if node.parent_action is not None else None,
             no_effect_value=node.no_effect_value,
             node_class=node_class,
@@ -634,10 +639,6 @@ def _input_dataset_def_from_instance(ds: DatasetWithFilters) -> InputDatasetDef:
         input_dataset=ds.input_dataset if isinstance(ds, DVCDataset) else None,
         column=ds.column,
         transformations=list(ds.transformations),
-        interpolate=ds.interpolate,
-        backfill=ds.backfill,
-        extend=ds.extend,
-        unit=ds.unit,
     )
 
 
@@ -661,7 +662,7 @@ def _export_node_extra(node: Node) -> NodeSpecExtra:
     processors: list[str] = []
     if not type(node).interpolates_input_datasets_by_default:
         for ds in node.input_dataset_instances:
-            if getattr(ds, 'interpolate', False):
+            if any(op.kind == 'interpolate' for op in ds.transformations):
                 processors = ['LinearInterpolation']
                 break
 

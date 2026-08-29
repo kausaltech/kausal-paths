@@ -18,6 +18,7 @@ from nodes.generic import GenericNode
 from nodes.node import Node
 from nodes.simple import AdditiveNode, MultiplicativeNode
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory
+from nodes.tests.node_input_harness import add_binding, binding
 from nodes.units import unit_registry
 from params.param import StringParameter
 
@@ -78,9 +79,32 @@ def _make_fixed_node(
 
 
 def _connect(input_node: Node, output_node: Node, tags: list[str] | None = None) -> None:
-    edge = Edge(input_node=input_node, output_node=output_node, tags=tags or [])
+    tags = tags or []
+    edge = Edge(input_node=input_node, output_node=output_node, tags=tags)
     input_node.add_edge(edge)
     output_node.add_edge(edge)
+    role = None
+    if isinstance(output_node, AdditiveNode):
+        role = 'impute' if 'impute' in tags else 'additive'
+    elif isinstance(output_node, MultiplicativeNode):
+        if 'impute' in tags:
+            role = 'impute'
+        elif not output_node.is_compatible_unit(input_node.unit, output_node.unit):
+            role = 'factors'
+        else:
+            role = 'additive'
+    if role is not None:
+        add_binding(
+            output_node,
+            binding(
+                role,
+                position=len(output_node.runtime_input_bindings),
+                source_kind='node',
+                source_id=input_node.id,
+                source=input_node,
+                value_loader=lambda: input_node.get_output_pl(target_node=output_node),
+            ),
+        )
 
 
 def _values_by_year(df: pd.DataFrame | PathsDataFrame) -> dict[int, float]:

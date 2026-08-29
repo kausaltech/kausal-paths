@@ -3,7 +3,7 @@ default_language: de
 supported_languages: [en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: b74ec99ae392e57974a273480b186bb7dbd2dd80
+  commit: 4acca4b4125ea3b183a1617fd4da3304d6bdc524
   dvc_remote: kausal-s3
 name_de: Treibhausgas-Monitor Mainz
 name_en: GHG Monitor Mainz
@@ -15,6 +15,20 @@ reference_year: 1990
 minimum_historical_year: 1990
 maximum_historical_year: 2024
 emission_unit: kt_co2e/a
+normalizations:
+- normalizer_node: population
+  quantities:
+  - id: emissions
+    unit: t_co2e/cap/a
+  - id: energy
+    unit: kWh/cap/a
+  # - id: mileage # FIXME mileage is not unambiguous in Bisko.
+  #   unit: km/cap/a
+  # - id: vehicle_mileage
+  #   unit: vkm/cap/a
+  # - id: passenger_mileage
+  #   unit: pkm/cap/a
+  default: false
 features:
   baseline_visible_in_graphs: true
   use_datasets_from_db: true
@@ -31,12 +45,21 @@ include:
     to: mainz/historical_emissions
   - from: kommune/verkehrsleistung_personen
     to: mainz/passenger_kilometers
-  # Road transport, both BISKO routes. Only the ÖSPV cells carry data (MVG, Güte A,
-  # 2019-2024); the remaining 13 mileage and 35 consumption combinations ship as
-  # deliberate blanks so the presence check can still tell "not supplied" from an
-  # entered zero. Uploaded 2026-08-24, see data/mainz/create_oespv_datasets.py.
-  - from: kommune/fahrleistung_strassenverkehr
-    to: mainz/fahrleistung_strassenverkehr
+  # Road transport consumption. Only the ÖSPV cells carry data (MVG, Güte A, 2019-2024);
+  # the remaining 35 combinations ship as deliberate blanks so the presence check can
+  # still tell "not supplied" from an entered zero. Uploaded 2026-08-24, see
+  # data/mainz/create_oespv_datasets.py.
+  #
+  # The mileage route had a replacement here too, `kommune/fahrleistung_strassenverkehr`
+  # -> `mainz/fahrleistung_strassenverkehr`. Removed 27 Aug 2026: both sides are
+  # value-free, so it bought nothing. Verified rather than assumed -- with the entry gone,
+  # `vehicle_kilometers_own`, its availability and data-quality siblings,
+  # `has_all_road_transport_activity_data`, `road_transport_activity_source_in_force`,
+  # `road_transport_energy_bisko`, `transport_energy` and `net_emissions` are unchanged to
+  # the last digit, and `total_weighted_data_quality` still reads 0.4570 / 0.4531 / 0.4723
+  # for 2019 / 2023 / 2024. Mileage is a declared gap (README gap 4: the municipal traffic
+  # model was never delivered), and the activity route stays on the top-down fallback,
+  # which is what `road_transport_activity_source_in_force = 2` says.
   - from: kommune/energieverbrauch_strassenverkehr
     to: mainz/energieverbrauch_strassenverkehr
   # Rail, inland waterway and aviation: all eight required cells from the Klimaschutzplaner,
@@ -66,8 +89,13 @@ include:
   # Mainz's own degree-day ratio (private_households, commerce_trade_services,
   # municipal_facilities; industry and transport stay at 1.0), replacing the shipped Potsdam
   # placeholder. Does not change conformity: criterion 5 forbids the correction outright,
-  # checked on the `weather_correction` switch (default off), not on these values. See
-  # data/mainz/create_witterungskorrektur.py.
+  # checked on the `weather_correction` switch (default off), not on these values.
+  #
+  # Built by `data/weather/create_degree_day_factors.py --instance mainz-bisko`, which reads
+  # the `nuts_code` parameter below (DEB35, the city itself) out of the European degree-day
+  # table in `weather/heating_degree_days`. The reference level, 2834 HDD, is the one Mainz's
+  # own Klimaschutzplaner works from and is recorded in `data/weather/city_references.yaml`;
+  # the two series then agree to 2.2 %. See `data/weather/README.md`.
   - from: kommune/witterungsbereinigung
     to: mainz/witterungsbereinigung
 
@@ -445,7 +473,7 @@ params:
   is_visible: true
 
 - id: weather_correction
-  label_de: Wetterkorrektur durchführen?
+  label_de: Witterungsbereinigung durchführen?
   label_en: Perform weather correction?
   value: false
   is_customizable: true
@@ -460,6 +488,37 @@ params:
   label_en: AGS number
   label_de: AGS-Nummer
   value: '07315000'
+  is_customizable: false
+  is_visible: false
+# NUTS-3, not NUTS-2: Mainz is a Kreisfreie Stadt, so DEB35 *is* the city, where DEB3
+# (Rheinhessen-Pfalz) is a region many times its size. Recorded beside the AGS because it
+# is an identifier of the city. Read by `data/weather/create_degree_day_factors.py`, which
+# picks the city's column out of the European degree-day table. No node reads it.
+#
+# A city that is not its own Kreis takes the NUTS-3 region containing it, which is sound for
+# degree days and not for anything extensive: the degree days of a Kreis are close to those of
+# the town inside it, but its population is not, because a headcount is a sum over an area
+# rather than a property of the place. `lau_code` below is the municipality itself, and is what
+# the `population` node reads. See data/population/README.md.
+- id: nuts_code
+  label_en: NUTS-3 code
+  label_de: NUTS-3-Code
+  value: DEB35
+  is_customizable: false
+  is_visible: false
+# The municipality itself, as a Eurostat GISCO LAU code: `<country>_<national LAU code>`, and
+# for Germany the national LAU code is the AGS -- so this is `DE_` plus `ags_number`, naming
+# Mainz, Stadt. Read by the `population` node, which filters the European municipal
+# population table `demography/population_lau` down to this one municipality.
+#
+# Declared separately from `ags_number` rather than derived from it, because the model filters on
+# one column with one parameter and the table is Europe-wide: a bare `09761000` is not unique
+# across countries, and a Finnish or Swiss instance has no AGS at all. The two are cross-checked
+# instead of one being computed from the other.
+- id: lau_code
+  label_en: LAU code (municipality)
+  label_de: LAU-Code (Gemeinde)
+  value: DE_07315000
   is_customizable: false
   is_visible: false
 - id: use_national_values

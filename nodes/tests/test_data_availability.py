@@ -10,6 +10,7 @@ from kausal_common.i18n.pydantic import TranslatedString
 from common.polars import DataFrameMeta, to_ppdf
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from nodes.datasets import Dataset
+from nodes.defs.transform_def import InterpolateOp
 from nodes.exceptions import NodeError
 from nodes.simple import DataAvailabilityNode
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory
@@ -54,7 +55,11 @@ def _make_node(context: Context, datasets: list[Dataset]) -> DataAvailabilityNod
 
 
 def _make_dataset(context: Context, df: PathsDataFrame, *, interpolate: bool = False) -> _FixedRawDataset:
-    ds = _FixedRawDataset(id='raw', context=context, interpolate=interpolate)
+    ds = _FixedRawDataset(
+        id='raw',
+        context=context,
+        transformations=[InterpolateOp()] if interpolate else [],
+    )
     ds.raw_df = df
     return ds
 
@@ -128,7 +133,7 @@ def test_interpolation_configured_on_the_binding_is_ignored():
     values = _values_by_year(node.compute())
     assert values[2012] == 0.0  # would be interpolated into a value without the node's opt-out
     assert values[2013] == 0.0
-    assert ds.interpolate is False
+    assert not any(isinstance(op, InterpolateOp) for op in ds.transformations)
 
 
 def test_dimensions_get_a_full_grid_of_the_categories_in_the_data():

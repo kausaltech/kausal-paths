@@ -639,3 +639,113 @@ def test_update_nonexistent_dimension_fails(gql_client: PathsTestClient, db_inst
             'input': {'dimensionId': str(uuid4()), 'name': 'X'},
         },
     )
+
+
+# ---------------------------------------------------------------------------
+# createDimension / deleteDimension
+# ---------------------------------------------------------------------------
+
+CREATE_DIM = gql("""
+mutation CreateDim($instanceId: ID!, $input: CreateDimensionInput!) {
+    instanceEditor(instanceId: $instanceId) {
+        createDimension(input: $input) {
+            ... on InstanceDimension {
+                id
+                identifier
+                name
+                categories { identifier label order }
+            }
+        }
+    }
+}
+""")
+
+DELETE_DIM = gql("""
+mutation DeleteDim($instanceId: ID!, $dimensionId: UUID!) {
+    instanceEditor(instanceId: $instanceId) {
+        deleteDimension(dimensionId: $dimensionId) {
+            ... on ModelDeletePayload {
+                ok
+            }
+        }
+    }
+}
+""")
+
+
+def test_create_dimension(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
+    ic = db_instance_config
+    data = gql_client.query_data(
+        CREATE_DIM,
+        variables={
+            'instanceId': str(ic.pk),
+            'input': {
+                'identifier': 'sector',
+                'name': 'Sector',
+                'categories': [
+                    {'label': 'Energy', 'identifier': 'energy'},
+                    {'label': 'Transport', 'identifier': 'transport'},
+                ],
+            },
+        },
+    )
+    result = data['instanceEditor']['createDimension']
+    assert result['identifier'] == 'sector'
+    assert result['name'] == 'Sector'
+    assert [c['identifier'] for c in result['categories']] == ['energy', 'transport']
+
+    scope = DimensionScope.objects.for_instance_config(ic).get(identifier='sector')
+    assert str(scope.dimension.uuid) == result['id']
+    # The transitional InstanceSpec mirror follows.
+    spec_dim = _spec_dimension(ic, 'sector')
+    assert [c['id'] for c in spec_dim['categories']] == ['energy', 'transport']
+
+
+def test_create_dimension_duplicate_identifier_fails(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
+    ic = db_instance_config
+    _make_dimension(ic, 'sector', 'Sector')
+    gql_client.query_errors(
+        CREATE_DIM,
+        variables={
+            'instanceId': str(ic.pk),
+            'input': {'identifier': 'sector', 'name': 'Sector again'},
+        },
+    )
+
+
+def test_delete_dimension(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
+    ic = db_instance_config
+    dim = _make_dimension(ic, 'sector', 'Sector', categories=['Energy'])
+    # Seed the spec mirror so removal is observable.
+    scope = DimensionScope.objects.for_instance_config(ic).get(dimension=dim)
+    from nodes.graphql.editor import InstanceEditorMutation
+
+    InstanceEditorMutation._sync_spec_dimension_from_orm(ic, scope)
+    assert _spec_dimension(ic, 'sector')
+
+    data = gql_client.query_data(
+        DELETE_DIM,
+        variables={'instanceId': str(ic.pk), 'dimensionId': str(dim.uuid)},
+    )
+    assert data['instanceEditor']['deleteDimension']['ok'] is True
+    assert not DimensionScope.objects.for_instance_config(ic).filter(identifier='sector').exists()
+    assert not type(dim).objects.filter(pk=dim.pk).exists()
+    ic.refresh_from_db()
+    assert ic.spec is not None
+    assert not any(d['id'] == 'sector' for d in ic.spec.dimensions)
+
+
+def test_delete_dimension_used_by_dataset_fails(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
+    from kausal_common.datasets.tests.factories import DatasetSchemaDimensionFactory, DatasetSchemaFactory
+
+    ic = db_instance_config
+    dim = _make_dimension(ic, 'sector', 'Sector')
+    schema = DatasetSchemaFactory.create(name='Uses sector')
+    DatasetSchemaDimensionFactory.create(schema=schema, dimension=dim)
+
+    errors = gql_client.query_errors(
+        DELETE_DIM,
+        variables={'instanceId': str(ic.pk), 'dimensionId': str(dim.uuid)},
+    )
+    assert errors[0].get('extensions', {}).get('code') == 'dimension_in_use'
+    assert type(dim).objects.filter(pk=dim.pk).exists()

@@ -13,7 +13,7 @@ from common import polars as ppl
 from nodes.calc import convert_to_co2e, extend_last_historical_value_pl
 from nodes.constraints.port_roles import PortRoleInferenceResult
 from nodes.constraints.rules import AnyShapeRule, MissingPortRoleError, ProductShapeRule, SameShapeRule
-from nodes.defs.port_def import InputPortDeclaration, InputPortDef, OutputPortDeclaration
+from nodes.defs.port_def import InputPort, InputPortDeclaration, InputPortDef, OutputPortDeclaration
 from nodes.units import Quantity
 from params.param import BoolParameter, NumberParameter, StringParameter
 
@@ -45,6 +45,7 @@ if TYPE_CHECKING:
     from nodes.instance_graph import NodeMeta
     from nodes.pipeline.ir import PipelinePortBinding
     from nodes.pipeline.ops import AnyOperationSpec
+    from nodes.runtime_input import RuntimeInputBinding
     from nodes.units import Unit
     from params.base import Parameter
 
@@ -232,11 +233,14 @@ Missing values are assumed to be zero.
 Input nodes tagged 'impute' are excluded from the addition; their values overlay the result
 afterwards instead, replacing it wherever the tagged node has a value and leaving the rest untouched.""")
     export_additive_input_ports_as_multi: ClassVar[bool] = False
+    legacy_fixed_dataset_input_role = 'additive'
     additive_multi_input_excluded_tags: ClassVar[frozenset[str]] = frozenset({'non_additive'})
-    additive_port = InputPortDeclaration(role='additive', multi=True, label=_('Additive inputs'))
-    impute_port = InputPortDeclaration(role='impute', multi=True, min_count=0, default_count=0, label=_('Imputed values'))
+    additive_port = InputPortDeclaration(role='additive', multi=True, aggregation='sum', label=_('Additive inputs'))
+    impute_port = InputPortDeclaration(
+        role='impute', multi=True, required=False, min_count=0, default_count=0, label=_('Imputed values')
+    )
     output_port = OutputPortDeclaration(role='output', identifier='default', label=_('Output'))
-    input_port_declarations = (additive_port, impute_port)
+    input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = (additive_port, impute_port)
     output_port_declarations = (output_port,)
 
     @classmethod
@@ -249,23 +253,47 @@ afterwards instead, replacing it wherever the tagged node has a value and leavin
 
     @classmethod
     def infer_legacy_port_roles(cls, meta: NodeMeta, candidates: Sequence[InputPortDef]) -> PortRoleInferenceResult:
+        from nodes.defs.binding_def import EdgeBindingDef
+
+        if cls is not AdditiveNode and (
+            cls.legacy_input_port_roles_by_tag
+            or cls.legacy_input_port_roles_by_quantity
+            or cls.legacy_untagged_dataset_input_role is not None
+            or cls.legacy_untagged_input_role is not None
+        ):
+            return super().infer_legacy_port_roles(meta, candidates)
+
         result = PortRoleInferenceResult()
+        selected_metric = next(
+            (str(param.value) for param in meta.spec.params if param.local_id == 'metric' and param.value is not None),
+            None,
+        )
         try:
             output_unit = meta.require_output_port('output').unit
         except MissingPortRoleError:
             output_unit = None
         for port in candidates:
-            tags = {tag for binding in meta.bindings_for_port(port.id) for tag in binding.tags}
+            bindings = meta.bindings_for_port(port.id)
+            tags = {tag for binding in bindings for tag in binding.tags}
             if 'impute' in tags:
                 result.classify(port, 'impute', "binding tag 'impute'")
             elif 'non_additive' in tags:
                 result.refuse(port, "tag 'non_additive' excludes it from addition")
-            elif port.unit is None or output_unit is None:
-                result.refuse(port, 'cannot classify without both port and output units')
-            elif port.unit.is_compatible_with(output_unit):
-                result.classify(port, 'additive', f'unit {port.unit} being compatible with output {output_unit}')
+            elif selected_metric is not None and any(isinstance(binding, EdgeBindingDef) for binding in bindings):
+                edge_metrics = {binding.source_port.column_id for binding in bindings if isinstance(binding, EdgeBindingDef)}
+                if edge_metrics == {selected_metric}:
+                    result.classify(port, 'additive', f'the legacy metric parameter selects {selected_metric!r}')
+                elif selected_metric in edge_metrics:
+                    result.refuse(port, f'port combines selected metric {selected_metric!r} with other edge metrics')
+                else:
+                    result.refuse(port, f'the legacy metric parameter selects {selected_metric!r}, not this edge metric')
             else:
-                result.refuse(port, f'unit {port.unit} is incompatible with output {output_unit} on an additive node')
+                basis = (
+                    f'unit {port.unit} being compatible with output {output_unit}'
+                    if port.unit is not None and output_unit is not None and port.unit.is_compatible_with(output_unit)
+                    else 'the legacy additive default for an untagged input'
+                )
+                result.classify(port, 'additive', basis)
         return result
 
     allowed_parameters = [
@@ -415,37 +443,73 @@ afterwards instead, replacing it wherever the tagged node has a value and leavin
         """
         return empty_output_frame(self)
 
-    def compute(self) -> ppl.PathsDataFrame:  # noqa: C901, PLR0912
-        idf = self.get_input_dataset_pl(required=False)
+    def _resolve_additive_operands(
+        self, metric: str | None
+    ) -> tuple[list[Operand], list[tuple[RuntimeInputBinding, ppl.PathsDataFrame]], int]:
+        tolerant = self.context.tolerate_node_failures
+        operands: list[Operand] = []
+        dataset_values: list[tuple[RuntimeInputBinding, ppl.PathsDataFrame]] = []
+        skipped = 0
+        for binding in self.iter_input_bindings(self.additive_port):
+            try:
+                value = self.resolve_input_binding(binding)
+            except NodeError:
+                if not tolerant or binding.source_kind != 'node':
+                    raise
+                skipped += 1
+                continue
+            if (
+                binding.source_kind == 'node'
+                and tolerant
+                and isinstance(binding.source, Node)
+                and binding.source.status is NodeStatus.INCOMPLETE
+            ):
+                skipped += 1
+                continue
+            if binding.source_kind == 'dataset':
+                dataset_values.append((binding, value))
+                value = self._process_input_dataset_df(value, metric)
+            operands.append(
+                Operand(df=value, role='additive', source_id=binding.source_id or str(binding.id), kind=binding.source_kind)
+            )
+        return operands, dataset_values, skipped
+
+    def _fill_gaps_from_input(self, df: ppl.PathsDataFrame, data_df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        meta = df.get_meta()
+        df = df.paths.join_over_index(data_df, how='outer')
+        for metric_col in meta.metric_cols:
+            right = f'{metric_col}_right'
+            df = df.ensure_unit(right, meta.units[metric_col])
+            df = df.with_columns(pl.col(metric_col).fill_null(pl.col(right))).drop(right)
+        return df
+
+    def compute(self) -> ppl.PathsDataFrame:  # noqa: C901
         metric = self.get_parameter_value_str('metric', required=False)
         assert self.unit is not None
-        if idf is not None:
-            idf = self._process_input_dataset_df(idf, metric)
-
-        na_nodes = self.get_input_nodes(tag='non_additive')
-        impute_nodes = self.get_input_nodes(tag='impute')
-        input_nodes = [node for node in self.input_nodes if node not in na_nodes and node not in impute_nodes]
-
-        if self.get_parameter_value('use_input_node_unit_when_adding', required=False) and self.input_nodes:
-            unit = self.input_nodes[0].unit
-        else:
-            unit = self.unit
-
         tolerant = self.context.tolerate_node_failures
-        skipped = 0
-        if self.get_parameter_value('fill_gaps_using_input_dataset', required=False):
-            if tolerant:
-                df, skipped = self.add_nodes_tolerant(None, input_nodes, metric, unit=unit)
-            else:
-                df = self.add_nodes_pl(None, input_nodes, metric, unit=unit)
-            if df is not None:
-                df = self.fill_gaps_using_input_dataset_pl(df)
-        elif tolerant:
-            df, skipped = self.add_nodes_tolerant(idf, input_nodes, metric, unit=unit)
-        else:
-            df = self.add_nodes_pl(idf, input_nodes, metric, unit=unit)
+        bindings = list(self.iter_input_bindings(self.additive_port))
+        additive, dataset_values, skipped = self._resolve_additive_operands(metric)
+
+        unit = self.unit
+        if self.get_parameter_value('use_input_node_unit_when_adding', required=False):
+            first_node = next((binding.source for binding in bindings if isinstance(binding.source, Node)), None)
+            if first_node is not None:
+                unit = first_node.unit or unit
+
+        fill_gaps = self.get_parameter_value('fill_gaps_using_input_dataset', required=False)
+        if fill_gaps:
+            if len(dataset_values) > 1:
+                raise NodeError(self, 'Expected only 1 input dataset for filling gaps')
+            additive = [operand for operand in additive if operand.kind == 'node']
+
+        df = sum_operands(self, additive, unit) if additive else None
+        if fill_gaps and df is not None and dataset_values:
+            _, data_df = dataset_values[0]
+            df = self._fill_gaps_from_input(df, data_df)
 
         if df is None:
+            if not tolerant:
+                raise NodeError(self, 'No inputs are bound to the additive port')
             # No input dataset and every input node unavailable: the node isn't wired up yet.
             self.mark_status(NodeStatus.INCOMPLETE)
             return self._empty_output()
@@ -459,8 +523,19 @@ afterwards instead, replacing it wherever the tagged node has a value and leavin
         df = self.scale_by_reference_year(df)
         df = self.get_shares(df)
 
-        if impute_nodes:
-            df = self.impute_nodes_pl(df, impute_nodes)
+        impute = [
+            Operand(
+                df=value,
+                role='impute',
+                source_id=binding.source_id or str(binding.id),
+                kind=binding.source_kind,
+            )
+            for binding, value in (
+                (binding, self.resolve_input_binding(binding)) for binding in self.iter_input_bindings(self.impute_port)
+            )
+        ]
+        if impute:
+            df = impute_operands(self, df, impute)
 
         return df
 
@@ -505,10 +580,12 @@ afterwards instead, replacing it wherever the tagged input has a value.""")
     interpolates_input_datasets_by_default: ClassVar[bool] = True
     export_additive_input_ports_as_multi: ClassVar[bool] = False
     additive_multi_input_excluded_tags: ClassVar[frozenset[str]] = frozenset({'non_additive'})
-    additive_port = InputPortDeclaration(role='additive', multi=True, label=_('Additive inputs'))
-    impute_port = InputPortDeclaration(role='impute', multi=True, min_count=0, default_count=0, label=_('Imputed values'))
+    additive_port = InputPortDeclaration(role='additive', multi=True, aggregation='sum', label=_('Additive inputs'))
+    impute_port = InputPortDeclaration(
+        role='impute', multi=True, required=False, min_count=0, default_count=0, label=_('Imputed values')
+    )
     output_port = OutputPortDeclaration(role='output', identifier='default', label=_('Output'))
-    input_port_declarations = (additive_port, impute_port)
+    input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = (additive_port, impute_port)
     output_port_declarations = (output_port,)
 
     @classmethod
@@ -532,12 +609,13 @@ afterwards instead, replacing it wherever the tagged input has a value.""")
                 result.classify(port, 'impute', "binding tag 'impute'")
             elif 'non_additive' in tags:
                 result.refuse(port, "tag 'non_additive' has no meaning on an additive node")
-            elif port.unit is None or output_unit is None:
-                result.refuse(port, 'cannot classify without both port and output units')
-            elif port.unit.is_compatible_with(output_unit):
-                result.classify(port, 'additive', f'unit {port.unit} being compatible with output {output_unit}')
             else:
-                result.refuse(port, f'unit {port.unit} is incompatible with output {output_unit} on an additive node')
+                basis = (
+                    f'unit {port.unit} being compatible with output {output_unit}'
+                    if port.unit is not None and output_unit is not None and port.unit.is_compatible_with(output_unit)
+                    else 'the legacy additive default for an untagged input'
+                )
+                result.classify(port, 'additive', basis)
         return result
 
     @classmethod
@@ -685,9 +763,11 @@ so that a combination missing from the data altogether is reported as missing ra
         super().__init__(*args, **kwargs)
         # The node reports what the source data covers, so gap-filling must not run before
         # the check. The dataset instances belong to this node alone, so this affects nobody
-        # else (and the dataset cache key follows `interpolate`, so it stays separate too).
+        # else (and the dataset cache key follows the pipeline, so it stays separate too).
         for ds in self.input_dataset_instances:
-            ds.interpolate = False
+            from nodes.defs.transform_def import without_transformations
+
+            ds.transformations = without_transformations(ds.transformations, 'interpolate', 'backfill', 'extend')
 
     def compute(self) -> ppl.PathsDataFrame:
         from nodes.datasets import FixedDataset
@@ -900,11 +980,18 @@ class SubtractiveNode(Node):  # FIXME Remove, when you clean Longmont.
             is_customizable=False,
         ),
     ]
+    input_port = InputPortDeclaration(role='input', repeatable=True, label=_('Inputs'))
+    input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = (input_port,)
+    legacy_untagged_input_role = 'input'
 
     def compute(self) -> ppl.PathsDataFrame:
-        nodes = list(self.input_nodes)
-        mults = [1.0 if i == 0 else -1.0 for i, _ in enumerate(nodes)]
-        df = self.add_nodes_pl(None, nodes, node_multipliers=mults)
+        values = [self.require_input_port(port) for port in self.iter_input_ports(self.input_port)]
+        if not values:
+            raise NodeError(self, 'SubtractiveNode needs at least one input')
+        df = values[0]
+        for value in values[1:]:
+            negative = value.with_columns([(-pl.col(col)).alias(col) for col in value.metric_cols])
+            df = df.paths.add_with_dims(negative, how='outer')
         only_historical = self.get_parameter_value('only_historical', required=False)
         if only_historical:
             df = df.filter(~pl.col(FORECAST_COLUMN))
@@ -976,10 +1063,20 @@ class MultiplicativeNode(SimpleNode, PipelineCompatibleNode):
     ]
     operation_label = 'multiplication'
     factors_port = InputPortDeclaration(role='factors', repeatable=True, min_count=1, default_count=2, label=_('Factor'))
-    additive_port = InputPortDeclaration(role='additive', multi=True, min_count=0, default_count=1, label=_('Additive inputs'))
-    impute_port = InputPortDeclaration(role='impute', multi=True, min_count=0, default_count=0, label=_('Imputed values'))
+    additive_port = InputPortDeclaration(
+        role='additive',
+        multi=True,
+        required=False,
+        aggregation='sum',
+        min_count=0,
+        default_count=1,
+        label=_('Additive inputs'),
+    )
+    impute_port = InputPortDeclaration(
+        role='impute', multi=True, required=False, min_count=0, default_count=0, label=_('Imputed values')
+    )
     output_port = OutputPortDeclaration(role='output', identifier='default', label=_('Output'))
-    input_port_declarations = (factors_port, additive_port, impute_port)
+    input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = (factors_port, additive_port, impute_port)
     output_port_declarations = (output_port,)
 
     @classmethod
@@ -1124,7 +1221,7 @@ class MultiplicativeNode(SimpleNode, PipelineCompatibleNode):
                 col = m.column_id
             else:
                 assert len(ndf.metric_cols) == 1
-                col = df.metric_cols[0]
+                col = ndf.metric_cols[0]
 
             ndf_new = ndf.rename({col: '_Right'})
             df = df.paths.join_over_index(ndf_new, how='left', index_from='union')
@@ -1136,38 +1233,23 @@ class MultiplicativeNode(SimpleNode, PipelineCompatibleNode):
         df = df.ensure_unit(VALUE_COLUMN, self.unit)
         return df
 
-    def _compute(self, input_df: ppl.PathsDataFrame | None = None) -> ppl.PathsDataFrame:  # noqa: C901, PLR0912, PLR0915
-        additive_nodes: list[Node] = []
-        operation_nodes: list[Node] = []
+    def _compute(self, input_df: ppl.PathsDataFrame | None = None) -> ppl.PathsDataFrame:  # noqa: C901, PLR0912
         assert self.unit is not None
-        non_additive_nodes = self.get_input_nodes(tag='non_additive')
-        impute_nodes = self.get_input_nodes(tag='impute')
-        for node in self.input_nodes:
-            if node in impute_nodes:
-                continue
-            if node.unit is None:
-                raise NodeError(self, 'Input node %s does not have a unit' % str(node))
-            if node in non_additive_nodes:
-                operation_nodes.append(node)
-            elif self.is_compatible_unit(node.unit, self.unit):
-                additive_nodes.append(node)
-            else:
-                operation_nodes.append(node)
+        factor_bindings = list(self.iter_input_bindings(self.factors_port))
+        operation_nodes = [binding.source if isinstance(binding.source, Node) else None for binding in factor_bindings]
+        outputs = [self.resolve_input_binding(binding) for binding in factor_bindings]
 
         if len(operation_nodes) < 2 and input_df is None:
             raise NodeError(
                 self,
                 'Must receive at least two inputs to operate %s on. Now received %s.'
-                % (self.operation_label, [node.id for node in operation_nodes]),
+                % (self.operation_label, [binding.source_id for binding in factor_bindings]),
             )
 
-        outputs: list[ppl.PathsDataFrame] = []
-        for idx, n in enumerate(operation_nodes):
-            ndf = n.get_output_pl(target_node=self)
+        for idx, (binding, ndf) in enumerate(zip(factor_bindings, outputs, strict=True)):
             if self.debug:
-                print('%s: %s input from node %d (%s):' % (self.operation_label, self.id, idx, str(n)))
+                print('%s: %s input %d (%s):' % (self.operation_label, self.id, idx, binding.source_id))
                 print(ndf)
-            outputs.append(ndf)
 
         if outputs:
             df = self.perform_operation(operation_nodes, outputs)
@@ -1187,7 +1269,12 @@ class MultiplicativeNode(SimpleNode, PipelineCompatibleNode):
         if self.get_parameter_value('extend_rows', required=False):
             df = extend_last_historical_value_pl(df, self.get_end_year())
 
-        df = self.add_nodes_pl(df, additive_nodes)
+        additive = self.get_input(self.additive_port)
+        if additive is not None:
+            additive = additive.ensure_unit(VALUE_COLUMN, self.unit)
+            if set(additive.dim_ids) != set(df.dim_ids):
+                raise NodeError(self, 'Dimensions do not match for additive input')
+            df = df.paths.add_with_dims(additive, how='outer')
         fill_gaps = self.get_parameter_value('fill_gaps_using_input_dataset', required=False)
         if fill_gaps:
             df = self.fill_gaps_using_input_dataset_pl(df)
@@ -1195,8 +1282,19 @@ class MultiplicativeNode(SimpleNode, PipelineCompatibleNode):
         if replace_output:
             df = self.replace_output_using_input_dataset_pl(df)
         df = self.replace_nans(df)
-        if impute_nodes:
-            df = self.impute_nodes_pl(df, impute_nodes)
+        impute = [
+            Operand(
+                df=value,
+                role='impute',
+                source_id=binding.source_id or str(binding.id),
+                kind=binding.source_kind,
+            )
+            for binding, value in (
+                (binding, self.resolve_input_binding(binding)) for binding in self.iter_input_bindings(self.impute_port)
+            )
+        ]
+        if impute:
+            df = impute_operands(self, df, impute)
         if self.debug:
             print('%s: Output:' % str(self))
             self.print(df)
@@ -1245,10 +1343,20 @@ afterwards, replacing it wherever the tagged input has a value.""")
     interpolates_input_datasets_by_default: ClassVar[bool] = True
     operation_label = 'multiplication'
     factors_port = InputPortDeclaration(role='factors', repeatable=True, min_count=1, default_count=2, label=_('Factor'))
-    additive_port = InputPortDeclaration(role='additive', multi=True, min_count=0, default_count=1, label=_('Additive inputs'))
-    impute_port = InputPortDeclaration(role='impute', multi=True, min_count=0, default_count=0, label=_('Imputed values'))
+    additive_port = InputPortDeclaration(
+        role='additive',
+        multi=True,
+        required=False,
+        aggregation='sum',
+        min_count=0,
+        default_count=1,
+        label=_('Additive inputs'),
+    )
+    impute_port = InputPortDeclaration(
+        role='impute', multi=True, required=False, min_count=0, default_count=0, label=_('Imputed values')
+    )
     output_port = OutputPortDeclaration(role='output', identifier='default', label=_('Output'))
-    input_port_declarations = (factors_port, additive_port, impute_port)
+    input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = (factors_port, additive_port, impute_port)
     output_port_declarations = (output_port,)
 
     @classmethod
@@ -1442,14 +1550,12 @@ class FixedMultiplierNode(SimpleNode):  # FIXME Convert to a generic parameter i
         NumberParameter(local_id='multiplier'),
         StringParameter(local_id='global_multiplier'),
     ]
+    input_port = InputPortDeclaration(role='input', label=_('Input'))
+    input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = (input_port,)
+    legacy_untagged_input_role = 'input'
 
     def compute(self) -> ppl.PathsDataFrame:
-        if len(self.input_nodes) != 1:
-            raise NodeError(self, 'FixedMultiplier needs exactly one input node')
-
-        node = self.input_nodes[0]
-
-        df = node.get_output_pl(target_node=self)
+        df = self.require_input(self.input_port)
         multiplier_param = self.get_parameter('multiplier')  # FIXME Use get_parameter_value() instead.
         multiplier = multiplier_param.get()
         if multiplier_param.has_unit():
@@ -1474,6 +1580,11 @@ class FixedMultiplierNode(SimpleNode):  # FIXME Convert to a generic parameter i
 
 
 class MixNode(AdditiveNode):
+    activity_port = InputPortDeclaration(role='activity', required=True)
+    additive_port = InputPort.multi('additive', required=False, aggregation='sum', label=_('Additive inputs'))
+    input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = (activity_port, additive_port)
+    legacy_input_port_roles_by_tag = {'activity': 'activity'}
+    legacy_untagged_input_role = 'additive'
     output_metrics = {
         MIX_QUANTITY: NodeMetric(unit='%', quantity=MIX_QUANTITY),
     }
@@ -1485,6 +1596,10 @@ class MixNode(AdditiveNode):
 
     def add_mix_normalized(self, df: ppl.PathsDataFrame, nodes: list[Node], over_dims: list[str] | None = None):
         df = self.add_nodes_pl(df=df, nodes=nodes)
+        return self.normalize_mix(df, over_dims=over_dims)
+
+    def normalize_mix(self, df: ppl.PathsDataFrame, over_dims: list[str] | None = None) -> ppl.PathsDataFrame:
+        """Normalize an already combined mix frame and extend it through the model horizon."""
         if len(df.metric_cols) != 1:
             raise NodeError(self, 'Must have exactly one metric column')
 
@@ -1512,16 +1627,15 @@ class MixNode(AdditiveNode):
         return df
 
     def compute(self) -> ppl.PathsDataFrame:
-        anode = self.get_input_node(tag='activity')
-        adf = anode.get_output_pl(target_node=self)
-        am = anode.get_default_output_metric()
-        adf = adf.paths.calculate_shares(am.column_id, '_Share')
+        adf = self.require_input(self.activity_port)
+        adf = adf.paths.calculate_shares(adf.metric_cols[0], '_Share')
         m = self.get_default_output_metric()
         df = adf.select_metrics(['_Share']).ensure_unit('_Share', m.unit).rename({'_Share': m.column_id})
         df = extend_last_historical_value_pl(df, self.get_end_year())
-        nodes = list(self.input_nodes)
-        nodes.remove(anode)
-        return self.add_mix_normalized(df, nodes)
+        additive = self.get_input(self.additive_port)
+        if additive is not None:
+            df = df.paths.add_with_dims(additive, how='outer')
+        return self.normalize_mix(df)
 
 
 class ImprovementNode(MultiplicativeNode):  # FIXME Remove, when you clean Longmont.
@@ -1529,10 +1643,19 @@ class ImprovementNode(MultiplicativeNode):  # FIXME Remove, when you clean Longm
     Can only be used for dimensionless content (i.e., fractions and percentages)
     """)
 
+    @classmethod
+    def infer_legacy_port_roles(cls, meta: NodeMeta, candidates: Sequence[InputPortDef]) -> PortRoleInferenceResult:
+        result = PortRoleInferenceResult()
+        for port in candidates:
+            tags = {tag for binding in meta.bindings_for_port(port.id) for tag in binding.tags}
+            role = 'impute' if 'impute' in tags else 'factors'
+            result.classify(port, role, "binding tag 'impute'" if role == 'impute' else 'an ImprovementNode input')
+        return result
+
     def compute(self) -> ppl.PathsDataFrame:
-        if len(self.input_nodes) == 1:
-            node = self.input_nodes[0]
-            df = node.get_output_pl(target_node=self)
+        values = list(self.iter_inputs(self.factors_port))
+        if len(values) == 1:
+            df = values[0]
         else:
             df = super().compute()
         if not isinstance(df, ppl.PathsDataFrame):
@@ -1548,10 +1671,19 @@ class ImprovementNode2(MultiplicativeNode):  # FIXME Remove, when you clean Long
     Can only be used for dimensionless content (i.e., fractions and percentages)
     """)
 
+    @classmethod
+    def infer_legacy_port_roles(cls, meta: NodeMeta, candidates: Sequence[InputPortDef]) -> PortRoleInferenceResult:
+        result = PortRoleInferenceResult()
+        for port in candidates:
+            tags = {tag for binding in meta.bindings_for_port(port.id) for tag in binding.tags}
+            role = 'impute' if 'impute' in tags else 'factors'
+            result.classify(port, role, "binding tag 'impute'" if role == 'impute' else 'an ImprovementNode input')
+        return result
+
     def compute(self) -> ppl.PathsDataFrame:
-        if len(self.input_nodes) == 1:
-            node = self.input_nodes[0]
-            df = node.get_output_pl(target_node=self)
+        values = list(self.iter_inputs(self.factors_port))
+        if len(values) == 1:
+            df = values[0]
         else:
             df = super().compute()
         if not isinstance(df, ppl.PathsDataFrame):
@@ -1563,6 +1695,14 @@ class ImprovementNode2(MultiplicativeNode):  # FIXME Remove, when you clean Long
 
 
 class RelativeNode(AdditiveNode):  # FIXME Remove. Only Espoo and budget use this.
+    non_additive_port = InputPortDeclaration(role='non_additive', required=False)
+    input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = (
+        AdditiveNode.additive_port,
+        AdditiveNode.impute_port,
+        non_additive_port,
+    )
+    legacy_input_port_roles_by_tag = {'impute': 'impute', 'non_additive': 'non_additive'}
+    legacy_untagged_input_role = 'additive'
     explanation = _("""
     First like AdditiveNode, then multiply with a node with "non_additive".
     The relative node is assumed to be the relative difference R = V / N - 1,
@@ -1573,10 +1713,9 @@ class RelativeNode(AdditiveNode):  # FIXME Remove. Only Espoo and budget use thi
     """)
 
     def compute(self) -> ppl.PathsDataFrame:
-        n = self.get_input_node(tag='non_additive', required=False)
+        dfn = self.get_input(self.non_additive_port)
         df = super().compute()
-        if n is not None:
-            dfn = n.get_output_pl(target_node=self)
+        if dfn is not None:
             if dfn.get_unit(VALUE_COLUMN).dimensionless:
                 dfn = dfn.ensure_unit(VALUE_COLUMN, 'dimensionless')
             df = df.paths.join_over_index(dfn, how='outer', index_from='union')
@@ -1605,7 +1744,9 @@ class FillNewCategoryNode(AdditiveNode):
         category = self.get_parameter_value_str('new_category', required=True)
         dim, cat = category.split(':')
 
-        df: ppl.PathsDataFrame = self.add_nodes_pl(None, self.input_nodes)
+        df = self.get_input(self.additive_port)
+        if df is None:
+            raise NodeError(self, 'FillNewCategoryNode needs at least one input')
         df = df.ensure_unit(VALUE_COLUMN, 'dimensionless')
 
         df2 = df.paths.sum_over_dims(dim)
@@ -1639,7 +1780,9 @@ class FillNewCategoryNode2(AdditiveNode):  # FIXME Merge into FillNewCategoryNod
     ]
 
     def compute(self) -> ppl.PathsDataFrame:
-        df: ppl.PathsDataFrame = self.add_nodes_pl(None, self.input_nodes)
+        df = self.get_input(self.additive_port)
+        if df is None:
+            raise NodeError(self, 'FillNewCategoryNode2 needs at least one input')
 
         df = self.fill_new_category(df)
         return df
@@ -1777,6 +1920,10 @@ class AnnuityNode(AdditiveNode):
 
 
 class DiscountNode(AdditiveNode):
+    discount_rate_port = InputPortDeclaration(role='discount_rate')
+    currency_port = InputPortDeclaration(role='currency')
+    input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = (discount_rate_port, currency_port)
+    legacy_input_port_roles_by_tag = {'discount_rate': 'discount_rate', 'currency': 'currency'}
     allowed_parameters = [
         *AdditiveNode.allowed_parameters,
         NumberParameter(local_id='start_year', label=_('The first year in which the discount rate is applied.')),
@@ -1785,8 +1932,7 @@ class DiscountNode(AdditiveNode):
     def compute(self) -> ppl.PathsDataFrame:
         minyear = self.get_parameter_value_int('start_year', required=True) - 1
 
-        ratenode = self.get_input_node(tag='discount_rate')
-        ratedf = ratenode.get_output_pl(target_node=self)
+        ratedf = self.require_input(self.discount_rate_port)
         ratedf = (
             ratedf
             .drop(FORECAST_COLUMN)
@@ -1794,8 +1940,7 @@ class DiscountNode(AdditiveNode):
             .with_columns((pl.col('discount_rate') + pl.lit(100.0)) / pl.lit(100.0))
         )
 
-        currencynode = self.get_input_node(tag='currency')
-        df = currencynode.get_output_pl(target_node=self)
+        df = self.require_input(self.currency_port)
         df = (
             df.paths
             .join_over_index(ratedf)

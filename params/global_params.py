@@ -336,6 +336,49 @@ class AGSNumber(StringGlobalParameter):
     id = 'ags_number'
 
 
+class NUTSCode(StringGlobalParameter):
+    """
+    The NUTS region an instance sits in, as an identifier of the city beside its AGS.
+
+    No node reads it. It is declared so that offline data builders have one canonical
+    place to look for a city's region instead of a lookup table of their own -- today
+    `data/weather/create_degree_day_factors.py`, which picks the city's column out of
+    the European degree-day table with it.
+
+    NUTS-3 rather than NUTS-2 wherever the finer region is the city: for a German
+    Kreisfreie Stadt it is, and a NUTS-2 region can be many times the city's size.
+
+    Not a stand-in for the municipality. Degree days are intensive -- much the same
+    across a Kreis as in the town inside it -- so a region serves for them. Anything
+    extensive, a population above all, is a sum over an area and cannot be taken from
+    a region that is larger than the city: `LAUCode` is the parameter for that, and
+    `data/population/README.md` sets out the difference.
+    """
+
+    name = _('NUTS code')
+    id = 'nuts_code'
+
+
+class LAUCode(StringGlobalParameter):
+    """
+    The municipality an instance is, as a Eurostat GISCO LAU code.
+
+    `<country>_<national LAU code>` -- `DE_07315000` for Mainz, `FI_405` for
+    Lappeenranta. Read by the `population` node, which filters the European municipal
+    population table `demography/population_lau` down to this one municipality.
+
+    For Germany the national LAU code is the AGS, so this is `DE_` plus `ags_number`
+    and names the same municipality. Declared separately rather than derived, because
+    the model filters one column with one parameter and the table is Europe-wide: a
+    bare `07315000` is not unique across countries, and a Finnish or Swiss instance has
+    no AGS at all. `data/population/fetch_gisco_lau_population.py --check-configs`
+    cross-checks the two instead.
+    """
+
+    name = _('LAU code')
+    id = 'lau_code'
+
+
 class Flatline(BoolGlobalParameter):
     name = _('Use flatline rather than forecast')
     id = 'flatline'

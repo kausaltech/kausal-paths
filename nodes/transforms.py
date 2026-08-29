@@ -32,13 +32,16 @@ from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from nodes.defs.transform_def import (
     AssignCategoryTransformation,
     AssignDimensionOp,
+    BackfillOp,
     DropNullsOp,
     EnsureUnitOp,
+    ExtendOp,
     FilterColumnOp,
     FilterDimensionOp,
     FilterTemporalOp,
     FlattenTransformation,
     IndexTemporalOp,
+    InterpolateOp,
     RemapLegacyYearsOp,
     RenameColumnOp,
     RenameItemOp,
@@ -150,6 +153,12 @@ def apply_operation(  # noqa: C901, PLR0911, PLR0912
             return df.drop_nulls()
         case EnsureUnitOp():
             return _ensure_unit(df, op)
+        case InterpolateOp():
+            return _linear_interpolate(df, env)
+        case BackfillOp():
+            return _backfill_leading_values(df)
+        case ExtendOp():
+            return _extend_to_end_year(df, env)
         case SelectCategoriesTransformation() | AssignCategoryTransformation() | FlattenTransformation():
             # The legacy edge vocabulary. Edges still apply their own
             # transformations on the producing node, so nothing should reach
@@ -176,6 +185,53 @@ def _guard_not_empty(
         logger.error('Nothing left after {} on {}; input was:\n{}', op.kind, env.source_id, before)
         env.fail(f'Nothing left after {op.kind}. See the original frame in the log.')
     return df
+
+
+def _linear_interpolate(df: ppl.PathsDataFrame, env: PipelineEnv) -> ppl.PathsDataFrame:
+    """Materialize missing interior years and linearly fill each metric series."""
+    if YEAR_COLUMN not in df.columns:
+        env.fail(f"'{YEAR_COLUMN}' does not exist. Available columns: {', '.join(df.columns)}.")
+    if df.is_empty():
+        # Nothing to interpolate between, and no year to span. This is a real input, not a
+        # broken one: a binding that selects a metric column drops its nulls, so a city
+        # template whose cells are all still blank arrives here with no rows at all. The
+        # asserts below read `None` from the empty year series and fail with a bare
+        # AssertionError several frames away from the cause.
+        return df
+    years = df[YEAR_COLUMN].unique().sort()
+    min_year = years.min()
+    max_year = years.max()
+    if not isinstance(min_year, int) or not isinstance(max_year, int):
+        env.fail('Cannot interpolate a dataset without a non-empty integer year range')
+    df = df.paths.to_wide()
+    years_df = pl.DataFrame(data=range(min_year, max_year + 1), schema=[YEAR_COLUMN])
+    meta = df.get_meta()
+    zdf = years_df.join(df, on=YEAR_COLUMN, how='left').sort(YEAR_COLUMN)
+    df = ppl.to_ppdf(zdf, meta=meta)
+    cols = [pl.col(col).interpolate() for col in df.metric_cols]
+    if FORECAST_COLUMN in df.columns:
+        cols.append(pl.col(FORECAST_COLUMN).fill_null(strategy='forward'))
+    return df.with_columns(cols).paths.to_narrow()
+
+
+def _backfill_leading_values(df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+    """Fill existing leading null rows independently for each category combination."""
+    dims = df.dim_ids
+    df = df.sort(YEAR_COLUMN)
+    exprs = []
+    for col in df.metric_cols:
+        expr = pl.col(col).fill_null(strategy='backward')
+        exprs.append(expr.over(dims) if dims else expr)
+    return df.with_columns(exprs)
+
+
+def _extend_to_end_year(df: ppl.PathsDataFrame, env: PipelineEnv) -> ppl.PathsDataFrame:
+    """Carry the last historical value to the model end year."""
+    from nodes.calc import extend_last_historical_value_pl
+
+    if FORECAST_COLUMN not in df.columns:
+        df = df.with_columns(pl.lit(value=False).alias(FORECAST_COLUMN))
+    return extend_last_historical_value_pl(df, env.context.instance.model_end_year)
 
 
 # --- Legacy stage markers ---------------------------------------------------

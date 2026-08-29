@@ -96,10 +96,8 @@ dimensions:
 
   - id: rail
     label: Rail
-  - id: high_speed_trains
-    label: High-speed Trains
   - id: inter_city_trains
-    label: Inter-city Trains
+    label: InterCity Trains
   - id: light_rail
     label: Light Rail
   - id: local_trains
@@ -140,7 +138,7 @@ dimensions:
   - id: bio_oil
     label: Bio Oil
   - id: bio_natural_gas
-    label: Bio-natural Gas
+    label: Bio Natural Gas
   - id: biodegradable_waste
     label: Biodegradable Waste
   - id: biodiesel
@@ -166,7 +164,7 @@ dimensions:
   - id: natural_gas
     label: Natural Gas
   - id: non_biodegradable_waste
-    label: Non-biodegradable Waste
+    label: Non-Biodegradable Waste
   - id: other_renewable_energy
     label: Other Renewable Energy
   - id: other_wood
@@ -275,40 +273,18 @@ dimensions:
     label: 'Cultivation: Conventional Farming'
   - id: v112
     label: 'Cultivation: Organic Farming'
-  - id: v12
-    label: Organic Soils
-  - id: v121
-    label: 'Organic Soils: Cultivation'
-  - id: v1211
-    label: 'Organic Soils: Cultivation: 6-12 % SOC'
-  - id: v1212
-    label: 'Organic Soils: Cultivation: > 12 % SOC'
-  - id: v122
-    label: 'Organic Soils: Permanent Grass'
-  - id: v1221
-    label: 'Organic Soils: Permanent Grass: 6-12 % SOC'
-  - id: v1222
-    label: 'Organic Soils: Permanent Grass: > 12 % SOC'
-  - id: v123
-    label: 'Organic Soils: Nature'
-  - id: v1231
-    label: 'Organic Soils: Nature: 6-12 % SOC'
-  - id: v1232
-    label: 'Organic Soils: Nature: > 12 % SOC'
   - id: v13
     label: Forestry
   - id: v131
     label: 'Forestry: Permanent Forest'
   - id: v132
     label: 'Forestry: Afforestation'
-  - id: v133
-    label: 'Forestry: New Forest'
   - id: v2
     label: Livestock
   - id: v21
     label: Cattle
   - id: v22
-    label: Swine
+    label: Pigs
   - id: v23
     label: Poultry
   - id: v24
@@ -377,7 +353,7 @@ nodes:
   name_en: Energy Emission Factors
   type: simple.AdditiveNode
   quantity: emission_factor
-  unit: t/TJ
+  unit: kg/kWh
   input_dimensions: [energy_carrier, ghg]
   output_dimensions: [energy_carrier, ghg]
   input_datasets:
@@ -417,7 +393,7 @@ nodes:
   name_en: CHP District Heat Energy Consumption (Excluding Electricity)
   type: simple.AdditiveNode
   quantity: energy
-  unit: TJ/a
+  unit: MWh/a
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_datasets:
@@ -438,7 +414,7 @@ nodes:
   name_en: CHP District Heat Electricity Consumption
   type: simple.AdditiveNode
   quantity: energy
-  unit: TJ/a
+  unit: MWh/a
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_datasets:
@@ -475,7 +451,7 @@ nodes:
   name_en: CHP Electricity Generation Energy Consumption
   type: simple.AdditiveNode
   quantity: energy
-  unit: TJ/a
+  unit: MWh/a
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_datasets:
@@ -510,7 +486,7 @@ nodes:
   name_en: CHP Electricity Generation Energy Factors
   type: simple.AdditiveNode
   quantity: energy_factor
-  unit: TJ/TJ
+  unit: MWh/MWh
   input_dimensions: [energy_carrier]
   output_dimensions: [energy_carrier]
   input_datasets:
@@ -527,7 +503,7 @@ nodes:
   name_en: CHP Electricity Generation Energy Production
   type: simple.MultiplicativeNode
   quantity: energy
-  unit: TJ/a
+  unit: MWh/a
   input_dimensions: [energy_carrier]
   output_dimensions: [energy_carrier]
   input_nodes:
@@ -560,7 +536,7 @@ nodes:
   name_en: Renewable Electricity Generation
   type: simple.AdditiveNode
   quantity: energy
-  unit: TJ/a
+  unit: MWh/a
   input_dimensions: [energy_carrier]
   output_dimensions: [energy_carrier]
   input_datasets:
@@ -576,7 +552,7 @@ nodes:
   name_en: Electricity Demand
   type: simple.AdditiveNode
   quantity: energy
-  unit: TJ/a
+  unit: MWh/a
   input_dimensions: [energy_usage, energy_carrier]
   output_dimensions: [energy_usage, energy_carrier]
   input_datasets:
@@ -591,7 +567,7 @@ nodes:
   name_en: Electricity Import
   type: simple.AdditiveNode
   quantity: energy
-  unit: TJ/a
+  unit: MWh/a
   input_dimensions: [energy_carrier]
   output_dimensions: [energy_carrier]
   input_nodes:
@@ -643,7 +619,7 @@ nodes:
   name_en: Manufacturing Energy Consumption
   type: simple.AdditiveNode
   quantity: energy
-  unit: TJ/a
+  unit: MWh/a
   input_dimensions: [energy_carrier]
   output_dimensions: [energy_carrier]
   input_datasets:
@@ -685,7 +661,7 @@ nodes:
   name_en: Other Energy Consumption
   type: simple.AdditiveNode
   quantity: energy
-  unit: TJ/a
+  unit: MWh/a
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_datasets:
@@ -871,7 +847,7 @@ nodes:
   name_en: Transportation Energy Emission Factors
   type: simple.MultiplicativeNode
   quantity: emission_factor
-  unit: t/TJ
+  unit: kg/kWh
   input_dimensions: [energy_carrier, ghg]
   output_dimensions: [energy_carrier, ghg]
   input_nodes:
@@ -914,7 +890,7 @@ nodes:
   name_en: Gasoline Hybrid Emission Factors
   type: simple.MultiplicativeNode
   quantity: emission_factor
-  unit: t/TJ
+  unit: kg/kWh
   input_dimensions: [vehicle_type, energy_carrier, ghg]
   output_dimensions: [vehicle_type, energy_carrier, ghg]
   input_nodes:
@@ -1011,7 +987,7 @@ nodes:
   name_en: On-Road Transport Bus Energy Consumption
   type: simple.MultiplicativeNode
   quantity: energy
-  unit: TJ/a
+  unit: MWh/a
   input_dimensions: [energy_carrier, owner, vehicle_type]
   output_dimensions: [energy_carrier, owner, vehicle_type]
   input_nodes:
@@ -1144,7 +1120,7 @@ nodes:
   name_en: On-Road Transport Vehicle Energy Consumption
   type: simple.MultiplicativeNode
   quantity: energy
-  unit: TJ/a
+  unit: MWh/a
   input_dimensions: [vehicle_type, energy_carrier]
   output_dimensions: [vehicle_type, energy_carrier]
   input_nodes:
@@ -1413,7 +1389,7 @@ nodes:
   name_en: Rail Transport Energy Factors
   type: simple.AdditiveNode
   quantity: energy_factor
-  unit: MJ/km
+  unit: kWh/km
   input_dimensions: [vehicle_type, energy_carrier]
   output_dimensions: [vehicle_type, energy_carrier]
   input_datasets:
@@ -1429,7 +1405,7 @@ nodes:
   name_en: Rail Transport Energy Consumption
   type: simple.MultiplicativeNode
   quantity: energy
-  unit: TJ/a
+  unit: MWh/a
   input_dimensions: [vehicle_type, energy_carrier]
   output_dimensions: [vehicle_type, energy_carrier]
   input_nodes:
@@ -1458,8 +1434,8 @@ nodes:
     - id: vehicle_type
 
 - id: rail_transport_inter_city_train_emissions
-  name_en: Rail Transport Inter-city Train Emissions
-  short_name: Inter-city Train Emissions
+  name_en: Rail Transport InterCity Train Emissions
+  short_name: InterCity Train Emissions
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t/a
@@ -1474,27 +1450,6 @@ nodes:
     from_dimensions:
     - id: vehicle_type
       categories: [inter_city_trains]
-    to_dimensions:
-    - id: energy_carrier
-    - id: vehicle_type
-
-- id: rail_transport_high_speed_train_emissions
-  name_en: Rail Transport High-speed Train Emissions
-  short_name: High-speed Train Emissions
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: [energy_carrier, vehicle_type, ghg]
-  output_dimensions: [energy_carrier, vehicle_type, ghg]
-  input_nodes:
-  - id: transportation_energy_emission_factors
-    to_dimensions:
-    - id: energy_carrier
-    - id: ghg
-  - id: rail_transport_energy_consumption
-    from_dimensions:
-    - id: vehicle_type
-      categories: [high_speed_trains]
     to_dimensions:
     - id: energy_carrier
     - id: vehicle_type
@@ -1558,7 +1513,6 @@ nodes:
   input_nodes:
   - id: rail_transport_regional_train_emissions
   - id: rail_transport_inter_city_train_emissions
-  - id: rail_transport_high_speed_train_emissions
   - id: rail_transport_local_train_emissions
   - id: rail_transport_light_rail_emissions
 
@@ -1568,7 +1522,7 @@ nodes:
   name_en: Waterborne Transport Energy Consumption
   type: simple.AdditiveNode
   quantity: energy
-  unit: TJ/a
+  unit: MWh/a
   input_dimensions: [energy_carrier, vehicle_type]
   output_dimensions: [energy_carrier, vehicle_type]
   input_datasets:
@@ -1617,7 +1571,7 @@ nodes:
   name_en: Aviation Energy Consumption
   type: simple.AdditiveNode
   quantity: energy
-  unit: TJ/a
+  unit: MWh/a
   input_dimensions: [energy_carrier, vehicle_type]
   output_dimensions: [energy_carrier, vehicle_type]
   input_datasets:
@@ -1751,7 +1705,7 @@ nodes:
     - column: ghg
 
 - id: cultivation_emissions
-  name_en: Cultivation Emissions
+  name_en: Cropland Emissions
   type: formula.FormulaNode
   quantity: emissions
   unit: t/a
@@ -1759,7 +1713,7 @@ nodes:
   output_dimensions: [sector, ghg]
   params:
     formula: (land_areas * land_emission_factors) + reference + 
-      biogenic_energy_park + climate_supervision_and_action_plans
+      climate_supervision_and_action_plans
   input_datasets:
   - id: land
     tags: [reference]
@@ -1778,93 +1732,8 @@ nodes:
     to_dimensions:
     - id: sector
 
-- id: organic_soils_cultivation_emissions
-  name_en: Organic Soils Cultivation Emissions
-  short_name: Cultivation Emissions
-  type: formula.FormulaNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: [sector, ghg]
-  output_dimensions: [sector, ghg]
-  params:
-    formula: (land_areas * land_emission_factors) + reference
-  input_datasets:
-  - id: land
-    tags: [reference]
-    column: emissions
-    dropna: true
-    forecast_from: 2026
-    filters:
-    - dimension: sector
-      categories: [v121]
-  input_nodes:
-  - id: land_emission_factors
-  - id: land_areas
-    from_dimensions:
-    - id: sector
-      categories: [v1211, v1212]
-    to_dimensions:
-    - id: sector
-
-- id: organic_soils_permanent_grass_emissions
-  name_en: Organic Soils Permanent Grass Emissions
-  short_name: Permanent Grass Emissions
-  type: formula.FormulaNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: [sector, ghg]
-  output_dimensions: [sector, ghg]
-  params:
-    formula: (land_areas * land_emission_factors) + reference
-  input_datasets:
-  - id: land
-    tags: [reference]
-    column: emissions
-    dropna: true
-    forecast_from: 2026
-    filters:
-    - dimension: sector
-      categories: [v122]
-  input_nodes:
-  - id: land_emission_factors
-  - id: land_areas
-    from_dimensions:
-    - id: sector
-      categories: [v1221, v1222]
-    to_dimensions:
-    - id: sector
-
-- id: organic_soils_nature_emissions
-  name_en: Organic Soils Nature Emissions
-  short_name: Nature Emissions
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: [sector, ghg]
-  output_dimensions: [sector, ghg]
-  input_nodes:
-  - id: land_emission_factors
-  - id: land_areas
-    from_dimensions:
-    - id: sector
-      categories: [v1231, v1232]
-    to_dimensions:
-    - id: sector
-
-- id: organic_soils_emissions
-  name_en: Organic Soils Emissions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t/a
-  input_dimensions: [sector, ghg]
-  output_dimensions: [sector, ghg]
-  input_nodes:
-  - id: organic_soils_cultivation_emissions
-  - id: organic_soils_permanent_grass_emissions
-  - id: organic_soils_nature_emissions
-
 - id: forestry_emissions
-  name_en: Forestry Emissions
+  name_en: Forest Sequestration
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t/a
@@ -1875,7 +1744,7 @@ nodes:
   - id: land_areas
     from_dimensions:
     - id: sector
-      categories: [v131, v132, v133]
+      categories: [v131, v132]
     to_dimensions:
     - id: sector
 
@@ -1888,7 +1757,6 @@ nodes:
   output_dimensions: [sector, ghg]
   input_nodes:
   - id: cultivation_emissions
-  - id: organic_soils_emissions
   - id: forestry_emissions
 
 # ---------- V.2 Livestock
@@ -2085,7 +1953,7 @@ actions:
     unit: EUR/a
     quantity: currency
   output_nodes:
-  - id: chp_district_heat_energy_consumption
+  - id: chp_district_heat_electricity_consumption
     metrics: [energy]
     from_dimensions:
     - id: energy_usage
@@ -2225,7 +2093,7 @@ actions:
       flatten: true
 
 - id: green_district_heating_of_the_future
-  name_en: Climaville's 'Next-Generation Green District Heating' Intiative
+  name_en: Next-Generation Green District Heating Programme
   group: energy
   type: simple.AdditiveAction
   input_dimensions: [energy_carrier, cost_type, sector]
@@ -2251,6 +2119,18 @@ actions:
   - id: chp_district_heat_energy_consumption
     metrics: [energy]
     from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+      exclude: true
+    - id: cost_type
+      flatten: true
+    - id: sector
+      categories: [i11]
+  - id: chp_district_heat_electricity_consumption
+    metrics: [energy]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
     - id: cost_type
       flatten: true
     - id: sector
@@ -2589,15 +2469,6 @@ actions:
     from_dimensions:
     - id: sector
       categories: [v21, v22, v23, v24]
-    - id: cost_type
-      flatten: true
-  - id: cultivation_emissions
-    metrics: [emissions]
-    from_dimensions:
-    - id: sector
-      categories: [v111]
-    - id: emission_source
-      flatten: true
     - id: cost_type
       flatten: true
   - id: land_areas

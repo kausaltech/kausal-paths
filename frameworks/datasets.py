@@ -194,8 +194,8 @@ class FrameworkMeasureDVCDataset(DVCDataset):
 
         return df
 
-    def post_process(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
-        df = super().post_process(df)
+    def before_temporal_fill(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        df = super().before_temporal_fill(df)
         if 'UUID' not in df.columns:
             raise Exception("Dataset must have a 'UUID' column")
         df = self._override_with_measure_datapoints(df)
@@ -246,7 +246,7 @@ class FrameworkMeasureDVCDataset2(DVCDataset):
             assert self.db_dataset_obj is not None
             df = DBDataset.deserialize_df(self.db_dataset_obj)
         df = self._filter_and_process_df(df)
-        df = self.post_process(df)
+        df = self.after_transformations(df)
         if self.cache_key:
             self.cache_set(df)
         return df
@@ -418,8 +418,8 @@ class FrameworkMeasureDVCDataset2(DVCDataset):
         self._cached_observation_years: list[int] = result
         return result
 
-    def post_process(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
-        df = super().post_process(df)
+    def before_temporal_fill(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        df = super().before_temporal_fill(df)
         if 'uuid' in df.columns:
             # df = df.rename({'uuid': 'UUID'})
             df = df.with_columns(pl.col('uuid').cast(pl.String).str.replace_all('_', '-'))
@@ -710,8 +710,8 @@ class ObservationDataset(DVCDataset):
             meta=meta,
         )
 
-    def post_process(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
-        df = super().post_process(df)
+    def before_temporal_fill(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        df = super().before_temporal_fill(df)
         if 'uuid' not in df.columns:
             return df
         df = self._overlay_observations(df)
@@ -742,7 +742,9 @@ class CityDataset(GenericDataset, ObservationDataset):
         dvc_ds = self.context.load_dvc_dataset(ds_id)
         assert dvc_ds.df is not None
         df = self._convert_dvc_dataset(dvc_ds)
-        df = self._filter_and_process_df(df)
+        data_ops, temporal_ops = self._generic_transformation_groups()
+        df = self.apply_transformations(df, data_ops, metric_column=self.column)
+        ppl.validate_ppdf(df)
 
         # Apply city-specific DB overlay when uuid column is present.
         # If the overlay empties the df (e.g. all uuid values were null so no DB lookup
@@ -757,10 +759,8 @@ class CityDataset(GenericDataset, ObservationDataset):
         df = self._transform_data(df)
         if FORECAST_COLUMN not in df.columns:
             df = df.with_columns(pl.lit(False).alias(FORECAST_COLUMN))  # noqa: FBT003
-        self.interpolate = True
-        if self.interpolate:
-            df = self._linear_interpolate(df)
         df = self._index_data(df)
+        df = self.apply_transformations(df, temporal_ops, metric_column=self.column)
         if self.context.sample_size > 0:
             df = self._sample(df)
         self.cache_set(df)

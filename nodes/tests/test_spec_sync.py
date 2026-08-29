@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import uuid
 
+from django.utils import translation
+
 import pytest
 
 from kausal_common.datasets.tests.factories import DatasetFactory
@@ -306,6 +308,34 @@ def test_sync_preserves_dataset_editability_when_yaml_does_not_specify_it(db_ins
 
     dataset.schema.refresh_from_db()
     assert dataset.schema.is_editable is False
+
+
+def test_reconciled_snapshots_serve_a_region_subtagged_translation(instance_config, instance, node):
+    """
+    A row translated into `es-US` must reach the runtime, not fall back to the primary language.
+
+    The modeltrans key for a locale with a region subtag carries two underscores (`name_es_us`), and
+    a reader that treats the last one as the language separator drops the translation silently — the
+    row keeps its Spanish and every reader serves English. Asserted here rather than only in the
+    shared submodule because this is the layer the site reads.
+    """
+    row = NodeConfigFactory.create(
+        instance=instance_config,
+        identifier=node.id,
+        name='Avoided emissions',
+        i18n={'name_es_us': 'Emisiones evitadas'},
+        spec=None,
+    )
+
+    instance_config.update_instance_from_configs(instance, node_refs=True)
+
+    assert node.source_snapshot is not None
+    assert node.source_snapshot.uuid == row.uuid
+    assert node.source_snapshot.name is not None
+    assert node.source_snapshot.name.t('es-US') == 'Emisiones evitadas'
+    with translation.override('es-us'):
+        assert str(node.source_snapshot.name) == 'Emisiones evitadas'
+        assert str(node.name) == 'Emisiones evitadas'
 
 
 def test_yaml_runtime_nodes_use_reconciled_metadata_snapshots(instance_config, instance, node):

@@ -25,7 +25,7 @@ read-side of phase 5's history surface.
 | 2.5 — PoC on node.create/update/delete | ✅ Landed | All three node mutations wired; cascade delete groups correctly. Commit `6f5e8915`. |
 | 3 — Mutation layer refactor | 🟡 Mostly done | See [Phase 3 status notes](#phase-3-status-notes) below. Done: all edit mutations routed through `change_operation`; `draftHeadToken`, `@instance(version, preview)` directive args, `PreviewMode` enum, `StaleVersionError` optimistic-locking check. Open: uniform `MutationPayload` (Phase 4), `apply_snapshot` (Phase 5). |
 | 4 — Resolver split & compute invalidation | 🟡 #1 landed | `PreferredInstanceSource` enum; `source` threaded through `_create_from_config` / `_initialize_instance` / `_get_instance` / `enter_instance_context`; `@instance(preview: DRAFT)` perm-gated on `change`. (2)-(4) pending (contentHash, invalidation walker, MutationPayload). |
-| 5 — Publish / revert / undo / named drafts | 🟡 Read-side only | History GraphQL surface landed (`InstanceEditor.changeHistory`, `EditableEntity.changeHistory`). Mutations (publish / revert / undo / save_draft) not yet implemented. |
+| 5 — Publish / revert / undo / named drafts | 🟡 Read-side only | History GraphQL surface landed (`InstanceEditor.changeHistory`, `NodeEditor.changeHistory`, and concrete binding history fields). Mutations (publish / revert / undo / save_draft) not yet implemented. |
 | 6 — Permissions & migration | ⚪ Not started | — |
 
 ### Deltas from the original plan
@@ -79,13 +79,13 @@ TranslatedString fields + `data` payload (DataPoints in JSON Table
 Schema format). Revisioning the dataset captures its datapoints too,
 not just the schema.
 
-**EditableEntity interface (read-side history):** the `target` field
+**EditableEntity interface (change-log targets):** the `target` field
 on `InstanceModelLogEntryType` resolves to an interface rather than a
 union. `NodeType` / `ActionNodeType` / `NodeEdgeType` /
-`DatasetPortType` all implement it and carry `uuid` + `changeHistory`.
-The UI can fetch per-entity history without type-narrowing.
-`InstanceEditor.changeHistory` returns operations; per-entity
-`changeHistory` returns entries.
+`DatasetPortType` all implement it and carry a stable `uuid`.
+`InstanceEditor.changeHistory` returns operations;
+`NodeEditor.changeHistory` and the concrete binding history fields return
+per-entity entries.
 
 **Demo smoke command:** `python manage.py trailhead_demo_smoke` walks
 the full register-user → create-instance(cads/aarhus-c4c) → add
@@ -113,11 +113,7 @@ Used to validate the chain end-to-end against a live DB.
 
 ### Known open items
 
-- **Perm gating on `EditableEntity.changeHistory`** — currently
-  anyone who can see the entity can read its history. The interface is
-  the clean place to slot the `change`-perm check against the hosting
-  InstanceConfig.
-- **`_fetch_entity_history` has no upper bound guard** beyond the
+- **`fetch_entity_history_by_uuid` has no upper bound guard** beyond the
   caller's `limit` argument — fine for now, flag for retention policy
   work later.
 - **`dataset.save_revision()` not yet wired into the dataset editor

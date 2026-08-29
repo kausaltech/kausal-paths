@@ -17,9 +17,14 @@ from nodes.instance_loader import InstanceLoader
 from nodes.node import NodeErrorPhase, NodeStatus, NodeStatusError
 from nodes.simple import AdditiveNode, SimpleNode
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory, NodeFactory
+from nodes.tests.node_input_harness import add_binding, binding
 
 if TYPE_CHECKING:
+    from collections.abc import Collection
+
+    from common.polars import PathsDataFrame
     from nodes.context import Context
+    from nodes.node import Node
 
 pytestmark = pytest.mark.django_db
 
@@ -50,17 +55,44 @@ class BoomNodeFactory(NodeFactory):
 
 def _leaf(context: Context) -> AdditiveNode:
     """Make an additive leaf fed by the factory's fixed dataset (computes cleanly)."""
-    return cast('AdditiveNode', AdditiveNodeFactory.create(context=context))
+    node = cast('AdditiveNode', AdditiveNodeFactory.create(context=context))
+    dataset = node.input_dataset_instances[0]
+    add_binding(
+        node,
+        binding(
+            'additive',
+            source_kind='dataset',
+            source_id=dataset.id,
+            source=dataset,
+            value_loader=dataset.get_copy,
+        ),
+    )
+    return node
 
 
-def _sum_of(context: Context, inputs) -> AdditiveNode:
+def _sum_of(context: Context, inputs: Collection[Node]) -> AdditiveNode:
     """Make an additive node with no dataset that sums the given input nodes."""
     node = cast('AdditiveNode', AdditiveNodeFactory.create(context=context, input_datasets=[]))
     for inp in inputs:
+
+        def load_input(inp: Node = inp) -> PathsDataFrame:
+            return inp.get_output_pl(target_node=node)
+
         # Register the shared edge on both nodes, as the instance loader does.
         edge = Edge(input_node=inp, output_node=node, tags=[])
         node.add_edge(edge)
         inp.add_edge(edge)
+        add_binding(
+            node,
+            binding(
+                'additive',
+                position=len(node.runtime_input_bindings),
+                source_kind='node',
+                source_id=inp.id,
+                source=inp,
+                value_loader=load_input,
+            ),
+        )
     context.finalize_nodes()
     return node
 

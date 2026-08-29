@@ -3,7 +3,7 @@ default_language: de
 supported_languages: [en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 6d4df2dfcdcbf62c66a637de2e99f914fe075785
+  commit: 4acca4b4125ea3b183a1617fd4da3304d6bdc524
   dvc_remote: kausal-s3
 name_de: Reutlingen THG-Bilanzierungstool
 name_en: Reutlingen GHG-Inventory Tool
@@ -43,7 +43,7 @@ _palette:
 params:
 
 - id: weather_correction
-  label_de: Wetterkorrektur durchführen?
+  label_de: Witterungsbereinigung durchführen?
   label_en: Perform weather correction?
   value: false
   is_customizable: true
@@ -58,6 +58,49 @@ params:
   label_en: AGS number
   label_de: AGS-Nummer
   value: '09761000'
+  is_customizable: false
+  is_visible: false
+# NUTS-3, not NUTS-2: DE141 is the finest region there is here, and it is still not the city.
+# Read by `data/weather/create_degree_day_factors.py`, which picks the city's column out of the
+# European degree-day table. No node reads it. Recorded beside the AGS because it is an
+# identifier of the city.
+#
+# Not the parameter for anything extensive. Degree days are much the same across a Kreis as in
+# the town inside it, so a region serves; a population is a sum over an area and cannot be, which
+# is what `lau_code` below is for.
+#
+# CAUTION: Reutlingen is a Grosse Kreisstadt, not kreisfrei, so no NUTS-3 region corresponds
+# to it. DE141 is the *Landkreis* Reutlingen -- 293,000 people across 26 municipalities,
+# against 118,500 in the town. That is fine for degree days, which are much the same across a
+# Kreis, and it is why this instance is the reason the `population` node reads `lau_code` and
+# not this: a headcount is a sum over an area, so the Kreis figure is not an approximation of
+# the town's but a different number. See data/population/README.md.
+- id: nuts_code
+  label_en: NUTS-3 code
+  label_de: NUTS-3-Code
+  value: DE141
+  is_customizable: false
+  is_visible: false
+# The municipality itself, as a Eurostat GISCO LAU code: `<country>_<national LAU code>`, and
+# for Germany the national LAU code is the AGS -- so this is `DE_` plus `ags_number`, naming
+# Reutlingen, Stadt. Read by the `population` node, which filters the European municipal
+# population table `demography/population_lau` down to this one municipality.
+#
+# Declared separately from `ags_number` rather than derived from it, because the model filters on
+# one column with one parameter and the table is Europe-wide: a bare `09761000` is not unique
+# across countries, and a Finnish or Swiss instance has no AGS at all. The two are cross-checked
+# instead of one being computed from the other.
+#
+# NOTE: this does not match `ags_number` above, which reads 09761000 -- Augsburg's AGS, not
+# Reutlingen's. 08415061 is Reutlingen. The `ags_number` value is a separate, pre-existing
+# problem: it also filters `de/fahrleistung_strassenverkehr` and
+# `de/energieverbrauch_uebriger_verkehr`, so correcting it changes the transport branch and is
+# not a change to make in passing. `fetch_gisco_lau_population.py --check-configs` reports the
+# disagreement until one of them is fixed.
+- id: lau_code
+  label_en: LAU code (municipality)
+  label_de: LAU-Code (Gemeinde)
+  value: DE_08415061
   is_customizable: false
   is_visible: false
 - id: use_national_values
@@ -285,8 +328,8 @@ nodes:
 
 - id: transport_emissions
   is_editable: false
-  name_en: Transport & Verkehr Emissionen
-  name_de: Transport Emissions
+  name_en: Transport emissions
+  name_de: Verkehrsemissionen
   type: generic.GenericNode
   quantity: emissions
   unit: kt_co2e/a

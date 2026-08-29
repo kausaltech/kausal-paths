@@ -362,7 +362,38 @@ def define_custom_units(unit_registry: CachingUnitRegistry):
     kg_peat = 12.8 MJ
     ppot = [power_potential]
     Wp = W / ppot
+    degree_day_basis_eurostat = [hdd_eurostat]
+    degree_day_basis_vdi3807 = [hdd_vdi3807]
+    cooling_degree_day_basis_eurostat = [cdd_eurostat]
+    degree_day_eurostat = kelvin * day * degree_day_basis_eurostat = HDD_eurostat = HDD_eu
+    degree_day_vdi3807 = kelvin * day * degree_day_basis_vdi3807 = HDD_vdi3807
+    cooling_degree_day_eurostat = kelvin * day * cooling_degree_day_basis_eurostat = CDD_eurostat
     """
+
+    # Degree days: degrees of shortfall from an indoor reference temperature, summed over
+    # the days of a year. Dimensionally that is temperature x time, so every convention
+    # measures in K*day and pint would happily add or convert between two of them.
+    #
+    # It must not. Conventions differ in their reference temperature -- Eurostat counts
+    # from 18 degC, the German Gradtagzahl G20/15 (VDI 3807) from 20 degC, both above a
+    # 15 degC heating threshold -- so a VDI figure exceeds a Eurostat one by about 2 K per
+    # heating day. That is additive and depends on how many heating days the particular
+    # year and place had: there is no conversion factor to apply, and a silent 1:1
+    # conversion would be wrong by roughly a fifth.
+    #
+    # So each convention carries its own dimension, exactly as CO2e does above, and pint
+    # refuses the mixture instead of hiding it. A ratio within one convention still comes
+    # out dimensionless, which is what a weather-correction factor is.
+    #
+    # Cooling is a separate quantity, not the same one inverted: Eurostat counts CDD from
+    # 21 degC above a 24 degC threshold, an asymmetry with its own heating rule. No German
+    # cooling convention is defined here, because none was identified to name -- VDI 2078
+    # is a cooling-load method, not a degree-day one. Add it when there is a standard to
+    # point at rather than a plausible guess.
+    # In summary:
+    # HDD_eu:=       Tm ≤ 15 °C → (18 - Tm), else 0
+    # HDD_vdi3807:=  Tm ≤ 15 °C → (20 - Tm), else 0
+    # CDD_eu:=       Tm ≥ 24 °C → (Tm - 21), else 0
 
     for line in DEFINITIONS.strip().splitlines():
         s = line.strip()
@@ -471,6 +502,12 @@ def add_unit_translations():  # noqa: C901
         {'unit': 'vkm', 'long': _('vehicle-km'), 'short': _('vkm')},
         {'unit': 'megavkm', 'long': _('Million vehicle-km'), 'short': _('M vkm')},
         {'unit': 'disability_adjusted_lifeyear', 'long': _('Disability-adjusted lifeyear'), 'short': _('DALY')},
+        # The convention is part of the name, not a footnote: two degree-day series that
+        # both displayed as "Kd" would look interchangeable on a chart, which is the very
+        # confusion the separate dimensions exist to prevent.
+        {'unit': 'degree_day_eurostat', 'long': _('heating degree days (Eurostat)'), 'short': 'HDD (Eurostat)'},
+        {'unit': 'degree_day_vdi3807', 'long': _('heating degree days (VDI 3807)'), 'short': 'Gradtagzahl (VDI 3807)'},
+        {'unit': 'cooling_degree_day_eurostat', 'long': _('cooling degree days (Eurostat)'), 'short': 'CDD (Eurostat)'},
     ]
     # set_one('cap', pgettext_lazy('capita short', 'cap'))
 

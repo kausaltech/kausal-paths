@@ -6,16 +6,36 @@ model instances (NodeConfig, NodeEdge, ActionGroup, Scenario).
 """
 
 import math
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Annotated, Any, TypeGuard, cast
 from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 
 import strawberry as sb
+from django.contrib.contenttypes.models import ContentType
+from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.db.models import ProtectedError, Q
 from django.utils.module_loading import import_string
+from django.utils.translation import get_language
 from graphql import GraphQLError
+from pydantic import ValidationError as PydanticValidationError
 from strawberry import Maybe, auto
 
-from kausal_common.i18n.pydantic import get_translated_string_from_modeltrans
+from kausal_common.datasets.models import (
+    Dataset,
+    DatasetSchema,
+    DatasetSchemaDimension,
+    DatasetSchemaScope,
+    DatasetSourceReference,
+    DataSource,
+    Dimension,
+    DimensionCategory,
+    DimensionScope,
+)
+from kausal_common.i18n.helpers import convert_language_code
+from kausal_common.i18n.pydantic import TranslatedString, get_modeltrans_attrs_from_str, get_translated_string_from_modeltrans
+from kausal_common.models.uuid import is_uuid
+from kausal_common.ordering import InconsistentSiblingOrderError, reorder_siblings
 from kausal_common.strawberry.errors import GraphQLValidationError, NotFoundError, PermissionDeniedError
 from kausal_common.strawberry.helpers import get_or_error
 from kausal_common.strawberry.ordering import SiblingPositionInputMixin
@@ -25,17 +45,19 @@ from kausal_common.users import user_or_bust, user_or_none
 from paths import gql
 from paths.identifiers import identifier_or_none
 
-from nodes.defs import FormulaConfig, SimpleConfig
+from nodes.change_ops import gql_change_operation, record_change
+from nodes.dataset_materialization import refresh_dataset_materialization
+from nodes.defs import ActionGroup, FormulaConfig, SimpleConfig
 from nodes.defs.node_defs import ActionConfig, NodeKind, NodeSpec, PipelineConfig, TypeConfig
 from nodes.defs.port_def import InputPortDef, OutputPortDef
-from nodes.models import InstanceConfig, NodeConfig, NodeLayout, NodeLayoutSource
+from nodes.models import InstanceConfig, NodeConfig, NodeInputPortBinding, NodeLayout, NodeLayoutSource
 from nodes.node import Node
 from nodes.units import unit_registry
 from params.param import BoolParameter, NumberParameter, StringParameter
 
 from .types.constraints import ConstraintViolationsType
 from .types.dimension import DimensionType
-from .types.graph import NodeEdgeType
+from .types.graph import ActionGroupType, NodeEdgeType
 from .types.instance import InstanceType
 from .types.layout import NodeLayoutType, UpdateNodeLayoutsResult
 from .types.node import AnyNodeType, NodeInterface
@@ -47,18 +69,27 @@ from .types.transformations import EdgeTransformationInput, edge_transformations
 if TYPE_CHECKING:
     from strawberry import Some
 
-    from kausal_common.datasets.models import (
-        DataSource,
-        DimensionCategory as DimensionCategoryModel,
-        DimensionScope,
-    )
     from kausal_common.models.ordered import OrderedModel
 
-    from datasets.graphql.editor import DatasetEditorMutation
-    from datasets.graphql.types import DataSourceType  # used in lazy strawberry annotations
+    from datasets.graphql.editor import CreateDatasetMetricInput, DatasetEditorMutation
+    from datasets.graphql.types import DatasetType, DataSourceType  # used in lazy strawberry annotations
     from nodes.defs.transform_def import PortTransformOp
     from nodes.graphql.bindings import BindDatasetInput, PortBindingEditorMutation
     from nodes.graphql.types.graph import DatasetPortType  # used in lazy strawberry annotations
+    from users.models import User
+
+
+def _require_user(info: gql.Info) -> User:
+    """Return the authenticated user, or raise the mutation-level permission error."""
+    try:
+        return user_or_bust(info.context.user)
+    except ValueError as exc:
+        raise PermissionDeniedError(info, 'Permission denied') from exc
+
+
+def _instance_ct(ic: InstanceConfig) -> ContentType:
+    """Return the ContentType used in scope generic FKs pointing at this instance."""
+    return ContentType.objects.get_for_model(type(ic))
 
 
 def _get_instance_config(info: gql.Info, instance_id: sb.ID) -> InstanceConfig:
@@ -128,6 +159,24 @@ def _node_class_for(nc: NodeConfig) -> type[Node]:
     return node_class_for_spec(nc.spec)
 
 
+def _is_additive_action_class(node_class: type[Node]) -> bool:
+    from nodes.actions.simple import AdditiveAction
+
+    return issubclass(node_class, AdditiveAction)
+
+
+def _paired_action_input_ports(
+    node_class: type[Node],
+    input_ports: list[InputPortDef],
+    output_ports: list[OutputPortDef],
+) -> list[InputPortDef]:
+    if not _is_additive_action_class(node_class):
+        return input_ports
+    from nodes.defs.port_def import pair_input_ports_to_outputs
+
+    return pair_input_ports_to_outputs(input_ports, output_ports, role='input', keep_unpaired=False)
+
+
 def _unique_port_identifier(existing: set[str], base: str) -> str:
     if base not in existing:
         return base
@@ -193,7 +242,6 @@ def _plan_declared_input_port(to_node: NodeConfig) -> InputPortDef | None:
 
 def _select_existing_target_port(to_node: NodeConfig, source_port: OutputPortDef) -> UUID | None:
     """Pick an existing input port with capacity for a new connection, if any fits."""
-    from nodes.models import NodeInputPortBinding
 
     assert to_node.spec is not None
     input_ports = to_node.spec.input_ports
@@ -247,6 +295,11 @@ def _plan_target_port(
         return existing, None
 
     planned = _plan_declared_input_port(to_node)
+    if _is_additive_action_class(_node_class_for(to_node)):
+        raise GraphQLValidationError(
+            info,
+            f'Add an output port to node "{to_node.identifier}" before connecting another impact metric',
+        )
     if planned is None:
         # No declared role available: plan a port mirroring the source port,
         # so declaration-less classes (formula, pipeline, legacy) keep
@@ -308,7 +361,6 @@ def _check_target_port_capacity(info: gql.Info, to_node: NodeConfig, to_port: UU
     Occupancy is structural capacity, not shape: it stays a hard error while
     every shape/unit/quantity question belongs to the constraint solver.
     """
-    from nodes.models import NodeInputPortBinding
 
     target_port = _get_input_port(to_node, to_port)
     if target_port is None:
@@ -543,6 +595,27 @@ class UpdateScenarioInput:
 
 
 @sb.input
+class ActionGroupPositionInput:
+    previous_sibling: Maybe[UUID]
+    next_sibling: Maybe[UUID]
+
+
+@sb.input
+class CreateActionGroupInput(ActionGroupPositionInput):
+    identifier: str
+    name: str
+    id: UUID | None = sb.field(default=None, description='Optional UUID for the new action group.')
+    color: str | None = None
+
+
+@sb.input
+class UpdateActionGroupInput(ActionGroupPositionInput):
+    identifier: Maybe[str]
+    name: Maybe[str]
+    color: Maybe[str | None]
+
+
+@sb.input
 class CreateDimensionCategoryInput(SiblingPositionInputMixin):
     dimension_id: UUID
     label: str
@@ -561,6 +634,47 @@ class UpdateDimensionCategoryInput(SiblingPositionInputMixin):
 class UpdateDimensionInput:
     dimension_id: UUID
     name: Maybe[str]
+
+
+@sb.input
+class DimensionCategoryItemInput:
+    """A category of a dimension being created; order follows list position."""
+
+    label: str
+    identifier: Maybe[str]
+    id: Maybe[UUID]
+
+
+@sb.input
+class CreateDimensionInput:
+    identifier: str
+    name: str
+    id: UUID | None = sb.field(default=None, description='Optional UUID for the new dimension.')
+    categories: list[DimensionCategoryItemInput] = sb.field(default_factory=list)
+
+
+@sb.input
+class CreateDatasetInput:
+    name: str
+    metrics: list[Annotated['CreateDatasetMetricInput', sb.lazy('datasets.graphql.editor')]] = sb.field(
+        description='Metrics (value columns) of the dataset; at least one is required.',
+    )
+    identifier: str | None = sb.field(
+        default=None,
+        description='Optional identifier, unique within the instance.',
+    )
+    id: UUID | None = sb.field(default=None, description='Optional UUID for the new dataset.')
+    dimensions: list[UUID] = sb.field(
+        default_factory=list,
+        description='UUIDs of instance dimensions the data points are categorized by, in column order.',
+    )
+
+
+@sb.input
+class UpdateDatasetInput:
+    dataset_id: UUID
+    name: Maybe[str]
+    identifier: Maybe[str | None]
 
 
 @sb.input
@@ -615,6 +729,69 @@ class ModelEditorQuery:
 
 def is_maybe_set[T](maybe: Some[T] | None) -> TypeGuard[Some[T]]:
     return maybe is not None and maybe is not sb.UNSET
+
+
+def _action_group_snapshot(group: ActionGroup) -> dict[str, Any]:
+    return group.model_dump(mode='json')
+
+
+def _normalize_action_group_order(groups: list[ActionGroup]) -> list[ActionGroup]:
+    return [group.model_copy(update={'order': index}) for index, group in enumerate(groups)]
+
+
+@dataclass(frozen=True)
+class _ActionGroupOrderHint:
+    uuid: UUID
+    previous_sibling: UUID | None
+    next_sibling: UUID | None
+
+
+def _position_action_group(
+    info: gql.Info,
+    groups: list[ActionGroup],
+    group_uuid: UUID,
+    position: ActionGroupPositionInput,
+) -> list[ActionGroup]:
+    previous_uuid = position.previous_sibling.value if is_maybe_set(position.previous_sibling) else None
+    next_uuid = position.next_sibling.value if is_maybe_set(position.next_sibling) else None
+    hint = _ActionGroupOrderHint(
+        uuid=group_uuid,
+        previous_sibling=previous_uuid,
+        next_sibling=next_uuid,
+    )
+    try:
+        ordered = reorder_siblings(groups, hinted=[hint])
+    except InconsistentSiblingOrderError as exc:
+        raise GraphQLValidationError(info, 'previousSibling and nextSibling do not describe one gap') from exc
+    except ValueError as exc:
+        raise GraphQLValidationError(info, str(exc)) from exc
+    return _normalize_action_group_order(ordered)
+
+
+def _translated_action_group_name(group: ActionGroup, value: str, default_language: str) -> TranslatedString:
+    current = group.name
+    if isinstance(current, TranslatedString):
+        translations = dict(current.i18n)
+        default_language = current.default_language or default_language
+    elif current is not None:
+        translations = {default_language: str(current)}
+    else:
+        translations = {}
+    active_language = convert_language_code(get_language() or default_language, 'iso')
+    translations[active_language] = value
+    return TranslatedString(default_language=default_language, **translations)
+
+
+def _persist_action_groups(ic: InstanceConfig, groups: list[ActionGroup]) -> None:
+    spec = ic.ensure_spec().model_copy(update={'action_groups': groups})
+    InstanceConfig.objects.filter(pk=ic.pk).update(spec=spec)
+    ic.spec = spec
+
+
+def _invalidate_action_group_runtime(info: gql.Info, ic: InstanceConfig) -> None:
+    from nodes.models import PreferredInstanceSource
+
+    info.context.invalidate_runtime_instance(ic, source=PreferredInstanceSource.DRAFT)
 
 
 def _generated_port_id(node_identifier: str, direction: str, key: str) -> UUID:
@@ -849,7 +1026,10 @@ def _apply_node_type_update(
 
 
 def _apply_node_port_updates(info: gql.Info, nc: NodeConfig, spec: NodeSpec, input: UpdateNodeInput) -> None:
+    node_class = _node_class_for(nc)
     if is_maybe_set(input.input_ports):
+        if _is_additive_action_class(node_class):
+            raise GraphQLValidationError(info, 'AdditiveAction input ports are generated from its output ports')
         spec.input_ports = [
             _input_port_to_def(nc.identifier, index, port) for index, port in enumerate(input.input_ports.value or [])
         ]
@@ -866,7 +1046,22 @@ def _apply_node_port_updates(info: gql.Info, nc: NodeConfig, spec: NodeSpec, inp
     )
     if not output_ports:
         raise GraphQLValidationError(info, 'At least one outputPort or outputMetric must be provided')
+
+    if _is_additive_action_class(node_class):
+        retained_output_ids = {port.id for port in output_ports}
+        removed_input_ids = {
+            port.id
+            for port in spec.input_ports
+            if port.paired_output_port_id is not None and port.paired_output_port_id not in retained_output_ids
+        }
+        if removed_input_ids and NodeInputPortBinding.objects.filter(node=nc, port_id__in=removed_input_ids).exists():
+            raise GraphQLValidationError(
+                info,
+                'Disconnect bindings from an AdditiveAction output before removing it',
+            )
+
     spec.output_ports = output_ports
+    spec.input_ports = _paired_action_input_ports(node_class, spec.input_ports, output_ports)
 
 
 def _apply_node_data_updates(info: gql.Info, spec: NodeSpec, input: UpdateNodeInput) -> None:
@@ -897,8 +1092,6 @@ class NodeEditorMutation:
     @gql.mutation(description='Update this node', graphql_type=AnyNodeType)
     @staticmethod
     def update(info: gql.Info, root: sb.Parent[Me], input: UpdateNodeInput) -> Node:
-        from nodes.change_ops import gql_change_operation, record_change
-
         nc = root.node
         with gql_change_operation(info, root.instance, action='node.update'):
             before = nc.serializable_data()
@@ -920,11 +1113,6 @@ class NodeEditorMutation:
     @gql.mutation(description='Delete this node')
     @staticmethod
     def delete(info: gql.Info, root: sb.Parent[Me]) -> None:
-        from django.db.models import Q
-
-        from nodes.change_ops import gql_change_operation, record_change
-        from nodes.models import NodeInputPortBinding
-
         nc = root.node
         with gql_change_operation(info, root.instance, action='node.delete'):
             # Log cascade-delete entries BEFORE the DB CASCADE wipes the rows,
@@ -955,13 +1143,11 @@ class NodeEditorMutation:
     @gql.mutation(description='Append a new input port to this node', graphql_type=InputPortType)
     @staticmethod
     def add_input_port(info: gql.Info, root: sb.Parent[Me], input: InputPortInput) -> InputPortDef:
-        from uuid import uuid4
-
-        from nodes.change_ops import gql_change_operation, record_change
-
         nc = root.node
         if nc.spec is None:
             raise GraphQLError(f'Node "{nc.identifier}" has no spec')
+        if _is_additive_action_class(_node_class_for(nc)):
+            raise GraphQLValidationError(info, 'AdditiveAction input ports are generated from its output ports')
 
         new_port = _input_port_to_def(nc.identifier, len(nc.spec.input_ports), input)
         if input.id is None:
@@ -993,10 +1179,6 @@ class NodeEditorMutation:
     @gql.mutation(description='Append a new output port to this node', graphql_type=OutputPortType)
     @staticmethod
     def add_output_port(info: gql.Info, root: sb.Parent[Me], input: OutputPortInput) -> OutputPortDef:
-        from uuid import uuid4
-
-        from nodes.change_ops import gql_change_operation, record_change
-
         nc = root.node
         if nc.spec is None:
             raise GraphQLError(f'Node "{nc.identifier}" has no spec')
@@ -1008,6 +1190,7 @@ class NodeEditorMutation:
         with gql_change_operation(info, root.instance, action='node.output_ports.create'):
             before = nc.serializable_data()
             nc.spec.output_ports = [*nc.spec.output_ports, new_port]
+            nc.spec.input_ports = _paired_action_input_ports(_node_class_for(nc), nc.spec.input_ports, nc.spec.output_ports)
             NodeConfig.objects.filter(pk=nc.pk).update(spec=nc.spec)
             nc.refresh_from_db()
             record_change(nc, action='node.output_ports.create', before=before, after=nc.serializable_data())
@@ -1023,16 +1206,19 @@ class InstanceEditorMutation:
     @gql.mutation(description='Create a new node in the model', graphql_type=AnyNodeType)
     @staticmethod
     def create_node(info: gql.Info, root: sb.Parent[Me], input: CreateNodeInput) -> Node:
-        from nodes.change_ops import gql_change_operation, record_change
-
         ic = root.instance
         if not NodeConfig.gql_create_allowed(info, ic):
             raise PermissionDeniedError(info, 'Permission denied for create')
 
+        from nodes.instance_graph import node_class_for_type_config
+
         type_config = _type_config_for_kind(info, input.kind, input.config)
+        node_class = node_class_for_type_config(type_config.to_pydantic())
 
         input_dimensions = input.input_dimensions or []
         output_dimensions = input.output_dimensions or []
+        if input.input_ports is not None and _is_additive_action_class(node_class):
+            raise GraphQLValidationError(info, 'AdditiveAction input ports are generated from its output ports')
         if input.input_ports is None:
             # Instantiate the class-declared default ports (e.g. two factors
             # and an additive input for a MultiplicativeNode). An explicit
@@ -1048,6 +1234,7 @@ class InstanceEditorMutation:
         )
         if not output_ports:
             raise GraphQLValidationError(info, 'At least one outputPort or outputMetric must be provided')
+        input_ports = _paired_action_input_ports(node_class, input_ports, output_ports)
 
         spec = NodeSpec(
             type_config=type_config.to_pydantic(),
@@ -1170,8 +1357,6 @@ class InstanceEditorMutation:
         'DatasetEditorMutation',
         sb.lazy('datasets.graphql.editor'),
     ]:
-        from kausal_common.datasets.models import Dataset
-
         from datasets.graphql.editor import DatasetEditorMutation
 
         ic = root.instance
@@ -1198,11 +1383,9 @@ class InstanceEditorMutation:
     )
     @staticmethod
     def create_edge(info: gql.Info, input: CreateEdgeInput) -> NodeEdgeType | ConstraintViolationsType:
-        from nodes.change_ops import gql_change_operation, record_change
         from nodes.constraints.validation import BindingChange
         from nodes.graphql.constraint_checks import check_binding_change, edge_candidate, require_draft_graph
         from nodes.input_bindings import next_port_position
-        from nodes.models import NodeInputPortBinding
 
         ic = _get_instance_config(info, input.instance_id)
         if ic.config_source != 'database':
@@ -1278,9 +1461,7 @@ class InstanceEditorMutation:
     @gql.mutation(description='Delete an edge')
     @staticmethod
     def delete_edge(root: sb.Parent[Me], info: gql.Info, edge_id: sb.ID) -> None:
-        from nodes.change_ops import gql_change_operation, record_change
         from nodes.input_bindings import compact_port_positions
-        from nodes.models import NodeInputPortBinding
 
         ic = root.instance
         try:
@@ -1318,7 +1499,6 @@ class InstanceEditorMutation:
         pk lookup is intentionally not supported — GQL surfaces must not expose
         DB primary keys.
         """
-        from kausal_common.models.uuid import is_uuid
 
         qs = ic.nodes.get_queryset()
         if with_spec:
@@ -1373,8 +1553,6 @@ class InstanceEditorMutation:
 
     @staticmethod
     def _get_dimension_scope(info: gql.Info, ic: InstanceConfig, dimension_id: UUID) -> DimensionScope:
-        from kausal_common.datasets.models import DimensionScope
-
         scope = (
             DimensionScope.objects
             .get_queryset()
@@ -1485,8 +1663,6 @@ class InstanceEditorMutation:
 
     @gql.mutation(description='Update a dimension (e.g. rename)')
     def update_dimension(self, info: gql.Info, root: sb.Parent[Me], input: UpdateDimensionInput) -> DimensionType:
-        from nodes.change_ops import gql_change_operation, record_change
-
         ic = root.instance
         scope = self._get_dimension_scope(info, ic, input.dimension_id)
         dim = scope.dimension
@@ -1514,10 +1690,6 @@ class InstanceEditorMutation:
     def create_dimension_categories(
         self, info: gql.Info, root: sb.Parent[Me], input: list[CreateDimensionCategoryInput]
     ) -> DimensionType:
-        from kausal_common.datasets.models import DimensionCategory
-
-        from nodes.change_ops import gql_change_operation, record_change
-
         if not input:
             raise GraphQLValidationError(info, 'At least one category input is required')
 
@@ -1573,9 +1745,8 @@ class InstanceEditorMutation:
         return DimensionType.from_scope(scope)
 
     @staticmethod
-    def _apply_category_update(info: gql.Info, item: UpdateDimensionCategoryInput) -> DimensionCategoryModel:
+    def _apply_category_update(info: gql.Info, item: UpdateDimensionCategoryInput) -> DimensionCategory:
         """Look up and apply field updates for a single category. Returns the updated instance."""
-        from kausal_common.datasets.models import DimensionCategory
 
         cat = DimensionCategory.objects.filter(uuid=item.category_id).select_related('dimension').first()
         if cat is None:
@@ -1594,10 +1765,6 @@ class InstanceEditorMutation:
     def update_dimension_categories(
         self, info: gql.Info, root: sb.Parent[Me], input: list[UpdateDimensionCategoryInput]
     ) -> DimensionType:
-        from kausal_common.datasets.models import DimensionCategory, DimensionScope
-
-        from nodes.change_ops import gql_change_operation, record_change
-
         if not input:
             raise GraphQLValidationError(info, 'At least one category input is required')
 
@@ -1647,10 +1814,6 @@ class InstanceEditorMutation:
 
     @gql.mutation(description='Delete a dimension category')
     def delete_dimension_category(self, info: gql.Info, root: sb.Parent[Me], category_id: UUID) -> None:
-        from kausal_common.datasets.models import DimensionCategory, DimensionScope
-
-        from nodes.change_ops import gql_change_operation, record_change
-
         cat = DimensionCategory.objects.filter(uuid=category_id).select_related('dimension').first()
         if cat is None:
             raise NotFoundError(info, f'Category "{category_id}" not found')
@@ -1669,6 +1832,242 @@ class InstanceEditorMutation:
             )
             cat.delete()
             self._sync_spec_dimension_from_orm(ic, scope)
+
+    @gql.mutation(description='Create a dimension in this instance')
+    def create_dimension(self, info: gql.Info, root: sb.Parent[Me], input: CreateDimensionInput) -> DimensionType:
+        ic = root.instance
+        ct = _instance_ct(ic)
+        if DimensionScope.objects.for_instance_config(ic).filter(identifier=input.identifier).exists():
+            raise GraphQLValidationError(
+                info,
+                f'Dimension with identifier "{input.identifier}" already exists in instance "{ic.identifier}"',
+            )
+        cat_identifiers = [item.identifier.value for item in input.categories if is_maybe_set(item.identifier)]
+        if len(cat_identifiers) != len(set(cat_identifiers)):
+            raise GraphQLValidationError(info, 'Category identifiers must be unique within the dimension')
+
+        with gql_change_operation(info, ic, action='dimension.create'):
+            name, name_i18n = get_modeltrans_attrs_from_str(input.name, 'name', ic.primary_language)
+            dim = Dimension.objects.create(uuid=input.id or uuid4(), name=name, i18n=name_i18n)
+            scope = DimensionScope.objects.create(
+                dimension=dim,
+                scope_content_type=ct,
+                scope_id=ic.pk,
+                identifier=input.identifier,
+            )
+            for item in input.categories:
+                cat = DimensionCategory(
+                    dimension=dim,
+                    uuid=item.id.value if is_maybe_set(item.id) else uuid4(),
+                    identifier=item.identifier.value if is_maybe_set(item.identifier) else None,
+                    label=item.label,
+                )
+                cat.save()
+            record_change(dim, action='dimension.create', before=None, after=self._dimension_snapshot(dim))
+            self._sync_spec_dimension_from_orm(ic, scope)
+        return DimensionType.from_scope(scope)
+
+    @staticmethod
+    def _nodes_using_dimension(ic: InstanceConfig, dim_id: str) -> list[str]:
+        """Return identifiers of nodes whose spec references the dimension `dim_id`."""
+        used: list[str] = []
+        for nc in ic.nodes.get_queryset().with_spec():
+            spec = nc.spec
+            if spec is None:
+                continue
+            dims: set[str] = set(spec.input_dimensions) | set(spec.output_dimensions)
+            for in_port in spec.input_ports:
+                dims |= set(in_port.required_dimensions) | set(in_port.supported_dimensions)
+            for out_port in spec.output_ports:
+                dims |= set(out_port.dimensions)
+            if dim_id in dims:
+                used.append(nc.identifier)
+        return used
+
+    @staticmethod
+    def _remove_spec_dimension(ic: InstanceConfig, dim_id: str | None) -> None:
+        """Drop the deleted dimension's entry from the transitional InstanceSpec.dimensions mirror."""
+        spec = ic.spec
+        if spec is None or dim_id is None:
+            return
+        new_dims = [d for d in spec.dimensions if d.get('id') != dim_id]
+        if len(new_dims) == len(spec.dimensions):
+            return
+        spec = spec.model_copy(update={'dimensions': new_dims})
+        InstanceConfig.objects.filter(pk=ic.pk).update(spec=spec)
+        ic.spec = spec
+
+    @gql.mutation(
+        description=('Delete a dimension from this instance. Refused while a dataset schema or a node references the dimension.'),
+    )
+    def delete_dimension(self, info: gql.Info, root: sb.Parent[Me], dimension_id: UUID) -> DeletePayload:
+        ic = root.instance
+        scope = self._get_dimension_scope(info, ic, dimension_id)
+        dim = scope.dimension
+
+        if DatasetSchemaDimension.objects.filter(dimension=dim).exists():
+            raise GraphQLValidationError(
+                info,
+                'The dimension is used by a dataset; remove it from the dataset first',
+                code='dimension_in_use',
+            )
+        dim_identifier = scope.identifier
+        if dim_identifier:
+            using_nodes = self._nodes_using_dimension(ic, dim_identifier)
+            if using_nodes:
+                raise GraphQLValidationError(
+                    info,
+                    f'The dimension is referenced by nodes: {", ".join(sorted(using_nodes))}',
+                    code='dimension_in_use',
+                )
+
+        with gql_change_operation(info, ic, action='dimension.delete'):
+            record_change(dim, action='dimension.delete', before=self._dimension_snapshot(dim), after=None)
+            has_other_scopes = dim.scopes.exclude(pk=scope.pk).exists()
+            scope.delete()
+            if not has_other_scopes:
+                dim.delete()
+            self._remove_spec_dimension(ic, dim_identifier)
+        return DeletePayload(ok=True)
+
+    # -- Action-group mutations ---------------------------------------------
+
+    @gql.mutation(description='Create an action group in this instance.', graphql_type=ActionGroupType)
+    @staticmethod
+    def create_action_group(
+        info: gql.Info,
+        root: sb.Parent[Me],
+        input: CreateActionGroupInput,
+    ) -> ActionGroup:
+        ic = root.instance
+        with gql_change_operation(info, ic, action='action_group.create'):
+            ic.refresh_from_db(fields=['spec'])
+            groups = list(ic.ensure_spec().action_groups)
+            group_uuid = input.id or uuid4()
+            if any(group.uuid == group_uuid for group in groups):
+                raise GraphQLValidationError(info, f'Action group with UUID "{group_uuid}" already exists')
+            if any(group.id == input.identifier for group in groups):
+                raise GraphQLValidationError(info, f'Action group with identifier "{input.identifier}" already exists')
+            try:
+                group = ActionGroup(
+                    uuid=group_uuid,
+                    id=input.identifier,
+                    name=input.name,
+                    color=input.color,
+                    order=len(groups),
+                )
+            except PydanticValidationError as exc:
+                raise GraphQLValidationError(info, str(exc)) from exc
+            groups.append(group)
+            groups = _position_action_group(info, groups, group.uuid, input)
+            group = next(candidate for candidate in groups if candidate.uuid == group.uuid)
+            _persist_action_groups(ic, groups)
+            record_change(
+                ic,
+                action='action_group.create',
+                before=None,
+                after=_action_group_snapshot(group),
+                target_uuid=group.uuid,
+            )
+        _invalidate_action_group_runtime(info, ic)
+        return group
+
+    @gql.mutation(description='Update an action group selected by UUID.', graphql_type=ActionGroupType)
+    @staticmethod
+    def update_action_group(
+        info: gql.Info,
+        root: sb.Parent[Me],
+        id: Annotated[UUID, sb.argument(description='UUID of the action group to update.')],
+        input: UpdateActionGroupInput,
+    ) -> ActionGroup:
+        has_update = any(
+            value is not None and value is not sb.UNSET
+            for value in (
+                input.identifier,
+                input.name,
+                input.color,
+                input.previous_sibling,
+                input.next_sibling,
+            )
+        )
+        ic = root.instance
+        if not has_update:
+            group = next((group for group in ic.ensure_spec().action_groups if group.uuid == id), None)
+            if group is None:
+                raise NotFoundError(info, f'Action group with UUID "{id}" not found')
+            return group
+
+        with gql_change_operation(info, ic, action='action_group.update'):
+            ic.refresh_from_db(fields=['spec'])
+            groups = list(ic.ensure_spec().action_groups)
+            index = next((index for index, group in enumerate(groups) if group.uuid == id), None)
+            if index is None:
+                raise NotFoundError(info, f'Action group with UUID "{id}" not found')
+            before = groups[index]
+            group = before.model_copy(deep=True)
+            try:
+                if is_maybe_set(input.identifier):
+                    identifier = input.identifier.value
+                    if any(candidate.uuid != id and candidate.id == identifier for candidate in groups):
+                        raise GraphQLValidationError(
+                            info,
+                            f'Action group with identifier "{identifier}" already exists',
+                        )
+                    group.id = identifier
+                if is_maybe_set(input.name):
+                    group.name = _translated_action_group_name(group, input.name.value, ic.primary_language)
+                if is_maybe_set(input.color):
+                    group.color = input.color.value
+            except PydanticValidationError as exc:
+                raise GraphQLValidationError(info, str(exc)) from exc
+            groups[index] = group
+            groups = _position_action_group(info, groups, group.uuid, input)
+            group = next(candidate for candidate in groups if candidate.uuid == id)
+            _persist_action_groups(ic, groups)
+            record_change(
+                ic,
+                action='action_group.update',
+                before=_action_group_snapshot(before),
+                after=_action_group_snapshot(group),
+                target_uuid=group.uuid,
+            )
+        _invalidate_action_group_runtime(info, ic)
+        return group
+
+    @gql.mutation(description='Delete an unreferenced action group selected by UUID.')
+    @staticmethod
+    def delete_action_group(
+        info: gql.Info,
+        root: sb.Parent[Me],
+        id: Annotated[UUID, sb.argument(description='UUID of the action group to delete.')],
+    ) -> None:
+        ic = root.instance
+        with gql_change_operation(info, ic, action='action_group.delete'):
+            ic.refresh_from_db(fields=['spec'])
+            groups = list(ic.ensure_spec().action_groups)
+            group = next((group for group in groups if group.uuid == id), None)
+            if group is None:
+                raise NotFoundError(info, f'Action group with UUID "{id}" not found')
+            referring_actions = [
+                node.identifier
+                for node in ic.nodes.get_queryset().with_spec()
+                if node.spec is not None and isinstance(node.spec.type_config, ActionConfig) and node.spec.type_config.group == id
+            ]
+            if referring_actions:
+                raise GraphQLValidationError(
+                    info,
+                    'Cannot delete an action group referenced by actions: ' + ', '.join(sorted(referring_actions)),
+                )
+            groups = _normalize_action_group_order([candidate for candidate in groups if candidate.uuid != id])
+            _persist_action_groups(ic, groups)
+            record_change(
+                ic,
+                action='action_group.delete',
+                before=_action_group_snapshot(group),
+                after=None,
+                target_uuid=group.uuid,
+            )
+        _invalidate_action_group_runtime(info, ic)
 
     @gql.mutation(description='Create a new scenario')
     @staticmethod
@@ -1743,11 +2142,7 @@ class InstanceEditorMutation:
 
     @staticmethod
     def _get_data_source(info: gql.Info, ic: InstanceConfig, data_source_id: sb.ID) -> DataSource:
-        from django.contrib.contenttypes.models import ContentType
-
-        from kausal_common.datasets.models import DataSource
-
-        ct = ContentType.objects.get_for_model(type(ic))
+        ct = _instance_ct(ic)
         return get_or_error(
             info,
             DataSource.objects.filter(scope_content_type=ct, scope_id=ic.pk),
@@ -1765,23 +2160,13 @@ class InstanceEditorMutation:
         root: sb.Parent[Me],
         input: 'CreateDataSourceInput',
     ) -> Any:
-        from django.contrib.contenttypes.models import ContentType
-
-        from kausal_common.datasets.models import DataSource
-        from kausal_common.users import user_or_bust
-
-        from nodes.change_ops import gql_change_operation, record_change
-
         ic = root.instance
         if not DataSource.gql_create_allowed(info, None):
             raise PermissionDeniedError(info, 'Permission denied for create')
 
-        try:
-            user = user_or_bust(info.context.user)
-        except ValueError as exc:
-            raise PermissionDeniedError(info, 'Permission denied') from exc
+        user = _require_user(info)
 
-        ct = ContentType.objects.get_for_model(type(ic))
+        ct = _instance_ct(ic)
         with gql_change_operation(info, ic, action='dataset.data_source.create'):
             data_source = DataSource.objects.create(
                 scope_content_type=ct,
@@ -1813,18 +2198,9 @@ class InstanceEditorMutation:
         data_source_id: sb.ID,
         input: 'UpdateDataSourceInput',
     ) -> Any:
-        from kausal_common.datasets.models import Dataset, DatasetSourceReference
-        from kausal_common.users import user_or_bust
-
-        from nodes.change_ops import gql_change_operation, record_change
-        from nodes.dataset_materialization import refresh_dataset_materialization
-
         ic = root.instance
         data_source = InstanceEditorMutation._get_data_source(info, ic, data_source_id)
-        try:
-            user = user_or_bust(info.context.user)
-        except ValueError as exc:
-            raise PermissionDeniedError(info, 'Permission denied') from exc
+        user = _require_user(info)
 
         with gql_change_operation(info, ic, action='dataset.data_source.update'):
             references = DatasetSourceReference.objects.filter(data_source=data_source).values_list(
@@ -1869,11 +2245,6 @@ class InstanceEditorMutation:
         root: sb.Parent[Me],
         data_source_id: sb.ID,
     ) -> DeletePayload:
-        from django.core.exceptions import ValidationError
-        from django.db.models import ProtectedError
-
-        from nodes.change_ops import gql_change_operation, record_change
-
         ic = root.instance
         data_source = InstanceEditorMutation._get_data_source(info, ic, data_source_id)
         data_source.ensure_gql_action_allowed(info, 'delete')
@@ -1891,6 +2262,208 @@ class InstanceEditorMutation:
                 raise ValidationError(
                     'Cannot delete a DataSource that is still referenced. Remove the references first.',
                 ) from exc
+        return DeletePayload(ok=True)
+
+    # -- Dataset mutations -----------------------------------------------------
+
+    @staticmethod
+    def _dataset_snapshot(ds: Any) -> dict[str, Any]:
+        """Lightweight snapshot of a Dataset (and its 1:1 schema identity) for change tracking."""
+        schema = ds.schema
+        return {
+            'uuid': str(ds.uuid),
+            'identifier': ds.identifier,
+            'schema_uuid': str(schema.uuid) if schema is not None else None,
+            'name': schema.name if schema is not None else None,
+            'i18n': dict(schema.i18n or {}) if schema is not None else {},
+        }
+
+    @staticmethod
+    def _get_dataset(info: gql.Info, ic: InstanceConfig, dataset_id: UUID, for_action: Any = 'change') -> Dataset:
+        return get_or_error(
+            info,
+            Dataset.objects.get_queryset().for_instance_config(ic).select_related('schema'),
+            uuid=str(dataset_id),
+            for_action=for_action,
+        )
+
+    @staticmethod
+    def _ensure_dataset_identifier_free(
+        info: gql.Info,
+        ic: InstanceConfig,
+        identifier: str,
+        *,
+        exclude_pk: int | None = None,
+    ) -> None:
+        qs = Dataset.objects.filter(scope_content_type=_instance_ct(ic), scope_id=ic.pk, identifier=identifier)
+        if exclude_pk is not None:
+            qs = qs.exclude(pk=exclude_pk)
+        if qs.exists():
+            raise GraphQLValidationError(
+                info,
+                f'Dataset with identifier "{identifier}" already exists in instance "{ic.identifier}"',
+            )
+
+    @gql.mutation(
+        description='Create a new dataset (with its own schema) in this instance.',
+        graphql_type=Annotated['DatasetType', sb.lazy('datasets.graphql.types')],
+    )
+    @staticmethod
+    def create_dataset(
+        info: gql.Info,
+        root: sb.Parent[Me],
+        input: CreateDatasetInput,
+    ) -> Any:
+        from datasets.graphql.editor import create_metric_row
+        from datasets.graphql.types import DatasetType
+
+        ic = root.instance
+        # The dataset's own policy inherits from the schema, which is created
+        # here too — schema creation is the meaningful permission gate.
+        if not DatasetSchema.gql_create_allowed(info, None):
+            raise PermissionDeniedError(info, 'Permission denied for create')
+        user = _require_user(info)
+
+        if not input.metrics:
+            raise GraphQLValidationError(info, 'At least one metric is required')
+
+        ct = _instance_ct(ic)
+        if input.identifier:
+            InstanceEditorMutation._ensure_dataset_identifier_free(info, ic, input.identifier)
+
+        dim_scopes: list[DimensionScope] = []
+        for dim_uuid in input.dimensions:
+            scope = (
+                DimensionScope.objects
+                .for_instance_config(ic)
+                .filter(dimension__uuid=dim_uuid)
+                .select_related('dimension')
+                .first()
+            )
+            if scope is None:
+                raise NotFoundError(info, f'Dimension "{dim_uuid}" not found in instance "{ic.identifier}"')
+            dim_scopes.append(scope)
+
+        with gql_change_operation(info, ic, action='dataset.create'):
+            name, name_i18n = get_modeltrans_attrs_from_str(input.name, 'name', ic.primary_language)
+            schema = DatasetSchema.objects.create(name=name, i18n=name_i18n)
+            DatasetSchemaScope.objects.create(schema=schema, scope_content_type=ct, scope_id=ic.pk)
+            try:
+                for metric_input in input.metrics:
+                    create_metric_row(schema, metric_input, ic.primary_language)
+            except ValidationError as exc:
+                raise GraphQLValidationError(info, '; '.join(exc.messages)) from exc
+            for idx, dim_scope in enumerate(dim_scopes):
+                DatasetSchemaDimension.objects.create(schema=schema, dimension=dim_scope.dimension, order=idx)
+            dataset = Dataset.objects.create(
+                schema=schema,
+                uuid=input.id or uuid4(),
+                identifier=input.identifier or None,
+                scope_content_type=ct,
+                scope_id=ic.pk,
+                created_by=user,
+                last_modified_by=user,
+            )
+            record_change(
+                dataset,
+                action='dataset.create',
+                before=None,
+                after=InstanceEditorMutation._dataset_snapshot(dataset),
+            )
+            refresh_dataset_materialization(dataset, user=user)
+        return DatasetType.from_model(dataset)
+
+    @gql.mutation(
+        description='Update a dataset (rename it or change its identifier).',
+        graphql_type=Annotated['DatasetType', sb.lazy('datasets.graphql.types')],
+    )
+    @staticmethod
+    def update_dataset(
+        info: gql.Info,
+        root: sb.Parent[Me],
+        input: UpdateDatasetInput,
+    ) -> Any:
+        from datasets.graphql.types import DatasetType
+
+        ic = root.instance
+        dataset = InstanceEditorMutation._get_dataset(info, ic, input.dataset_id)
+        schema = dataset.schema
+
+        if not is_maybe_set(input.identifier) and not is_maybe_set(input.name):
+            return DatasetType.from_model(dataset)
+
+        if is_maybe_set(input.identifier) and input.identifier.value:
+            InstanceEditorMutation._ensure_dataset_identifier_free(
+                info,
+                ic,
+                input.identifier.value,
+                exclude_pk=dataset.pk,
+            )
+
+        with gql_change_operation(info, ic, action='dataset.update'):
+            before = InstanceEditorMutation._dataset_snapshot(dataset)
+            if is_maybe_set(input.identifier):
+                dataset.identifier = input.identifier.value
+                dataset.save(update_fields=['identifier'])
+            if is_maybe_set(input.name) and schema is not None:
+                # queryset.update() rather than save(): DatasetSchema is a
+                # ClusterableModel, whose save() can revert i18n edits.
+                DatasetSchema.objects.filter(pk=schema.pk).update(name=input.name.value)
+                schema.refresh_from_db()
+            record_change(
+                dataset,
+                action='dataset.update',
+                before=before,
+                after=InstanceEditorMutation._dataset_snapshot(dataset),
+            )
+        return DatasetType.from_model(dataset)
+
+    @gql.mutation(
+        description=(
+            'Delete a dataset and its schema. Refused while a node input port is bound to the dataset '
+            'or a published instance revision pins it. When the dataset has data points, the mutation '
+            "fails with error code 'dataset_has_data_points' unless `force` is true, in which case "
+            'the data points are deleted along with the dataset.'
+        ),
+    )
+    @staticmethod
+    def delete_dataset(
+        info: gql.Info,
+        root: sb.Parent[Me],
+        dataset_id: UUID,
+        force: bool = False,
+    ) -> DeletePayload:
+        ic = root.instance
+        dataset = InstanceEditorMutation._get_dataset(info, ic, dataset_id, for_action='delete')
+
+        if dataset.node_input_bindings.exists() or dataset.node_ports.exists() or dataset.nodes_edges.exists():
+            raise GraphQLValidationError(
+                info,
+                'The dataset is bound to a node input port; remove the binding first',
+                code='dataset_in_use',
+            )
+        if dataset.instance_revision_pins.exists():
+            raise GraphQLValidationError(
+                info,
+                'The dataset is pinned by a published instance revision and cannot be deleted',
+                code='dataset_pinned',
+            )
+        data_point_count = dataset.data_points.count()
+        if data_point_count and not force:
+            raise GraphQLValidationError(
+                info,
+                f'The dataset has {data_point_count} data points; pass force: true to delete them as well',
+                code='dataset_has_data_points',
+            )
+
+        schema = dataset.schema
+        with gql_change_operation(info, ic, action='dataset.delete'):
+            before = InstanceEditorMutation._dataset_snapshot(dataset)
+            before['data_point_count'] = data_point_count
+            record_change(dataset, action='dataset.delete', before=before, after=None)
+            dataset.delete()
+            if schema is not None and not schema.datasets.exists():
+                schema.delete()
         return DeletePayload(ok=True)
 
 

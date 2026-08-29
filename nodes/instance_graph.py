@@ -19,6 +19,7 @@ from nodes.defs.graph import (
 )
 from nodes.defs.instance_defs import InstanceMetadata, InstanceModelSpec  # noqa: TC001
 from nodes.defs.node_defs import ActionConfig, FormulaConfig, NodeSpec, PipelineConfig, SimpleConfig, TypeConfig
+from nodes.defs.port_def import pair_input_ports_to_outputs
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -561,6 +562,16 @@ def node_class_for_spec(spec: NodeSpec) -> type[Node]:
     return node_class_for_type_config(spec.type_config)
 
 
+def normalize_paired_action_ports(spec: NodeSpec) -> NodeSpec:
+    """Upgrade AdditiveAction port pairs at YAML/DB/snapshot adapter boundaries."""
+    from nodes.actions.simple import AdditiveAction
+
+    if not issubclass(node_class_for_spec(spec), AdditiveAction):
+        return spec
+    input_ports = pair_input_ports_to_outputs(spec.input_ports, spec.output_ports, role='input')
+    return spec.model_copy(update={'input_ports': input_ports})
+
+
 def build_instance_graph(
     snapshot: InstanceSnapshot,
     *,
@@ -579,12 +590,13 @@ def build_instance_graph(
     for node in snapshot.nodes:
         if node.spec is None:
             raise ValueError(f'Node {node.uuid} has no computation spec')
+        node_spec = normalize_paired_action_ports(node.spec)
         nodes.append(
             NodeMeta(
                 id=node.uuid,
                 identifier=node.identifier,
-                node_class_path=node_class_path(node.spec),
-                spec=node.spec,
+                node_class_path=node_class_path(node_spec),
+                spec=node_spec,
                 name=node.name,
                 short_name=node.short_name,
                 short_description=node.short_description,

@@ -23,7 +23,7 @@ features:
   show_explanations: true
 params:
 - id: weather_correction
-  label_de: Wetterkorrektur durchführen?
+  label_de: Witterungsbereinigung durchführen?
   label_en: Apply weather correction?
   value: true
   is_customizable: true

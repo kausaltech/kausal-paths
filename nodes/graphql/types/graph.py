@@ -4,6 +4,7 @@ from uuid import UUID
 
 import strawberry as sb
 
+from kausal_common.strawberry.ordering import with_sibling_ids
 from kausal_common.strawberry.pydantic import pydantic_type
 
 from paths import gql
@@ -224,6 +225,8 @@ class DatasetPortType(EditableEntity):
         graphql_type=list[PortTransformationType],
         description=(
             'Transformations applied to the dataset, in execution order. '
+            'Temporal filling operations are temporarily preserved server-side but omitted here '
+            'for compatibility with independently deployed older editors. '
             'Editing replaces the whole list; entries whose kind is one of '
             '`select_metric`, `index_temporal` or `remap_legacy_years` are generated '
             'and should be passed back unchanged.'
@@ -231,7 +234,9 @@ class DatasetPortType(EditableEntity):
     )
     @staticmethod
     def transformations(root: 'DatasetPortType') -> list[PortTransformOp]:
-        return root._transformations or []
+        from nodes.defs.transform_def import visible_transformations
+
+        return visible_transformations(root._transformations or [])
 
     @sb.field(graphql_type=Annotated['DatasetType', sb.lazy('datasets.graphql.types')] | None)  # type: ignore[name-defined]  # noqa: F821
     @staticmethod
@@ -323,14 +328,80 @@ InputPortBinding = Annotated[NodeEdgeType | DatasetPortType, sb.union('InputPort
 @sb.type
 class ActionGroupType:
     id: sb.ID
+    uuid: UUID
     name: str
     color: str | None
+    order: int
+    _previous_sibling: sb.Private[UUID | None] = None
+    _next_sibling: sb.Private[UUID | None] = None
+
+    @classmethod
+    def is_type_of(cls, obj: Any, _info: gql.Info) -> bool:
+        return isinstance(obj, (ActionGroup, cls))
+
+    @classmethod
+    def from_group(
+        cls,
+        group: ActionGroup,
+        *,
+        previous_sibling: UUID | None = None,
+        next_sibling: UUID | None = None,
+    ) -> ActionGroupType:
+        return cls(
+            id=sb.ID(group.id),
+            uuid=group.uuid,
+            name=str(group.name or group.id),
+            color=group.color,
+            order=group.order,
+            _previous_sibling=previous_sibling,
+            _next_sibling=next_sibling,
+        )
+
+    @sb.field(description='Human-readable identifier. Alias of `id`; use `uuid` for entity identity.')
+    @staticmethod
+    def identifier(root: 'ActionGroup | ActionGroupType') -> str:
+        return str(root.id)
+
+    @sb.field(description='UUID of the preceding action group in display order.')
+    @pass_context
+    @staticmethod
+    def previous_sibling(root: 'ActionGroup | ActionGroupType', context: Context) -> UUID | None:
+        if isinstance(root, ActionGroupType):
+            return root._previous_sibling
+        groups = context.instance.action_groups
+        index = next((index for index, group in enumerate(groups) if group.uuid == root.uuid), None)
+        if index is None or index == 0:
+            return None
+        return groups[index - 1].uuid
+
+    @sb.field(description='UUID of the following action group in display order.')
+    @pass_context
+    @staticmethod
+    def next_sibling(root: 'ActionGroup | ActionGroupType', context: Context) -> UUID | None:
+        if isinstance(root, ActionGroupType):
+            return root._next_sibling
+        groups = context.instance.action_groups
+        index = next((index for index, group in enumerate(groups) if group.uuid == root.uuid), None)
+        if index is None or index == len(groups) - 1:
+            return None
+        return groups[index + 1].uuid
 
     @sb.field(graphql_type=list[Annotated['ActionNodeType', sb.lazy('nodes.schema')]])
     @pass_context
     @staticmethod
-    def actions(root: ActionGroup, context: Context) -> list[ActionNode]:
-        return [act for act in context.get_actions() if act.group is not None and act.group.id == root.id]
+    def actions(root: 'ActionGroup | ActionGroupType', context: Context) -> list[ActionNode]:
+        return [act for act in context.get_actions() if act.group is not None and act.group.uuid == root.uuid]
+
+
+def action_group_types(groups: list[ActionGroup]) -> list[ActionGroupType]:
+    return [
+        ActionGroupType.from_group(
+            group,
+            previous_sibling=previous_sibling,
+            next_sibling=next_sibling,
+        )
+        for group, previous_sibling, next_sibling in with_sibling_ids(groups, lambda group: group.uuid)
+    ]
 
 
 def _dataset_external_ref_to_gql(external_ref: object) -> DatasetExternalRefType | None:

@@ -2,6 +2,7 @@ import enum
 from collections import Counter
 from collections.abc import Iterable
 from datetime import datetime
+from functools import cached_property
 from typing import TYPE_CHECKING, Annotated, Any, Protocol, Self, cast
 from uuid import UUID
 
@@ -46,6 +47,7 @@ from .graph import (
     NodeEdgeType,
     NodePortRef,
     _external_dataset_id_from_dataset,
+    action_group_types,
 )
 from .layout import NodeLayoutType
 from .node import QuantityKindType
@@ -303,6 +305,14 @@ class InstanceEditorFields:
     @staticmethod
     def spec(root: 'InstanceEditorFields') -> InstanceModelSpec | None:
         return root._config.spec
+
+    @sb.field(graphql_type=list[ActionGroupType])
+    @staticmethod
+    def action_groups(root: 'InstanceEditorFields') -> list[ActionGroupType]:
+        spec = root._config.spec
+        if spec is None:
+            return []
+        return action_group_types(list(spec.action_groups))
 
     @sb.field(graphql_type=list[NodeEdgeType])
     @staticmethod
@@ -663,11 +673,14 @@ class InstanceType:
             is_locked=ic.is_locked,
         )
 
-    @property
+    @cached_property
     def spec(self) -> InstanceModelSpec:
         if self._snapshot is not None:
             return self._snapshot.spec
-        return self._config.ensure_spec()
+        spec = self._config.ensure_spec()
+        if self._config.has_framework_config():
+            return self._config.framework_config.apply_spec_overrides(spec)
+        return spec
 
     def snapshot(self, info: gql.Info) -> InstanceSnapshot:
         return self._snapshot or info.context.require_instance_snapshot(self._config, source=self._source)
@@ -770,7 +783,7 @@ class InstanceType:
 
     @sb.field
     def action_groups(self) -> list[ActionGroupType]:
-        return cast('list[ActionGroupType]', list(self.spec.action_groups))
+        return action_group_types(list(self.spec.action_groups))
 
     @sb.field
     def features(self) -> InstanceFeaturesType:

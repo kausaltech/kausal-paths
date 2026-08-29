@@ -21,7 +21,7 @@ from __future__ import annotations
 from copy import deepcopy
 from datetime import date, datetime
 from typing import TYPE_CHECKING, Annotated, Any, Literal, Self, cast
-from uuid import UUID
+from uuid import UUID, uuid3
 
 from django.db import transaction
 from pydantic import BaseModel, Field, field_validator
@@ -79,7 +79,9 @@ if TYPE_CHECKING:
 #   v8: structural dimension and dataset catalogs carry canonical UUIDs.
 #   v9: one discriminated ``bindings`` list with stored per-port positions
 #       replaces the ``edges`` + ``dataset_ports`` arrays.
-SNAPSHOT_SCHEMA_VERSION = 9
+#   v10: action groups have stable UUIDs and action node group references
+#        use those UUIDs instead of human-readable identifiers.
+SNAPSHOT_SCHEMA_VERSION = 10
 
 _MARKDOWN = MarkdownIt('commonmark', {'html': True})
 
@@ -145,6 +147,7 @@ class DatasetMetricSnapshot(ModelSnapshot):
     identifier: str
     label: TranslatedString | None = None
     unit: str
+    quantity: str | None = None
     validation_rules: list[MetricValidationRuleSnapshot] = Field(default_factory=list)
 
     @classmethod
@@ -158,6 +161,7 @@ class DatasetMetricSnapshot(ModelSnapshot):
             identifier=obj.name or str(obj.uuid),
             label=_ts_from_modeltrans(obj, 'label', 'en') if obj.label or obj.i18n else None,
             unit=obj.unit,
+            quantity=(obj.spec or {}).get('quantity'),
             validation_rules=cls._rules_from_model(obj),
         )
 
@@ -167,6 +171,7 @@ class DatasetMetricSnapshot(ModelSnapshot):
             identifier=obj.name or str(obj.uuid),
             label=_ts_from_modeltrans(obj, 'label', primary_language),
             unit=obj.unit,
+            quantity=(obj.spec or {}).get('quantity'),
             validation_rules=cls._rules_from_model(obj),
         )
 
@@ -600,6 +605,59 @@ def _upgrade_bindings_v9(data: dict[str, Any]) -> None:
     data['bindings'] = bindings
 
 
+def _upgrade_action_group_references_v10(data: dict[str, Any]) -> None:  # noqa: C901
+    """Give legacy action groups deterministic UUIDs and rewrite action references."""
+    spec = data.get('spec')
+    if not isinstance(spec, dict):
+        return
+    groups = spec.get('action_groups', [])
+    if not groups:
+        return
+
+    metadata = data.get('metadata') or {}
+    instance_uuid_raw = metadata.get('uuid') or spec.get('uuid')
+    if instance_uuid_raw is None:
+        raise ValueError('Legacy snapshots with action groups require an instance UUID')
+    instance_uuid = UUID(str(instance_uuid_raw))
+
+    group_uuids: dict[str, UUID] = {}
+    for group in groups:
+        if not isinstance(group, dict):
+            continue
+        identifier = group.get('id')
+        if identifier is None:
+            raise ValueError('Legacy action groups require an identifier')
+        group_uuid = (
+            UUID(str(group['uuid']))
+            if group.get('uuid') is not None
+            else uuid3(
+                instance_uuid,
+                f'action-group:{identifier}',
+            )
+        )
+        group['uuid'] = group_uuid
+        group_uuids[str(identifier)] = group_uuid
+
+    for node in data.get('nodes', []):
+        if not isinstance(node, dict):
+            continue
+        node_spec = node.get('spec')
+        if not isinstance(node_spec, dict):
+            continue
+        type_config = node_spec.get('type_config')
+        if not isinstance(type_config, dict) or type_config.get('kind') != 'action':
+            continue
+        group_ref = type_config.get('group')
+        if group_ref is None:
+            continue
+        group_uuid = group_uuids.get(str(group_ref))
+        if group_uuid is None:
+            # Preserve a dangling legacy reference as a deterministic UUID;
+            # runtime validation will continue to report the missing group.
+            group_uuid = uuid3(instance_uuid, f'action-group:{group_ref}')
+        type_config['group'] = group_uuid
+
+
 class NodePortSource(BaseModel):
     """An input-binding source: another node's output port."""
 
@@ -871,6 +929,8 @@ class InstanceSnapshot(BaseModel):
             _upgrade_node_metadata_v4(nodes)
         if schema_version < 9:
             _upgrade_bindings_v9(data)
+        if schema_version < 10:
+            _upgrade_action_group_references_v10(data)
 
         data['schema_version'] = SNAPSHOT_SCHEMA_VERSION
         return cls.model_validate(data)
@@ -1188,6 +1248,7 @@ def dataset_meta_from_model(
             identifier=metric.name,
             label=_ts_from_modeltrans(metric, 'label', primary_language),
             unit=metric.unit,
+            quantity=(metric.spec or {}).get('quantity'),
             order=metric.order,
             validation_rules=tuple(
                 validation_rule_adapter.validate_python(rule.rule)
@@ -1429,6 +1490,7 @@ def _import_dataset(
             schema=schema,
             name=m_snap.identifier,
             unit=m_snap.unit,
+            spec={'quantity': m_snap.quantity} if m_snap.quantity is not None else {},
             order=idx,
             i18n=metric_i18n,
             **metric_fields,

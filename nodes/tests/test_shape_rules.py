@@ -14,7 +14,7 @@ from nodes.constraints.rules import (
 )
 from nodes.defs.graph import DimensionMeta
 from nodes.defs.node_defs import NodeSpec, SimpleConfig
-from nodes.defs.port_def import InputPortDef, OutputPortDef
+from nodes.defs.port_def import InputPort, InputPortDef, OutputPortDef
 from nodes.instance_graph import InstanceGraph, NodeMeta, build_instance_graph
 from nodes.instance_graph_cache import _dump_graph, _load_graph
 from nodes.instance_serialization import EdgeSnapshot, InstanceSnapshot, NodeSnapshot
@@ -23,8 +23,17 @@ from nodes.pipeline.ops.arithmetic import AddOperationSpec, AnyOperationSpec, Mu
 from nodes.pipeline.ops.base import DatasetInputRef, IntermediateInputRef, PortInputRef, ScalarValue
 from nodes.simple import AdditiveNode, MultiplicativeNode
 from nodes.units import unit_registry
+from params.param import StringParameter
 
 pytestmark = pytest.mark.django_db
+
+
+class DeclarativeRoleTestNode(Node):
+    selected_port = InputPort.one('selected')
+    remainder_port = InputPort.multi('remainder')
+    input_port_declarations = (selected_port, remainder_port)
+    legacy_input_port_roles_by_tag = {'selected': 'selected'}
+    legacy_untagged_input_role = 'remainder'
 
 
 def _unit(text: str):
@@ -116,6 +125,54 @@ def test_legacy_multiplicative_ports_classify_and_compile_to_uuid_rules() -> Non
             assert isinstance(value, UUID)
 
 
+@pytest.mark.parametrize('node_class', ['simple.ImprovementNode', 'simple.ImprovementNode2'])
+def test_legacy_improvement_input_is_a_factor_even_when_its_unit_matches_output(node_class: str) -> None:
+    input_port = InputPortDef(id=uuid4(), unit=_unit('%'))
+    output_id = uuid4()
+    target = NodeSnapshot(
+        uuid=uuid4(),
+        identifier='improvement',
+        spec=NodeSpec(
+            type_config=SimpleConfig(node_class=node_class),
+            input_ports=[input_port],
+            output_ports=[OutputPortDef(id=output_id, identifier='default', unit=_unit('dimensionless'))],
+        ),
+    )
+    source, source_port = _source_node('rate', '%')
+
+    graph = _build([source, target], [_edge(source, source_port, target, input_port.id)])
+
+    assert graph.node_by_id[target.uuid].inferred_port_roles == {input_port.id: 'factors'}
+
+
+def test_declarative_legacy_role_adapter_uses_tags_then_class_fallback() -> None:
+    selected_port = InputPortDef(id=uuid4(), unit=_unit('t/a'))
+    remainder_port = InputPortDef(id=uuid4(), unit=_unit('t/a'))
+    target = NodeSnapshot(
+        uuid=uuid4(),
+        identifier='target',
+        spec=NodeSpec(
+            type_config=SimpleConfig(node_class='nodes.tests.test_shape_rules.DeclarativeRoleTestNode'),
+            input_ports=[selected_port, remainder_port],
+            output_ports=[OutputPortDef(id=uuid4(), identifier='default', unit=_unit('t/a'))],
+        ),
+    )
+    tagged_source, tagged_output = _source_node('tagged', 't/a')
+    other_source, other_output = _source_node('other', 't/a')
+    graph = _build(
+        [tagged_source, other_source, target],
+        [
+            _edge(tagged_source, tagged_output, target, selected_port.id, tags=['selected']),
+            _edge(other_source, other_output, target, remainder_port.id),
+        ],
+    )
+
+    assert graph.node_by_id[target.uuid].inferred_port_roles == {
+        selected_port.id: 'selected',
+        remainder_port.id: 'remainder',
+    }
+
+
 def test_explicit_role_wins_and_unit_change_does_not_reclassify() -> None:
     # Unit-compatible with the output, but explicitly a factor: the heuristic must not touch it.
     explicit_factor = InputPortDef(id=uuid4(), role='factors', unit=_unit('t/a'))
@@ -154,6 +211,48 @@ def test_additive_grouped_port_resolves_role_from_identifier_fallback() -> None:
     assert meta.require_input_port('additive').id == multi_port.id
     rules = graph.shape_rule_compilation.rules_by_node[target.uuid]
     assert rules == (SameShapeRule(inputs=(multi_port.id,), output=output_id),)
+
+
+def test_legacy_additive_metric_parameter_selects_one_multi_output_edge_port() -> None:
+    metric = StringParameter(local_id='metric', is_customizable=False)
+    metric.set('Electricity')
+    source_id = uuid4()
+    source_ports = [
+        OutputPortDef(id=uuid4(), identifier='default', column_id='Value', unit=_unit('%')),
+        OutputPortDef(id=uuid4(), identifier='Heat', column_id='Heat', unit=_unit('kWh/m²/a')),
+        OutputPortDef(id=uuid4(), identifier='Electricity', column_id='Electricity', unit=_unit('kWh/m²/a')),
+    ]
+    source = NodeSnapshot(
+        uuid=source_id,
+        identifier='building_action',
+        spec=NodeSpec(output_ports=source_ports),
+    )
+    input_ports = [InputPortDef(id=uuid4(), unit=source_port.unit) for source_port in source_ports]
+    output_id = uuid4()
+    target = NodeSnapshot(
+        uuid=uuid4(),
+        identifier='electricity_per_area',
+        spec=NodeSpec(
+            type_config=SimpleConfig(node_class='simple.AdditiveNode'),
+            params=[metric],
+            input_ports=input_ports,
+            output_ports=[OutputPortDef(id=output_id, identifier='default', unit=_unit('kWh/m²/a'))],
+        ),
+    )
+    graph = _build(
+        [source, target],
+        [
+            _edge(source, source_port.id, target, input_port.id)
+            for source_port, input_port in zip(source_ports, input_ports, strict=True)
+        ],
+    )
+
+    meta = graph.node_by_id[target.uuid]
+    assert meta.inferred_port_roles == {input_ports[2].id: 'additive'}
+    assert meta.input_port_ids_for_roles('additive') == (input_ports[2].id,)
+    assert graph.shape_rule_compilation.rules_by_node[target.uuid] == (
+        SameShapeRule(inputs=(input_ports[2].id,), output=output_id),
+    )
 
 
 def test_missing_role_port_is_a_diagnostic_not_an_error() -> None:

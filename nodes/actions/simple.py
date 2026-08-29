@@ -10,6 +10,9 @@ import polars as pl
 
 from common import polars as ppl
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
+from nodes.constraints.port_roles import PortRoleInferenceResult
+from nodes.defs.binding_def import DatasetBindingDef
+from nodes.defs.port_def import InputPort, InputPortDeclaration, InputPortDef
 from nodes.exceptions import NodeError
 from nodes.generic import GenericNode
 from nodes.gpc import DatasetNode
@@ -19,7 +22,10 @@ from params import BoolParameter, NumberParameter, StringParameter
 from .action import ActionNode
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from common.polars import PathsDataFrame
+    from nodes.instance_graph import NodeMeta
     from params.base import Parameter
 
 
@@ -64,6 +70,23 @@ class SCurveAction(GenericAction):
     )
     allowed_parameters = [*GenericAction.allowed_parameters]
     no_effect_value = 0.0
+    input_port = InputPort.one('input', label=_('Historical input'))
+    parameters_port = InputPort.one('parameters', label=_('S-curve parameters'))
+    input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = (input_port, parameters_port)
+    legacy_input_port_roles_by_tag = {'parameters': 'parameters'}
+
+    @classmethod
+    def infer_legacy_port_roles(cls, meta: NodeMeta, candidates: Sequence[InputPortDef]) -> PortRoleInferenceResult:
+        result = PortRoleInferenceResult()
+        for port in candidates:
+            bindings = meta.bindings_for_port(port.id)
+            tags = {tag for binding in bindings for tag in binding.tags}
+            if 'parameters' in tags or any(isinstance(binding, DatasetBindingDef) for binding in bindings):
+                reason = "binding tag 'parameters'" if 'parameters' in tags else 'a legacy dataset binding'
+                result.classify(port, 'parameters', reason)
+            else:
+                result.classify(port, 'input', 'a legacy historical edge binding')
+        return result
 
     def _newton_raphson_estimator(
         self,
@@ -167,10 +190,10 @@ class SCurveAction(GenericAction):
         return out
 
     def compute_effect(self) -> ppl.PathsDataFrame:
-        df = self.get_input_node().get_output_pl(target_node=self)
+        df = self.require_input(self.input_port)
         df = df.ensure_unit(VALUE_COLUMN, 'dimensionless')
 
-        params = self.get_input_dataset_pl()
+        params = self.require_input(self.parameters_port)
         # GenericDataset extends the data across all model years; collapse params to
         # a single representative year so .item() works in _apply_scurve_parameters.
         target_year = self.context.instance.target_year
@@ -243,21 +266,55 @@ class ValueAction(GenericAction):
 class AdditiveAction(ActionNode):
     explanation = _("""Simple action that produces an additive change to a value.""")
     no_effect_value = 0.0
+    legacy_fixed_dataset_input_role = 'input'
+    input_port = InputPort.repeatable('input')
+    input_port_declarations = (input_port,)
+
+    @classmethod
+    def infer_legacy_port_roles(
+        cls,
+        _meta: NodeMeta,
+        candidates: Sequence[InputPortDef],
+    ) -> PortRoleInferenceResult:
+        result = PortRoleInferenceResult()
+        for port in candidates:
+            if port.paired_output_port_id is not None:
+                result.classify(port, 'input', 'an input paired with an additive-action output')
+            else:
+                result.refuse(port, 'the port is not paired with an additive-action output')
+        return result
 
     def compute_effect(self):
-        df = self.get_input_dataset_pl()
-
         if self.get_parameter_value('allow_null_categories', required=False):
             self.allow_null_categories = True
 
-        for m in self.output_metrics.values():
+        result = None
+        for input_port in self.iter_input_ports(self.input_port):
+            output_port = input_port.paired_output
+            if output_port is None:
+                raise NodeError(self, f'Input port {input_port.id} is not paired with an output port')
+            df = self.require_input_port(input_port)
+            if len(df.metric_cols) != 1:
+                raise NodeError(self, f'Input port {input_port.id} does not deliver exactly one metric')
+            output_column = output_port.column_id or output_port.identifier
+            if output_column is None:
+                raise NodeError(self, f'Output port {output_port.id} has no metric column')
+            input_column = df.metric_cols[0]
+            if input_column != output_column:
+                df = df.rename({input_column: output_column})
+            m = next((metric for metric in self.output_metrics.values() if metric.column_id == output_column), None)
+            if m is None:
+                raise NodeError(self, f'Output port {output_port.id} does not map to a runtime output metric')
             if not self.is_enabled():
                 df = df.with_columns(
                     pl.when(pl.col(m.column_id).is_null()).then(None).otherwise(self.no_effect_value).alias(m.column_id)
                 )
             df = df.ensure_unit(m.column_id, m.unit)
+            result = df if result is None else result.paths.join_over_index(df, how='outer', index_from='union', nulls_equal=True)
 
-        return df
+        if result is None:
+            raise NodeError(self, 'No paired impact input ports are declared')
+        return result
 
 
 class AdditiveAction2(AdditiveAction, SimpleNode):  # FIXME Merge with AdditiveAction
@@ -387,9 +444,13 @@ class TrajectoryAction(ActionNode):
         NumberParameter(local_id='baseline_year_level'),
         BoolParameter(local_id='keep_dimension'),
     ]
+    input_port = InputPort.one('input', label=_('Trajectory'))
+    input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = (input_port,)
+    legacy_fixed_dataset_input_role: ClassVar[str | None] = 'input'
+    legacy_untagged_dataset_input_role: ClassVar[str | None] = 'input'
 
     def compute_effect(self):
-        df = self.get_input_dataset_pl()
+        df = self.require_input(self.input_port)
         dim_id = self.get_parameter_value_str('dimension', required=True)
         cat_id = self.get_parameter_value_str('category', required=False)
         cat_no = self.get_parameter_value_int('category_number', required=False)
@@ -411,6 +472,9 @@ class GpcTrajectoryAction(TrajectoryAction, DatasetNode):
     GpcTrajectoryAction is a trajectory action that uses the DatasetNode to fetch the dataset.
     """)
     allowed_parameters = [*TrajectoryAction.allowed_parameters, *DatasetNode.allowed_parameters]
+    input_port_declarations = DatasetNode.input_port_declarations
+    legacy_fixed_dataset_input_role = DatasetNode.legacy_fixed_dataset_input_role
+    legacy_untagged_dataset_input_role = DatasetNode.legacy_untagged_dataset_input_role
 
     def compute_effect(self):
         df = DatasetNode.compute(self)

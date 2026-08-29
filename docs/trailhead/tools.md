@@ -148,6 +148,106 @@ silently stale: 15 of `mainz-bisko`'s 32 rows are in that state, including the
 one that was blocking its update.
 
 
+## dataset_inventory
+
+Answers the question *before* `dataset_status`: not "what do I have to run?" but
+**what exists, and where?** Per dataset it prints the data-point count and last
+write date on *both* the database and DVC sides, the drift between them, and the
+commit recorded in `external_ref`.
+
+```bash
+python manage.py dataset_inventory mainz-bisko
+python manage.py dataset_inventory mainz-bisko --repo-from yaml --order drift
+python manage.py dataset_inventory mainz-bisko --csv /tmp/datasets.csv
+```
+
+**Use it in place of `load_nodes.py`'s dataset listing.** That listing enumerates
+the datasets the *runtime* resolved, so on an instance with
+`use_datasets_from_db` every imported identifier loads as a `DBDataset` and never
+appears — the listing looks short and reassuring while most of the model is
+missing from it. This command enumerates from the DB rows and the declared set,
+so nothing is invisible.
+
+The two point counts are comparable: a `DataPoint` is one (metric, year,
+dimension) cell, and the DVC count is non-null metric cells. `--order drift` puts
+the mismatches first.
+
+Three verdicts in the `where` column, and the distinction that matters:
+
+- `both` — populated on both sides.
+- `db only` — the DB has data the pinned DVC copy does not.
+- `dvc only` — the reverse. **A `0` in `db pts` against a `—` separates an empty
+  row from no row at all**: `load_dvc_dataset` creates the row and schema before
+  it can fail to fill them, and a dataset indexed by columns the instance has no
+  dimension for (`we_from`, `ags`) leaves exactly that — a row, a schema,
+  bindings, and nothing in them.
+
+The dates are different kinds of fact and the headings say so. `db written` is
+the newest `last_modified_at` over the row's data points — when this database was
+last written, not when the data was collected. `dvc committed` is the last commit
+**reachable from the pin** that touched `<identifier>.parquet.dvc`, so a dataset
+pushed after the pin is reported as the pin sees it, which is the state the model
+computes on.
+
+
+## delete_dataset
+
+Deletes dataset rows and their data points from one instance. There was no
+command for this and it was done from `shell_plus`, which is the wrong place: a
+bare `Dataset.objects.filter(identifier=...).delete()` takes every city's row of
+that name, leaves the schema behind as an orphan, and either raises
+`ProtectedError` halfway through or silently removes a dataset the model still
+binds.
+
+```bash
+python manage.py delete_dataset mainz-bisko bisko/energy_costs                   # plan
+python manage.py delete_dataset mainz-bisko a b c --apply --dump-to /tmp/backup
+```
+
+Nothing is written without `--apply`, and **`--apply` refuses until you choose
+`--dump-to DIR` or `--no-dump`**. A delete destroys data points, and for a row
+with no DVC provenance there is no other copy anywhere — the plan says which rows
+those are, because it changes what a mistake costs. The dump is a CSV per
+dataset: dimensions as columns, comments and data-point UUIDs preserved.
+
+A refusal stops the **whole set**, as in `rename_dataset`. What it refuses:
+
+- **ambiguous** — the identifier resolves to more than one row visible here.
+  Identifiers repeat across cities; never guess.
+- **foreign scope** — the row's scope is not the named instance. Scope is a
+  generic FK, so a framework-scoped row is merely *visible* here and deleting it
+  would remove it from every holder.
+- **published revision** — an `InstanceRevisionDatasetPin` names it. No override:
+  the pin records what a published revision computed from.
+- **model still binds it** — a `NodeInputPortBinding`, `DatasetPort` or
+  `NodeDataset` points at the row. `--clear-bindings` overrides.
+- **still declared in `configs/`** — because a deleted-but-declared dataset comes
+  back on the next sync, empty, and an empty row the model binds is the failure
+  mode in *A dataset can be current in DVC and absent from the model*.
+  `--ignore-configs` overrides, which is right when the hit is another city's
+  config or a module this instance does not include.
+
+**The binding check is the one that cannot be replaced by inspecting the graph**,
+and `dataset_replacements` is why. The loaded dataset object carries the
+*module's* declared id (`kommune/fahrleistung_strassenverkehr`) while the binding
+points at the row the replacement resolved to
+(`mainz/fahrleistung_strassenverkehr`), so scanning node dataset ids reports such
+a row as unused while three bindings hold it. The FK tables are the only signal
+that survives a replacement.
+
+The config scan separates **declarations from comment mentions**: a YAML comment
+naming an identifier is not a declaration, and a comment explaining why an entry
+was removed would otherwise refuse the delete on the strength of its own
+documentation. Both are reported; only declarations block. Split rather than
+stripped, because stripping everything after a `#` would under-count an
+identifier inside a quoted string, and under-counting is the unsafe direction.
+
+The schema goes with the dataset when it serves only that dataset, and is kept
+when shared — `Dataset.schema` is `PROTECT`, so otherwise it survives as an
+orphan carrying its metrics and dimensions. Data points, their comments and their
+source references all `CASCADE`. `invalidate_cache()` runs at the end.
+
+
 ## rename_dataset_metrics
 
 When DVC data comes back with a metric column under a new name, the import
@@ -496,6 +596,34 @@ instance it is the DB spec's pin, which lags the YAML until step 3 — so a firs
 pass can legitimately import from an older commit than the YAML names. Use
 `--repo-from yaml` on both `dataset_status` and `load_dvc_dataset` when you mean
 the YAML's.
+
+### Retiring a dataset an instance no longer uses
+
+The order matters, because a dataset the config still declares comes back on the
+next sync as an empty row — and an empty row the model binds is worse than the
+dataset that was there.
+
+1. `dataset_inventory <instance> --order drift` — find the candidates. A row that
+   is `db only` with a populated DB side, or one nothing else explains, is worth a
+   look.
+2. **Check it is really unused.** `delete_dataset <instance> <ids>` with no
+   `--apply` does this for you and reports every reason it would refuse. Trust the
+   FK tables over reading the graph: `dataset_replacements` means a row can be
+   bound under a different identifier than the one the model declares.
+3. **Remove the declaration first** — the node, the `input_datasets` entry, or the
+   `dataset_replacements` line — then commit, deploy and
+   `sync_instance_to_db <instance>`. The sync moves the bindings off the row,
+   which is what turns a refusal into a clean delete.
+4. `delete_dataset <instance> <ids> --apply --dump-to DIR`.
+5. `dataset_inventory <instance>` again to confirm the count dropped and nothing
+   else moved.
+
+If a removed declaration was load-bearing you want to know before step 4, not
+after. The cheap test: capture the outputs of the affected nodes, remove the
+declaration, recompute, and diff. On `mainz-bisko` that showed a
+`dataset_replacements` entry between two value-free datasets to be completely
+inert — every node output byte-identical, `total_weighted_data_quality` included —
+which is what made removing it safe rather than plausible.
 
 ### Verifying a spec model change
 

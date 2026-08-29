@@ -10,7 +10,7 @@ from collections import Counter, defaultdict
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from pydantic import BaseModel, Field, PrivateAttr
 
 import loguru
@@ -90,6 +90,10 @@ def file_path(str_path: str) -> Path:
     if path.is_file() or not path.exists():
         return path
     raise ValueError(f'{str_path} is not a file')
+
+
+def resolve_all_nodes(*, store: bool, all_nodes: bool, outcomes_only: bool) -> bool:
+    return all_nodes or (store and not outcomes_only)
 
 
 type NodeFailReason = Literal['output', 'compare', 'check']
@@ -192,6 +196,9 @@ class CheckState(BaseModel):
             return True
         return any(details.instance_id == instance_id and details.failure_at is not None for details in self.instance_details)
 
+    def successful_instances(self) -> set[str]:
+        return {instance_id for instance_id in self.checked_instances if not self.has_failed_instance(instance_id)}
+
     def mark_failed(self, instance_id: str, reason: InstanceFailReason):
         self.checked_instances.add(instance_id)
         self.failed_instances.add(instance_id)
@@ -274,6 +281,11 @@ class Command(BaseCommand):
             help='Only initialize each instance; skip output comparison and node execution',
         )
         parser.add_argument(
+            '--smoke-test',
+            action='store_true',
+            help='Only initialize instances recorded as successfully checked; do not modify stored state',
+        )
+        parser.add_argument(
             '--dry-run',
             dest='dry_run',
             action='store_true',
@@ -325,11 +337,18 @@ class Command(BaseCommand):
             default=False,
             help='Call malloc_trim(0) after each instance and print the post-trim RSS in --trace-rss mode',
         )
-        parser.add_argument(
+        node_scope_group = parser.add_mutually_exclusive_group()
+        node_scope_group.add_argument(
             '--all-nodes',
             action='store_true',
             default=False,
-            help='Store/compare outputs for all nodes instead of only outcome nodes',
+            help='Compare outputs for all nodes instead of only outcome nodes (the default with --store)',
+        )
+        node_scope_group.add_argument(
+            '--outcomes-only',
+            action='store_true',
+            default=False,
+            help='With --store, store only outcome-node outputs instead of all node outputs',
         )
         parser.add_argument(
             '--trace-object-graph',
@@ -1111,6 +1130,8 @@ class Command(BaseCommand):
         if self.spec_only:
             self.state.mark_success(instance)
             self.save_state()
+            logger.info('Cleaning instance')
+            instance.clean()
             return True
 
         ctx = instance.context
@@ -1181,11 +1202,24 @@ class Command(BaseCommand):
             self.compare = bool(options['compare'])
         self.spec_only = bool(options['spec_only'])
         self.dry_run = bool(options['dry_run'])
+        smoke_test = bool(options['smoke_test'])
+        if smoke_test:
+            if instance_ids or options['only']:
+                raise CommandError('--smoke-test selects instances from the state file; do not provide instance IDs or --only')
+            if self.store or options['compare']:
+                raise CommandError('--smoke-test cannot be combined with --store or --compare')
+            self.compare = False
+            self.spec_only = True
+            self.dry_run = True
         self.check_perf = bool(options['check_perf'])
         self.trace_rss = bool(options['trace_rss'])
         self.gc_after_instance = bool(options['gc_after_instance'])
         self.malloc_trim_after_instance = bool(options['malloc_trim_after_instance'])
-        self.all_nodes = bool(options['all_nodes'])
+        self.all_nodes = resolve_all_nodes(
+            store=self.store,
+            all_nodes=bool(options['all_nodes']),
+            outcomes_only=bool(options['outcomes_only']),
+        )
         self.trace_object_graph = bool(options['trace_object_graph'])
         self.trace_object_limit = int(options['trace_object_limit'])
         self.trace_tracemalloc = bool(options['trace_tracemalloc'])
@@ -1211,7 +1245,10 @@ class Command(BaseCommand):
             self.state.set_compare_mode()
 
         only_instance = options['only']
-        if only_instance:
+        if smoke_test:
+            instance_ids = sorted(self.state.successful_instances())
+            self.logger.info('Smoke-testing {count} previously successful instances', count=len(instance_ids))
+        elif only_instance:
             instance_ids = [only_instance]
         elif not instance_ids:
             self.logger.info('No instances provided, checking all instances')
@@ -1228,6 +1265,8 @@ class Command(BaseCommand):
 
         start_from = options['start_from']
 
+        failed_instances: list[str] = []
+
         for iid in instance_ids:
             if start_from:
                 if iid == start_from:
@@ -1242,6 +1281,7 @@ class Command(BaseCommand):
             ic = InstanceConfig.objects.get(identifier=iid)
             succeeded = self.check_instance(ic)
             if not succeeded:
+                failed_instances.append(iid)
                 self.nr_fails += 1
                 if self.maxfail > 0 and self.nr_fails >= self.maxfail:
                     self.logger.error('Maximum number of failures reached, stopping')
@@ -1256,5 +1296,9 @@ class Command(BaseCommand):
                     break
 
         if self.nr_fails:
-            self.logger.error('Failed {nr_fails} instances', nr_fails=self.nr_fails)
+            self.logger.error(
+                'Failed {nr_fails} instances: {failed_instances}',
+                nr_fails=self.nr_fails,
+                failed_instances=', '.join(failed_instances),
+            )
             exit(1)

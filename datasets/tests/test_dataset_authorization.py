@@ -1,3 +1,6 @@
+from importlib.util import find_spec
+from typing import TYPE_CHECKING
+
 from django.core.exceptions import PermissionDenied
 from django.urls import reverse
 
@@ -5,9 +8,17 @@ import pytest
 
 from paths.context import RealmContext, realm_context
 
-from admin_site.dataset_admin import DatasetSchemaViewSet
-
 from .fixtures import *
+
+KPE_AVAILABLE = find_spec('kausal_paths_extensions') is not None
+
+if TYPE_CHECKING or KPE_AVAILABLE:
+    from admin_site.dataset_admin import DatasetSchemaViewSet
+
+pytestmark = pytest.mark.skipif(
+    not KPE_AVAILABLE,
+    reason='requires the optional kausal_paths_extensions package',
+)
 
 
 @pytest.mark.django_db

@@ -1,4 +1,5 @@
 from typing import TYPE_CHECKING
+from uuid import uuid4
 
 from django.utils import timezone
 from django.utils.translation import get_language
@@ -61,12 +62,13 @@ def test_action_group_membership_uses_stable_group_id(
     instance,
     instance_config,
 ):
-    runtime_group = ActionGroup(id='energy', name='Energy')
+    group_uuid = uuid4()
+    runtime_group = ActionGroup(uuid=group_uuid, id='energy', name='Energy')
     action_node.group = runtime_group
     instance.action_groups = [runtime_group]
 
     spec = instance_config.ensure_spec().model_copy(deep=True)
-    spec.action_groups = [ActionGroup(id='energy', name='Energy')]
+    spec.action_groups = [ActionGroup(uuid=group_uuid, id='energy', name='Energy')]
     instance_config.spec = spec
     instance_config.save(update_fields=['spec'])
 

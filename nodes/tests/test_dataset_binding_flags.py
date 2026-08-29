@@ -40,9 +40,13 @@ def _snapshot(node: dict[str, Any]) -> dict[str, DatasetPortSnapshot]:
     return {b.dataset: b for b in snapshot.bindings if isinstance(b, DatasetPortSnapshot)}
 
 
+def _has_transform(port: DatasetPortSnapshot, kind: str) -> bool:
+    return any(op.kind == kind for op in port.spec.transformations)
+
+
 def test_historical_classes_do_not_interpolate_unless_asked():
     ports = _snapshot({'id': 'n', 'type': 'simple.AdditiveNode', 'input_datasets': ['some/data']})
-    assert ports['some/data'].spec.interpolate is False
+    assert not _has_transform(ports['some/data'], 'interpolate')
 
 
 def test_historical_classes_interpolate_with_the_processor_entry():
@@ -54,13 +58,13 @@ def test_historical_classes_interpolate_with_the_processor_entry():
             'input_dataset_processors': ['LinearInterpolation'],
         },
     )
-    assert ports['some/data'].spec.interpolate is True
+    assert _has_transform(ports['some/data'], 'interpolate')
 
 
 def test_rebuilt_classes_interpolate_by_default():
     for node_type in ('simple.AdditiveNode2', 'simple.MultiplicativeNode2'):
         ports = _snapshot({'id': 'n', 'type': node_type, 'input_datasets': ['some/data']})
-        assert ports['some/data'].spec.interpolate is True, node_type
+        assert _has_transform(ports['some/data'], 'interpolate'), node_type
 
 
 def test_a_binding_can_opt_out_of_the_class_default():
@@ -71,7 +75,7 @@ def test_a_binding_can_opt_out_of_the_class_default():
             'input_datasets': [{'id': 'some/data', 'interpolate': False}],
         },
     )
-    assert ports['some/data'].spec.interpolate is False
+    assert not _has_transform(ports['some/data'], 'interpolate')
 
 
 def test_the_processor_entry_still_forces_interpolation_on_every_binding():
@@ -84,7 +88,7 @@ def test_the_processor_entry_still_forces_interpolation_on_every_binding():
             'input_dataset_processors': ['LinearInterpolation'],
         },
     )
-    assert ports['some/data'].spec.interpolate is True
+    assert _has_transform(ports['some/data'], 'interpolate')
 
 
 def test_a_class_default_does_not_manufacture_a_processor_entry():
@@ -111,7 +115,7 @@ def test_a_class_default_does_not_manufacture_a_processor_entry():
 
 def test_extend_defaults_off_and_is_carried_through_the_binding():
     off = _snapshot({'id': 'n', 'type': 'simple.AdditiveNode2', 'input_datasets': ['some/data']})
-    assert off['some/data'].spec.extend is False
+    assert not _has_transform(off['some/data'], 'extend')
 
     on = _snapshot(
         {
@@ -120,4 +124,18 @@ def test_extend_defaults_off_and_is_carried_through_the_binding():
             'input_datasets': [{'id': 'some/data', 'extend': True}],
         },
     )
-    assert on['some/data'].spec.extend is True
+    assert _has_transform(on['some/data'], 'extend')
+
+
+def test_generic_runtime_defaults_are_not_persisted_before_loader_selection():
+    regular = _snapshot({'id': 'n', 'type': 'generic.GenericNode', 'input_datasets': ['some/data']})
+    assert not _has_transform(regular['some/data'], 'interpolate')
+    assert not _has_transform(regular['some/data'], 'extend')
+
+    city_data = _snapshot({
+        'id': 'n',
+        'type': 'generic.GenericNode',
+        'input_datasets': [{'id': 'some/data', 'tags': ['city_data']}],
+    })
+    assert not _has_transform(city_data['some/data'], 'interpolate')
+    assert not _has_transform(city_data['some/data'], 'extend')

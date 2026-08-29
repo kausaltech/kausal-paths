@@ -2,6 +2,7 @@
 [settings]
 python.uv_venv_auto = "source"
 experimental = true
+idiomatic_version_file_enable_tools = ['pnpm', 'node']
 
 [tools]
 prek = "latest"
@@ -11,9 +12,7 @@ fnox = "latest"
 [env]
 _.python.venv = { path = ".venv", create = true, uv_create_args = [] }
 _.fnox-env = { tools = true }
-_.file = [
-  { path = ".secrets/env", required = false }
-]
+_.file = [{ path = ".secrets/env", required = false }]
 PYTHONPATH = "{{ config_root }}"
 SENTRY_ORG = "kausal"
 SENTRY_PROJECT = "paths-backend"

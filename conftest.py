@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+from uuid import uuid4
 
 from graphene_django.utils.testing import graphql_query
 
@@ -11,6 +12,10 @@ from pytest_factoryboy import LazyFixture, register
 
 from kausal_common.i18n.pydantic import set_i18n_context
 
+from nodes.defs.node_defs import ActionConfig, NodeSpec
+from nodes.defs.port_def import OutputPortDef, pair_input_ports_to_outputs
+from nodes.instance_graph import NodeMeta
+from nodes.runtime_input import RuntimeInputBinding
 from nodes.scenario import ScenarioKind
 from nodes.tests.factories import (
     ActionNodeFactory,
@@ -104,6 +109,33 @@ def action_node(context):
 def additive_action(context: Context):
     assert context.instance is not None
     node = AdditiveActionFactory.create(context=context)
+    metric = node.get_default_output_metric()
+    output_port = OutputPortDef(
+        id=uuid4(),
+        identifier=str(metric.id),
+        column_id=metric.column_id,
+        quantity=metric.quantity,
+        unit=metric.unit,
+    )
+    input_ports = pair_input_ports_to_outputs([], [output_port], role='input')
+    spec = NodeSpec(
+        type_config=ActionConfig(node_class='nodes.actions.simple.AdditiveAction'),
+        input_ports=input_ports,
+        output_ports=[output_port],
+    )
+    bindings = [
+        RuntimeInputBinding.from_legacy_fixed_dataset(dataset, target=node, port_role='input')
+        for dataset in node.input_dataset_instances
+    ]
+    node.bind_runtime_inputs(
+        bindings,
+        node_meta=NodeMeta(
+            id=uuid4(),
+            identifier=node.id,
+            node_class_path='nodes.actions.simple.AdditiveAction',
+            spec=spec,
+        ),
+    )
     return node
 
 

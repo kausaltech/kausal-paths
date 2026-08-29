@@ -144,42 +144,28 @@ Remaining:
 
 #### The `get_input(port)` node accessor
 
-Node computation code currently pulls its inputs through two ad-hoc
-families: `self.get_input_dataset*()` (~80 call sites) and
-`other_node.get_output_pl(target=self)` (~100 call sites), with selection
-by tag or quantity and per-call `required=` booleans. Neither knows about
-ports; the edge/dataset distinction and the transformation execution leak
-into every node class.
+The canonical design and migration sequence now live in
+[node-input-port-runtime-migration.md](node-input-port-runtime-migration.md).
+In brief, node classes address semantic class declarations rather than UUIDs;
+dataset-backed and edge-backed bindings deliver the same one-metric port
+value; requiredness comes from port cardinality rather than a per-call
+boolean; and binding transformations execute exactly once at the input
+boundary.
 
-Introduce one accessor as the node-facing side of the edge boundary:
+Multiplicity does not by itself prescribe addition. A multi-port exposes
+ordered homogeneous binding values, while an optional declared aggregation
+allows `get_input(port)` to return one combined value. Repeatable roles create
+distinct heterogeneous ports. This distinction is needed for additive sums,
+multiplicative factors, ordered imputation, and future authored pipeline
+operations.
 
-- `self.get_input(port)` addresses one declared input port and returns the
-  bound input with the binding's `apply_port_transformations()` pipeline
-  already applied. Multi-ports (`InputPortDef.multi`) return the bound
-  inputs as a list; arity and required-ness come from the port definition,
-  not per-call-site arguments.
-- Dataset-backed and edge-backed bindings are indistinguishable to the
-  consuming node. The port is the abstraction; where the data comes from
-  is the binding's business.
-- Node *classes* declare their input ports (the way they already declare
-  `output_metrics` and `allowed_parameters`); YAML/DB bindings attach to
-  declared ports. `InputPortDef.identifier` is optional today because
-  synced ports often have no meaningful name — migrating a node class to
-  `get_input()` is the moment its ports gain identifiers. This typed
-  class-level declaration is the same one the
-  [instance-graph plan](instance-graph-dimension-constraints.md)'s
-  `shape_rules()` resolves roles against: one role namespace for
-  computation and constraint rules.
-- This is where fault-tolerance's skip-don't-sum logic generalizes: move
-  it out of `add_nodes_pl` into `get_input()` and delete the
-  special-casing (see
-  [fault-tolerance.md](../architecture/fault-tolerance.md), Deferred).
-
-Migration is incremental: the accessor lands with the transformation
-executor; the legacy accessors become compatibility wrappers over ports;
-call sites migrate class by class (generic/simple first, region-specific
-modules last). Tag- and quantity-based selection maps onto port
-identifiers.
+The migration remains incremental. A temporary `RuntimeInputBinding` built
+from the graph Def retains binding identity and source-specific resolution;
+legacy node/dataset accessors become compatibility projections of that same
+registry while node classes migrate by semantic pattern. After
+`InstanceGraph` becomes the Context factory, revisit moving runtime
+instantiation behavior closer to `PortBindingDef` and its source-specific
+subclasses.
 
 #### Port identity required for later three-way sync
 
