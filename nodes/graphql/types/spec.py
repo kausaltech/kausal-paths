@@ -154,6 +154,7 @@ class OutputPortType(StrawberryPydanticType[OutputPortDef]):
     quantity: auto
     unit: auto
     column_id: auto
+    is_editable: auto
     dimensions: list[DimensionRef]
     edges: list[Annotated['NodeEdgeType', sb.lazy('nodes.schema')]] = sb.field(default_factory=list)
 
@@ -200,6 +201,7 @@ class OutputPortType(StrawberryPydanticType[OutputPortDef]):
             quantity=spec.quantity,
             unit=spec.unit,
             column_id=spec.column_id,
+            is_editable=spec.is_editable,
             dimensions=spec.dimensions,
             edges=edges,
         )

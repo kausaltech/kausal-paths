@@ -269,3 +269,47 @@ NodeConfig.objects.filter(pk=nc.pk).update(**updates)
 
 This bypasses the `ClusterableModel.save()` chain while ensuring both
 the spec JSON and the model columns stay in sync.
+
+
+## Writing translated fields
+
+Mutation inputs carry **one string per translated field**, so a write can
+only mean "set the active request locale's translation". Writing the raw
+column instead silently clobbers the default language's text whenever the
+request runs under another locale (`@locale(lang: ...)` or
+`@context(input: {locale: ...})`) — the bug class documented for dataset
+labels in `docs/trailhead/tools.md`.
+
+Two mechanisms, depending on where the value lives:
+
+- **Pydantic spec fields** (`I18nString` on port defs, action groups, …):
+  merge with `_merged_i18n_string(current, value, default_language)` in
+  `nodes/graphql/editor.py`, which uses
+  `TranslatedString.with_translation()` to set the active locale's slot and
+  preserve the other languages.
+- **modeltrans model fields** (`DatasetMetric.label`, …): assign through
+  the virtual `<field>_i18n` attribute, which routes to the plain column
+  when the active language is `settings.LANGUAGE_CODE` and into the `i18n`
+  dict otherwise. Include **both** `<field>` and `i18n` in
+  `save(update_fields=...)`.
+
+Both mechanisms rely on the same contract: **inside a GraphQL operation,
+the request locale is the active language** — in Django's translation
+state and in the i18n ContextVar
+(`kausal_common.i18n.pydantic.get_default_language()`), both entered by
+`ActivateInstanceContextExtension.activate_language()`. Resolvers read
+whichever is native to the subsystem (`<field>_i18n` reads Django's;
+`TranslatedString` reads the ContextVar) and must not re-derive or
+re-activate the language themselves.
+
+Anything that breaks this contract mid-operation is a bug. It has
+happened once: `MutationExtension` in
+`kausal_common/strawberry/mutations.py` used to wrap every mutation
+resolver in `translation.override('en')` to keep error messages English,
+which silently redirected every locale-sensitive write to English. It now
+forces English only while rendering `OperationInfo` messages.
+
+`NodeConfig.name` / `short_name` / `description` updates in `updateNode`
+still write the plain columns directly; clients manage translations through
+the raw `i18n` JSON passthrough field. Migrating those writes to the
+locale-aware pattern is an open follow-up.

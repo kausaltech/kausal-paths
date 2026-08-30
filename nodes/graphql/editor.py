@@ -33,7 +33,12 @@ from kausal_common.datasets.models import (
     DimensionScope,
 )
 from kausal_common.i18n.helpers import convert_language_code
-from kausal_common.i18n.pydantic import TranslatedString, get_modeltrans_attrs_from_str, get_translated_string_from_modeltrans
+from kausal_common.i18n.pydantic import (
+    TranslatedString,
+    get_default_language,
+    get_modeltrans_attrs_from_str,
+    get_translated_string_from_modeltrans,
+)
 from kausal_common.models.uuid import is_uuid
 from kausal_common.ordering import InconsistentSiblingOrderError, reorder_siblings
 from kausal_common.strawberry.errors import GraphQLValidationError, NotFoundError, PermissionDeniedError
@@ -55,7 +60,7 @@ from nodes.node import Node
 from nodes.units import unit_registry
 from params.param import BoolParameter, NumberParameter, StringParameter
 
-from .types.constraints import ConstraintViolationsType
+from .types.constraints import ConstraintConflictType, ConstraintViolationsType, conflicts_for_node
 from .types.dimension import DimensionType
 from .types.graph import ActionGroupType, NodeEdgeType
 from .types.instance import InstanceType
@@ -67,8 +72,11 @@ from .types.spec import InputPortType, OutputPortType
 from .types.transformations import EdgeTransformationInput, edge_transformations_from_input
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from strawberry import Some
 
+    from kausal_common.i18n.pydantic import I18nString
     from kausal_common.models.ordered import OrderedModel
 
     from datasets.graphql.editor import CreateDatasetMetricInput, DatasetEditorMutation
@@ -397,14 +405,27 @@ class ActionConfigInput(StrawberryPydanticType[ActionConfig]):
 class InputPortInput:
     id: UUID | None = None
     identifier: str | None = None
-    label: str | None = None
+    label: str | None = sb.field(
+        default=None,
+        description=(
+            'Written into the active request locale; translations in other languages are preserved '
+            'when `id` names an existing port.'
+        ),
+    )
     role: str | None = sb.field(
         default=None,
-        description="Semantic role from the node class's input port declarations.",
+        description=(
+            "Semantic role from the node class's input port declarations. "
+            'Null keeps the existing role when `id` names an existing port.'
+        ),
     )
     quantity: str | None = None
     unit: str | None = None
     multi: bool = False
+    is_editable: bool | None = sb.field(
+        default=None,
+        description='Null keeps the existing value when `id` names an existing port; defaults to true for new ports.',
+    )
     required_dimensions: list[str] | None = None
     supported_dimensions: list[str] | None = sb.field(
         default=None,
@@ -416,11 +437,27 @@ class InputPortInput:
 class OutputPortInput:
     id: UUID | None = None
     identifier: str | None = None
-    label: str | None = None
+    label: str | None = sb.field(
+        default=None,
+        description=(
+            'Written into the active request locale; translations in other languages are preserved '
+            'when `id` names an existing port.'
+        ),
+    )
+    role: str | None = sb.field(
+        default=None,
+        description=(
+            "Semantic role from the node class's output port declarations. "
+            'Null keeps the existing role when `id` names an existing port.'
+        ),
+    )
     quantity: str | None = None
     unit: str
     column_id: str | None = None
-    is_editable: bool = True
+    is_editable: bool | None = sb.field(
+        default=None,
+        description='Null keeps the existing value when `id` names an existing port; defaults to true for new ports.',
+    )
     dimensions: list[str] | None = None
 
 
@@ -432,6 +469,52 @@ class OutputMetricInput:
     unit: str
     column_id: str | None = None
     port_id: UUID | None = None
+
+
+@sb.input(description='Partial update of one input port. Unset fields are left untouched.')
+class UpdateInputPortInput:
+    identifier: Maybe[str]
+    label: Maybe[str] = sb.field(
+        default=None,
+        description='Written into the active request locale; translations in other languages are preserved.',
+    )
+    role: Maybe[str]
+    quantity: Maybe[str]
+    unit: Maybe[str]
+    multi: Maybe[bool]
+    is_editable: Maybe[bool]
+    required_dimensions: Maybe[list[str]]
+
+
+@sb.input(description='Partial update of one output port. Unset fields are left untouched.')
+class UpdateOutputPortInput:
+    identifier: Maybe[str]
+    label: Maybe[str] = sb.field(
+        default=None,
+        description='Written into the active request locale; translations in other languages are preserved.',
+    )
+    role: Maybe[str]
+    quantity: Maybe[str]
+    unit: Maybe[str]
+    column_id: Maybe[str]
+    is_editable: Maybe[bool]
+    dimensions: Maybe[list[str]]
+
+
+@sb.type(description='Result of an in-place port update.')
+class UpdateInputPortResult:
+    port: InputPortType
+    conflicts: list[ConstraintConflictType] = sb.field(
+        description='All structural constraint conflicts still touching this node after the update.',
+    )
+
+
+@sb.type(description='Result of an in-place port update.')
+class UpdateOutputPortResult:
+    port: OutputPortType
+    conflicts: list[ConstraintConflictType] = sb.field(
+        description='All structural constraint conflicts still touching this node after the update.',
+    )
 
 
 @sb.input
@@ -768,18 +851,32 @@ def _position_action_group(
     return _normalize_action_group_order(ordered)
 
 
-def _translated_action_group_name(group: ActionGroup, value: str, default_language: str) -> TranslatedString:
-    current = group.name
+def _merged_i18n_string(current: I18nString | None, value: str, default_language: str) -> TranslatedString:
+    """
+    Write ``value`` into the active request locale's slot of ``current``.
+
+    GraphQL inputs carry one string per translated field, so a write can only
+    mean "set the active locale's translation"; the other languages' values
+    are preserved. A ``current`` that predates translation (a plain string) is
+    kept as the default language's value.
+
+    The active locale is read from the i18n ContextVar — the request-locale
+    contract established by ``ActivateInstanceContextExtension`` — with
+    Django's ``get_language()`` as the fallback for callers outside a
+    GraphQL request.
+    """
+    active_language = convert_language_code(get_default_language() or get_language() or default_language, 'iso')
     if isinstance(current, TranslatedString):
-        translations = dict(current.i18n)
-        default_language = current.default_language or default_language
-    elif current is not None:
-        translations = {default_language: str(current)}
-    else:
-        translations = {}
-    active_language = convert_language_code(get_language() or default_language, 'iso')
+        return current.with_translation(active_language, value)
+    translations: dict[str, str] = {}
+    if current is not None:
+        translations[default_language] = str(current)
     translations[active_language] = value
     return TranslatedString(default_language=default_language, **translations)
+
+
+def _translated_action_group_name(group: ActionGroup, value: str, default_language: str) -> TranslatedString:
+    return _merged_i18n_string(group.name, value, default_language)
 
 
 def _persist_action_groups(ic: InstanceConfig, groups: list[ActionGroup]) -> None:
@@ -798,45 +895,196 @@ def _generated_port_id(node_identifier: str, direction: str, key: str) -> UUID:
     return uuid5(NAMESPACE_URL, f'kausal-paths:node-port:{node_identifier}:{direction}:{key}')
 
 
-def _input_port_to_def(node_identifier: str, index: int, port: InputPortInput) -> InputPortDef:
+def _merged_port_label(
+    existing: InputPortDef | OutputPortDef | None,
+    label: str | None,
+    default_language: str,
+) -> I18nString | None:
+    if label is None:
+        return None
+    return _merged_i18n_string(existing.label if existing is not None else None, label, default_language)
+
+
+def _input_port_to_def(
+    node_identifier: str,
+    index: int,
+    port: InputPortInput,
+    existing_by_id: dict[UUID, InputPortDef],
+    default_language: str,
+) -> InputPortDef:
     key = port.identifier or port.label or port.quantity or str(index)
+    port_id = port.id or _generated_port_id(node_identifier, 'input', key)
+    existing = existing_by_id.get(port_id)
     return InputPortDef(
-        id=port.id or _generated_port_id(node_identifier, 'input', key),
+        id=port_id,
         identifier=port.identifier or identifier_or_none(port.label or port.quantity),
-        label=port.label,
-        role=identifier_or_none(port.role),
+        label=_merged_port_label(existing, port.label, default_language),
+        role=identifier_or_none(port.role) or (existing.role if existing is not None else None),
         quantity=port.quantity,
         unit=unit_registry.parse_units(port.unit) if port.unit is not None else None,
         multi=port.multi,
+        paired_output_port_id=existing.paired_output_port_id if existing is not None else None,
+        is_editable=port.is_editable if port.is_editable is not None else (existing is None or existing.is_editable),
         required_dimensions=port.required_dimensions or [],
     )
 
 
-def _output_port_to_def(node_identifier: str, index: int, port: OutputPortInput) -> OutputPortDef:
+def _output_port_to_def(
+    node_identifier: str,
+    index: int,
+    port: OutputPortInput,
+    existing_by_id: dict[UUID, OutputPortDef],
+    default_language: str,
+) -> OutputPortDef:
     key = port.identifier or port.column_id or port.label or port.quantity or str(index)
+    port_id = port.id or _generated_port_id(node_identifier, 'output', key)
+    existing = existing_by_id.get(port_id)
     return OutputPortDef(
-        id=port.id or _generated_port_id(node_identifier, 'output', key),
+        id=port_id,
         identifier=port.identifier or identifier_or_none(port.column_id or port.label or port.quantity),
-        label=port.label,
+        label=_merged_port_label(existing, port.label, default_language),
+        role=identifier_or_none(port.role) or (existing.role if existing is not None else None),
         quantity=port.quantity,
         unit=unit_registry.parse_units(port.unit),
         column_id=port.column_id,
-        is_editable=port.is_editable,
+        is_editable=port.is_editable if port.is_editable is not None else (existing is None or existing.is_editable),
         dimensions=port.dimensions or [],
     )
 
 
-def _output_metric_to_port_def(node_identifier: str, metric: OutputMetricInput, dimensions: list[str]) -> OutputPortDef:
+def _output_metric_to_port_def(
+    node_identifier: str,
+    metric: OutputMetricInput,
+    dimensions: list[str],
+    existing_by_id: dict[UUID, OutputPortDef],
+    default_language: str,
+) -> OutputPortDef:
     column_id = metric.column_id or metric.id
+    port_id = metric.port_id or _generated_port_id(node_identifier, 'output', metric.id)
+    existing = existing_by_id.get(port_id)
     return OutputPortDef(
-        id=metric.port_id or _generated_port_id(node_identifier, 'output', metric.id),
+        id=port_id,
         identifier=identifier_or_none(metric.id),
-        label=metric.label,
+        label=_merged_port_label(existing, metric.label, default_language),
+        role=existing.role if existing is not None else None,
         quantity=metric.quantity,
         unit=unit_registry.parse_units(metric.unit),
         column_id=column_id,
+        is_editable=existing.is_editable if existing is not None else True,
         dimensions=dimensions,
     )
+
+
+def _parse_optional_unit(info: gql.Info, unit: str) -> Any:
+    try:
+        return unit_registry.parse_units(unit)
+    except Exception as exc:
+        raise GraphQLValidationError(info, f'Invalid unit {unit!r}: {exc}') from exc
+
+
+def _apply_common_port_updates(
+    data: dict[str, Any],
+    port: InputPortDef | OutputPortDef,
+    input: UpdateInputPortInput | UpdateOutputPortInput,
+    default_language: str,
+) -> None:
+    """Apply the update fields shared by input and output ports onto ``data``."""
+    if is_maybe_set(input.identifier):
+        data['identifier'] = input.identifier.value
+    if is_maybe_set(input.label):
+        value = input.label.value
+        data['label'] = _merged_i18n_string(port.label, value, default_language) if value is not None else None
+    if is_maybe_set(input.role):
+        data['role'] = identifier_or_none(input.role.value) if input.role.value is not None else None
+    if is_maybe_set(input.quantity):
+        data['quantity'] = input.quantity.value
+    if is_maybe_set(input.is_editable):
+        data['is_editable'] = bool(input.is_editable.value)
+
+
+def _updated_input_port_def(
+    info: gql.Info,
+    port: InputPortDef,
+    input: UpdateInputPortInput,
+    default_language: str,
+) -> InputPortDef:
+    data: dict[str, Any] = {
+        'id': port.id,
+        'identifier': port.identifier,
+        'label': port.label,
+        'role': port.role,
+        'quantity': port.quantity,
+        'unit': port.unit,
+        'multi': port.multi,
+        'paired_output_port_id': port.paired_output_port_id,
+        'is_editable': port.is_editable,
+        'required_dimensions': list(port.required_dimensions),
+    }
+    _apply_common_port_updates(data, port, input, default_language)
+    if is_maybe_set(input.unit):
+        data['unit'] = _parse_optional_unit(info, input.unit.value) if input.unit.value is not None else None
+    if is_maybe_set(input.multi):
+        data['multi'] = bool(input.multi.value)
+    if is_maybe_set(input.required_dimensions):
+        data['required_dimensions'] = input.required_dimensions.value or []
+    try:
+        return InputPortDef(**data)
+    except PydanticValidationError as exc:
+        raise GraphQLValidationError(info, str(exc)) from exc
+
+
+def _updated_output_port_def(
+    info: gql.Info,
+    port: OutputPortDef,
+    input: UpdateOutputPortInput,
+    default_language: str,
+) -> OutputPortDef:
+    data: dict[str, Any] = {
+        'id': port.id,
+        'identifier': port.identifier,
+        'label': port.label,
+        'role': port.role,
+        'quantity': port.quantity,
+        'unit': port.unit,
+        'column_id': port.column_id,
+        'is_editable': port.is_editable,
+        'dimensions': list(port.dimensions),
+    }
+    _apply_common_port_updates(data, port, input, default_language)
+    if is_maybe_set(input.unit):
+        if input.unit.value is None:
+            raise GraphQLValidationError(info, 'An output port requires a unit')
+        data['unit'] = _parse_optional_unit(info, input.unit.value)
+    if is_maybe_set(input.column_id):
+        data['column_id'] = input.column_id.value
+    if is_maybe_set(input.dimensions):
+        data['dimensions'] = input.dimensions.value or []
+    try:
+        return OutputPortDef(**data)
+    except PydanticValidationError as exc:
+        raise GraphQLValidationError(info, str(exc)) from exc
+
+
+def _check_port_identifier_unique(
+    info: gql.Info,
+    ports: Sequence[InputPortDef | OutputPortDef],
+    updated: InputPortDef | OutputPortDef,
+    direction: str,
+) -> None:
+    if updated.identifier is None:
+        return
+    for port in ports:
+        if port.id != updated.id and port.identifier == updated.identifier:
+            raise GraphQLValidationError(info, f'Duplicate {direction} port identifier {updated.identifier!r}')
+
+
+def _node_conflicts(info: gql.Info, ic: InstanceConfig, nc: NodeConfig) -> list[ConstraintConflictType]:
+    """Solve the draft graph's constraints and return the conflicts touching this node."""
+    from nodes.models import PreferredInstanceSource
+
+    graph = info.context.require_instance_graph(ic, source=PreferredInstanceSource.DRAFT)
+    result = info.context.require_constraint_solve(ic, source=PreferredInstanceSource.DRAFT)
+    return conflicts_for_node(graph, result, nc.uuid)
 
 
 def _type_config_for_kind(info: gql.Info, kind: NodeKind, config: NodeConfigInput) -> AnyTypeConfig:
@@ -1027,21 +1275,25 @@ def _apply_node_type_update(
 
 def _apply_node_port_updates(info: gql.Info, nc: NodeConfig, spec: NodeSpec, input: UpdateNodeInput) -> None:
     node_class = _node_class_for(nc)
+    default_language = nc.instance.primary_language
     if is_maybe_set(input.input_ports):
         if _is_additive_action_class(node_class):
             raise GraphQLValidationError(info, 'AdditiveAction input ports are generated from its output ports')
+        existing_inputs = {port.id: port for port in spec.input_ports}
         spec.input_ports = [
-            _input_port_to_def(nc.identifier, index, port) for index, port in enumerate(input.input_ports.value or [])
+            _input_port_to_def(nc.identifier, index, port, existing_inputs, default_language)
+            for index, port in enumerate(input.input_ports.value or [])
         ]
     if not is_maybe_set(input.output_ports) and not is_maybe_set(input.output_metrics):
         return
 
+    existing_outputs = {port.id: port for port in spec.output_ports}
     output_ports = [
-        _output_port_to_def(nc.identifier, index, port)
+        _output_port_to_def(nc.identifier, index, port, existing_outputs, default_language)
         for index, port in enumerate(input.output_ports.value if is_maybe_set(input.output_ports) else [])
     ]
     output_ports.extend(
-        _output_metric_to_port_def(nc.identifier, metric, spec.output_dimensions)
+        _output_metric_to_port_def(nc.identifier, metric, spec.output_dimensions, existing_outputs, default_language)
         for metric in (input.output_metrics.value if is_maybe_set(input.output_metrics) else [])
     )
     if not output_ports:
@@ -1149,7 +1401,7 @@ class NodeEditorMutation:
         if _is_additive_action_class(_node_class_for(nc)):
             raise GraphQLValidationError(info, 'AdditiveAction input ports are generated from its output ports')
 
-        new_port = _input_port_to_def(nc.identifier, len(nc.spec.input_ports), input)
+        new_port = _input_port_to_def(nc.identifier, len(nc.spec.input_ports), input, {}, root.instance.primary_language)
         if input.id is None:
             new_port = new_port.model_copy(update={'id': uuid4()})
 
@@ -1183,7 +1435,7 @@ class NodeEditorMutation:
         if nc.spec is None:
             raise GraphQLError(f'Node "{nc.identifier}" has no spec')
 
-        new_port = _output_port_to_def(nc.identifier, len(nc.spec.output_ports), input)
+        new_port = _output_port_to_def(nc.identifier, len(nc.spec.output_ports), input, {}, root.instance.primary_language)
         if input.id is None:
             new_port = new_port.model_copy(update={'id': uuid4()})
 
@@ -1196,6 +1448,117 @@ class NodeEditorMutation:
             record_change(nc, action='node.output_ports.create', before=before, after=nc.serializable_data())
 
         return new_port
+
+    @staticmethod
+    def _port_bindings(ic: InstanceConfig, nc: NodeConfig, port_id: UUID, direction: str) -> list[Any]:
+        """Project the port's current bindings the same way the node read side does."""
+        from nodes.graphql.types.graph import DatasetPortType
+
+        annotated = ic.nodes.get_queryset().annotate_ports().get(pk=nc.pk)
+        if direction == 'output':
+            return [
+                NodeEdgeType.from_binding(edge)
+                for edge in annotated.port_edge_bindings
+                if edge.from_ref.port_id == port_id and edge.from_ref.node_id == nc.identifier
+            ]
+        bindings: list[Any] = [
+            NodeEdgeType.from_binding(edge)
+            for edge in annotated.port_edge_bindings
+            if edge.port_ref.port_id == port_id and edge.port_ref.node_id == nc.identifier
+        ]
+        bindings.extend(
+            DatasetPortType.from_binding(dataset)
+            for dataset in annotated.port_dataset_bindings
+            if dataset.port_ref.port_id == port_id
+        )
+        return bindings
+
+    @gql.mutation(
+        description=(
+            'Update fields of one input port in place. Unset fields are left untouched, so bindings, '
+            'pairing and translations survive the edit. Refused for ports marked not editable. '
+            'The payload carries the structural conflicts still touching this node, so a fix '
+            'can be verified from the mutation response alone.'
+        ),
+    )
+    @staticmethod
+    def update_input_port(
+        info: gql.Info,
+        root: sb.Parent[Me],
+        port_id: sb.ID,
+        input: UpdateInputPortInput,
+    ) -> UpdateInputPortResult:
+        nc = root.node
+        ic = root.instance
+        if nc.spec is None:
+            raise GraphQLError(f'Node "{nc.identifier}" has no spec')
+        pid = _parse_port_id(info, str(port_id), field_name='portId')
+        port = _get_input_port(nc, pid)
+        if port is None:
+            raise NotFoundError(info, f'Input port "{port_id}" not found on node "{nc.identifier}"')
+        if not port.is_editable:
+            raise GraphQLValidationError(info, f'Input port "{port_id}" is not editable')
+
+        new_port = _updated_input_port_def(info, port, input, ic.primary_language)
+        _check_port_identifier_unique(info, nc.spec.input_ports, new_port, 'input')
+
+        with gql_change_operation(info, ic, action='node.input_ports.update'):
+            before = nc.serializable_data()
+            nc.spec.input_ports = [new_port if p.id == pid else p for p in nc.spec.input_ports]
+            NodeConfig.objects.filter(pk=nc.pk).update(spec=nc.spec)
+            nc.refresh_from_db()
+            record_change(nc, action='node.input_ports.update', before=before, after=nc.serializable_data())
+
+        port_type = InputPortType.from_def(
+            new_port,
+            bindings=NodeEditorMutation._port_bindings(ic, nc, pid, 'input'),
+            node_uuid=nc.uuid,
+        )
+        return UpdateInputPortResult(port=port_type, conflicts=_node_conflicts(info, ic, nc))
+
+    @gql.mutation(
+        description=(
+            'Update fields of one output port in place. Unset fields are left untouched, so edges, '
+            'roles and translations survive the edit. Refused for ports marked not editable. '
+            'The payload carries the structural conflicts still touching this node, so a fix '
+            'can be verified from the mutation response alone.'
+        ),
+    )
+    @staticmethod
+    def update_output_port(
+        info: gql.Info,
+        root: sb.Parent[Me],
+        port_id: sb.ID,
+        input: UpdateOutputPortInput,
+    ) -> UpdateOutputPortResult:
+        nc = root.node
+        ic = root.instance
+        if nc.spec is None:
+            raise GraphQLError(f'Node "{nc.identifier}" has no spec')
+        pid = _parse_port_id(info, str(port_id), field_name='portId')
+        port = _get_output_port(nc, pid)
+        if port is None:
+            raise NotFoundError(info, f'Output port "{port_id}" not found on node "{nc.identifier}"')
+        if not port.is_editable:
+            raise GraphQLValidationError(info, f'Output port "{port_id}" is not editable')
+
+        new_port = _updated_output_port_def(info, port, input, ic.primary_language)
+        _check_port_identifier_unique(info, nc.spec.output_ports, new_port, 'output')
+
+        with gql_change_operation(info, ic, action='node.output_ports.update'):
+            before = nc.serializable_data()
+            nc.spec.output_ports = [new_port if p.id == pid else p for p in nc.spec.output_ports]
+            NodeConfig.objects.filter(pk=nc.pk).update(spec=nc.spec)
+            nc.refresh_from_db()
+            record_change(nc, action='node.output_ports.update', before=before, after=nc.serializable_data())
+
+        port_type = OutputPortType.from_def(
+            new_port,
+            edges=NodeEditorMutation._port_bindings(ic, nc, pid, 'output'),
+            node=None,
+            node_uuid=nc.uuid,
+        )
+        return UpdateOutputPortResult(port=port_type, conflicts=_node_conflicts(info, ic, nc))
 
 
 @sb.type
@@ -1225,12 +1588,17 @@ class InstanceEditorMutation:
             # empty list opts out.
             input_ports = _default_input_ports(type_config.to_pydantic())
         else:
-            input_ports = [_input_port_to_def(str(input.identifier), index, port) for index, port in enumerate(input.input_ports)]
+            input_ports = [
+                _input_port_to_def(str(input.identifier), index, port, {}, ic.primary_language)
+                for index, port in enumerate(input.input_ports)
+            ]
         output_ports = [
-            _output_port_to_def(str(input.identifier), index, port) for index, port in enumerate(input.output_ports or [])
+            _output_port_to_def(str(input.identifier), index, port, {}, ic.primary_language)
+            for index, port in enumerate(input.output_ports or [])
         ]
         output_ports.extend(
-            _output_metric_to_port_def(str(input.identifier), metric, output_dimensions) for metric in input.output_metrics or []
+            _output_metric_to_port_def(str(input.identifier), metric, output_dimensions, {}, ic.primary_language)
+            for metric in input.output_metrics or []
         )
         if not output_ports:
             raise GraphQLValidationError(info, 'At least one outputPort or outputMetric must be provided')

@@ -3147,3 +3147,384 @@ def test_publication_succeeds_once_the_conflict_is_gone(gql_client: PathsTestCli
     assert result['__typename'] == 'InstanceType'
     db_instance_config.refresh_from_db()
     assert db_instance_config.live_revision_id is not None
+
+
+# ---------------------------------------------------------------------------
+# Surgical port updates (updateInputPort / updateOutputPort)
+# ---------------------------------------------------------------------------
+
+UPDATE_INPUT_PORT = gql("""
+mutation UpdateInputPort($instanceId: ID!, $nodeId: ID!, $portId: ID!, $input: UpdateInputPortInput!) {
+    instanceEditor(instanceId: $instanceId) {
+        nodeEditor(nodeId: $nodeId) {
+            updateInputPort(portId: $portId, input: $input) {
+                __typename
+                ... on UpdateInputPortResult {
+                    port { id identifier label role quantity unit { standard } multi isEditable }
+                    conflicts { code }
+                }
+                ... on OperationInfo { messages { kind message } }
+            }
+        }
+    }
+}
+""")
+
+UPDATE_OUTPUT_PORT = gql("""
+mutation UpdateOutputPort($instanceId: ID!, $nodeId: ID!, $portId: ID!, $input: UpdateOutputPortInput!) {
+    instanceEditor(instanceId: $instanceId) {
+        nodeEditor(nodeId: $nodeId) {
+            updateOutputPort(portId: $portId, input: $input) {
+                __typename
+                ... on UpdateOutputPortResult {
+                    port { id identifier label role quantity unit { standard } columnId isEditable }
+                    conflicts { code }
+                }
+                ... on OperationInfo { messages { kind message } }
+            }
+        }
+    }
+}
+""")
+
+UPDATE_INPUT_PORT_LOCALIZED = gql("""
+mutation UpdateInputPortLocalized(
+    $instanceId: ID!, $nodeId: ID!, $portId: ID!, $input: UpdateInputPortInput!, $_locale: String!
+) @locale(lang: $_locale) {
+    instanceEditor(instanceId: $instanceId) {
+        nodeEditor(nodeId: $nodeId) {
+            updateInputPort(portId: $portId, input: $input) {
+                ... on UpdateInputPortResult {
+                    port { id label }
+                }
+                ... on OperationInfo { messages { kind message } }
+            }
+        }
+    }
+}
+""")
+
+
+def test_update_input_port_changes_only_named_fields(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
+    from kausal_common.i18n.pydantic import TranslatedString, set_i18n_context
+
+    with set_i18n_context('en', ['de']):
+        label = TranslatedString('Energy', de='Energie')
+    port = InputPortDef(
+        id=_port_uuid('input'),
+        identifier='input',
+        label=label,
+        role='additive',
+        unit=unit_registry.parse_units('GWh/a'),
+        quantity='energy',
+        multi=True,
+    )
+    nc = NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='surgical',
+        spec=_make_node_spec(input_ports=[port], output_ports=[_make_output_port()]),
+    )
+
+    data = gql_client.query_data(
+        UPDATE_INPUT_PORT,
+        variables={
+            'instanceId': str(db_instance_config.pk),
+            'nodeId': str(nc.uuid),
+            'portId': str(port.id),
+            'input': {'quantity': 'emissions'},
+        },
+    )
+    result = data['instanceEditor']['nodeEditor']['updateInputPort']
+    assert result['__typename'] == 'UpdateInputPortResult'
+    assert result['port']['quantity'] == 'emissions'
+    assert result['port']['role'] == 'additive'
+    assert result['port']['multi'] is True
+
+    from nodes.models import NodeConfig
+
+    fresh = NodeConfig.objects.get(pk=nc.pk)
+    assert fresh.spec is not None
+    (stored,) = fresh.spec.input_ports
+    assert stored.quantity == 'emissions'
+    # Everything the input did not name is untouched.
+    assert stored.identifier == 'input'
+    assert stored.role == 'additive'
+    assert str(stored.unit) == str(unit_registry.parse_units('GWh/a'))
+    assert stored.multi is True
+    assert isinstance(stored.label, TranslatedString)
+    assert stored.label.i18n == {'en': 'Energy', 'de': 'Energie'}
+
+
+def test_update_output_port_reports_remaining_conflicts(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
+    _quantity_mismatch_pair(db_instance_config)
+    from nodes.models import NodeConfig
+
+    dst = NodeConfig.objects.get(instance=db_instance_config, identifier='mismatch_dst')
+
+    # An edit unrelated to the conflict is not blocked, and the payload still
+    # reports the pre-existing conflict.
+    data = gql_client.query_data(
+        UPDATE_OUTPUT_PORT,
+        variables={
+            'instanceId': str(db_instance_config.pk),
+            'nodeId': str(dst.uuid),
+            'portId': str(_port_uuid('default')),
+            'input': {'label': 'Renamed'},
+        },
+    )
+    result = data['instanceEditor']['nodeEditor']['updateOutputPort']
+    assert result['__typename'] == 'UpdateOutputPortResult'
+    assert 'quantity_mismatch' in {conflict['code'] for conflict in result['conflicts']}
+
+    # Fixing the declared quantities clears the conflict, visible directly
+    # in the mutation payload.
+    gql_client.query_data(
+        UPDATE_INPUT_PORT,
+        variables={
+            'instanceId': str(db_instance_config.pk),
+            'nodeId': str(dst.uuid),
+            'portId': str(_port_uuid('input')),
+            'input': {'quantity': 'emissions'},
+        },
+    )
+    data = gql_client.query_data(
+        UPDATE_OUTPUT_PORT,
+        variables={
+            'instanceId': str(db_instance_config.pk),
+            'nodeId': str(dst.uuid),
+            'portId': str(_port_uuid('default')),
+            'input': {'quantity': 'emissions'},
+        },
+    )
+    result = data['instanceEditor']['nodeEditor']['updateOutputPort']
+    assert result['__typename'] == 'UpdateOutputPortResult'
+    assert result['port']['quantity'] == 'emissions'
+    assert result['conflicts'] == []
+
+
+def test_update_input_port_label_goes_to_active_locale(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
+    from kausal_common.i18n.pydantic import TranslatedString, set_i18n_context
+
+    from nodes.models import InstanceConfig as InstanceConfigModel
+
+    InstanceConfigModel.objects.filter(pk=db_instance_config.pk).update(other_languages=['de'])
+    db_instance_config.refresh_from_db()
+
+    with set_i18n_context('en', ['de']):
+        label = TranslatedString('Energy', de='Energie')
+    port = InputPortDef(
+        id=_port_uuid('input'),
+        identifier='input',
+        label=label,
+        unit=unit_registry.parse_units('GWh/a'),
+        quantity='energy',
+    )
+    nc = NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='localized',
+        spec=_make_node_spec(input_ports=[port], output_ports=[_make_output_port()]),
+    )
+
+    gql_client.query_data(
+        UPDATE_INPUT_PORT_LOCALIZED,
+        variables={
+            'instanceId': str(db_instance_config.pk),
+            'nodeId': str(nc.uuid),
+            'portId': str(port.id),
+            'input': {'label': 'Strom'},
+            '_locale': 'de',
+        },
+    )
+
+    from nodes.models import NodeConfig
+
+    fresh = NodeConfig.objects.get(pk=nc.pk)
+    assert fresh.spec is not None
+    (stored,) = fresh.spec.input_ports
+    assert isinstance(stored.label, TranslatedString)
+    assert stored.label.i18n == {'en': 'Energy', 'de': 'Strom'}
+
+
+def test_update_input_port_not_found(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
+    nc = NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='no_such_port',
+        spec=_make_node_spec(input_ports=[_make_input_port()]),
+    )
+    from uuid import uuid4 as _uuid4
+
+    errors = gql_client.query_errors(
+        UPDATE_INPUT_PORT,
+        variables={
+            'instanceId': str(db_instance_config.pk),
+            'nodeId': str(nc.uuid),
+            'portId': str(_uuid4()),
+            'input': {'quantity': 'emissions'},
+        },
+    )
+    assert 'not found' in errors[0]['message']
+
+
+def test_update_input_port_refused_for_non_editable_port(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
+    port = InputPortDef(
+        id=_port_uuid('input'),
+        identifier='locked',
+        unit=unit_registry.parse_units('kt/a'),
+        quantity='emissions',
+        is_editable=False,
+    )
+    nc = NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='locked_port_node',
+        spec=_make_node_spec(input_ports=[port], output_ports=[_make_output_port()]),
+    )
+
+    errors = gql_client.query_errors(
+        UPDATE_INPUT_PORT,
+        variables={
+            'instanceId': str(db_instance_config.pk),
+            'nodeId': str(nc.uuid),
+            'portId': str(port.id),
+            'input': {'quantity': 'energy'},
+        },
+    )
+    assert 'not editable' in errors[0]['message']
+
+    from nodes.models import NodeConfig
+
+    fresh = NodeConfig.objects.get(pk=nc.pk)
+    assert fresh.spec is not None
+    assert fresh.spec.input_ports[0].quantity == 'emissions'
+
+
+def test_update_input_port_rejects_duplicate_identifier(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
+    first = _make_input_port(id='first')
+    second = _make_input_port(id='second')
+    first = first.model_copy(update={'identifier': 'first'})
+    second = second.model_copy(update={'identifier': 'second'})
+    nc = NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='dupe_identifiers',
+        spec=_make_node_spec(input_ports=[first, second], output_ports=[_make_output_port()]),
+    )
+
+    errors = gql_client.query_errors(
+        UPDATE_INPUT_PORT,
+        variables={
+            'instanceId': str(db_instance_config.pk),
+            'nodeId': str(nc.uuid),
+            'portId': str(second.id),
+            'input': {'identifier': 'first'},
+        },
+    )
+    assert 'Duplicate' in errors[0]['message']
+
+
+def test_update_input_port_rejects_unknown_quantity(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
+    port = _make_input_port()
+    nc = NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='bad_quantity',
+        spec=_make_node_spec(input_ports=[port], output_ports=[_make_output_port()]),
+    )
+
+    errors = gql_client.query_errors(
+        UPDATE_INPUT_PORT,
+        variables={
+            'instanceId': str(db_instance_config.pk),
+            'nodeId': str(nc.uuid),
+            'portId': str(port.id),
+            'input': {'quantity': 'bogus_quantity'},
+        },
+    )
+    assert 'quantity' in errors[0]['message'].lower()
+
+
+# ---------------------------------------------------------------------------
+# Full port-list updates keep what the input types cannot express
+# ---------------------------------------------------------------------------
+
+
+def test_update_node_port_lists_preserve_role_label_translations_and_editability(
+    gql_client: PathsTestClient,
+    db_instance_config: InstanceConfig,
+):
+    from kausal_common.i18n.pydantic import TranslatedString, set_i18n_context
+
+    with set_i18n_context('en', ['de']):
+        in_label = TranslatedString('Inputs', de='Eingaben')
+        out_label = TranslatedString('Output', de='Ausgabe')
+    unit = unit_registry.parse_units('kt/a')
+    in_port = InputPortDef(
+        id=_port_uuid('input'),
+        identifier='input',
+        label=in_label,
+        role='additive',
+        unit=unit,
+        quantity='emissions',
+        multi=True,
+        is_editable=False,
+    )
+    out_port = OutputPortDef(
+        id=_port_uuid('default'),
+        identifier='default',
+        label=out_label,
+        role='output',
+        unit=unit,
+        quantity='emissions',
+        is_editable=False,
+    )
+    nc = NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='preserving',
+        spec=_make_node_spec(input_ports=[in_port], output_ports=[out_port]),
+    )
+
+    gql_client.query_data(
+        UPDATE_NODE,
+        variables={
+            'instanceId': str(db_instance_config.pk),
+            'nodeId': str(nc.uuid),
+            'input': {
+                'inputPorts': [
+                    {
+                        'id': str(in_port.id),
+                        'identifier': 'input',
+                        'label': 'New Inputs',
+                        'quantity': 'emissions',
+                        'unit': 'kt/a',
+                        'multi': True,
+                    },
+                ],
+                'outputPorts': [
+                    {
+                        'id': str(out_port.id),
+                        'identifier': 'default',
+                        'label': 'New Output',
+                        'quantity': 'emissions',
+                        'unit': 'kt/a',
+                    },
+                ],
+            },
+        },
+    )
+
+    from nodes.models import NodeConfig
+
+    fresh = NodeConfig.objects.get(pk=nc.pk)
+    assert fresh.spec is not None
+    (stored_in,) = fresh.spec.input_ports
+    (stored_out,) = fresh.spec.output_ports
+    # Roles are class vocabulary the input types could not express before;
+    # they survive a full-list update.
+    assert stored_in.role == 'additive'
+    assert stored_out.role == 'output'
+    # The submitted label lands in the active locale (the primary language
+    # here); the German translation survives.
+    assert isinstance(stored_in.label, TranslatedString)
+    assert stored_in.label.i18n == {'en': 'New Inputs', 'de': 'Eingaben'}
+    assert isinstance(stored_out.label, TranslatedString)
+    assert stored_out.label.i18n == {'en': 'New Output', 'de': 'Ausgabe'}
+    # Editability flags are kept unless explicitly set.
+    assert stored_in.is_editable is False
+    assert stored_out.is_editable is False
