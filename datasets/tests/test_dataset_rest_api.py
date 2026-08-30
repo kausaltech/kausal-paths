@@ -1620,6 +1620,32 @@ def test_dataset_source_reference_create_via_datapoint(api_client, dataset_test_
 
 
 @pytest.mark.django_db
+def test_source_reference_created_via_datapoint_is_not_also_a_dataset_reference(api_client, dataset_test_data):
+    """
+    The data-point endpoint is nested under a dataset, and that nesting is not a claim.
+
+    Taking the dataset from the URL as well used to write both sides of the reference, so
+    every source added to a single value also read as a source for the whole dataset --
+    which is what `DatasetSourceReference`'s exactly-one constraint now forbids.
+    """
+    datapoint = dataset_test_data['data_point1']
+    dataset = datapoint.dataset
+    data_source = dataset_test_data['data_source1']
+    api_client.force_authenticate(user=dataset_test_data['superuser'])
+
+    response = api_client.post(
+        f'/v1/datasets/{dataset.uuid}/data_points/{datapoint.uuid}/sources/',
+        {'data_source': str(data_source.uuid)},
+        format='json',
+    )
+
+    assert response.status_code == 201
+    ref = DatasetSourceReference.objects.get(uuid=response.json()['uuid'])
+    assert ref.data_point == datapoint
+    assert ref.dataset is None
+
+
+@pytest.mark.django_db
 @pytest.mark.parametrize(
     *parse_table("""
 user_key                   expected_status

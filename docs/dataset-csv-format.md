@@ -155,6 +155,9 @@ Registry columns:
 | `Authority` | `DataSource.authority` |
 | `URL` | `DataSource.url` |
 | `Description` | `DataSource.description` |
+| `Edition` | `DataSource.edition` |
+| `Target` | `data_point` (default) or `dataset` — see below |
+| `Datasets` | for a dataset-level source, which datasets it applies to |
 | *anything else* | appended to `Description` as `'<Column>: <value>'` rather than dropped |
 
 Cork's registry is `data/cork/cork_sources.csv`, which carries the extra columns
@@ -163,9 +166,25 @@ Cork's registry is `data/cork/cork_sources.csv`, which carries the extra columns
 
 The registry is passed to the uploader and the used subset is written into the
 DVC dataset's `metadata['sources']` as a **list** of `{name, authority, url,
-description}` dicts. It is a list, not a mapping keyed by name, deliberately: a
-long human-readable name used as a YAML *key* can get line-wrapped by the writer
-and produce YAML that will not read back. Names are safe as values.
+description, edition, target}` dicts. It is a list, not a mapping keyed by name,
+deliberately: a long human-readable name used as a YAML *key* can get
+line-wrapped by the writer and produce YAML that will not read back. Names are
+safe as values.
+
+### Sources that belong to the whole dataset
+
+A source with `Target,dataset` attaches to the dataset itself rather than to its
+rows. Use it when the provenance is uniform — one publication, one update,
+nothing per row to distinguish — instead of repeating the same name in every
+`Source` cell. Such a source needs no citations and no `Source` column at all,
+and a dataset may carry several of them. A single source may not do both: a
+dataset-level source that is also cited from a `Source` cell is refused rather
+than merged. (`Target`, not `Scope`: `DataSource.scope` is the owning instance,
+and `Scope` in a data file is the GHG scope.)
+
+[`dataset-level-data-sources.md`](dataset-level-data-sources.md) has the whole
+mechanism — the `Datasets` restriction, what the import does on a re-import, and
+how to convert a dataset that currently cites one source from every row.
 
 ## 3. Worked example
 

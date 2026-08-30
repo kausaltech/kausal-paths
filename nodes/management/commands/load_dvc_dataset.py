@@ -29,7 +29,13 @@ from kausal_common.datasets.models import (
 from kausal_common.i18n.pydantic import TranslatedString
 
 from common import polars as ppl
-from nodes.constants import FORECAST_COLUMN, RESERVED_ROW_COLUMNS, YEAR_COLUMN
+from nodes.constants import (
+    FORECAST_COLUMN,
+    RESERVED_ROW_COLUMNS,
+    SOURCE_TARGET_DATA_POINT,
+    SOURCE_TARGET_DATASET,
+    YEAR_COLUMN,
+)
 from nodes.dataset_materialization import refresh_dataset_materialization
 from nodes.dataset_placeholders import make_external_dataset_ref, sync_dataset_placeholder
 from nodes.datasets import JSONDataset
@@ -60,6 +66,33 @@ COMMENT_SEPARATOR = ' ;; '
 # RESERVED_ROW_COLUMNS comes from nodes.constants, which is also what `upload_new_dataset`
 # writes by and what `DVCDataset` drops on load. It used to be copied here and there with a
 # "must match" comment; one definition is what actually makes them match.
+
+
+def source_target(fields: dict[str, str | None]) -> str:
+    """
+    Read what one metadata['sources'] entry attaches to.
+
+    A missing key means data_point: that is what every .dvc file written before
+    dataset-level sources existed says, and it is what those files meant.
+    """
+    return fields.get('target') or SOURCE_TARGET_DATA_POINT
+
+
+@dataclass(frozen=True)
+class ResolvedSource:
+    """A DataSource row plus what its references attach to."""
+
+    source: DataSource
+    target: str
+
+
+def dataset_level_source_names(sources_meta: list[dict[str, str | None]] | None) -> list[str]:
+    """Names of the sources that attach to the dataset as a whole. Any number of them may."""
+    return sorted(
+        str(fields['name'])
+        for fields in sources_meta or []
+        if fields.get('name') and source_target(fields) == SOURCE_TARGET_DATASET
+    )
 
 
 @dataclass
@@ -149,6 +182,12 @@ class DatasetPlan:
     dropped_metrics: list[tuple[str, int]] = field(default_factory=list)
     """(metric name, number of dataset ports binding it) for columns no longer in the DVC data."""
 
+    current_dataset_sources: list[str] = field(default_factory=list)
+    """Names of the DataSources currently attached to the dataset row itself."""
+
+    incoming_dataset_sources: list[str] = field(default_factory=list)
+    """Names the incoming metadata attaches to the dataset row. The import replaces one set with the other."""
+
     is_placeholder: bool = False
     schema_shared_with: int = 0
 
@@ -181,6 +220,7 @@ def build_dataset_plan(
     incoming_metric_cols: list[str],
     incoming_data_points: int,
     incoming_commit: str | None,
+    incoming_dataset_sources: list[str] | None = None,
 ) -> DatasetPlan:
     """Diff the DB state of one dataset against the DVC data about to be imported."""
     from nodes.models import NodeInputPortBinding
@@ -190,6 +230,7 @@ def build_dataset_plan(
         incoming_commit=incoming_commit,
         incoming_data_points=incoming_data_points,
         added_metrics=list(incoming_metric_cols),
+        incoming_dataset_sources=list(incoming_dataset_sources or []),
     )
     if dataset is None:
         return plan
@@ -199,6 +240,9 @@ def build_dataset_plan(
     plan.current_commit = (dataset.external_ref or {}).get('commit')
     plan.current_data_points = dataset.data_points.count()
     plan.is_placeholder = dataset.is_external_placeholder
+    plan.current_dataset_sources = sorted(
+        ref.data_source.name for ref in DatasetSourceReference.objects.filter(dataset=dataset).select_related('data_source')
+    )
     schema = dataset.schema
     if schema is None:
         return plan
@@ -221,6 +265,23 @@ def build_dataset_plan(
         if name not in incoming
     )
     return plan
+
+
+def print_dataset_source_plan(plan: DatasetPlan) -> None:
+    """
+    Render the dataset-level source lines of one dataset's plan.
+
+    They are replaced wholesale on every import, so the removals need saying: they are
+    otherwise invisible until someone notices the provenance is gone.
+    """
+    current = set(plan.current_dataset_sources)
+    incoming = set(plan.incoming_dataset_sources)
+    for name in sorted(current & incoming):
+        print(f'  source keep  {name} [dim](dataset-level)[/dim]')
+    for name in sorted(incoming - current):
+        print(f'  source [green]add[/green]   {name} [dim](dataset-level)[/dim]')
+    for name in sorted(current - incoming):
+        print(f'  source [yellow]drop[/yellow]  {name} [dim](dataset-level)[/dim]')
 
 
 def print_dataset_plan(plan: DatasetPlan) -> None:
@@ -246,6 +307,7 @@ def print_dataset_plan(plan: DatasetPlan) -> None:
     for name, port_count in plan.dropped_metrics:
         suffix = f' [red](bound by {port_count} dataset port(s))[/red]' if port_count else ''
         print(f'  metrics [yellow]drop[/yellow] {name}{suffix}')
+    print_dataset_source_plan(plan)
     for problem in plan.blockers:
         print(f'  [red]blocker[/red]      {problem}')
 
@@ -399,6 +461,7 @@ class Command(BaseCommand):
             incoming_metric_cols=list(df_metadata.metric_cols),
             incoming_data_points=sum(df[col].drop_nulls().len() for col in df_metadata.metric_cols),
             incoming_commit=(make_external_dataset_ref(ctx, ds_id) or {}).get('commit'),
+            incoming_dataset_sources=dataset_level_source_names(dvc_metadata.get('sources')),
         )
         print_dataset_plan(plan)
         if plan_only:
@@ -581,36 +644,80 @@ class Command(BaseCommand):
 
     def get_or_create_data_sources(
         self, instance_config: InstanceConfig, sources_meta: list[dict[str, str | None]] | None
-    ) -> dict[str, DataSource]:
-        """Resolve a dvc_metadata['sources'] list into DataSource rows, keyed by name."""
+    ) -> dict[str, ResolvedSource]:
+        """
+        Resolve a dvc_metadata['sources'] list into DataSource rows, keyed by name.
+
+        Identity is the name within the instance's scope, so a source already known to the
+        instance keeps its row -- and with it every reference, from this dataset and from
+        every other one that cites it. Its descriptive fields are refreshed from the
+        incoming metadata, because for an imported dataset the registry in DVC is the
+        source of truth and an edition that never updates is worse than none. Anything that
+        must survive as a distinct source (a superseded edition still cited elsewhere)
+        needs a distinct name.
+        """
         if not sources_meta:
             return {}
         scope_content_type = ContentType.objects.get_for_model(instance_config)
-        result: dict[str, DataSource] = {}
+        result: dict[str, ResolvedSource] = {}
         for fields in sources_meta:
             name = fields['name']
             assert name is not None
-            source, _ = DataSource.objects.get_or_create(
+            incoming = {
+                'authority': fields.get('authority'),
+                'url': fields.get('url'),
+                'description': fields.get('description'),
+                'edition': fields.get('edition'),
+            }
+            source, created = DataSource.objects.get_or_create(
                 scope_content_type=scope_content_type,
                 scope_id=instance_config.pk,
                 name=name,
-                defaults={
-                    'authority': fields.get('authority'),
-                    'url': fields.get('url'),
-                    'description': fields.get('description'),
-                },
+                defaults=incoming,
             )
-            result[name] = source
+            if not created:
+                changed = [f for f, value in incoming.items() if getattr(source, f) != value]
+                if changed:
+                    for f in changed:
+                        setattr(source, f, incoming[f])
+                    # `last_modified_at` is auto_now, and auto_now only fires for a field the
+                    # update_fields list names -- so an unlisted one silently keeps the old
+                    # timestamp, and the row would claim it had not changed.
+                    source.save(update_fields=[*changed, 'last_modified_at'])
+                    print(f"Source '{name}': updated {', '.join(sorted(changed))} from the DVC metadata")
+            result[name] = ResolvedSource(source=source, target=source_target(fields))
         return result
 
-    def link_data_point_sources(self, data_point: DataPoint, source_cell: str, data_sources: dict[str, DataSource]) -> None:
+    def link_data_point_sources(self, data_point: DataPoint, source_cell: str, data_sources: dict[str, ResolvedSource]) -> None:
         """Link data_point to each DataSource named in source_cell (SOURCE_NAME_SEPARATOR-joined for >1 citation)."""
         for name in source_cell.split(SOURCE_NAME_SEPARATOR):
-            data_source = data_sources.get(name)
-            if data_source is not None:
-                DatasetSourceReference.objects.create(data_point=data_point, data_source=data_source)
-            else:
+            resolved = data_sources.get(name)
+            if resolved is None:
                 print(f"Source '{name}' not found in dvc_metadata['sources']; skipping.")
+            elif resolved.target != SOURCE_TARGET_DATA_POINT:
+                # Refused rather than honoured: the same source would then be attached both
+                # to the dataset and to its rows, which is a duplicated claim, not a stronger
+                # one. `build_sources_metadata` rejects this combination at upload time, so
+                # reaching here means hand-edited metadata.
+                print(f"Source '{name}' is declared dataset-level but cited by a row; not linking it to the data point.")
+            else:
+                DatasetSourceReference.objects.create(data_point=data_point, data_source=resolved.source)
+
+    def sync_dataset_source_references(self, dataset: Dataset, data_sources: dict[str, ResolvedSource]) -> None:
+        """
+        Replace the dataset's dataset-level source references with the ones the metadata declares.
+
+        Replace, not add: unlike the per-point references -- which CASCADE away with the data
+        points that `refresh_dataset_in_place` deletes -- a reference hanging off the Dataset
+        row survives a re-import, so appending would grow a duplicate on every ``--force``,
+        and a source dropped from the registry would linger forever.
+        """
+        deleted, _ = DatasetSourceReference.objects.filter(dataset=dataset).delete()
+        names = sorted(name for name, resolved in data_sources.items() if resolved.target == SOURCE_TARGET_DATASET)
+        for name in names:
+            DatasetSourceReference.objects.create(dataset=dataset, data_source=data_sources[name].source)
+        if names or deleted:
+            print(f'Dataset-level sources: {", ".join(names) if names else "(none)"}')
 
     def create_data_point_comments(self, data_point: DataPoint, comment_cell: str) -> None:
         """Create one DataPointComment per note in comment_cell (COMMENT_SEPARATOR-joined for >1)."""
@@ -629,8 +736,17 @@ class Command(BaseCommand):
         column_dimensions: dict[str, str] | None = None,
         sources_meta: list[dict[str, str | None]] | None = None,
     ):
+        """
+        Create the dataset's data points, and with them everything the metadata says about provenance.
+
+        The dataset-level source references are (re)built here too, rather than beside the
+        caller: both levels are resolved from the one ``sources_meta`` list, and doing them
+        together is what keeps a source from being attached twice under two different names
+        for the same row set.
+        """
         column_dimensions = column_dimensions or {}
         data_sources = self.get_or_create_data_sources(instance_config, sources_meta)
+        self.sync_dataset_source_references(dataset, data_sources)
         meta = df.get_meta()
         table = JSONDataset.serialize_df(df)
         # We might not need to serialize `df` to create the data points, but I didn't check what the manipulations

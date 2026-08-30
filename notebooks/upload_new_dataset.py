@@ -4,6 +4,7 @@ import argparse
 import os
 import re
 import warnings
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -24,11 +25,20 @@ from dvc_pandas import Dataset, DatasetMeta, Repository  # noqa: E402
 
 from kausal_common.i18n.pydantic import TranslatedString  # noqa: E402
 
-from nodes.constants import RESERVED_ROW_COLUMNS, VALUE_COLUMN, YEAR_COLUMN  # noqa: E402
+from nodes.constants import (  # noqa: E402
+    RESERVED_ROW_COLUMNS,
+    SOURCE_TARGET_DATA_POINT,
+    SOURCE_TARGET_DATASET,
+    SOURCE_TARGETS,
+    VALUE_COLUMN,
+    YEAR_COLUMN,
+)
 from nodes.node import NodeMetric  # noqa: E402
 from notebooks.notebook_support import get_context  # noqa: E402
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from common import polars as ppl
     from nodes.context import Context
 
@@ -253,66 +263,191 @@ def extract_description(df: pl.DataFrame) -> str | None:
 # by DVCDataset on load so that DVC and the database yield the same frame.
 
 
-def load_sources_registry(path: str) -> dict[str, dict[str, str | None]]:
+SOURCE_NAME_SEPARATOR = '; '
+"""Separator inside one 'Source' cell that cites more than one source."""
+
+DATASET_NAME_SEPARATOR = '; '
+"""Separator inside a registry row's 'Datasets' cell, which lists the datasets it applies to."""
+
+REGISTRY_MAPPED_COLUMNS = frozenset({'Name', 'Authority', 'URL', 'Description', 'Edition', 'Target', 'Datasets'})
+"""Registry columns this reader understands; every other column is folded into Description."""
+
+
+@dataclass
+class SourceRegistryEntry:
+    """One row of the sources registry CSV, resolved."""
+
+    fields: dict[str, str | None] = field(default_factory=dict)
+    """What goes into the dataset's metadata['sources'] entry, minus 'name'."""
+
+    datasets: frozenset[str] | None = None
+    """Datasets this source applies to; None means every dataset in the run."""
+
+    @property
+    def target(self) -> str:
+        return self.fields.get('target') or SOURCE_TARGET_DATA_POINT
+
+    def applies_to(self, dataset_name: str | None) -> bool:
+        """
+        Tell whether this source belongs in `dataset_name`'s metadata.
+
+        A run that produces a single dataset passes ``None`` -- there is nothing to
+        choose between, so a 'Datasets' restriction is moot and every dataset-level
+        source applies.
+        """
+        if self.datasets is None or dataset_name is None:
+            return True
+        return dataset_name in self.datasets
+
+
+def _unregistered_source_fields() -> dict[str, str | None]:
+    """Metadata for a source cited by a 'Source' cell but absent from the registry (or with no registry at all)."""
+    return {'authority': None, 'url': None, 'description': None, 'edition': None, 'target': SOURCE_TARGET_DATA_POINT}
+
+
+def load_sources_registry(path: str) -> dict[str, SourceRegistryEntry]:
     """
     Load a data source registry CSV: one row per unique source, keyed by 'Name'.
 
-    Columns 'Authority', 'URL' and 'Description' map directly onto DataSource fields.
-    Any other columns (e.g. Arup's 'Format', 'Licensing', 'RAG Rating') aren't modeled by
-    DataSource, so they're folded into the end of 'Description' as labeled text rather
-    than silently dropped.
+    Columns 'Authority', 'URL', 'Description' and 'Edition' map directly onto DataSource
+    fields. Any other column (e.g. Arup's 'Format', 'Licensing', 'RAG Rating') isn't
+    modeled by DataSource, so it's folded into the end of 'Description' as labeled text
+    rather than silently dropped -- which is exactly why 'Target' and 'Datasets' have to be
+    named in REGISTRY_MAPPED_COLUMNS: an unrecognised column becomes description prose.
+
+    'Target' chooses what the reference attaches to (see nodes.constants.SOURCE_TARGETS).
+    Not 'Scope': `DataSource.scope` is the instance that owns the source, and a data file's
+    'Scope' column is the GHG scope, so the word is taken twice over. The values are:
+
+    * ``data_point`` (the default, and what a registry without the column means) -- the
+      source is cited from a row's 'Source' cell and links to that row's data points.
+    * ``dataset`` -- the source attaches to the dataset as a whole, cites nothing per row,
+      and needs no 'Source' column to exist at all. Any number of sources may do this.
+
+    'Datasets' narrows a dataset-level source to named datasets (DATASET_NAME_SEPARATOR-
+    joined, matching the values of the input CSV's 'Dataset' column). Left empty, the
+    source applies to every dataset the run produces, which is the common case: a registry
+    accompanies one upload of one workbook.
     """
     df = pl.read_csv(path, infer_schema_length=0)
     if 'Name' not in df.columns:
         raise ValueError(f"Sources registry '{path}' must have a 'Name' column.")
-    extra_cols = [c for c in df.columns if c not in ('Name', 'Authority', 'URL', 'Description')]
+    extra_cols = [c for c in df.columns if c not in REGISTRY_MAPPED_COLUMNS]
 
-    registry: dict[str, dict[str, str | None]] = {}
+    registry: dict[str, SourceRegistryEntry] = {}
     for row in df.iter_rows(named=True):
         name = row.get('Name')
         if not name:
             continue
         description_parts = [row['Description']] if row.get('Description') else []
         description_parts += [f'{col}: {row[col]}' for col in extra_cols if row.get(col)]
-        registry[name] = {
-            'authority': row.get('Authority') or None,
-            'url': row.get('URL') or None,
-            'description': '; '.join(description_parts) or None,
-        }
+        # A misspelled target must not fall back to the default: the registry would read as
+        # though the source were dataset-level while the import quietly made nothing at all.
+        target = (row.get('Target') or SOURCE_TARGET_DATA_POINT).strip()
+        if target not in SOURCE_TARGETS:
+            raise ValueError(
+                f"Source '{name}' in '{path}' has Target '{target}'; expected one of {', '.join(sorted(SOURCE_TARGETS))}."
+            )
+        datasets = [d.strip() for d in (row.get('Datasets') or '').split(DATASET_NAME_SEPARATOR) if d.strip()]
+        if datasets and target != SOURCE_TARGET_DATASET:
+            raise ValueError(
+                f"Source '{name}' in '{path}' lists Datasets but has Target '{target}'. "
+                'Only dataset-targeted sources choose their datasets; a data_point-targeted one '
+                'is placed by the Source cells that cite it.'
+            )
+        registry[name] = SourceRegistryEntry(
+            fields={
+                'authority': row.get('Authority') or None,
+                'url': row.get('URL') or None,
+                'description': '; '.join(description_parts) or None,
+                'edition': row.get('Edition') or None,
+                'target': target,
+            },
+            datasets=frozenset(datasets) or None,
+        )
     return registry
 
 
-SOURCE_NAME_SEPARATOR = '; '
+def check_registry_dataset_names(registry: dict[str, SourceRegistryEntry] | None, dataset_names: Iterable[str]) -> None:
+    """
+    Refuse a 'Datasets' restriction that names a dataset this run doesn't produce.
+
+    Such an entry is silently inert -- the source is attached to nothing, and the dataset
+    it was meant for imports with no provenance at all. Only callable where the full set of
+    dataset names is known, i.e. the split-by-'Dataset'-column path.
+    """
+    if not registry:
+        return
+    known = set(dataset_names)
+    for name, entry in registry.items():
+        unknown = sorted((entry.datasets or frozenset()) - known)
+        if unknown:
+            raise ValueError(
+                f"Source '{name}' is restricted to dataset(s) {', '.join(unknown)}, which this run does not "
+                f'produce. Datasets found: {", ".join(sorted(known)) or "(none)"}.'
+            )
 
 
 def build_sources_metadata(
-    df: pl.DataFrame, registry: dict[str, dict[str, str | None]] | None
+    df: pl.DataFrame,
+    registry: dict[str, SourceRegistryEntry] | None,
+    dataset_name: str | None = None,
 ) -> list[dict[str, str | None]] | None:
     """
-    Build the DVC metadata['sources'] entry: registry fields for every Source name used in df.
+    Build the DVC metadata['sources'] entry for one dataset.
 
-    A list of {name, authority, url, description} dicts, matching the shape of the existing
-    metadata['metrics'] list -- NOT a dict keyed by name. dvc_pandas writes the whole metadata
-    dict straight to YAML (ruamel), and a long human-readable source name used as a YAML
-    mapping *key* can get line-wrapped by the writer, producing YAML that's invalid to read
-    back ("could not find expected ':'"). Names are safe as plain *values*, just not as keys.
+    A list of {name, authority, url, description, edition, target} dicts, matching the shape
+    of the existing metadata['metrics'] list -- NOT a dict keyed by name. dvc_pandas writes
+    the whole metadata dict straight to YAML (ruamel), and a long human-readable source name
+    used as a YAML mapping *key* can get line-wrapped by the writer, producing YAML that's
+    invalid to read back ("could not find expected ':'"). Names are safe as plain *values*,
+    just not as keys.
 
-    A 'Source' cell may hold multiple names joined by SOURCE_NAME_SEPARATOR when a value was
-    derived from more than one citation (see data/cork/trace_uuid_sources.py for an example);
-    load_dvc_dataset splits on the same separator to create one DatasetSourceReference each.
+    Two kinds of entry end up in the list:
+
+    * every source cited by this dataset's 'Source' column. A cell may hold several names
+      joined by SOURCE_NAME_SEPARATOR when a value was derived from more than one citation
+      (see data/cork/trace_uuid_sources.py); load_dvc_dataset splits on the same separator
+      to create one DatasetSourceReference each.
+    * every dataset-level registry source that applies to this dataset. These are why the
+      function can no longer return early when there is no 'Source' column: a dataset whose
+      provenance is entirely dataset-level has no per-row citations to collect.
+
+    ``target`` is written on every entry, so the reader never has to infer it -- though it
+    does default a missing key to data_point, which is what a .dvc file written before
+    dataset-level sources existed means.
     """
+    registry = registry or {}
     source_col = next((c for c in df.columns if c.lower() == 'source'), None)
-    if source_col is None:
-        return None
-    cells = [c for c in df.select(source_col).unique().to_series().to_list() if c]
-    names = {n for cell in cells for n in cell.split(SOURCE_NAME_SEPARATOR) if n}
+    cited: set[str] = set()
+    if source_col is not None:
+        cells = [c for c in df.select(source_col).unique().to_series().to_list() if c]
+        cited = {n for cell in cells for n in cell.split(SOURCE_NAME_SEPARATOR) if n}
+
+    for name in sorted(cited):
+        entry = registry.get(name)
+        if entry is None:
+            if registry:
+                warnings.warn(
+                    f"Source '{name}' is cited in the data but is not in the sources registry; "
+                    'it will be imported with no authority, URL or description.',
+                    UserWarning,
+                    stacklevel=2,
+                )
+        elif entry.target != SOURCE_TARGET_DATA_POINT:
+            # Both attributions at once would create a dataset-level reference *and* one per
+            # row for the same source, which is not a stronger claim, just a duplicated one.
+            raise ValueError(
+                f"Source '{name}' is registered with Target '{entry.target}' but is also cited by a "
+                "'Source' cell. Choose one: drop the citations, or set Target to "
+                f'{SOURCE_TARGET_DATA_POINT}.'
+            )
+
+    dataset_level = {n for n, e in registry.items() if e.target == SOURCE_TARGET_DATASET and e.applies_to(dataset_name)}
+    names = sorted(cited | dataset_level)
     if not names:
         return None
-    registry = registry or {}
-    return [
-        {'name': name, **registry.get(name, {'authority': None, 'url': None, 'description': None})}
-        for name in sorted(names)
-    ]
+    return [{'name': name, **(registry[name].fields if name in registry else _unregistered_source_fields())} for name in names]
 
 
 def canonical_metric_column_id(raw: str) -> str:
@@ -652,7 +787,7 @@ def process_dataset(
     outdvcpath: str,
     language: str,
     context: Context | None,
-    sources_registry: dict[str, dict[str, str | None]] | None = None,
+    sources_registry: dict[str, SourceRegistryEntry] | None = None,
     keep_empty_cells: bool = False,
 ) -> None:
     """Process a single dataset of data."""
@@ -724,7 +859,7 @@ def process_dataset(
         # NOTE! Subfolder identifiers will break here, so be careful with them.
         identifier = to_snake_case(dataset_name.rsplit('/', maxsplit=1)[-1])
         dataset_dvc_path = f'{outdvcpath}/{identifier}'
-        sources = build_sources_metadata(df, sources_registry)
+        sources = build_sources_metadata(df, sources_registry, dataset_name)
         push_to_dvc(df, dataset_dvc_path, dataset_name, description, metrics, language, units=units, sources=sources)
 
 
@@ -735,7 +870,7 @@ def process_datasets(
     language: str,
     context: Context | None = None,
     dataset_name: str | None = None,
-    sources_registry: dict[str, dict[str, str | None]] | None = None,
+    sources_registry: dict[str, SourceRegistryEntry] | None = None,
     keep_empty_cells: bool = False,
 ) -> None:
     # Process all datasets
@@ -785,6 +920,9 @@ def process_datasets(
         # Process all datasets
         dataset_dfs = split_by_dataset(full_df)
         print(f'Found {len(dataset_dfs)} datasets to process')
+        # Only here is the full set of names known, so only here can a 'Datasets'
+        # restriction naming a dataset that doesn't exist be caught.
+        check_registry_dataset_names(sources_registry, dataset_dfs.keys())
 
         for ds_name, dataset_df in dataset_dfs.items():
             process_dataset(
@@ -837,8 +975,11 @@ def main():
         default=None,
         help=(
             "Path to a data source registry CSV (columns: 'Name' plus any of "
-            "'Authority'/'URL'/'Description'; other columns are folded into Description). "
-            "Looked up by the values of a 'Source' column in the input CSV."
+            "'Authority'/'URL'/'Description'/'Edition'/'Target'/'Datasets'; other columns are "
+            "folded into Description). Sources with Target 'data_point' (the default) are looked "
+            "up by the values of a 'Source' column in the input CSV; sources with Target 'dataset' "
+            'attach to the dataset as a whole and need no citations, optionally narrowed to the '
+            "datasets named in 'Datasets'."
         ),
     )
 

@@ -22,6 +22,25 @@ SCENARIO_COLUMN = 'ScenarioName'
 # `Comment`) and the parquet lowercases them.
 RESERVED_ROW_COLUMNS = frozenset({'source', 'comment', 'description'})
 
+# A data source cited by a dataset can attach to either of two targets, and the target is
+# carried through the whole CSV -> DVC -> DB path: the `Target` column of the sources
+# registry read by `upload_new_dataset`, the `target` key of each `metadata['sources']`
+# entry in DVC, and finally the `data_point` / `dataset` fork in `DatasetSourceReference`.
+#
+# `target` rather than `scope`, which is taken twice over: `DataSource.scope` is the
+# instance that owns the source, and `Scope` in a data file is the GHG scope. It is also
+# what the read side has always called it -- `DatasetSourceReferenceTarget` in GraphQL,
+# `reference_target` in REST.
+#
+# `data_point` is the default and the historical behaviour: the source is named in a
+# row's `Source` cell and is linked to the data points made from that row. `dataset`
+# attaches the source to the dataset as a whole, for data that arrives from one
+# publication in one update and has nothing per-row to say. A dataset may carry any
+# number of dataset-scoped sources; they are a set, not a single attribution.
+SOURCE_TARGET_DATA_POINT = 'data_point'
+SOURCE_TARGET_DATASET = 'dataset'
+SOURCE_TARGETS = frozenset({SOURCE_TARGET_DATA_POINT, SOURCE_TARGET_DATASET})
+
 # Impact constants
 IMPACT_COLUMN = 'Impact'
 # Probability iterations for Monte Carlo
