@@ -70,12 +70,40 @@ Without `column: Value`, the node will raise `KeyError: 'Value'` because the par
 
 ---
 
-## 2. `fetch_dataset.py` — DVC parquet → CSV
+## 2. `export_dataset` — DB or DVC → CSV upload format
 
-**Location:** `notebooks/fetch_dataset.py`  
-**Invocation:** `python notebooks/fetch_dataset.py <ekey> <output.csv>`
+**Location:** `nodes/management/commands/export_dataset.py`
+**Invocation:** `python manage.py export_dataset <instance> <identifier> --out DIR [--from db|dvc|auto] [--format auto|wide|long]`
 
-Fetches a single parquet file directly from the S3 bucket by its ekey (either a full S3 object key or an MD5/ETag hash) and writes it as a flat CSV. Useful for inspecting what is actually stored in DVC without checking out the full repository.
+Exports **one** dataset in the format `upload_new_dataset` reads, so the loop
+DB/DVC → CSV → DVC → DB closes without losing provenance. Writes up to three files:
+the data CSV, `<name>_sources.csv` (the registry the `Source` cells key into) and
+`<name>_dataset.csv` (dataset-level attributes). It prints the two commands that
+complete the round trip, with `--keep-empty-cells` included when the data holds
+valueless cells.
+
+Prefer it over `sync_datasets --action csv` (§5), which writes no comments, no sources
+and no registry, and keys dimension columns by translated display name.
+
+`--from auto` refuses when the database and DVC both hold data, rather than choosing:
+say `--from db` or `--from dvc`, or ask `dataset_inventory` about the drift.
+`--from dvc` also replaces most uses of `fetch_dataset` (§3) — it resolves the
+identifier against the instance's pin, so there is no hash to find first.
+
+**What is lost:** nothing the CSV format can express. The command prints whatever it
+cannot carry. See [`dataset-round-trip.md`](dataset-round-trip.md), which also records
+two known importer defects (§3.1, §3.2) that the round-trip test holds as `xfail`.
+
+---
+
+## 3. `fetch_dataset.py` — DVC parquet → CSV
+
+**Location:** `tools/fetch_dataset.py`  
+**Invocation:** `python -m tools.fetch_dataset <ekey> <output.csv>`
+
+Fetches a single parquet file directly from the S3 bucket by its ekey (a full S3 object key, an ETag, or an MD5 hash) and writes it as a flat CSV. Needs no Django, no database and no repository checkout, which is the point: it reads the object and nothing else, so a stale mirror or a wrong pin cannot mislead it.
+
+Use it when all you have is a hash. When you know the instance and the dataset identifier, `export_dataset --from dvc` (§2) is better — it resolves the identifier against the instance's pin, so there is no hash to find first, and it writes the upload format with its sources registry rather than a flat dump of the stored columns.
 
 ### What it does
 
@@ -98,7 +126,7 @@ Fetches a single parquet file directly from the S3 bucket by its ekey (either a 
 
 ---
 
-## 3. `copy_datasets` — DB → DB (in-instance copy)
+## 4. `copy_datasets` — DB → DB (in-instance copy)
 
 **Location:** `nodes/management/commands/copy_datasets.py`  
 **Invocation:** `python manage.py copy_datasets <source> <destination> [-N] [-y]`
@@ -126,7 +154,7 @@ The diffsync adapter loads and syncs these models:
 
 ---
 
-## 4. `sync_datasets` — JSON ↔ DB, DB → CSV
+## 5. `sync_datasets` — JSON ↔ DB, DB → CSV
 
 **Location:** `nodes/management/commands/sync_datasets.py`  
 **Invocation:** `python manage.py sync_datasets <action> <instance> [file] [-N] [-y]`
@@ -191,7 +219,7 @@ Value,t_co2e/a,,Historical emissions,heating,330770,...
 
 ---
 
-## 5. `sync_instance_to_db` — YAML instance spec → DB
+## 6. `sync_instance_to_db` — YAML instance spec → DB
 
 **Location:** `nodes/management/commands/sync_instance_to_db.py`  
 **Invocation:** `python manage.py sync_instance_to_db <instance-id> [--all] [--dry-run] [--start-after <id>] [--runtime-export]`
@@ -208,7 +236,7 @@ See also `docs/trailhead/tools.md` for the full documentation.
 
 ---
 
-## 6. `collect_city_data.py` — Computed node outputs → CSV
+## 7. `collect_city_data.py` — Computed node outputs → CSV
 
 **Location:** `tools/collect_city_data.py`  
 **Invocation:** `python -m tools.collect_city_data config.yaml`
@@ -245,7 +273,8 @@ Not a management command but a standalone CLI. Run it as a module, not as a scri
 
 | Tool | Loses forecast flag | Loses units | Loses empty-year rows | Loses scope bindings | Filter by dataset |
 |---|---|---|---|---|---|
-| `upload_new_dataset` | Yes (use `forecast_from`) | No (sidecar) | Yes (silently) | N/A | Not implemented |
+| `export_dataset` | No (dataset sidecar) | No | No (warns, prints `--keep-empty-cells`) | N/A | One dataset per run |
+| `upload_new_dataset` | No, with `--dataset-csv` | No (sidecar) | Yes (silently) unless `--keep-empty-cells` | N/A | `-d` |
 | `fetch_dataset` | Yes (not in parquet) | Yes (metadata only) | No | N/A | N/A |
 | `copy_datasets` | No | No | No | Yes | Not implemented |
 | `sync_datasets import/export` | No | No | No | Yes | Not implemented |
