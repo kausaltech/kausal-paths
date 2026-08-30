@@ -7,7 +7,7 @@ from django.contrib.auth.models import Group, Permission
 from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
 from django.utils.translation import gettext_lazy as _
-from wagtail.models import PAGE_PERMISSION_CODENAMES, GroupPagePermission
+from wagtail.models import PAGE_PERMISSION_TYPES, GroupPagePermission
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -147,4 +147,4 @@ class AdminRole(Role):
         ),
     ])
 
-    page_perms = set(PAGE_PERMISSION_CODENAMES)
+    page_perms = set(x[0] for x in PAGE_PERMISSION_TYPES)

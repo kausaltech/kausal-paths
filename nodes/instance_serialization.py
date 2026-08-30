@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING, Annotated, Any, Literal, Self, cast
 from uuid import UUID, uuid3
 
 from django.db import transaction
+from modeltrans.translator import get_i18n_field
 from pydantic import BaseModel, Field, field_validator
 
 from markdown_it import MarkdownIt
@@ -31,6 +32,7 @@ from markdown_it import MarkdownIt
 from kausal_common.datasets.category_domain import DatasetCategoryDomain
 from kausal_common.i18n.pydantic import (
     I18nBaseModel,
+    ModeltransModelProtocol,
     TranslatedString,
     get_modeltrans_attrs_from_str,
     get_translated_string_from_modeltrans,
@@ -120,11 +122,15 @@ def _ts_from_modeltrans(obj: Model, field_name: str, primary_language: str) -> T
     Returns ``None`` when the field is empty across all languages.
     """
     val = getattr(obj, field_name, None)
-    i18n: dict[str, Any] = getattr(obj, 'i18n', None) or {}
+    i18n_field = get_i18n_field(obj)
+    assert i18n_field is not None
+    assert i18n_field.attname == 'i18n'
+    mt_obj = cast('ModeltransModelProtocol', obj)
+    i18n = cast('dict[str, str]', mt_obj.i18n or {})
     has_translation = any(k.startswith(f'{field_name}_') and v for k, v in i18n.items())
     if not val and not has_translation:
         return None
-    return get_translated_string_from_modeltrans(obj, field_name, primary_language)
+    return get_translated_string_from_modeltrans(mt_obj, field_name, primary_language)
 
 
 class MetricValidationRuleSnapshot(ModelSnapshot):
