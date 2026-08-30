@@ -4180,7 +4180,7 @@ nodes:
   # NodeConfig row, and these nodes sit upstream of is_bisko_compliant, which has an outcome
   # page. What the certifier raised was the German term shown in the tool, and that is fixed.
   name_en: Quality A data for grid-bound energy carriers
-  name_de: Qualität A-Daten für leitungsgebundene Energieträger
+  name_de: Daten der Qualität A für leitungsgebundene Energieträger
   # FIXME When we fix the graph, it will show 1 rather than 3.
   description_en: BISKO inventory must use regional primary data for grid-bound
     energy carriers. To be BISKO-compliant, each sector should have value 3 in the graph.
@@ -4248,7 +4248,7 @@ nodes:
 - id: has_quality_a_data_for_grid_based_energy
   is_editable: false
   name_en: Has quality A data for grid-bound energy carriers?
-  name_de: Hat Qualität A-Daten für leitungsgebundene Energieträger?
+  name_de: Hat Daten der Qualität A für leitungsgebundene Energieträger?
   description_en: BISKO inventory must use regional primary data for grid-bound
     energy carriers.
   description_de: BISKO-Inventar muss regionale Primärdaten für leitungsgebundene
