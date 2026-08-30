@@ -10,8 +10,8 @@ from django.core.exceptions import ValidationError
 from django.urls import path, reverse
 from django.utils.translation import gettext_lazy as _, pgettext_lazy
 from wagtail.admin.panels import FieldPanel, InlinePanel, ObjectList, TabbedInterface
+from wagtail.admin.widgets.button import ListingButton
 from wagtail.snippets.models import register_snippet
-from wagtail.snippets.widgets import SnippetListingButton
 
 from wagtailgeowidget import __version__ as wagtailgeowidget_version
 
@@ -111,7 +111,7 @@ class OrganizationForm(NodeForm[Organization]):
         return instance
 
 
-class OrganizationViewSet(PathsViewSet):
+class OrganizationViewSet(PathsViewSet[Organization]):
     model = Organization
     menu_label = _('Organizations')
     icon = 'kausal-organisations'
@@ -186,8 +186,8 @@ class OrganizationViewSet(PathsViewSet):
         kwargs['view_set'] = self
         return kwargs
 
-    def _get_edit_button(self, instance: Organization) -> SnippetListingButton:
-        return SnippetListingButton(
+    def _get_edit_button(self, instance: Organization) -> ListingButton:
+        return ListingButton(
             _('Edit'),
             url=reverse(self.get_url_name('edit'), args=(quote(instance.pk),)),
             icon_name='edit',
@@ -195,8 +195,8 @@ class OrganizationViewSet(PathsViewSet):
             priority=10,
         )
 
-    def _get_copy_button(self, instance: Organization) -> SnippetListingButton:
-        return SnippetListingButton(
+    def _get_copy_button(self, instance: Organization) -> ListingButton:
+        return ListingButton(
             _('Copy'),
             url=reverse(self.get_url_name('copy'), args=(quote(instance.pk),)),
             icon_name='copy',
@@ -204,8 +204,8 @@ class OrganizationViewSet(PathsViewSet):
             priority=20,
         )
 
-    def _get_delete_button(self, instance: Organization) -> SnippetListingButton:
-        return SnippetListingButton(
+    def _get_delete_button(self, instance: Organization) -> ListingButton:
+        return ListingButton(
             _('Delete'),
             url=reverse(self.get_url_name('delete'), args=(quote(instance.pk),)),
             icon_name='bin',
@@ -213,10 +213,10 @@ class OrganizationViewSet(PathsViewSet):
             priority=30,
         )
 
-    def _get_add_child_button(self, instance: Organization) -> SnippetListingButton:
-        return SnippetListingButton(
-            url=reverse(self.get_url_name(self.add_child_url_name), kwargs={'parent_pk': quote(instance.pk)}),
+    def _get_add_child_button(self, instance: Organization) -> ListingButton:
+        return ListingButton(
             label=_('Add suborganization'),
+            url=reverse(self.get_url_name(self.add_child_url_name), kwargs={'parent_pk': quote(instance.pk)}),
             icon_name='plus',
             attrs={'aria-label': _('Add suborganization')},
         )
