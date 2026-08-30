@@ -1,3 +1,4 @@
+# ruff: noqa: INP001  # tools/ is an implicit namespace package by design; run with `-m`.
 # A previous version collected the data directly from the production instances via API.
 # https://github.com/kausaltech/kausal-paths/blob/6471f1c860aa86e177290f80bced9435113e4ea6/nodes/management/commands/collect_city_data.py
 
@@ -37,7 +38,7 @@ from common.polars import DataFrameMeta  # noqa: E402
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN  # noqa: E402
 from nodes.exceptions import NodeError  # noqa: E402
 from nodes.units import unit_registry  # noqa: E402
-from notebooks.notebook_support import get_context, get_nodes  # noqa: E402
+from tools.instance_support import get_context, get_nodes  # noqa: E402
 
 # initialize_notebook_env()
 
@@ -45,6 +46,7 @@ if TYPE_CHECKING:
     from datetime import date
 
     from common.polars import PathsDataFrame
+    from nodes.context import Context
     from nodes.units import Quantity
 
 # config_file = '../netzeroplanner-framework-config/emission_potential.yaml'
@@ -58,6 +60,21 @@ COLLECT_ONLY_PROCESSORS = frozenset({'sum_over_dims', 'find_target_values', 'con
 
 SUMMARY_ROW_IDS = ('TOTAL', 'NUMBER')
 """Synthetic `Instance` values that `aggregate_instances` appends to a summary."""
+
+
+def created_at_date(context: Context, instance_id: str) -> date:
+    """
+    Return the creation date on the instance's database row.
+
+    `Instance.config` is None for an instance loaded from YAML that has no row in this
+    database, and such an instance has no creation date to report. Raising here rather
+    than reaching through the None gives `collect_instance`'s handler something to log --
+    it skips the instance and names it -- instead of an AttributeError on NoneType.
+    """
+    config = context.instance.config
+    if config is None:
+        raise ValueError(f'Instance {instance_id} has no database row, so no creation date.')
+    return config.created_at.date()
 
 
 def aggregate_instances(df: PathsDataFrame, topic: str) -> PathsDataFrame:
@@ -475,7 +492,9 @@ class DataCollection:
                 self.logs.append(f'Instance {instance_id} could not be collected and is skipped:')
                 self.logs.append(f'    {traceback.format_exc().strip().splitlines()[-1]}')
 
-    def creation_date(self, instance_id: str, context, original_instance_map: dict[str, str], db_ids: set[str] | None):
+    def creation_date(
+        self, instance_id: str, context: Context, original_instance_map: dict[str, str], db_ids: set[str] | None
+    ) -> date:
         """
         Return the date the instance was first created, following `original_instance` when set.
 
@@ -484,21 +503,21 @@ class DataCollection:
         """
         original_id = original_instance_map.get(instance_id) or instance_id
         if original_id == instance_id:
-            return context.instance.config.created_at.date()
+            return created_at_date(context, instance_id)
         if db_ids is not None and original_id not in db_ids:
             self.logs.append(
                 f'Original instance {original_id} for {instance_id} is not on this server. '
                 + 'Using the current instance created_at.'
             )
-            return context.instance.config.created_at.date()
+            return created_at_date(context, instance_id)
         try:
             original_context = get_context(original_id)
         except FileNotFoundError:
             self.logs.append(
                 f'Original instance {original_id} not found for {instance_id}. Using the current instance created_at.'
             )
-            return context.instance.config.created_at.date()
-        return original_context.instance.config.created_at.date()
+            return created_at_date(context, instance_id)
+        return created_at_date(original_context, original_id)
 
     def collect_instance(self, instance_id: str, original_instance_map: dict[str, str], db_ids: set[str] | None) -> None:
         """Compute every configured node for one instance and record the results."""

@@ -341,7 +341,7 @@ All now have `drop_col: false`.
    existing behaviour of the three node-based historical paths (lines 198, 221-222, 231).
 
 3. **Full regression test with `collect_city_data`.**
-   Run `python -m notebooks.collect_city_data ../scripts/paths/collectors/emission_potential.yaml`
+   Run `python -m tools.collect_city_data ../scripts/paths/collectors/emission_potential.yaml`
    and compare totals against the reference file
    `model-outputs/reduction_potential/sum_over_instances_net_emissions_kt-a_2026-06-07_base.csv`.
    Investigate remaining numerical differences.

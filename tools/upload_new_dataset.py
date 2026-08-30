@@ -1,3 +1,4 @@
+# ruff: noqa: INP001  # tools/ is an implicit namespace package by design; run with `-m`.
 from __future__ import annotations
 
 import argparse
@@ -34,7 +35,7 @@ from nodes.constants import (  # noqa: E402
     YEAR_COLUMN,
 )
 from nodes.node import NodeMetric  # noqa: E402
-from notebooks.notebook_support import get_context  # noqa: E402
+from tools.instance_support import get_context  # noqa: E402
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -164,10 +165,10 @@ def split_by_dataset(df: pl.DataFrame) -> dict[str, pl.DataFrame]:
         raise ValueError(f"Argument 'dataset' must be defined unless you use dataset names from column '{d}'.")
 
     datasets = {}
-    for part_df in df.partition_by(d, maintain_order=True):
-        name = part_df[d][0]
+    for part in df.partition_by(d, maintain_order=True):
+        name = part[d][0]
         if name is not None:
-            part_df = part_df.drop(d)
+            part_df = part.drop(d)
             datasets[name] = part_df
             print(f'Created dataset for dataset: {name} with {len(part_df)} rows')
 
@@ -208,7 +209,7 @@ def extract_units_from_row(df: pl.DataFrame) -> tuple[dict[str, str], pl.DataFra
                 float(value)
                 has_numeric = True
                 break
-            except (ValueError, TypeError):
+            except ValueError, TypeError:
                 continue
     if has_numeric:
         return units, df
@@ -507,7 +508,7 @@ def clean_dataframe(df: pl.DataFrame, keep_empty_cells: bool = False) -> pl.Data
     #    convert_to_standard_format with nothing to unpivot.
     if not keep_empty_cells:
         all_null = df.select(pl.all().is_null().all()).row(0)
-        df = df.drop([col for col, is_null in zip(df.columns, all_null) if is_null])
+        df = df.drop([col for col, is_null in zip(df.columns, all_null, strict=True) if is_null])
 
     return df
 
@@ -536,7 +537,8 @@ def convert_to_standard_format(df: pl.DataFrame, keep_empty_cells: bool = False)
         value_is_usable = pl.col('Value').is_not_null() & value_is_usable
 
     return (
-        df.unpivot(on=year_columns, index=context_columns, variable_name='Year', value_name='Value')
+        df
+        .unpivot(on=year_columns, index=context_columns, variable_name='Year', value_name='Value')
         # Cast to string regardless of source dtype (numeric columns are inferred as Float64
         # by load_data; downstream pivot_by_compound_id casts back to Float64).
         .with_columns(pl.col('Value').cast(pl.Utf8, strict=False))
@@ -802,7 +804,8 @@ def process_dataset(
 
     # 1b. Normalise Unit: empty string is ambiguous — replace with explicit 'dimensionless'
     df = df.with_columns(
-        pl.when(pl.col('Unit').is_null() | (pl.col('Unit') == ''))
+        pl
+        .when(pl.col('Unit').is_null() | (pl.col('Unit') == ''))
         .then(pl.lit('dimensionless'))
         .otherwise(pl.col('Unit'))
         .alias('Unit')
@@ -897,11 +900,10 @@ def process_datasets(
             # Including 'Value' in primary_keys would corrupt PathsDataFrame when
             # implement_unit_col later tries to promote it to a metric column.
             non_index = {'Value', 'Unit', 'UUID'}
-            plain_index_cols = [
-                c for c in full_df.columns if c not in non_index and c.lower() not in RESERVED_ROW_COLUMNS
-            ]
-            push_to_dvc(full_df, outdvcpath, '', None, [], language, units=units,
-                        index_columns_override=plain_index_cols, sources=sources)
+            plain_index_cols = [c for c in full_df.columns if c not in non_index and c.lower() not in RESERVED_ROW_COLUMNS]
+            push_to_dvc(
+                full_df, outdvcpath, '', None, [], language, units=units, index_columns_override=plain_index_cols, sources=sources
+            )
         else:
             d = 'Dataset'
             if d in full_df.columns:
@@ -925,9 +927,7 @@ def process_datasets(
         check_registry_dataset_names(sources_registry, dataset_dfs.keys())
 
         for ds_name, dataset_df in dataset_dfs.items():
-            process_dataset(
-                dataset_df, ds_name, outcsvpath, outdvcpath, language, context, sources_registry, keep_empty_cells
-            )
+            process_dataset(dataset_df, ds_name, outcsvpath, outdvcpath, language, context, sources_registry, keep_empty_cells)
 
 
 def main():
@@ -1003,9 +1003,7 @@ def main():
     # Load data
     full_df = load_data(incsvpath, incsvsep, encoding)
 
-    process_datasets(
-        full_df, outcsvpath, outdvcpath, language, context, dataset_name, sources_registry, keep_empty_cells
-    )
+    process_datasets(full_df, outcsvpath, outdvcpath, language, context, dataset_name, sources_registry, keep_empty_cells)
 
 
 if __name__ == '__main__':

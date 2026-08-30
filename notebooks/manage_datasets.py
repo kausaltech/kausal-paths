@@ -18,10 +18,10 @@ from openpyxl import load_workbook
 from openpyxl.utils import column_index_from_string
 
 from nodes.constants import VALUE_COLUMN
-from notebooks.notebook_support import get_context
+from tools.instance_support import get_context
 
-# Import operations from upload_new_dataset.py
-from notebooks.upload_new_dataset import (
+# Import operations from tools/upload_new_dataset.py
+from tools.upload_new_dataset import (
     canonicalize_metric_column_values,
     clean_dataframe,
     convert_names_to_cats,
@@ -264,7 +264,7 @@ class FileLoader:
 def load_from_dvc(instance_id: str, dataset_id: str) -> pl.DataFrame:
     """Load a dataset from DVC. Requires instance context (Django or YAML)."""
     from common import polars as ppl
-    from notebooks.notebook_support import get_context
+    from tools.instance_support import get_context
 
     ctx = get_context(instance_id)
     dvc_ds = ctx.load_dvc_dataset(dataset_id)

@@ -1,3 +1,13 @@
+"""
+IPython bootstrap and plotting helpers for the notebooks in this directory.
+
+The generic half of this module -- `get_context` and `get_nodes`, which have nothing to
+do with notebooks -- now lives in `tools/instance_support.py`, because the command-line
+tools that use it moved to `tools/` and `notebooks/*` is excluded from ruff and mypy.
+They are re-exported here so an existing notebook importing them from this module keeps
+working.
+"""
+
 from __future__ import annotations
 
 import os
@@ -8,10 +18,12 @@ from typing import TYPE_CHECKING
 
 import polars as pl
 
+from tools.instance_support import get_context, get_nodes
+
 if TYPE_CHECKING:
-    from nodes.context import Context
-    from nodes.models import InstanceConfig
     from nodes.node import Node
+
+__all__ = ['get_context', 'get_datasets', 'get_nodes', 'initialize_notebook_env', 'plot_node', 'plotly_theme']
 
 
 def initialize_notebook_env():
@@ -39,42 +51,6 @@ def initialize_notebook_env():
 
 
 plotly_theme: str = 'ggplot2'
-
-
-def _get_instance_from_db(instance_id: str) -> None | InstanceConfig:
-    from nodes.models import InstanceConfig
-
-    ic = InstanceConfig.objects.filter(identifier=instance_id).first()
-    if ic is None:
-        return None
-    return ic
-
-
-def get_context(instance_id: str):
-    from common import polars_ext  # noqa: F401
-    from nodes.instance_loader import InstanceLoader
-
-    ic = _get_instance_from_db(instance_id)
-    if ic is not None:
-        return ic.get_instance().context
-
-    project_root = Path(__file__).parent.parent
-    config_fn = (Path(project_root) / 'configs' / ('%s.yaml' % instance_id)).resolve()
-    loader = InstanceLoader.from_yaml(config_fn)
-    context = loader.context
-    context.cache.clear()
-    return context
-
-
-class NotebookNodes(dict[str, 'Node']):
-    context: Context
-
-
-def get_nodes(instance_id: str):
-    context = get_context(instance_id)
-    out = NotebookNodes(context.nodes)
-    out.context = context
-    return out
 
 
 def get_datasets(instance_id: str):

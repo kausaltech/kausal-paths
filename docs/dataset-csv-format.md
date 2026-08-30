@@ -1,6 +1,6 @@
 # The Wide CSV Upload Format (with per-row metadata)
 
-The format `notebooks/upload_new_dataset.py` reads: one CSV holding **several
+The format `tools/upload_new_dataset.py` reads: one CSV holding **several
 datasets**, each row a value series for one metric × dimension combination, with
 per-row provenance (`Source`, `Comment`, `UUID`) that survives the round trip into
 `DataSource` and `DataPointComment` records.
@@ -201,7 +201,7 @@ and what it replaced.
 ## 4. Upload
 
 ```bash
-python -m notebooks.upload_new_dataset \
+python -m tools.upload_new_dataset \
   --input-csv data/<city>/<file>.csv \
   --output-dvc <namespace> \
   --instance <instance-id> \
@@ -212,7 +212,7 @@ python -m notebooks.upload_new_dataset \
 
 Three things that are easy to get wrong:
 
-- **Run it as a module** (`python -m notebooks.upload_new_dataset`), not as a
+- **Run it as a module** (`python -m tools.upload_new_dataset`), not as a
   script path, so the project root is on `sys.path`.
 - **`--instance` takes an *instance* identifier, not a framework one** — e.g.
   `cork-nzc`, not `nzc`. It is what the dimension and category names in the file
@@ -275,7 +275,7 @@ dropping blanks is what keeps a sparse wide file from becoming a dense one — s
 is opt-in.
 
 ```bash
-python -m notebooks.upload_new_dataset -i template.csv -o <repo> --language de \
+python -m tools.upload_new_dataset -i template.csv -o <repo> --language de \
     --instance <instance> --keep-empty-cells
 ```
 

@@ -153,7 +153,7 @@ Multiple datasets can share one CSV file by using different values in the
   (e.g. do not divide t → kt and then label the column `t_co2e/a`).
 - **Dimension values**: must match the model's category IDs exactly, not
   the human-readable labels from the customer file.
-  Use `python -m notebooks.upload_new_dataset ... -n <instance-id>` (Step 7)
+  Use `python -m tools.upload_new_dataset ... -n <instance-id>` (Step 7)
   to let the upload script validate and convert names to IDs automatically.
 - **No Forecast column needed** in the CSV — it is derived at upload time
   via `forecast_from` (see Step 7 and Step 8).
@@ -185,7 +185,7 @@ df.write_csv(OUT, null_value='')
 Run `upload_new_dataset` from the repo root:
 
 ```bash
-python -m notebooks.upload_new_dataset \
+python -m tools.upload_new_dataset \
   --input-csv data/<city-id>/<topic>.csv \
   --output-dvc <city-id> \
   --language de \

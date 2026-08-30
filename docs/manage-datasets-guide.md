@@ -894,5 +894,5 @@ Operations are executed sequentially. Typical order:
 
 ## See Also
 
-- `notebooks/upload_new_dataset.py` - Functions used by operations
+- `tools/upload_new_dataset.py` - Functions used by operations
 - `configs/*.yaml` - Example instance configurations

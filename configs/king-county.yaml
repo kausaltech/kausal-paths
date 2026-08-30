@@ -8,7 +8,7 @@
 # the reported series directly, so only an emissions-level action can act on those.
 #
 # The dimensions below are the ones the extracted data uses, so that
-#   python -m notebooks.upload_new_dataset --instance king-county ...
+#   python -m tools.upload_new_dataset --instance king-county ...
 # can map each CSV cell onto a category id (upload_new_dataset snake-cases the
 # column name, then Dimension.series_to_ids_pl resolves the cell against the
 # category's id, label and aliases).

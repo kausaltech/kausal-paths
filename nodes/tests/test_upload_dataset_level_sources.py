@@ -11,7 +11,7 @@ import polars as pl
 import pytest
 
 from nodes.constants import SOURCE_TARGET_DATASET
-from notebooks.upload_new_dataset import (
+from tools.upload_new_dataset import (
     SourceRegistryEntry,
     build_sources_metadata,
     check_registry_dataset_names,

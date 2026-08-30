@@ -173,7 +173,7 @@ uniform is an editorial judgement about that table:
    you are there).
 2. **Remove the `Source` column from the data**, or at least the cells naming
    that source. Keeping both is refused, not merged.
-3. Re-run `python -m notebooks.upload_new_dataset … --sources-csv …` and push.
+3. Re-run `python -m tools.upload_new_dataset … --sources-csv …` and push.
 4. `python manage.py load_dvc_dataset <instance> <dataset> --plan`, check the
    source lines, then `--force`.
 
@@ -220,7 +220,7 @@ DatasetSourceReference.objects.filter(data_point__isnull=True, dataset__isnull=T
 | file | what |
 |---|---|
 | `nodes/constants.py` | `SOURCE_TARGET_DATA_POINT` / `SOURCE_TARGET_DATASET` / `SOURCE_TARGETS`, the one definition both sides read |
-| `notebooks/upload_new_dataset.py` | `SourceRegistryEntry`, `load_sources_registry`, `check_registry_dataset_names`, `build_sources_metadata` |
+| `tools/upload_new_dataset.py` | `SourceRegistryEntry`, `load_sources_registry`, `check_registry_dataset_names`, `build_sources_metadata` |
 | `nodes/management/commands/load_dvc_dataset.py` | `source_target`, `dataset_level_source_names`, `ResolvedSource`, `Command.sync_dataset_source_references`, the plan's source lines |
 | `kausal_common/datasets/models.py` | `DatasetSourceReference`, the constraint, `DataSource.get_label` |
 | `kausal_common/datasets/api.py` | `BaseSourceReferenceSerializer.to_internal_value`, which used to write both targets |

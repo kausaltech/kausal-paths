@@ -12,7 +12,7 @@ both, which is why this was thought to work.
 import polars as pl
 import pytest
 
-from notebooks.upload_new_dataset import clean_dataframe, convert_to_standard_format
+from tools.upload_new_dataset import clean_dataframe, convert_to_standard_format
 
 # The functions under test are pure, but importing the uploader pulls in Django models.
 pytestmark = pytest.mark.django_db

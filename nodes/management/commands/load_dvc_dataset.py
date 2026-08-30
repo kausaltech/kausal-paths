@@ -49,7 +49,7 @@ if TYPE_CHECKING:
     from nodes.dimensions import Dimension as DimensionSpec, DimensionCategory as DimensionCategorySpec
     from nodes.units import Unit
 
-# Must match notebooks/upload_new_dataset.py's SOURCE_NAME_SEPARATOR: a 'Source' cell may
+# Must match tools/upload_new_dataset.py's SOURCE_NAME_SEPARATOR: a 'Source' cell may
 # join multiple citation names when a value was derived from more than one.
 SOURCE_NAME_SEPARATOR = '; '
 

@@ -15,8 +15,8 @@ The two layers are separate: uploading to DVC does not automatically populate th
 
 ## 1. `upload_new_dataset.py` — CSV → DVC
 
-**Location:** `notebooks/upload_new_dataset.py`  
-**Invocation:** `python -m notebooks.upload_new_dataset -i input.csv -o dvc/path -l de [-n instance-id] [--keep-empty-cells]`
+**Location:** `tools/upload_new_dataset.py`  
+**Invocation:** `python -m tools.upload_new_dataset -i input.csv -o dvc/path -l de [-n instance-id] [--keep-empty-cells]`
 
 Reads a wide-format CSV and pushes one or more datasets to the DVC parquet store.
 
@@ -210,10 +210,10 @@ See also `docs/trailhead/tools.md` for the full documentation.
 
 ## 6. `collect_city_data.py` — Computed node outputs → CSV
 
-**Location:** `notebooks/collect_city_data.py`  
-**Invocation:** `python notebooks/collect_city_data.py config.yaml`
+**Location:** `tools/collect_city_data.py`  
+**Invocation:** `python -m tools.collect_city_data config.yaml`
 
-Not a management command but a notebook script. It runs the node computation engine across multiple instances and collects the computed outputs of specified nodes — not the raw input datasets.
+Not a management command but a standalone CLI. Run it as a module, not as a script path, so the repo root stays on `sys.path`; and run it from the repo root, because a collector config's `output_path` is relative to the working directory. It runs the node computation engine across multiple instances and collects the computed outputs of specified nodes — not the raw input datasets.
 
 ### What it does
 
