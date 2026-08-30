@@ -520,3 +520,61 @@ def test_metric_mutation_refused_on_shared_schema(gql_client: PathsTestClient, d
         },
     )['instanceEditor']['datasetEditor']['createMetric']
     assert result['messages'][0]['code'] == 'schema_shared'
+
+
+UPDATE_METRIC_LOCALIZED = gql("""
+mutation UpdateMetricLocalized(
+    $instanceId: ID!, $datasetId: ID!, $metricId: UUID!, $input: UpdateDatasetMetricInput!, $_locale: String!
+) @locale(lang: $_locale) {
+    instanceEditor(instanceId: $instanceId) {
+        datasetEditor(datasetId: $datasetId) {
+            updateMetric(metricId: $metricId, input: $input) {
+                ... on DatasetMetric { id label }
+                ... on OperationInfo { messages { message code } }
+            }
+        }
+    }
+}
+""")
+
+
+def test_update_metric_label_goes_to_active_locale(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
+    from nodes.models import InstanceConfig as InstanceConfigModel
+
+    ic = db_instance_config
+    InstanceConfigModel.objects.filter(pk=ic.pk).update(other_languages=['de'])
+    ic.refresh_from_db()
+    dataset, metric = _make_dataset(ic)
+    metric.i18n = {'label_de': 'Emissionen'}
+    metric.save(update_fields=['i18n'])
+
+    # A write under a non-default locale lands in that locale's i18n slot;
+    # the default-language column is untouched.
+    gql_client.query_data(
+        UPDATE_METRIC_LOCALIZED,
+        variables={
+            'instanceId': str(ic.pk),
+            'datasetId': str(dataset.uuid),
+            'metricId': str(metric.uuid),
+            'input': {'label': 'THG-Emissionen'},
+            '_locale': 'de',
+        },
+    )
+    metric.refresh_from_db()
+    assert metric.label == 'Emissions'
+    assert metric.i18n == {'label_de': 'THG-Emissionen'}
+
+    # A write under the default locale updates the column and leaves the
+    # translations alone.
+    gql_client.query_data(
+        UPDATE_METRIC,
+        variables={
+            'instanceId': str(ic.pk),
+            'datasetId': str(dataset.uuid),
+            'metricId': str(metric.uuid),
+            'input': {'label': 'GHG emissions'},
+        },
+    )
+    metric.refresh_from_db()
+    assert metric.label == 'GHG emissions'
+    assert metric.i18n == {'label_de': 'THG-Emissionen'}

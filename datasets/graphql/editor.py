@@ -611,8 +611,15 @@ class DatasetEditorMutation:
 
         update_fields: list[str] = []
         if _is_maybe_set(input.label):
-            metric.label = input.label.value
-            update_fields.append('label')
+            # A single string can only mean the active request locale's
+            # translation; modeltrans routes it to the plain column or the
+            # i18n dict accordingly, leaving other languages untouched.
+            # ActivateInstanceContextExtension guarantees the request locale
+            # is Django's active language here.
+            metric.label_i18n = input.label.value
+            if metric.label is None:
+                metric.label = ''
+            update_fields.extend(['label', 'i18n'])
         if _is_maybe_set(input.unit):
             metric.unit = input.unit.value or ''
             update_fields.append('unit')
