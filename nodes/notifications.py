@@ -10,6 +10,7 @@ from django.utils.html import strip_tags
 from kausal_common.notifications.mjml import render_mjml_from_template
 
 if TYPE_CHECKING:
+    from frameworks.models import FrameworkConfig
     from nodes.models import InstanceInvitation
 
 
@@ -17,7 +18,7 @@ _EMAIL_TEMPLATE_DIR = str(Path(__file__).parent / 'email_templates')
 
 
 def _resolve_accept_url(invitation: InstanceInvitation) -> str:
-    fw_config = getattr(invitation.instance_config, 'framework_config', None)
+    fw_config: FrameworkConfig | None = getattr(invitation.instance_config, 'framework_config', None)
     if fw_config is None:
         identifier = invitation.instance_config.identifier
         msg = f'Instance "{identifier}" has no framework config; cannot resolve invitation acceptance URL.'
