@@ -36,7 +36,7 @@ if TYPE_CHECKING:
 
     from nodes.context import Context
     from nodes.datasets import Dataset
-    from nodes.defs.node_defs import NodeSpec
+    from nodes.defs.node_defs import InputDatasetDef, NodeSpec
     from nodes.defs.transform_def import EdgeTransformOp
     from nodes.edges import Edge
     from nodes.explanations import NodeExplanationSystem
@@ -521,9 +521,13 @@ class InstanceLoader:
     _scenario_values: dict[str, list[tuple[Parameter, Any]]]
     _node_visualizations: dict[str, list[dict[str, Any]]]
     # Snapshot-path dataset-binding stash (see _stash_snapshot_bindings).
-    _snapshot_dataset_ports: dict[UUID, list[DatasetPortSnapshot]]
+    # Groups are derived from native binding fields: a row whose pipeline
+    # selects a metric is its own group; the column-less rows of one
+    # (node, dataset) form one whole-frame group.
+    _snapshot_dataset_groups: dict[UUID, list[tuple[InputDatasetDef, list[DatasetPortSnapshot]]]]
+    _binding_group_index: dict[int, int]
     _instance_graph: InstanceGraph
-    _runtime_datasets: dict[tuple[UUID, int, str], Dataset]
+    _runtime_datasets: dict[tuple[UUID, int], Dataset]
 
     @staticmethod
     def wrap_with_span[**P, R, SC: InstanceLoader](
@@ -585,10 +589,13 @@ class InstanceLoader:
             if isinstance(ds, str):
                 ds_def = InputDatasetDef(id=ds, interpolate=ds_interpolate or class_interpolate)
             else:
+                # Snapshot-path entries arrive as typed defs, YAML-path entries as
+                # dicts; either way an authored `interpolate` beats the class default.
+                authored_interpolate = 'interpolate' in (ds.model_fields_set if isinstance(ds, InputDatasetDef) else ds)
                 ds_def = InputDatasetDef.model_validate(ds)
                 if ds_interpolate:
                     ds_def.interpolate = True
-                elif class_interpolate and 'interpolate' not in ds:
+                elif class_interpolate and not authored_interpolate:
                     ds_def.interpolate = True
 
             # The class declares whether its datasets take framework measure
@@ -942,11 +949,9 @@ class InstanceLoader:
 
         extra = spec.extra
         ds_fragment: dict[str, Any] = {'id': identifier}
-        dataset_ports = self._snapshot_dataset_ports.get(n.uuid)
-        if dataset_ports:
-            from nodes.instance_from_db import _serialize_dataset_ports
-
-            ds_fragment['input_datasets'] = _serialize_dataset_ports(dataset_ports)
+        dataset_groups = self._snapshot_dataset_groups.get(n.uuid)
+        if dataset_groups:
+            ds_fragment['input_datasets'] = [ds_def for ds_def, _rows in dataset_groups]
         if extra.input_dataset_processors:
             ds_fragment['input_dataset_processors'] = list(extra.input_dataset_processors)
         if extra.historical_values:
@@ -956,18 +961,13 @@ class InstanceLoader:
         if extra.tags:
             ds_fragment['tags'] = list(extra.tags)
         datasets = self._make_node_datasets(ds_fragment, node_class, unit)
-        if dataset_ports:
-            group_keys: list[tuple[int, str]] = []
-            for port in dataset_ports:
-                key = (port.dataset_index, port.dataset)
-                if key not in group_keys:
-                    group_keys.append(key)
-            if len(group_keys) != len(datasets):
+        if dataset_groups:
+            if len(dataset_groups) != len(datasets):
                 raise ValueError(
-                    f'Node {identifier}: {len(group_keys)} dataset binding groups produced {len(datasets)} runtime datasets'
+                    f'Node {identifier}: {len(dataset_groups)} dataset binding groups produced {len(datasets)} runtime datasets'
                 )
-            for (dataset_index, dataset_id), dataset in zip(group_keys, datasets, strict=True):
-                self._runtime_datasets[(n.uuid, dataset_index, dataset_id)] = dataset
+            for group_index, dataset in enumerate(datasets):
+                self._runtime_datasets[(n.uuid, group_index)] = dataset
 
         node: Node = node_class(
             id=identifier,
@@ -1235,7 +1235,7 @@ class InstanceLoader:
             elif isinstance(definition, DatasetBindingDef):
                 if not isinstance(snapshot_binding, DatasetPortSnapshot):
                     raise TypeError(f'Binding {definition.id}: graph/snapshot kind mismatch')
-                source = self._runtime_datasets[(snapshot_binding.node, snapshot_binding.dataset_index, snapshot_binding.dataset)]
+                source = self._runtime_datasets[(snapshot_binding.node, self._binding_group_index[id(snapshot_binding)])]
             else:
                 raise TypeError(f'Unsupported binding definition {type(definition).__name__}')
 
@@ -1679,7 +1679,6 @@ class InstanceLoader:
 
     def _stash_snapshot_bindings(self, snapshot: InstanceSnapshot) -> None:
         """Group dataset bindings per node for construction, the same way the config-dict shim grouped them."""
-        from collections import defaultdict
         from uuid import NAMESPACE_URL, uuid5
 
         from nodes.defs.graph import DatasetMeta, DatasetMetricMeta
@@ -1750,7 +1749,60 @@ class InstanceLoader:
 
         self._instance_graph = build_instance_graph(graph_snapshot)
         self._runtime_datasets = {}
-        ports_by_node: defaultdict[UUID, list[DatasetPortSnapshot]] = defaultdict(list)
-        for port in sorted(snapshot.dataset_bindings, key=lambda p: (p.node, p.dataset_index, str(p.port_id))):
-            ports_by_node[port.node].append(port)
-        self._snapshot_dataset_ports = dict(ports_by_node)
+        self._binding_group_index = {}
+        self._snapshot_dataset_groups = self._group_dataset_bindings(snapshot)
+
+    def _group_dataset_bindings(
+        self, snapshot: InstanceSnapshot
+    ) -> dict[UUID, list[tuple[InputDatasetDef, list[DatasetPortSnapshot]]]]:
+        """
+        Group dataset bindings per node from native fields only.
+
+        A row whose pipeline selects a metric is a single-metric binding and
+        forms its own group; the column-less rows of one (node, dataset) are the
+        per-metric fan-out of a single whole-frame binding and collapse back
+        into one group. Group order per node follows (input-port declaration
+        order, per-port position), which is the authored order the fan-out was
+        created in.
+        """
+        from collections import defaultdict
+
+        from nodes.instance_serialization import DatasetPortSnapshot
+
+        rows_by_node: defaultdict[UUID, list[tuple[DatasetPortSnapshot, int]]] = defaultdict(list)
+        for item, position in snapshot.bindings_with_positions():
+            if isinstance(item, DatasetPortSnapshot):
+                rows_by_node[item.node].append((item, position))
+        port_specs_by_node = {node.uuid: node.spec for node in snapshot.nodes if node.spec is not None}
+
+        groups_by_node: dict[UUID, list[tuple[InputDatasetDef, list[DatasetPortSnapshot]]]] = {}
+        for node_uuid, node_rows in rows_by_node.items():
+            node_spec = port_specs_by_node.get(node_uuid)
+            port_order = {port.id: index for index, port in enumerate(node_spec.input_ports)} if node_spec is not None else {}
+            node_rows.sort(key=lambda entry: (port_order.get(entry[0].port_id, len(port_order)), entry[1], str(entry[0].port_id)))
+            grouped: list[tuple[str, list[DatasetPortSnapshot]]] = []
+            # dataset id -> (open group index, metrics seen in it). One whole-frame
+            # binding fans out to one row per schema metric, so a metric repeating
+            # within the open group can only mean a second binding of the same
+            # dataset: close the group and start the next one.
+            whole_frame_group: dict[str, tuple[int, set[str]]] = {}
+            for row, _position in node_rows:
+                if any(op.kind == 'select_metric' for op in row.spec.transformations):
+                    grouped.append((row.dataset, [row]))
+                    continue
+                open_group = whole_frame_group.get(row.dataset)
+                if open_group is None or row.metric in open_group[1]:
+                    whole_frame_group[row.dataset] = (len(grouped), {row.metric})
+                    grouped.append((row.dataset, [row]))
+                else:
+                    grouped[open_group[0]][1].append(row)
+                    open_group[1].add(row.metric)
+            node_groups: list[tuple[InputDatasetDef, list[DatasetPortSnapshot]]] = []
+            for group_index, (dataset_id, group_rows) in enumerate(grouped):
+                # Runtime-input resolution keys on object identity: the rows here
+                # are the same binding objects bindings_with_positions() yields.
+                for row in group_rows:
+                    self._binding_group_index[id(row)] = group_index
+                node_groups.append((group_rows[0].spec.to_input_dataset(id=dataset_id), group_rows))
+            groups_by_node[node_uuid] = node_groups
+        return groups_by_node
