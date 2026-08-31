@@ -118,6 +118,12 @@ class FrameworkMutation:
                 ic.owner = fwc.organization_name or ''
                 ic.save(update_fields=['spec', 'owner'])
 
+            spec = ic.spec
+            assert spec is not None
+            features = spec.features.model_copy(update={'enable_user_management': fw.enable_user_management})
+            ic.spec = spec.model_copy(update={'features': features})
+            ic.save(update_fields=['spec'])
+
             ic.refresh_from_db()
             ic.create_default_content()
             fwc.setup_instance_pages()

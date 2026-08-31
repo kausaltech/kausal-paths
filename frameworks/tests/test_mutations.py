@@ -945,6 +945,9 @@ mutation CreateInstance($input: CreateInstanceInput!) {
 
 
 def test_create_instance_success(authenticated_gql_client: PathsTestClient, framework: Framework) -> None:
+    framework.enable_user_management = True
+    framework.save(update_fields=['enable_user_management'])
+
     data = authenticated_gql_client.query_data(
         CREATE_INSTANCE,
         variables={
@@ -965,6 +968,41 @@ def test_create_instance_success(authenticated_gql_client: PathsTestClient, fram
     assert ic.has_framework_config()
     assert ic.framework_config.framework == framework
     assert ic.admin_group is not None
+    assert ic.ensure_spec().features.enable_user_management is True
+
+
+@pytest.mark.parametrize('enable_user_management', [False, True])
+def test_create_instance_overrides_template_user_management_feature_from_framework(
+    authenticated_gql_client: PathsTestClient,
+    framework: Framework,
+    enable_user_management: bool,
+) -> None:
+    template_spec = InstanceModelSpec(
+        years=YearsSpec(reference=2020, min_historical=2020, max_historical=2023, target=2030, model_end=2035)
+    )
+    template_spec.features.enable_user_management = not enable_user_management
+    framework.template_instance = InstanceConfigFactory.create(
+        name='Template City',
+        config_source='database',
+        spec=template_spec,
+    )
+    framework.enable_user_management = enable_user_management
+    framework.save(update_fields=['template_instance', 'enable_user_management'])
+
+    authenticated_gql_client.query_data(
+        CREATE_INSTANCE,
+        variables={
+            'input': {
+                'frameworkId': framework.identifier,
+                'name': 'Cloned City',
+                'identifier': 'cloned-city',
+                'organizationName': 'Cloned City',
+            },
+        },
+    )
+
+    clone = InstanceConfig.objects.get(identifier='cloned-city')
+    assert clone.ensure_spec().features.enable_user_management is enable_user_management
 
 
 def test_create_instance_preserves_template_years(
