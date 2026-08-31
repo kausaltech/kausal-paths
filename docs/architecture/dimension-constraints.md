@@ -235,8 +235,8 @@ Stored dimension fields on ports are **authored** data. Propagation
 results are **computed** and must not be written back over them.
 
 This is not yet fully true in the code: the multi-port grouping in
-`_apply_input_port_multi_hints()` still fills `required_dimensions` and
-`supported_dimensions` on the group's port from observed runtime
+`_apply_input_port_multi_hints()` still fills `required_dimensions`
+on the group's port from observed runtime
 dimensions, which stores computed data in authored fields — the
 drifting-registry failure that [`metric-dataframe.md`](metric-dataframe.md)
 warns against. (The blanket per-port fill this section used to describe is
@@ -325,8 +325,11 @@ OutputPortDef.dimensions != []  -> dimensions
 The empty output `dimensions` case needs a deliberate migration rule because
 its meaning cannot be recovered from the value alone. The safe default is no
 authored output declaration, with node classes that are genuinely scalar-only
-declaring an exact empty set. `supported_dimensions` is removed after auditing
-the generated multi-port values; it is not translated into a new field.
+declaring an exact empty set. `supported_dimensions` was removed (2026-08-31)
+after auditing the generated multi-port values — every stored occurrence
+equalled `required_dimensions` and no authored occurrence existed — and was
+not translated into a new field. The GraphQL read field remains as a
+deprecated empty list until the editor UI's queries are confirmed migrated.
 
 Internally the solver uses `known: frozenset[UUID] | None`, where `None` is
 unknown and an empty set is an exact scalar. Consumer requirements remain a

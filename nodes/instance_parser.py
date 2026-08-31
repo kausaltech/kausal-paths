@@ -1168,7 +1168,6 @@ class InstanceConfigParser:
             first.port.quantity = first.metric.quantity
             first.port.unit = parsed.unit or first.metric.unit
             first.port.required_dimensions = group_dimensions
-            first.port.supported_dimensions = group_dimensions
 
             ports_to_remove = {candidate.old_port_id for candidate in group_candidates[1:]}
             for candidate in group_candidates:

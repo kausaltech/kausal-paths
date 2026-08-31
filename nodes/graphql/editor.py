@@ -2245,7 +2245,7 @@ class InstanceEditorMutation:
                 continue
             dims: set[str] = set(spec.input_dimensions) | set(spec.output_dimensions)
             for in_port in spec.input_ports:
-                dims |= set(in_port.required_dimensions) | set(in_port.supported_dimensions)
+                dims |= set(in_port.required_dimensions)
             for out_port in spec.output_ports:
                 dims |= set(out_port.dimensions)
             if dim_id in dims:

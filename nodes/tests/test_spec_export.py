@@ -64,7 +64,7 @@ def test_export_marks_plain_additive_input_ports_as_multi():
 
     assert len(ports) == 1
     assert ports[0].multi is True
-    assert ports[0].required_dimensions == ports[0].supported_dimensions == ['sector']
+    assert ports[0].required_dimensions == ['sector']
     assert target.edges[0]._to_port_ids == target.edges[1]._to_port_ids == [str(ports[0].id)]
 
 

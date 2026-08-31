@@ -1231,9 +1231,11 @@ dataset revision isolation tests pass.
 ### 11. Remove compatibility state
 
 - ~~Drop the `NodeEdge` / `DatasetPort` tables~~ (done 2026-08-30, below).
-- Stop generating `supported_dimensions`, migrate away any independently
-  authored occurrences after auditing them, then remove the field from
-  Pydantic and GraphQL.
+- ~~Stop generating `supported_dimensions` and remove the Pydantic field~~
+  (done 2026-08-31, below). The GraphQL surface (deprecated read field
+  resolving to an empty list, deprecated ignored input field) remains until
+  the editor UI's queries are confirmed migrated — remove it together with
+  the identifier-based inputs.
 - Remove identifier-based GraphQL inputs after measured client migration.
 - Remove snapshot identifier upgraders only when the supported revision window
   allows it; keep offline export upgrade tooling longer if needed.
@@ -1246,6 +1248,23 @@ dataset revision isolation tests pass.
 - Retire the `NodeExplanationSystem` dict shim (`snapshot_nodes_to_config_dicts`).
 - Retire `DatasetPortSpec.output_dimensions` once schema + ops derive it
   (the non-executing `flatten` placeholder is already gone — step 2).
+
+Implementation note (2026-08-31, `supported_dimensions`): the audit found
+no independently authored occurrence anywhere — zero in YAML configs, and
+of 653 input ports in stored DB specs the 7 carrying the field all equalled
+`required_dimensions` (the generated multi-group pattern); no local
+published revisions exist. The field is gone from `InputPortDef`
+(`I18nBaseModel` ignores extra keys, so stored specs and immutable pinned
+snapshots that still carry it stay loadable and the key washes out on
+resync), both multi-group writers stopped emitting it, and the two internal
+reads (the dimension-in-use guard, the GQL projection) dropped the term.
+Schema surface unchanged: both GraphQL fields were already deprecated, the
+input was already ignored, and the read field now resolves `[]`. Finding
+recorded while gating: with a freshly `--refresh`ed cache the parse oracle
+is at 4/53 — parse-vs-export drift accumulated since the 2026-08-18
+53/53 state (interpolate/extend ops on dataset-port specs, lead
+title/paragraph, owner/name metadata), verified identical on pre-change
+code, so it pre-dates both step-11 slices and needs its own session.
 
 Implementation note (2026-08-30, table drop): migration 0072 deletes the
 empty `NodeEdge` / `DatasetPort` tables. The snapshot classes stay (they are

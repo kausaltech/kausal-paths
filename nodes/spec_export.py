@@ -337,7 +337,6 @@ def _apply_input_port_multi_hints(node: Node, ports: list[InputPortDef], candida
         first.port.quantity = first.metric.quantity
         first.port.unit = node.unit or first.metric.unit
         first.port.required_dimensions = group_dimensions
-        first.port.supported_dimensions = group_dimensions
 
         ports_to_remove = {candidate.old_port_id for candidate in group_candidates[1:]}
         for candidate in group_candidates:
@@ -555,7 +554,6 @@ def _export_input_ports(node: Node) -> list[InputPortDef]:
                     dim_id for dim_id, dimension in (edge.to_dimensions or {}).items() if not getattr(dimension, 'categories', ())
                 ],
                 # TODO: multi & dimensions? tags? transformations?
-                # supported_dimensions=src.supported_dimensions,
             )
             hint = node.input_port_multiplicity_hint(edge=edge, metric=from_metric)
             if hint.multi:
