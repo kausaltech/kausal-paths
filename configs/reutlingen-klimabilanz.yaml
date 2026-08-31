@@ -33,6 +33,21 @@ include:
   - from: kommune/verkehrsleistung_personen
     to: augsburg/passenger_kilometers
 
+# The GHG-Protocol administration balance. A parallel outcome tree with its own page --
+# deliberately not summed into `net_emissions`, since municipal building energy is already
+# in the territorial balance and its Scope 3 half lies outside the BISKO boundary. See the
+# module's own header.
+#
+# No dataset_replacements yet: Reutlingen has no data of its own for this balance
+# (municipal_balance_activity, municipal_building_energy, municipal_water_use,
+# municipal_street_lighting_energy, municipal_avoided_energy), and the module's declared
+# `gpc/municipal_balance_*` identifiers do not exist in DVC as loadable placeholders --
+# unlike the bisko include above, which borrows Augsburg's data as a stand-in, there is no
+# stand-in dataset for this module. This page will fail to compute until Reutlingen-specific
+# data is uploaded and wired in with dataset_replacements, the way Mainz does it.
+- file: modules/gpc/municipal_balance.yaml
+  allow_override: true
+
 
 #  Custom Color Palette
 _palette:

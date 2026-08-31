@@ -17,7 +17,8 @@
 # dataset identifiers moved with it (`gpc/municipal_balance_*`); those are placeholders
 # rewritten per city by `dataset_replacements`, so no DVC path changed.
 #
-# It is included only by `mainz-bisko`. Keep it that way unless a city asks for it.
+# It is included by `mainz-bisko` and, as a structural stub with no data wired in yet,
+# `reutlingen-klimabilanz`. Keep it to cities that have asked for it.
 #
 # ## What it still borrows from `modules/bisko/model.yaml`
 #
