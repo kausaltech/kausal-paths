@@ -119,10 +119,12 @@ def test_legacy_temporal_flags_are_normalized_into_the_stored_pipeline():
         'interpolate': True,
         'backfill': True,
         'extend': True,
+        # Retired field; rows written before removal still carry it.
+        'output_dimensions': ['sector'],
     })
 
     assert [op.kind for op in spec.transformations] == ['index_temporal', 'interpolate', 'backfill', 'extend']
-    assert set(spec.model_dump()) == {'transformations', 'column', 'tags', 'input_dataset', 'output_dimensions'}
+    assert set(spec.model_dump()) == {'transformations', 'column', 'tags', 'input_dataset'}
 
 
 def test_forecast_from_and_unit_are_derived_from_the_pipeline():

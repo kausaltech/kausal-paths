@@ -1449,11 +1449,7 @@ class InstanceConfigParser:
         snapshots: list[DatasetPortSnapshot] = []
         for node in self.nodes.values():
             for idx, ds_def in enumerate(node.dataset_defs):
-                # The export path builds the spec from the runtime dataset
-                # instance, which does not carry the binding's authored
-                # output_dimensions — the field is slated for removal (see
-                # docs/architecture/dimension-constraints.md). Mirror the drop.
-                spec = DatasetPortSpec.from_input_dataset(ds_def.model_copy(update={'output_dimensions': None}))
+                spec = DatasetPortSpec.from_input_dataset(ds_def)
                 snapshots.extend(
                     DatasetPortSnapshot(
                         node=self._node_uuid(node.identifier),

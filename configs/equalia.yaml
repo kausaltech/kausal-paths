@@ -472,7 +472,6 @@ nodes:
     tags: [index]
   input_datasets:
   - id: transportation/cooperation_rate_estimates
-    output_dimensions: [hypotheses]
     tags: [observed, primary]
   params:
     formula: coalesce_df(observed, modeled * index)
@@ -487,7 +486,6 @@ nodes:
   output_dimensions: [hypotheses]
   input_datasets:
   - id: transportation/hypothesis_index
-    output_dimensions: [hypotheses]
 
 - id: commons_survival_time
   name: Commons survival time

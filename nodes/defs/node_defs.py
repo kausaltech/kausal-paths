@@ -9,7 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from kausal_common.i18n.pydantic import I18nBaseModel, I18nString
 
 from paths.identifiers import DatasetIdentifier, MetricIdentifier, MixedCaseIdentifier
-from paths.refs import ActionGroupRef, DimensionRef, NodeRef, QuantityKindRef
+from paths.refs import ActionGroupRef, NodeRef, QuantityKindRef
 
 from nodes.constants import DecisionLevel
 from nodes.goals import NodeGoals
@@ -150,7 +150,6 @@ class InputDatasetDef(I18nBaseModel):
     min_year: int | None = None
     max_year: int | None = None
     unit: Unit | None = None
-    output_dimensions: list[DimensionRef] | None = None
     transformations: list[PortTransformOp] | None = None
     """
     The transform pipeline, when the definition came from the DB.
@@ -242,14 +241,12 @@ def legacy_dataset_spec_to_transformations(data: dict[str, Any]) -> dict[str, An
         'extend': data.get('extend', False),
         'backfill': data.get('backfill', False),
         'input_dataset': data.get('input_dataset'),
-        'output_dimensions': data.get('output_dimensions'),
     })
     return {
         'transformations': [op.model_dump(mode='json') for op in ds_def.to_transformations()],
         'column': ds_def.column,
         'tags': ds_def.tags,
         'input_dataset': ds_def.input_dataset,
-        'output_dimensions': ds_def.output_dimensions,
     }
 
 
@@ -294,15 +291,6 @@ class DatasetPortSpec(I18nBaseModel):
     input_dataset: str | None = None
     """DVC dataset identifier override (when different from the bound dataset)."""
 
-    output_dimensions: list[DimensionRef] | None = None
-    """
-    Dimensions the binding claims to produce.
-
-    Authored override of what the dataset schema plus the transform pipeline
-    should derive. Read-only over the API and slated for removal; see
-    `docs/architecture/dimension-constraints.md`.
-    """
-
     @model_validator(mode='before')
     @classmethod
     def _convert_legacy_shapes(cls, data: Any) -> Any:
@@ -317,6 +305,8 @@ class DatasetPortSpec(I18nBaseModel):
         if not isinstance(data, dict):
             return data
         data = dict(data)
+        # Retired 2026-08: rows written before removal still carry the key.
+        data.pop('output_dimensions', None)
         if 'operations' in data:
             renamed = {key: value for key, value in data.items() if key != 'operations'}
             renamed['transformations'] = data['operations']
@@ -354,7 +344,6 @@ class DatasetPortSpec(I18nBaseModel):
             column=ds_def.column,
             tags=list(ds_def.tags),
             input_dataset=ds_def.input_dataset,
-            output_dimensions=ds_def.output_dimensions,
         )
 
     def to_input_dataset(self, *, id: DatasetIdentifier) -> InputDatasetDef:
@@ -364,7 +353,6 @@ class DatasetPortSpec(I18nBaseModel):
             column=self.column,
             tags=self.tags,
             input_dataset=self.input_dataset,
-            output_dimensions=self.output_dimensions,
         )
 
 

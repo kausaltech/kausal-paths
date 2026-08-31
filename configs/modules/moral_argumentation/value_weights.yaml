@@ -242,7 +242,6 @@ nodes:
   unit: t_co2e/person/a
   input_datasets:
   - id: transportation/acceptable_emissions_per_person
-    output_dimensions: []
   params:
   - id: multiplier
     value: 1.0

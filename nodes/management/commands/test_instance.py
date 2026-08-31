@@ -455,7 +455,6 @@ class Command(BaseCommand):
                         'id': ds.id,
                         'type': type(ds).__name__,
                         'input_dataset': getattr(ds, 'input_dataset', None),
-                        'output_dimensions': ds.output_dimensions,
                     }
                     for ds in node.input_dataset_instances
                 ],

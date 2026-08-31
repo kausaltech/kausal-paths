@@ -1212,7 +1212,6 @@ nodes:
     column: natural_gas
     forecast_from: 2025
     tags: [eui, extend_both_ways]
-    output_dimensions: [emission_sectors]
   input_nodes:
   - id: building_square_footage_by_building_class
     tags: [floor_area]
@@ -1237,7 +1236,6 @@ nodes:
     column: natural_gas
     forecast_from: 2025
     tags: [eui, extend_both_ways]
-    output_dimensions: [emission_sectors]
   input_nodes:
   - id: floor_area_renovated_to_code
     tags: [renovated]
@@ -1280,7 +1278,6 @@ nodes:
     column: natural_gas
     forecast_from: 2025
     tags: [eui, extend_both_ways]
-    output_dimensions: [emission_sectors]
   input_nodes:
   - id: floor_area_built_beyond_code
     tags: [built_beyond]
@@ -1422,7 +1419,6 @@ nodes:
     column: electricity
     tags: [eui, cleaned, extend_both_ways]
     forecast_from: 2025
-    output_dimensions: [emission_sectors]
   input_nodes:
   - id: building_square_footage_by_building_class
     tags: [floor_area]
@@ -1447,7 +1443,6 @@ nodes:
     column: electricity
     forecast_from: 2025
     tags: [eui, cleaned, extend_both_ways]
-    output_dimensions: [emission_sectors]
   input_nodes:
   - id: floor_area_renovated_to_code
     tags: [renovated]
@@ -1490,7 +1485,6 @@ nodes:
     column: electricity
     forecast_from: 2025
     tags: [eui, cleaned, extend_both_ways]
-    output_dimensions: [emission_sectors]
   input_nodes:
   - id: floor_area_built_beyond_code
     tags: [built_beyond]

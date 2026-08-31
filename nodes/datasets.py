@@ -95,7 +95,6 @@ def measure_dataset_call[DS: Dataset, **P, R](
 
 class DatasetKwargs(TypedDict):
     tags: list[str]
-    output_dimensions: list[str] | None
     transformations: list[PortTransformOp]
 
 
@@ -107,7 +106,6 @@ class Dataset(ABC):
     context: Context
     _: KW_ONLY
     tags: list[str] = field(default_factory=list)
-    output_dimensions: list[str] | None = field(default=None)
     transformations: list[PortTransformOp] = field(default_factory=list)
     """The binding's complete ordered transformation recipe."""
     df: ppl.PathsDataFrame | None = field(init=False, repr=False, default=None)
@@ -132,7 +130,6 @@ class Dataset(ABC):
     def kwargs_from_def(cls, ds_def: InputDatasetDef) -> DatasetKwargs:
         return DatasetKwargs(
             tags=ds_def.tags,
-            output_dimensions=ds_def.output_dimensions,
             transformations=ds_def.to_transformations(),
         )
 
@@ -303,7 +300,6 @@ class DatasetWithFilters(Dataset, ABC):
             'column': self.column,
             'unit': str(self.unit) if self.unit is not None else None,
             'forecast_from': self.forecast_from,
-            'output_dimensions': self.output_dimensions,
             'transformations': [op.cache_hash_data(self.context) for op in self.transformations],
         }
 

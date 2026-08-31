@@ -1617,9 +1617,9 @@ class BasketRule(ValidationRule):
             ds_id = dataset_config.get('id')
             if not ds_id:
                 continue
-            ds_output_dimensions = dataset_config.get('output_dimensions')
-            if ds_output_dimensions is None:
-                ds_output_dimensions = node_config.get('output_dimensions')
+            # Binding-level output_dimensions was retired; the node's declared
+            # dimensions are the only source.
+            ds_output_dimensions = node_config.get('output_dimensions')
             ds_unit = dataset_config.get('unit')
             if ds_unit is None:
                 ds_unit = node_config.get('unit')
