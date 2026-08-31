@@ -34,7 +34,7 @@ class PortBindingDef(InstanceGraphBoundModel):
     """
     Something bound to one node input port, independent of what is on the other end.
 
-    Bindings are the ORM-free view of ``NodeEdge`` and ``DatasetPort`` rows.
+    Bindings are the ORM-free view of ``NodeInputPortBinding`` rows.
     Consumers that only care that a port *has* an input — validation, the
     editor, dimension-constraint propagation — work against this base.
 

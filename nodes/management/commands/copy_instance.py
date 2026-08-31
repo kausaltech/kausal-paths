@@ -17,7 +17,7 @@ the source's ``config_source``):
   yaml — copy ``configs/<src>.yaml`` → ``configs/<dst>.yaml`` (rewriting only
          the instance id / name), create a ``config_source='yaml'``
          InstanceConfig, then materialise its NodeConfig rows — plus the editor
-         graph (NodeEdge/DatasetPort) — from the source's DB snapshot so
+         graph (NodeInputPortBinding) — from the source's DB snapshot so
          admin-authored fields are carried (falling back to ``sync_nodes()``
          when the source has no DB spec). Preserves full YAML fidelity for
          instances whose features are not (yet) fully expressible in the DB
@@ -580,7 +580,7 @@ class Command(BaseCommand):
                 imported = import_instance_datasets(ic_copy, db_datasets, create_missing_dimensions=True)
                 datasets_by_id = {ds.identifier: ds for ds in imported if ds.identifier is not None}
                 self.stdout.write(f'  copied {len(db_datasets)} DB-resident dataset(s).')
-            # Recreate the editor graph (NodeEdge/DatasetPort) so the copy's DB
+            # Recreate the editor graph (NodeInputPortBinding) so the copy's DB
             # mirror matches the source's — not just its node rows. Dormant for
             # config_source='yaml' (the runtime loads the YAML), but the Trailhead
             # editor reads them.

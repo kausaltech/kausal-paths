@@ -344,12 +344,12 @@ def test_flat_key_translation_leaves_yaml_shaped_configs_alone():
     assert _flat_keys_from_transformations(config) is config
 
 
-def test_node_edge_transformations_are_migration_serializable() -> None:
+def test_input_binding_transformations_are_migration_serializable() -> None:
     from django.db.migrations.writer import MigrationWriter
 
-    from nodes.models import NodeEdge
+    from nodes.models import NodeInputPortBinding
 
-    serialized, imports = MigrationWriter.serialize(NodeEdge._meta.get_field('transformations'))
+    serialized, imports = MigrationWriter.serialize(NodeInputPortBinding._meta.get_field('transformations'))
 
     assert 'FilterDimensionOp' in serialized
     assert 'PydanticSchemaField' in serialized

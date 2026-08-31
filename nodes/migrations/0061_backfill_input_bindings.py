@@ -19,6 +19,33 @@ def backfill_input_bindings(apps, schema_editor):
     DatasetPort = apps.get_model('nodes', 'DatasetPort')
     NodeInputPortBinding = apps.get_model('nodes', 'NodeInputPortBinding')
 
+    # Row-to-snapshot mapping inlined from the (since removed) legacy
+    # ``from_model`` classmethods; the historical rows carry the same
+    # attributes. Only the fields the ordering logic reads matter here.
+    def edge_snapshot(obj):
+        return EdgeSnapshot(
+            uuid=obj.uuid,
+            from_node=obj.from_node.uuid,
+            to_node=obj.to_node.uuid,
+            from_port=obj.from_port,
+            to_port=obj.to_port,
+            transformations=obj.transformations or [],
+            tags=obj.tags or [],
+        )
+
+    def port_snapshot(obj):
+        return DatasetPortSnapshot(
+            uuid=obj.uuid,
+            node=obj.node.uuid,
+            dataset=obj.dataset.identifier or str(obj.dataset.uuid),
+            dataset_uuid=obj.dataset.uuid,
+            port_id=obj.port_id,
+            metric=obj.metric.name or str(obj.metric.uuid),
+            metric_uuid=obj.metric.uuid,
+            dataset_index=obj.dataset_index,
+            spec=obj.spec,
+        )
+
     for ic in InstanceConfig.objects.all():
         edge_rows = list(
             NodeEdge.objects
@@ -33,8 +60,8 @@ def backfill_input_bindings(apps, schema_editor):
 
         edges_by_uuid = {e.uuid: e for e in edge_rows}
         ports_by_uuid = {p.uuid: p for p in port_rows}
-        edge_snapshots = [EdgeSnapshot.from_model(e) for e in edge_rows]
-        port_snapshots = [DatasetPortSnapshot.from_model(p) for p in port_rows]
+        edge_snapshots = [edge_snapshot(e) for e in edge_rows]
+        port_snapshots = [port_snapshot(p) for p in port_rows]
 
         bindings = []
         for item, position in ordered_binding_snapshots(edge_snapshots, port_snapshots):

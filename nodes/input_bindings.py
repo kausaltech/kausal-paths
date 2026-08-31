@@ -2,8 +2,8 @@
 Write service for the unified ``NodeInputPortBinding`` table.
 
 ``NodeInputPortBinding`` is the authoritative store for what is bound to a
-node's input ports; the legacy ``NodeEdge`` / ``DatasetPort`` tables are dead
-(kept empty until their removal in plan step 11). Snapshot-driven writers
+node's input ports (it replaced the legacy ``NodeEdge`` / ``DatasetPort``
+tables, since removed). Snapshot-driven writers
 (sync, import) build the full desired row set and call
 ``reconcile_input_bindings()``; row-level editors (GraphQL mutations) write
 rows directly and keep per-port positions dense with the position helpers.

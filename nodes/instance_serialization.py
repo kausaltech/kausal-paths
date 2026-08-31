@@ -63,7 +63,7 @@ if TYPE_CHECKING:
     )
 
     from frameworks.models import FrameworkConfig
-    from nodes.models import DatasetPort, InstanceConfig, NodeConfig, NodeEdge, NodeInputPortBinding, NodeLayout
+    from nodes.models import InstanceConfig, NodeConfig, NodeInputPortBinding, NodeLayout
     from nodes.node import Node
 
 
@@ -538,20 +538,6 @@ class EdgeSnapshot(ModelSnapshot):
     transformations: list[EdgeTransformOp] = Field(default_factory=list)
     tags: list[str] = Field(default_factory=list)
 
-    @classmethod
-    def from_model(cls, obj: NodeEdge) -> Self:
-        from_node = getattr(obj, '_from_node_uuid', None)
-        to_node = getattr(obj, '_to_node_uuid', None)
-        return cls(
-            uuid=obj.uuid,
-            from_node=from_node if from_node is not None else obj.from_node.uuid,
-            to_node=to_node if to_node is not None else obj.to_node.uuid,
-            from_port=obj.from_port,
-            to_port=obj.to_port,
-            transformations=obj.transformations or [],
-            tags=obj.tags or [],
-        )
-
 
 class DatasetPortSnapshot(ModelSnapshot):
     kind: Literal['dataset'] = 'dataset'
@@ -571,29 +557,6 @@ class DatasetPortSnapshot(ModelSnapshot):
     # Populated once Dataset acquires RevisionMixin (see paths/dataset_pydantic.py
     # and kausal_common/datasets/models.py bridge).
     dataset_revision: int | None = None
-
-    @classmethod
-    def from_model(cls, obj: DatasetPort) -> Self:
-        # Pin to the dataset's current revision so the snapshot is
-        # deterministically reconstructible even if the dataset later
-        # changes. ``None`` if the dataset has never been saved as a
-        # revision yet (common for fresh datasets).
-        dataset_revision_id: int | None = None
-        latest_rev = getattr(obj.dataset, 'latest_revision_id', None)
-        if latest_rev is not None:
-            dataset_revision_id = latest_rev
-        return cls(
-            uuid=obj.uuid,
-            node=obj.node.uuid,
-            dataset=obj.dataset.identifier or str(obj.dataset.uuid),
-            dataset_uuid=obj.dataset.uuid,
-            port_id=obj.port_id,
-            metric=obj.metric.name or str(obj.metric.uuid),
-            metric_uuid=obj.metric.uuid,
-            dataset_index=obj.dataset_index,
-            spec=obj.spec,
-            dataset_revision=dataset_revision_id,
-        )
 
 
 type BindingSnapshot = EdgeSnapshot | DatasetPortSnapshot
@@ -752,8 +715,8 @@ def ordered_binding_snapshots(
     order values are delivered to a port observable in computation results.
 
     On a shared port, edges come first in their snapshot order (for DB
-    snapshots: the ``NodeEdge`` queryset order), then dataset ports sorted by
-    ``(node, dataset_index, port, metric)``.
+    snapshots: unified-row pk order, the authored order), then dataset ports
+    sorted by ``(node, dataset_index, port, metric)``.
     """
     from collections import defaultdict
 
@@ -782,9 +745,9 @@ def match_preserved_uuids(
     Match replacement rows to existing rows through successive structural keys.
 
     The sync paths preserve authored order by deleting and recreating the
-    ``NodeEdge`` / ``DatasetPort`` rows (pk order is the authored order), but
+    ``NodeInputPortBinding`` rows (pk order is the authored order), but
     the rebuilt rows must keep their durable UUIDs: the row UUID is the
-    binding identity ``NodeInputPortBinding`` mirrors, and it must survive a
+    binding identity, and it must survive a
     re-sync. Each row supplies one key per matching pass, most specific
     first; within a pass, unmatched rows sharing a key pair up in their given
     (authored) orders, so parallel duplicates match deterministically.

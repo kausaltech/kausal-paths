@@ -6,7 +6,7 @@ emitted by ``nodes.change_ops.change_operation`` / ``record_change``
 to API consumers.
 
 ``EditableEntity`` is the interface implemented by types that can be
-tracked in the change log (Node, NodeEdge, DatasetPort, …). It carries
+tracked in the change log (Node, input bindings, …). It carries
 the stable ``uuid`` shared by change-log targets and is the ``target``
 type on ``InstanceModelLogEntryType``. Entity-specific history lives on
 the relevant editor or concrete type.
@@ -33,6 +33,7 @@ from nodes.models import (
 )
 
 if TYPE_CHECKING:
+    from django.contrib.contenttypes.models import ContentType
     from django.db.models import Model
 
 
@@ -105,12 +106,48 @@ def fetch_entity_history_by_uuid(
 
     UUID lookup survives deletion of the target row. Permission is checked
     against the owning InstanceConfig recorded by each operation, so this
-    helper is safe even when a type later gains a new query path. Several
-    model classes may be given when an entity's rows migrated between
-    tables under the same UUID (the unified input-binding flip).
+    helper is safe even when a type later gains a new query path.
     """
     from django.contrib.contenttypes.models import ContentType
 
+    models = django_model if isinstance(django_model, tuple) else (django_model,)
+    cts = [ContentType.objects.get_for_model(model) for model in models]
+    return _fetch_history_for_cts(cts, target_uuid, info, limit=limit, before=before)
+
+
+def fetch_binding_history_by_uuid(
+    target_uuid: UUID,
+    info: gql.Info,
+    *,
+    limit: int,
+    before: datetime | None = None,
+) -> list[InstanceModelLogEntryType]:
+    """
+    Return authorized log entries for an input binding's stable UUID.
+
+    Entries recorded before the unified-binding flip carry the legacy
+    ``NodeEdge`` / ``DatasetPort`` content types under the same binding
+    UUID. Those models are gone (plan step 11), so the legacy content-type
+    rows are looked up by natural key — and may be absent on databases
+    created after the removal.
+    """
+    from django.contrib.contenttypes.models import ContentType
+
+    from nodes.models import NodeInputPortBinding
+
+    cts = [ContentType.objects.get_for_model(NodeInputPortBinding)]
+    cts.extend(ContentType.objects.filter(app_label='nodes', model__in=('nodeedge', 'datasetport')))
+    return _fetch_history_for_cts(cts, target_uuid, info, limit=limit, before=before)
+
+
+def _fetch_history_for_cts(
+    cts: list[ContentType],
+    target_uuid: UUID,
+    info: gql.Info,
+    *,
+    limit: int,
+    before: datetime | None = None,
+) -> list[InstanceModelLogEntryType]:
     from kausal_common.users import user_or_none
 
     from nodes.models import InstanceConfig
@@ -119,8 +156,6 @@ def fetch_entity_history_by_uuid(
     if user is None:
         return []
 
-    models = django_model if isinstance(django_model, tuple) else (django_model,)
-    cts = [ContentType.objects.get_for_model(model) for model in models]
     permitted_instances = InstanceConfig.permission_policy().instances_user_has_permission_for(user, 'change')
     qs = (
         InstanceModelLogEntry.objects
@@ -143,7 +178,7 @@ class EditableEntity:
     Shared surface for entities participating in Trailhead's change log.
 
     Implementing types are at minimum the editable ORM children of an
-    InstanceConfig: ``Node``, ``NodeEdge``, ``DatasetPort``. Each carries
+    InstanceConfig: ``Node`` and the input-binding types. Each carries
     a stable ``uuid``.
 
     ``uuid`` is always populated: DB-backed entities return their
@@ -212,17 +247,23 @@ def _resolve_target(entry: InstanceModelLogEntry) -> Any:
     or when the target kind has no GQL representation yet. The ``before``
     snapshot in the entry data carries what was there for UI fallback.
     """
-    from nodes.models import DatasetPort, NodeConfig, NodeEdge, NodeInputPortBinding
+    from nodes.models import NodeConfig, NodeInputPortBinding
 
     ct = entry.content_type
     if ct is None or entry.object_id is None:
         return None
-    model = ct.model_class()
-    if model is None:
-        return None
     try:
         pk = int(entry.object_id)
     except TypeError, ValueError:
+        return None
+
+    if (ct.app_label, ct.model) in {('nodes', 'nodeedge'), ('nodes', 'datasetport')}:
+        # Pre-flip entries; the legacy models are gone (``ct.model_class()``
+        # is None), but the binding UUID resolves through the unified table.
+        return _resolve_binding_target(entry, pk, by_pk=False)
+
+    model = ct.model_class()
+    if model is None:
         return None
 
     if model is NodeConfig:
@@ -235,8 +276,8 @@ def _resolve_target(entry: InstanceModelLogEntry) -> Any:
         instance = ic.get_instance()
         return instance.context.nodes.get(nc.identifier)
 
-    if model is NodeInputPortBinding or model in (NodeEdge, DatasetPort):
-        return _resolve_binding_target(entry, pk, by_pk=model is NodeInputPortBinding)
+    if model is NodeInputPortBinding:
+        return _resolve_binding_target(entry, pk, by_pk=True)
 
     # Dimension / DimensionCategory / DataPoint / spec-embedded: no GQL
     # representation yet — surface the shape via ``before`` / ``after``.

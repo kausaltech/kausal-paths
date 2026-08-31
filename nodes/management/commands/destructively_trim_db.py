@@ -204,7 +204,7 @@ class Command(BaseCommand):
         cleanup the bulk data — notably the ``DataPoint`` rows that cascade from each ``Dataset`` — would
         survive as orphans pointing at deleted scopes, defeating the purpose of the trim.
 
-        Must run *after* the instances/orgs (and their cascade-deleted ``NodeDataset``/``DatasetPort``
+        Must run *after* the instances/orgs (and their cascade-deleted ``NodeDataset``/``NodeInputPortBinding``
         rows) are gone: those rows reference ``Dataset`` with ``on_delete=PROTECT``, so deleting datasets
         first would raise ``ProtectedError``. The scope of each row is resolved from the ids captured
         before deletion (``scope_ids``).
@@ -421,7 +421,7 @@ class Command(BaseCommand):
         scope_ids = self._capture_scope_ids(instances_to_delete, orgs_to_delete)
 
         # Phase 1: Delete instances individually (signals active, custom delete() handles cleanup).
-        # This cascades the NodeDataset/DatasetPort rows that PROTECT datasets, so the dataset
+        # This cascades the NodeDataset/NodeInputPortBinding rows that PROTECT datasets, so the dataset
         # cleanup below can run without hitting ProtectedError.
         for instance in instances_to_delete:
             instance.delete()
@@ -434,7 +434,7 @@ class Command(BaseCommand):
             orgs_to_delete.delete()
             self.stdout.write(f'Deleted {num_orgs} organizations; information on deleted related rows not available.')
             # Delete the dataset graph (datasets, sources, dimensions, schemas) owned by the now-deleted
-            # instances/orgs. Runs after Phase 1 so the PROTECT-ing NodeDataset/DatasetPort rows are gone.
+            # instances/orgs. Runs after Phase 1 so the PROTECT-ing NodeDataset/NodeInputPortBinding rows are gone.
             self.delete_scoped_datasets(scope_ids)
             # Delete users without persons
             _, by_type = User.objects.filter(person__isnull=True).delete()

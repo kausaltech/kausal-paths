@@ -600,7 +600,7 @@ class Command(BaseCommand):
         Replace a dataset's contents while keeping the row itself.
 
         Deleting and recreating the row is the older strategy, and it is destructive in
-        ways that are easy to miss: ``DatasetPort``, ``NodeDataset`` and
+        ways that are easy to miss: ``NodeInputPortBinding``, ``NodeDataset`` and
         ``InstanceRevisionDatasetPin`` all reference the row under ``PROTECT``, and the
         new row gets a fresh UUID, which orphans the dataset references stored in
         published instance revisions. Keeping the pk and UUID leaves every one of those

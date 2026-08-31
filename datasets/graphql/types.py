@@ -553,30 +553,18 @@ class DatasetType(UserPermissionsMixin):
     @staticmethod
     def port_bindings(root: 'DatasetType') -> list['DatasetPortType']:
         """Discover which node ports use this dataset."""
-        from nodes.graphql.types.graph import DatasetPortType, NodePortRef
-        from nodes.models import DatasetPort
+        from nodes.graphql.bindings import _to_gql
+        from nodes.models import NodeInputPortBinding
 
         if root._model is None:
             return []
-        ports = DatasetPort.objects.filter(dataset=root._model).select_related('node', 'metric')
-        result = []
-        for dp in ports:
-            port = DatasetPortType(
-                id=sb.ID(str(dp.uuid)),
-                uuid=dp.uuid,
-                port_ref=NodePortRef(
-                    node_uuid=dp.node.uuid,
-                    node_id=sb.ID(str(dp.node.identifier)),
-                    port_id=dp.port_id,
-                ),
-                metric=None,
-                external_dataset_id=None,
-                external_metric_id=dp.metric.name if dp.metric else None,
-                tags=list(dp.spec.tags),
-            )
-            port._transformations = list(dp.spec.transformations)
-            result.append(port)
-        return result
+        rows = (
+            NodeInputPortBinding.objects
+            .filter(dataset=root._model)
+            .select_related('node', 'dataset', 'metric')
+            .order_by('node', 'port_id', 'position')
+        )
+        return [_to_gql(row) for row in rows]
 
     @classmethod
     def from_model(cls, dataset: DatasetModel) -> DatasetType:

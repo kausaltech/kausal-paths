@@ -584,12 +584,18 @@ def test_dataset_metric_exposes_a_parsed_unit(gql_client: PathsTestClient, datas
 def test_dataset_port_bindings_discovery(gql_client: PathsTestClient, dataset_setup):
     from uuid import uuid4
 
-    from nodes.models import DatasetPort
+    from nodes.models import NodeInputPortBinding
     from nodes.tests.factories import NodeConfigFactory
 
     instance_config, dataset, metric, _category = dataset_setup
     nc = NodeConfigFactory.create(instance=instance_config, identifier='consumer')
-    dp = DatasetPort.objects.create(instance=instance_config, node=nc, port_id=uuid4(), dataset=dataset, metric=metric)
+    dp = NodeInputPortBinding.objects.create(
+        instance=instance_config,
+        node=nc,
+        port_id=uuid4(),
+        dataset=dataset,
+        metric=metric,
+    )
 
     data = gql_client.query_data(
         DATASET_PORT_BINDINGS,

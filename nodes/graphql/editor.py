@@ -2,7 +2,7 @@
 Strawberry GraphQL schema for the model editor.
 
 Provides queries and mutations for reading and editing DB-sourced
-model instances (NodeConfig, NodeEdge, ActionGroup, Scenario).
+model instances (NodeConfig, NodeInputPortBinding, ActionGroup, Scenario).
 """
 
 import math
@@ -2804,7 +2804,7 @@ class InstanceEditorMutation:
         ic = root.instance
         dataset = InstanceEditorMutation._get_dataset(info, ic, dataset_id, for_action='delete')
 
-        if dataset.node_input_bindings.exists() or dataset.node_ports.exists() or dataset.nodes_edges.exists():
+        if dataset.node_input_bindings.exists() or dataset.nodes_edges.exists():
             raise GraphQLValidationError(
                 info,
                 'The dataset is bound to a node input port; remove the binding first',

@@ -85,10 +85,8 @@ from paths.utils import (
 
 from nodes.defs import DatasetBindingDef, DatasetPortSpec, EdgeBindingDef, InstanceModelSpec, NodeSpec, YearsSpec
 from nodes.defs.instance_defs import ActionGroup, InstanceFeatures, InstanceMetadata
-from nodes.defs.transform_def import EdgeTransformOp, StoredPortTransformOp
+from nodes.defs.transform_def import StoredPortTransformOp
 from nodes.instance_serialization import (
-    DatasetPortSnapshot,
-    EdgeSnapshot,
     InputBindingSnapshot,
     NodeSnapshot,
 )
@@ -372,8 +370,8 @@ class PreferredInstanceSource(StrEnum):
     """
     Which slice of a DB-sourced ``InstanceConfig`` to hydrate.
 
-    ``DRAFT`` reads the current editor tables (``NodeConfig`` / ``NodeEdge``
-    / ``DatasetPort`` + ``InstanceConfig.spec``). ``PUBLISHED`` reads the
+    ``DRAFT`` reads the current editor tables (``NodeConfig`` /
+    ``NodeInputPortBinding`` + ``InstanceConfig.spec``). ``PUBLISHED`` reads the
     latest live ``Revision``'s ``InstanceSnapshot`` payload, falling back
     to ``DRAFT`` if no revision has been published yet.
 
@@ -600,8 +598,6 @@ class InstanceConfig(
     hostnames: RevMany[InstanceHostname]
     dimensions: RevMany[DatasetDimensionModel]
     datasets: RevMany[DatasetModel]
-    edges: RevMany[NodeEdge]
-    dataset_ports: RevMany[DatasetPort]
     input_bindings: RevMany[NodeInputPortBinding]
     dataset_revision_pins: RevMany[InstanceRevisionDatasetPin]
     change_operations: RevMany[InstanceChangeOperation]
@@ -2148,8 +2144,6 @@ class NodeConfig(PathsModel[InstanceConfig], EditableInstanceChild, index.Indexe
     goal_i18n: str | None
     indicates_nodes: RevMany[NodeConfig]
     layout: RevOne[NodeConfig, NodeLayout]
-    incoming_edges: RevMany[NodeEdge]
-    outgoing_edges: RevMany[NodeEdge]
     input_bindings: RevMany[NodeInputPortBinding]
     output_bindings: RevMany[NodeInputPortBinding]
 
@@ -2379,114 +2373,13 @@ class NodeDataset(models.Model):
 # --- Model editor models ---
 
 
-class NodeEdge(EditableInstanceChild):
-    """A directed edge in the computation graph."""
-
-    snapshot_model: ClassVar[type[ModelSnapshot]] = EdgeSnapshot
-
-    instance: FK[InstanceConfig] = models.ForeignKey(
-        InstanceConfig,
-        on_delete=models.CASCADE,
-        related_name='edges',
-    )
-    from_node: FK[NodeConfig] = models.ForeignKey(
-        NodeConfig,
-        on_delete=models.CASCADE,
-        related_name='outgoing_edges',
-    )
-    from_port = models.UUIDField[UUID, UUID](
-        max_length=200,
-        default='output',
-        help_text='Output port ID on the source node',
-    )
-    to_node: FK[NodeConfig] = models.ForeignKey(
-        NodeConfig,
-        on_delete=models.CASCADE,
-        related_name='incoming_edges',
-    )
-    to_port = models.UUIDField[UUID, UUID](
-        max_length=200,
-        help_text='Input port ID on the target node',
-    )
-    transformations = SchemaField(schema=list[EdgeTransformOp], default=list, blank=True)
-    tags = ArrayField(
-        models.CharField(max_length=200),
-        default=list,
-        blank=True,
-    )
-
-    from_node_id: int  # for type checkers
-    to_node_id: int
-
-    class Meta:
-        ordering = ['instance', 'from_node_id', 'to_node_id', 'to_port']
-        verbose_name = _('Node edge')
-        verbose_name_plural = _('Node edges')
-
-    def __str__(self) -> str:
-        return f'{self.from_node_id} → {self.to_node_id}'
-
-
-class DatasetPort(EditableInstanceChild):
-    """Connects a dataset metric to a node input port."""
-
-    snapshot_model: ClassVar[type[ModelSnapshot]] = DatasetPortSnapshot
-
-    instance: FK[InstanceConfig] = models.ForeignKey(
-        InstanceConfig,
-        on_delete=models.CASCADE,
-        related_name='dataset_ports',
-    )
-    node: FK[NodeConfig] = models.ForeignKey(
-        NodeConfig,
-        on_delete=models.CASCADE,
-        related_name='dataset_ports',
-    )
-    port_id = models.UUIDField[UUID, UUID](
-        max_length=100,
-        help_text='Input port ID on the node (must match a port in node.input_ports)',
-    )
-    dataset: FK[DatasetModel] = models.ForeignKey(
-        DatasetModel,
-        on_delete=models.PROTECT,
-        related_name='node_ports',
-    )
-    metric: FK[DatasetMetric] = models.ForeignKey(
-        DatasetMetric,
-        on_delete=models.PROTECT,
-        related_name='node_ports',
-    )
-    spec = SchemaField(schema=DatasetPortSpec, default=DatasetPortSpec, blank=True)
-    dataset_index = models.PositiveIntegerField(
-        default=0,
-        help_text=(
-            "Index of this binding in the owning node's input_dataset_instances list. "
-            'Multiple DatasetPort rows can share a dataset_index when a column-less '
-            'binding expands to one port per output metric.'
-        ),
-    )
-
-    # for type checkers
-    node_id: int
-    dataset_id: int
-    metric_id: int
-
-    class Meta:
-        ordering = ['node', 'dataset_index', 'metric__order']
-        verbose_name = _('Dataset port')
-        verbose_name_plural = _('Dataset ports')
-
-    def __str__(self) -> str:
-        return f'{self.node_id}:{self.port_id} ← {self.dataset_id}'
-
-
 class NodeInputPortBinding(EditableInstanceChild):
     """
     One value delivered to a node input port — edge- or dataset-sourced.
 
-    The authoritative unified store replacing ``NodeEdge`` and ``DatasetPort``
-    (see docs/architecture/dimension-constraints.md, "One input-binding
-    table"; the legacy tables are empty and await removal in plan step 11).
+    The authoritative unified store (see
+    docs/architecture/dimension-constraints.md, "One input-binding table";
+    it replaced the legacy ``NodeEdge`` / ``DatasetPort`` tables).
     ``position`` orders bindings within one port across both source kinds,
     which matters because a ``multi`` port may hold both and floating-point
     addition makes delivery order observable. Snapshot-driven writers go
