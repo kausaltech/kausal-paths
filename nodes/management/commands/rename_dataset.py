@@ -7,7 +7,7 @@ the database, and every reference in ``configs/``. This command owns the middle 
 which is the only one that cannot be done with a text editor.
 
 Renaming in place rather than recreating matters because the graph references datasets
-*by row*, not by name. ``NodeInputPortBinding.dataset`` and ``DatasetPort.dataset`` are
+*by row*, not by name. ``NodeInputPortBinding.dataset`` and ``NodeDataset.dataset`` are
 foreign keys, no binding's ``dataset_spec`` embeds an identifier, and node and instance
 specs carry none either -- so an in-place rename keeps every binding, every pinned UUID
 and every published revision intact, and the rename cannot be observed by the model
@@ -73,7 +73,7 @@ from rich import print
 from kausal_common.datasets.models import Dataset
 from kausal_common.i18n.pydantic import TranslatedString, get_modeltrans_attrs_from_str
 
-from nodes.models import DatasetPort, InstanceConfig, InstanceRevisionDatasetPin, NodeDataset, NodeInputPortBinding
+from nodes.models import InstanceConfig, InstanceRevisionDatasetPin, NodeDataset, NodeInputPortBinding
 
 if TYPE_CHECKING:
     from argparse import ArgumentParser
@@ -101,7 +101,6 @@ class RowPlan:
     scope: str
     data_points: int
     bindings: int
-    ports: int
     external_ref_id: str | None
     """The ``dataset_id`` currently stamped in ``external_ref``, when there is one."""
     pins: int
@@ -114,7 +113,6 @@ class EmptyTarget:
     pk: int
     scope: str
     bindings: int
-    ports: int
     node_datasets: int
 
 
@@ -225,7 +223,6 @@ def _classify_clash(plan: RenamePlan, dataset: Dataset, clash: Dataset, *, repla
             pk=clash.pk,
             scope=scope,
             bindings=NodeInputPortBinding.objects.filter(dataset=clash).count(),
-            ports=DatasetPort.objects.filter(dataset=clash).count(),
             node_datasets=NodeDataset.objects.filter(dataset=clash).count(),
         )
     )
@@ -277,7 +274,6 @@ def build_rename_plan(
                 scope=_scope_label(dataset),
                 data_points=dataset.data_points.count(),
                 bindings=NodeInputPortBinding.objects.filter(dataset=dataset).count(),
-                ports=DatasetPort.objects.filter(dataset=dataset).count(),
                 external_ref_id=external_ref.get('dataset_id') if isinstance(external_ref, dict) else None,
                 pins=InstanceRevisionDatasetPin.objects.filter(dataset=dataset).count(),
             )
@@ -346,16 +342,13 @@ def print_rename_plan(plan: RenamePlan) -> None:
         if row.pins:
             flags.append(f'pin:{row.pins}')
             legend.add('  pin:N = N published revision pins keep the old name, as the record of that publish')
-        print(
-            f'  {row.scope:<24} pk {row.pk:<6} {row.data_points:>6} pts  '
-            f'{row.bindings} bind  {row.ports} ports  {" ".join(flags)}'
-        )
+        print(f'  {row.scope:<24} pk {row.pk:<6} {row.data_points:>6} pts  {row.bindings} bind  {" ".join(flags)}')
     for line in sorted(legend):
         print(f'[dim]{line}[/dim]')
     for target in plan.replace:
         print(
             f'  [yellow]replace[/yellow] {target.scope}: deleting empty pk {target.pk} first '
-            f'({target.bindings} binding(s), {target.ports} port(s), {target.node_datasets} node-dataset(s) '
+            f'({target.bindings} binding(s), {target.node_datasets} node-dataset(s) '
             'cleared; sync_instance_to_db rebuilds them)'
         )
     for lang, value in sorted(plan.labels.items()):
@@ -435,8 +428,8 @@ def _delete_empty_targets(plan: RenamePlan) -> None:
     """
     Remove the empty rows a premature sync minted, so the real rows can take their names.
 
-    The protected references are cleared rather than left: ``NodeInputPortBinding``,
-    ``DatasetPort`` and ``NodeDataset`` all point at the dataset with ``PROTECT``, and they
+    The protected references are cleared rather than left: ``NodeInputPortBinding``
+    and ``NodeDataset`` both point at the dataset with ``PROTECT``, and they
     describe a binding to a row that should never have existed. ``sync_instance_to_db``
     rebuilds them from the spec afterwards -- ``reconcile_input_bindings`` recreates the
     binding set on every run -- so nothing authored by hand is lost here.
@@ -445,7 +438,6 @@ def _delete_empty_targets(plan: RenamePlan) -> None:
         dataset = Dataset.objects.select_for_update().get(pk=target.pk)
         assert not dataset.data_points.exists(), 'an empty target must stay empty'
         NodeInputPortBinding.objects.filter(dataset=dataset).delete()
-        DatasetPort.objects.filter(dataset=dataset).delete()
         NodeDataset.objects.filter(dataset=dataset).delete()
         schema = dataset.schema
         dataset.delete()

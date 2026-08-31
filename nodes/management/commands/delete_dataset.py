@@ -35,7 +35,7 @@ to reason about than one that has not moved.
     revision instead.
 
 ``model still binds it``
-    A ``NodeInputPortBinding``, ``DatasetPort`` or ``NodeDataset`` points at the row. These
+    A ``NodeInputPortBinding`` or ``NodeDataset`` points at the row. These
     are the authoritative signal and the only one that survives ``dataset_replacements``:
     the loaded dataset object carries the *module's* declared id (``kommune/...``) while the
     binding points at the row the replacement resolved to (``mainz/...``), so a scan of node
@@ -82,7 +82,6 @@ from rich.console import Console
 from kausal_common.datasets.models import DataPointComment, Dataset, DatasetSchema
 
 from nodes.models import (
-    DatasetPort,
     InstanceConfig,
     InstanceRevisionDatasetPin,
     NodeDataset,
@@ -214,7 +213,6 @@ def build_plan(
         name: count
         for name, count in (
             ('NodeInputPortBinding', NodeInputPortBinding.objects.filter(dataset=dataset).count()),
-            ('DatasetPort', DatasetPort.objects.filter(dataset=dataset).count()),
             ('NodeDataset', NodeDataset.objects.filter(dataset=dataset).count()),
         )
         if count
@@ -237,9 +235,6 @@ def binding_detail(dataset: Dataset) -> list[str]:
     for binding in NodeInputPortBinding.objects.filter(dataset=dataset).select_related('node'):
         node = binding.node.identifier if binding.node else '?'
         out.append(f'{node} ({binding.metric})')
-    for port in DatasetPort.objects.filter(dataset=dataset).select_related('node'):
-        node = getattr(port, 'node', None)
-        out.append(f'port on {getattr(node, "identifier", node)}')
     return out
 
 
@@ -368,7 +363,7 @@ class Command(BaseCommand):
         parser.add_argument(
             '--clear-bindings',
             action='store_true',
-            help='Delete the NodeInputPortBinding / DatasetPort / NodeDataset rows that hold it first',
+            help='Delete the NodeInputPortBinding / NodeDataset rows that hold it first',
         )
         parser.add_argument(
             '--ignore-configs',
@@ -404,7 +399,6 @@ class Command(BaseCommand):
                 assert dataset is not None
                 if plan.bindings:
                     NodeInputPortBinding.objects.filter(dataset=dataset).delete()
-                    DatasetPort.objects.filter(dataset=dataset).delete()
                     NodeDataset.objects.filter(dataset=dataset).delete()
                 schema = plan.schema
                 deletes_schema = plan.deletes_schema

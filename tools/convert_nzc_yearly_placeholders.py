@@ -375,7 +375,7 @@ def backfill_framework_config_context(
             (str(uuid), float(default_value))
             for uuid, default_value in MeasureDataPoint.objects.filter(
                 measure__framework_config=config,
-                year=config.baseline_year,
+                year=config.reference_year,
                 default_value__isnull=False,
             ).values_list('measure__measure_template__uuid', 'default_value')
             if default_value is not None

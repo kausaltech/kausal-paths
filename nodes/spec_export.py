@@ -768,7 +768,7 @@ def _resolve_dataset_ports(
     db_datasets: dict[str, DatasetModel],
     metrics_by_schema_and_name: dict[tuple[int, str], DatasetMetric],
 ) -> list[dict[str, Any]]:
-    """Resolve one input dataset into ``DatasetPort`` row kwargs (rows are built by the caller)."""
+    """Resolve one input dataset into dataset-binding row kwargs (rows are built by the caller)."""
     from nodes.datasets import DBDataset, SerializedDBDataset
 
     # Resolve the Dataset model object depending on the dataset type.
@@ -1032,7 +1032,7 @@ def sync_instance_to_db(
 
     If yaml_path is not given, tries configs/{instance_id}.yaml.
     ``promote_forecast_defaults=False`` keeps binding-level forecast years
-    on the DatasetPort specs (used by the parse oracle, which compares
+    on the dataset binding specs (used by the parse oracle, which compares
     against pre-promotion state).
     """
     from django.db import transaction

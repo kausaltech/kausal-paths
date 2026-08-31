@@ -400,13 +400,10 @@ def init_framework_instance(fw: Framework, ic: InstanceConfig) -> FrameworkConfi
         print(f'Framework config already exists: {fwc}')
         return fwc
     fw = Framework.objects.get(identifier=FRAMEWORK_IDENTIFIER)
-    spec = ic.ensure_spec()
     fwc = FrameworkConfig.objects.create(
         framework=fw,
         instance_config=ic,
         organization_name=LANDING_ORG_NAME,
-        baseline_year=spec.years.reference or 2020,
-        target_year=spec.years.target,
     )
     print(f'Created framework config: {fwc}')
     if ic.admin_group is None:

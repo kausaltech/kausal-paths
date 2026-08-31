@@ -48,7 +48,7 @@ if TYPE_CHECKING:
     from paths.schema_context import PathsGraphQLContext
 
     from frameworks.permissions import MeasureTemplatePermissionPolicy
-    from nodes.defs.instance_defs import InstanceModelSpec
+    from nodes.defs.instance_defs import InstanceModelSpec, YearsSpec
     from nodes.gpc import DatasetNode
     from nodes.instance import Instance
     from nodes.instance_serialization import InstanceSnapshot
@@ -694,8 +694,8 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
     Represents a configuration of a Framework for a specific instance.
 
     This model links a Framework to an InstanceConfig, allowing for customization
-    of framework settings for each organization or instance. It includes fields
-    for specifying the organization name, baseline year, and associated categories.
+    of framework settings for each organization or instance. Model year boundaries
+    are owned by ``InstanceConfig.spec``.
     """
 
     framework: FK[Framework] = models.ForeignKey(Framework, on_delete=models.CASCADE, related_name='configs')
@@ -707,8 +707,6 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
     organization_name = models.CharField(max_length=200, blank=True, null=True)
     organization_identifier = models.CharField(max_length=200, blank=True, null=True)
     organization_slug = models.CharField(max_length=200, blank=True, null=True)
-    baseline_year = models.IntegerField()
-    target_year = models.IntegerField(null=True)
     categories: M2M[FrameworkDimensionCategory, Any] = models.ManyToManyField(FrameworkDimensionCategory)
     extra = models.JSONField(default=dict, blank=True)
     token = models.CharField(max_length=50, default=create_random_token)
@@ -722,8 +720,6 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
     public_fields: ClassVar = [
         'framework',
         'organization_name',
-        'baseline_year',
-        'target_year',
         'uuid',
         'instance_config',
         'extra',
@@ -744,6 +740,17 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
         yield 'instance', self.instance_config.identifier
         yield 'nr_measures', len(self.measures.all())
 
+    @property
+    def instance_years(self) -> YearsSpec:
+        return self.instance_config.ensure_spec().years
+
+    @property
+    def reference_year(self) -> int:
+        reference_year = self.instance_years.reference
+        if reference_year is None:
+            raise ValueError(f'Framework instance {self.instance_config.identifier} has no reference year')
+        return reference_year
+
     @classmethod
     def permission_policy(cls) -> FrameworkConfigPermissionPolicy:
         from .permissions import FrameworkConfigPermissionPolicy
@@ -762,6 +769,7 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
         target_year: int | None = None,
         user: UserOrAnon | None = None,
     ) -> FrameworkConfig:
+        from nodes.defs import InstanceModelSpec
         from nodes.models import InstanceConfig, make_minimal_instance_spec
         from orgs.models import Organization
 
@@ -795,12 +803,23 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
             framework=framework,
             instance_config=ic,
             organization_name=org_name,
-            baseline_year=baseline_year,
-            target_year=target_year,
             uuid=uuid,
             created_by=user_or_none(user),
             **extra,
         )
+        if ic.get_yaml_config_entrypoint() is None:
+            ic.spec = InstanceModelSpec()
+            ic.save(update_fields=['spec'])
+        else:
+            ic.ensure_spec()
+        year_updates: dict[str, int] = {'reference': baseline_year}
+        if target_year is not None:
+            year_updates['target'] = target_year
+        elif ic.spec is not None and ic.spec.years.target is None:
+            default_target_year = framework.defaults.target_year.default
+            if default_target_year is not None:
+                year_updates['target'] = default_target_year
+        ic.update_years(**year_updates)
         if pp.user_is_authenticated(user):
             pp.realm_admin_role.assign_user(ic, user)
 
@@ -809,11 +828,8 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
             ic.create_default_content()
             fc.setup_instance_pages()
 
-            # Populate the computation spec from the framework YAML now that the
-            # framework config is linked. Without this, readers of the stored
-            # spec (e.g. `availableInstances` via `InstanceBasicConfiguration`)
-            # would see an empty spec and fall back to a theme-less default, even
-            # though the runtime instance carries the framework's theme_identifier.
+            # Persist the effective minimal spec, including framework-derived
+            # historical boundaries, after the model has been initialized.
             ic.spec = make_minimal_instance_spec(ic.get_instance())
             ic.save(update_fields=['spec'])
 
@@ -991,19 +1007,21 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
         return len(selected_defaults)
 
     def apply_spec_overrides(self, spec: InstanceModelSpec) -> InstanceModelSpec:
-        """Return the shared framework spec with this city's year boundaries applied."""
+        """Return the shared framework spec with instance-owned and observed years applied."""
         from django.db.models import Max, Min
 
+        instance_years = self.instance_config.ensure_spec().years
+        reference_year = instance_years.reference
         mdp_years = MeasureDataPoint.objects.filter(measure__framework_config=self).aggregate(
             min_year=Min('year'),
             max_year=Max('year'),
         )
         years = spec.years.model_copy(
             update={
-                'reference': self.baseline_year,
-                'min_historical': mdp_years['min_year'] or self.baseline_year,
-                'max_historical': mdp_years['max_year'] or self.baseline_year,
-                **({'target': self.target_year} if self.target_year is not None else {}),
+                'reference': reference_year,
+                'min_historical': mdp_years['min_year'] or reference_year,
+                'max_historical': mdp_years['max_year'] or reference_year,
+                'target': instance_years.target,
             }
         )
         return spec.model_copy(update={'years': years})

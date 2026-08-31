@@ -823,10 +823,10 @@ def test_dataset_save_revision_updates_latest_revision():
     assert ds.latest_revision_id is not None
 
 
-def test_dataset_port_snapshot_pins_dataset_revision(empty_db_instance: InstanceConfig):
+def test_dataset_binding_snapshot_pins_dataset_revision(empty_db_instance: InstanceConfig):
     from kausal_common.datasets.tests.factories import DatasetFactory, DatasetMetricFactory
 
-    from nodes.models import DatasetPort
+    from nodes.instance_serialization import DatasetPortSnapshot
 
     ds = DatasetFactory.create()
     metric = DatasetMetricFactory.create(schema=ds.schema, name='m1', label='M', unit='kt/a')
@@ -835,19 +835,20 @@ def test_dataset_port_snapshot_pins_dataset_revision(empty_db_instance: Instance
     pinned_rev = ds.latest_revision_id
 
     nc = NodeConfigFactory.create(instance=empty_db_instance, identifier='owner', name='Owner')
-    import uuid as _uuid
-
-    port = DatasetPort.objects.create(
+    NodeInputPortBinding.objects.create(
         instance=empty_db_instance,
         node=nc,
-        port_id=_uuid.uuid4(),
+        port_id=uuid.uuid4(),
         dataset=ds,
         metric=metric,
     )
 
-    # serializable_data pins the dataset's current revision
-    data = port.serializable_data()
-    assert data['dataset_revision'] == pinned_rev
+    # A draft snapshot (no explicit pins) records the dataset's current
+    # revision, so the snapshot is deterministically reconstructible.
+    snapshot = build_instance_snapshot(empty_db_instance)
+    (binding,) = snapshot.bindings
+    assert isinstance(binding, DatasetPortSnapshot)
+    assert binding.dataset_revision == pinned_rev
 
 
 def _make_materialized_dataset(instance_config: InstanceConfig, identifier: str, value: str):

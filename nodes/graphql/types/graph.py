@@ -150,12 +150,9 @@ class NodeEdgeType(EditableEntity):
         limit: int = 50,
         before: 'datetime | None' = None,
     ) -> 'list[InstanceModelLogEntryType]':
-        from nodes.graphql.types.change_history import fetch_entity_history_by_uuid
-        from nodes.models import NodeEdge, NodeInputPortBinding
+        from nodes.graphql.types.change_history import fetch_binding_history_by_uuid
 
-        # Entries recorded before the unified-binding flip carry the legacy
-        # content type; the row UUID is the same durable binding identity.
-        return fetch_entity_history_by_uuid((NodeInputPortBinding, NodeEdge), root.uuid, info, limit=limit, before=before)
+        return fetch_binding_history_by_uuid(root.uuid, info, limit=limit, before=before)
 
 
 @sb.type
@@ -314,12 +311,9 @@ class DatasetPortType(EditableEntity):
         limit: int = 50,
         before: datetime | None = None,
     ) -> 'list[InstanceModelLogEntryType]':
-        from nodes.graphql.types.change_history import fetch_entity_history_by_uuid
-        from nodes.models import DatasetPort, NodeInputPortBinding
+        from nodes.graphql.types.change_history import fetch_binding_history_by_uuid
 
-        # Entries recorded before the unified-binding flip carry the legacy
-        # content type; the row UUID is the same durable binding identity.
-        return fetch_entity_history_by_uuid((NodeInputPortBinding, DatasetPort), root.uuid, info, limit=limit, before=before)
+        return fetch_binding_history_by_uuid(root.uuid, info, limit=limit, before=before)
 
 
 InputPortBinding = Annotated[NodeEdgeType | DatasetPortType, sb.union('InputPortBindingUnion')]

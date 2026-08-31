@@ -21,6 +21,7 @@ from frameworks.models import (
     Section,
 )
 from frameworks.tests.factories import FrameworkConfigFactory, FrameworkFactory
+from nodes.defs import InstanceModelSpec, YearsSpec
 from nodes.models import InstanceConfig, InstanceHostname
 from nodes.tests.factories import InstanceConfigFactory
 from pages.models import ActionListPage, InstanceRootPage
@@ -195,7 +196,7 @@ def test_framework_config_populates_defaults_for_only_year_and_removes_stale_def
     other_measure = fwc.measures.create(measure_template=other_measure_template)
     MeasureDataPoint.objects.create(measure=other_measure, year=2021, default_value=6.0, value=None)
 
-    assert fwc.populate_measure_defaults(only_year=fwc.baseline_year) == 1
+    assert fwc.populate_measure_defaults(only_year=fwc.reference_year) == 1
 
     data_points_by_year = {dp.year: dp for dp in measure.data_points.all()}
     assert set(data_points_by_year) == {2020, 2022}
@@ -537,9 +538,10 @@ def test_update_framework_config_mutation_updates_fields(client: Client, framewo
     assert result['frameworkConfig']['targetYear'] == 2040
 
     fwc.refresh_from_db()
+    fwc.instance_config.refresh_from_db()
     assert fwc.organization_name == 'Updated City'
-    assert fwc.baseline_year == 2021
-    assert fwc.target_year == 2040
+    assert fwc.instance_years.reference == 2021
+    assert fwc.instance_years.target == 2040
 
 
 UPDATE_FRAMEWORK_CONFIG_REPOPULATE_DEFAULTS = gql("""
@@ -943,6 +945,9 @@ mutation CreateInstance($input: CreateInstanceInput!) {
 
 
 def test_create_instance_success(authenticated_gql_client: PathsTestClient, framework: Framework) -> None:
+    framework.enable_user_management = True
+    framework.save(update_fields=['enable_user_management'])
+
     data = authenticated_gql_client.query_data(
         CREATE_INSTANCE,
         variables={
@@ -963,6 +968,86 @@ def test_create_instance_success(authenticated_gql_client: PathsTestClient, fram
     assert ic.has_framework_config()
     assert ic.framework_config.framework == framework
     assert ic.admin_group is not None
+    assert ic.ensure_spec().features.enable_user_management is True
+
+
+@pytest.mark.parametrize('enable_user_management', [False, True])
+def test_create_instance_overrides_template_user_management_feature_from_framework(
+    authenticated_gql_client: PathsTestClient,
+    framework: Framework,
+    enable_user_management: bool,
+) -> None:
+    template_spec = InstanceModelSpec(
+        years=YearsSpec(reference=2020, min_historical=2020, max_historical=2023, target=2030, model_end=2035)
+    )
+    template_spec.features.enable_user_management = not enable_user_management
+    framework.template_instance = InstanceConfigFactory.create(
+        name='Template City',
+        config_source='database',
+        spec=template_spec,
+    )
+    framework.enable_user_management = enable_user_management
+    framework.save(update_fields=['template_instance', 'enable_user_management'])
+
+    authenticated_gql_client.query_data(
+        CREATE_INSTANCE,
+        variables={
+            'input': {
+                'frameworkId': framework.identifier,
+                'name': 'Cloned City',
+                'identifier': 'cloned-city',
+                'organizationName': 'Cloned City',
+            },
+        },
+    )
+
+    clone = InstanceConfig.objects.get(identifier='cloned-city')
+    assert clone.ensure_spec().features.enable_user_management is enable_user_management
+
+
+def test_create_instance_preserves_template_years(
+    authenticated_gql_client: PathsTestClient,
+    framework: Framework,
+) -> None:
+    template_years = YearsSpec(
+        reference=1990,
+        min_historical=2018,
+        max_historical=2025,
+        target=2035,
+        model_end=2040,
+    )
+    framework.template_instance = InstanceConfigFactory.create(
+        name='Template City',
+        config_source='database',
+        spec=InstanceModelSpec(years=template_years),
+    )
+    framework.save(update_fields=['template_instance'])
+
+    authenticated_gql_client.query_data(
+        CREATE_INSTANCE,
+        variables={
+            'input': {
+                'frameworkId': framework.identifier,
+                'name': 'Cloned City',
+                'identifier': 'cloned-city',
+                'organizationName': 'Cloned City',
+            },
+        },
+    )
+
+    clone = InstanceConfig.objects.get(identifier='cloned-city')
+    assert clone.ensure_spec().years == template_years
+    authenticated_gql_client.set_instance(clone)
+    data = authenticated_gql_client.query_data(
+        '{ instance { referenceYear minimumHistoricalYear maximumHistoricalYear targetYear modelEndYear } }'
+    )
+    assert data['instance'] == {
+        'referenceYear': 1990,
+        'minimumHistoricalYear': 2018,
+        'maximumHistoricalYear': 2025,
+        'targetYear': 2035,
+        'modelEndYear': 2040,
+    }
 
 
 def test_create_instance_allows_multiple_path_routed_instances_on_shared_host(

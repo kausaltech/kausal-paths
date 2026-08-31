@@ -659,7 +659,7 @@ class DatasetEditorMutation:
         schema = DatasetEditorMutation._require_sole_schema(root)
         metric = DatasetEditorMutation._get_metric(info, schema, metric_id, for_action='delete')
 
-        if metric.node_input_bindings.exists() or metric.node_ports.exists():
+        if metric.node_input_bindings.exists():
             raise ValidationError(
                 'The metric is bound to a node input port; remove the binding first',
                 code='metric_in_use',

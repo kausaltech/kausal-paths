@@ -6,13 +6,10 @@ See `docs/architecture/dimension-constraints.md` for the model these encode.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import pytest
 from loguru import logger
-
-from kausal_common.datasets.tests.factories import DatasetFactory, DatasetMetricFactory
 
 from nodes.defs.binding_def import DatasetBindingDef, EdgeBindingDef, NodePortRef, PortBindingDef
 from nodes.defs.node_defs import (
@@ -41,12 +38,7 @@ from nodes.defs.transform_def import (
 from nodes.instance_from_db import _serialize_dataset_ports
 from nodes.instance_serialization import DatasetPortSnapshot
 from nodes.spec_export import _drop_ambiguous_port_identifiers, _port_identifier_for_column
-from nodes.tests.factories import InstanceConfigFactory, InstanceFactory, NodeConfigFactory
 from nodes.units import unit_registry
-
-if TYPE_CHECKING:
-    from nodes.models import InstanceConfig
-
 
 pytestmark = pytest.mark.django_db
 
@@ -341,20 +333,7 @@ def test_interpolate_survives_the_dataset_port_spec_round_trip():
 # ---------------------------------------------------------------------------
 
 
-@pytest.fixture
-def db_instance_config() -> InstanceConfig:
-    from nodes.defs.instance_defs import InstanceModelSpec, YearsSpec
-
-    instance = InstanceFactory.create()
-    return InstanceConfigFactory.create(
-        identifier=instance.id,
-        instance=instance,
-        config_source='database',
-        spec=InstanceModelSpec(years=YearsSpec(reference=2020, min_historical=2010, max_historical=2022, target=2030)),
-    )
-
-
-def test_two_bindings_of_one_dataset_stay_separate_when_specs_match(db_instance_config: InstanceConfig):
+def test_two_bindings_of_one_dataset_stay_separate_when_specs_match():
     """
     Binding identity is `dataset_index`, not the spec.
 
@@ -362,53 +341,43 @@ def test_two_bindings_of_one_dataset_stay_separate_when_specs_match(db_instance_
     alike, which changes the length of the node's `input_dataset_instances` and
     so breaks nodes that index into it.
     """
-    from nodes.models import DatasetPort
-
-    dataset = DatasetFactory.create(identifier='shared', scope=db_instance_config)
-    metric = DatasetMetricFactory.create(schema=dataset.schema, name='Value', label='Value', unit='kt/a')
-    nc = NodeConfigFactory.create(instance=db_instance_config, identifier='consumer')
-
+    node = uuid4()
     ports = [
-        DatasetPort.objects.create(
-            instance=db_instance_config,
-            node=nc,
+        DatasetPortSnapshot(
+            node=node,
+            dataset='shared',
             port_id=uuid4(),
-            dataset=dataset,
-            metric=metric,
+            metric='Value',
             spec=DatasetPortSpec(column='Value'),
             dataset_index=index,
         )
         for index in (0, 1)
     ]
 
-    input_datasets = _serialize_dataset_ports([DatasetPortSnapshot.from_model(p) for p in ports])
+    input_datasets = _serialize_dataset_ports(ports)
 
     assert len(input_datasets) == 2
     assert [ds['id'] for ds in input_datasets] == ['shared', 'shared']
 
 
-def test_ports_of_one_binding_collapse_to_a_single_input_dataset(db_instance_config: InstanceConfig):
+def test_ports_of_one_binding_collapse_to_a_single_input_dataset():
     """A column-less binding expands to one port per metric but stays one input dataset."""
-    from nodes.models import DatasetPort
-
-    dataset = DatasetFactory.create(identifier='multi_metric', scope=db_instance_config)
-    nc = NodeConfigFactory.create(instance=db_instance_config, identifier='multi_consumer')
+    node = uuid4()
     spec = DatasetPortSpec.from_input_dataset(InputDatasetDef(id='ds', forecast_from=2025))
 
     ports = [
-        DatasetPort.objects.create(
-            instance=db_instance_config,
-            node=nc,
+        DatasetPortSnapshot(
+            node=node,
+            dataset='multi_metric',
             port_id=uuid4(),
-            dataset=dataset,
-            metric=DatasetMetricFactory.create(schema=dataset.schema, name=name, label=name, unit='kt/a'),
+            metric=name,
             spec=spec,
             dataset_index=0,
         )
         for name in ('emissions', 'energy')
     ]
 
-    input_datasets = _serialize_dataset_ports([DatasetPortSnapshot.from_model(p) for p in ports])
+    input_datasets = _serialize_dataset_ports(ports)
 
     assert len(input_datasets) == 1
     assert input_datasets[0]['id'] == 'multi_metric'
@@ -419,24 +388,19 @@ def test_ports_of_one_binding_collapse_to_a_single_input_dataset(db_instance_con
     ]
 
 
-def test_diverging_specs_within_one_binding_warn_and_keep_the_first(db_instance_config: InstanceConfig):
+def test_diverging_specs_within_one_binding_warn_and_keep_the_first():
     """
     The spec belongs to the binding, so divergence within one means a stale mirror.
 
     Nothing should be silently dropped without a trace — a re-sync is the fix.
     """
-    from nodes.models import DatasetPort
-
-    dataset = DatasetFactory.create(identifier='diverged', scope=db_instance_config)
-    nc = NodeConfigFactory.create(instance=db_instance_config, identifier='diverged_consumer')
-
+    node = uuid4()
     ports = [
-        DatasetPort.objects.create(
-            instance=db_instance_config,
-            node=nc,
+        DatasetPortSnapshot(
+            node=node,
+            dataset='diverged',
             port_id=uuid4(),
-            dataset=dataset,
-            metric=DatasetMetricFactory.create(schema=dataset.schema, name=name, label=name, unit='kt/a'),
+            metric=name,
             spec=DatasetPortSpec.from_input_dataset(InputDatasetDef(id='diverged', forecast_from=year)),
             dataset_index=0,
         )
@@ -446,7 +410,7 @@ def test_diverging_specs_within_one_binding_warn_and_keep_the_first(db_instance_
     warnings: list[str] = []
     sink_id = logger.add(warnings.append, level='WARNING')
     try:
-        input_datasets = _serialize_dataset_ports([DatasetPortSnapshot.from_model(p) for p in ports])
+        input_datasets = _serialize_dataset_ports(ports)
     finally:
         logger.remove(sink_id)
 

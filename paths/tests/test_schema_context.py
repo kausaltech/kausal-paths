@@ -100,13 +100,13 @@ def test_instance_site_title(
     config.save(update_fields=['name'])
     if framework_name is not None:
         framework = Framework.objects.create(identifier='test-framework', name=framework_name)
-        FrameworkConfig.objects.create(framework=framework, instance_config=config, baseline_year=2020)
+        FrameworkConfig.objects.create(framework=framework, instance_config=config)
         if is_root_instance:
             framework.root_instance = config
         else:
             root_config = InstanceConfigFactory.create(name='Framework landing')
             framework.root_instance = root_config
-            FrameworkConfig.objects.create(framework=framework, instance_config=root_config, baseline_year=2020)
+            FrameworkConfig.objects.create(framework=framework, instance_config=root_config)
         framework.save(update_fields=['root_instance'])
 
     data = gql_client.query_data('{ instance { frameworkConfig { id } siteTitle } }')

@@ -1230,6 +1230,7 @@ dataset revision isolation tests pass.
 
 ### 11. Remove compatibility state
 
+- ~~Drop the `NodeEdge` / `DatasetPort` tables~~ (done 2026-08-30, below).
 - Stop generating `supported_dimensions`, migrate away any independently
   authored occurrences after auditing them, then remove the field from
   Pydantic and GraphQL.
@@ -1237,8 +1238,35 @@ dataset revision isolation tests pass.
 - Remove snapshot identifier upgraders only when the supported revision window
   allows it; keep offline export upgrade tooling longer if needed.
 - Remove legacy multiplicative role inference and the split-binding projection.
+- Retire the transitional `dataset_spec` / `dataset_index` fields on
+  `NodeInputPortBinding` / `InputBindingSnapshot` once dataset loading executes
+  the transform pipeline directly; retire `EdgeSnapshot` /
+  `DatasetPortSnapshot` as the snapshot union members in the same move (the
+  YAML-era semantics they carry are exactly those fields).
+- Retire the `NodeExplanationSystem` dict shim (`snapshot_nodes_to_config_dicts`).
 - Retire `DatasetPortSpec.output_dimensions` once schema + ops derive it
   (the non-executing `flatten` placeholder is already gone — step 2).
+
+Implementation note (2026-08-30, table drop): migration 0072 deletes the
+empty `NodeEdge` / `DatasetPort` tables. The snapshot classes stay (they are
+still the snapshot union members); their now-dead `from_model()` classmethods
+are gone, with the row-to-snapshot mapping inlined into backfill migration
+0061, which was their last caller. Change history keeps resolving pre-flip
+entries: the legacy content types are looked up by natural key
+(`fetch_binding_history_by_uuid`; the CT rows may be absent on fresh
+databases), `_resolve_target` matches legacy binding entries on
+`(app_label, model)` before `ct.model_class()` (which is now `None` for
+them), and kind mapping already keyed on CT strings. `_CT_TO_KIND` and the
+`node.dataset_ports.*` action vocabulary are permanent record formats, not
+removables. Two dead-in-practice consumers were rewired to the unified
+table: `DatasetType.port_bindings` (was querying the empty legacy table, now
+shares `_to_gql` with the binding editor) and the metric/dataset delete
+guards. The `test_dataset_port_snapshot_pins_dataset_revision` guarantee
+moved onto `build_instance_snapshot`. Gates: full pytest on a fresh DB
+(2750 passed), repo mypy and ruff clean, and `parse_oracle` per-instance
+verdicts byte-identical before/after the change (14/53 OK on this dev DB in
+both runs — pre-existing mirror staleness against recent `main` port work,
+not this slice; a fleet resync would clear it).
 
 ## Verification
 

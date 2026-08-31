@@ -262,7 +262,7 @@ class MeasureType(DjangoNode[Measure]):
             except NodeComputationError as e:
                 sentry_sdk.capture_exception(e)
                 return []
-        df = df.filter((pl.col(YEAR_COLUMN) > fwc.baseline_year) & (pl.col(YEAR_COLUMN) <= timezone.now().year))
+        df = df.filter((pl.col(YEAR_COLUMN) > fwc.reference_year) & (pl.col(YEAR_COLUMN) <= timezone.now().year))
         dimensions = node_dimension_selection.dimensions
         if dimensions:
             df = df.filter(**dimensions)
@@ -275,6 +275,8 @@ class MeasureType(DjangoNode[Measure]):
 
 
 class FrameworkConfigType(DjangoNode[FrameworkConfig]):
+    baseline_year = graphene.Int(required=True)
+    target_year = graphene.Int(required=False)
     measures = graphene.List(graphene.NonNull(MeasureType), required=True)
     view_url = graphene.String(
         client_url=graphene.String(required=False), description=_('Public URL for instance dashboard'), required=False
@@ -294,6 +296,10 @@ class FrameworkConfigType(DjangoNode[FrameworkConfig]):
     @staticmethod
     def resolve_framework(root: FrameworkConfig, info: GQLInfo) -> Framework:
         return root.cache.fw_cache.framework
+
+    @staticmethod
+    def resolve_baseline_year(root: FrameworkConfig, info: GQLInfo) -> int:
+        return root.reference_year
 
     @staticmethod
     def resolve_measures(root: FrameworkConfig, info: GQLInfo) -> list[Measure]:
@@ -349,9 +355,7 @@ class FrameworkConfigType(DjangoNode[FrameworkConfig]):
 
     @staticmethod
     def resolve_target_year(root: FrameworkConfig, info: GQLInfo) -> int | None:
-        if root.target_year is not None:
-            return root.target_year
-        return root.cache.fw_cache.framework.defaults.target_year.default
+        return root.instance_years.target
 
 
 class MeasureDataPointType(DjangoNode[MeasureDataPoint]):
@@ -572,8 +576,8 @@ class UpdateFrameworkConfigMutation(graphene.Mutation):
 
     @staticmethod
     def _update_baseline_year_data_points(fwc: FrameworkConfig, baseline_year: int) -> None:
-        old_baseline_year = fwc.baseline_year
-        fwc.baseline_year = baseline_year
+        old_baseline_year = fwc.reference_year
+        fwc.instance_config.update_years(reference=baseline_year)
 
         # Update datapoint years for measures with a single datapoint.
         measures = fwc.measures.all()
@@ -619,10 +623,13 @@ class UpdateFrameworkConfigMutation(graphene.Mutation):
         # be interpreted as clearing the target year and using the default for the
         # framework.
         if target_year != 0:
-            fwc.target_year = target_year
+            resolved_target_year = target_year
+            if resolved_target_year is None:
+                resolved_target_year = fwc.framework.defaults.target_year.default
+            fwc.instance_config.update_years(target=resolved_target_year)
 
         if repopulate_defaults:
-            fwc.populate_measure_defaults(only_year=fwc.baseline_year)
+            fwc.populate_measure_defaults(only_year=fwc.reference_year)
 
         fwc.notify_change(user=user)
         fwc.save()
@@ -678,7 +685,7 @@ class UpdateMeasureDataPoint(graphene.Mutation):
             raise GraphQLError('Measure template not found', nodes=info.field_nodes)
 
         if year is None:
-            year = fwc.baseline_year
+            year = fwc.reference_year
 
         measure = Measure.objects.filter(
             framework_config=fwc,
@@ -798,7 +805,7 @@ class UpdateMeasureDataPoints(graphene.Mutation):
             if not dps_in:
                 continue
             for dp_input in dps_in:
-                year = dp_input.get('year', fwc.baseline_year)
+                year = dp_input.get('year', fwc.reference_year)
                 value = dp_input['value']
                 mdp = measure.data_points.filter(year=year).first()
                 if mdp is None:
@@ -890,7 +897,7 @@ class CreateNZCFrameworkConfigMutation(graphene.Mutation):
         }
         fwc.save(update_fields=['extra'])
         fwc.categories.add(cat_renewable_mix, cat_temperature)
-        fwc.populate_measure_defaults(only_year=fwc.baseline_year)
+        fwc.populate_measure_defaults(only_year=fwc.reference_year)
         return ret
 
 

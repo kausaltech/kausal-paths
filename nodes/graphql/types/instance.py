@@ -678,7 +678,7 @@ class InstanceType:
         if self._snapshot is not None:
             return self._snapshot.spec
         spec = self._config.ensure_spec()
-        if self._config.has_framework_config():
+        if self._config.config_source == 'yaml' and self._config.has_framework_config():
             return self._config.framework_config.apply_spec_overrides(spec)
         return spec
 
