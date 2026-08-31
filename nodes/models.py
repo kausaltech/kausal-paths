@@ -83,7 +83,7 @@ from paths.utils import (
     get_supported_languages,
 )
 
-from nodes.defs import DatasetBindingDef, DatasetPortSpec, EdgeBindingDef, InstanceModelSpec, NodeSpec, YearsSpec
+from nodes.defs import DatasetBindingDef, EdgeBindingDef, InstanceModelSpec, NodeSpec, YearsSpec
 from nodes.defs.instance_defs import ActionGroup, InstanceFeatures, InstanceMetadata
 from nodes.defs.transform_def import StoredPortTransformOp
 from nodes.instance_serialization import (
@@ -2458,21 +2458,6 @@ class NodeInputPortBinding(EditableInstanceChild):
         models.CharField(max_length=200),
         default=list,
         blank=True,
-    )
-
-    # Transitional dataset-branch state (empty/zero on edge bindings). The
-    # runtime still consumes DatasetPortSpec whole and groups fanned-out
-    # per-metric rows by (node, dataset_index); each spec field's target home
-    # is the transform pipeline, and both fields go away in plan step 11 once
-    # dataset loading executes the pipeline directly.
-    dataset_spec = SchemaField(schema=DatasetPortSpec, default=DatasetPortSpec, blank=True)
-    dataset_index = models.PositiveIntegerField(
-        default=0,
-        help_text=(
-            "Order of the binding group in the owning node's input_dataset_instances list. "
-            'Rows sharing (node, dataset_index) belong to one column-less binding expanded '
-            'to a port per metric.'
-        ),
     )
 
     # for type checkers

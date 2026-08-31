@@ -22,7 +22,7 @@ from nodes.exceptions import NodeError
 from nodes.instance_graph import NodeMeta, build_instance_graph
 from nodes.instance_loader import InstanceLoader
 from nodes.instance_parser import parse_instance_snapshot
-from nodes.instance_serialization import EdgeSnapshot, InstanceSnapshot, NodeSnapshot
+from nodes.instance_serialization import InputBindingSnapshot, InstanceSnapshot, NodePortSource, NodeSnapshot
 from nodes.node import Node, NodeMetric
 from nodes.runtime_input import RuntimeInputBinding
 from nodes.simple import FillNewCategoryNode, MultiplicativeNode, SubtractiveNode
@@ -548,12 +548,11 @@ def test_edge_value_preserves_shape_for_empty_and_null_only_inputs(
                 ),
             ],
             bindings=[
-                EdgeSnapshot(
+                InputBindingSnapshot(
                     uuid=uuid4(),
-                    from_node=source_id,
-                    from_port=source_port_id,
-                    to_node=target_id,
-                    to_port=target_port_id,
+                    node_id=target_id,
+                    port_id=target_port_id,
+                    source=NodePortSource(node_id=source_id, port_id=source_port_id),
                     transformations=[
                         FilterDimensionOp(dimension='action', exclude=True, flatten=True),
                         FilterDimensionOp(dimension='heating', exclude=True, flatten=True),

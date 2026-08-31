@@ -26,7 +26,13 @@ from nodes.instance_graph_cache import (
     get_instance_graph,
     resolve_instance_source,
 )
-from nodes.instance_serialization import EdgeSnapshot, InstanceSnapshot, NodeSnapshot, build_instance_snapshot
+from nodes.instance_serialization import (
+    InputBindingSnapshot,
+    InstanceSnapshot,
+    NodePortSource,
+    NodeSnapshot,
+    build_instance_snapshot,
+)
 from nodes.models import NodeInputPortBinding, PreferredInstanceSource
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory, NodeConfigFactory
 from nodes.units import unit_registry
@@ -54,12 +60,11 @@ def _snapshot() -> InstanceSnapshot:
             ),
         ],
         bindings=[
-            EdgeSnapshot(
+            InputBindingSnapshot(
                 uuid=uuid4(),
-                from_node=source_id,
-                from_port=output_id,
-                to_node=target_id,
-                to_port=input_id,
+                node_id=target_id,
+                port_id=input_id,
+                source=NodePortSource(node_id=source_id, port_id=output_id),
             )
         ],
     )

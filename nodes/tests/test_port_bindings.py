@@ -6,10 +6,10 @@ See `docs/architecture/dimension-constraints.md` for the model these encode.
 
 from __future__ import annotations
 
-from uuid import uuid4
+from typing import Any
+from uuid import UUID, uuid4
 
 import pytest
-from loguru import logger
 
 from nodes.defs.binding_def import DatasetBindingDef, EdgeBindingDef, NodePortRef, PortBindingDef
 from nodes.defs.node_defs import (
@@ -35,8 +35,8 @@ from nodes.defs.transform_def import (
     SetForecastFromOp,
     unsupported_transformations_for_binding,
 )
-from nodes.instance_from_db import _serialize_dataset_ports
-from nodes.instance_serialization import DatasetPortSnapshot
+from nodes.instance_from_db import _serialize_dataset_groups
+from nodes.instance_serialization import DatasetMetricSource, InputBindingSnapshot, group_unified_dataset_bindings
 from nodes.spec_export import _drop_ambiguous_port_identifiers, _port_identifier_for_column
 from nodes.units import unit_registry
 
@@ -331,55 +331,54 @@ def test_interpolate_survives_the_dataset_port_spec_round_trip():
 
 
 # ---------------------------------------------------------------------------
-# Binding identity: dataset_index, not the spec
+# Binding identity: how unified dataset rows group back into input datasets
 # ---------------------------------------------------------------------------
+
+
+def _dataset_row(node: UUID, dataset: str, metric: str, port_id: UUID, transformations: list[PortTransformOp]):
+    return InputBindingSnapshot(
+        uuid=uuid4(),
+        node_id=node,
+        port_id=port_id,
+        source=DatasetMetricSource(dataset=dataset, metric=metric),
+        transformations=transformations,
+    )
+
+
+def _serialize_node_rows(
+    node: UUID,
+    rows: list[InputBindingSnapshot],
+    node_spec: NodeSpec | None = None,
+) -> list[dict[str, Any]]:
+    groups = group_unified_dataset_bindings([(row, 0) for row in rows], {node: node_spec})
+    return _serialize_dataset_groups(groups.get(node, []))
 
 
 def test_two_bindings_of_one_dataset_stay_separate_when_specs_match():
     """
-    Binding identity is `dataset_index`, not the spec.
+    A metric-selecting row is a binding of its own, even when another looks identical.
 
     Grouping by serialized spec merged distinct bindings that happened to look
     alike, which changes the length of the node's `input_dataset_instances` and
     so breaks nodes that index into it.
     """
     node = uuid4()
-    ports = [
-        DatasetPortSnapshot(
-            node=node,
-            dataset='shared',
-            port_id=uuid4(),
-            metric='Value',
-            spec=DatasetPortSpec(column='Value'),
-            dataset_index=index,
-        )
-        for index in (0, 1)
-    ]
+    rows = [_dataset_row(node, 'shared', 'Value', uuid4(), [SelectMetricOp()]) for _ in range(2)]
 
-    input_datasets = _serialize_dataset_ports(ports)
+    input_datasets = _serialize_node_rows(node, rows)
 
     assert len(input_datasets) == 2
     assert [ds['id'] for ds in input_datasets] == ['shared', 'shared']
 
 
 def test_ports_of_one_binding_collapse_to_a_single_input_dataset():
-    """A column-less binding expands to one port per metric but stays one input dataset."""
+    """A column-less binding expands to one row per metric but stays one input dataset."""
     node = uuid4()
-    spec = DatasetPortSpec.from_input_dataset(InputDatasetDef(id='ds', forecast_from=2025))
+    transformations = DatasetPortSpec.from_input_dataset(InputDatasetDef(id='ds', forecast_from=2025)).transformations
 
-    ports = [
-        DatasetPortSnapshot(
-            node=node,
-            dataset='multi_metric',
-            port_id=uuid4(),
-            metric=name,
-            spec=spec,
-            dataset_index=0,
-        )
-        for name in ('emissions', 'energy')
-    ]
+    rows = [_dataset_row(node, 'multi_metric', name, uuid4(), list(transformations)) for name in ('emissions', 'energy')]
 
-    input_datasets = _serialize_dataset_ports(ports)
+    input_datasets = _serialize_node_rows(node, rows)
 
     assert len(input_datasets) == 1
     assert input_datasets[0]['id'] == 'multi_metric'
@@ -390,33 +389,30 @@ def test_ports_of_one_binding_collapse_to_a_single_input_dataset():
     ]
 
 
-def test_diverging_specs_within_one_binding_warn_and_keep_the_first():
+def test_diverging_pipelines_within_one_group_keep_the_first():
     """
-    The spec belongs to the binding, so divergence within one means a stale mirror.
+    The group-level spec is recovered from the first row in port-declaration order.
 
-    Nothing should be silently dropped without a trace — a re-sync is the fix.
+    The retired per-row `dataset_spec` mirror could diverge within one binding
+    (a stale mirror) and warned about it; with the pipeline in native columns,
+    the first row of the fan-out is authoritative for the group.
     """
     node = uuid4()
-    ports = [
-        DatasetPortSnapshot(
-            node=node,
-            dataset='diverged',
-            port_id=uuid4(),
-            metric=name,
-            spec=DatasetPortSpec.from_input_dataset(InputDatasetDef(id='diverged', forecast_from=year)),
-            dataset_index=0,
+    port_a, port_b = uuid4(), uuid4()
+    node_spec = NodeSpec(input_ports=[InputPortDef(id=port_a), InputPortDef(id=port_b)])
+    rows = [
+        _dataset_row(
+            node,
+            'diverged',
+            metric,
+            port_id,
+            DatasetPortSpec.from_input_dataset(InputDatasetDef(id='diverged', forecast_from=year)).transformations,
         )
-        for name, year in (('emissions', 2025), ('energy', 2030))
+        for metric, port_id, year in (('emissions', port_a, 2025), ('energy', port_b, 2030))
     ]
 
-    warnings: list[str] = []
-    sink_id = logger.add(warnings.append, level='WARNING')
-    try:
-        input_datasets = _serialize_dataset_ports(ports)
-    finally:
-        logger.remove(sink_id)
+    input_datasets = _serialize_node_rows(node, rows, node_spec)
 
     assert len(input_datasets) == 1
     forecast_ops = [op for op in input_datasets[0]['transformations'] if op['kind'] == 'set_forecast_from']
-    assert forecast_ops == [{'kind': 'set_forecast_from', 'year': 2025}], 'the first port wins'
-    assert any('differing specs' in message for message in warnings)
+    assert forecast_ops == [{'kind': 'set_forecast_from', 'year': 2025}], 'the first row wins'

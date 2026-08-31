@@ -141,7 +141,7 @@ def _dataset_binding_qs(ic: InstanceConfig) -> QuerySet[NodeInputPortBinding]:
             'dataset__last_modified_by',
             'metric',
         )
-        .order_by('node_id', 'dataset_index', 'position')
+        .order_by('node_id', 'port_id', 'position')
     )
 
 
@@ -425,12 +425,14 @@ class InstanceEditorFields:
                 metric=DatasetMetricRefType.from_model(dp.metric),
                 external_dataset_id=_external_dataset_id_from_dataset(dp.dataset),
                 external_metric_id=dp.metric.name,
-                tags=list(dp.dataset_spec.tags),
+                tags=list(dp.tags or []),
             )
+            from nodes.defs.transform_def import forecast_from_transformations
+
             port._dataset = DatasetType.from_model(dp.dataset)
-            port._transformations = list(dp.dataset_spec.transformations)
+            port._transformations = list(dp.transformations or [])
             if port._dataset is not None:
-                port._dataset._forecast_from = dp.dataset_spec.forecast_from
+                port._dataset._forecast_from = forecast_from_transformations(dp.transformations or [])
             result.append(port)
         return result
 

@@ -17,7 +17,7 @@ from nodes.defs.node_defs import NodeSpec, SimpleConfig
 from nodes.defs.port_def import InputPort, InputPortDef, OutputPortDef
 from nodes.instance_graph import InstanceGraph, NodeMeta, build_instance_graph
 from nodes.instance_graph_cache import _dump_graph, _load_graph
-from nodes.instance_serialization import EdgeSnapshot, InstanceSnapshot, NodeSnapshot
+from nodes.instance_serialization import EdgeSnapshot, InstanceSnapshot, NodeSnapshot, unified_binding_snapshots
 from nodes.node import Node
 from nodes.pipeline.ops.arithmetic import AddOperationSpec, AnyOperationSpec, MultiplyOperationSpec
 from nodes.pipeline.ops.base import DatasetInputRef, IntermediateInputRef, PortInputRef, ScalarValue
@@ -69,7 +69,7 @@ def _build(nodes: list[NodeSnapshot], edges: list[EdgeSnapshot], dimensions: tup
             metadata=InstanceMetadata(uuid=uuid4(), identifier='shape-test', name='Shape test'),
             spec=InstanceModelSpec(),
             nodes=nodes,
-            bindings=list(edges),
+            bindings=unified_binding_snapshots(edges, []),
             dimensions=list(dimensions),
         )
     )

@@ -278,13 +278,16 @@ class InstanceConfigParser:
         edges = self._build_edge_snapshots()
         dataset_ports = self._build_dataset_port_snapshots()
 
-        # Positions stay unassigned: this is the pre-resolution parse-side
-        # snapshot, and the dataset fan-out at sync changes binding cardinality.
+        # Positions are assigned here for the YAML runtime; the sync write half
+        # reassigns after its schema resolution, which can change the dataset
+        # fan-out cardinality.
+        from nodes.instance_serialization import unified_binding_snapshots
+
         return InstanceSnapshot(
             metadata=metadata,
             spec=spec,
             nodes=node_snapshots,
-            bindings=[*edges, *dataset_ports],
+            bindings=unified_binding_snapshots(edges, dataset_ports),
             datasets=self._parse_dataset_catalog(),
         )
 

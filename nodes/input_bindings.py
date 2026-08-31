@@ -36,8 +36,6 @@ _ROW_FIELDS = (
     'metric_id',
     'transformations',
     'tags',
-    'dataset_spec',
-    'dataset_index',
 )
 
 
@@ -109,11 +107,3 @@ def compact_port_positions(nc: NodeConfig, port_ids: Iterable[UUID]) -> None:
                 changed.append(row)
         if changed:
             NodeInputPortBinding.objects.bulk_update(changed, ['position'])
-
-
-def next_dataset_index(nc: NodeConfig) -> int:
-    """Next free binding-group index on the node's ``input_dataset_instances`` list."""
-    highest = NodeInputPortBinding.objects.filter(node=nc, dataset__isnull=False).aggregate(highest=Max('dataset_index'))[
-        'highest'
-    ]
-    return 0 if highest is None else highest + 1

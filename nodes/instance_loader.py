@@ -42,7 +42,7 @@ if TYPE_CHECKING:
     from nodes.explanations import NodeExplanationSystem
     from nodes.instance import Instance
     from nodes.instance_graph import InstanceGraph
-    from nodes.instance_serialization import DatasetPortSnapshot, EdgeSnapshot, InstanceSnapshot, NodeSnapshot
+    from nodes.instance_serialization import InputBindingSnapshot, InstanceSnapshot, NodeSnapshot
     from nodes.models import InstanceConfig
     from nodes.node import Node, NodeMetric
     from nodes.scenario import Scenario
@@ -524,7 +524,7 @@ class InstanceLoader:
     # Groups are derived from native binding fields: a row whose pipeline
     # selects a metric is its own group; the column-less rows of one
     # (node, dataset) form one whole-frame group.
-    _snapshot_dataset_groups: dict[UUID, list[tuple[InputDatasetDef, list[DatasetPortSnapshot]]]]
+    _snapshot_dataset_groups: dict[UUID, list[tuple[InputDatasetDef, list[InputBindingSnapshot]]]]
     _binding_group_index: dict[int, int]
     _instance_graph: InstanceGraph
     _runtime_datasets: dict[tuple[UUID, int], Dataset]
@@ -1112,10 +1112,12 @@ class InstanceLoader:
 
         # One runtime Edge per (from, to) pair; parallel bindings deliver the
         # source's metrics. Grouping preserves binding order.
-        groups: dict[tuple[UUID, UUID], list[tuple[str, EdgeSnapshot]]] = {}
+        groups: dict[tuple[UUID, UUID], list[tuple[str, InputBindingSnapshot]]] = {}
         for e in snapshot.edge_bindings:
-            from_port = specs_by_uuid[e.from_node].output_port_by_id[e.from_port]
-            groups.setdefault((e.from_node, e.to_node), []).append((from_port.column_id or VALUE_COLUMN, e))
+            e_source = e.node_source
+            assert e_source is not None
+            from_port = specs_by_uuid[e_source.node_id].output_port_by_id[e_source.port_id]
+            groups.setdefault((e_source.node_id, e.node_id), []).append((from_port.column_id or VALUE_COLUMN, e))
 
         # Per target, edge groups apply in the target's input-port declaration
         # order (stable within a port: binding order).
@@ -1124,7 +1126,7 @@ class InstanceLoader:
             to_spec = specs_by_uuid[to_id]
             port_order = {port.id: idx for idx, port in enumerate(to_spec.input_ports)}
             first = tuples[0][1]
-            per_target[to_id].append((port_order.get(first.to_port, len(port_order)), (from_id, to_id)))
+            per_target[to_id].append((port_order.get(first.port_id, len(port_order)), (from_id, to_id)))
 
         ctx = self.context
         uuid_by_identifier = {identifier: node_id for node_id, identifier in identifiers_by_uuid.items()}
@@ -1145,7 +1147,7 @@ class InstanceLoader:
         self,
         from_id: UUID,
         to_id: UUID,
-        tuples: list[tuple[str, EdgeSnapshot]],
+        tuples: list[tuple[str, InputBindingSnapshot]],
         specs_by_uuid: dict[UUID, NodeSpec],
         identifiers_by_uuid: dict[UUID, str],
     ) -> Edge:
@@ -1164,7 +1166,7 @@ class InstanceLoader:
 
         input_node = self.context.get_node(identifiers_by_uuid[from_id])
         output_node = self.context.get_node(identifiers_by_uuid[to_id])
-        to_port = specs_by_uuid[to_id].input_port_by_id[first.to_port]
+        to_port = specs_by_uuid[to_id].input_port_by_id[first.port_id]
         from_dims, to_dims = self._edge_dimensions_from_transforms(
             list(transforms),
             to_port.required_dimensions,
@@ -1195,7 +1197,6 @@ class InstanceLoader:
         from collections import defaultdict
 
         from nodes.defs.binding_def import DatasetBindingDef, EdgeBindingDef
-        from nodes.instance_serialization import DatasetPortSnapshot, EdgeSnapshot
         from nodes.runtime_input import RuntimeInputBinding
 
         runtime_by_uuid = {
@@ -1229,13 +1230,13 @@ class InstanceLoader:
                 continue
 
             if isinstance(definition, EdgeBindingDef):
-                if not isinstance(snapshot_binding, EdgeSnapshot):
+                if snapshot_binding.node_source is None:
                     raise TypeError(f'Binding {definition.id}: graph/snapshot kind mismatch')
                 source = runtime_by_uuid[definition.source_node.id]
             elif isinstance(definition, DatasetBindingDef):
-                if not isinstance(snapshot_binding, DatasetPortSnapshot):
+                if snapshot_binding.dataset_source is None:
                     raise TypeError(f'Binding {definition.id}: graph/snapshot kind mismatch')
-                source = self._runtime_datasets[(snapshot_binding.node, self._binding_group_index[id(snapshot_binding)])]
+                source = self._runtime_datasets[(snapshot_binding.node_id, self._binding_group_index[id(snapshot_binding)])]
             else:
                 raise TypeError(f'Unsupported binding definition {type(definition).__name__}')
 
@@ -1697,36 +1698,38 @@ class InstanceLoader:
             datasets_by_id = {dataset.id: dataset for dataset in catalog}
             datasets_by_identifier = {dataset.identifier: dataset for dataset in catalog if dataset.identifier is not None}
             for binding in snapshot.dataset_bindings:
-                dataset = datasets_by_id.get(binding.dataset_uuid) if binding.dataset_uuid is not None else None
+                b_source = binding.dataset_source
+                assert b_source is not None
+                dataset = datasets_by_id.get(b_source.dataset_uuid) if b_source.dataset_uuid is not None else None
                 if dataset is None:
-                    dataset = datasets_by_identifier.get(binding.dataset)
+                    dataset = datasets_by_identifier.get(b_source.dataset)
 
                 if dataset is None:
-                    dataset_uuid = binding.dataset_uuid or uuid5(
+                    dataset_uuid = b_source.dataset_uuid or uuid5(
                         NAMESPACE_URL,
-                        f'kausal-paths:runtime-dataset:{snapshot.metadata.uuid}:{binding.dataset}',
+                        f'kausal-paths:runtime-dataset:{snapshot.metadata.uuid}:{b_source.dataset}',
                     )
                     dataset = DatasetMeta(
                         id=dataset_uuid,
-                        identifier=binding.dataset,
+                        identifier=b_source.dataset,
                         schema_id=uuid5(NAMESPACE_URL, f'kausal-paths:runtime-dataset-schema:{dataset_uuid}'),
                         is_external_placeholder=True,
                     )
                     catalog.append(dataset)
                     datasets_by_id[dataset.id] = dataset
-                    datasets_by_identifier[binding.dataset] = dataset
+                    datasets_by_identifier[b_source.dataset] = dataset
 
-                metric = dataset.metric_by_id.get(binding.metric_uuid) if binding.metric_uuid is not None else None
+                metric = dataset.metric_by_id.get(b_source.metric_uuid) if b_source.metric_uuid is not None else None
                 if metric is None:
-                    metric = next((item for item in dataset.metrics if item.identifier == binding.metric), None)
+                    metric = next((item for item in dataset.metrics if item.identifier == b_source.metric), None)
                 if metric is not None:
                     continue
 
-                metric_uuid = binding.metric_uuid or uuid5(
+                metric_uuid = b_source.metric_uuid or uuid5(
                     NAMESPACE_URL,
-                    f'kausal-paths:runtime-dataset-metric:{dataset.id}:{binding.metric}',
+                    f'kausal-paths:runtime-dataset-metric:{dataset.id}:{b_source.metric}',
                 )
-                spec = specs_by_node[binding.node]
+                spec = specs_by_node[binding.node_id]
                 unit = spec.input_port_by_id[binding.port_id].unit
                 updated_dataset = dataset.model_copy(
                     update={
@@ -1734,7 +1737,7 @@ class InstanceLoader:
                             *dataset.metrics,
                             DatasetMetricMeta(
                                 id=metric_uuid,
-                                identifier=binding.metric,
+                                identifier=b_source.metric,
                                 unit=str(unit) if unit is not None else '',
                             ),
                         )
@@ -1754,7 +1757,7 @@ class InstanceLoader:
 
     def _group_dataset_bindings(
         self, snapshot: InstanceSnapshot
-    ) -> dict[UUID, list[tuple[InputDatasetDef, list[DatasetPortSnapshot]]]]:
+    ) -> dict[UUID, list[tuple[InputDatasetDef, list[InputBindingSnapshot]]]]:
         """
         Group dataset bindings per node from native fields only.
 
@@ -1765,44 +1768,16 @@ class InstanceLoader:
         order, per-port position), which is the authored order the fan-out was
         created in.
         """
-        from collections import defaultdict
+        from nodes.instance_serialization import group_dataset_bindings
 
-        from nodes.instance_serialization import DatasetPortSnapshot
-
-        rows_by_node: defaultdict[UUID, list[tuple[DatasetPortSnapshot, int]]] = defaultdict(list)
-        for item, position in snapshot.bindings_with_positions():
-            if isinstance(item, DatasetPortSnapshot):
-                rows_by_node[item.node].append((item, position))
-        port_specs_by_node = {node.uuid: node.spec for node in snapshot.nodes if node.spec is not None}
-
-        groups_by_node: dict[UUID, list[tuple[InputDatasetDef, list[DatasetPortSnapshot]]]] = {}
-        for node_uuid, node_rows in rows_by_node.items():
-            node_spec = port_specs_by_node.get(node_uuid)
-            port_order = {port.id: index for index, port in enumerate(node_spec.input_ports)} if node_spec is not None else {}
-            node_rows.sort(key=lambda entry: (port_order.get(entry[0].port_id, len(port_order)), entry[1], str(entry[0].port_id)))
-            grouped: list[tuple[str, list[DatasetPortSnapshot]]] = []
-            # dataset id -> (open group index, metrics seen in it). One whole-frame
-            # binding fans out to one row per schema metric, so a metric repeating
-            # within the open group can only mean a second binding of the same
-            # dataset: close the group and start the next one.
-            whole_frame_group: dict[str, tuple[int, set[str]]] = {}
-            for row, _position in node_rows:
-                if any(op.kind == 'select_metric' for op in row.spec.transformations):
-                    grouped.append((row.dataset, [row]))
-                    continue
-                open_group = whole_frame_group.get(row.dataset)
-                if open_group is None or row.metric in open_group[1]:
-                    whole_frame_group[row.dataset] = (len(grouped), {row.metric})
-                    grouped.append((row.dataset, [row]))
-                else:
-                    grouped[open_group[0]][1].append(row)
-                    open_group[1].add(row.metric)
-            node_groups: list[tuple[InputDatasetDef, list[DatasetPortSnapshot]]] = []
-            for group_index, (dataset_id, group_rows) in enumerate(grouped):
+        groups_by_node: dict[UUID, list[tuple[InputDatasetDef, list[InputBindingSnapshot]]]] = {}
+        for node_uuid, node_groups in group_dataset_bindings(snapshot).items():
+            converted: list[tuple[InputDatasetDef, list[InputBindingSnapshot]]] = []
+            for group_index, (spec, dataset_id, group_rows) in enumerate(node_groups):
                 # Runtime-input resolution keys on object identity: the rows here
                 # are the same binding objects bindings_with_positions() yields.
                 for row in group_rows:
                     self._binding_group_index[id(row)] = group_index
-                node_groups.append((group_rows[0].spec.to_input_dataset(id=dataset_id), group_rows))
-            groups_by_node[node_uuid] = node_groups
+                converted.append((spec.to_input_dataset(id=dataset_id), group_rows))
+            groups_by_node[node_uuid] = converted
         return groups_by_node

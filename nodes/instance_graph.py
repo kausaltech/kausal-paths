@@ -36,7 +36,7 @@ if TYPE_CHECKING:
 
 # v5: canonical edge order is creation (pk) order, not NodeEdge.Meta ordering;
 #     binding positions built from a snapshot change accordingly.
-INSTANCE_GRAPH_FORMAT_VERSION = 5
+INSTANCE_GRAPH_FORMAT_VERSION = 6
 
 
 class InstanceGraphDiagnostic(FrozenGraphModel):
@@ -614,7 +614,6 @@ def build_instance_graph(
     bindings: list[AnyPortBindingDef] = []
 
     from nodes.defs.transform_def import FlattenTransformation
-    from nodes.instance_serialization import DatasetPortSnapshot
 
     # v9 snapshots store positions assigned by ``ordered_binding_snapshots``
     # (the shared ordering authority the ``NodeInputPortBinding`` mirror also
@@ -622,38 +621,39 @@ def build_instance_graph(
     edge_index = 0
     port_index = 0
     for item, position in snapshot.bindings_with_positions():
-        if isinstance(item, DatasetPortSnapshot):
-            port = item
+        ds_source = item.dataset_source
+        if ds_source is not None:
             dataset = None
-            if port.dataset_uuid is not None:
-                dataset = datasets_by_id.get(port.dataset_uuid)
+            if ds_source.dataset_uuid is not None:
+                dataset = datasets_by_id.get(ds_source.dataset_uuid)
             if dataset is None:
-                dataset = datasets_by_identifier.get(port.dataset)
+                dataset = datasets_by_identifier.get(ds_source.dataset)
             if dataset is None:
-                raise ValueError(f'Dataset port {port.uuid} references unresolved dataset {port.dataset!r}')
+                raise ValueError(f'Dataset binding {item.uuid} references unresolved dataset {ds_source.dataset!r}')
 
-            metric = dataset.metric_by_id.get(port.metric_uuid) if port.metric_uuid is not None else None
+            metric = dataset.metric_by_id.get(ds_source.metric_uuid) if ds_source.metric_uuid is not None else None
             if metric is None:
-                metric = next((m for m in dataset.metrics if m.identifier == port.metric), None)
+                metric = next((m for m in dataset.metrics if m.identifier == ds_source.metric), None)
             if metric is None:
-                raise ValueError(f'Dataset port {port.uuid} references unresolved metric {port.metric!r}')
+                raise ValueError(f'Dataset binding {item.uuid} references unresolved metric {ds_source.metric!r}')
 
-            binding_id = port.uuid or uuid5(
+            binding_id = item.uuid or uuid5(
                 NAMESPACE_URL,
-                f'kausal-paths:legacy-dataset-binding:{snapshot.metadata.uuid}:{port.node}:{port.port_id}:{port.dataset}:{port.metric}:{port.dataset_index}:{port_index}',
+                f'kausal-paths:legacy-dataset-binding:{snapshot.metadata.uuid}:{item.node_id}:{item.port_id}'
+                f':{ds_source.dataset}:{ds_source.metric}:{port_index}',
             )
             port_index += 1
             bindings.append(
                 DatasetBindingDef(
                     id=binding_id,
                     port_ref=NodePortRef(
-                        node_uuid=port.node,
-                        node_id=node_identifiers.get(port.node) or str(port.node),
-                        port_id=port.port_id,
+                        node_uuid=item.node_id,
+                        node_id=node_identifiers.get(item.node_id) or str(item.node_id),
+                        port_id=item.port_id,
                     ),
                     position=position,
-                    tags=list(port.spec.tags),
-                    transformations=list(port.spec.transformations),
+                    tags=list(item.tags),
+                    transformations=list(item.transformations),
                     dataset_uuid=dataset.id,
                     metric_uuid=metric.id,
                     dataset_is_external_placeholder=dataset.is_external_placeholder,
@@ -664,32 +664,34 @@ def build_instance_graph(
             )
             continue
 
-        edge = item
-        binding_id = edge.uuid or uuid5(
+        edge_source = item.node_source
+        assert edge_source is not None
+        binding_id = item.uuid or uuid5(
             NAMESPACE_URL,
-            f'kausal-paths:legacy-edge:{snapshot.metadata.uuid}:{edge.from_node}:{edge.from_port}:{edge.to_node}:{edge.to_port}:{edge_index}',
+            f'kausal-paths:legacy-edge:{snapshot.metadata.uuid}:{edge_source.node_id}:{edge_source.port_id}'
+            f':{item.node_id}:{item.port_id}:{edge_index}',
         )
         edge_index += 1
         # Legacy bare `to_dimensions` declarations must be recovered here,
         # before the binding validator's modernization drops them.
-        declared_dimensions = [t.dimension for t in edge.transformations if isinstance(t, FlattenTransformation)]
+        declared_dimensions = [t.dimension for t in item.transformations if isinstance(t, FlattenTransformation)]
         bindings.append(
             EdgeBindingDef(
                 id=binding_id,
                 declared_dimensions=declared_dimensions,
                 port_ref=NodePortRef(
-                    node_uuid=edge.to_node,
-                    node_id=node_identifiers.get(edge.to_node) or str(edge.to_node),
-                    port_id=edge.to_port,
+                    node_uuid=item.node_id,
+                    node_id=node_identifiers.get(item.node_id) or str(item.node_id),
+                    port_id=item.port_id,
                 ),
                 from_ref=NodePortRef(
-                    node_uuid=edge.from_node,
-                    node_id=node_identifiers.get(edge.from_node) or str(edge.from_node),
-                    port_id=edge.from_port,
+                    node_uuid=edge_source.node_id,
+                    node_id=node_identifiers.get(edge_source.node_id) or str(edge_source.node_id),
+                    port_id=edge_source.port_id,
                 ),
                 position=position,
-                tags=list(edge.tags),
-                transformations=list(edge.transformations),
+                tags=list(item.tags),
+                transformations=list(item.transformations),
             )
         )
 

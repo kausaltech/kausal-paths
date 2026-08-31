@@ -13,15 +13,18 @@ from kausal_common.i18n.pydantic import TranslatedString
 
 from nodes.defs.graph import DatasetMeta
 from nodes.defs.instance_defs import InstanceFeatures, InstanceMetadata, InstanceModelSpec, YearsSpec
-from nodes.defs.node_defs import DatasetPortSpec, NodeSpec
+from nodes.defs.node_defs import NodeSpec
+from nodes.defs.transform_def import SelectMetricOp
 from nodes.instance_export_sync import (
     apply_load_nodes_instance_export_sync,
     plan_load_nodes_instance_export_sync,
 )
 from nodes.instance_serialization import (
-    DatasetPortSnapshot,
+    DatasetMetricSource,
+    InputBindingSnapshot,
     InstanceExport,
     InstanceSnapshot,
+    NodePortSource,
     NodeSnapshot,
     reconcile_snapshot_node_metadata,
 )
@@ -490,12 +493,10 @@ def test_load_nodes_export_sync_updates_legacy_db_dataset_relations(instance_con
             spec=InstanceModelSpec(features=InstanceFeatures(use_datasets_from_db=True)),
             nodes=[NodeSnapshot(uuid=row.uuid, identifier='node', name=TranslatedString(en='Node'), spec=NodeSpec())],
             bindings=[
-                DatasetPortSnapshot(
-                    node=row.uuid,
-                    dataset='input',
+                InputBindingSnapshot(
+                    node_id=row.uuid,
                     port_id=uuid.uuid4(),
-                    metric='Value',
-                    spec=DatasetPortSpec(),
+                    source=DatasetMetricSource(dataset='input', metric='Value'),
                 )
             ],
         )
@@ -574,8 +575,6 @@ def _write_bindings_for(db_instance, snapshot, node_configs):
 
 
 def _edge_snapshot_instance(db_instance):
-    from nodes.instance_serialization import EdgeSnapshot
-
     source = NodeConfigFactory.create(instance=db_instance, identifier='source')
     target = NodeConfigFactory.create(instance=db_instance, identifier='target')
     node_configs = {source.uuid: source, target.uuid: target}
@@ -583,11 +582,10 @@ def _edge_snapshot_instance(db_instance):
     snapshot = InstanceSnapshot(
         spec=db_instance.spec,
         bindings=[
-            EdgeSnapshot(
-                from_node=source.uuid,
-                to_node=target.uuid,
-                from_port=from_port,
-                to_port=to_port,
+            InputBindingSnapshot(
+                node_id=target.uuid,
+                port_id=to_port,
+                source=NodePortSource(node_id=source.uuid, port_id=from_port),
                 tags=['a'],
             ),
         ],
@@ -634,7 +632,7 @@ def test_write_bindings_preserves_edge_uuid_across_port_change(db_instance):
     _write_bindings_for(db_instance, snapshot, node_configs)
     original = NodeInputPortBinding.objects.get(instance=db_instance)
 
-    snapshot.edge_bindings[0].to_port = uuid.uuid4()
+    snapshot.edge_bindings[0].port_id = uuid.uuid4()
     _write_bindings_for(db_instance, snapshot, node_configs)
 
     binding = NodeInputPortBinding.objects.get(instance=db_instance)
@@ -642,7 +640,6 @@ def test_write_bindings_preserves_edge_uuid_across_port_change(db_instance):
 
 
 def test_write_bindings_mints_fresh_uuid_for_new_edges_only(db_instance):
-    from nodes.instance_serialization import EdgeSnapshot
     from nodes.models import NodeInputPortBinding
 
     snapshot, node_configs = _edge_snapshot_instance(db_instance)
@@ -652,11 +649,11 @@ def test_write_bindings_mints_fresh_uuid_for_new_edges_only(db_instance):
     third = NodeConfigFactory.create(instance=db_instance, identifier='third')
     node_configs[third.uuid] = third
     snapshot.bindings.append(
-        EdgeSnapshot(
-            from_node=third.uuid,
-            to_node=snapshot.edge_bindings[0].to_node,
-            from_port=uuid.uuid4(),
-            to_port=snapshot.edge_bindings[0].to_port,
+        InputBindingSnapshot(
+            node_id=snapshot.edge_bindings[0].node_id,
+            port_id=snapshot.edge_bindings[0].port_id,
+            position=1,
+            source=NodePortSource(node_id=third.uuid, port_id=uuid.uuid4()),
         )
     )
     _write_bindings_for(db_instance, snapshot, node_configs)
@@ -692,13 +689,11 @@ def test_write_bindings_preserves_dataset_port_uuids_across_resync(db_instance):
         spec=db_instance.spec,
         nodes=[NodeSnapshot(uuid=node.uuid, identifier=node.identifier, spec=NodeSpec())],
         bindings=[
-            DatasetPortSnapshot(
-                node=node.uuid,
-                dataset='ds_input',
+            InputBindingSnapshot(
+                node_id=node.uuid,
                 port_id=port_id,
-                metric='value',
-                dataset_index=0,
-                spec=DatasetPortSpec(column='value'),
+                source=DatasetMetricSource(dataset='ds_input', metric='value'),
+                transformations=[SelectMetricOp()],
             )
         ],
     )
@@ -712,7 +707,8 @@ def test_write_bindings_preserves_dataset_port_uuids_across_resync(db_instance):
     assert second.uuid == first.uuid
     assert second.pk == first.pk
 
-    # A dataset_index change (dataset reordering) still preserves identity via the loose pass.
-    snapshot.dataset_bindings[0].dataset_index = 1
+    # A port change (e.g. re-derived port ids after dataset reordering) still
+    # preserves identity via the loose pass.
+    snapshot.dataset_bindings[0].port_id = uuid.uuid4()
     _write_bindings_for(db_instance, snapshot, {node.uuid: node})
     assert NodeInputPortBinding.objects.get(instance=db_instance).uuid == first.uuid

@@ -2194,7 +2194,7 @@ def test_model_instance_query_avoids_n_plus_one_for_port_bindings(
 
 
 def test_dataset_ports_rebuild_multimetric_action_dataset(db_instance_config: InstanceConfig):
-    from nodes.defs.node_defs import ColumnDatasetFilterDef, DatasetPortSpec
+    from nodes.defs.node_defs import ColumnDatasetFilterDef
     from nodes.models import NodeInputPortBinding
 
     assert db_instance_config.spec is not None
@@ -2204,13 +2204,11 @@ def test_dataset_ports_rebuild_multimetric_action_dataset(db_instance_config: In
     dataset = DatasetFactory.create(identifier='multi_metric_actions', scope=db_instance_config)
     emissions_metric = DatasetMetricFactory.create(schema=dataset.schema, name='emissions', label='Emissions', unit='t/a')
     energy_metric = DatasetMetricFactory.create(schema=dataset.schema, name='energy', label='Energy', unit='TJ/a')
-    binding_spec = DatasetPortSpec.from_input_dataset(
-        InputDatasetDef(
-            id='multi_metric_actions',
-            forecast_from=2024,
-            filters=[ColumnDatasetFilterDef(column='action', value='multi_metric_action')],
-        )
-    )
+    binding_transformations = InputDatasetDef(
+        id='multi_metric_actions',
+        forecast_from=2024,
+        filters=[ColumnDatasetFilterDef(column='action', value='multi_metric_action')],
+    ).to_transformations()
 
     nc = NodeConfigFactory.create(
         instance=db_instance_config,
@@ -2247,7 +2245,7 @@ def test_dataset_ports_rebuild_multimetric_action_dataset(db_instance_config: In
         port_id=_port_uuid('emissions'),
         dataset=dataset,
         metric=emissions_metric,
-        dataset_spec=binding_spec,
+        transformations=binding_transformations,
     )
     NodeInputPortBinding.objects.create(
         instance=db_instance_config,
@@ -2255,7 +2253,7 @@ def test_dataset_ports_rebuild_multimetric_action_dataset(db_instance_config: In
         port_id=_port_uuid('energy'),
         dataset=dataset,
         metric=energy_metric,
-        dataset_spec=binding_spec,
+        transformations=binding_transformations,
     )
 
     ctx = _rebuild_from_db(db_instance_config)
@@ -2368,9 +2366,9 @@ def test_dataset_port_sync_uses_one_port_per_dataset_metric(db_instance_config: 
     bindings = list(NodeInputPortBinding.objects.filter(node=nc).select_related('metric').order_by('metric__name'))
     assert [binding.metric.name for binding in bindings if binding.metric is not None] == ['emissions', 'energy']
     assert {binding.port_id for binding in bindings} == {port.id for port in input_ports}
-    assert all(binding.dataset_spec.forecast_from == 2024 for binding in bindings)
+    assert all(forecast_from_transformations(binding.transformations) == 2024 for binding in bindings)
     for binding in bindings:
-        filter_op = next(op for op in binding.dataset_spec.transformations if isinstance(op, FilterColumnOp))
+        filter_op = next(op for op in binding.transformations if isinstance(op, FilterColumnOp))
         assert filter_op.column == 'action'
 
 
@@ -2484,7 +2482,6 @@ def test_dataset_port_sync_keeps_an_unpairable_binding_alive(db_instance_config:
 
 def test_dataset_port_forecast_from_promotes_to_dataset_default(db_instance_config: InstanceConfig):
     from nodes.dataset_materialization import materialize_dataset
-    from nodes.defs.node_defs import DatasetPortSpec
     from nodes.models import DatasetMaterialization, NodeInputPortBinding
     from nodes.spec_export import _promote_dataset_forecast_defaults
 
@@ -2505,7 +2502,7 @@ def test_dataset_port_forecast_from_promotes_to_dataset_default(db_instance_conf
         port_id=_port_uuid('input_a'),
         dataset=promoted_dataset,
         metric=promoted_metric,
-        dataset_spec=DatasetPortSpec.from_input_dataset(InputDatasetDef(id='ds', forecast_from=2025)),
+        transformations=InputDatasetDef(id='ds', forecast_from=2025).to_transformations(),
     )
     NodeInputPortBinding.objects.create(
         instance=db_instance_config,
@@ -2520,7 +2517,7 @@ def test_dataset_port_forecast_from_promotes_to_dataset_default(db_instance_conf
         port_id=_port_uuid('input_c'),
         dataset=conflict_dataset,
         metric=conflict_metric,
-        dataset_spec=DatasetPortSpec.from_input_dataset(InputDatasetDef(id='ds', forecast_from=2024)),
+        transformations=InputDatasetDef(id='ds', forecast_from=2024).to_transformations(),
     )
     NodeInputPortBinding.objects.create(
         instance=db_instance_config,
@@ -2528,7 +2525,7 @@ def test_dataset_port_forecast_from_promotes_to_dataset_default(db_instance_conf
         port_id=_port_uuid('input_d'),
         dataset=conflict_dataset,
         metric=conflict_metric,
-        dataset_spec=DatasetPortSpec.from_input_dataset(InputDatasetDef(id='ds', forecast_from=2025)),
+        transformations=InputDatasetDef(id='ds', forecast_from=2025).to_transformations(),
     )
 
     assert _promote_dataset_forecast_defaults(db_instance_config) == 1
@@ -2539,9 +2536,9 @@ def test_dataset_port_forecast_from_promotes_to_dataset_default(db_instance_conf
     assert conflict_dataset.spec == {}
 
     promoted_ports = NodeInputPortBinding.objects.filter(dataset=promoted_dataset)
-    assert all(port.dataset_spec.forecast_from is None for port in promoted_ports)
+    assert all(forecast_from_transformations(port.transformations) is None for port in promoted_ports)
     conflict_ports = NodeInputPortBinding.objects.filter(dataset=conflict_dataset)
-    assert sorted((port.dataset_spec.forecast_from or 0) for port in conflict_ports) == [2024, 2025]
+    assert sorted((forecast_from_transformations(port.transformations) or 0) for port in conflict_ports) == [2024, 2025]
 
     materialization = DatasetMaterialization.objects.get(dataset=promoted_dataset)
     assert materialization.generation == original_materialization.generation + 1
@@ -2568,7 +2565,6 @@ def test_dataset_port_forecast_from_not_promoted_for_external_placeholder(db_ins
     Dataset.spec.forecast_from (only DBDataset.from_def does). Promoting for these would clear
     the binding-level value with nothing left to read it back.
     """
-    from nodes.defs.node_defs import DatasetPortSpec
     from nodes.models import NodeInputPortBinding
     from nodes.spec_export import _promote_dataset_forecast_defaults
 
@@ -2582,7 +2578,7 @@ def test_dataset_port_forecast_from_not_promoted_for_external_placeholder(db_ins
         port_id=_port_uuid('input_a'),
         dataset=placeholder_dataset,
         metric=placeholder_metric,
-        dataset_spec=DatasetPortSpec.from_input_dataset(InputDatasetDef(id='ds', forecast_from=2025)),
+        transformations=InputDatasetDef(id='ds', forecast_from=2025).to_transformations(),
     )
 
     assert _promote_dataset_forecast_defaults(db_instance_config) == 0
@@ -2590,7 +2586,7 @@ def test_dataset_port_forecast_from_not_promoted_for_external_placeholder(db_ins
     placeholder_dataset.refresh_from_db()
     assert placeholder_dataset.spec == {}
     port = NodeInputPortBinding.objects.get(dataset=placeholder_dataset)
-    assert port.dataset_spec.forecast_from == 2025
+    assert forecast_from_transformations(port.transformations) == 2025
 
 
 def test_public_instance_nodes_hide_hidden_nodes_from_non_editors(client, db_instance_config: InstanceConfig):

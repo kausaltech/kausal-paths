@@ -443,8 +443,15 @@ def test_yaml_mode_imports_editor_edges_from_snapshot(db_source):
     assert ic_copy.config_source == 'yaml'
 
 
-def test_dataset_port_index_survives_export_import(db_source):
-    """A dataset binding's dataset_index round-trips, preserving multi-input binding order."""
+def test_dataset_binding_fanout_group_survives_export_import(db_source):
+    """
+    A column-less binding's fan-out rows survive the copy as one recoverable group.
+
+    The retired ``dataset_index`` column stored the fan-out grouping; the concept
+    is now derived from native fields, so what must round-trip is the group
+    itself: same (node identifier, dataset identifier, metric set, per-port
+    positions).
+    """
     import uuid as uuidlib
     from datetime import date
     from decimal import Decimal
@@ -459,7 +466,9 @@ def test_dataset_port_index_survives_export_import(db_source):
     )
 
     from nodes.instance_serialization import (
+        InputBindingSnapshot,
         export_instance,
+        group_unified_dataset_bindings,
         import_instance_datasets,
         import_instance_edges_and_ports,
         import_instance_nodes,
@@ -469,18 +478,20 @@ def test_dataset_port_index_survives_export_import(db_source):
     ic_src, node = db_source
     ct = ContentType.objects.get_for_model(ic_src)
     schema = DatasetSchemaFactory.create()
-    metric = DatasetMetricFactory.create(schema=schema, name='value', label='Value')
+    value_metric = DatasetMetricFactory.create(schema=schema, name='value', label='Value')
+    other_metric = DatasetMetricFactory.create(schema=schema, name='other', label='Other')
     ds = DatasetFactory.create(schema=schema, scope_content_type=ct, scope_id=ic_src.pk, identifier='port/ds')
-    DataPointFactory.create(dataset=ds, metric=metric, date=date(2023, 1, 1), value=Decimal(5))
-    NodeInputPortBinding.objects.create(
-        instance=ic_src,
-        node=node,
-        dataset=ds,
-        metric=metric,
-        port_id=uuidlib.uuid4(),
-        position=0,
-        dataset_index=3,
-    )
+    DataPointFactory.create(dataset=ds, metric=value_metric, date=date(2023, 1, 1), value=Decimal(5))
+    # One whole-frame (column-less) binding fanned out to one row per metric.
+    for metric in (value_metric, other_metric):
+        NodeInputPortBinding.objects.create(
+            instance=ic_src,
+            node=node,
+            dataset=ds,
+            metric=metric,
+            port_id=uuidlib.uuid4(),
+            position=0,
+        )
 
     export = export_instance(ic_src)
     ic_copy = InstanceConfigFactory.create(identifier='copytest-dst', name='dst', config_source='yaml')
@@ -490,10 +501,22 @@ def test_dataset_port_index_survives_export_import(db_source):
     datasets_by_id = {d.identifier: d for d in imported if d.identifier is not None}
     import_instance_edges_and_ports(ic_copy, export, nodes_by_id, datasets_by_id)
 
-    port = NodeInputPortBinding.objects.get(instance=ic_copy)
-    assert port.dataset is not None
-    assert port.dataset_index == 3
-    assert port.node_id in set(ic_copy.nodes.values_list('pk', flat=True))
+    copy_pks = set(ic_copy.nodes.values_list('pk', flat=True))
+    rows = list(NodeInputPortBinding.objects.filter(instance=ic_copy).select_related('node', 'dataset', 'metric'))
+    assert len(rows) == 2
+    assert all(row.node.identifier == 'net_emissions' for row in rows)
+    assert all(row.node_id in copy_pks for row in rows)
+    assert all(row.dataset is not None and row.dataset.identifier == 'port/ds' for row in rows)
+    assert {row.metric.name for row in rows if row.metric is not None} == {'value', 'other'}
+    assert [row.position for row in rows] == [0, 0]
+
+    # The fan-out group is recoverable from the copied rows' native fields.
+    copy_node = rows[0].node
+    snapshots = [(InputBindingSnapshot.from_model(row), row.position) for row in rows]
+    groups = group_unified_dataset_bindings(snapshots, {copy_node.uuid: copy_node.spec})
+    ((_spec, dataset_id, group_rows),) = groups[copy_node.uuid]
+    assert dataset_id == 'port/ds'
+    assert {r.uuid for r in group_rows} == {row.uuid for row in rows}
 
 
 # ---------------------------------------------------------------------------

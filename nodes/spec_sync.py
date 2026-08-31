@@ -17,8 +17,6 @@ from uuid import uuid3
 
 from loguru import logger
 
-from nodes.instance_serialization import DatasetPortSnapshot
-
 if TYPE_CHECKING:
     from collections.abc import Hashable
     from uuid import UUID
@@ -29,7 +27,7 @@ if TYPE_CHECKING:
     from datasets.validation_rules import ValidationRule
     from nodes.defs.graph import DatasetMeta
     from nodes.defs.node_defs import NodeSpec
-    from nodes.instance_serialization import InstanceSnapshot, NodeSnapshot
+    from nodes.instance_serialization import InputBindingSnapshot, InstanceSnapshot, NodeSnapshot
     from nodes.models import InstanceConfig, NodeConfig
     from nodes.yaml_port_refs import YamlPortReferenceCatalog
 
@@ -94,17 +92,17 @@ def resolve_dataset_port_snapshots(  # noqa: C901, PLR0912
     schemas: dict[str, DatasetSchemaInfo],
     *,
     port_references: YamlPortReferenceCatalog | None = None,
-) -> list[DatasetPortSnapshot]:
+) -> list[InputBindingSnapshot]:
     """
-    Resolve the parse-side dataset-port entries against the dataset schemas.
+    Resolve the parse-side dataset bindings against the dataset schemas.
 
-    The parser emits one entry per node-side column with ``metric`` set to the
-    column name (it has no schema access). This reproduces the pairing the
-    runtime export does in ``_binding_pairs_for_dataset``: name-match the
+    The parser emits one entry per node-side column with the source metric set
+    to the column name (it has no schema access). This reproduces the pairing
+    the runtime export does in ``_binding_pairs_for_dataset``: name-match the
     schema's metrics to the columns, fall back to keeping schema-metric-keyed
     rows when nothing pairs, and drop entries whose metric doesn't exist.
     """
-    from nodes.instance_serialization import DatasetPortSnapshot
+    from nodes.instance_serialization import DatasetMetricSource, InputBindingSnapshot, group_dataset_bindings
     from nodes.spec_export import pair_metrics_to_columns
 
     node_specs: dict[UUID, NodeSpec] = {}
@@ -114,69 +112,65 @@ def resolve_dataset_port_snapshots(  # noqa: C901, PLR0912
             raise ValueError(f'Node {n.uuid} has no identifier; dataset port IDs still require one')
         node_specs[n.uuid] = n.spec
 
-    # Group parse-side entries into bindings: (node, dataset_index) is binding identity.
-    bindings: dict[tuple[UUID, int], list[DatasetPortSnapshot]] = {}
-    for port in snapshot.dataset_bindings:
-        bindings.setdefault((port.node, port.dataset_index), []).append(port)
+    resolved: list[InputBindingSnapshot] = []
+    for node_id, node_groups in group_dataset_bindings(snapshot).items():
+        for ordinal, (group_spec, dataset_id, group) in enumerate(node_groups):
+            schema = schemas.get(dataset_id)
+            if schema is None:
+                raise ValueError(f'No dataset object for {dataset_id} on node {node_id}')
 
-    resolved: list[DatasetPortSnapshot] = []
-    for (node_id, dataset_index), ports in bindings.items():
-        first = ports[0]
-        spec = first.spec
-        dataset_id = first.dataset
-        schema = schemas.get(dataset_id)
-        if schema is None:
-            raise ValueError(f'No dataset object for {dataset_id} on node {node_id}')
-
-        columns = _binding_columns(spec.column, node_specs[node_id])
-        log_ctx = f'Dataset {dataset_id} on node {node_id}'
-        if spec.column is not None:
-            pairs = [(spec.column, spec.column)]
-        elif not schema.metric_keys:
-            pairs = [(column, column) for column in columns]
-        else:
-            pairs = pair_metrics_to_columns(columns, schema.metric_keys, log_ctx=log_ctx)
-            if not pairs:
-                logger.warning('%s: keeping bindings with unresolved port ids so the input dataset survives' % log_ctx)
-                pairs = [(name, name) for name in schema.metric_keys]
-
-        for port_column, metric_key in pairs:
-            metric_name = schema.metric_names.get(metric_key)
-            if metric_name is None:
-                if spec.column is not None:
-                    raise ValueError(f'No metric {metric_key} in dataset {dataset_id} for node {node_id}')
-                logger.debug('No metric %s in dataset %s for node %s; skipping binding' % (metric_key, dataset_id, node_id))
-                continue
-            source_port = next((port for port in ports if port.metric == port_column), None)
-            if source_port is not None:
-                port_id = source_port.port_id
+            authored_column = group_spec.column
+            columns = _binding_columns(authored_column, node_specs[node_id])
+            log_ctx = f'Dataset {dataset_id} on node {node_id}'
+            if authored_column is not None:
+                pairs = [(authored_column, authored_column)]
+            elif not schema.metric_keys:
+                pairs = [(column, column) for column in columns]
             else:
-                node_identifier = next(node.identifier for node in snapshot.nodes if node.uuid == node_id)
-                assert node_identifier is not None
-                fallback_id = _dataset_port_uuid(snapshot.metadata.uuid, node_identifier, dataset_index, port_column)
-                port_id = (
-                    port_references.dataset_port_id(
-                        node_id,
-                        dataset_id,
-                        dataset_index,
-                        port_column,
-                        fallback_id,
-                        allow_group_fallback=True,
-                        fail_on_ambiguous=True,
+                pairs = pair_metrics_to_columns(columns, schema.metric_keys, log_ctx=log_ctx)
+                if not pairs:
+                    logger.warning('%s: keeping bindings with unresolved port ids so the input dataset survives' % log_ctx)
+                    pairs = [(name, name) for name in schema.metric_keys]
+
+            for port_column, metric_key in pairs:
+                metric_name = schema.metric_names.get(metric_key)
+                if metric_name is None:
+                    if authored_column is not None:
+                        raise ValueError(f'No metric {metric_key} in dataset {dataset_id} for node {node_id}')
+                    logger.debug('No metric %s in dataset %s for node %s; skipping binding' % (metric_key, dataset_id, node_id))
+                    continue
+                source_row = next(
+                    (row for row in group if row.dataset_source is not None and row.dataset_source.metric == port_column),
+                    None,
+                )
+                if source_row is not None:
+                    port_id = source_row.port_id
+                else:
+                    node_identifier = next(node.identifier for node in snapshot.nodes if node.uuid == node_id)
+                    assert node_identifier is not None
+                    fallback_id = _dataset_port_uuid(snapshot.metadata.uuid, node_identifier, ordinal, port_column)
+                    port_id = (
+                        port_references.dataset_port_id(
+                            node_id,
+                            dataset_id,
+                            ordinal,
+                            port_column,
+                            fallback_id,
+                            allow_group_fallback=True,
+                            fail_on_ambiguous=True,
+                        )
+                        if port_references is not None
+                        else fallback_id
                     )
-                    if port_references is not None
-                    else fallback_id
+                resolved.append(
+                    InputBindingSnapshot(
+                        node_id=node_id,
+                        port_id=port_id,
+                        source=DatasetMetricSource(dataset=dataset_id, metric=metric_name),
+                        transformations=list(group_spec.transformations),
+                        tags=list(group_spec.tags),
+                    )
                 )
-            resolved.append(
-                DatasetPortSnapshot(
-                    node=node_id,
-                    dataset=dataset_id,
-                    port_id=port_id,
-                    metric=metric_name,
-                    dataset_index=dataset_index,
-                    spec=spec,
-                )
-            )
     return resolved
 
 
@@ -453,18 +447,20 @@ def _write_bindings(
         existing_dataset_port_identities,
         existing_edge_identities,
         match_preserved_uuids,
-        ordered_binding_snapshots,
+        ordered_unified_bindings,
     )
     from nodes.models import NodeInputPortBinding
     from nodes.spec_export import _get_db_datasets
 
     edges = snapshot.edge_bindings
+    edge_keys: list[tuple[Hashable, ...]] = []
+    for edge in edges:
+        edge_source = edge.node_source
+        assert edge_source is not None
+        edge_keys.append(edge_match_keys(edge_source.node_id, edge_source.port_id, edge.node_id, edge.port_id))
     authored_uuids = {edge.uuid for edge in edges if edge.uuid is not None}
     existing_edges = [item for item in existing_edge_identities(ic) if item[1] not in authored_uuids]
-    preserved_edge_uuids = match_preserved_uuids(
-        existing_edges,
-        [edge_match_keys(edge.from_node, edge.from_port, edge.to_node, edge.to_port) for edge in edges],
-    )
+    preserved_edge_uuids = match_preserved_uuids(existing_edges, edge_keys)
 
     schemas = collect_dataset_schema_info(ic)
     resolved = resolve_dataset_port_snapshots(snapshot, schemas, port_references=port_references)
@@ -476,57 +472,59 @@ def _write_bindings(
         identity = metric.name or str(metric.uuid)
         metric_by_identity[(metric.schema.pk, identity)] = metric
 
-    triples: list[tuple[DatasetPortSnapshot, DatasetModel, DatasetMetric]] = []
+    triples: list[tuple[InputBindingSnapshot, DatasetModel, DatasetMetric]] = []
     match_keys: list[tuple[Hashable, ...]] = []
-    for port in resolved:
-        dataset_obj = db_datasets[port.dataset]
+    for row in resolved:
+        row_source = row.dataset_source
+        assert row_source is not None
+        dataset_obj = db_datasets[row_source.dataset]
         assert dataset_obj.schema is not None
-        metric = metric_by_identity[(dataset_obj.schema.pk, port.metric)]
-        triples.append((port, dataset_obj, metric))
-        match_keys.append(dataset_port_match_keys(port.node, dataset_obj.pk, port.dataset_index, metric.pk))
+        metric = metric_by_identity[(dataset_obj.schema.pk, row_source.metric)]
+        triples.append((row, dataset_obj, metric))
+        match_keys.append(dataset_port_match_keys(row.node_id, dataset_obj.pk, metric.pk, row.port_id))
     preserved_port_uuids = match_preserved_uuids(existing_dataset_port_identities(ic), match_keys)
 
     edge_uuid_by_id = {id(edge): edge.uuid or matched for edge, matched in zip(edges, preserved_edge_uuids, strict=True)}
     port_row_by_id = {
-        id(port): (dataset_obj, metric, matched)
-        for (port, dataset_obj, metric), matched in zip(triples, preserved_port_uuids, strict=True)
+        id(row): (dataset_obj, metric, matched)
+        for (row, dataset_obj, metric), matched in zip(triples, preserved_port_uuids, strict=True)
     }
 
     desired: list[NodeInputPortBinding] = []
-    for item, position in ordered_binding_snapshots(edges, [port for port, _ds, _m in triples]):
-        if isinstance(item, DatasetPortSnapshot):
+    for item, position in ordered_unified_bindings(edges, [row for row, _ds, _m in triples]):
+        if item.dataset_source is not None:
             dataset_obj, metric, matched_uuid = port_row_by_id[id(item)]
             identity_kwargs = {'uuid': matched_uuid} if matched_uuid is not None else {}
             desired.append(
                 NodeInputPortBinding(
                     instance=ic,
-                    node=node_configs[item.node],
+                    node=node_configs[item.node_id],
                     port_id=item.port_id,
                     position=position,
                     dataset=dataset_obj,
                     metric=metric,
-                    transformations=list(item.spec.transformations),
-                    tags=list(item.spec.tags),
-                    dataset_spec=item.spec,
-                    dataset_index=item.dataset_index,
+                    transformations=list(item.transformations),
+                    tags=list(item.tags),
                     **identity_kwargs,
                 )
             )
             continue
-        from_nc = node_configs.get(item.from_node)
-        to_nc = node_configs.get(item.to_node)
+        item_source = item.node_source
+        assert item_source is not None
+        from_nc = node_configs.get(item_source.node_id)
+        to_nc = node_configs.get(item.node_id)
         if from_nc is None or to_nc is None:
-            raise ValueError(f'Edge references unknown node: {item.from_node} -> {item.to_node}')
+            raise ValueError(f'Edge references unknown node: {item_source.node_id} -> {item.node_id}')
         row_uuid = edge_uuid_by_id[id(item)]
         identity_kwargs = {'uuid': row_uuid} if row_uuid is not None else {}
         desired.append(
             NodeInputPortBinding(
                 instance=ic,
                 node=to_nc,
-                port_id=item.to_port,
+                port_id=item.port_id,
                 position=position,
                 source_node=from_nc,
-                source_port_id=item.from_port,
+                source_port_id=item_source.port_id,
                 transformations=list(item.transformations),
                 tags=list(item.tags),
                 **identity_kwargs,

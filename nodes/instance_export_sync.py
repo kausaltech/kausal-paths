@@ -196,17 +196,16 @@ def _target_dataset_ids_by_node(ic: InstanceConfig, export: InstanceExport) -> d
         .filter(is_external_placeholder=False, identifier__isnull=False)
         .values_list('identifier', flat=True)
     )
+    from nodes.instance_serialization import group_dataset_bindings
+
     result: dict[UUID, list[str]] = {}
-    ordered_ports = sorted(
-        export.instance.dataset_bindings,
-        key=lambda port: (str(port.node), port.dataset_index, str(port.port_id)),
-    )
-    for port in ordered_ports:
-        if port.dataset not in available:
-            continue
-        dataset_ids = result.setdefault(port.node, [])
-        if port.dataset not in dataset_ids:
-            dataset_ids.append(port.dataset)
+    for node_uuid, node_groups in group_dataset_bindings(export.instance).items():
+        for _spec, dataset_id, _rows in node_groups:
+            if dataset_id not in available:
+                continue
+            dataset_ids = result.setdefault(node_uuid, [])
+            if dataset_id not in dataset_ids:
+                dataset_ids.append(dataset_id)
     return result
 
 

@@ -577,20 +577,15 @@ class _SnapshotBinding:
 
 
 def _snapshot_bindings(snapshot: InstanceSnapshot) -> list[_SnapshotBinding]:
-    """
-    Collapse the snapshot's per-column port rows back into bindings, in node order.
+    """Collapse the snapshot's per-metric rows back into bindings via the shared grouping."""
+    from nodes.instance_serialization import group_dataset_bindings
 
-    ``dataset_ports`` holds one row per (binding, column); a binding is
-    identified by (node, dataset_index), so the rows collapse back into the
-    bindings the runtime iterates over.
-    """
-    bindings: dict[tuple[UUID, int], _SnapshotBinding] = {}
-    for port in snapshot.dataset_bindings:
-        key = (port.node, port.dataset_index)
-        if key in bindings:
-            continue
-        bindings[key] = _SnapshotBinding(node=port.node, dataset=port.dataset, spec=port.spec)
-    return list(bindings.values())
+    bindings: list[_SnapshotBinding] = []
+    for node_uuid, node_groups in group_dataset_bindings(snapshot).items():
+        bindings.extend(
+            _SnapshotBinding(node=node_uuid, dataset=dataset_id, spec=spec) for spec, dataset_id, _rows in node_groups
+        )
+    return bindings
 
 
 class _SnapshotUnitHints:
@@ -658,7 +653,7 @@ def _dvc_dataset_ids_from_snapshot(instance_config: InstanceConfig, snapshot: In
     the "already exists" lookup in :func:`_sync_dataset_placeholder`, which
     skips creation. Only the DVC load (and its report line) is avoided.
     """
-    ds_ids = {port.dataset for port in snapshot.dataset_bindings}
+    ds_ids = {source.dataset for port in snapshot.dataset_bindings if (source := port.dataset_source) is not None}
     if not ds_ids or not snapshot.spec.features.use_datasets_from_db:
         return ds_ids
     db_ds_ids = set(

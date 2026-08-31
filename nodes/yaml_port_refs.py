@@ -101,26 +101,38 @@ def build_yaml_port_reference_catalog(instance: InstanceConfig) -> YamlPortRefer
     specs = {node.uuid: node.spec for node in nodes if node.spec is not None}
     _index_spec_ports(nodes, output_ports=output_ports, input_roles=input_roles)
 
-    rows = NodeInputPortBinding.objects.filter(instance=instance).select_related('node', 'source_node', 'dataset', 'metric')
+    from nodes.instance_serialization import InputBindingSnapshot, group_unified_dataset_bindings
+
+    rows = (
+        NodeInputPortBinding.objects
+        .filter(instance=instance)
+        .select_related('node', 'source_node', 'dataset', 'metric')
+        .order_by('node_id', 'port_id', 'position')
+    )
+    dataset_row_snapshots: list[tuple[InputBindingSnapshot, int]] = []
     for binding in rows:
         if binding.source_node is not None:
             _add(edge_ports, (binding.node.uuid, binding.source_node.uuid, binding.source_port_id), binding.port_id)
             continue
-        assert binding.dataset is not None
-        assert binding.metric is not None
-        dataset_id = binding.dataset.identifier or str(binding.dataset.uuid)
-        group_key = (binding.node.uuid, dataset_id, binding.dataset_index)
-        dataset_groups[group_key].add(binding.port_id)
+        snap = InputBindingSnapshot.from_model(binding)
+        dataset_row_snapshots.append((snap, snap.position))
 
-        spec = specs.get(binding.node.uuid)
-        target_port = spec.input_port_by_id.get(binding.port_id) if spec is not None else None
-        selectors = {
-            binding.dataset_spec.column,
-            binding.metric.name,
-            str(target_port.identifier) if target_port is not None and target_port.identifier is not None else None,
-        }
-        for selector in selectors - {None}:
-            _add(dataset_ports, (*group_key, selector), binding.port_id)
+    for node_uuid, node_groups in group_unified_dataset_bindings(dataset_row_snapshots, specs).items():
+        for ordinal, (group_spec, dataset_id, group_rows) in enumerate(node_groups):
+            group_key = (node_uuid, dataset_id, ordinal)
+            node_spec = specs.get(node_uuid)
+            for row in group_rows:
+                dataset_groups[group_key].add(row.port_id)
+                row_source = row.dataset_source
+                assert row_source is not None
+                target_port = node_spec.input_port_by_id.get(row.port_id) if node_spec is not None else None
+                selectors = {
+                    group_spec.column,
+                    row_source.metric,
+                    str(target_port.identifier) if target_port is not None and target_port.identifier is not None else None,
+                }
+                for selector in selectors - {None}:
+                    _add(dataset_ports, (*group_key, selector), row.port_id)
 
     return YamlPortReferenceCatalog(
         output_ports=output_ports,

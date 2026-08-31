@@ -170,4 +170,6 @@ def test_zuerich_yaml_does_not_read_the_persisted_dataset_catalog(monkeypatch: p
     loader._stash_snapshot_bindings(snapshot)
 
     resolved_dataset_ids = {dataset.identifier for dataset in loader._instance_graph.datasets}
-    assert {binding.dataset for binding in snapshot.dataset_bindings} <= resolved_dataset_ids
+    assert {
+        binding.dataset_source.dataset for binding in snapshot.dataset_bindings if binding.dataset_source is not None
+    } <= resolved_dataset_ids

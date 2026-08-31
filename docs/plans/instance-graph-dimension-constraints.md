@@ -1240,14 +1240,144 @@ dataset revision isolation tests pass.
 - Remove snapshot identifier upgraders only when the supported revision window
   allows it; keep offline export upgrade tooling longer if needed.
 - Remove legacy multiplicative role inference and the split-binding projection.
-- Retire the transitional `dataset_spec` / `dataset_index` fields on
-  `NodeInputPortBinding` / `InputBindingSnapshot` once dataset loading executes
-  the transform pipeline directly; retire `EdgeSnapshot` /
-  `DatasetPortSnapshot` as the snapshot union members in the same move (the
-  YAML-era semantics they carry are exactly those fields).
+- ~~Retire the transitional `dataset_spec` / `dataset_index` fields on
+  `NodeInputPortBinding` / `InputBindingSnapshot`; retire `EdgeSnapshot` /
+  `DatasetPortSnapshot` as the snapshot union members in the same move~~
+  (done 2026-09-01, below; the carrier classes remain parse/sync-internal).
 - Retire the `NodeExplanationSystem` dict shim (`snapshot_nodes_to_config_dicts`).
-- Retire `DatasetPortSpec.output_dimensions` once schema + ops derive it
-  (the non-executing `flatten` placeholder is already gone — step 2).
+- ~~Retire `DatasetPortSpec.output_dimensions` once schema + ops derive it~~
+  (done 2026-08-31, below; the non-executing `flatten` placeholder was already
+  gone — step 2).
+
+Implementation note (2026-08-31, parse-oracle repair): before starting these
+slices the oracle's 4/53 state was diagnosed and fixed — two defects in the
+deprecated runtime-export path, not YAML drift. (a) `spec_export.
+sync_instance_to_db` loaded the runtime without an `InstanceConfig`, so
+parse-invented UUIDs (action groups and their `type_config.group` refs) were
+minted under the `NAMESPACE_URL` fallback namespace instead of `ic.uuid`; it
+now passes the existing config row in. (b) The loader mutated GenericNode
+binding defs with `interpolate/extend = True` before constructing a plain
+`GenericDataset`, so the class's unconditional fills leaked into
+`ds.transformations` and the export echoed them into stored specs;
+`GenericDataset._generic_transformation_groups()` now applies the fills at
+execution time (deduplicated against authored fills) and the mutation is gone.
+Oracle back to 53/53 after `--refresh`. Keep `spec_export` + the oracle alive
+until the `dataset_spec`/`dataset_index` slice lands — they are the regression
+net over exactly the serialization this slice rewrites — then retire both
+together. UI check for the GQL removals: kausal-paths-ui has zero uses of
+`supportedDimensions` and zero legacy `fromNodeId`/`toNodeId` GraphQL inputs
+(the assistant toolkit's same-named tool params resolve to UUIDs client-side),
+so the deprecated surface is removable when convenient.
+
+Implementation note (2026-08-31, `output_dimensions`): binding-level
+`output_dimensions` was already inert everywhere — the parser nulled it into
+specs, zero DB rows carried it, the runtime `Dataset.output_dimensions` had no
+behavioral read (cache-hash and debug-dump echoes only), and post-step-10 even
+the YAML-authored entries never reached the runtime because all paths go
+through the snapshot. Removed from `InputDatasetDef`, `DatasetPortSpec`
+(pre-validator pops the key from old stored rows/payloads), the `Dataset`
+dataclass, and the NES dataset-term fallback; the nine dead YAML keys
+(equalia, longmont-dev, moral_argumentation module) removed with it.
+
+Design note (2026-08-31, dataset_spec/dataset_index retirement — validated
+against all 1,580 dataset binding rows in the dev DB): `dataset_index` carries
+no information the native fields don't. Empirically, every fanned-out group
+(>1 row per (node, dataset, dataset_index)) is column-less on all rows; every
+repeat binding of one dataset on one node ((node, dataset) under several
+indexes — 27 cases) is a column-selecting singleton; and `column` always
+equals the bound metric's identity. So groups reconstruct as: a row whose
+pipeline selects a metric is its own singleton group; the column-less rows of
+one (node, dataset) form one whole-frame group — with one refinement, a
+metric repeating within the open group closes it (one fan-out enumerates each
+schema metric once, so a collision can only be a second binding of the same
+dataset; `dinspec` genuinely does this). `DatasetPortSpec.column` is
+redundant with the binding's `metric` FK + `SelectMetricOp` presence, and
+`input_dataset` (DVC path override) is dataset-source metadata (zero rows use
+it today; only the dead `helsinki` config authors it). Cross-group ordering
+follows input-port declaration order plus per-port position.
+
+Implementation note (2026-08-31, stage 2a of the retirement): the loader's
+grouping and ordering now use exactly that rule — `_group_dataset_bindings()`
+in `instance_loader.py` — verified identical to the `dataset_index` grouping
+on all 112 buildable snapshots (partitions and order), and gated with the
+full suites plus fleet compare. Groups feed `_make_node_datasets` as typed
+`InputDatasetDef`s; `_serialize_dataset_ports` survives only as the NES
+adapter. Runtime-input resolution maps binding rows to groups by object
+identity.
+
+Implementation note (2026-09-01, stages 2b+2c — dataset_spec/dataset_index
+retired, snapshot union flipped): snapshot v11 makes
+`InstanceSnapshot.bindings` a plain `list[InputBindingSnapshot]`;
+`DatasetMetricSource` gained `dataset_uuid` / `metric_uuid` /
+`dataset_revision` (the self-containment fields `DatasetPortSnapshot`
+carried); `InputBindingSnapshot` lost `dataset_spec` / `dataset_index`
+(I18nBaseModel ignores the keys on old change-history payloads); migration
+0073 drops both ORM columns. Decisions and mechanics:
+
+- `EdgeSnapshot` / `DatasetPortSnapshot` survive **only** as parse/sync-
+  internal carriers (parser fan-out, `ordered_binding_snapshots`, spec_export
+  row collection, migration 0061); `unified_binding_snapshots()` converts at
+  each production boundary. No consumer reconstructs the retired fields — the
+  reverse-mirror trap the staging existed to avoid.
+- `group_unified_dataset_bindings()` (instance_serialization) is the single
+  grouping authority: loader runtime construction, spec_sync resolution,
+  the NES dict shim, dataset placeholders, export ordering, the
+  `yaml_port_refs` catalog, and the GraphQL fan-out expansion
+  (`_dataset_binding_rows`) all derive groups and ordinals from it. The
+  parse/sync pipeline keeps the authored ordinal locally for the
+  deterministic `_dataset_port_uuid` seed and catalog keys.
+- The parser assigns positions at snapshot production; the sync write half
+  reassigns after schema resolution (fan-out can change cardinality);
+  `bindings_with_positions()` just reads stored values.
+- Dataset-row match keys became ((node, dataset, metric, port_id),
+  (node, dataset, metric)) — the ordinal term is gone; duplicates pair in
+  authored order.
+- Forecast-default promotion operates on the native `transformations` column
+  (`set_forecast_from` op); GraphQL reads (`tags`, `transformations`,
+  `forecastFrom`) come from native columns; `bindDataset` /
+  `updateDatasetBinding` write only them; `next_dataset_index` is gone.
+  Binding-level `input_dataset` left the persisted path (YAML-only until the
+  YAML era ends). GraphQL schema is byte-identical before/after.
+- Graph format bumped to v6 (uuid5 fallback binding seeds lost their ordinal
+  term).
+
+Gates: full pytest on a fresh test DB (2793+ green; the one failure was a
+fault-injection fixture naming the old field), repo mypy/ruff clean, cached
+oracle 53/53 (exercises the v10→v11 upgrader on the cached payloads), fresh
+`--refresh` oracle 53/53, fleet `test_instance --compare` (only the known
+stale mainz-bisko baseline), espoo double-sync idempotent including pks and
+uuids against the pre-change mirror rows.
+
+Original staging (kept for the record; all items above landed):
+
+- Snapshot v10: `InstanceSnapshot.bindings` becomes `list[InputBindingSnapshot]`;
+  `DatasetMetricSource` gains the self-containment fields `DatasetPortSnapshot`
+  carried (`dataset_uuid`, `metric_uuid`, `dataset_revision`);
+  `InputBindingSnapshot` drops `dataset_spec` / `dataset_index`. The v9→v10
+  upgrader resolves edge `from_node`/`to_node` identifiers to UUIDs from the
+  snapshot's own node list; pre-v9 forms go through the existing adapters
+  first. Change-history payload compatibility: `_resolve_target_kind` reads
+  `payload['source']['kind']`, which the new form preserves.
+- The parser assigns positions at snapshot production (it knows authored
+  order: per port, edges first, then dataset rows in authored-ordinal order),
+  retiring the `bindings_with_positions()` fallback and the `dataset_index`
+  sort key in `ordered_binding_snapshots`. The parse/sync pipeline keeps the
+  authored ordinal *locally* for grouping pre-resolution entries and for the
+  deterministic port-UUID fallback seed (`_dataset_port_uuid`) — it is
+  parse-derivable forever and need not be persisted.
+- Loader group construction consumes the new form: `InputDatasetDef(id=
+  source.dataset, transformations=…, column=metric-if-selecting, tags=…)`;
+  binding-level `input_dataset` is dropped from the persisted path (stays
+  YAML-authorable only until the YAML era ends).
+- GraphQL: `_dataset_binding_rows` expands the anchor row to its group by the
+  same chain rule (port order + position, metric collision); `bindDataset` /
+  `updateDatasetBinding` / `_to_gql` move onto the native `transformations` /
+  `tags` columns; `next_dataset_index` retires.
+- ORM: drop both columns (migration), update `_ROW_FIELDS`, match keys
+  (`dataset_port_match_keys` loses the strict `dataset_index` key),
+  `yaml_port_refs` / `dataset_placeholders` / `instance_export_sync` /
+  `parse_oracle` group keys, `setup_cads` passthrough, and the eight test
+  files the inventory lists.
 
 Implementation note (2026-08-31, `supported_dimensions`): the audit found
 no independently authored occurrence anywhere — zero in YAML configs, and

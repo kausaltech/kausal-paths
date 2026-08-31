@@ -32,11 +32,10 @@ if TYPE_CHECKING:
 
     from kausal_common.i18n.pydantic import I18nString
 
-    from nodes.defs.node_defs import NodeSpec
+    from nodes.defs.node_defs import DatasetPortSpec, NodeSpec
     from nodes.defs.transform_def import FilterDimensionOp, PortTransformOp
     from nodes.instance_serialization import (
-        DatasetPortSnapshot,
-        EdgeSnapshot,
+        InputBindingSnapshot,
         InstanceSnapshot,
         NodeSnapshot,
     )
@@ -119,10 +118,10 @@ def snapshot_nodes_to_config_dicts(snapshot: InstanceSnapshot) -> tuple[list[dic
         specs_by_uuid[n.uuid] = n.spec
         identifiers_by_uuid[n.uuid] = n.identifier
 
+    from nodes.instance_serialization import group_dataset_bindings
+
     _output_edges, input_edges = _build_edge_maps(snapshot.edge_bindings, specs_by_uuid, identifiers_by_uuid)
-    dataset_ports_by_node: defaultdict[UUID, list[DatasetPortSnapshot]] = defaultdict(list)
-    for port in sorted(snapshot.dataset_bindings, key=lambda p: (p.node, p.dataset_index, str(p.port_id))):
-        dataset_ports_by_node[port.node].append(port)
+    dataset_groups_by_node = group_dataset_bindings(snapshot)
 
     nodes_list: list[dict[str, Any]] = []
     actions_list: list[dict[str, Any]] = []
@@ -130,7 +129,7 @@ def snapshot_nodes_to_config_dicts(snapshot: InstanceSnapshot) -> tuple[list[dic
         node_dict = _serialize_node_config(
             n,
             input_nodes=input_edges.get(n.uuid, []),
-            dataset_ports=dataset_ports_by_node.get(n.uuid, []),
+            dataset_groups=dataset_groups_by_node.get(n.uuid, []),
             action_group_ids_by_uuid=action_group_ids_by_uuid,
         )
         spec = specs_by_uuid[n.uuid]
@@ -145,7 +144,7 @@ def snapshot_nodes_to_config_dicts(snapshot: InstanceSnapshot) -> tuple[list[dic
 def _serialize_node_config(  # noqa: C901, PLR0912, PLR0915
     n: NodeSnapshot,
     input_nodes: list[dict[str, Any]],
-    dataset_ports: list[DatasetPortSnapshot],
+    dataset_groups: list[tuple[DatasetPortSpec, str, list[InputBindingSnapshot]]],
     action_group_ids_by_uuid: dict[UUID, str] | None = None,
 ) -> dict[str, Any]:
     assert n.spec is not None
@@ -239,7 +238,7 @@ def _serialize_node_config(  # noqa: C901, PLR0912, PLR0915
             node['no_effect_value'] = tc.no_effect_value
 
     # Datasets from explicit port bindings; dimensions from spec.
-    input_datasets = _serialize_dataset_ports(dataset_ports)
+    input_datasets = _serialize_dataset_groups(dataset_groups)
     if input_datasets:
         node['input_datasets'] = input_datasets
     if spec.input_dimensions:
@@ -270,41 +269,13 @@ def _serialize_node_config(  # noqa: C901, PLR0912, PLR0915
     return node
 
 
-def _dataset_port_group_key(port: DatasetPortSnapshot) -> tuple[int, str]:
-    """
-    Identify the binding a port belongs to.
-
-    ``dataset_index`` *is* binding identity — it is the position of the binding
-    in the owning node's ``input_dataset_instances``, and several ports share it
-    when one column-less binding expands to a port per metric. The dataset id is
-    part of the key only as a safety net for rows written before
-    ``dataset_index`` existed (migration 0043 has no backfill, so those all have
-    index 0); a re-sync makes it redundant.
-    """
-    return (port.dataset_index, port.dataset)
-
-
-def _serialize_dataset_ports(dataset_ports: list[DatasetPortSnapshot]) -> list[dict[str, Any]]:
-    grouped: dict[tuple[int, str], list[DatasetPortSnapshot]] = {}
-    for port in dataset_ports:
-        grouped.setdefault(_dataset_port_group_key(port), []).append(port)
-
+def _serialize_dataset_groups(
+    dataset_groups: list[tuple[DatasetPortSpec, str, list[InputBindingSnapshot]]],
+) -> list[dict[str, Any]]:
+    """YAML-shaped ``input_datasets`` entries from the shared binding grouping."""
     input_datasets: list[dict[str, Any]] = []
-    for (dataset_index, dataset_id), ports in grouped.items():
-        first = ports[0]
-        specs = {port.spec.model_dump_json(exclude_defaults=True, exclude_none=True) for port in ports}
-        if len(specs) > 1:
-            # The spec belongs to the binding, not to the individual port. A
-            # divergence means the DB mirror is stale or was edited per-port;
-            # the first port wins, and a re-sync fixes it.
-            logger.warning(
-                'Node {}: dataset ports for binding {} ({}) have {} differing specs; using the first',
-                first.node,
-                dataset_index,
-                dataset_id,
-                len(specs),
-            )
-        ds_def = first.spec.to_input_dataset(id=dataset_id)
+    for spec, dataset_id, _rows in dataset_groups:
+        ds_def = spec.to_input_dataset(id=dataset_id)
         input_datasets.append(ds_def.model_dump(mode='json', exclude_defaults=True, exclude_none=True))
     return input_datasets
 
@@ -385,20 +356,24 @@ def _transforms_to_config(
 
 
 def _build_edge_maps(  # noqa: C901, PLR0912
-    edges: Sequence[EdgeSnapshot],
+    edges: Sequence[InputBindingSnapshot],
     specs_by_uuid: dict[UUID, NodeSpec],
     identifiers_by_uuid: dict[UUID, str],
 ) -> tuple[dict[UUID, list[dict[str, Any]]], dict[UUID, list[dict[str, Any]]]]:
     output_edges: dict[UUID, list[dict[str, Any]]] = {}
     input_edges_with_order: defaultdict[UUID, list[tuple[int, dict[str, Any]]]] = defaultdict(list)
 
-    edge_metrics: defaultdict[UUID, defaultdict[UUID, list[tuple[str, EdgeSnapshot]]]] = defaultdict(lambda: defaultdict(list))
+    edge_metrics: defaultdict[UUID, defaultdict[UUID, list[tuple[str, InputBindingSnapshot]]]] = defaultdict(
+        lambda: defaultdict(list)
+    )
 
     for edge in edges:
-        from_spec = specs_by_uuid[edge.from_node]
-        from_port = from_spec.output_port_by_id[edge.from_port]
+        edge_source = edge.node_source
+        assert edge_source is not None
+        from_spec = specs_by_uuid[edge_source.node_id]
+        from_port = from_spec.output_port_by_id[edge_source.port_id]
         column_id = from_port.column_id or VALUE_COLUMN
-        edge_metrics[edge.from_node][edge.to_node].append((column_id, edge))
+        edge_metrics[edge_source.node_id][edge.node_id].append((column_id, edge))
 
     for from_node_id, to_nodes in edge_metrics.items():
         from_spec = specs_by_uuid[from_node_id]
@@ -432,7 +407,7 @@ def _build_edge_maps(  # noqa: C901, PLR0912
                 for entry in (from_entry, to_entry):
                     entry['tags'] = tags
             to_spec = specs_by_uuid[to_node_id]
-            to_port = to_spec.input_port_by_id[first_edge.to_port]
+            to_port = to_spec.input_port_by_id[first_edge.port_id]
             if transforms or to_port.required_dimensions:
                 config = _transforms_to_config(
                     transforms,
@@ -447,7 +422,7 @@ def _build_edge_maps(  # noqa: C901, PLR0912
             output_edges.setdefault(from_node_id, []).append(to_entry)
             input_port_order = {port.id: idx for idx, port in enumerate(to_spec.input_ports)}
             input_edges_with_order[to_node_id].append((
-                input_port_order.get(first_edge.to_port, len(input_port_order)),
+                input_port_order.get(first_edge.port_id, len(input_port_order)),
                 from_entry,
             ))
 

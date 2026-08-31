@@ -14,7 +14,13 @@ from nodes.defs.node_defs import DatasetPortSpec, NodeSpec, SimpleConfig
 from nodes.defs.port_def import InputPortDef, OutputPortDef
 from nodes.defs.transform_def import AssignDimensionOp, FilterDimensionOp
 from nodes.instance_graph import InstanceGraph, build_instance_graph
-from nodes.instance_serialization import DatasetPortSnapshot, EdgeSnapshot, InstanceSnapshot, NodeSnapshot
+from nodes.instance_serialization import (
+    DatasetPortSnapshot,
+    EdgeSnapshot,
+    InstanceSnapshot,
+    NodeSnapshot,
+    unified_binding_snapshots,
+)
 from nodes.node import Node
 from nodes.units import unit_registry
 
@@ -83,7 +89,7 @@ def _build(
             metadata=InstanceMetadata(uuid=uuid4(), identifier='solver-test', name='Solver test'),
             spec=InstanceModelSpec(),
             nodes=nodes,
-            bindings=[*edges, *(dataset_ports or [])],
+            bindings=unified_binding_snapshots(edges, dataset_ports or []),
             dimensions=list(dimensions),
             datasets=list(datasets),
         )

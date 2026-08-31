@@ -267,7 +267,7 @@ def test_construction_tolerates_bad_edge():
     )
     # A stale target-port reference, as a DB draft can hold after port edits.
     edge = snapshot.edge_bindings[0]
-    edge.to_port = uuid4()
+    edge.port_id = uuid4()
     ctx = InstanceLoader(snapshot=snapshot, tolerate_node_failures=True).context
 
     assert ctx.nodes['dangling'].status is NodeStatus.FAILED

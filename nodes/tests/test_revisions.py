@@ -14,11 +14,13 @@ from kausal_common.i18n.pydantic import TranslatedString
 
 from nodes.defs.instance_defs import InstanceModelSpec, YearsSpec
 from nodes.defs.node_defs import ActionConfig, DatasetPortSpec, InputDatasetDef, NodeSpec
+from nodes.defs.transform_def import forecast_from_transformations
 from nodes.instance_serialization import (
     SNAPSHOT_SCHEMA_VERSION,
-    DatasetPortSnapshot,
-    EdgeSnapshot,
+    DatasetMetricSource,
+    InputBindingSnapshot,
     InstanceSnapshot,
+    NodePortSource,
     NodeSnapshot,
     build_instance_snapshot,
 )
@@ -30,6 +32,12 @@ if TYPE_CHECKING:
 
 
 pytestmark = pytest.mark.django_db
+
+
+def _edge_source(binding: InputBindingSnapshot) -> NodePortSource:
+    source = binding.node_source
+    assert source is not None
+    return source
 
 
 @pytest.fixture
@@ -74,18 +82,19 @@ def test_instance_snapshot_json_round_trip():
             )
         ],
         bindings=[
-            EdgeSnapshot(
-                from_node=node_1_uuid,
-                to_node=node_2_uuid,
-                from_port=uuid.UUID('33191571-e9c8-45ac-b624-cc0a04341d37'),
-                to_port=uuid.UUID('796076a8-426b-4068-ac57-e3e333d0ef0a'),
+            InputBindingSnapshot(
+                node_id=node_2_uuid,
+                port_id=uuid.UUID('796076a8-426b-4068-ac57-e3e333d0ef0a'),
+                source=NodePortSource(
+                    node_id=node_1_uuid,
+                    port_id=uuid.UUID('33191571-e9c8-45ac-b624-cc0a04341d37'),
+                ),
             ),
-            DatasetPortSnapshot(
-                node=node_1_uuid,
-                dataset='ds',
+            InputBindingSnapshot(
+                node_id=node_1_uuid,
                 port_id=uuid.UUID('6c8b0551-7ccf-472b-94db-26f513d706dc'),
-                metric='m',
-                spec=DatasetPortSpec.from_input_dataset(InputDatasetDef(id='ds', forecast_from=2025)),
+                source=DatasetMetricSource(dataset='ds', metric='m'),
+                transformations=DatasetPortSpec.from_input_dataset(InputDatasetDef(id='ds', forecast_from=2025)).transformations,
             ),
         ],
     )
@@ -94,8 +103,8 @@ def test_instance_snapshot_json_round_trip():
 
     reloaded = InstanceSnapshot.model_validate(dumped)
     assert reloaded.nodes[0].identifier == 'n1'
-    assert reloaded.edge_bindings[0].from_node == node_1_uuid
-    assert reloaded.dataset_bindings[0].spec.forecast_from == 2025
+    assert _edge_source(reloaded.edge_bindings[0]).node_id == node_1_uuid
+    assert forecast_from_transformations(reloaded.dataset_bindings[0].transformations) == 2025
     assert reloaded.schema_version == SNAPSHOT_SCHEMA_VERSION
 
 
@@ -135,8 +144,8 @@ def test_snapshot_v8_upgrade_merges_legacy_binding_arrays():
     assert snapshot.schema_version == SNAPSHOT_SCHEMA_VERSION
     # On a shared port, the edge comes first — the same order
     # ordered_binding_snapshots always produced.
-    assert [(b.kind, b.uuid, b.position) for b in snapshot.bindings] == [
-        ('edge', edge_uuid, 0),
+    assert [(b.source.kind, b.uuid, b.position) for b in snapshot.bindings] == [
+        ('node', edge_uuid, 0),
         ('dataset', port_uuid, 1),
     ]
 
@@ -257,8 +266,8 @@ def test_instance_snapshot_upgrades_legacy_identifier_references():
 
     assert snapshot.schema_version == SNAPSHOT_SCHEMA_VERSION
     assert snapshot.nodes[0].uuid == node_uuid
-    assert snapshot.edge_bindings[0].from_node == node_uuid
-    assert snapshot.dataset_bindings[0].node == node_uuid
+    assert _edge_source(snapshot.edge_bindings[0]).node_id == node_uuid
+    assert snapshot.dataset_bindings[0].node_id == node_uuid
 
 
 def test_instance_snapshot_upgrades_v3_node_metadata():
@@ -392,7 +401,7 @@ def test_build_instance_snapshot_does_not_hydrate_related_specs(empty_db_instanc
     with CaptureQueriesContext(connection) as queries:
         snapshot = build_instance_snapshot(empty_db_instance)
 
-    assert [(edge.from_node, edge.to_node) for edge in snapshot.edge_bindings] == [(source.uuid, target.uuid)]
+    assert [(_edge_source(edge).node_id, edge.node_id) for edge in snapshot.edge_bindings] == [(source.uuid, target.uuid)]
     node_sql = next(query['sql'] for query in queries if 'FROM "nodes_nodeconfig"' in query['sql'])
     binding_sql = next(query['sql'] for query in queries if 'FROM "nodes_nodeinputportbinding"' in query['sql'])
     assert 'JOIN "nodes_instanceconfig"' not in node_sql
@@ -826,8 +835,6 @@ def test_dataset_save_revision_updates_latest_revision():
 def test_dataset_binding_snapshot_pins_dataset_revision(empty_db_instance: InstanceConfig):
     from kausal_common.datasets.tests.factories import DatasetFactory, DatasetMetricFactory
 
-    from nodes.instance_serialization import DatasetPortSnapshot
-
     ds = DatasetFactory.create()
     metric = DatasetMetricFactory.create(schema=ds.schema, name='m1', label='M', unit='kt/a')
     ds.save_revision()
@@ -847,8 +854,9 @@ def test_dataset_binding_snapshot_pins_dataset_revision(empty_db_instance: Insta
     # revision, so the snapshot is deterministically reconstructible.
     snapshot = build_instance_snapshot(empty_db_instance)
     (binding,) = snapshot.bindings
-    assert isinstance(binding, DatasetPortSnapshot)
-    assert binding.dataset_revision == pinned_rev
+    source = binding.dataset_source
+    assert source is not None
+    assert source.dataset_revision == pinned_rev
 
 
 def _make_materialized_dataset(instance_config: InstanceConfig, identifier: str, value: str):
@@ -1090,7 +1098,7 @@ def test_revision_dataset_payload_store_bulk_loads_once(empty_db_instance: Insta
     from nodes.datasets import DatasetPayloadRef, RevisionDatasetPayloadStore
 
     node = NodeConfigFactory.create(instance=empty_db_instance, identifier='owner', name='Owner')
-    for dataset_index, (identifier, value) in enumerate([('published-one', '1'), ('published-two', '2')]):
+    for identifier, value in [('published-one', '1'), ('published-two', '2')]:
         dataset, metric, _point, _materialization = _make_materialized_dataset(
             empty_db_instance,
             identifier,
@@ -1102,7 +1110,6 @@ def test_revision_dataset_payload_store_bulk_loads_once(empty_db_instance: Insta
             port_id=uuid.uuid4(),
             dataset=dataset,
             metric=metric,
-            dataset_index=dataset_index,
         )
     empty_db_instance.publish_instance()
     empty_db_instance.refresh_from_db()

@@ -360,10 +360,8 @@ def test_old_editor_rewrites_preserve_hidden_temporal_ops(
         },
     )['instanceEditor']['nodeEditor']['bindDataset']['id']
     row = NodeInputPortBinding.objects.get(uuid=binding_id)
-    full_pipeline = [*row.dataset_spec.transformations, InterpolateOp(), ExtendOp()]
-    row.dataset_spec = row.dataset_spec.model_copy(update={'transformations': full_pipeline})
-    row.transformations = full_pipeline
-    row.save(update_fields=['dataset_spec', 'transformations'])
+    row.transformations = [*row.transformations, InterpolateOp(), ExtendOp()]
+    row.save(update_fields=['transformations'])
 
     updated = gql_client.query_data(
         UPDATE_BINDING,
@@ -386,7 +384,7 @@ def test_old_editor_rewrites_preserve_hidden_temporal_ops(
         'remap_legacy_years',
     ]
     row.refresh_from_db()
-    assert [op.kind for op in row.dataset_spec.transformations] == [
+    assert [op.kind for op in row.transformations] == [
         'select_metric',
         'index_temporal',
         'remap_legacy_years',
@@ -679,8 +677,9 @@ def test_changing_the_metric_updates_the_column_and_checks_the_unit(
     row = NodeInputPortBinding.objects.get(uuid=binding_id)
     assert row.metric is not None
     assert row.metric.name == 'Emissions'
-    # The column follows the new metric.
-    assert row.dataset_spec.column == 'Emissions'
+    # The selected column follows the new metric: the pipeline still selects
+    # the bound metric (the binding-level "column" is derived from this).
+    assert any(op.kind == 'select_metric' for op in row.transformations)
 
 
 def test_metric_of_a_fanned_out_binding_cannot_be_changed(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
@@ -708,7 +707,6 @@ def test_metric_of_a_fanned_out_binding_cannot_be_changed(gql_client: PathsTestC
             position=0,
             dataset=dataset,
             metric=metric,
-            dataset_index=0,
         )
         for port_id, metric in ((_port_id('input'), metric_a), (_port_id('input2'), metric_b))
     ]

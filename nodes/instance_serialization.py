@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from datetime import date, datetime
-from typing import TYPE_CHECKING, Annotated, Any, Literal, Self, cast
+from typing import TYPE_CHECKING, Any, Literal, Self, cast
 from uuid import UUID, uuid3
 
 from django.db import transaction
@@ -51,7 +51,7 @@ from nodes.defs.transform_def import EdgeTransformOp, PortTransformOp
 from nodes.page_snapshot import PageSnapshot
 
 if TYPE_CHECKING:
-    from collections.abc import Hashable, Iterable, Sequence
+    from collections.abc import Hashable, Iterable, Mapping, Sequence
 
     from django.contrib.contenttypes.models import ContentType
     from django.db.models import Model, QuerySet
@@ -83,7 +83,7 @@ if TYPE_CHECKING:
 #       replaces the ``edges`` + ``dataset_ports`` arrays.
 #   v10: action groups have stable UUIDs and action node group references
 #        use those UUIDs instead of human-readable identifiers.
-SNAPSHOT_SCHEMA_VERSION = 10
+SNAPSHOT_SCHEMA_VERSION = 11
 
 _MARKDOWN = MarkdownIt('commonmark', {'html': True})
 
@@ -567,11 +567,57 @@ def _upgrade_bindings_v9(data: dict[str, Any]) -> None:
     """Merge the legacy ``edges`` + ``dataset_ports`` arrays into one positioned binding list."""
     edges = [EdgeSnapshot.model_validate(e) for e in data.pop('edges', [])]
     ports = [DatasetPortSnapshot.model_validate(p) for p in data.pop('dataset_ports', [])]
-    bindings: list[BindingSnapshot] = []
+    bindings: list[dict[str, Any]] = []
     for item, position in ordered_binding_snapshots(edges, ports):
         item.position = position
-        bindings.append(item)
+        # Dumped so the v11 upgrader (which operates on raw dicts) sees them.
+        bindings.append(item.model_dump(mode='json'))
     data['bindings'] = bindings
+
+
+def _upgrade_bindings_v11(data: dict[str, Any]) -> None:
+    """
+    Convert the kind-discriminated edge/dataset binding entries to the unified form.
+
+    v9/v10 stored ``EdgeSnapshot`` / ``DatasetPortSnapshot`` payloads; v11 stores
+    ``InputBindingSnapshot``. The dataset entry's ``spec`` may still be in a
+    pre-pipeline stored shape, so it is normalized through ``DatasetPortSpec``
+    before its transformations and tags move onto the binding.
+    """
+    upgraded: list[dict[str, Any]] = []
+    for entry in data.get('bindings', []):
+        if not isinstance(entry, dict):
+            upgraded.append(entry)
+            continue
+        if entry.get('kind') == 'edge':
+            upgraded.append({
+                'uuid': entry.get('uuid'),
+                'node_id': entry['to_node'],
+                'port_id': entry['to_port'],
+                'position': entry.get('position') or 0,
+                'source': {'kind': 'node', 'node_id': entry['from_node'], 'port_id': entry['from_port']},
+                'transformations': entry.get('transformations') or [],
+                'tags': entry.get('tags') or [],
+            })
+            continue
+        spec = DatasetPortSpec.model_validate(entry.get('spec') or {})
+        upgraded.append({
+            'uuid': entry.get('uuid'),
+            'node_id': entry['node'],
+            'port_id': entry['port_id'],
+            'position': entry.get('position') or 0,
+            'source': {
+                'kind': 'dataset',
+                'dataset': entry['dataset'],
+                'metric': entry['metric'],
+                'dataset_uuid': entry.get('dataset_uuid'),
+                'metric_uuid': entry.get('metric_uuid'),
+                'dataset_revision': entry.get('dataset_revision'),
+            },
+            'transformations': [op.model_dump(mode='json') for op in spec.transformations],
+            'tags': list(spec.tags),
+        })
+    data['bindings'] = upgraded
 
 
 def _upgrade_action_group_references_v10(data: dict[str, Any]) -> None:  # noqa: C901
@@ -639,13 +685,17 @@ class DatasetMetricSource(BaseModel):
     """
     An input-binding source: one metric of a dataset.
 
-    Natural references keep portable exports restore-stable, matching the
-    dataset snapshot boundary (``DatasetPortSnapshot.dataset`` / ``metric``).
+    Natural references keep portable exports restore-stable; the UUIDs pin
+    the structural identity so published semantics survive renames, and the
+    revision records what a published snapshot computed from.
     """
 
     kind: Literal['dataset'] = 'dataset'
     dataset: str
     metric: str
+    dataset_uuid: UUID | None = None
+    metric_uuid: UUID | None = None
+    dataset_revision: int | None = None
 
 
 type InputBindingSource = NodePortSource | DatasetMetricSource
@@ -655,10 +705,10 @@ class InputBindingSnapshot(ModelSnapshot):
     """
     Snapshot form of one ``NodeInputPortBinding`` row.
 
-    Not yet part of ``InstanceSnapshot`` — the snapshot schema still carries
-    the legacy ``edges`` + ``dataset_ports`` arrays. This exists as the
-    row-level ``snapshot_model`` (change history, revisions) until the
-    unified-binding snapshot upgrade lands.
+    The single binding form of ``InstanceSnapshot.bindings`` (v11) and the
+    row-level ``snapshot_model`` (change history, revisions). Old payloads
+    carrying the retired ``dataset_spec`` / ``dataset_index`` fields stay
+    loadable; the keys are ignored (``I18nBaseModel`` ignores extra keys).
     """
 
     uuid: UUID | None = None
@@ -668,12 +718,6 @@ class InputBindingSnapshot(ModelSnapshot):
     source: InputBindingSource = Field(discriminator='kind')
     transformations: list[PortTransformOp] = Field(default_factory=list)
     tags: list[str] = Field(default_factory=list)
-    # Transitional dataset-branch state, mirroring the row fields: the runtime
-    # still consumes DatasetPortSpec whole and groups fanned-out per-metric
-    # rows by (node, dataset_index). Both die in plan step 11 once dataset
-    # loading executes the transform pipeline directly.
-    dataset_spec: DatasetPortSpec = Field(default_factory=DatasetPortSpec)
-    dataset_index: int = 0
 
     @classmethod
     def from_model(cls, obj: NodeInputPortBinding) -> Self:
@@ -688,6 +732,8 @@ class InputBindingSnapshot(ModelSnapshot):
             source = DatasetMetricSource(
                 dataset=obj.dataset.identifier or str(obj.dataset.uuid),
                 metric=obj.metric.name or str(obj.metric.uuid),
+                dataset_uuid=obj.dataset.uuid,
+                metric_uuid=obj.metric.uuid,
             )
         return cls(
             uuid=obj.uuid,
@@ -697,9 +743,19 @@ class InputBindingSnapshot(ModelSnapshot):
             source=source,
             transformations=list(obj.transformations or []),
             tags=list(obj.tags or []),
-            dataset_spec=obj.dataset_spec,
-            dataset_index=obj.dataset_index,
         )
+
+    @property
+    def dataset_source(self) -> DatasetMetricSource | None:
+        return self.source if isinstance(self.source, DatasetMetricSource) else None
+
+    @property
+    def node_source(self) -> NodePortSource | None:
+        return self.source if isinstance(self.source, NodePortSource) else None
+
+    def selects_metric(self) -> bool:
+        """Whether this binding picks one metric column out of a wide frame."""
+        return any(op.kind == 'select_metric' for op in self.transformations)
 
 
 def ordered_binding_snapshots(
@@ -733,6 +789,145 @@ def ordered_binding_snapshots(
     for port in sorted_ports:
         key = (port.node, port.port_id)
         result.append((port, positions[key]))
+        positions[key] += 1
+    return result
+
+
+def unified_binding_snapshots(
+    edges: Sequence[EdgeSnapshot],
+    dataset_ports: Sequence[DatasetPortSnapshot],
+) -> list[InputBindingSnapshot]:
+    """
+    Order production-side carriers canonically and convert to the unified form.
+
+    ``EdgeSnapshot`` / ``DatasetPortSnapshot`` survive only as parse/sync-internal
+    carriers (they hold the authored ordinal and pre-resolution spec state the
+    production pipeline needs); everything persisted or consumed downstream is
+    ``InputBindingSnapshot``.
+    """
+    result: list[InputBindingSnapshot] = []
+    for item, position in ordered_binding_snapshots(edges, dataset_ports):
+        if isinstance(item, EdgeSnapshot):
+            result.append(
+                InputBindingSnapshot(
+                    uuid=item.uuid,
+                    node_id=item.to_node,
+                    port_id=item.to_port,
+                    position=position,
+                    source=NodePortSource(node_id=item.from_node, port_id=item.from_port),
+                    transformations=list(item.transformations),
+                    tags=list(item.tags),
+                )
+            )
+            continue
+        result.append(
+            InputBindingSnapshot(
+                uuid=item.uuid,
+                node_id=item.node,
+                port_id=item.port_id,
+                position=position,
+                source=DatasetMetricSource(
+                    dataset=item.dataset,
+                    metric=item.metric,
+                    dataset_uuid=item.dataset_uuid,
+                    metric_uuid=item.metric_uuid,
+                    dataset_revision=item.dataset_revision,
+                ),
+                transformations=list(item.spec.transformations),
+                tags=list(item.spec.tags),
+            )
+        )
+    return result
+
+
+def group_dataset_bindings(
+    snapshot: InstanceSnapshot,
+) -> dict[UUID, list[tuple[DatasetPortSpec, str, list[InputBindingSnapshot]]]]:
+    """Recover per-node dataset binding groups from a snapshot; see ``group_unified_dataset_bindings``."""
+    port_specs_by_node = {node.uuid: node.spec for node in snapshot.nodes if node.spec is not None}
+    dataset_rows = [(item, position) for item, position in snapshot.bindings_with_positions() if item.dataset_source is not None]
+    return group_unified_dataset_bindings(dataset_rows, port_specs_by_node)
+
+
+def group_unified_dataset_bindings(
+    dataset_rows: Sequence[tuple[InputBindingSnapshot, int]],
+    port_specs_by_node: Mapping[UUID, NodeSpec | None],
+) -> dict[UUID, list[tuple[DatasetPortSpec, str, list[InputBindingSnapshot]]]]:
+    """
+    Recover per-node dataset binding groups from native fields only.
+
+    A row whose pipeline selects a metric is a single-metric binding and forms
+    its own group; the column-less rows of one (node, dataset) are the
+    per-metric fan-out of a single whole-frame binding and collapse back into
+    one group — with one refinement: one fan-out enumerates each schema metric
+    once, so a metric repeating in the open group can only start the next
+    binding of the same dataset. Group order per node follows (input-port
+    declaration order, per-port position), which is the authored order the
+    fan-out was created in; a group's index is the authored ordinal the retired
+    ``dataset_index`` column carried.
+
+    Returns per node: (binding-level spec, dataset identifier, rows).
+    """
+    from collections import defaultdict
+
+    rows_by_node: defaultdict[UUID, list[tuple[InputBindingSnapshot, int]]] = defaultdict(list)
+    for item, position in dataset_rows:
+        rows_by_node[item.node_id].append((item, position))
+
+    groups_by_node: dict[UUID, list[tuple[DatasetPortSpec, str, list[InputBindingSnapshot]]]] = {}
+    for node_uuid, node_rows in rows_by_node.items():
+        node_spec = port_specs_by_node.get(node_uuid)
+        port_order = {port.id: index for index, port in enumerate(node_spec.input_ports)} if node_spec is not None else {}
+        node_rows.sort(key=lambda entry: (port_order.get(entry[0].port_id, len(port_order)), entry[1], str(entry[0].port_id)))
+        grouped: list[tuple[str, list[InputBindingSnapshot]]] = []
+        open_group: dict[str, tuple[int, set[str]]] = {}
+        for row, _position in node_rows:
+            row_source = row.dataset_source
+            assert row_source is not None
+            if row.selects_metric():
+                grouped.append((row_source.dataset, [row]))
+                continue
+            current = open_group.get(row_source.dataset)
+            if current is None or row_source.metric in current[1]:
+                open_group[row_source.dataset] = (len(grouped), {row_source.metric})
+                grouped.append((row_source.dataset, [row]))
+            else:
+                grouped[current[0]][1].append(row)
+                current[1].add(row_source.metric)
+        node_groups: list[tuple[DatasetPortSpec, str, list[InputBindingSnapshot]]] = []
+        for dataset_id, group_rows in grouped:
+            first = group_rows[0]
+            first_source = first.dataset_source
+            assert first_source is not None
+            spec = DatasetPortSpec(
+                transformations=list(first.transformations),
+                column=first_source.metric if first.selects_metric() else None,
+                tags=list(first.tags),
+            )
+            node_groups.append((spec, dataset_id, group_rows))
+        groups_by_node[node_uuid] = node_groups
+    return groups_by_node
+
+
+def ordered_unified_bindings(
+    edges: Sequence[InputBindingSnapshot],
+    dataset_rows: Sequence[InputBindingSnapshot],
+) -> list[tuple[InputBindingSnapshot, int]]:
+    """
+    Assign per-port positions over already-ordered unified rows.
+
+    Mirrors ``ordered_binding_snapshots`` for post-resolution rows: on a shared
+    port, edges come first in their given order, then dataset rows in theirs.
+    Callers supply both sequences in canonical order (edges in snapshot order,
+    dataset rows as the resolution step emits them).
+    """
+    from collections import defaultdict
+
+    positions: defaultdict[tuple[UUID, UUID], int] = defaultdict(int)
+    result: list[tuple[InputBindingSnapshot, int]] = []
+    for row in [*edges, *dataset_rows]:
+        key = (row.node_id, row.port_id)
+        result.append((row, positions[key]))
         positions[key] += 1
     return result
 
@@ -788,9 +983,9 @@ def edge_match_keys(from_node: UUID, from_port: UUID, to_node: UUID, to_port: UU
     return ((from_node, from_port, to_node, to_port), (from_node, to_node))
 
 
-def dataset_port_match_keys(node: UUID, dataset_pk: int, dataset_index: int, metric_pk: int) -> tuple[Hashable, ...]:
-    """Structural match keys for one dataset-port row (loose pass survives dataset reordering)."""
-    return ((node, dataset_pk, dataset_index, metric_pk), (node, dataset_pk, metric_pk))
+def dataset_port_match_keys(node: UUID, dataset_pk: int, metric_pk: int, port_id: UUID) -> tuple[Hashable, ...]:
+    """Structural match keys for one dataset-binding row (loose pass survives port changes)."""
+    return ((node, dataset_pk, metric_pk, port_id), (node, dataset_pk, metric_pk))
 
 
 def existing_edge_identities(ic: InstanceConfig) -> list[tuple[tuple[Hashable, ...], UUID]]:
@@ -815,12 +1010,12 @@ def existing_dataset_port_identities(ic: InstanceConfig) -> list[tuple[tuple[Has
     from nodes.models import NodeInputPortBinding
 
     return [
-        (dataset_port_match_keys(node_uuid, dataset_pk, dataset_index, metric_pk), row_uuid)
-        for node_uuid, dataset_pk, dataset_index, metric_pk, row_uuid in (
+        (dataset_port_match_keys(node_uuid, dataset_pk, metric_pk, port_id), row_uuid)
+        for node_uuid, dataset_pk, metric_pk, port_id, row_uuid in (
             NodeInputPortBinding.objects
             .filter(instance=ic, dataset__isnull=False)
-            .order_by('node_id', 'dataset_index', 'port_id', 'position')
-            .values_list('node__uuid', 'dataset_id', 'dataset_index', 'metric_id', 'uuid')
+            .order_by('node_id', 'port_id', 'position')
+            .values_list('node__uuid', 'dataset_id', 'metric_id', 'port_id', 'uuid')
         )
     ]
 
@@ -852,7 +1047,7 @@ class InstanceSnapshot(BaseModel):
     spec: InstanceModelSpec
     copy_of: str | None = None  # uuid of the InstanceConfig this was copied from
     nodes: list[NodeSnapshot] = Field(default_factory=list)
-    bindings: list[Annotated[BindingSnapshot, Field(discriminator='kind')]] = Field(default_factory=list)
+    bindings: list[InputBindingSnapshot] = Field(default_factory=list)
     dataset_revisions: list[DatasetRevisionPinSnapshot] = Field(default_factory=list)
     dimensions: list[DimensionMeta] = Field(default_factory=list)
     datasets: list[DatasetMeta] = Field(default_factory=list)
@@ -860,27 +1055,16 @@ class InstanceSnapshot(BaseModel):
     model_config = {'arbitrary_types_allowed': True}
 
     @property
-    def edge_bindings(self) -> list[EdgeSnapshot]:
-        return [b for b in self.bindings if isinstance(b, EdgeSnapshot)]
+    def edge_bindings(self) -> list[InputBindingSnapshot]:
+        return [b for b in self.bindings if isinstance(b.source, NodePortSource)]
 
     @property
-    def dataset_bindings(self) -> list[DatasetPortSnapshot]:
-        return [b for b in self.bindings if isinstance(b, DatasetPortSnapshot)]
+    def dataset_bindings(self) -> list[InputBindingSnapshot]:
+        return [b for b in self.bindings if isinstance(b.source, DatasetMetricSource)]
 
-    def bindings_with_positions(self) -> list[tuple[BindingSnapshot, int]]:
-        """
-        Bindings with per-port positions.
-
-        Persisted snapshots (v9+) store positions; transient pre-resolution
-        snapshots (parse side, before dataset fan-out) do not, and get the
-        canonical assignment computed on demand.
-        """
-        stored: list[tuple[BindingSnapshot, int]] = []
-        for binding in self.bindings:
-            if binding.position is None:
-                return ordered_binding_snapshots(self.edge_bindings, self.dataset_bindings)
-            stored.append((binding, binding.position))
-        return stored
+    def bindings_with_positions(self) -> list[tuple[InputBindingSnapshot, int]]:
+        """Bindings with per-port positions, assigned at snapshot production."""
+        return [(binding, binding.position) for binding in self.bindings]
 
     @classmethod
     def from_serialized_data(cls, data: dict[str, Any]) -> Self:
@@ -900,6 +1084,8 @@ class InstanceSnapshot(BaseModel):
             _upgrade_bindings_v9(data)
         if schema_version < 10:
             _upgrade_action_group_references_v10(data)
+        if schema_version < 11:
+            _upgrade_bindings_v11(data)
 
         data['schema_version'] = SNAPSHOT_SCHEMA_VERSION
         return cls.model_validate(data)
@@ -1097,50 +1283,41 @@ def build_instance_snapshot(
     nodes = [NodeSnapshot.from_model(nc, primary_language=ic.primary_language) for nc in node_qs]
     _check_spec_is_not_yaml_minimal(ic, nodes)
 
-    bindings: list[BindingSnapshot] = []
+    bindings: list[InputBindingSnapshot] = []
     dataset_ids: set[int] = set()
     for row in binding_qs_for(ic):
         source_node = row.source_node
+        source: NodePortSource | DatasetMetricSource
         if source_node is not None:
             assert row.source_port_id is not None
-            bindings.append(
-                EdgeSnapshot(
-                    uuid=row.uuid,
-                    position=row.position,
-                    from_node=source_node.uuid,
-                    to_node=row.node.uuid,
-                    from_port=row.source_port_id,
-                    to_port=row.port_id,
-                    # Validated against the narrower edge vocabulary on
-                    # construction; a non-edge op on an edge row fails loudly.
-                    transformations=cast('list[EdgeTransformOp]', list(row.transformations or [])),
-                    tags=list(row.tags or []),
-                )
-            )
-            continue
-        assert row.dataset is not None
-        assert row.metric is not None
-        dataset_ids.add(row.dataset.pk)
-        if dataset_revision_pins is not None:
-            pin = dataset_revision_pins.get(row.dataset.pk)
-            dataset_revision = pin.revision_id if pin is not None else None
+            source = NodePortSource(node_id=source_node.uuid, port_id=row.source_port_id)
         else:
-            # No explicit pins (drafts): record the dataset's current revision
-            # so the snapshot is deterministically reconstructible.
-            dataset_revision = getattr(row.dataset, 'latest_revision_id', None)
-        bindings.append(
-            DatasetPortSnapshot(
-                uuid=row.uuid,
-                position=row.position,
-                node=row.node.uuid,
+            assert row.dataset is not None
+            assert row.metric is not None
+            dataset_ids.add(row.dataset.pk)
+            if dataset_revision_pins is not None:
+                pin = dataset_revision_pins.get(row.dataset.pk)
+                dataset_revision = pin.revision_id if pin is not None else None
+            else:
+                # No explicit pins (drafts): record the dataset's current revision
+                # so the snapshot is deterministically reconstructible.
+                dataset_revision = getattr(row.dataset, 'latest_revision_id', None)
+            source = DatasetMetricSource(
                 dataset=row.dataset.identifier or str(row.dataset.uuid),
-                dataset_uuid=row.dataset.uuid,
-                port_id=row.port_id,
                 metric=row.metric.name or str(row.metric.uuid),
+                dataset_uuid=row.dataset.uuid,
                 metric_uuid=row.metric.uuid,
-                dataset_index=row.dataset_index,
-                spec=row.dataset_spec,
                 dataset_revision=dataset_revision,
+            )
+        bindings.append(
+            InputBindingSnapshot(
+                uuid=row.uuid,
+                node_id=row.node.uuid,
+                port_id=row.port_id,
+                position=row.position,
+                source=source,
+                transformations=list(row.transformations or []),
+                tags=list(row.tags or []),
             )
         )
 
@@ -2047,31 +2224,32 @@ def _import_bindings(
 
     rows: list[NodeInputPortBinding] = []
     for item, position in export.instance.bindings_with_positions():
-        if isinstance(item, EdgeSnapshot):
-            from_node = nodes_by_uuid.get(item.from_node)
-            to_node = nodes_by_uuid.get(item.to_node)
+        source = item.source
+        if isinstance(source, NodePortSource):
+            from_node = nodes_by_uuid.get(source.node_id)
+            to_node = nodes_by_uuid.get(item.node_id)
             if from_node is None or to_node is None:
                 continue
             rows.append(
                 NodeInputPortBinding(
                     instance=ic,
                     node=to_node,
-                    port_id=item.to_port,
+                    port_id=item.port_id,
                     position=position,
                     source_node=from_node,
-                    source_port_id=item.from_port,
+                    source_port_id=source.port_id,
                     transformations=list(item.transformations),
                     tags=list(item.tags),
                 )
             )
             continue
-        node = nodes_by_uuid.get(item.node)
-        dataset = datasets_by_id.get(item.dataset)
+        node = nodes_by_uuid.get(item.node_id)
+        dataset = datasets_by_id.get(source.dataset)
         if node is None or dataset is None:
             continue
         # Resolve metric by name within the dataset's schema
         assert dataset.schema is not None
-        metric = dataset.schema.metrics.filter(name=item.metric).first()
+        metric = dataset.schema.metrics.filter(name=source.metric).first()
         if metric is None:
             continue
         rows.append(
@@ -2082,10 +2260,8 @@ def _import_bindings(
                 position=position,
                 dataset=dataset,
                 metric=metric,
-                transformations=list(item.spec.transformations),
-                tags=list(item.spec.tags),
-                dataset_spec=item.spec,
-                dataset_index=item.dataset_index,
+                transformations=list(item.transformations),
+                tags=list(item.tags),
             )
         )
     NodeInputPortBinding.objects.bulk_create(rows)

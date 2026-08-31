@@ -21,7 +21,6 @@ from nodes.defs.instance_defs import InstanceModelSpec, YearsSpec
 from nodes.defs.node_defs import DatasetPortSpec, InputDatasetDef
 from nodes.input_bindings import (
     compact_port_positions,
-    next_dataset_index,
     next_port_position,
     reconcile_input_bindings,
 )
@@ -73,7 +72,6 @@ def _make_dataset_binding(
     port_id,
     *,
     dataset: DatasetModel | None = None,
-    dataset_index: int = 0,
     position: int = 0,
 ) -> NodeInputPortBinding:
     if dataset is None:
@@ -89,8 +87,6 @@ def _make_dataset_binding(
         metric=metric,
         transformations=list(spec.transformations),
         tags=list(spec.tags),
-        dataset_spec=spec,
-        dataset_index=dataset_index,
     )
 
 
@@ -179,19 +175,10 @@ def test_position_helpers(ic: InstanceConfig):
     assert positions == {kept.uuid: 0, tail.uuid: 1}
 
 
-def test_next_dataset_index_counts_only_dataset_bindings(ic: InstanceConfig):
-    target = NodeConfigFactory.create(instance=ic, identifier='consumer')
-    source = NodeConfigFactory.create(instance=ic, identifier='source')
-    assert next_dataset_index(target) == 0
-    _make_edge_binding(ic, source, target, uuid4())
-    assert next_dataset_index(target) == 0
-    _make_dataset_binding(ic, target, uuid4(), dataset_index=2)
-    assert next_dataset_index(target) == 3
-
-
 def test_snapshot_reads_bindings_and_positions_from_rows(ic: InstanceConfig):
+    from nodes.defs.transform_def import forecast_from_transformations
     from nodes.instance_graph import build_instance_graph
-    from nodes.instance_serialization import DatasetPortSnapshot, EdgeSnapshot, build_instance_snapshot
+    from nodes.instance_serialization import build_instance_snapshot
 
     target = NodeConfigFactory.create(instance=ic, identifier='consumer')
     source = NodeConfigFactory.create(instance=ic, identifier='source')
@@ -200,7 +187,7 @@ def test_snapshot_reads_bindings_and_positions_from_rows(ic: InstanceConfig):
 
     edge = _make_edge_binding(ic, source, target, shared_port, position=0, tags=['b'])
     row = _make_dataset_binding(ic, target, shared_port, position=1)
-    other = _make_dataset_binding(ic, target, other_port, dataset_index=1, position=0)
+    other = _make_dataset_binding(ic, target, other_port, position=0)
 
     snapshot = build_instance_snapshot(ic)
     by_uuid = {b.uuid: b for b in snapshot.bindings}
@@ -209,12 +196,14 @@ def test_snapshot_reads_bindings_and_positions_from_rows(ic: InstanceConfig):
     assert by_uuid[row.uuid].position == 1
     assert by_uuid[other.uuid].position == 0
     edge_snap = by_uuid[edge.uuid]
-    assert isinstance(edge_snap, EdgeSnapshot)
+    assert edge_snap.node_source is not None
+    assert edge_snap.node_source.node_id == source.uuid
     assert edge_snap.tags == ['b']
     row_snap = by_uuid[row.uuid]
-    assert isinstance(row_snap, DatasetPortSnapshot)
-    assert row_snap.dataset_index == 0
-    assert row_snap.spec.forecast_from == 2025
+    assert row_snap.dataset_source is not None
+    assert row.dataset is not None
+    assert row_snap.dataset_source.dataset == row.dataset.identifier
+    assert forecast_from_transformations(row_snap.transformations) == 2025
 
     graph = build_instance_graph(snapshot)
     graph_positions = {binding.id: binding.position for binding in graph.bindings}

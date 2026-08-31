@@ -7,13 +7,15 @@ means the same thing wherever it is bound. The one class-dependent part is the d
 only when asked. See ``docs/plans/additive-multiplicative-modernization.md``.
 """
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 import pytest
 
 from nodes.instance_parser import parse_instance_snapshot
-from nodes.instance_serialization import DatasetPortSnapshot, InstanceSnapshot
+
+if TYPE_CHECKING:
+    from nodes.instance_serialization import InputBindingSnapshot, InstanceSnapshot
 
 pytestmark = pytest.mark.django_db
 
@@ -34,14 +36,14 @@ def _parse(nodes: list[dict[str, Any]]) -> InstanceSnapshot:
     )
 
 
-def _snapshot(node: dict[str, Any]) -> dict[str, DatasetPortSnapshot]:
-    """Parse a one-node instance and return its dataset-port bindings by dataset id."""
+def _snapshot(node: dict[str, Any]) -> dict[str, InputBindingSnapshot]:
+    """Parse a one-node instance and return its dataset-sourced bindings by dataset id."""
     snapshot = _parse([{'name': 'Node', 'unit': 'kg/a', 'quantity': 'mass', **node}])
-    return {b.dataset: b for b in snapshot.bindings if isinstance(b, DatasetPortSnapshot)}
+    return {b.dataset_source.dataset: b for b in snapshot.bindings if b.dataset_source is not None}
 
 
-def _has_transform(port: DatasetPortSnapshot, kind: str) -> bool:
-    return any(op.kind == kind for op in port.spec.transformations)
+def _has_transform(port: InputBindingSnapshot, kind: str) -> bool:
+    return any(op.kind == kind for op in port.transformations)
 
 
 def test_historical_classes_do_not_interpolate_unless_asked():

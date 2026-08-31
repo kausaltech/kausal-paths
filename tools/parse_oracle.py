@@ -132,10 +132,10 @@ def parse_side_snapshot(
     )
     # Assign positions post-resolution so the oracle also compares position
     # parity against the DB side's stored assignment.
-    from nodes.instance_serialization import ordered_binding_snapshots
+    from nodes.instance_serialization import ordered_unified_bindings
 
     bindings = []
-    for item, position in ordered_binding_snapshots(snapshot.edge_bindings, resolved_ports):
+    for item, position in ordered_unified_bindings(snapshot.edge_bindings, resolved_ports):
         item.position = position
         bindings.append(item)
     snapshot.bindings = bindings
@@ -259,7 +259,7 @@ def compare_snapshots(  # noqa: C901, PLR0915
         diff(f'node {ident} spec', dump_a, dump_b)
 
     def edge_key(e: Any) -> tuple[Any, ...]:
-        return (e.from_node, e.to_node, str(e.from_port), str(e.to_port))
+        return (e.source.node_id, e.node_id, str(e.source.port_id), str(e.port_id))
 
     db_edges = {edge_key(e): _dump(e) for e in db_snap.edge_bindings}
     parse_edges = {edge_key(e): _dump(e) for e in parse_snap.edge_bindings}
@@ -285,7 +285,7 @@ def compare_snapshots(  # noqa: C901, PLR0915
         diff(f'edge {key}', a, b)
 
     def port_key(p: Any) -> tuple[Any, ...]:
-        return (p.node, p.dataset, str(p.port_id))
+        return (p.node_id, p.source.dataset, str(p.port_id))
 
     db_ports = {port_key(p): p for p in db_snap.dataset_bindings}
     parse_ports = {port_key(p): p for p in parse_snap.dataset_bindings}
@@ -294,20 +294,28 @@ def compare_snapshots(  # noqa: C901, PLR0915
         if pa is None or pb is None:
             problems.append(f'dataset port {key}: only in {"parse" if pa is None else "db"} side')
             continue
-        if pa.dataset_index != pb.dataset_index:
-            problems.append(f'dataset port {key}: dataset_index {pa.dataset_index} != {pb.dataset_index}')
+        source_a, source_b = pa.dataset_source, pb.dataset_source
+        assert source_a is not None
+        assert source_b is not None
         if pa.position != pb.position:
             problems.append(f'dataset port {key}: position {pa.position} != {pb.position}')
-        if pa.metric != pb.metric:
-            problems.append(f'dataset port {key}: metric {pa.metric!r} != {pb.metric!r}')
-        spec_a, spec_b = pa.spec, pb.spec
+        if source_a.metric != source_b.metric:
+            problems.append(f'dataset port {key}: metric {source_a.metric!r} != {source_b.metric!r}')
+        from nodes.defs.transform_def import forecast_from_transformations, without_transformations
+
+        ops_a, ops_b = list(pa.transformations), list(pb.transformations)
         # The runtime export echoes a dataset-level forecast default back into
         # the binding pipeline (DBDataset.from_def). Parse doesn't; after
         # promotion the DB end states are identical. Normalize the echo away.
-        ds_default = (schemas or {}).get(pa.dataset, {}).get('forecast_from')
-        if ds_default is not None and spec_a.forecast_from == ds_default and spec_b.forecast_from is None:
-            spec_a = spec_a.without_forecast_from()
-        diff(f'dataset port {key} spec', _dump(spec_a), _dump(spec_b))
+        ds_default = (schemas or {}).get(source_a.dataset, {}).get('forecast_from')
+        a_default_echo = forecast_from_transformations(ops_a) == ds_default
+        if ds_default is not None and a_default_echo and forecast_from_transformations(ops_b) is None:
+            ops_a = without_transformations(ops_a, 'set_forecast_from')
+        diff(
+            f'dataset port {key} pipeline',
+            {'transformations': [op.model_dump(mode='json') for op in ops_a], 'tags': list(pa.tags)},
+            {'transformations': [op.model_dump(mode='json') for op in ops_b], 'tags': list(pb.tags)},
+        )
 
     return problems, warnings
 

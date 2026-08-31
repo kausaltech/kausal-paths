@@ -3,20 +3,19 @@ Mutations for editing what is bound to a node's input ports.
 
 A dataset *binding* is what the editor manipulates, and it is not always one
 row: a binding that names no metric expands to one ``NodeInputPortBinding``
-per metric the dataset exposes (rows sharing a ``dataset_index``). So
-mutations resolve a binding from any of its rows' uuids and then write the
-whole group, which is also why divergent transformations between rows of one
-binding cannot arise through this API. An edge binding is always exactly one
-row.
+per metric the dataset exposes. So mutations resolve a binding from any of
+its rows' uuids, recover the fan-out group from native fields (see
+``group_unified_dataset_bindings``), and write the whole group — which is
+also why divergent transformations between rows of one binding cannot arise
+through this API. An edge binding is always exactly one row.
 
 ``bindingEditor`` resolves either kind from one id namespace, but updates are
 kind-typed mutations with separate input types: the ``oneOf`` field list is the
 applicability contract, so the editor learns what an edge may carry from
 introspection rather than from validation errors.
 
-``dataset_index`` is deliberately not part of the surface. It is the position
-the YAML sync observed, and it becomes derivable once nodes stop indexing into
-``input_dataset_instances``; addressing bindings by uuid survives that.
+Binding groups have no durable identity of their own: each per-metric row is
+its own binding, addressed by uuid, and the group is derived state.
 """
 
 from typing import TYPE_CHECKING, Annotated
@@ -52,7 +51,6 @@ if TYPE_CHECKING:
 
     from nodes.defs.binding_def import DatasetBindingDef
     from nodes.defs.graph import DatasetMeta
-    from nodes.defs.node_defs import DatasetPortSpec
     from nodes.models import InstanceConfig, NodeConfig
 
 
@@ -244,35 +242,30 @@ def _dataset_binding_rows(ic: InstanceConfig, anchor: NodeInputPortBinding) -> l
     Return every row of the binding one of whose rows is the anchor.
 
     A binding is identified by any of its rows because a column-less binding
-    fans out to one row per metric; they share a ``dataset_index``.
+    fans out to one row per metric; the fan-out group is recovered from native
+    fields by the shared grouping rule.
     """
-    return list(
+    from nodes.instance_serialization import InputBindingSnapshot, group_unified_dataset_bindings
+
+    candidates = list(
         NodeInputPortBinding.objects
         .filter(
             instance=ic,
             node=anchor.node,
             dataset=anchor.dataset,
-            dataset_index=anchor.dataset_index,
         )
         .select_related('node', 'dataset', 'metric')
-        .order_by('metric__order', 'port_id')
+        .order_by('port_id', 'position')
     )
-
-
-def _spec_for(
-    *,
-    transformations: list[PortTransformOp],
-    metric_column: str | None,
-    tags: list[str],
-    previous: DatasetPortSpec | None = None,
-) -> DatasetPortSpec:
-    from nodes.defs.node_defs import DatasetPortSpec
-
-    if previous is not None:
-        return previous.model_copy(
-            update={'transformations': transformations, 'column': metric_column, 'tags': tags},
-        )
-    return DatasetPortSpec(transformations=transformations, column=metric_column, tags=tags)
+    snapshots = [(InputBindingSnapshot.from_model(row), row.position) for row in candidates]
+    node_spec = anchor.node.spec
+    groups = group_unified_dataset_bindings(snapshots, {anchor.node.uuid: node_spec})
+    rows_by_uuid = {row.uuid: row for row in candidates}
+    for _spec, _dataset_id, group_rows in groups.get(anchor.node.uuid, []):
+        if any(row.uuid == anchor.uuid for row in group_rows):
+            group = [rows_by_uuid[row.uuid] for row in group_rows if row.uuid is not None]
+            return sorted(group, key=lambda row: ((row.metric.order if row.metric is not None else None) or 0, str(row.port_id)))
+    return [anchor]
 
 
 def _check_dataset_binding_rewrite(
@@ -343,9 +336,10 @@ class PortBindingEditorMutation:
         rows: list[NodeInputPortBinding] = root.rows
         first = rows[0]
         assert first.dataset is not None
-        spec = first.dataset_spec
+        previous_transformations = list(first.transformations or [])
+        selects_metric = any(op.kind == 'select_metric' for op in previous_transformations)
 
-        metric_column = spec.column
+        metric_column = (first.metric.name or None) if selects_metric and first.metric is not None else None
         metric = None
         if is_maybe_set(input.metric_id):
             if len(rows) > 1:
@@ -358,7 +352,7 @@ class PortBindingEditorMutation:
             # select what the previous metric carried.
             metric_column = metric.name or None
 
-        transformations = list(spec.transformations)
+        transformations = list(previous_transformations)
         if is_maybe_set(input.transformations):
             transformations = _dataset_transformations(info, input.transformations.value or [])
             # Temporal filling is already authoritative in the stored recipe,
@@ -366,9 +360,9 @@ class PortBindingEditorMutation:
             # model editors understand the new union members.
             from nodes.defs.transform_def import preserve_temporal_fill_transformations
 
-            transformations = preserve_temporal_fill_transformations(transformations, spec.transformations)
+            transformations = preserve_temporal_fill_transformations(transformations, previous_transformations)
 
-        tags = list(spec.tags)
+        tags = list(first.tags or [])
         if is_maybe_set(input.tags):
             tags = list(input.tags.value or [])
 
@@ -388,15 +382,9 @@ class PortBindingEditorMutation:
         with gql_change_operation(info, root.instance, action='node.dataset_binding.update'):
             for row in rows:
                 before = row.serializable_data()
-                row.dataset_spec = _spec_for(
-                    transformations=transformations,
-                    metric_column=metric_column,
-                    tags=tags,
-                    previous=row.dataset_spec,
-                )
                 row.transformations = list(transformations)
                 row.tags = list(tags)
-                update_fields = ['dataset_spec', 'transformations', 'tags']
+                update_fields = ['transformations', 'tags']
                 if metric is not None:
                     row.metric = metric
                     update_fields.append('metric')
@@ -520,12 +508,14 @@ def _to_gql(row: NodeInputPortBinding) -> DatasetPortType:
         metric=DatasetMetricRefType.from_model(row.metric),
         external_dataset_id=_external_dataset_id_from_dataset(row.dataset),
         external_metric_id=row.metric.name,
-        tags=list(row.dataset_spec.tags),
+        tags=list(row.tags or []),
     )
+    from nodes.defs.transform_def import forecast_from_transformations
+
     port._dataset = DatasetType.from_model(row.dataset)
-    port._transformations = list(row.dataset_spec.transformations)
+    port._transformations = list(row.transformations or [])
     if port._dataset is not None:
-        port._dataset._forecast_from = row.dataset_spec.forecast_from
+        port._dataset._forecast_from = forecast_from_transformations(row.transformations or [])
     return port
 
 
@@ -539,7 +529,7 @@ def bind_dataset(
     from nodes.change_ops import gql_change_operation, record_change
     from nodes.constraints.validation import BindingChange
     from nodes.graphql.constraint_checks import check_binding_change, dataset_candidate, require_draft_graph
-    from nodes.input_bindings import next_dataset_index, next_port_position
+    from nodes.input_bindings import next_port_position
 
     nc.ensure_gql_action_allowed(info, 'change')
     port_id = _resolve_port(info, nc, str(input.port_id))
@@ -593,7 +583,6 @@ def bind_dataset(
             delete_action = 'edge.delete' if binding.source_node_id is not None else 'node.dataset_binding.delete'
             record_change(binding, action=delete_action, before=binding.serializable_data(), after=None)
             binding.delete()
-        spec = _spec_for(transformations=transformations, metric_column=metric_column, tags=[])
         row = NodeInputPortBinding.objects.create(
             instance=ic,
             node=nc,
@@ -601,10 +590,8 @@ def bind_dataset(
             position=next_port_position(nc, port_id),
             dataset=dataset,
             metric=metric,
-            transformations=list(spec.transformations),
-            tags=list(spec.tags),
-            dataset_spec=spec,
-            dataset_index=next_dataset_index(nc),
+            transformations=list(transformations),
+            tags=[],
         )
         record_change(row, action='node.dataset_binding.create', before=None, after=row.serializable_data())
 

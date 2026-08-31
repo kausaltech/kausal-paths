@@ -192,11 +192,13 @@ def ensure_template_datasets() -> None:
 
 
 def _dataset_port_key(port) -> tuple[str, str, str, str]:
+    import json
+
     return (
         port.node.identifier,
         port.dataset.identifier,
         port.metric.name or str(port.metric.uuid),
-        port.dataset_spec.model_dump_json(exclude_defaults=True, exclude_none=True),
+        json.dumps([op.model_dump(mode='json') for op in port.transformations or []]),
     )
 
 
@@ -265,8 +267,6 @@ def ensure_template_dataset_ports(source: InstanceConfig, target: InstanceConfig
             metric=target_metric,
             transformations=list(source_port.transformations or []),
             tags=list(source_port.tags or []),
-            dataset_spec=source_port.dataset_spec,
-            dataset_index=source_port.dataset_index,
         )
         copied += 1
 
