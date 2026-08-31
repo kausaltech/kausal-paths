@@ -148,6 +148,7 @@ lint = [
   "django-stubs",
   "djangorestframework-stubs",
   "graphene-stubs",
+  "lxml-stubs",
   "mypy",
   "pandas-stubs",
   "pyarrow-stubs",
