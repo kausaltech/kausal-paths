@@ -2686,6 +2686,7 @@ dev = [
     { name = "ipython" },
     { name = "libcst" },
     { name = "line-profiler" },
+    { name = "lxml-stubs" },
     { name = "mypy" },
     { name = "ondivi" },
     { name = "pandas-stubs" },
@@ -2719,6 +2720,7 @@ lint = [
     { name = "django-stubs" },
     { name = "djangorestframework-stubs" },
     { name = "graphene-stubs" },
+    { name = "lxml-stubs" },
     { name = "mypy" },
     { name = "pandas-stubs" },
     { name = "pyarrow-stubs" },
@@ -2790,7 +2792,7 @@ requires-dist = [
     { name = "graphql-core" },
     { name = "graphql-relay" },
     { name = "ipython" },
-    { name = "kausal-paths-extensions", marker = "extra == 'kausal'", specifier = "==0.8.2", index = "https://pypi.kausal.tech/" },
+    { name = "kausal-paths-extensions", marker = "extra == 'kausal'", specifier = "==0.8.3", index = "https://pypi.kausal.tech/" },
     { name = "logfmter" },
     { name = "loguru" },
     { name = "lxml" },
@@ -2863,6 +2865,7 @@ dev = [
     { name = "ipython" },
     { name = "libcst", specifier = ">=1.8.2" },
     { name = "line-profiler" },
+    { name = "lxml-stubs" },
     { name = "mypy" },
     { name = "ondivi" },
     { name = "pandas-stubs" },
@@ -2896,6 +2899,7 @@ lint = [
     { name = "django-stubs" },
     { name = "djangorestframework-stubs" },
     { name = "graphene-stubs" },
+    { name = "lxml-stubs" },
     { name = "mypy" },
     { name = "pandas-stubs" },
     { name = "pyarrow-stubs" },
@@ -2930,15 +2934,15 @@ prod = [
 
 [[package]]
 name = "kausal-paths-extensions"
-version = "0.8.2"
+version = "0.8.3"
 source = { registry = "https://pypi.kausal.tech/" }
 dependencies = [
     { name = "django" },
     { name = "pygithub" },
 ]
-sdist = { url = "https://pypi.kausal.tech/packages/kausal_paths_extensions-0.8.2.tar.gz", hash = "sha256:391cf44d9b4508e7a20a468fb299244fd90d78c7c60d4fd3c58a2108e0b8015e" }
+sdist = { url = "https://pypi.kausal.tech/packages/kausal_paths_extensions-0.8.3.tar.gz", hash = "sha256:67608f1cc0cc8775b9107bf9dd9da11a12c89e4af7a07ad62fe295a5f426e207" }
 wheels = [
-    { url = "https://pypi.kausal.tech/packages/kausal_paths_extensions-0.8.2-py3-none-any.whl", hash = "sha256:af10cc752f50b76ac1565fc3f2b7d348c30c0813c26f224a5654cbe92a11039d" },
+    { url = "https://pypi.kausal.tech/packages/kausal_paths_extensions-0.8.3-py3-none-any.whl", hash = "sha256:1e1d330d453f70ec03ac2c5f291adb4d63bb27b08492484a2a3316230986461b" },
 ]
 
 [[package]]
@@ -3091,6 +3095,15 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/5f/9d/cd0c43d45e2eb52df7735c6558f24054ca633499191899b0cb9040fbbc3c/lxml-6.1.2-cp315-cp315t-macosx_10_15_universal2.whl", hash = "sha256:84a2a46b93b789d8acb44cfcb3d967ce9dbe29884ddb93fbb1a33f0e0c8fcd86", size = 8857688, upload-time = "2026-08-19T05:04:24.648Z" },
     { url = "https://files.pythonhosted.org/packages/14/83/a3df966d6d7b6513e9dfb6fbfb041c0619642170359c1b36ab20a83e59eb/lxml-6.1.2-cp315-cp315t-manylinux_2_26_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:1c4c6dc1b2485aaa4adfb6ed754f90dddcb2b96a66bbebc9e1ac242b5ce5e818", size = 5236282, upload-time = "2026-08-19T05:04:35.762Z" },
     { url = "https://files.pythonhosted.org/packages/ee/62/1fee828238badd3bfe9544f5cc9ce6ded421ef38e9634030445dedd78b36/lxml-6.1.2-cp315-cp315t-musllinux_1_2_x86_64.whl", hash = "sha256:dd7ea3fa47154b9fff90591b961e41b3718bd7fcd5bc2d9bb47e9845c8ace088", size = 5259992, upload-time = "2026-08-19T05:04:56.028Z" },
+]
+
+[[package]]
+name = "lxml-stubs"
+version = "0.5.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/99/da/1a3a3e5d159b249fc2970d73437496b908de8e4716a089c69591b4ffa6fd/lxml-stubs-0.5.1.tar.gz", hash = "sha256:e0ec2aa1ce92d91278b719091ce4515c12adc1d564359dfaf81efa7d4feab79d", size = 14778, upload-time = "2024-01-10T09:37:46.521Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/1f/c9/e0f8e4e6e8a69e5959b06499582dca6349db6769cc7fdfb8a02a7c75a9ae/lxml_stubs-0.5.1-py3-none-any.whl", hash = "sha256:1f689e5dbc4b9247cb09ae820c7d34daeb1fdbd1db06123814b856dae7787272", size = 13584, upload-time = "2024-01-10T09:37:44.931Z" },
 ]
 
 [[package]]
