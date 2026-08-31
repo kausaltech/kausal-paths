@@ -27,7 +27,10 @@ from dvc_pandas import Dataset, DatasetMeta, Repository  # noqa: E402
 from kausal_common.i18n.pydantic import TranslatedString  # noqa: E402
 
 from nodes.constants import (  # noqa: E402
+    COMMENT_SEPARATOR,
+    DATASET_NAME_SEPARATOR,
     RESERVED_ROW_COLUMNS,
+    SOURCE_NAME_SEPARATOR,
     SOURCE_TARGET_DATA_POINT,
     SOURCE_TARGET_DATASET,
     SOURCE_TARGETS,
@@ -42,12 +45,6 @@ if TYPE_CHECKING:
 
     from common import polars as ppl
     from nodes.context import Context
-
-# Must match load_dvc_dataset.py's COMMENT_SEPARATOR: a 'Comment' cell may carry several
-# distinct notes about one data point, each becoming its own DataPointComment on load.
-# Not '; ' like SOURCE_NAME_SEPARATOR -- comment cells are prose and already contain
-# semicolons, so splitting on those would fragment single sentences.
-COMMENT_SEPARATOR = ' ;; '
 
 
 def _node_metric_unit_str(m: NodeMetric) -> str:
@@ -264,12 +261,6 @@ def extract_description(df: pl.DataFrame) -> str | None:
 # by DVCDataset on load so that DVC and the database yield the same frame.
 
 
-SOURCE_NAME_SEPARATOR = '; '
-"""Separator inside one 'Source' cell that cites more than one source."""
-
-DATASET_NAME_SEPARATOR = '; '
-"""Separator inside a registry row's 'Datasets' cell, which lists the datasets it applies to."""
-
 REGISTRY_MAPPED_COLUMNS = frozenset({'Name', 'Authority', 'URL', 'Description', 'Edition', 'Target', 'Datasets'})
 """Registry columns this reader understands; every other column is folded into Description."""
 
@@ -304,6 +295,51 @@ class SourceRegistryEntry:
 def _unregistered_source_fields() -> dict[str, str | None]:
     """Metadata for a source cited by a 'Source' cell but absent from the registry (or with no registry at all)."""
     return {'authority': None, 'url': None, 'description': None, 'edition': None, 'target': SOURCE_TARGET_DATA_POINT}
+
+
+DATASET_ATTRIBUTE_KEYS = {
+    'Name': 'name',
+    'ForecastFrom': 'forecast_from',
+    'TimeResolution': 'time_resolution',
+    'IsEditable': 'is_editable',
+}
+"""Sidecar column -> the key it takes in metadata['dataset']. See docs/dataset-round-trip.md §4."""
+
+
+def load_dataset_attributes(path: str, dataset_name: str | None) -> dict[str, Any] | None:
+    """
+    Read the dataset-level sidecar written by `export_dataset`.
+
+    Facts the dataset can only have one of -- its forecast boundary, its time resolution,
+    whether it is editable -- have no place in a table whose rows are values, so they
+    travel beside it and land in `metadata['dataset']`. A file may describe several
+    datasets, keyed by the same `Dataset` column the data file uses.
+
+    Returns None when the file says nothing about this dataset, which is not an error: a
+    missing key means "unchanged", exactly as a missing `target` means data_point.
+    """
+    df = pl.read_csv(path, infer_schema_length=0)
+    if 'Dataset' not in df.columns:
+        raise ValueError(f"Dataset attribute file '{path}' must have a 'Dataset' column.")
+    rows = [r for r in df.iter_rows(named=True) if dataset_name is None or r.get('Dataset') == dataset_name]
+    if not rows:
+        return None
+    if len(rows) > 1:
+        raise ValueError(f"Dataset attribute file '{path}' has {len(rows)} rows for dataset '{dataset_name}'; expected one.")
+
+    row = rows[0]
+    attributes: dict[str, Any] = {}
+    for column, key in DATASET_ATTRIBUTE_KEYS.items():
+        raw = (row.get(column) or '').strip()
+        if not raw:
+            continue
+        if key == 'forecast_from':
+            attributes[key] = int(raw)
+        elif key == 'is_editable':
+            attributes[key] = raw.lower() not in ('false', '0', 'no')
+        else:
+            attributes[key] = raw
+    return attributes or None
 
 
 def load_sources_registry(path: str) -> dict[str, SourceRegistryEntry]:
@@ -679,6 +715,38 @@ def save_to_csv(df: pl.DataFrame, file_stem: str, dataset_name: str) -> None:
         write_dataframe_to_csv(df, dataset_file_path, verbose=True)
 
 
+def build_dvc_metadata(
+    output_path: str,
+    dataset_name: str,
+    language: str,
+    description: str | None,
+    metrics: list[NodeMetric] | None,
+    sources: list[dict[str, str | None]] | None,
+    dataset_attributes: dict[str, Any] | None,
+) -> dict[str, Any]:
+    """
+    Assemble the `.dvc` metadata block.
+
+    Every key here is optional except the first two, and a reader must treat a missing key
+    as "unchanged" rather than as a value -- that is what lets a file written before a key
+    existed keep working without being republished. `target` inside `sources` follows the
+    same rule, and so does `dataset`.
+    """
+    metadata: dict[str, Any] = {
+        'name': {language: dataset_name},
+        'identifier': output_path,
+    }
+    if description:
+        metadata['description'] = {language: description}
+    if metrics:
+        metadata['metrics'] = [node_metric_to_metadata_dict(m) for m in metrics]
+    if sources:
+        metadata['sources'] = sources
+    if dataset_attributes:
+        metadata['dataset'] = dataset_attributes
+    return metadata
+
+
 def push_to_dvc(
     df: pl.DataFrame | ppl.PathsDataFrame,
     output_path: str,
@@ -689,6 +757,7 @@ def push_to_dvc(
     units: dict[str, str] | None = None,
     index_columns_override: list[str] | None = None,
     sources: list[dict[str, str | None]] | None = None,
+    dataset_attributes: dict[str, Any] | None = None,
 ) -> None:
     """
     Push dataset to DVC repository.
@@ -722,17 +791,7 @@ def push_to_dvc(
     else:
         index_columns = [col for col in df.columns if col not in units.keys() and col.lower() not in RESERVED_ROW_COLUMNS]
 
-    # Build metadata
-    metadata: dict[str, Any] = {
-        'name': {language: dataset_name},
-        'identifier': output_path,
-    }
-    if description:
-        metadata['description'] = {language: description}
-    if metrics:
-        metadata['metrics'] = [node_metric_to_metadata_dict(m) for m in metrics]
-    if sources:
-        metadata['sources'] = sources
+    metadata = build_dvc_metadata(output_path, dataset_name, language, description, metrics, sources, dataset_attributes)
 
     # Persist index_columns in the .dvc file metadata so the round-trip is lossless.
     # dvc_pandas.Dataset.dvc_metadata does NOT include index_columns, so without this
@@ -782,22 +841,28 @@ def push_to_dvc(
     print(f'Dataset pushed to DVC at {output_path}')
 
 
-def process_dataset(
+def build_dvc_frame(
     df: pl.DataFrame,
-    dataset_name: str,
-    outcsvpath: str,
-    outdvcpath: str,
     language: str,
     context: Context | None,
-    sources_registry: dict[str, SourceRegistryEntry] | None = None,
     keep_empty_cells: bool = False,
-) -> None:
-    """Process a single dataset of data."""
-    print(f'\n==== Processing dataset: {dataset_name} ====\n')
+    verbose: bool = True,
+) -> tuple[pl.DataFrame, dict[str, str], list[NodeMetric], str | None]:
+    """
+    Run the read-side pipeline and return exactly what would be written to DVC.
 
-    if len(df) == 0:
-        print(f'Dataset {dataset_name} has no data. Skipping.')
-        return
+    Split out of `process_dataset` so the transformation can be exercised without pushing
+    anything: `nodes/tests/test_dataset_round_trip.py` feeds it an exported CSV and
+    compares the frame it produces against the database it came from. A test that
+    re-listed these steps itself would drift out of order the first time one moved.
+
+    Returns the frame plus the three pieces of metadata the push needs: units, metrics
+    and the dataset description.
+    """
+
+    def say(*args: Any) -> None:
+        if verbose:
+            print(*args)
 
     # 1. Validate required columns
     validate_required_columns(df)
@@ -813,7 +878,7 @@ def process_dataset(
 
     # 2. Determine which column to use for metrics
     metric_col = determine_metric_column(df)
-    print(f"Using '{metric_col}' as the metric column.")
+    say(f"Using '{metric_col}' as the metric column.")
 
     # 3. Create metric labels
     df = create_metric_col(df, metric_col)
@@ -825,18 +890,18 @@ def process_dataset(
     units = extract_units(df)
     metrics = extract_metrics(df, language, units)
     description = extract_description(df)
-    print(f'Units: {units}')
-    print(f'Metrics: {len(metrics)} entries')
-    print(metrics)
+    say(f'Units: {units}')
+    say(f'Metrics: {len(metrics)} entries')
+    say(metrics)
     if description:
-        print('Description extracted')
+        say('Description extracted')
 
     # 5. Clean dataframe (remove metadata columns)
     df = clean_dataframe(df, keep_empty_cells)
 
     # 6. Convert to standard format with Year column if needed
     df = convert_to_standard_format(df, keep_empty_cells)
-    print(f'Data converted to standard format with {len(df)} rows')
+    say(f'Data converted to standard format with {len(df)} rows')
 
     # 7. Pivot by compound ID
     df = pivot_by_compound_id(df)
@@ -847,9 +912,32 @@ def process_dataset(
     # 9. Prepare for DVC (standardize column names)
     df = prepare_for_dvc(df, units)
     dim_ids = [s for s in df.columns if s not in units.keys()]
-    print(f'Data pivoted by compound identifiers with dimension columns: {dim_ids}')
+    say(f'Data pivoted by compound identifiers with dimension columns: {dim_ids}')
     if context is not None:
         df = convert_names_to_cats(df, context)
+
+    return df, units, metrics, description
+
+
+def process_dataset(
+    df: pl.DataFrame,
+    dataset_name: str,
+    outcsvpath: str,
+    outdvcpath: str,
+    language: str,
+    context: Context | None,
+    sources_registry: dict[str, SourceRegistryEntry] | None = None,
+    keep_empty_cells: bool = False,
+    dataset_attributes_csv: str | None = None,
+) -> None:
+    """Process a single dataset of data."""
+    print(f'\n==== Processing dataset: {dataset_name} ====\n')
+
+    if len(df) == 0:
+        print(f'Dataset {dataset_name} has no data. Skipping.')
+        return
+
+    df, units, metrics, description = build_dvc_frame(df, language, context, keep_empty_cells)
 
     # 10. Save to CSV if requested
     if outcsvpath:
@@ -863,7 +951,18 @@ def process_dataset(
         identifier = to_snake_case(dataset_name.rsplit('/', maxsplit=1)[-1])
         dataset_dvc_path = f'{outdvcpath}/{identifier}'
         sources = build_sources_metadata(df, sources_registry, dataset_name)
-        push_to_dvc(df, dataset_dvc_path, dataset_name, description, metrics, language, units=units, sources=sources)
+        attributes = load_dataset_attributes(dataset_attributes_csv, dataset_name) if dataset_attributes_csv else None
+        push_to_dvc(
+            df,
+            dataset_dvc_path,
+            dataset_name,
+            description,
+            metrics,
+            language,
+            units=units,
+            sources=sources,
+            dataset_attributes=attributes,
+        )
 
 
 def process_datasets(
@@ -875,6 +974,7 @@ def process_datasets(
     dataset_name: str | None = None,
     sources_registry: dict[str, SourceRegistryEntry] | None = None,
     keep_empty_cells: bool = False,
+    dataset_attributes_csv: str | None = None,
 ) -> None:
     # Process all datasets
     # Process datasets
@@ -911,12 +1011,28 @@ def process_datasets(
                 print(f'Processing only dataset: {dataset_name}')
                 dataset_df = full_df.filter(pl.col(d) == dataset_name).drop(d)
                 process_dataset(
-                    dataset_df, dataset_name, outcsvpath, outdvcpath, language, context, sources_registry, keep_empty_cells
+                    dataset_df,
+                    dataset_name,
+                    outcsvpath,
+                    outdvcpath,
+                    language,
+                    context,
+                    sources_registry,
+                    keep_empty_cells,
+                    dataset_attributes_csv,
                 )
             else:
                 print(f"No '{d}' column, treating the whole table as one dataset '{dataset_name}'.")
                 process_dataset(
-                    full_df, dataset_name, outcsvpath, outdvcpath, language, context, sources_registry, keep_empty_cells
+                    full_df,
+                    dataset_name,
+                    outcsvpath,
+                    outdvcpath,
+                    language,
+                    context,
+                    sources_registry,
+                    keep_empty_cells,
+                    dataset_attributes_csv,
                 )
     else:
         # Process all datasets
@@ -927,7 +1043,17 @@ def process_datasets(
         check_registry_dataset_names(sources_registry, dataset_dfs.keys())
 
         for ds_name, dataset_df in dataset_dfs.items():
-            process_dataset(dataset_df, ds_name, outcsvpath, outdvcpath, language, context, sources_registry, keep_empty_cells)
+            process_dataset(
+                dataset_df,
+                ds_name,
+                outcsvpath,
+                outdvcpath,
+                language,
+                context,
+                sources_registry,
+                keep_empty_cells,
+                dataset_attributes_csv,
+            )
 
 
 def main():
@@ -970,6 +1096,17 @@ def main():
         ),
     )
     parser.add_argument(
+        '--dataset-csv',
+        required=False,
+        default=None,
+        help=(
+            'Path to a dataset-level attribute CSV as written by `manage.py export_dataset` '
+            "(columns: 'Dataset' plus any of 'Name'/'ForecastFrom'/'TimeResolution'/'IsEditable'). "
+            'These are facts the dataset has one of, so they travel beside the data rather than in '
+            "it, and land in the DVC metadata['dataset'] key for load_dvc_dataset to read back."
+        ),
+    )
+    parser.add_argument(
         '--sources-csv',
         required=False,
         default=None,
@@ -1003,7 +1140,17 @@ def main():
     # Load data
     full_df = load_data(incsvpath, incsvsep, encoding)
 
-    process_datasets(full_df, outcsvpath, outdvcpath, language, context, dataset_name, sources_registry, keep_empty_cells)
+    process_datasets(
+        full_df,
+        outcsvpath,
+        outdvcpath,
+        language,
+        context,
+        dataset_name,
+        sources_registry,
+        keep_empty_cells,
+        args.dataset_csv,
+    )
 
 
 if __name__ == '__main__':

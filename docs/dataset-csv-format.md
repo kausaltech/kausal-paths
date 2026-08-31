@@ -2,7 +2,7 @@
 
 The format `tools/upload_new_dataset.py` reads: one CSV holding **several
 datasets**, each row a value series for one metric × dimension combination, with
-per-row provenance (`Source`, `Comment`, `UUID`) that survives the round trip into
+per-row provenance (`Source`, `Comment`) that survives the round trip into
 `DataSource` and `DataPointComment` records.
 
 Until now this was documented only implicitly — the authoritative behaviour lives
@@ -48,17 +48,33 @@ without them, `Source` would be read as a dimension called "Source".
 ### Reserved per-row metadata columns
 
 `RESERVED_ROW_COLUMNS = {'source', 'comment', 'description'}` (matched
-case-insensitively). These ride through to DVC as literal per-row values but are
-**never** treated as dimensions. In new files use `Source` and `Comment` only;
-`description` remains in the set for backward compatibility with
-`plain_csv_wide` files that predate this rule.
+case-insensitively, defined in `nodes/constants.py`). These ride through to DVC as
+literal per-row values but are **never** treated as dimensions. In new files use
+`Source` and `Comment` only; `description` remains in the set for backward
+compatibility with `plain_csv_wide` files that predate this rule.
+
+**`UUID` is not one of them**, though this document said so until 2026-08-30. It is
+not in `RESERVED_ROW_COLUMNS`, so in the normal path a `UUID` column falls into the
+default-catch family and is read as **a dimension** — which is what the NZC framework
+now wants: `configs/nzc.yaml` declares `uuid` as a dimension whose categories are the
+UUIDs. The column dates from the single monolithic NZC DVC dataset, where it matched
+city-level framework measures against a pre-existing model and needed an exception to
+avoid being read as a dimension. That dataset is gone. The one exception still standing
+is `non_index = {'Value', 'Unit', 'UUID'}` in the `plain_csv_wide` branch of
+`upload_new_dataset`, which is legacy.
+
+It is **not** a data-point identifier, and nothing reads it back as one. Data points
+are identified by natural key — `(year, metric, sorted category ids)`, see
+`DataPointKey` in `nodes/instance_serialization.py` — and `load_dvc_dataset` mints a
+fresh `DataPoint.uuid` on every import by design. See
+[`dataset-round-trip.md`](dataset-round-trip.md) §3.
 
 | column | meaning |
 |---|---|
 | `Source` | One or more names from the sources registry (§2), joined by `SOURCE_NAME_SEPARATOR` (`'; '`). `load_dvc_dataset` splits on the same separator and creates one `DatasetSourceReference` per name. |
 | `Comment` | Free text attached to the data point. This is where a value's rationale, a superseded value, a source-cell reference, or a known-error note belongs. Several notes about one data point are joined by `COMMENT_SEPARATOR` (`' ;; '`) and become separate `DataPointComment` records. |
 | `Description` | **Deprecated — never use alongside `Comment`.** `upload_new_dataset` drops it in `clean_dataframe()` before writing to DVC, folding it into the dataset-level description instead, so per-row `Description` text does not survive. Both `upload_new_dataset` (in `validate_required_columns`) and `load_dvc_dataset` raise if a file carries both columns, rather than discarding one silently. |
-| `UUID` | Stable identifier for the metric × dimension combination, letting a row be tracked across file revisions. Not a dimension; not required. |
+
 
 #### Several notes on one data point
 
@@ -86,8 +102,15 @@ and `metric_col`). Two consequences:
   column null. On load, each metric's data point gets its own comment.
 - **Identical comments collapse**, as intended: metric rows sharing a dimension
   combination *and* a comment become one stored row, and `load_dvc_dataset`
-  attaches that comment to every non-null metric's data point in the row. Nine
+  attaches that comment to **every** metric's data point in the row. Nine
   rows × three metrics then yields 27 commented data points.
+
+  Every metric, including one whose cell is empty — a `Comment` cell is scoped to its
+  row, and a row spans all the metrics. That is deliberate and load-bearing: an empty
+  dataset template is shipped to a city with the instruction, or the source to obtain
+  the figure from, written in the `Comment` of the cell they are being asked to fill.
+  A comment that only attached to cells that already had values could not say
+  "we need this, here is where to get it".
 
 So giving every metric row of a dimension combination the same `Comment` (as
 `data/cork/make_kpmg_building_heat.py` does) keeps the stored table dense; giving

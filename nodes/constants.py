@@ -41,6 +41,23 @@ SOURCE_TARGET_DATA_POINT = 'data_point'
 SOURCE_TARGET_DATASET = 'dataset'
 SOURCE_TARGETS = frozenset({SOURCE_TARGET_DATA_POINT, SOURCE_TARGET_DATASET})
 
+# The in-cell separators for the two reserved columns, defined once here because three
+# commands now have to agree on them: `upload_new_dataset` writes them, `load_dvc_dataset`
+# splits on them, and `export_dataset` joins on them again on the way back out. They were
+# duplicated in the first two, each with a comment saying it must match the other.
+#
+# They are deliberately different from each other. Source names are short identifiers, so
+# '; ' is safe. Comments are prose and prose contains semicolons -- splitting those on
+# '; ' would fragment single sentences -- so a comment cell carrying several notes joins
+# them with ' ;; '.
+SOURCE_NAME_SEPARATOR = '; '
+COMMENT_SEPARATOR = ' ;; '
+
+# Joins the dataset names in the sources registry's `Datasets` column. Same string as
+# SOURCE_NAME_SEPARATOR and kept separate anyway: they are different vocabularies, and a
+# change to one has no business moving the other.
+DATASET_NAME_SEPARATOR = '; '
+
 # Impact constants
 IMPACT_COLUMN = 'Impact'
 # Probability iterations for Monte Carlo

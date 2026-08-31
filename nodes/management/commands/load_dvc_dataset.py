@@ -30,8 +30,10 @@ from kausal_common.i18n.pydantic import TranslatedString
 
 from common import polars as ppl
 from nodes.constants import (
+    COMMENT_SEPARATOR,
     FORECAST_COLUMN,
     RESERVED_ROW_COLUMNS,
+    SOURCE_NAME_SEPARATOR,
     SOURCE_TARGET_DATA_POINT,
     SOURCE_TARGET_DATASET,
     YEAR_COLUMN,
@@ -49,23 +51,10 @@ if TYPE_CHECKING:
     from nodes.dimensions import Dimension as DimensionSpec, DimensionCategory as DimensionCategorySpec
     from nodes.units import Unit
 
-# Must match tools/upload_new_dataset.py's SOURCE_NAME_SEPARATOR: a 'Source' cell may
-# join multiple citation names when a value was derived from more than one.
-SOURCE_NAME_SEPARATOR = '; '
-
-# A 'Comment' cell may likewise carry several distinct notes about one data point -- a
-# source-cell reference, the inventory's own wording, an adopted-error note -- each of
-# which should become its own DataPointComment.
-#
-# Deliberately NOT '; ', unlike SOURCE_NAME_SEPARATOR. Source names are short identifiers;
-# comments are prose, and prose contains semicolons: 162 of the 12,899 comment cells
-# already in data/ contain '; ' inside a single sentence, and splitting on it would
-# fragment them. ' ;; ' cannot occur by accident in ordinary text.
-COMMENT_SEPARATOR = ' ;; '
-
-# RESERVED_ROW_COLUMNS comes from nodes.constants, which is also what `upload_new_dataset`
-# writes by and what `DVCDataset` drops on load. It used to be copied here and there with a
-# "must match" comment; one definition is what actually makes them match.
+# SOURCE_NAME_SEPARATOR, COMMENT_SEPARATOR and RESERVED_ROW_COLUMNS all come from
+# nodes.constants, which is also what `upload_new_dataset` writes by, what `export_dataset`
+# joins on, and what `DVCDataset` drops on load. They used to be copied here and there with
+# a "must match" comment; one definition is what actually makes them match.
 
 
 def source_target(fields: dict[str, str | None]) -> str:
@@ -521,6 +510,8 @@ class Command(BaseCommand):
             dataset = Dataset.objects.create(**get_kwargs, schema=schema, external_ref=make_external_dataset_ref(ctx, ds_id))
             print(f"Created dataset '{dataset}'")
 
+        self.apply_dataset_attributes(dataset, schema, dvc_metadata)
+
         # Match DB metric columns (DVC units keys) to meta: column_id is the physical column name; id is optional slug.
         metrics_meta = {
             (m.get('column_id') or m.get('id')): m for m in dvc_metadata.get('metrics') or [] if m.get('column_id') or m.get('id')
@@ -641,6 +632,44 @@ class Command(BaseCommand):
             schema.description = description_i18n.get(default_language) or next(iter(description_i18n.values()))
         schema.save()
         return schema
+
+    def apply_dataset_attributes(self, dataset: Dataset, schema: DatasetSchema, dvc_metadata: dict) -> None:
+        """
+        Write back the dataset-level facts that `metadata['dataset']` carries.
+
+        The other half of the sidecar described in ``docs/dataset-round-trip.md`` §4:
+        `export_dataset` writes them beside the data, `upload_new_dataset --dataset-csv`
+        puts them here, and this reads them back. A missing key means "unchanged", so a
+        `.dvc` file written before this existed changes nothing and needs no republishing.
+
+        `external_ref` and `is_external_placeholder` are deliberately not among them: the
+        import decides those, stamping the commit it actually read, and a value carried
+        round the loop would overwrite a true statement with a stale one.
+        """
+        attributes = dvc_metadata.get('dataset') or {}
+        if not attributes:
+            return
+
+        forecast_from = attributes.get('forecast_from')
+        if forecast_from is not None and (dataset.spec or {}).get('forecast_from') != forecast_from:
+            spec = dict(dataset.spec or {})
+            spec['forecast_from'] = int(forecast_from)
+            dataset.spec = spec
+            dataset.save(update_fields=['spec'])
+            print(f'Set forecast_from={forecast_from}')
+
+        schema_fields: list[str] = []
+        time_resolution = attributes.get('time_resolution')
+        if time_resolution and schema.time_resolution != time_resolution:
+            schema.time_resolution = time_resolution
+            schema_fields.append('time_resolution')
+        is_editable = attributes.get('is_editable')
+        if is_editable is not None and schema.is_editable != bool(is_editable):
+            schema.is_editable = bool(is_editable)
+            schema_fields.append('is_editable')
+        if schema_fields:
+            schema.save(update_fields=schema_fields)
+            print(f'Updated schema {", ".join(schema_fields)}')
 
     def get_or_create_data_sources(
         self, instance_config: InstanceConfig, sources_meta: list[dict[str, str | None]] | None
