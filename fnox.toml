@@ -8,6 +8,9 @@ vault-fi = { type = "vault", address = "https://vault.kausal.tech", path = "comm
 keychain = { type = "keychain", service = "fnox", prefix = "paths-backend/" }
 
 [secrets]
+KAUSAL_SSO_CLIENT_ID = { provider = "vault", value = "keycloak-rp/KAUSAL_SSO_CLIENT_ID" }
+KAUSAL_SSO_CLIENT_SECRET = { provider = "vault", value = "keycloak-rp/KAUSAL_SSO_CLIENT_SECRET" }
+KAUSAL_SSO_OIDC_ENDPOINT = { provider = "vault", value = "keycloak-rp/KAUSAL_SSO_OIDC_ENDPOINT" }
 UV_INDEX_KAUSAL_PASSWORD = { provider = "vault", value = "uv/UV_INDEX_KAUSAL_PASSWORD" }
 UV_INDEX_KAUSAL_USERNAME = { provider = "vault", value = "uv/UV_INDEX_KAUSAL_USERNAME" }
 FNOX_VAULT_TOKEN= { provider = "keychain", value = "FNOX_VAULT_TOKEN" }

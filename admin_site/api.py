@@ -13,11 +13,17 @@ from rest_framework.throttling import UserRateThrottle
 
 import requests
 
+from kausal_common.auth.backends import KausalAuth
+
 from users.models import User
 
 
 class LoginMethodThrottle(UserRateThrottle):
     rate = '5/m'
+
+
+def _kausal_sso_enabled() -> bool:
+    return 'kausal_common.auth.backends.KausalAuth' in settings.AUTHENTICATION_BACKENDS
 
 
 def check_user_in_other_clusters(email, request):
@@ -89,6 +95,8 @@ def check_login_method(request):
 
     if user.has_usable_password():
         method = 'password'
+    elif _kausal_sso_enabled() and email.rsplit('@', 1)[-1] in settings.SOCIAL_AUTH_KAUSAL_EMAIL_DOMAINS:
+        method = KausalAuth.name
     else:
         method = 'azure_ad'
     return Response({'method': method})

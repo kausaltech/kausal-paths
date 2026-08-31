@@ -215,6 +215,7 @@ def test_azure_ad_oauth_authorize_does_not_take_nzc_shortcut(client):
     )
 
 
+@pytest.mark.usefixtures('_reset_login_method_throttle')
 def test_check_login_method_redirects_to_user_cluster(client, monkeypatch, settings) -> None:
     settings.PATHS_BACKEND_REGION_URLS = ['https://eu.paths.example']
     url = reverse('admin_check_login_method')
@@ -238,6 +239,7 @@ def test_check_login_method_redirects_to_user_cluster(client, monkeypatch, setti
     }
 
 
+@pytest.mark.usefixtures('_reset_login_method_throttle')
 def test_check_login_method_ignores_inactive_local_user_when_checking_clusters(client, monkeypatch, settings) -> None:
     settings.PATHS_BACKEND_REGION_URLS = ['https://eu.paths.example']
     UserFactory.create(email='user@example.com', is_staff=True, is_superuser=True, is_active=False)
@@ -254,6 +256,7 @@ def test_check_login_method_ignores_inactive_local_user_when_checking_clusters(c
     assert response.json()['cluster_redirect'] is True
 
 
+@pytest.mark.usefixtures('_reset_login_method_throttle')
 def test_check_login_method_prefers_local_user(client, monkeypatch, settings, instance_config) -> None:
     settings.PATHS_BACKEND_REGION_URLS = ['https://eu.paths.example']
     user = UserFactory.create(email='user@example.com', is_staff=True, is_superuser=True)
@@ -270,6 +273,83 @@ def test_check_login_method_prefers_local_user(client, monkeypatch, settings, in
 
     assert response.status_code == 200
     assert response.json() == {'method': 'password'}
+
+
+KAUSAL_AUTH_BACKENDS = (
+    'kausal_common.auth.backends.KausalAuth',
+    'kausal_common.auth.backends.AzureADAuth',
+    'admin_site.auth_backends.PasswordAuth',
+    'django.contrib.auth.backends.ModelBackend',
+)
+
+
+@pytest.fixture
+def _reset_login_method_throttle() -> Iterator[None]:
+    """LoginMethodThrottle (5/min per IP) spans tests and runs via the shared cache."""
+    from django.core.cache import cache
+
+    cache.clear()
+    yield
+    cache.clear()
+
+
+@pytest.mark.usefixtures('_reset_social_backends_cache', '_reset_login_method_throttle')
+def test_check_login_method_routes_kausal_domain_to_kausal_sso(client, settings) -> None:
+    settings.AUTHENTICATION_BACKENDS = KAUSAL_AUTH_BACKENDS
+    settings.SOCIAL_AUTH_KAUSAL_EMAIL_DOMAINS = ['kausal.tech']
+    user = UserFactory.create(email='dev@kausal.tech', is_staff=True, is_superuser=True)
+    user.set_unusable_password()
+    user.save()
+
+    response = client.post(reverse('admin_check_login_method'), {'email': 'dev@kausal.tech'}, content_type='application/json')
+
+    assert response.status_code == 200
+    assert response.json() == {'method': 'kausal'}
+
+
+@pytest.mark.usefixtures('_reset_social_backends_cache', '_reset_login_method_throttle')
+def test_check_login_method_password_takes_precedence_over_kausal_sso(client, settings) -> None:
+    # A configured password is deliberate (testing accounts); normal
+    # provisioning leaves it unusable, so SSO must not shadow it.
+    settings.AUTHENTICATION_BACKENDS = KAUSAL_AUTH_BACKENDS
+    settings.SOCIAL_AUTH_KAUSAL_EMAIL_DOMAINS = ['kausal.tech']
+    user = UserFactory.create(email='dev@kausal.tech', is_staff=True, is_superuser=True)
+    user.set_password('password')
+    user.save()
+
+    response = client.post(reverse('admin_check_login_method'), {'email': 'dev@kausal.tech'}, content_type='application/json')
+
+    assert response.status_code == 200
+    assert response.json() == {'method': 'password'}
+
+
+@pytest.mark.usefixtures('_reset_login_method_throttle')
+def test_check_login_method_kausal_domain_falls_back_when_sso_not_configured(client, settings) -> None:
+    # KausalAuth absent from AUTHENTICATION_BACKENDS (client not provisioned):
+    # routing to it would strand the user on a dead begin URL.
+    settings.SOCIAL_AUTH_KAUSAL_EMAIL_DOMAINS = ['kausal.tech']
+    user = UserFactory.create(email='dev@kausal.tech', is_staff=True, is_superuser=True)
+    user.set_unusable_password()
+    user.save()
+
+    response = client.post(reverse('admin_check_login_method'), {'email': 'dev@kausal.tech'}, content_type='application/json')
+
+    assert response.status_code == 200
+    assert response.json() == {'method': 'azure_ad'}
+
+
+@pytest.mark.usefixtures('_reset_social_backends_cache', '_reset_login_method_throttle')
+def test_check_login_method_non_kausal_domain_keeps_azure_ad(client, settings) -> None:
+    settings.AUTHENTICATION_BACKENDS = KAUSAL_AUTH_BACKENDS
+    settings.SOCIAL_AUTH_KAUSAL_EMAIL_DOMAINS = ['kausal.tech']
+    user = UserFactory.create(email='user@example.com', is_staff=True, is_superuser=True)
+    user.set_unusable_password()
+    user.save()
+
+    response = client.post(reverse('admin_check_login_method'), {'email': 'user@example.com'}, content_type='application/json')
+
+    assert response.status_code == 200
+    assert response.json() == {'method': 'azure_ad'}
 
 
 def test_check_user_in_other_clusters_skips_regional_host(rf, monkeypatch, settings) -> None:
