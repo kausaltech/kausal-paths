@@ -1395,20 +1395,34 @@ nodes:
   name_en: Final energy use of the stationary sectors
   description_en: |
     Final energy use of the four stationary BISKO sectors by energy carrier, as delivered by the
-    city, with one correction: the consumption of municipal facilities is removed from commerce,
-    trade and services when the city has declared that its figure for that sector still contains
-    it (see <i>Municipal facility energy included in commerce</i>). Weather correction, which
-    BISKO does not permit, is applied to both sides of that subtraction, so the sector value is
-    (commerce &minus; municipal facilities) &times; correction factor.
+    city, with two deductions that remove double counts:<br/>
+    &bull; The consumption of municipal facilities is removed from commerce, trade and services
+    when the city has declared that its figure for that sector still contains it, since BISKO
+    reports municipal facilities as a sector of their own (see <i>Municipal facility energy
+    included in commerce</i>).<br/>
+    &bull; The electricity that drives heat pumps is removed from the electricity of each sector
+    when the city has declared that its metered electricity still contains it, since the heat
+    those pumps deliver is already reported as environmental heat (see <i>Heat pump electricity
+    included in electricity</i>).<br/>
+    Either deduction is zero for a city whose data already separates the quantity, in which case
+    nothing is subtracted. Weather correction, which BISKO does not permit, is applied to the
+    delivered energy and to both deductions, so all three are on the same scale.
   description_de: |
     Endenergieverbrauch der vier stationären BISKO-Sektoren nach Energieträgern, wie von der
-    Kommune geliefert, mit einer Korrektur: Der Verbrauch der kommunalen Einrichtungen wird vom
-    Sektor Gewerbe, Handel, Dienstleistungen abgezogen, wenn die Kommune erklärt hat, dass er in
-    dessen Wert noch enthalten ist (siehe <i>Endenergie der kommunalen Einrichtungen im
-    GHD-Wert</i>). Die von BISKO nicht zugelassene Witterungsbereinigung wird auf beide Seiten
-    dieser Subtraktion angewendet, der Sektorwert ist also
-    (GHD &minus; kommunale Einrichtungen) &times; Korrekturfaktor.
-  type: simple.MultiplicativeNode2
+    Kommune geliefert, mit zwei Abzügen, die Doppelzählungen beseitigen:<br/>
+    &bull; Der Verbrauch der kommunalen Einrichtungen wird vom Sektor Gewerbe, Handel,
+    Dienstleistungen abgezogen, wenn die Kommune erklärt hat, dass er in dessen Wert noch
+    enthalten ist, denn BISKO weist die kommunalen Einrichtungen als eigenen Sektor aus (siehe
+    <i>Endenergie der kommunalen Einrichtungen im GHD-Wert</i>).<br/>
+    &bull; Der Strom, der die Wärmepumpen antreibt, wird vom Strom jedes Sektors abgezogen, wenn
+    die Kommune erklärt hat, dass er in der gemessenen Strommenge noch enthalten ist, denn die
+    von den Pumpen erzeugte Wärme wird bereits als Umweltwärme ausgewiesen (siehe
+    <i>Wärmepumpenstrom im Stromverbrauch</i>).<br/>
+    Beide Abzüge sind null für eine Kommune, deren Daten die Menge bereits getrennt ausweisen;
+    dann wird nichts abgezogen. Die von BISKO nicht zugelassene Witterungsbereinigung wird auf
+    die gelieferte Energie und auf beide Abzüge angewendet, sodass alle drei auf derselben Skala
+    liegen.
+  type: formula.FormulaNode
   quantity: energy
   unit: MWh/a
   input_dimensions: [sector, energy_carrier]
@@ -1419,7 +1433,10 @@ nodes:
     # value into the earlier years. Keeping that, but saying so.
     backfill: true
     extend: true  # GenericNode extended its dataset; keep that explicit
-    tags: [non_additive]
+    # Explicit because the class default changed under this node: MultiplicativeNode2 sets
+    # interpolates_input_datasets_by_default, FormulaNode (via Node) does not.
+    interpolate: true
+    tags: [data]
     column: Value
     filters:
     - column: energy_carrier
@@ -1428,8 +1445,9 @@ nodes:
       drop_col: false
   input_nodes:
   - id: weather_correction
+    tags: [correction]
   - id: municipal_facilities_energy_in_commerce
-    tags: [additive, arithmetic_inverse]
+    tags: [municipal]
     to_dimensions:
     - id: energy_carrier
     - id: sector
@@ -1437,11 +1455,18 @@ nodes:
   # Leitfaden Datenbeschaffung, Schritt 7: the electricity that drives the heat pumps is already
   # in the metered electricity, so counting the environmental heat as well counts it twice.
   - id: heat_pump_electricity_in_electricity
-    tags: [additive, arithmetic_inverse]
+    tags: [heat_pumps]
     to_dimensions:
     - id: sector
     - id: energy_carrier
       categories: [electricity]
+  params:
+    # The correction multiplies the delivered energy only. Both subtrahends already apply
+    # weather_correction inside their own nodes -- municipal on the commerce factor, heat pumps
+    # on their own sector's -- so (data - municipal - heat_pumps) * correction would square it
+    # on them. The description's "applied to all three" is therefore true of the result, and
+    # this is where it stops being applied a second time.
+    formula: data * correction - municipal - heat_pumps
 
 - id: heat_pump_electricity_in_electricity
   is_editable: false
