@@ -61,6 +61,11 @@ env = environ.FileAwareEnv(
     WATCH_DEFAULT_API_BASE_URL=(str, 'https://api.watch.kausal.tech'),
     AZURE_AD_CLIENT_ID=(str, ''),
     AZURE_AD_CLIENT_SECRET=(str, ''),
+    KAUSAL_SSO_OIDC_ENDPOINT=(str, ''),
+    KAUSAL_SSO_CLIENT_ID=(str, ''),
+    KAUSAL_SSO_CLIENT_SECRET=(str, ''),
+    KAUSAL_SSO_DEVTOOL_CLIENT_ID=(str, ''),
+    KAUSAL_SSO_EMAIL_DOMAINS=(list, ['kausal.tech']),
     NZCPORTAL_CLIENT_ID=(str, ''),
     NZCPORTAL_CLIENT_SECRET=(str, ''),
     GITHUB_APP_ID=(str, ''),
@@ -262,7 +267,22 @@ SOCIAL_AUTH_RAISE_EXCEPTIONS = False
 SOCIAL_AUTH_NZCPORTAL_CLIENT_ID = env.str('NZCPORTAL_CLIENT_ID')
 SOCIAL_AUTH_NZCPORTAL_CLIENT_SECRET = env.str('NZCPORTAL_CLIENT_SECRET')
 
+SOCIAL_AUTH_KAUSAL_OIDC_ENDPOINT = env.str('KAUSAL_SSO_OIDC_ENDPOINT')
+SOCIAL_AUTH_KAUSAL_KEY = env.str('KAUSAL_SSO_CLIENT_ID')
+SOCIAL_AUTH_KAUSAL_SECRET = env.str('KAUSAL_SSO_CLIENT_SECRET')
+SOCIAL_AUTH_KAUSAL_EMAIL_DOMAINS = env.list('KAUSAL_SSO_EMAIL_DOMAINS')
+
+# The devtool client (public, PKCE) shares the realm with the login client;
+# its ID tokens are accepted as API bearer tokens when this is configured.
+# See kausal_common.auth.tokens.authenticate_devtool_id_token().
+SOCIAL_AUTH_KAUSAL_DEVTOOL_OIDC_ENDPOINT = SOCIAL_AUTH_KAUSAL_OIDC_ENDPOINT
+SOCIAL_AUTH_KAUSAL_DEVTOOL_KEY = env.str('KAUSAL_SSO_DEVTOOL_CLIENT_ID')
+# Keycloak's issuer is exactly the realm URL; setting it explicitly skips a
+# discovery round trip during token validation.
+SOCIAL_AUTH_KAUSAL_DEVTOOL_ID_TOKEN_ISSUER = SOCIAL_AUTH_KAUSAL_OIDC_ENDPOINT
+
 AUTHENTICATION_BACKENDS = (
+    *(['kausal_common.auth.backends.KausalAuth'] if SOCIAL_AUTH_KAUSAL_KEY and SOCIAL_AUTH_KAUSAL_OIDC_ENDPOINT else []),
     'kausal_common.auth.backends.AzureADAuth',
     *(['admin_site.auth_backends.NZCPortalOAuth2'] if SOCIAL_AUTH_NZCPORTAL_CLIENT_ID else []),
     'admin_site.auth_backends.PasswordAuth',
