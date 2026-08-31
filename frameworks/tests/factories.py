@@ -26,7 +26,22 @@ class FrameworkFactory(DjangoModelFactory[Framework]):
 class FrameworkConfigFactory(DjangoModelFactory[FrameworkConfig]):
     framework: SubFactory[FrameworkFactory, Framework] = SubFactory(FrameworkFactory)
     instance_config: SubFactory[InstanceConfigFactory, InstanceConfig] = SubFactory(InstanceConfigFactory)
-    baseline_year = 2020
 
     class Meta:
         model = FrameworkConfig
+
+    @classmethod
+    def create(cls, **kwargs: Any) -> FrameworkConfig:
+        baseline_year = kwargs.pop('baseline_year', None)
+        target_year = kwargs.pop('target_year', None)
+        fwc = super().create(**kwargs)
+        updates: dict[str, int] = {}
+        if baseline_year is not None:
+            updates['reference'] = baseline_year
+        elif fwc.instance_config.ensure_spec().years.reference is None:
+            updates['reference'] = 2020
+        if target_year is not None:
+            updates['target'] = target_year
+        if updates:
+            fwc.instance_config.update_years(**updates)
+        return fwc

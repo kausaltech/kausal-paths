@@ -164,6 +164,7 @@ class FrameworkConfigModel(DjangoDiffModel[FrameworkConfig]):
 
     framework: UUID
     instance_identifier: str
+    baseline_year: int
     created_at: datetime | None = None
     measures: list[str] = Field(default_factory=list)
     uuid: UUID = Field(default_factory=uuid4)
@@ -178,6 +179,7 @@ class FrameworkConfigModel(DjangoDiffModel[FrameworkConfig]):
             .annotate(_instance_pk=F('pk'))
             .annotate(framework=F('framework__uuid'))
             .annotate(instance_identifier=F('instance_config__identifier'))
+            .annotate(baseline_year=F('instance_config__spec__years__reference'))
             .order_by('created_at')
         )
         return fwc_objs

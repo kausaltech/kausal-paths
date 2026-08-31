@@ -52,7 +52,9 @@ The NZC creation mutation is defined in
 `createNzcFrameworkConfig` takes two inputs:
 
 - `FrameworkConfigInput`: framework id, instance identifier, organization
-  name, baseline year, target year, and optional UUID.
+  name, baseline year, target year, and optional UUID. The API retains the
+  historical baseline/target names, but persists them as the instance spec's
+  reference and target years.
 - `NZCCityEssentialData`: population, low/high yearly temperature, and
   low/high renewable energy mix.
 
@@ -69,6 +71,19 @@ The mutation does the following:
 Default datapoints are selected by framework, creation categories, and baseline
 year. If a template default uses population scaling, the stored city population
 is applied before writing the `MeasureDataPoint.default_value`.
+
+### Year ownership
+
+`InstanceConfig.spec.years` is the sole persisted owner of model year
+boundaries. `FrameworkConfig` does not store duplicate baseline or target-year
+columns. Framework GraphQL continues to expose `baselineYear` and `targetYear`
+as compatibility projections of the instance reference and target years, and
+framework measure operations read the reference year from the instance spec.
+
+For framework-backed YAML instances, refreshing the shared YAML-derived spec
+preserves the instance-owned reference and target years. The historical range
+used by the legacy NZC runtime is still derived from the city's measure data;
+database-backed models such as CADS use their stored instance spec unchanged.
 
 ## Runtime Model Loading
 

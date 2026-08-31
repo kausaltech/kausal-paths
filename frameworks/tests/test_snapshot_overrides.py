@@ -69,6 +69,7 @@ def test_apply_snapshot_overrides_identity_and_years():
 
 def test_apply_snapshot_overrides_defaults_without_datapoints():
     fwc = FrameworkConfigFactory.create(baseline_year=2020, target_year=None)
+    fwc.instance_config.update_years(target=2030)
 
     result = fwc.apply_snapshot_overrides(make_framework_snapshot())
 
@@ -91,6 +92,7 @@ def test_framework_instance_graphql_years_use_city_overrides(
     fwc = FrameworkConfigFactory.create(baseline_year=2019, target_year=2040)
     fwc.instance_config.spec = make_framework_snapshot().spec
     fwc.instance_config.save(update_fields=['spec'])
+    fwc.instance_config.update_years(reference=2019, target=2040)
     add_measure_datapoints(fwc, years_with_values=[2019], years_without_values=[2020])
 
     def fail_enter_instance_context(*_args: object, **_kwargs: object) -> None:
@@ -121,6 +123,7 @@ def test_framework_config_nested_instance_graphql_years_use_city_overrides(
     fwc = FrameworkConfigFactory.create(baseline_year=2021, target_year=2035)
     fwc.instance_config.spec = make_framework_snapshot().spec
     fwc.instance_config.save(update_fields=['spec'])
+    fwc.instance_config.update_years(reference=2021, target=2035)
     user = User.objects.create_user(username='framework-admin', email='framework-admin@example.com')
     framework_admin_role.assign_user(fwc.framework, user)
     client.force_login(user)
@@ -149,6 +152,31 @@ def test_framework_config_nested_instance_graphql_years_use_city_overrides(
         'minimumHistoricalYear': 2021,
         'maximumHistoricalYear': 2021,
         'targetYear': 2035,
+    }
+
+
+def test_database_framework_instance_graphql_years_use_stored_spec(client: Client) -> None:
+    from paths.tests.graphql import PathsTestClient
+
+    years = YearsSpec(reference=1990, min_historical=2018, max_historical=2025, target=2035, model_end=2040)
+    fwc = FrameworkConfigFactory.create(
+        instance_config__config_source='database',
+        instance_config__spec=InstanceModelSpec(years=years),
+    )
+    add_measure_datapoints(fwc, years_with_values=[1991, 2017])
+    gql_client = PathsTestClient(client)
+    gql_client.set_instance(fwc.instance_config)
+
+    data = gql_client.query_data(
+        '{ instance { referenceYear minimumHistoricalYear maximumHistoricalYear targetYear modelEndYear } }'
+    )
+
+    assert data['instance'] == {
+        'referenceYear': 1990,
+        'minimumHistoricalYear': 2018,
+        'maximumHistoricalYear': 2025,
+        'targetYear': 2035,
+        'modelEndYear': 2040,
     }
 
 

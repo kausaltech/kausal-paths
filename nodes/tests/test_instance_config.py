@@ -12,6 +12,7 @@ from paths.const import INSTANCE_VIEWER_ROLE
 from admin_site.auth_pipeline import assign_roles
 from frameworks.models import Framework, FrameworkConfig
 from frameworks.roles import FrameworkRoleDef
+from nodes.defs import InstanceModelSpec, YearsSpec
 from nodes.models import InstanceConfig, _pytest_instances, make_minimal_instance_spec
 from nodes.roles import instance_admin_role, instance_super_admin_role
 from nodes.tests.factories import InstanceFactory, NodeConfigFactory, SimpleNodeFactory
@@ -72,6 +73,48 @@ target_year: 2040
     assert ic.yaml_mtime_hash == 'stale-yaml-hash'
 
 
+def test_framework_yaml_refresh_preserves_instance_owned_years(settings, tmp_path) -> None:
+    configs_dir = tmp_path / 'configs'
+    configs_dir.mkdir()
+    settings.BASE_DIR = tmp_path
+    (configs_dir / 'test-framework.yaml').write_text(
+        """
+id: test-framework
+default_language: en
+name: Shared framework model
+owner: Owner
+reference_year: 2018
+minimum_historical_year: 2018
+maximum_historical_year: 2020
+target_year: 2030
+model_end_year: 2060
+""".lstrip(),
+        encoding='utf8',
+    )
+    ic = InstanceConfig.objects.create(
+        identifier='framework-city-years',
+        name='Framework City',
+        primary_language='en',
+        organization=OrganizationFactory.create(),
+        spec=InstanceModelSpec(years=YearsSpec(reference=2021, target=2040)),
+    )
+    FrameworkConfig.objects.create(
+        framework=Framework.objects.create(identifier='test-framework', name='Test Framework'),
+        instance_config=ic,
+        organization_name='Framework City',
+    )
+
+    years = ic.ensure_spec().years
+
+    assert years == YearsSpec(
+        reference=2021,
+        min_historical=2018,
+        max_historical=2020,
+        target=2040,
+        model_end=2060,
+    )
+
+
 @override_settings(INSTANCE_WILDCARD_DOMAIN='paths-ui.example')
 def test_instance_view_url_falls_back_to_wildcard_domain() -> None:
     ic = InstanceConfig.objects.create(
@@ -111,7 +154,6 @@ def test_framework_backed_yaml_instance_resolves_outcome_node_configs(monkeypatc
         framework=Framework.objects.create(identifier='framework-test', name='Framework Test'),
         instance_config=ic,
         organization_name='Framework City',
-        baseline_year=2020,
     )
     node_config = NodeConfigFactory.create(instance=ic, identifier='net_emissions')
 
@@ -210,7 +252,6 @@ def test_nzc_instance_creates_super_admin_group_but_not_reviewer_group() -> None
         framework=Framework.objects.create(identifier='nzc', name='NetZeroCities'),
         instance_config=ic,
         organization_name='NZC City',
-        baseline_year=2020,
     )
 
     ic.create_or_update_instance_groups()
@@ -236,7 +277,6 @@ def test_login_pipeline_refreshes_instance_groups_for_framework_instances() -> N
         instance_config=ic,
         organization_name='Pipeline City',
         organization_identifier='city-uid',
-        baseline_year=2020,
     )
 
     assign_roles(

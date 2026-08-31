@@ -91,8 +91,6 @@ class FrameworkMutation:
                 framework=fw,
                 instance_config=ic,
                 organization_name=input.organization_name,
-                baseline_year=fw.defaults.baseline_year.default or fw.defaults.baseline_year.min or 2020,
-                target_year=fw.defaults.target_year.default or fw.defaults.target_year.min,
                 uuid=ic.uuid,
                 created_by=user,
                 last_modified_by=user,
@@ -110,11 +108,12 @@ class FrameworkMutation:
             else:
                 spec = ic.spec
                 assert spec is not None
-                spec.years.reference = fwc.baseline_year
-                spec.years.min_historical = fwc.baseline_year
-                spec.years.max_historical = fwc.baseline_year
-                if fwc.target_year is not None:
-                    spec.years.target = fwc.target_year
+                reference_year = fw.defaults.baseline_year.default or fw.defaults.baseline_year.min or 2020
+                target_year = fw.defaults.target_year.default or fw.defaults.target_year.min
+                spec.years.reference = reference_year
+                spec.years.min_historical = reference_year
+                spec.years.max_historical = reference_year
+                spec.years.target = target_year
                 # Owner display name lives on the column now.
                 ic.owner = fwc.organization_name or ''
                 ic.save(update_fields=['spec', 'owner'])

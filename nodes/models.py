@@ -1366,6 +1366,16 @@ class InstanceConfig(
             raise ValueError(f'No YAML config entrypoint found for instance {self.identifier}')
 
         spec, primary_language, other_languages, yaml_mtime_hash = yaml_ret
+        if self.spec is not None and self.has_framework_config():
+            # Framework-backed YAML instances share their calculation model, but
+            # reference and target years are instance-owned. Preserve those two
+            # fields when refreshing the YAML-derived portion of the spec.
+            current_years = self.spec.years
+            year_updates = {
+                field: value for field in ('reference', 'target') if (value := getattr(current_years, field)) is not None
+            }
+            if year_updates:
+                spec = spec.model_copy(update={'years': spec.years.model_copy(update=year_updates)})
         if self.spec is not None and self.yaml_spec_version == YAML_SPEC_VERSION and self.yaml_mtime_hash == yaml_mtime_hash:
             self._verified_yaml_spec_hash = yaml_mtime_hash
             return self.spec
@@ -1382,6 +1392,14 @@ class InstanceConfig(
         if save:
             self.save(update_fields=['primary_language', 'other_languages', 'spec', 'yaml_mtime_hash', 'yaml_spec_version'])
         return self.spec
+
+    def update_years(self, **updates: int | None) -> YearsSpec:
+        """Persist instance-owned year boundaries in the computation spec."""
+        spec = self.ensure_spec()
+        years = spec.years.model_copy(update=updates)
+        self.spec = spec.model_copy(update={'years': years})
+        self.save(update_fields=['spec'])
+        return years
 
     def _ensure_database_spec(self, *, save: bool) -> InstanceModelSpec:
         spec = self.spec

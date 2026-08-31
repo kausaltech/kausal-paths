@@ -10,7 +10,7 @@ but `categories` empty and `populate_measure_defaults` never called.
 This command fixes those cities by:
   1. Reading temperature and renewable_mix from extra['create_context']
   2. Adding the matching FrameworkDimensionCategory records to fwc.categories
-  3. Calling populate_measure_defaults(only_year=fwc.baseline_year)
+  3. Calling populate_measure_defaults(only_year=fwc.reference_year)
 """
 
 from __future__ import annotations
@@ -95,7 +95,7 @@ class Command(BaseCommand):
             self.stdout.write(f'  FIX {ic_id}: pop={pop} temp={temperature} renew={renewable_mix}')
             if not dry_run:
                 fwc.categories.add(cat_renew, cat_temp)
-                count = fwc.populate_measure_defaults(only_year=fwc.baseline_year)
+                count = fwc.populate_measure_defaults(only_year=fwc.reference_year)
                 self.stdout.write(f'       → {count} defaults populated')
             fixed += 1
 

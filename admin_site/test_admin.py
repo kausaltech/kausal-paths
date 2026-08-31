@@ -358,7 +358,6 @@ def test_nzcportal_city_admin_assignment_creates_super_admin_membership() -> Non
         instance_config=ic,
         organization_name='Test City',
         organization_identifier='city-uid',
-        baseline_year=2020,
     )
 
     details = NZCPortalOAuth2(strategy=None)._get_user_details(
