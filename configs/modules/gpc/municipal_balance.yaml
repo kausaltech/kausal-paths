@@ -84,6 +84,21 @@ datasets:
 - id: gpc/municipal_water_use
   is_editable: false
 
+# Billed through Mainzer Netze/Tiefbauamt, not through the Gebäudewirtschaft SAP-EM system
+# municipal_building_energy comes from -- that node's filter deliberately excludes
+# `street_lighting`, so this is its own dataset rather than another facility-type row there.
+- id: gpc/municipal_street_lighting_energy
+  is_editable: false
+
+# Self-generated electricity and heat (BHKW, PV self-consumption) that displaced a
+# purchase. Reported as a memo item (see municipal_avoided_emissions below), never netted
+# into municipal_balance_emissions -- the same relationship municipal_scope3_emissions has
+# to the main total, for the same reason: different question, data of different
+# completeness. Does NOT include BHKW gas consumption -- see data/mainz/create_avoided_energy.py
+# for why that would risk double-counting against municipal_building_energy.
+- id: gpc/municipal_avoided_energy
+  is_editable: false
+
 dimensions:
 
 # These two dimensions live here rather than in the core BISKO module because nothing
@@ -423,6 +438,59 @@ nodes:
     - column: vehicle_type
     - column: scope
 
+- id: municipal_street_lighting_energy
+  is_editable: false
+  name_de: Energieverbrauch der Straßenbeleuchtung
+  name_en: Street lighting energy use
+  description_de: |
+    Stromverbrauch der städtischen Straßenbeleuchtung, aus der EKA-RLP-Datenlieferung
+    (Mainzer Netze/Tiefbauamt). Läuft nicht über die Gebäudewirtschaft und ist deshalb ein
+    eigener Datenpunkt statt einer weiteren Liegenschaftsgruppe in
+    `municipal_building_energy`, dessen Filter `street_lighting` bewusst ausschließt.
+  description_en: |
+    Electricity consumption of the city's street lighting, from the EKA-RLP delivery
+    (Mainzer Netze/Tiefbauamt). Not part of the Gebäudewirtschaft portfolio, hence its own
+    activity rather than another property group in `municipal_building_energy`, whose
+    filter deliberately excludes `street_lighting`.
+  type: simple.AdditiveNode2
+  quantity: energy
+  unit: kWh/a
+  input_dimensions: [ghg_category, municipal_facility_type, energy_carrier]
+  output_dimensions: [ghg_category, municipal_facility_type, energy_carrier]
+  input_datasets:
+  - id: gpc/municipal_street_lighting_energy
+    column: energy
+    extend: true
+
+- id: municipal_avoided_energy
+  is_editable: false
+  name_de: Vermiedener Energiebezug durch Eigenerzeugung (BHKW, PV)
+  name_en: Avoided purchased energy from self-generation (CHP, PV)
+  description_de: |
+    Strom- und Wärmeerzeugung der städtischen BHKW-Anlagen sowie PV-Eigenverbrauch, die
+    einen sonst nötigen Bezug ersetzt haben. Nicht enthalten: der Gasverbrauch der
+    BHKW-Anlagen (Doppelzählungsrisiko mit `municipal_building_energy`, siehe
+    data/mainz/create_avoided_energy.py). BHKW-Strom/-Wärme ist in dieser Lieferung nicht
+    nach Eigenverbrauch/Netzeinspeisung aufgeschlüsselt und wird vollständig als
+    Eigenverbrauch behandelt -- das überschätzt den vermiedenen Bezug in dem Maß, in dem
+    tatsächlich Überschuss eingespeist wurde.
+  description_en: |
+    Electricity and heat generation from the city's CHP units, plus PV self-consumption,
+    that displaced an otherwise-needed purchase. Does not include CHP gas consumption
+    (double-counting risk against `municipal_building_energy`, see
+    data/mainz/create_avoided_energy.py). CHP electricity/heat is not split into
+    self-consumed vs. fed-in in this delivery and is treated as fully self-consumed, which
+    overstates the avoided amount to the extent any of it was actually exported.
+  type: simple.AdditiveNode2
+  quantity: energy
+  unit: kWh/a
+  input_dimensions: [ghg_category, municipal_facility_type, energy_carrier]
+  output_dimensions: [ghg_category, municipal_facility_type, energy_carrier]
+  input_datasets:
+  - id: gpc/municipal_avoided_energy
+    column: energy
+    extend: true
+
 - id: municipal_fleet_fuel
   is_editable: false
   name_de: Kraftstoffverbrauch des Fuhrparks der Stadtverwaltung
@@ -722,6 +790,63 @@ nodes:
     - id: energy_carrier
       flatten: true
 
+- id: municipal_street_lighting_emissions
+  is_editable: false
+  name_de: Emissionen aus der Straßenbeleuchtung der Stadtverwaltung
+  name_en: City administration street lighting emissions
+  color: '#F57F17'
+  type: simple.MultiplicativeNode2
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [ghg_category, municipal_facility_type, energy_carrier, scope]
+  output_dimensions: [ghg_category, municipal_facility_type, energy_carrier, scope]
+  input_nodes:
+  - id: municipal_street_lighting_energy
+  # Reuses the building-electricity factor rather than a factor of its own: it is keyed by
+  # [ghg_category, energy_carrier, scope], not by facility type, and already broadcasts
+  # across every municipal_facility_type -- see municipal_building_emissions.
+  - id: municipal_building_energy_ef
+  output_nodes:
+  - id: municipal_balance_emissions
+    from_dimensions:
+    # Scope 1 and 2 only. This branch's Scope 3 rows go to
+    # `municipal_scope3_emissions` instead, so every tonne is reported once and
+    # none is in both totals.
+    - id: scope
+      categories: [scope3]
+      exclude: true
+    - id: energy_carrier
+      flatten: true
+  - id: municipal_scope3_emissions
+    from_dimensions:
+    # Scope 3, reported beside the balance rather than inside it -- the same
+    # relationship this module has to `net_emissions`.
+    - id: scope
+      categories: [scope3]
+    - id: energy_carrier
+      flatten: true
+
+- id: municipal_avoided_emissions
+  is_editable: false
+  name_de: Vermiedene Emissionen durch Eigenerzeugung (BHKW, PV)
+  name_en: Avoided emissions from self-generation (CHP, PV)
+  color: '#7CB342'
+  type: simple.MultiplicativeNode2
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [ghg_category, municipal_facility_type, energy_carrier, scope]
+  output_dimensions: [ghg_category, municipal_facility_type, energy_carrier, scope]
+  input_nodes:
+  - id: municipal_avoided_energy
+  # Same factor as building energy/street lighting: keyed by [ghg_category, energy_carrier,
+  # scope], not by facility type, so it applies unchanged here.
+  - id: municipal_building_energy_ef
+  output_nodes:
+  - id: municipal_avoided_emissions_total
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+
 - id: municipal_fleet_emissions
   is_editable: false
   name_de: Emissionen aus dem Fuhrpark der Stadtverwaltung
@@ -968,6 +1093,34 @@ nodes:
     including it would fall from 2022 onwards because data is missing, not because
     emissions were avoided. The figures here are complete for 2019 to 2021 and partial
     thereafter.
+  type: simple.AdditiveNode2
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [ghg_category, municipal_facility_type, scope]
+  output_dimensions: [ghg_category, municipal_facility_type, scope]
+  is_outcome: true
+
+- id: municipal_avoided_emissions_total
+  is_editable: false
+  name_de: Vermiedene Emissionen der Stadtverwaltung (nachrichtlich)
+  name_en: City administration avoided emissions (memo item)
+  color: '#7CB342'
+  description_de: |
+    Emissionen, die durch Eigenerzeugung (BHKW-Strom/-Wärme, PV-Eigenverbrauch) statt
+    Fremdbezug vermieden wurden.<br/>
+    <b>Nachrichtlich ausgewiesen und nicht von der Treibhausgasbilanz der Stadtverwaltung
+    abgezogen.</b> Die zugrunde liegenden Aktivitätsdaten sind unvollständig (kein
+    BHKW-Gasverbrauch enthalten, BHKW-Strom/-Wärme nicht nach Eigenverbrauch/Einspeisung
+    aufgeschlüsselt, nur ein Teil der PV-Anlagen liefert Eigenverbrauchszahlen) -- eine
+    Verrechnung mit der Hauptbilanz würde Vollständigkeit suggerieren, die nicht besteht.
+  description_en: |
+    Emissions avoided through self-generation (CHP electricity/heat, PV self-consumption)
+    instead of purchase.<br/>
+    <b>Reported as a memo item and not subtracted from the city administration GHG
+    balance.</b> The underlying activity data is incomplete (no CHP gas consumption
+    included, CHP electricity/heat not split into self-consumed vs. fed-in, only some PV
+    installations report self-consumption at all) -- netting it into the main balance
+    would imply a completeness that is not there.
   type: simple.AdditiveNode2
   quantity: emissions
   unit: t_co2e/a

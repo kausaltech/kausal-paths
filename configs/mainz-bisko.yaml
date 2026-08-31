@@ -3,13 +3,13 @@ default_language: de
 supported_languages: [en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: a45e7c7821b63d92fb72539dc32c6afa80101613
+  commit: 12964ece6b662b1bc7a6f1eaf325917ec3f8d65b
   dvc_remote: kausal-s3
 name_de: Treibhausgas-Monitor Mainz
 name_en: GHG Monitor Mainz
 owner: Landeshauptstadt Mainz
 theme_identifier: de-mainz
-target_year: 2024
+target_year: 2035
 model_end_year: 2050
 reference_year: 1990
 minimum_historical_year: 1990
@@ -114,6 +114,10 @@ include:
     to: mainz/municipal_building_energy
   - from: gpc/municipal_water_use
     to: mainz/municipal_water_use
+  - from: gpc/municipal_street_lighting_energy
+    to: mainz/municipal_street_lighting_energy
+  - from: gpc/municipal_avoided_energy
+    to: mainz/municipal_avoided_energy
 
 #//////  Nodes  ///////////////////////////////////////////////////////////////////////////////////////////////////
 # Mainz-specific nodes not (yet) part of the shared BISKO module. Kept as standalone
