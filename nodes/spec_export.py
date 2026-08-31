@@ -1047,7 +1047,10 @@ def sync_instance_to_db(
     if not yaml_path.exists():
         raise FileNotFoundError(f'YAML file not found: {yaml_path}')
 
-    loader = InstanceLoader.from_yaml(yaml_path)
+    # Parse under the existing InstanceConfig's UUID namespace, so deterministic
+    # UUIDs (action groups) match what the parse-only sync would mint.
+    existing_ic = InstanceConfig.objects.filter(identifier=instance_id).first()
+    loader = InstanceLoader.from_yaml(yaml_path, instance_config=existing_ic)
     instance = loader.instance
     ctx = loader.context
     with transaction.atomic(), set_i18n_context(instance.default_language, instance.supported_languages):

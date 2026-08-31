@@ -649,11 +649,9 @@ class InstanceLoader:
 
             if ds_obj is None:
                 if uses_generic_dataset:
-                    # These were unconditional inside GenericDataset itself.
-                    # Attach them only after framework and DB-backed replacements
-                    # have been ruled out, so the concrete loader owns its defaults.
-                    ds_def.interpolate = True
-                    ds_def.extend = True
+                    # GenericDataset applies its unconditional interpolate/extend
+                    # fills at execution time; framework and DB-backed replacements
+                    # (ruled out above) deliberately don't get them.
                     ds_obj = GenericDataset.from_def(ds_def, self.context)
                 else:
                     ds_obj = DVCDataset.from_def(ds_def, self.context)

@@ -26,6 +26,7 @@ from kausal_common.perf.perf_context import PerfKind, estimate_size_bytes
 from common import polars as ppl
 from nodes.defs.transform_def import (
     TEMPORAL_FILL_KINDS,
+    ExtendOp,
     InterpolateOp,
     PortTransformOp,
     forecast_from_transformations,
@@ -760,7 +761,18 @@ class GenericDataset(DVCDataset):
 
     def _generic_transformation_groups(self) -> tuple[list[PortTransformOp], list[PortTransformOp]]:
         """Keep temporal filling after GenericDataset has established its metric columns."""
-        return self.transformation_groups_at_temporal_fill()
+        data_ops, temporal_ops = self.transformation_groups_at_temporal_fill()
+        # GenericDataset has always interpolated and extended its inputs. That is
+        # class behavior, not authored pipeline state, so it is applied here at
+        # execution time instead of being written into `self.transformations`,
+        # which must stay equal to the authored spec (the runtime export
+        # serializes it back).
+        kinds = {op.kind for op in self.transformations}
+        if 'interpolate' not in kinds:
+            temporal_ops = [*temporal_ops, InterpolateOp()]
+        if 'extend' not in kinds:
+            temporal_ops = [*temporal_ops, ExtendOp()]
+        return data_ops, temporal_ops
 
     @override
     def load_internal(self) -> ppl.PathsDataFrame:

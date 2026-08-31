@@ -139,3 +139,33 @@ def test_generic_runtime_defaults_are_not_persisted_before_loader_selection():
     })
     assert not _has_transform(city_data['some/data'], 'interpolate')
     assert not _has_transform(city_data['some/data'], 'extend')
+
+
+def test_generic_dataset_applies_default_fills_at_execution_time():
+    """
+    GenericDataset's fills are execution behavior, not pipeline state.
+
+    The unconditional interpolate/extend must appear in the executed op groups
+    without ever entering ``transformations``, which the runtime export
+    serializes back as the authored pipeline.
+    """
+    from typing import cast
+
+    from nodes.datasets import GenericDataset
+    from nodes.defs.transform_def import IndexTemporalOp, InterpolateOp
+
+    ds = GenericDataset(id='some/data', context=cast('Any', None), transformations=[IndexTemporalOp()])
+    data_ops, temporal_ops = ds._generic_transformation_groups()
+    assert [op.kind for op in data_ops] == ['index_temporal']
+    assert [op.kind for op in temporal_ops] == ['interpolate', 'extend']
+    assert [op.kind for op in ds.transformations] == ['index_temporal']
+
+    # An authored fill is respected, not duplicated.
+    authored = GenericDataset(
+        id='some/data',
+        context=cast('Any', None),
+        transformations=[IndexTemporalOp(), InterpolateOp()],
+    )
+    data_ops, temporal_ops = authored._generic_transformation_groups()
+    assert [op.kind for op in data_ops] == ['index_temporal']
+    assert [op.kind for op in temporal_ops] == ['interpolate', 'extend']
