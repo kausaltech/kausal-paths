@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from nodes.units import Unit
 
 QUDT_NS = 'http://qudt.org/vocab/quantitykind/'
-QUANTITY_KINDS_PATH = Path(__file__).resolve().parent.parent / 'configs' / 'quantities' / 'quantity_kinds.yaml'
+QUANTITY_KINDS_PATH = Path(__file__).resolve().parent.parent.parent / 'configs' / 'quantities' / 'quantity_kinds.yaml'
 
 
 class QuantityKind(I18nBaseModel):

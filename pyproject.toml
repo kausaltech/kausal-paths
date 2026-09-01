@@ -1,6 +1,24 @@
 [build-system]
-build-backend = "setuptools.build_meta"
-requires = ["setuptools>=61.2"]
+build-backend = "uv_build"
+requires = ["uv_build<0.13"]
+
+[tool.uv.build-backend]
+module-name = [
+  "admin_site",
+  "common",
+  "datasets",
+  "frameworks",
+  "gql_client",
+  "nodes",
+  "optimizer",
+  "orgs",
+  "pages",
+  "params",
+  "paths",
+  "people",
+  "request_log",
+  "users",
+]
 
 [project]
 name = "kausal-paths"
@@ -181,10 +199,6 @@ prod = [
   "uvicorn-worker",
 ]
 
-[tool.setuptools]
-include-package-data = false
-py-modules = []
-
 [tool.uv]
 sources.django-modeltrans = { url = "https://github.com/kausaltech/django-modeltrans/archive/a734040c3f38c2e404a61dc0be2c017874a9ea45.zip" }
 sources.kausal-paths-extensions = { index = "kausal" }
@@ -207,7 +221,7 @@ plugins = [
   "kausal_common.development.mypy_plugin",
   "pydantic.mypy",
 ]
-mypy_path = "$MYPY_CONFIG_FILE_DIR/kausal_common/typings"
+mypy_path = "$MYPY_CONFIG_FILE_DIR/kausal_common/typings:$MYPY_CONFIG_FILE_DIR/src"
 exclude = [
   "^Attic/",
   "/migrations/",
@@ -332,6 +346,7 @@ filterwarnings = [
   "ignore::DeprecationWarning:graphene",
   "ignore:.*iscoroutinefunction:DeprecationWarning",
 ]
+pythonpath = ["src"]
 
 [tool.pep8]
 max-line-length = "120"

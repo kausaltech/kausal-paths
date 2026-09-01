@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from importlib.util import find_spec
 from typing import TYPE_CHECKING, Any
 
 from django.apps import apps
@@ -19,7 +18,6 @@ from wagtail.images import get_image_model
 from wagtail.models import DraftStateMixin, ModelLogEntry, Page, PageLogEntry, Revision as WagtailRevision
 
 import factory
-from oauth2_provider.models import AccessToken, RefreshToken
 from social_django.models import Association, Code, Nonce, Partial
 
 from kausal_common.datasets.models import (
@@ -368,12 +366,13 @@ class Command(BaseCommand):
         self.delete_all(Code)
         self.delete_all(Partial)
 
-        # oauth2_provider is a hard dependency (imported at module level), so its tokens always
-        # exist and must be cleared regardless of whether the extensions package is installed.
-        self.delete_all(RefreshToken)
-        self.delete_all(AccessToken)
+        if apps.is_installed('oauth2_provider'):
+            from oauth2_provider.models import AccessToken, RefreshToken
 
-        if find_spec('kausal_paths_extensions') is not None:
+            self.delete_all(RefreshToken)
+            self.delete_all(AccessToken)
+
+        if apps.is_installed('kausal_paths_extensions'):
             from kausal_paths_extensions.auth.models import AuthGrant, AuthIDToken
 
             self.delete_all(AuthIDToken)

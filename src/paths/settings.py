@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 
 PROJECT_NAME = 'paths'
 
-root = environ.Path(__file__) - 2  # two folders back
+root = environ.Path(__file__) - 3  # repository root
 env = environ.FileAwareEnv(
     ENV_FILE=(str, ''),
     DEBUG=(bool, False),

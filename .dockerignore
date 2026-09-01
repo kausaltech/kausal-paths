@@ -20,7 +20,6 @@ env
 /kausal_paths_extensions/
 /Attic/
 /tmp/
-node_modules/**
 /e2e-tests/
 /.ruff_cache/
 /local_settings.py
@@ -28,3 +27,6 @@ node_modules/**
 **/*~
 .secrets/**
 /bin
+/model-outputs/
+/query-store/
+node_modules

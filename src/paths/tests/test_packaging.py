@@ -31,7 +31,7 @@ from packaging.version import Version
 # Nothing here touches the database, but the root conftest's autouse `instance_config` fixture does.
 pytestmark = pytest.mark.django_db
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+REPO_ROOT = Path(__file__).resolve().parents[3]
 
 # The symlink resolves into the kausal-extensions checkout, whose package directory sits beside the
 # setup.cfg that declares the extra. Absent in any deployment, where the package is installed.

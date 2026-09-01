@@ -13,7 +13,7 @@ fnox = "latest"
 _.python.venv = { path = ".venv", create = true, uv_create_args = [] }
 _.fnox-env = { tools = true }
 _.file = [{ path = ".secrets/env", required = false }]
-PYTHONPATH = "{{ config_root }}"
+#PYTHONPATH = "{{ config_root }}"
 SENTRY_ORG = "kausal"
 SENTRY_PROJECT = "paths-backend"
 
