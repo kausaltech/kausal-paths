@@ -3,7 +3,7 @@ default_language: de
 supported_languages: [en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 12964ece6b662b1bc7a6f1eaf325917ec3f8d65b
+  commit: 21d51982cac1ecd6aecf104de0f74474469d2520
   dvc_remote: kausal-s3
 name_de: Treibhausgas-Monitor Mainz
 name_en: GHG Monitor Mainz
@@ -118,6 +118,54 @@ include:
     to: mainz/municipal_street_lighting_energy
   - from: gpc/municipal_avoided_energy
     to: mainz/municipal_avoided_energy
+
+#//////  Dimensions  //////////////////////////////////////////////////////////////////////////////////////////////
+
+dimensions:
+
+# The individual CHP units and PV arrays behind `municipal_avoided_energy`.
+#
+# Here rather than in `modules/gpc/municipal_balance.yaml`, because these are five named
+# Mainz buildings and that module is also included by `reutlingen-klimabilanz`. A city
+# with different installations -- or none -- must not inherit Mainz's.
+#
+# **The id is the WE number, not the building name.** The WE (Wirtschaftseinheit) number
+# is the key the Gebäudewirtschaft's own systems use and it survives a renaming; the name
+# is a label and does change. `we_4425_32` rather than `we_4425.32` because category ids
+# allow only `[a-z0-9_-]`.
+#
+# Why the dimension exists at all: the dataset is one row per installation, and without a
+# column saying which, two schools (WE 2118 and WE 2710) and two Kitas both collapse onto
+# a single `municipal_facility_type`. That is not a display problem -- it made the node
+# fail outright with *aggregation 'item' expected no or a single value, got 2 values*, and
+# `municipal_avoided_emissions_total` is an outcome. The installation was in the comment
+# prose, which the model cannot read.
+#
+# `municipal_avoided_energy` sums over it immediately, so nothing downstream carries it.
+# It is kept in the data rather than aggregated away at the source because it is what
+# makes each row traceable to one meter, and because per-installation is the level the
+# delivery actually has.
+- id: installation
+  label_de: Anlage
+  label_en: Installation
+  help_text: Einzelne Erzeugungsanlagen (BHKW, PV) auf städtischen Liegenschaften,
+    bezeichnet nach der Wirtschaftseinheit (WE) der Gebäudewirtschaft.
+  categories:
+  - id: we_1500
+    label_de: Zitadelle (WE 1500)
+    label_en: Zitadelle (WE 1500)
+  - id: we_2118
+    label_de: Erich-Kästner-Schule (WE 2118)
+    label_en: Erich-Kästner-Schule (WE 2118)
+  - id: we_2710
+    label_de: Windmühlenschule (WE 2710)
+    label_en: Windmühlenschule (WE 2710)
+  - id: we_4425_32
+    label_de: Kita Bretzenheim Süd (WE 4425.32)
+    label_en: Kita Bretzenheim Süd (WE 4425.32)
+  - id: we_4464
+    label_de: Kita Jakob-Laubach-Str. (WE 4464)
+    label_en: Kita Jakob-Laubach-Str. (WE 4464)
 
 #//////  Nodes  ///////////////////////////////////////////////////////////////////////////////////////////////////
 # Mainz-specific nodes not (yet) part of the shared BISKO module. Kept as standalone

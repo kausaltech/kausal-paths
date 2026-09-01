@@ -491,6 +491,23 @@ nodes:
   - id: gpc/municipal_avoided_energy
     column: energy
     extend: true
+    filters:
+    # The delivery is one row per installation -- a single CHP unit or PV array -- and
+    # several installations share a property group: two schools (WE 2118, WE 2710) and two
+    # Kitas. Summed here, because this node reports by property group and the balance has
+    # no per-installation consumer.
+    #
+    # `flatten`, not `drop_col`, and the distinction is not cosmetic: dropping without
+    # summing leaves two rows sharing an index, which is what made this node fail with
+    # *aggregation 'item' expected no or a single value, got 2 values* while the
+    # installation was still buried in the comment prose. Same reason `we_from`/`we_to` are
+    # flattened rather than dropped in `municipal_building_energy`.
+    #
+    # By dimension rather than by column: `installation` is a declared dimension (in
+    # `configs/mainz-bisko.yaml`, since the categories are named Mainz buildings), so a
+    # frame arriving without it should fail loudly rather than flatten nothing.
+    - dimension: installation
+      flatten: true
 
 - id: municipal_fleet_fuel
   is_editable: false
