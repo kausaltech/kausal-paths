@@ -117,6 +117,20 @@ surfaces much later as `No metric <column> in dataset <id>` from
   DB row loads as a `DBDataset`, so `ctx.get_all_dvc_dataset_ids()` is empty
   and `--all` has nothing to do. Name the datasets explicitly, or ask
   `dataset_status` (below) which ones need naming.
+- **An index column no dimension resolves.** `sync_dimensions` looks every index
+  column up in `ctx.dimensions`, so a dataset carrying a raw key column dies with
+  a bare `KeyError: '<column>'` partway through. That is not a fault to fix in the
+  dataset: some datasets keep a raw key on purpose — `mainz/municipal_building_energy`
+  and `mainz/municipal_water_use` carry `we_from`/`we_to` so a reader can re-derive
+  the property-group assignment instead of inheriting it, and the BISKO transport
+  datasets carry `district`/`ags`. **These are DVC-only by design**: they stay
+  external placeholders, the model reads them straight from DVC, and they must be
+  left out of a `load_dvc_dataset` list rather than forced in. A city user cannot
+  edit them in the admin either, which is part of the same trade.
+
+  Each dataset syncs inside its own transaction, so a failure here rolls that one
+  back and leaves the datasets already processed committed — re-run without the
+  offender rather than starting over.
 
 `--recreate` restores the old delete-and-rebuild behaviour. It mints a new
 UUID, which orphans the dataset references held by published instance
