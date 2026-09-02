@@ -424,6 +424,9 @@ class SCurveAction(DatasetAction):  # TODO Remove after nzc.yaml is using the ne
     )
     allowed_parameters = DatasetAction2.allowed_parameters
 
+    # The s-curve is emitted net of the baseline value it starts from.
+    output_is_baseline_delta: ClassVar[bool] = True
+
     no_effect_value = 0.0
 
     def newton_raphson_estimator(self, y1, y2, x1, x2, a, max_iter=100, tol=1e-6):
@@ -548,6 +551,9 @@ class DatasetDifferenceAction2(DatasetAction):
     reductions), in which case the input will be treated as
     a multiplier.
     """)
+
+    # Output is the difference to the last historical year, not the level itself.
+    output_is_baseline_delta: ClassVar[bool] = True
 
     allowed_parameters: ClassVar[list[Parameter[Any]]] = [
         *DatasetAction.allowed_parameters,
