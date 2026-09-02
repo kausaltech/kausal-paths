@@ -35,24 +35,24 @@ uv sync
 ```
 
 
-Configure the PyPI index URL in your `.envrc` file (create it if it doesn't exist yet) if you have access to the Kausal private extensions (ask a team member for access):
+If you have access to the Kausal private extensions (ask a team member for access), check out the
+optional submodule. A plain `git submodule update --init` skips it on purpose, so it needs an
+explicit `--checkout`:
 
 ```shell
-export UV_INDEX_KAUSAL_USERNAME=...
-export UV_INDEX_KAUSAL_PASSWORD=...
+git submodule update --init --checkout private/extensions
 ```
 
-
-Then install the dependencies like this:
-
-```shell
-uv sync --extra kausal
-```
+The `kausal_paths_extensions` package then becomes importable through the committed
+`src/kausal_paths_extensions` symlink. When the submodule is absent, the symlink dangles and the
+extension is simply not installed. The extension's client bundles and translations are build
+outputs; build them with `mise deps`, which also reminds you to rerun it whenever a submodule
+update changes them.
 
 If you need to run Jupyter notebooks, include the `notebook` dependency group:
 
 ```shell
-uv sync --group notebook --extra kausal
+uv sync --group notebook
 ```
 
 Create a file called `local_settings.py` in your repository root with the following contents:

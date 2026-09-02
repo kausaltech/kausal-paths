@@ -17,7 +17,14 @@ env
 /media/
 /venv/
 /.venv/
-/kausal_paths_extensions/
+# Build outputs and unneeded parts of the private extensions submodule
+private/extensions/client/node_modules/
+private/extensions/client/.playwright-mcp/
+private/extensions/*/build/
+private/extensions/*/dist/
+private/extensions/paths/kausal_paths_extensions/static/
+private/extensions/watch/
+private/extensions/site-archiver/
 /Attic/
 /tmp/
 /e2e-tests/

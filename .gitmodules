@@ -1,3 +1,7 @@
 [submodule "common"]
 	path = kausal_common
 	url = https://github.com/kausaltech/kausal-backend-common.git
+[submodule "private_extensions"]
+	path = private/extensions
+	url = git@github.com:kausaltech/kausal-extensions.git
+	update = none

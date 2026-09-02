@@ -29,7 +29,6 @@ notebooks/data/**
 **/.ipynb_checkpoints
 **/.virtual_documents
 /docker-compose.override.yml
-/kausal_paths_extensions
 /bin/**
 /query-store/**
 /model-outputs/**

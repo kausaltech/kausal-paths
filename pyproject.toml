@@ -125,7 +125,6 @@ dependencies = [
   "wrapt>=1.17.3",
   "xxhash",
 ]
-optional-dependencies.kausal = ["kausal-paths-extensions==0.8.3"]
 
 [dependency-groups]
 dev = [
@@ -149,12 +148,9 @@ dev = [
   { include-group = "lint" },
 ]
 l10n = [
-  # Mirrors the `l10n` extra of `kausal-paths-extensions` (see its `setup.cfg`). That extra is the
-  # real declaration, but nothing consults it in development, where the package is reached by a
-  # symlink and `PYTHONPATH` instead of being installed from the index — so a `uv sync` leaves the
-  # translation harness unimportable (`translations/markup.py` derives its inline-tag whitelist from
-  # `lxml.html.defs` at import time). A group rather than an extra, because the extra's comment keeps
-  # these out of the web and worker images on purpose and the Dockerfile syncs only `prod`.
+  # The translation harness of `kausal_paths_extensions` (`content_l10n/llm`), which the extension
+  # cannot declare for itself now that it comes along as a submodule rather than a package. A group
+  # rather than an extra so that the web and worker images, which sync only `prod`, skip it.
   # `anthropic` 1.x rebuilt the SDK on `httpx2` and supersedes the `output_format=` the harness
   # sends; pinned below that boundary in both `setup.cfg`s too, until the client is migrated.
   "anthropic<1",
@@ -174,6 +170,9 @@ lint = [
   "scipy-stubs>=1.16.2.4",
   "types-django-filter>=25.2.0.20251010",
   "types-factory-boy",
+  # The type checker needs everything the checked code imports, and `content_l10n/llm/client.py`
+  # imports `anthropic`, which lives in the `l10n` group so the web and worker images skip it.
+  { include-group = "l10n" },
   "types-jwcrypto>=1.5.0.20251102",
   "types-networkx",
   "types-oauthlib",
@@ -201,11 +200,6 @@ prod = [
 
 [tool.uv]
 sources.django-modeltrans = { url = "https://github.com/kausaltech/django-modeltrans/archive/a734040c3f38c2e404a61dc0be2c017874a9ea45.zip" }
-sources.kausal-paths-extensions = { index = "kausal" }
-index = [
-  { url = "https://pypi.org/simple" },
-  { name = "kausal", url = "https://pypi.kausal.tech/", authenticate = "always" },
-]
 environments = [
   "python_full_version >= '3.14' and sys_platform == 'darwin' and platform_machine == 'arm64'",
   "python_full_version >= '3.14' and sys_platform == 'linux' and platform_machine == 'x86_64'",
@@ -213,7 +207,16 @@ environments = [
 
 [tool.ruff]
 extend = "./kausal_common/configs/ruff.toml"
-extend-exclude = ["*.ipynb", "notebooks/*"]
+extend-exclude = [
+  "*.ipynb",
+  "notebooks/*",
+  # Ruff does not follow the `src/kausal_paths_extensions` symlink, so the extension is linted at
+  # its real path inside the submodule. Only the parts that are not ours are excluded.
+  "./private/extensions/client",
+  "./private/extensions/watch",
+  "./private/extensions/site-archiver",
+  "./private/extensions/*/setup.py",
+]
 
 [tool.mypy]
 plugins = [
@@ -226,6 +229,7 @@ exclude = [
   "^Attic/",
   "/migrations/",
   "^notebooks/",
+  "^private/",
   "^local_settings\\.py",
   "^\\.*env*",
   "^kausal_common/typings/django-stubs",
@@ -299,6 +303,7 @@ venv = ".venv"
 stubPath = "./kausal_common/typings"
 exclude = [
   "Attic/",
+  "private/",
   "**/__pycache__",
   "local_settings.py",
   "**/migrations",
@@ -341,7 +346,7 @@ django_settings_module = "paths.settings"
 
 [tool.pytest]
 DJANGO_SETTINGS_MODULE = "paths.settings"
-norecursedirs = ["node_modules", "data", ".git", "venv", "Attic"]
+norecursedirs = ["node_modules", "data", ".git", "venv", "Attic", "private"]
 filterwarnings = [
   "ignore::DeprecationWarning:graphene",
   "ignore:.*iscoroutinefunction:DeprecationWarning",

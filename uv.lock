@@ -2665,14 +2665,10 @@ dependencies = [
     { name = "xxhash" },
 ]
 
-[package.optional-dependencies]
-kausal = [
-    { name = "kausal-paths-extensions" },
-]
-
 [package.dev-dependencies]
 dev = [
     { name = "altair" },
+    { name = "anthropic" },
     { name = "basedpyright" },
     { name = "celery-types" },
     { name = "daphne" },
@@ -2686,6 +2682,7 @@ dev = [
     { name = "ipython" },
     { name = "libcst" },
     { name = "line-profiler" },
+    { name = "lxml" },
     { name = "lxml-stubs" },
     { name = "mypy" },
     { name = "ondivi" },
@@ -2716,10 +2713,12 @@ l10n = [
 ]
 lint = [
     { name = "altair" },
+    { name = "anthropic" },
     { name = "celery-types" },
     { name = "django-stubs" },
     { name = "djangorestframework-stubs" },
     { name = "graphene-stubs" },
+    { name = "lxml" },
     { name = "lxml-stubs" },
     { name = "mypy" },
     { name = "pandas-stubs" },
@@ -2792,7 +2791,6 @@ requires-dist = [
     { name = "graphql-core" },
     { name = "graphql-relay" },
     { name = "ipython" },
-    { name = "kausal-paths-extensions", marker = "extra == 'kausal'", specifier = "==0.8.3", index = "https://pypi.kausal.tech/" },
     { name = "logfmter" },
     { name = "loguru" },
     { name = "lxml" },
@@ -2847,11 +2845,11 @@ requires-dist = [
     { name = "wrapt", specifier = ">=1.17.3" },
     { name = "xxhash" },
 ]
-provides-extras = ["kausal"]
 
 [package.metadata.requires-dev]
 dev = [
     { name = "altair", specifier = ">=6" },
+    { name = "anthropic", specifier = "<1" },
     { name = "basedpyright" },
     { name = "celery-types" },
     { name = "daphne" },
@@ -2865,6 +2863,7 @@ dev = [
     { name = "ipython" },
     { name = "libcst", specifier = ">=1.8.2" },
     { name = "line-profiler" },
+    { name = "lxml" },
     { name = "lxml-stubs" },
     { name = "mypy" },
     { name = "ondivi" },
@@ -2895,10 +2894,12 @@ l10n = [
 ]
 lint = [
     { name = "altair", specifier = ">=6" },
+    { name = "anthropic", specifier = "<1" },
     { name = "celery-types" },
     { name = "django-stubs" },
     { name = "djangorestframework-stubs" },
     { name = "graphene-stubs" },
+    { name = "lxml" },
     { name = "lxml-stubs" },
     { name = "mypy" },
     { name = "pandas-stubs" },
@@ -2930,19 +2931,6 @@ prod = [
     { name = "gunicorn", extras = ["gthread"] },
     { name = "rustface", marker = "sys_platform == 'linux'", specifier = ">=0.1" },
     { name = "uvicorn-worker" },
-]
-
-[[package]]
-name = "kausal-paths-extensions"
-version = "0.8.3"
-source = { registry = "https://pypi.kausal.tech/" }
-dependencies = [
-    { name = "django" },
-    { name = "pygithub" },
-]
-sdist = { url = "https://pypi.kausal.tech/packages/kausal_paths_extensions-0.8.3.tar.gz", hash = "sha256:67608f1cc0cc8775b9107bf9dd9da11a12c89e4af7a07ad62fe295a5f426e207" }
-wheels = [
-    { url = "https://pypi.kausal.tech/packages/kausal_paths_extensions-0.8.3-py3-none-any.whl", hash = "sha256:1e1d330d453f70ec03ac2c5f291adb4d63bb27b08492484a2a3316230986461b" },
 ]
 
 [[package]]

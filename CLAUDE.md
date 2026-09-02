@@ -221,6 +221,13 @@ full rationale. In brief:
 - Maintain schema consistency across different apps
 - Include proper error handling and validation
 
+### Extensions System
+- Optional, closed-source `kausal_paths_extensions` package for SaaS-enabling features
+- Lives in the `private/extensions` git submodule (the `kausal-extensions` repo). The submodule has `update = none`, so a plain recursive update skips it; check it out with `git submodule update --init --checkout private/extensions`
+- Made importable through the committed `src/kausal_paths_extensions` symlink; when the submodule is absent the symlink dangles and the extension is simply off
+- Automatically included in tests and URL routing when available
+- Client bundles and translations are gitignored build outputs, built by `mise deps` (provider config in `private/extensions/mise/paths.toml`, loaded via `mise/conf.d/`)
+
 ### Development Notes
 
 #### Database
