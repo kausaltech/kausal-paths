@@ -218,6 +218,9 @@ class InstanceConfigCache(ModelObjectCache[InstanceConfig, InstanceConfigQuerySe
     def filter_by_parent(self, qs: InstanceConfigQuerySet) -> InstanceConfigQuerySet:
         return qs.filter(Q(framework_config__framework=self.parent) | Q(pk=self.parent.root_instance_id))
 
+    def get_if_cached(self, obj_id: int) -> InstanceConfig | None:
+        return self._by_id.get(obj_id)
+
     def add_obj(self, obj: InstanceConfig) -> None:
         del obj.cache
         super().add_obj(obj)
@@ -232,6 +235,8 @@ class FrameworkSpecificCache:
     measure_template_default_data_points: MeasureTemplateDefaultDataPointCache = field(init=False)
     framework_configs: FrameworkConfigCache = field(init=False)
     instance_configs: InstanceConfigCache = field(init=False)
+    _root_instance: InstanceConfig | None = field(init=False, default=None)
+    _root_instance_is_loaded: bool = field(init=False, default=False)
 
     def __post_init__(self):
         self.sections = SectionCache(self.framework, self.user)
@@ -239,6 +244,21 @@ class FrameworkSpecificCache:
         self.measure_template_default_data_points = MeasureTemplateDefaultDataPointCache(self.framework, self.user)
         self.framework_configs = FrameworkConfigCache(self.framework, self.user)
         self.instance_configs = InstanceConfigCache(self.framework, self.user)
+
+    def get_root_instance(self) -> InstanceConfig | None:
+        if self._root_instance_is_loaded:
+            return self._root_instance
+
+        root_instance_id = self.framework.root_instance_id
+        if root_instance_id is not None:
+            self._root_instance = self.instance_configs.get_if_cached(root_instance_id)
+            if self._root_instance is None:
+                # The framework root is routing metadata and need not be viewable
+                # by a user who can view one of the framework's child instances.
+                # Keep it separate from the permission-filtered instance cache.
+                self._root_instance = InstanceConfig.objects.filter(pk=root_instance_id).prefetch_related('hostnames').first()
+        self._root_instance_is_loaded = True
+        return self._root_instance
 
 
 class FrameworkCache(ModelObjectCache[Framework, FrameworkQuerySet, None]):

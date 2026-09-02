@@ -23,6 +23,7 @@ from frameworks.models import (
 from frameworks.tests.factories import FrameworkConfigFactory, FrameworkFactory
 from nodes.defs import InstanceModelSpec, YearsSpec
 from nodes.models import InstanceConfig, InstanceHostname
+from nodes.roles import instance_admin_role
 from nodes.tests.factories import InstanceConfigFactory
 from pages.models import ActionListPage, InstanceRootPage
 from users.models import User
@@ -359,7 +360,16 @@ def test_framework_config_instances_do_not_cause_n_plus_one_queries(
     framework.use_instance_subdomains = False
     framework.save(update_fields=['root_instance', 'use_instance_subdomains'])
     InstanceHostname.objects.create(instance=root_instance, hostname='landing.example.com')
-    gql_client = _framework_admin_gql_client(client, framework)
+    FrameworkConfigFactory.create(framework=framework, instance_config=root_instance)
+    user = User.objects.create_user(username='instance-admin', email='instance-admin@test.com', password='testpass123!')
+    for config in configs:
+        instance_admin_role.assign_user(config.instance_config, user)
+    client.force_login(user)
+    assert not InstanceConfig.objects.viewable_by(user).filter(pk=root_instance.pk).exists()
+
+    from paths.tests.graphql import PathsTestClient
+
+    gql_client = PathsTestClient(client)
 
     with CaptureQueriesContext(connection) as query_ctx:
         data = gql_client.query_data(
@@ -404,6 +414,63 @@ def test_framework_config_instances_do_not_cause_n_plus_one_queries(
     assert configs_by_identifier['city-0']['viewUrl'] == f'https://landing.example.com/{configs[0].instance_config.uuid}'
     assert configs_by_identifier['city-1']['viewUrl'] == f'https://landing.example.com/{configs[1].instance_config.uuid}'
     assert len(query_ctx) <= 13
+
+
+def test_framework_config_view_url_resolves_for_child_instance_admin(
+    client: Client,
+    framework: Framework,
+) -> None:
+    root_instance = InstanceConfigFactory.create(identifier='framework-landing', name='Framework landing')
+    FrameworkConfigFactory.create(framework=framework, instance_config=root_instance)
+    framework.root_instance = root_instance
+    framework.use_instance_subdomains = False
+    framework.save(update_fields=['root_instance', 'use_instance_subdomains'])
+    InstanceHostname.objects.create(instance=root_instance, hostname='landing.example.com')
+
+    child_instance = InstanceConfigFactory.create(identifier='child-city', name='Child City')
+    child_config = FrameworkConfigFactory.create(framework=framework, instance_config=child_instance)
+    user = User.objects.create_user(username='child-admin', email='child-admin@test.com', password='testpass123!')
+    instance_admin_role.assign_user(child_instance, user)
+    client.force_login(user)
+    assert not InstanceConfig.objects.viewable_by(user).filter(pk=root_instance.pk).exists()
+
+    from paths.tests.graphql import PathsTestClient
+
+    gql_client = PathsTestClient(client)
+    data = gql_client.query_data(
+        gql("""
+        query FrameworkConfigViewUrl(
+            $identifier: ID!
+            $clientUrl: String
+            $_locale: String!
+            $_identifier: ID!
+            $_hostname: String!
+        ) @locale(lang: $_locale) @instance(identifier: $_identifier, hostname: $_hostname) {
+            framework(identifier: $identifier) {
+                configs {
+                    viewUrl(clientUrl: $clientUrl)
+                    instance {
+                        identifier
+                    }
+                }
+            }
+        }
+        """),
+        variables={
+            'identifier': framework.identifier,
+            'clientUrl': 'https://landing.example.com/',
+            '_locale': 'en',
+            '_identifier': root_instance.identifier,
+            '_hostname': 'landing.example.com',
+        },
+    )
+
+    assert data['framework']['configs'] == [
+        {
+            'viewUrl': f'https://landing.example.com/{child_config.instance_config.uuid}',
+            'instance': {'identifier': child_instance.identifier},
+        },
+    ]
 
 
 def test_framework_sections_resolve_influencing_measure_templates_without_n_plus_one(

@@ -1157,7 +1157,7 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
             return None
 
         if fw.has_cache():
-            root_instance = fw.cache.instance_configs.get(fw.root_instance_id)
+            root_instance = fw.cache.get_root_instance()
         else:
             root_instance = fw.root_instance
         assert root_instance is not None
