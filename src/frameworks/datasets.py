@@ -214,6 +214,9 @@ class FrameworkMeasureDVCDataset2(DVCDataset):
     payload_ref: DatasetPayloadRef | None = field(default=None)
     payload_store: DatasetPayloadStore | None = field(default=None)
 
+    _uuid_frame: ppl.PathsDataFrame | None = field(default=None, init=False, repr=False, compare=False)
+    _uuid_frame_loaded: bool = field(default=False, init=False, repr=False, compare=False)
+
     @classmethod
     def from_def(  # type: ignore[override]
         cls,
@@ -249,6 +252,56 @@ class FrameworkMeasureDVCDataset2(DVCDataset):
         df = self.after_transformations(df)
         if self.cache_key:
             self.cache_set(df)
+        return df
+
+    def get_uuid_frame(self) -> ppl.PathsDataFrame | None:
+        """
+        Return this binding's frame as it stands *before* the measure-datapoint overlay.
+
+        ``_override_with_measure_datapoints`` folds in the city's own MeasureDataPoints and
+        then drops ``uuid`` (see its ``out_cols``), which is the one column that says which
+        measure a row belongs to. Stopping short of it -- after the source load and the
+        binding's ``column`` selection and filters -- leaves the measure linkage intact,
+        which is what the placeholder lookup reads this for.
+
+        That overlay runs from ``before_temporal_fill``, which ``_filter_and_process_df``
+        calls between its two transformation groups. So this cannot go through
+        ``_filter_and_process_df``: by the time it returns, ``uuid`` is gone and every
+        binding would report carrying no measures. Run the pre-temporal group only, and
+        stop at the hook.
+
+        Returns ``None`` when the binding has no ``uuid`` column, i.e. it carries no
+        measure linkage at all.
+        """
+        if self._uuid_frame_loaded:
+            return self._uuid_frame
+
+        if self.payload_ref is not None:
+            assert self.payload_store is not None
+            df = self.payload_store.get_dataframe(self.payload_ref).copy()
+        elif self.db_dataset_obj is not None:
+            from nodes.datasets import DBDataset
+
+            df = DBDataset.deserialize_df(self.db_dataset_obj)
+        else:
+            dvc_ds = self.context.load_dvc_dataset(self.input_dataset or self.id)
+            assert dvc_ds.df is not None
+            df = self._convert_dvc_dataset(dvc_ds)
+        # Deliberately short of `before_temporal_fill`: this frame is only ever read to
+        # find out *which* measures the binding carries and under which categories, and the
+        # overlay that hook runs would drop the uuid column that answers exactly that. The
+        # values a measure displays come from the node's output, not from here.
+        before_temporal, _from_temporal = self.transformation_groups_at_temporal_fill()
+        df = self.apply_transformations(df, before_temporal, metric_column=self.column)
+        # Memoise only once the load has actually succeeded, so a transient source failure
+        # is not remembered as "this binding carries no measures".
+        self._uuid_frame_loaded = True
+        if 'uuid' not in df.columns:
+            return None
+        # Match the normalisation `_override_with_measure_datapoints` applies before it
+        # joins against the DB, so callers can compare against a MeasureTemplate UUID.
+        df = df.with_columns(pl.col('uuid').cast(pl.String).str.replace_all('_', '-'))
+        self._uuid_frame = df
         return df
 
     @property  # Override parent @cached_property: key must vary per scenario
