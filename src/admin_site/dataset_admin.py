@@ -20,11 +20,11 @@ from kausal_common.datasets.models import (
     DimensionScope,
 )
 from kausal_common.users import user_or_bust
+from kausal_paths_extensions.dataset_editor import DatasetViewSet
 
 from paths.context import realm_context
 
 from admin_site.viewsets import PathsCreateView, PathsEditView, PathsViewSet
-from kausal_paths_extensions.dataset_editor import DatasetViewSet
 from nodes.dataset_materialization import datasets_change
 from users.models import User
 
