@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import date
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
@@ -25,6 +26,7 @@ from kausal_common.datasets.tests.factories import (
 )
 
 from nodes.defs.instance_defs import InstanceModelSpec, YearsSpec
+from nodes.instance_serialization import metric_column_id
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory
 
 if TYPE_CHECKING:
@@ -324,6 +326,44 @@ def test_create_metric(gql_client: PathsTestClient, db_instance_config: Instance
     assert dataset.schema is not None
     assert metric.schema.pk == dataset.schema.pk
     assert metric.spec == {'quantity': 'energy'}
+    # `name` is the dataframe column name. Leaving it null made the binding selector
+    # fall through to the metric uuid, which no column is ever named after, so the
+    # consuming node died with "Column '<uuid>' not found".
+    assert metric.name == 'Energy'
+    assert metric_column_id(metric) == 'Energy'
+
+
+def test_metric_column_id_falls_back_to_label(db_instance_config: InstanceConfig):
+    """A metric with no ``name`` resolves to its label, which is what the column is named."""
+    dataset, _ = _make_dataset(db_instance_config)
+    assert dataset.schema is not None
+    named = DatasetMetricFactory.create(schema=dataset.schema, name='waste_recycled', label='waste_recycled')
+    nameless = DatasetMetricFactory.create(schema=dataset.schema, name=None, label='Diversion rate')
+    bare = DatasetMetricFactory.create(schema=dataset.schema, name=None, label='')
+
+    assert metric_column_id(named) == 'waste_recycled'
+    assert metric_column_id(nameless) == 'Diversion rate'
+    assert metric_column_id(bare) == str(bare.uuid)
+
+
+def test_nameless_metric_column_matches_the_serialized_dataframe(db_instance_config: InstanceConfig):
+    """
+    The selector and the dataframe writer must name the column identically.
+
+    ``DBDataset.deserialize_df`` builds the column with ``Coalesce(name, label, uuid)``
+    while the binding selector used ``name or uuid``, so an editor-authored metric --
+    which has no ``name`` -- produced a selector no column could match. Regression for
+    ``longmont-dev``'s ``diversion_rate``.
+    """
+    from nodes.datasets import DBDataset
+
+    dataset, _ = _make_dataset(db_instance_config)
+    assert dataset.schema is not None
+    nameless = DatasetMetricFactory.create(schema=dataset.schema, name=None, label='Diversion rate', unit='%')
+    DataPointFactory.create(dataset=dataset, metric=nameless, date=date(2020, 1, 1), value=42.0)
+
+    df = DBDataset.deserialize_df(dataset)
+    assert metric_column_id(nameless) in df.columns
 
 
 UPDATE_METRIC = gql("""

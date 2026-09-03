@@ -208,9 +208,16 @@ def create_metric_row(
     `ValidationError` on an invalid unit or quantity.
     """
     label, label_i18n = get_modeltrans_attrs_from_str(input.label, 'label', primary_language)
+    # `name` is the dataframe column name, not display text, so it has to be set here
+    # as well: leaving it null makes the binding selector fall through to the metric's
+    # uuid, which no dataframe column is ever named after, and the node consuming the
+    # metric fails with "Column '<uuid>' not found". Both other creators
+    # (`load_dvc_dataset`, `dataset_placeholders`) create metrics as `name=label=<column>`;
+    # match them. See `metric_column_id()` in `nodes/instance_serialization.py`.
     metric = DatasetMetric(
         schema=schema,
         uuid=input.id or uuid4(),
+        name=label or None,
         label=label,
         i18n=label_i18n,
         unit=input.unit or '',

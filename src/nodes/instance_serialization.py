@@ -149,6 +149,26 @@ class MetricValidationRuleSnapshot(ModelSnapshot):
         return cls(uuid=obj.uuid, rule=validation_rule_adapter.validate_python(obj.rule))
 
 
+def metric_column_id(metric: DatasetMetric) -> str:
+    """
+    Resolve the dataframe column a metric maps to.
+
+    ``DatasetMetric.name`` *is* the column name and ``label`` is display text, so the
+    two agree for imported metrics: ``load_dvc_dataset`` and ``dataset_placeholders``
+    both create them as ``name=label=<column>``. A metric authored in the editor has
+    no ``name`` at all, and its column is built from the label — see the
+    ``Coalesce(name, label, uuid)`` in ``DBDataset.deserialize_df``
+    (``nodes/datasets.py``), which is the writer this function has to agree with.
+
+    **Falling through to the uuid is never a working answer.** No dataframe column is
+    ever named after a metric uuid, so a selector built from one cannot match: it
+    fails in ``select_metric`` as "Column '<uuid>' not found". It is kept only so a
+    metric carrying neither name nor label still yields a stable string instead of
+    ``None``.
+    """
+    return metric.name or metric.label or str(metric.uuid)
+
+
 class DatasetMetricSnapshot(ModelSnapshot):
     identifier: str
     label: TranslatedString | None = None
@@ -164,7 +184,7 @@ class DatasetMetricSnapshot(ModelSnapshot):
         # ``from_model_with_language`` below — the default path assumes
         # i18n-less data.
         return cls(
-            identifier=obj.name or str(obj.uuid),
+            identifier=metric_column_id(obj),
             label=_ts_from_modeltrans(obj, 'label', 'en') if obj.label or obj.i18n else None,
             unit=obj.unit,
             quantity=(obj.spec or {}).get('quantity'),
@@ -174,7 +194,7 @@ class DatasetMetricSnapshot(ModelSnapshot):
     @classmethod
     def from_model_with_language(cls, obj: Any, primary_language: str) -> Self:
         return cls(
-            identifier=obj.name or str(obj.uuid),
+            identifier=metric_column_id(obj),
             label=_ts_from_modeltrans(obj, 'label', primary_language),
             unit=obj.unit,
             quantity=(obj.spec or {}).get('quantity'),
@@ -731,7 +751,7 @@ class InputBindingSnapshot(ModelSnapshot):
             assert obj.metric is not None
             source = DatasetMetricSource(
                 dataset=obj.dataset.identifier or str(obj.dataset.uuid),
-                metric=obj.metric.name or str(obj.metric.uuid),
+                metric=metric_column_id(obj.metric),
                 dataset_uuid=obj.dataset.uuid,
                 metric_uuid=obj.metric.uuid,
             )
@@ -1143,7 +1163,7 @@ class InstanceExport(BaseModel):
 def _data_point_key(dp: Any) -> DataPointKey:
     """Natural key for a DataPoint: (year, metric identifier, sorted category ids)."""
     metric = dp.metric
-    metric_id = metric.name or str(metric.uuid)
+    metric_id = metric_column_id(metric)
     categories = sorted((c.identifier or str(c.uuid)) for c in dp.dimension_categories.all())
     return DataPointKey(year=dp.date.year, metric=metric_id, categories=categories)
 
@@ -1304,7 +1324,7 @@ def build_instance_snapshot(
                 dataset_revision = getattr(row.dataset, 'latest_revision_id', None)
             source = DatasetMetricSource(
                 dataset=row.dataset.identifier or str(row.dataset.uuid),
-                metric=row.metric.name or str(row.metric.uuid),
+                metric=metric_column_id(row.metric),
                 dataset_uuid=row.dataset.uuid,
                 metric_uuid=row.metric.uuid,
                 dataset_revision=dataset_revision,

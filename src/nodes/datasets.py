@@ -1229,6 +1229,10 @@ class DBDataset(DatasetWithFilters):
             )
         )
 
+        # This Coalesce names the metric columns, so anything building a *selector* for
+        # them has to resolve the name the same way, or it asks for a column that is not
+        # there. Keep it in step with `metric_column_id()` in `nodes/instance_serialization.py`,
+        # which is the Python-side twin.
         metrics = DatasetMetric.objects.filter(schema=OuterRef('schema')).values(
             json=JSONObject(
                 uuid=F('uuid'),
