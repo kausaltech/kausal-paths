@@ -303,7 +303,6 @@ venv = ".venv"
 stubPath = "./kausal_common/typings"
 exclude = [
   "Attic/",
-  "private/",
   "**/__pycache__",
   "local_settings.py",
   "**/migrations",
