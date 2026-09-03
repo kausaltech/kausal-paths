@@ -31,7 +31,7 @@ class NodeViewSet(PathsViewSet[NodeConfig, NodeConfigQuerySet]):
         TranslatedFieldRowPanel('name'),
         NativeColorPanel('color'),
         FieldPanel('is_visible'),
-        SuperuserOnlyFieldPanel('is_editable'),
+        FieldPanel('is_editable', permission='superuser'),
         FieldPanel('indicator_node'),
         TranslatedFieldRowPanel('goal'),
         TranslatedFieldRowPanel('short_description'),
