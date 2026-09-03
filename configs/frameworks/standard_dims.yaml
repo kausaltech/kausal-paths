@@ -243,194 +243,249 @@ dimensions:
   - id: total
     label_en: Total
     label_de: Gesamt
+    color: '#303030'
   - id: petrol
     label_en: Petrol
     label_de: Benzin
     aliases: [benzin_fossil, benzin, gasoline]
+    color: '#B71C1C'
   - id: bio_petrol
     label_en: Bio petrol
     label_de: Biobenzin
     aliases: [benzin_biogen, biobenzin]
+    color: '#4A7C1F'
   - id: diesel
     label_en: Diesel
     label_de: Diesel
     aliases: [diesel_fossil]
+    color: '#8B0000'
   - id: biodiesel
     label_en: Biodiesel
     label_de: Diesel biogen
     aliases: [diesel_biogen]
+    color: '#386113'
   - id: kerosene
     label_en: Kerosene
     label_de: Kerosin
     aliases: [kerosin]
+    color: '#C0392B'
   - id: heating_oil
     label_en: Heating oil
     label_de: Heizöl
     aliases: [heizol]
+    color: '#7B1A00'
   - id: natural_gas
     label_en: Natural gas
     label_de: Erdgas
     aliases: [gas, erdgas]
+    color: '#1A5276'
   - id: lpg
     label_en: LPG (Liquefied petroleum gas)
     label_de: LPG
+    color: '#BF4500'
   - id: propane
     label_en: Propane/butane
     label_de: Flüssiggas
     aliases: [flüssiggas, flssiggas]
+    color: '#A04000'
   - id: cng_fossil
     label_en: CNG fossil
     label_de: CNG fossil
+    color: '#154360'
   - id: cng_bio
     label_en: CNG bio
     label_de: CNG bio
+    color: '#2D5C12'
   - id: biogas
     label_en: Biogas
     label_de: Biogas
     aliases: [biogas]
+    color: '#0D6B4D'
   - id: hard_coal
     label_en: Hard coal
     label_de: Steinkohle
     aliases: [kohle, steinkohle]
+    color: '#2C2C2C'
   - id: brown_coal
     label_en: Brown coal / Lignite
     label_de: Braunkohle
     aliases: [braunkohle]
+    color: '#5D3A1A'
   - id: biomass
     label_en: Biomass
     label_de: Biomasse
     aliases: [biomasse]
+    color: '#2E7D32'
   - id: electricity
     label_en: Electricity
     label_de: Strom
     aliases: [strom, electric]
+    color: '#1565C0'
   - id: driving_electricity
     label_en: Driving electricity
     label_de: Fahrstrom
     aliases: [fahrstrom, strom_fahrstrom]
+    color: '#5C6BC0'
   - id: heating_electricity
     label_en: Heating electricity
     label_de: Heizstrom
     aliases: [heizstrom]
+    color: '#6A1B9A'
   - id: district_heating
     label_en: District heating
     label_de: Fernwärme
     aliases: [fernwarme]
+    color: '#922B00'
   - id: local_heating
     label_en: Local heating
     label_de: Nahwärme
     aliases: [nahwarme]
+    color: '#A33300'
   - id: solar_thermal
     label_en: Solar thermal
     label_de: Solarthermie
     aliases: [solarthermie]
+    color: '#BF5C00'
   - id: environmental_heat
     label_en: Environmental heat / Heat pump
     label_de: Umweltwärme
     aliases: [umweltwarme]
+    color: '#006D6D'
   - id: hydrogen
     label_en: Hydrogen
     label_de: Wasserstoff
     aliases: [wasserstoff]
+    color: '#007A8A'
   - id: other_renewables
     label_en: Other renewables
     label_de: Sonstige Erneuerbare
     aliases: [sonstige_erneuerbare]
+    color: '#276B27'
   - id: other_conventional
     label_en: Other conventional
     label_de: Sonstige Konventionelle
     aliases: [sonstige_konventionelle]
+    color: '#5A3A2A'
   - id: not_defined
     label_en: Not defined
     label_de: Nicht definiert
     aliases: [nicht_definiert]
+    color: '#4D4D4D'
   - id: fuels
     label_en: Fuels
     label_de: Kraftstoffe
     aliases: [kraftstoffe]
+    color: '#880000'
   - id: other
     label_en: Other
     label_de: Sonstiges
     aliases: [sonstiges]
+    color: '#616161'
   - id: district_and_local_heating
     label_en: District_and local heating
     label_de: Fern- und Nahwärme
     aliases: [fern_und_nahwarme]
+    color: '#7D2500'
   - id: natural_gas_turbine
     label_en: Natural gas for steam turbines
     label_de: Erdgas GuD
+    color: '#0B2F50'
   - id: biomass_chp
     label_en: Biomass for CHP
     label_de: Biomasse KWK
+    color: '#0D4F13'
   - id: biogas_chp
     label_en: Biogas for CHP
     label_de: Biogas KWK
+    color: '#0A5C3E'
   - id: biomass_boiler
     label_en: Biomass for heat-only boiler
     label_de: Biomasse Heizwerk
+    color: '#14611A'
   - id: natural_gas_small_chp
     label_en: Natural gas with small-scale CHP
     label_de: Erdgas BHKW
+    color: '#0D3B5A'
   - id: conventional_waste_heat_gt_90
     label_en: Conventional waste heat > 90 C
     label_de: Konventioneller Abwärme >90 C
+    color: '#484848'
   - id: conventional_waste_heat_lt_90
     label_en: Conventional waste heat < 90 C
     label_de: Konventioneller Abwärme <90 C
+    color: '#5C5C5C'
   - id: renewable_waste_heat_gt_90
     label_en: Renewable waste heat > 90 C
     label_de: Erneuerbarer Abwärme >90 C
+    color: '#3D5A55'
   - id: renewable_waste_heat_lt_90
     label_en: Renewable waste heat < 90 C
     label_de: Erneuerbarer Abwärme <90 C
+    color: '#4A6B66'
   - id: other_conventional_energy_carriers
     label_en: Other conventional energy carriers
     label_de: Sonstige konventionelle Energieträger
+    color: '#4A2D1A'
   - id: other_renewable_energy_carriers
     label_en: Other renewable energy carriers
     label_de: Sonstige Erneuerbare Energieträger
+    color: '#1E5E1E'
   - id: sewage_landfill_mine_gas
     label_en: Sewage, landfill, or mine gas
     label_de: Klär- Deponie- Grubengas
+    color: '#07452E'
   - id: solid_biomass
     label_en: Solid biomass
     label_de: feste Biomasse
+    color: '#1B5E20'
   - id: geothermatl
     label_en: Geothermal
     label_de: Geothermie
+    color: '#005757'
   - id: liquid_biomass
     label_en: Liquid biomass
     label_de: flüssige Biomasse
+    color: '#5E6B1A'
   - id: photovoltaic
     label_en: Photovoltaic
     label_de: Fotovoltaik
+    color: '#CC8400'
   - id: hydropower
     label_en: hydropower
     label_de: Wasser
+    color: '#0A5B8A'
   - id: wind
     label_en: Wind
     label_de: Wind
+    color: '#1A698A'
   - id: waste
     label_en: Waste
     label_de: Abfall
+    color: '#4A3728'
   - id: district_heating_kwp
     label_en: District heating (KWP)
     label_de: Fernwärme (KWP)
+    color: '#B03A0B'
   - id: natural_gas_additional_part
     label_en: Natural gas (additional part)
     label_de: Erdgas (zusätzlicher Teil)
+    color: '#5DA9C4'
   - id: natural_gas_kwp_part
     label_en: Natural gas (KWP part)
     label_de: Erdgas (KWP Teil)
+    color: '#2E86AB'
   - id: electricity_heat
     label_en: Electricity (heat)
     label_de: Strom (Wärme)
+    color: '#8E24AA'
   - id: district_heating_additional
     label_en: District heating (additional)
     label_de: Fernwärme (zusätzlich)
+    color: '#CC6633'
   - id: electricity_other
     label_en: Electricity (other)
     label_de: Strom (Sonstige)
+    color: '#9FA8DA'
 
 - id: energy_process
   label_en: Energy Process
