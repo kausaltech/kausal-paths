@@ -473,12 +473,27 @@ instances in September 2026 (a rename).
   needs. This also makes the command idempotent.
 - Rewrites descendants whose `url_path` is already inconsistent with their parent, which is
   what Wagtail leaves behind when rows are orphaned; `Page.save()`'s own cascade only
-  rewrites paths sharing the old prefix.
+  rewrites paths sharing the old prefix. These are worked out **after** the renames, from
+  live rows, because a rename moves the very prefix they are built from.
+- Rewrites `slug` and `url_path` in **every revision** of every page in the repaired trees.
+  `Page.save()` touches live rows only, and the Wagtail edit form populates from the latest
+  revision — so without this, one *Save draft* in the admin puts the old slug back and the
+  instance breaks again with nobody having touched a slug field. On a swap it is worse than
+  a revert: after Longmont's September 2026 rename, `longmont-2021`'s Spanish root still had
+  a revision saying `longmont-1`, by then the live slug of `longmont`'s Spanish root, and
+  publishing it would have put two live siblings on one `url_path`.
+- Scans the translated trees for both of the above, not just the primary-language one.
 - Calls `invalidate_cache()` on each instance, since the GraphQL response cache holds the
   old paths.
 
-Wagtail's redirect handler creates redirects from the old paths as a side effect, so
-existing bookmarks keep working.
+Because of the revision pass, the command has work to do even on an instance whose slugs
+already look right — that is exactly the state a rename done by hand leaves behind. Run it
+with no `--apply` as an audit.
+
+Old paths are **not** redirected. The public site resolves pages only through the GraphQL
+`page(path:)` resolver, which never consults `wagtail.contrib.redirects`, and instance root
+pages are not Wagtail `Site` roots, so the auto-redirect signal handler has no site to
+create redirects for. Links to a pre-rename path stay broken.
 
 ## sync_instance_to_db
 
