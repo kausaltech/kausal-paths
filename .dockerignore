@@ -37,3 +37,4 @@ private/extensions/site-archiver/
 /model-outputs/
 /query-store/
 node_modules
+*.local.*

@@ -577,15 +577,6 @@ wheels = [
 ]
 
 [[package]]
-name = "cfgv"
-version = "3.5.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/4e/b5/721b8799b04bf9afe054a3899c6cf4e880fcf8563cc71c15610242490a0c/cfgv-3.5.0.tar.gz", hash = "sha256:d5b1034354820651caa73ede66a6294d6e95c1b00acc5e9b098e917404669132", size = 7334, upload-time = "2025-11-19T20:55:51.612Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/db/3c/33bac158f8ab7f89b2e59426d5fe2e4f63f7ed25df84c036890172b412b5/cfgv-3.5.0-py2.py3-none-any.whl", hash = "sha256:a8dc6b26ad22ff227d2634a65cb388215ce6cc96bbcc5cfde7641ae87e8dacc0", size = 7445, upload-time = "2025-11-19T20:55:50.744Z" },
-]
-
-[[package]]
 name = "channels"
 version = "4.3.2"
 source = { registry = "https://pypi.org/simple" }
@@ -2053,15 +2044,6 @@ wheels = [
 ]
 
 [[package]]
-name = "identify"
-version = "2.6.19"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/52/63/51723b5f116cc04b061cb6f5a561790abf249d25931d515cd375e063e0f4/identify-2.6.19.tar.gz", hash = "sha256:6be5020c38fcb07da56c53733538a3081ea5aa70d36a156f83044bfbf9173842", size = 99567, upload-time = "2026-04-17T18:39:50.265Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/94/84/d9273cd09688070a6523c4aee4663a8538721b2b755c4962aafae0011e72/identify-2.6.19-py2.py3-none-any.whl", hash = "sha256:20e6a87f786f768c092a721ad107fc9df0eb89347be9396cadf3f4abbd1fb78a", size = 99397, upload-time = "2026-04-17T18:39:49.221Z" },
-]
-
-[[package]]
 name = "idna"
 version = "3.18"
 source = { registry = "https://pypi.org/simple" }
@@ -2690,7 +2672,6 @@ dev = [
     { name = "pdbr", extra = ["ipython"] },
     { name = "pip" },
     { name = "plotext" },
-    { name = "pre-commit" },
     { name = "pyarrow-stubs" },
     { name = "ruff" },
     { name = "scipy-stubs" },
@@ -2703,7 +2684,6 @@ dev = [
     { name = "types-orjson" },
     { name = "types-pygit2" },
     { name = "types-requests" },
-    { name = "uv" },
     { name = "virtualenvwrapper" },
     { name = "viztracer" },
 ]
@@ -2795,7 +2775,7 @@ requires-dist = [
     { name = "loguru" },
     { name = "lxml" },
     { name = "modelsearch", specifier = "<1.2" },
-    { name = "nanoid", specifier = "==2" },
+    { name = "nanoid" },
     { name = "openpyxl" },
     { name = "opentelemetry-exporter-otlp-proto-http" },
     { name = "opentelemetry-exporter-prometheus", specifier = ">=0.55b1" },
@@ -2851,7 +2831,7 @@ dev = [
     { name = "altair", specifier = ">=6" },
     { name = "anthropic", specifier = "<1" },
     { name = "basedpyright" },
-    { name = "celery-types" },
+    { name = "celery-types", specifier = ">=0.26.0" },
     { name = "daphne" },
     { name = "debugpy", specifier = ">=1.8.15" },
     { name = "django-debug-toolbar" },
@@ -2871,7 +2851,6 @@ dev = [
     { name = "pdbr", extras = ["ipython"] },
     { name = "pip" },
     { name = "plotext" },
-    { name = "pre-commit" },
     { name = "pyarrow-stubs" },
     { name = "ruff" },
     { name = "scipy-stubs", specifier = ">=1.16.2.4" },
@@ -2884,7 +2863,6 @@ dev = [
     { name = "types-orjson" },
     { name = "types-pygit2" },
     { name = "types-requests", specifier = ">=2.32.4.20260107" },
-    { name = "uv" },
     { name = "virtualenvwrapper", specifier = ">=6.1.1" },
     { name = "viztracer" },
 ]
@@ -2895,7 +2873,7 @@ l10n = [
 lint = [
     { name = "altair", specifier = ">=6" },
     { name = "anthropic", specifier = "<1" },
-    { name = "celery-types" },
+    { name = "celery-types", specifier = ">=0.26.0" },
     { name = "django-stubs" },
     { name = "djangorestframework-stubs" },
     { name = "graphene-stubs" },
@@ -4032,22 +4010,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/10/9a/79b1067d27e38ddf84fe7da6ec516f1743f31f752c6122193e7bce38bdbf/polib-1.2.0.tar.gz", hash = "sha256:f3ef94aefed6e183e342a8a269ae1fc4742ba193186ad76f175938621dbfc26b", size = 161658, upload-time = "2023-02-23T17:53:56.873Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/6b/99/45bb1f9926efe370c6dbe324741c749658e44cb060124f28dad201202274/polib-1.2.0-py2.py3-none-any.whl", hash = "sha256:1c77ee1b81feb31df9bca258cbc58db1bbb32d10214b173882452c73af06d62d", size = 20634, upload-time = "2023-02-23T17:53:59.919Z" },
-]
-
-[[package]]
-name = "pre-commit"
-version = "4.6.2"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "cfgv" },
-    { name = "identify" },
-    { name = "nodeenv" },
-    { name = "pyyaml" },
-    { name = "virtualenv" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/74/89/1f3e8e1fc3e97de0fa963495832f581f025f29471602a309e48808244292/pre_commit-4.6.2.tar.gz", hash = "sha256:8f5d7bfb021ecdbcd9d49d89847082dd24172ccde534390081a679ad046e2441", size = 198670, upload-time = "2026-08-10T22:07:18.421Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/45/e2/bbb7129c9e7999a6b8ee9cca3b66486c25c423ab5a75f34071798b74ce94/pre_commit-4.6.2-py2.py3-none-any.whl", hash = "sha256:e2dde9a75d3bce11bd3831c26d134df00a2803c1d818be6a0383c3dcda25dc4e", size = 226202, upload-time = "2026-08-10T22:07:16.942Z" },
 ]
 
 [[package]]
@@ -5566,17 +5528,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/a0/13/f400ac39d06fd8be5b099c09e41bb975205926722a3e8d53348817cb7ff9/uuid_utils-0.17.0-cp314-cp314t-macosx_10_12_x86_64.macosx_11_0_arm64.macosx_10_12_universal2.whl", hash = "sha256:fae8b282f0cb22a5de222999f7723f4e5ec04f6fcdf4aaef879b5b36625ae2b0", size = 562610, upload-time = "2026-07-09T13:49:27.374Z" },
     { url = "https://files.pythonhosted.org/packages/2b/a7/2c1ed1b34d7df7fdcc11c28fd26d94d44843b37d9af2435ff9fd8abdbc08/uuid_utils-0.17.0-cp314-cp314t-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:9472a8de37faf8bd216c628e0e68c8f6bef730d3ba0a5060f3b0fa460c992ac2", size = 324372, upload-time = "2026-07-09T13:49:34.554Z" },
     { url = "https://files.pythonhosted.org/packages/ce/9e/122adfeeeae8a84ccfd43bce627b104d12a2180a93bffd2c0e1b54dad7a6/uuid_utils-0.17.0-cp314-cp314t-musllinux_1_2_x86_64.whl", hash = "sha256:e7b04935a79c03c41ad08d0a5f390aac968bfb561f1268897bc5b0f077971efd", size = 529885, upload-time = "2026-07-09T13:49:41.513Z" },
-]
-
-[[package]]
-name = "uv"
-version = "0.12.4"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/86/8e/707d2b1a5f51c5c039638fdae4d223b39455fc2d40b17418f272fac9b2c4/uv-0.12.4.tar.gz", hash = "sha256:9585396172c3b14b43671b47377bd0554ad3e75e80cb83a6d766da7ba0316cbe", size = 7088693, upload-time = "2026-08-13T21:14:54.564Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/0d/5e/ea9e08d1489b586c02cf1da034433b249a229b19ac7d80021ed4d901d62d/uv-0.12.4-py3-none-macosx_11_0_arm64.whl", hash = "sha256:004e75a64fa44619b0e3bb267c206a6920e65b78c963863b649c3bcdfd870610", size = 19411866, upload-time = "2026-08-13T21:13:51.587Z" },
-    { url = "https://files.pythonhosted.org/packages/ea/e6/b8f4c5f3b01ec504207edf733ffa51e896bd4b87479fc83261f3b5ba3cb2/uv-0.12.4-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:3bb292d959fa73000d524159cd5f3c1aa1cf2db9cc3005ccdec06911a9998e84", size = 23553966, upload-time = "2026-08-13T21:14:19.524Z" },
-    { url = "https://files.pythonhosted.org/packages/0a/5e/a2712e790c1f60317558d9d83179bc44c7e597db765a74b66c62a9e78ef7/uv-0.12.4-py3-none-musllinux_1_1_x86_64.whl", hash = "sha256:9338a8bc8e8a350ec6f954178326e6fdc8872df2f14a233644973ac7fc46aa5e", size = 23735373, upload-time = "2026-08-13T21:14:39.947Z" },
 ]
 
 [[package]]

@@ -18,7 +18,16 @@ Make sure you have installed the following:
 
 
 ### Development
-After cloning the repository, move to your project root directory (paths folder) and allow loading environment variables:
+After cloning the repository, initialize the required shared-code submodule:
+
+```shell
+git submodule update --init kausal_common
+```
+
+The mise configuration shared with Kausal Watch is provided by that submodule through the
+symlinks in `mise/`.
+
+Then move to your project root directory (paths folder) and allow loading environment variables:
 `direnv allow`
 
 In the project root directory, create and activate a Python virtual environment:

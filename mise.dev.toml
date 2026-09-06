@@ -1,0 +1,10 @@
+#:schema https://mise.jdx.dev/schema/mise.json
+
+[vars]
+product_name = "Paths"
+backend_name = "paths-backend"
+portless_backend_port = "8041"
+graphql_schema = "paths.schema"
+
+[env]
+_.file = [{ path = ".secrets/env", required = false }]

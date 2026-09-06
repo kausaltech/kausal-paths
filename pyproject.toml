@@ -75,7 +75,7 @@ dependencies = [
   # and the importer has to run wherever the database is. See `paths/tests/test_packaging.py`.
   "lxml",
   "modelsearch<1.2",
-  "nanoid==2",
+  "nanoid",
   "openpyxl",
   "opentelemetry-exporter-otlp-proto-http",
   "opentelemetry-exporter-prometheus>=0.55b1",
@@ -141,8 +141,6 @@ dev = [
   "pdbr[ipython]",
   "pip",
   "plotext",
-  "pre-commit",
-  "uv",
   "virtualenvwrapper>=6.1.1",
   "viztracer",
   { include-group = "lint" },
@@ -158,7 +156,7 @@ l10n = [
 ]
 lint = [
   "altair>=6",
-  "celery-types",
+  "celery-types>=0.26.0",
   "django-stubs",
   "djangorestframework-stubs",
   "graphene-stubs",
