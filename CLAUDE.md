@@ -32,8 +32,7 @@ and the API is GraphQL (migrating from Graphene to Strawberry).
 # If mise is not installed:
 curl https://mise.run | sh
 
-# Ensure tooling is installed and allow "mise prepare"
-mise settings experimental=true
+# Ensure tooling is installed
 mise install
 
 # Install Python interpreter, venv and dependencies
@@ -102,6 +101,18 @@ pnpx @graphql-inspector/cli diff https://api.paths.kausal.dev/v1/graphql/ schema
 
 ### Core Components
 
+#### Repository Layout
+The application packages live under `src/` (a src layout, since commit
+`382b1a99`). `uv sync` installs the project editably, which puts `src/` on
+`sys.path`, so they import as top-level modules — `nodes`, `paths`, `pages` —
+never `src.nodes`. The packaged module list is
+`[tool.uv.build-backend] module-name` in `pyproject.toml`; add new top-level
+packages there.
+
+Everything that is not an application package stays at the repository root:
+`kausal_common/` and `private/extensions/` (submodules), `configs/`, `docs/`,
+`tools/`, `locale/`, `templates/`, `notebooks/`, `manage.py`.
+
 #### Node-Based Calculation System
 - **Nodes**: Core calculation units organized in a directed acyclic graph
 - **Actions**: Special nodes representing climate actions with configurable parameters
@@ -110,13 +121,17 @@ pnpx @graphql-inspector/cli diff https://api.paths.kausal.dev/v1/graphql/ schema
 - **Instances**: Complete calculation setups for specific cities/regions
 
 #### Key Django Apps
-1. **`nodes/`** - Core calculation engine, node graph system, emissions calculations
-2. **`frameworks/`** - Framework configuration management (GPC, NZC, etc.)
-3. **`pages/`** - Wagtail CMS integration for content management
-4. **`admin_site/`** - Custom admin interface with authentication
-5. **`users/`** - User management with framework-specific roles
-6. **`params/`** - Parameter management for nodes and actions
-7. **`kausal_common/`** - git submodule for code that is shared between Kausal Paths and Kausal Watch
+All of these live under `src/`:
+1. **`src/nodes/`** - Core calculation engine, node graph system, emissions calculations
+2. **`src/frameworks/`** - Framework configuration management (GPC, NZC, etc.)
+3. **`src/pages/`** - Wagtail CMS integration for content management
+4. **`src/admin_site/`** - Custom admin interface with authentication
+5. **`src/users/`** - User management with framework-specific roles
+6. **`src/params/`** - Parameter management for nodes and actions
+7. **`src/paths/`** - Django project itself: settings, URLs, GraphQL schema entry point
+
+`kausal_common/` sits at the repository root instead (a git submodule shared
+between Kausal Paths and Kausal Watch), and is on `sys.path` from there.
 
 
 #### Data Flow

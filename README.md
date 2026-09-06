@@ -43,6 +43,12 @@ Install the required Python packages:
 uv sync
 ```
 
+This also installs the project itself in editable mode. The application packages
+live under `src/` (a src layout), and the editable install puts that directory on
+`sys.path`, so they are imported as top-level modules — `import nodes`, not
+`import src.nodes`. Everything else stays at the repository root: the
+`kausal_common/` and `private/extensions/` submodules, `configs/`, `docs/`,
+`tools/` and `manage.py`.
 
 If you have access to the Kausal private extensions (ask a team member for access), check out the
 optional submodule. A plain `git submodule update --init` skips it on purpose, so it needs an
