@@ -704,11 +704,11 @@ result_excels:
   - vehicle_kilometers_ifeu
   - other_transport_energy
   # --- Added 2026-08-17, each against a specific Pruefschritt ---
-  - district_heating_energy_use     # 7.3: the certifier could not find where to enter this
+  - district_heating_energy_use     # 7.1: the certifier could not find where to enter this
   # Which of BISKO's three Möglichkeiten each year took (1/2/3) -- the answer to Prüfschritt 6.1,
   # per year rather than as a blanket statement about the tool.
   - district_heating_method_in_force
-  # Prüfschritt 7.3: a Datengüte must be enterable for every input field. The first Prüflauf
+  # Prüfschritt 7.1: a Datengüte must be enterable for every input field. The first Prüflauf
   # named the district-heating one as missing; these three are where the grades are shown.
   - district_heating_energy_use_data_quality
   - vehicle_kilometers_own_data_quality
