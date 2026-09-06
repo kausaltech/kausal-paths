@@ -404,6 +404,19 @@ datasets:
 # parameter is switched off, and `has_national_electricity_emission_factors` then drops
 # `is_bisko_compliant` to 0. That is the mechanism protocol steps 3.2/4.3/6.2 ask for: the
 # alternative exists for analysis, but a result using it is not labelled BISKO-conform.
+#
+# District heating is the exception, and deliberately so. `kommune/emissionsfaktoren_fernwaerme`
+# was removed on 2026-09-06: the second Prüflauf's 2026-08-21 revision withholds Prüfschritt 6.2
+# for as long as that table accepts values, and it withholds it on the table *existing* rather
+# than on what happens when a city uses it --
+#   "Solange in der Tabelle 'Emissionsfaktoren Fernwärme (lokal)' lokale Werte (nicht nach der
+#    exergetischen Allokation berechnet) und nicht Input- und Output-Daten eingegeben werden
+#    können, gilt dieser Schritt als nicht erfüllt."
+# Möglichkeit 1 landed the day that protocol was written, so a city that wants its own district
+# heating factor now describes its network instead of asserting a number: it enters fuel input
+# and heat output in `kommune/fernwaerme_energieeinsatz` plus the plant parameters in
+# `kommune/kwk_anlagenparameter`, and the exergetic allocation derives the factor. That is the
+# route the certifier asks for, so nothing was taken away.
 - id: kommune/emissionsfaktoren_endenergie
   is_editable: true
   metrics:
@@ -417,12 +430,6 @@ datasets:
     validation_rules:
     - {kind: value_range, enforcement: block_edit, min: 0}
 - id: kommune/emissionsfaktoren_ohne_brennstoffinput
-  is_editable: true
-  metrics:
-  - id: Value
-    validation_rules:
-    - {kind: value_range, enforcement: block_edit, min: 0}
-- id: kommune/emissionsfaktoren_fernwaerme
   is_editable: true
   metrics:
   - id: Value
@@ -2567,10 +2574,14 @@ nodes:
     anywhere in Germany. They include upstream emissions of energy used for production. Upstream products (gray
     emissions) are not included. The gases considered are CO<sub>2</sub>, CH<sub>4</sub>, and N<sub>2</sub>O, and the
     values are CO<sub>2</sub> equivalents for 100-year global warming potential.<br/>
-    These emission factors were received from IFEU, and they are updated annually.
-    There are two versions of this dataset, national and local. You can toggle between the two
-    via 'Edit scenario' panel with the national vs. local toggle.<br/> Originally the datasets
-    are the same, but the city admin user can edit the local values via the admin user interface.
+    These emission factors were received from IFEU, and they are updated annually.<br/>
+    <b>There is no local alternative to this table, and there is no toggle.</b> BISKO criterion 6
+    requires district heating emissions to be derived by exergetic allocation, and a factor typed
+    in by hand is not — so a city that wants its own figure describes its network instead of
+    asserting a number: enter the plant's fuel input and heat output in <i>District heating fuel
+    input</i> and the plant parameters in <i>CHP plant parameters</i>, and the allocation derives
+    the factor (BISKO Möglichkeit 1). Declaring a predominant Table 5 generation variant
+    (Möglichkeit 3) is the other route. Both stay conformant; an entered factor would not.
   description_de: |
     Die Emissionsfaktoren sind produktbezogen und pro erzeugter Wärmemenge berechnet.
     Das ist nützlich, wenn die Anteile von erzeugtem Strom und Wärme in Kraft-Wärme-Kopplungsanlagen nicht
@@ -2580,11 +2591,15 @@ nodes:
     Produktion verwendeten Brennstoffe. Die berücksichtigten Gase sind CO<sub>2</sub>, CH<sub>4</sub> und
     N<sub>2</sub>O, und die Werte sind CO<sub>2</sub>-Äquivalente für ein 100-jähriges
     Treibhauspotenzial (GWP).<br/>
-    Diese Emissionsfaktoren stammen von IFEU und werden jährlich aktualisiert.
-    Es gibt zwei Versionen dieses Datensatzes, national und lokal. Sie können zwischen den beiden
-    über das Panel „Szenario bearbeiten“ mit dem national-vs.-lokal-Schalter wechseln.<br/> Ursprünglich sind
-    die Datensätze gleich, aber die Stadt-Admin-Benutzer können die lokalen Werte über die
-    Admin-Benutzeroberfläche anpassen.
+    Diese Emissionsfaktoren stammen von IFEU und werden jährlich aktualisiert.<br/>
+    <b>Zu dieser Tabelle gibt es keine lokale Alternative und keinen Schalter.</b> BISKO-Kriterium 6
+    verlangt, dass die Fernwärmeemissionen exergetisch hergeleitet werden, und ein von Hand
+    eingetragener Faktor ist das nicht. Eine Kommune, die einen eigenen Wert braucht, beschreibt
+    daher ihr Netz, statt eine Zahl zu behaupten: Brennstoffeinsatz und Wärmeabgabe der Anlage in
+    „Energieeinsatz Fernwärme“ sowie die Anlagenparameter in „KWK-Anlagenparameter“ eintragen – die
+    Allokation leitet den Faktor daraus ab (BISKO-Möglichkeit 1). Der zweite Weg ist die Erklärung
+    einer überwiegenden Erzeugungsvariante nach Tabelle 5 (Möglichkeit 3). Beide bleiben konform,
+    ein eingetragener Faktor nicht.
   type: formula.FormulaNode
   quantity: emission_factor
   unit: g_co2e/kWh
@@ -2598,13 +2613,16 @@ nodes:
     # `bisko` reads a DB copy, which tolerates a filter naming a column it does not have, so the
     # template kept working while every city failed with '"upstream_included" not found'.
     tags: [national]
-  - id: kommune/emissionsfaktoren_fernwaerme  # change to city-speific later IF NEEDED
-    tags: [local]
+  # No `local` port and no `use_national_values` here, unlike the other three factor nodes. This
+  # was `select_port(condition, national, local)` over `kommune/emissionsfaktoren_fernwaerme`
+  # until 2026-09-06; the datasets block above says why it went. The consequence worth keeping in
+  # mind: `use_national_values` no longer reaches district heating at all, so switching it off
+  # moves the balance through the other three tables while these factors stay put. That is
+  # correct -- criterion 6 has its own route for city data -- but it does mean this node is no
+  # longer the place to look when the switch appears not to have worked.
   params:
   - id: formula
-    value: extend_all(select_port(condition, national, local))
-  - id: condition
-    ref: use_national_values
+    value: extend_all(national)
 
 - id: combined_heat_and_power_chp_fraction
   is_editable: false

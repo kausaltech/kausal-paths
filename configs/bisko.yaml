@@ -1,6 +1,9 @@
 id: bisko
 default_language: de
-supported_languages: [en]
+# German only. This is the certification template: the Prüfprotokoll is German, the reviewer
+# reads German, and an English variant of a BISKO balance has no audience. `duesseldorf-bisko`
+# is the same.
+supported_languages: []
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: 4acca4b4125ea3b183a1617fd4da3304d6bdc524
