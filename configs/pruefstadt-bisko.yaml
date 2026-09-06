@@ -1,0 +1,196 @@
+id: pruefstadt-bisko # defines which instance is updated
+# German only, like `bisko`: the Prüfprotokoll is German and the reviewer reads German.
+default_language: de
+supported_languages: []
+dataset_repo:
+  url: https://github.com/kausaltech/dvctest.git
+  commit: 4acca4b4125ea3b183a1617fd4da3304d6bdc524
+  dvc_remote: kausal-s3
+name_de: Prüfstadt BISKO-Monitor
+# A review copy of `schwerin-bisko`, made 2026-09-06 so the BISKO certifier can exercise the tool
+# -- enter values, blank cells, change a Datengüte -- without editing a real city's balance. The
+# data is Schwerin's as it stood on that date; the city name is deliberately not in the identifier
+# or the title, so an edited figure here cannot be mistaken for Schwerin's inventory.
+# `owner` is changed from 'Schwerin Stadt': this instance is Kausal's review fixture, and
+# attributing it to the city would put their name on data the reviewer is invited to alter.
+owner: Kausal Ltd
+theme_identifier: default
+target_year: 2035
+model_end_year: 2050
+reference_year: 2018
+minimum_historical_year: 2018
+maximum_historical_year: 2023
+emission_unit: kt_co2e/a
+features:
+  baseline_visible_in_graphs: true
+  use_datasets_from_db: true
+  show_explanations: true
+  show_category_warnings: true
+
+include:
+- file: modules/bisko/model.yaml
+  allow_override: false
+  dataset_replacements:
+  - from: kommune/endenergieverbrauch
+    to: schwerin/final_energy
+  - from: kommune/gemeldete_emissionen
+    to: schwerin/historical_emissions
+  - from: kommune/verkehrsleistung_personen
+    to: schwerin/passenger_kilometers
+
+#//////  Parameters  ////////////////////////////////////////////////////////////////////////////////////////////////////
+params:
+
+- id: weather_correction
+  label_de: Witterungsbereinigung durchführen?
+  label_en: Perform weather correction?
+  value: false
+  is_customizable: true
+  is_visible: true
+- id: municipality_name
+  label_en: Municipality name
+  label_de: Gemeindename
+  value: Schwerin
+  is_customizable: true
+  is_visible: true
+- id: ags_number
+  label_en: AGS number
+  label_de: AGS-Nummer
+  value: '13004000'
+  is_customizable: false
+  is_visible: false
+# NUTS-3, not NUTS-2: Schwerin is a Kreisfreie Stadt, so DE804 *is* the city. It is the only NUTS-3
+# region in Mecklenburg-Vorpommern that is a single municipality.
+# Read by `data/weather/create_degree_day_factors.py`, which picks the city's column out of the
+# European degree-day table. No node reads it. Recorded beside the AGS because it is an
+# identifier of the city.
+#
+# Not the parameter for anything extensive. Degree days are much the same across a Kreis as in
+# the town inside it, so a region serves; a population is a sum over an area and cannot be, which
+# is what `lau_code` below is for.
+- id: nuts_code
+  label_en: NUTS-3 code
+  label_de: NUTS-3-Code
+  value: DE804
+  is_customizable: false
+  is_visible: false
+# The municipality itself, as a Eurostat GISCO LAU code: `<country>_<national LAU code>`, and
+# for Germany the national LAU code is the AGS -- so this is `DE_` plus `ags_number`, naming
+# Schwerin, Landeshauptstadt. Read by the `population` node, which filters the European municipal
+# population table `demography/population_lau` down to this one municipality.
+#
+# Declared separately from `ags_number` rather than derived from it, because the model filters on
+# one column with one parameter and the table is Europe-wide: a bare `09761000` is not unique
+# across countries, and a Finnish or Swiss instance has no AGS at all. The two are cross-checked
+# instead of one being computed from the other.
+- id: lau_code
+  label_en: LAU code (municipality)
+  label_de: LAU-Code (Gemeinde)
+  value: DE_13004000
+  is_customizable: false
+  is_visible: false
+- id: use_national_values
+  label_en: Use national rather than locally held emission factors (BISKO-compliant). Governs all four factor tables — end energy (incl. Bundesstrommix), generation, district heating, and factors without fuel input.
+  label_de: Nationale Emissionsfaktoren statt lokal hinterlegter nutzen (BISKO-konform). Betrifft alle vier Faktortabellen — Endenergie (inkl. Bundesstrommix), Erzeugung, Fernwärme und Faktoren ohne Brennstoffinput.
+  value: true
+  is_visible: true
+  is_customizable: true
+# Subtracting Schwerin's facility consumption keeps GHD positive in every year but one (district
+# heating −16.4 GWh, heating electricity −0.8 GWh in a single year), which reads as a one-year
+# data problem rather than as evidence that the delivery already excludes the facilities.
+
+# The district-heating route is no longer a parameter. BISKO's three Möglichkeiten are chosen per
+# year from what the city has supplied -- plant data, then a declared Table 5 variant, then the
+# standard Fernwärme factor -- exactly as the road-transport own-data preference works. See
+# district_heating_emissions in modules/bisko/model.yaml, and district_heating_method_in_force for
+# which route each year took. `use_exergetic_district_heating` was removed on 2026-08-20.
+
+- id: municipal_facilities_included_in_commerce
+  label_en: Is the consumption of municipal facilities included in the commerce, trade and services sector?
+  label_de: Sind die Verbräuche der kommunalen Einrichtungen im Sektor GHD/Sonstiges enthalten?
+  value: true
+  is_visible: true
+  is_customizable: false
+
+# Heat-pump electricity sits inside the metered electricity unless the utility has separated it,
+# so the Leitfaden Datenbeschaffung (Schritt 7) treats the overlap as the normal case and asks for
+# it to be subtracted. Declared per city, because only the city knows how its data was delivered;
+# visible so the answer to "how does the tool process the data?" is on screen.
+- id: heat_pump_electricity_included_in_electricity
+  label_en: The electricity consumption of heat pumps is included in the reported electricity consumption.
+  label_de: Der Stromverbrauch der Wärmepumpen ist im ausgewiesenen Stromverbrauch enthalten.
+  value: true
+  is_visible: true
+  is_customizable: true
+
+
+#//////  Result Excels  ///////////////////////////////////////////////////////////////////////////////////////////////////
+result_excels:
+- base_excel_url: https://docs.google.com/spreadsheets/d/13URk1zrbyu5Dyjw-w7tIiaAlrERNul-L/export?format=xlsx
+  name_de: Stadtspezifische Werte aus BISKO-Datensätzen und anderen Quellen
+  name_en: City-specific values from BISKO datasets and elsewhere
+  node_ids:
+  - weather_correction
+  - final_energy_use
+  - total_final_energy_use          # criterion 2.1: energy by sector incl. transport
+  - municipal_facilities_energy_in_commerce  # criterion 2.1: the KE/GHD double-count correction
+  - final_energy_use_data_quality
+  - total_weighted_data_quality     # criterion 7.2: Datengüte of the whole balance
+  # - final_municipal_facilities_energy_use_by_type
+  # - municipal_fleet_energy
+  - historical_emissions
+  - end_energy_emission_factors
+  - electricity_production_emission_factors
+  - emission_factors_without_fuel_data
+  - emission_factors_for_district_heating_by_generic_fuel
+  - transport_emission_factors      # the certifier could not find these listed
+  - vehicle_kilometers_ifeu
+  - other_transport_energy
+  # --- Added 2026-08-17, each against a specific Pruefschritt ---
+  - district_heating_energy_use     # 7.1: the certifier could not find where to enter this
+  # Which of BISKO's three Möglichkeiten each year took (1/2/3) -- the answer to Prüfschritt 6.1,
+  # per year rather than as a blanket statement about the tool.
+  - district_heating_method_in_force
+  # Prüfschritt 7.1: a Datengüte must be enterable for every input field. The first Prüflauf
+  # named the district-heating one as missing; these three are where the grades are shown.
+  - district_heating_energy_use_data_quality
+  - vehicle_kilometers_own_data_quality
+  - other_transport_energy_own_data_quality
+  - road_transport_energy_by_road_type  # 2.3: the road-typing view itself; was in no config
+  - vehicle_kilometers_own          # 2.3: the own-data mileage route, road-typed
+  - other_transport_energy_own      # 1.5: where a city enters rail/water/air consumption
+  # 1.5: the Verbrauchsdaten route to road transport, and which years are the city's own.
+  # Which source each year was served from -- the answer to the certifier's
+  # "Wo kann eingesehen werden, dass die BISKO-Defaultdaten genutzt werden?"
+  - road_transport_activity_source_in_force
+  - road_transport_energy_method_in_force
+  - other_transport_energy_source_in_force
+  - transport_energy_own_availability
+  - passenger_kilometers_own        # the pkm/vkm distinction the certifier asked about
+  # "Visuelles Ausweisen als Pflichtfeld waere hilfreich" -- raised under 1.2, 1.4 and 1.5.
+  # These show which required cell is missing rather than a bare 0.
+  - final_energy_use_availability
+  - other_transport_energy_availability
+  - vehicle_kilometers_own_availability
+
+pages:
+- id: home
+  name_de: Klima-Monitor-BISKO Treibhausgasinventar
+  name_en: Climate Protection Monitor BISKO Greenhouse Gas Inventory
+  path: /
+  type: emission
+  outcome_node: net_emissions
+  lead_title: Klima-Monitor Treibhausgasinventar BISKO
+  lead_paragraph: Die Treibhausgasemissionen BISKO.
+
+scenarios:
+
+- id: baseline
+  name_de: Business as Usual
+  name_en: Business as Usual
+
+- id: default
+  default: true
+  all_actions_enabled: true
+  name_de: Klimaschutzplan
+  name_en: Climate Protection Plan
