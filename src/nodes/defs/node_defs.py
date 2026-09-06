@@ -136,7 +136,25 @@ class InputDatasetDef(I18nBaseModel):
 
     id: DatasetIdentifier
     tags: list[str] = Field(default_factory=list)
-    interpolate: bool = False
+    interpolate: bool | None = None
+    """
+    Materialize interior years and fill each metric series linearly.
+
+    Tri-state on purpose. ``None`` means the author said nothing, so the consuming node
+    class decides via ``interpolates_input_datasets_by_default``; ``True`` and ``False`` are
+    both authored answers and neither yields to the class. A plain ``bool`` cannot express
+    this: ``False`` would be the field default, so "turned off" and "not mentioned" would be
+    the same value -- and they behave oppositely on ``AdditiveNode2``, whose default is on.
+
+    The distinction has to survive ``DatasetPortSpec``, which keeps only the compiled
+    pipeline. It does, because an unauthored flag stays ``None`` there instead of decaying
+    into ``False``. It did not when this was a ``bool``: ``interpolate: false`` was dropped
+    from ``model_fields_set`` on the way back and the class default silently reinstated the
+    op -- so the flag could not be turned off at all on the rebuilt node classes.
+
+    ``backfill`` and ``extend`` need no such state: no node class defaults them on, so
+    "not mentioned" and "off" mean the same thing for them.
+    """
     backfill: bool = False
     """Copy each category's first known value backwards over the nulls that precede it."""
     extend: bool = False
@@ -237,7 +255,7 @@ def legacy_dataset_spec_to_transformations(data: dict[str, Any]) -> dict[str, An
         'id': 'placeholder',  # the binding's dataset supplies the real id
         **{key: value for key, value in data.items() if key in LEGACY_DATASET_SPEC_FIELDS and value is not None},
         'tags': data.get('tags') or [],
-        'interpolate': data.get('interpolate', False),
+        'interpolate': data.get('interpolate'),
         'extend': data.get('extend', False),
         'backfill': data.get('backfill', False),
         'input_dataset': data.get('input_dataset'),
@@ -347,12 +365,28 @@ class DatasetPortSpec(I18nBaseModel):
         )
 
     def to_input_dataset(self, *, id: DatasetIdentifier) -> InputDatasetDef:
+        """
+        Decompile the stored spec back into a definition.
+
+        The three temporal flags are read back off the pipeline rather than left at their
+        defaults. They have to be *decided* here: a stored spec is the compiled form, so
+        whatever the author said and whatever the node class contributed were both settled
+        when ``from_input_dataset`` built it. Returning ``interpolate=None`` would say "nobody
+        has decided yet" and invite the loader to apply the class default a second time --
+        which is how ``interpolate: false`` came to be silently ignored on every
+        ``AdditiveNode2`` binding. Re-deriving them changes nothing downstream, because
+        ``to_transformations`` only appends a flag whose op the pipeline does not already have.
+        """
+        kinds = {op.kind for op in self.transformations}
         return InputDatasetDef(
             id=id,
             transformations=list(self.transformations),
             column=self.column,
             tags=self.tags,
             input_dataset=self.input_dataset,
+            interpolate='interpolate' in kinds,
+            backfill='backfill' in kinds,
+            extend='extend' in kinds,
         )
 
 

@@ -171,3 +171,72 @@ def test_generic_dataset_applies_default_fills_at_execution_time():
     data_ops, temporal_ops = authored._generic_transformation_groups()
     assert [op.kind for op in data_ops] == ['index_temporal']
     assert [op.kind for op in temporal_ops] == ['interpolate', 'extend']
+
+
+def _loaded_transform_kinds(node: dict[str, Any], dataset_id: str) -> list[str]:
+    """Parse a one-node instance, load it, and report the ops the runtime binding will execute."""
+    from nodes.instance_loader import InstanceLoader
+
+    snapshot = _parse([{'name': 'Node', 'unit': 'kg/a', 'quantity': 'mass', **node}])
+    loaded = InstanceLoader(snapshot=snapshot).context.nodes[node['id']]
+    ds = next(ds for ds in loaded.input_dataset_instances if ds.id == dataset_id)
+    return [op.kind for op in ds.transformations]
+
+
+def test_opting_out_of_the_class_default_survives_the_spec_round_trip():
+    """
+    ``interpolate: false`` has to reach the runtime, not just the parsed snapshot.
+
+    The snapshot stores a binding as a ``DatasetPortSpec``, which keeps the pipeline and drops
+    the three flat temporal booleans -- so on the way back ``interpolate=False`` is the field
+    default and is indistinguishable from "unset" by ``model_fields_set``. The loader must
+    therefore treat a def that already carries a pipeline as authoritative; re-applying the
+    class default there silently reverses the opt-out on every ``AdditiveNode2`` binding.
+    """
+    kinds = _loaded_transform_kinds(
+        {
+            'id': 'n',
+            'type': 'simple.AdditiveNode2',
+            'input_datasets': [{'id': 'some/data', 'interpolate': False}],
+        },
+        'some/data',
+    )
+    assert 'interpolate' not in kinds
+
+
+def test_the_class_default_still_reaches_the_runtime_when_nothing_is_authored():
+    kinds = _loaded_transform_kinds(
+        {'id': 'n', 'type': 'simple.AdditiveNode2', 'input_datasets': ['some/data']},
+        'some/data',
+    )
+    assert 'interpolate' in kinds
+
+
+def test_the_stored_spec_decompiles_the_temporal_flags_from_its_pipeline():
+    """
+    ``DatasetPortSpec`` is the compiled form, so decompiling must return decided flags.
+
+    ``interpolate=None`` means "nobody has said", which is the loader's cue to apply the
+    class default. A stored spec has already settled the question, so handing back ``None``
+    would invite a second application — the mechanism behind the silently-ignored
+    ``interpolate: false``.
+    """
+    from nodes.defs.node_defs import DatasetPortSpec, InputDatasetDef
+
+    for interpolate, extend in ((True, False), (False, True), (False, False)):
+        spec = DatasetPortSpec.from_input_dataset(
+            InputDatasetDef(id='some/data', column='v', interpolate=interpolate, extend=extend),
+        )
+        back = spec.to_input_dataset(id='some/data')
+        assert back.interpolate is interpolate, (interpolate, extend)
+        assert back.extend is extend, (interpolate, extend)
+        # Recompiling adds nothing: the pipeline already carries whatever the flags say.
+        assert [op.kind for op in back.to_transformations()] == [op.kind for op in spec.transformations]
+
+
+def test_an_unauthored_interpolate_is_none_so_the_class_can_decide():
+    from nodes.defs.node_defs import InputDatasetDef
+
+    assert InputDatasetDef(id='some/data').interpolate is None
+    assert InputDatasetDef(id='some/data').backfill is False
+    assert InputDatasetDef(id='some/data').extend is False

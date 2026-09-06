@@ -827,8 +827,8 @@ class InstanceConfigParser:
         if ds_config is None:
             ds_config = getattr(parsed.node_class, 'input_datasets', [])
 
-        # Mirror the loader: a processor entry forces interpolation on, a class default
-        # yields to an explicit `interpolate:` on the binding.
+        # Mirror the loader: a processor entry forces interpolation on, while a class default
+        # only fills in for a binding that said nothing (`interpolate` still `None`).
         uses_generic_dataset = issubclass(parsed.node_class, GenericNode) and not issubclass(parsed.node_class, AdditiveNode)
         class_interpolate = parsed.node_class.interpolates_input_datasets_by_default and not uses_generic_dataset
         ds_interpolate = False
@@ -846,8 +846,8 @@ class InstanceConfigParser:
                 ds_def = InputDatasetDef.model_validate(ds)
                 if ds_interpolate:
                     ds_def.interpolate = True
-                elif class_interpolate and 'interpolate' not in ds:
-                    ds_def.interpolate = True
+                elif ds_def.interpolate is None:
+                    ds_def.interpolate = class_interpolate
             defs.append(ds_def)
         parsed.dataset_defs = defs
         parsed.has_fixed_dataset = 'historical_values' in config or 'forecast_values' in config

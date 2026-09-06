@@ -573,8 +573,9 @@ class InstanceLoader:
 
         # Two sources of interpolation, and they behave differently on purpose: the legacy
         # `input_dataset_processors` entry forces it on for every binding, while a class
-        # default is only a default and yields to a binding that says `interpolate: false`.
-        # See docs/plans/additive-multiplicative-modernization.md.
+        # default only fills in for a binding that said nothing -- `InputDatasetDef.interpolate`
+        # is `None` exactly then, and both `True` and `False` are authored answers the class
+        # does not override. See docs/plans/additive-multiplicative-modernization.md.
         class_interpolate = node_class.interpolates_input_datasets_by_default and not uses_generic_dataset
         ds_interpolate = False
         idp_confs = config.get('input_dataset_processors', [])
@@ -589,14 +590,11 @@ class InstanceLoader:
             if isinstance(ds, str):
                 ds_def = InputDatasetDef(id=ds, interpolate=ds_interpolate or class_interpolate)
             else:
-                # Snapshot-path entries arrive as typed defs, YAML-path entries as
-                # dicts; either way an authored `interpolate` beats the class default.
-                authored_interpolate = 'interpolate' in (ds.model_fields_set if isinstance(ds, InputDatasetDef) else ds)
                 ds_def = InputDatasetDef.model_validate(ds)
                 if ds_interpolate:
                     ds_def.interpolate = True
-                elif class_interpolate and not authored_interpolate:
-                    ds_def.interpolate = True
+                elif ds_def.interpolate is None:
+                    ds_def.interpolate = class_interpolate
 
             # The class declares whether its datasets take framework measure
             # overlays; the tag is the per-binding opt-in for other classes.
