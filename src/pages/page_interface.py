@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Self
 
 import graphene
 
 from grapple.types.interfaces import PageInterface as BasePageInterface, get_page_interface
+
+from pages.url_paths import to_instance_path
 
 if TYPE_CHECKING:
     from wagtail.models import Page
@@ -75,12 +76,20 @@ class PageInterface(BasePageInterface):
         return specific.page.get_visible_ancestors(specific.cache)
 
     @staticmethod
-    def resolve_url_path(root, info: GQLInstanceInfo) -> str:
-        url_path = root.url_path
-        # FIXME: This is a dirty way to work around the issue of the slug having the form <instance>-1 or so for translated
-        # pages.
-        # Replace instance ID, optionally followed by a `-` and a number, if it is surrounded by slashes, by a single slash
-        url_path = re.sub('^/%s(-[0-9]+)?/' % re.escape(info.context.instance.id), '/', root.url_path)
-        if len(url_path) > 1:
-            url_path = url_path.rstrip('/')
-        return url_path
+    def resolve_url_path(root: Page, info: GQLInstanceInfo) -> str:
+        """
+        Expose the page's path relative to its instance's root page.
+
+        The prefix comes from the root page's own ``url_path``, which is the same value
+        ``Query.resolve_page`` prepends when the front end hands the result back, so the
+        round trip holds whatever the root page's slug happens to be. See
+        ``pages.url_paths`` for why that matters.
+
+        ``for_page`` locates the instance by treebeard ``path`` prefix rather than by slug,
+        so it cannot drift either.
+        """
+        cache = info.context.cache.for_page(root)
+        root_page = cache.translated_root_page if cache is not None else None
+        if root_page is None:
+            return root.url_path
+        return to_instance_path(root.url_path, root_page.url_path)

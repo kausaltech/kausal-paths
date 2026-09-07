@@ -1685,10 +1685,33 @@ class InstanceConfig(
         pks = [node.database_id for node in root_nodes if node.database_id is not None]
         return list(self.nodes.filter(pk__in=pks))
 
+    def _find_existing_root_page(self, candidates: models.QuerySet[Page]) -> Page | None:
+        """
+        Find this instance's existing root page among the Wagtail root's children.
+
+        Keyed on ``root_page`` first, because that is the authoritative link and the only
+        one that survives a rename. Looking the page up by ``slug=self.identifier`` alone
+        used to be the whole of it, which meant that once the slug and the identifier had
+        drifted apart -- a rename, or a slug edited in the Wagtail admin -- this found
+        nothing and the caller built a *second* root page beside the real one. That orphan
+        is what left ``augsburg-bisko`` with a duplicate in July 2026, and what put a stale
+        page in a position to squat on the slug ``longmont`` needed in September 2026.
+
+        The slug fallback is kept for instances whose ``root_page`` was never populated.
+        """
+        if self.root_page_id is not None:
+            page = candidates.filter(pk=self.root_page_id).first()
+            if page is not None:
+                return page
+        return candidates.filter(slug=self.identifier).first()
+
     def _create_instance_root_page(self) -> Page:
         from pages.models import InstanceRootPage
 
         root_node: Page = cast('Page', Page.get_first_root_node())
+        existing = self._find_existing_root_page(root_node.get_children())
+        if existing is not None:
+            return existing
         with override(self.primary_language):
             locale, _ = Locale.objects.get_or_create(language_code=self.primary_language)
             page = root_node.add_child(
@@ -1734,9 +1757,8 @@ class InstanceConfig(
         root_node: Page = cast('Page', Page.get_first_root_node())
         with override(self.primary_language):
             locale, _ = Locale.objects.get_or_create(language_code=self.primary_language)
-            try:
-                home_page = home_pages.get(slug=self.identifier)
-            except Page.DoesNotExist:
+            home_page = self._find_existing_root_page(home_pages)
+            if home_page is None:
                 home_page = root_node.add_child(
                     instance=OutcomePage(
                         locale=locale,
