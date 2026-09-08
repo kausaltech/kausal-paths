@@ -354,7 +354,7 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   input_datasets:
   - id: zuerich/population
-    forecast_from: 2025
+    forecast_from: 2026
 
 - id: number_of_jobs
   name_de: Beschäftigungsentwicklung (Vollzeitäquivalente)
@@ -364,7 +364,7 @@ nodes:
   quantity: number
   input_datasets:
   - id: zuerich/number_of_jobs
-    forecast_from: 2025
+    forecast_from: 2026
   input_dataset_processors: [LinearInterpolation]
 
 # ----- Non-Road Machinery -----
