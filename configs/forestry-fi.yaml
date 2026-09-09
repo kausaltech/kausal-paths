@@ -714,7 +714,6 @@ nodes:
       value: Argument placeholder
   output_nodes:
   - id: land_use_change
-    tags: [ignore_content]
 
 - id: land_use_change
   name: Land use change
@@ -971,7 +970,6 @@ nodes:
       value: Argument placeholder
   output_nodes:
   - id: protect_the_forest
-    tags: [ignore_content]
 
 - id: forest_owners_right_to_self_determination
   name: Forest owner's right to self determination
@@ -986,7 +984,6 @@ nodes:
       value: Argument placeholder
   output_nodes:
   - id: private_forest_protection_is_voluntary
-    tags: [ignore_content]
 
 - id: private_forest_protection_is_voluntary
   name: Private forest protection is voluntary
@@ -1018,7 +1015,6 @@ nodes:
       value: Argument placeholder
   output_nodes:
   - id: protect_the_forest
-    tags: [ignore_content]
 
 - id: forest_property_protection
   name: Forest owner's property must be protected
@@ -1033,7 +1029,6 @@ nodes:
       value: Argument placeholder
   output_nodes:
   - id: private_forest_protection_is_voluntary
-    tags: [ignore_content]
 
 - id: biodiversity_strategy_requires_action
   name: EU biodiversity strategy requires nature conservation
@@ -1048,7 +1043,6 @@ nodes:
       value: Argument placeholder
   output_nodes:
   - id: protect_the_forest
-    tags: [ignore_content]
 
 - id: premature_cuts_destroy_income
   name: Premature forest cuts destroy income opportunities
@@ -1063,7 +1057,6 @@ nodes:
       value: Argument placeholder
   output_nodes:
   - id: harvest_probabilities
-    tags: [ignore_content]
 
 - id: threat_of_forced_conseervation
   name: Threat of forced conservation
@@ -1078,7 +1071,6 @@ nodes:
       value: Argument placeholder
   output_nodes:
   - id: cut_the_virtanen_forest
-    tags: [ignore_content]
 
 - id: biodiversity_in_forests
   name: Biodiversity in forests

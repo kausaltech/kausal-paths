@@ -1,6 +1,7 @@
 # Argumentation: helping a coordinator answer objections
 
 *Produced by Claude Opus 5.0 on 2026-09-08.*
+*Version 2 produced by Claude Opus 5.0 on 2026-09-09.*
 *Responsible: Jouni Tuomisto.*
 
 ## 1. The use case
@@ -515,6 +516,27 @@ this file asserted otherwise):
   unchanged. `resolve_input_nodes` drops such an input while `_add_nodes_impl`
   zeroes it, so the two paths already disagree. Out of scope here — argument
   nodes no longer depend on the tag — but it is a live inconsistency.
+
+  The redundant half of the tag's use has now been removed: of the 70 edges
+  carrying `ignore_content`, the **31 whose source was a `quantity: argument`
+  node** were deleted (`congestion_charge.yaml` 21, `forestry-fi.yaml` 8,
+  `finland-syke.yaml` 2), verified as a no-op against `dinspec`, `equalia`,
+  `finland-syke` and `forestry-fi` — 532 node outputs, no schema, row-count or
+  value difference, and no new failures.
+
+  The **39 remaining uses are a different mechanism wearing the same tag**:
+  "show this edge in the graph but contribute nothing", on sources carrying real
+  quantities that `quantity: argument` cannot absorb — `budget.yaml`'s
+  `collect_*` nodes (deleted), `dut_transport_actions.yaml`'s `sink_node` (deleted), and the
+  forestry utility chains (`forestry/greentransition.yaml` 9,
+  `greentransition.yaml` 8, `dut_transport_actions.yaml` 7, `budget.yaml` 6,
+  `forestry/economy.yaml` 4, `forestry-fi.yaml` 4,
+  `dinspec/car_to_bike_shift.yaml` 1). Retiring the tag altogether means
+  deciding what those become — the leading candidate is an edge-scoped
+  non-computational role, dropped at `resolve_input_nodes` /
+  `iter_computational_input_bindings` the way `is_non_computational` drops a
+  node, which would also retire `_ignore_content`'s dependency on the target's
+  output metric and its `FIXME`.
 - **No CLI sweep for node-local parameters** (§7).
 - **The distributive dimension does not exist.** No cost or benefit node in the
   repo is disaggregated by stakeholder or income, so `obj_regressive_burden`
