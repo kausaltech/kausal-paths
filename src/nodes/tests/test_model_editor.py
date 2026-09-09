@@ -3000,7 +3000,7 @@ def test_input_port_declaration_catalog(gql_client: PathsTestClient, db_instance
     data = gql_client.query_data(NODE_CONSTRAINT_FIELDS, variables={'instanceId': str(db_instance_config.pk)})
     node = next(entry for entry in data['modelInstance']['nodes'] if entry['identifier'] == 'product')
     declarations = {entry['role']: entry for entry in node['editor']['spec']['inputPortDeclarations']}
-    assert set(declarations) == {'factors', 'additive', 'impute'}
+    assert set(declarations) == {'factors', 'additive', 'impute', 'reference'}
     factors = declarations['factors']
     assert factors['repeatable'] is True
     assert factors['minCount'] == 1
@@ -3009,6 +3009,18 @@ def test_input_port_declaration_catalog(gql_client: PathsTestClient, db_instance
     assert declarations['additive']['multi'] is True
     assert declarations['additive']['required'] is False
     assert declarations['additive']['aggregation'] == 'sum'
+
+    # The reference role is offered by every class, which is what puts "Reference" in the
+    # editor's add-port menu with no frontend change. The zero counts are what keep it out
+    # of a plain connect and out of node creation; `multi` lets one port hold many links.
+    reference = declarations['reference']
+    assert reference['minCount'] == 0
+    assert reference['defaultCount'] == 0
+    assert reference['required'] is False
+    assert reference['multi'] is True
+    assert reference['repeatable'] is False
+    assert reference['aggregation'] is None
+    assert reference['instantiatedPortIds'] == []
 
 
 def test_create_node_instantiates_default_declared_ports(gql_client: PathsTestClient, db_instance_config: InstanceConfig):

@@ -28,7 +28,7 @@ import polars as pl
 from loguru import logger
 
 from common import polars as ppl
-from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
+from nodes.constants import FORECAST_COLUMN, REFERENCE_TAG, VALUE_COLUMN, YEAR_COLUMN
 from nodes.defs.transform_def import (
     AssignCategoryTransformation,
     AssignDimensionOp,
@@ -337,8 +337,10 @@ def _remap_legacy_years(df: ppl.PathsDataFrame, env: PipelineEnv) -> ppl.PathsDa
 
 def _tag_operation(df: ppl.PathsDataFrame, op: TagOperationOp, env: PipelineEnv) -> ppl.PathsDataFrame:
     tag = op.tag
-    if tag == 'ignore_content':
-        logger.warning("Dataset {} has tag 'ignore_content', which is not supported.", env.source_id)
+    if tag == REFERENCE_TAG:
+        # The tag marks an *edge* as non-computational; a dataset binding has no edge to
+        # mark, and silently keeping its values would be the opposite of what was asked.
+        logger.warning("Dataset {} has tag '{}', which is not supported.", env.source_id, REFERENCE_TAG)
         return df
     if not df.paths.has_operation(tag):
         return df

@@ -727,7 +727,7 @@ nodes:
       value: Argument placeholder
   output_nodes:
   - id: dynamic_forest
-    tags: [ignore_content]
+    tags: [reference]
 
 - id: harvest_probabilities
   name: Harvest probabilities for different ages
@@ -1180,7 +1180,7 @@ actions:
   input_datasets: [sunnydale/forestry_fi]
   output_nodes:
   - id: harvest_probabilities
-    tags: [ignore_content]
+    tags: [reference]
   params:
     sector: Forest cuts by a forest owner
 
@@ -1196,7 +1196,7 @@ actions:
   input_datasets: [sunnydale/forestry_fi]
   output_nodes:
   - id: harvest_probabilities
-    tags: [ignore_content]
+    tags: [reference]
   params:
     sector: Forest cuts by Metsähallitus
 
@@ -1228,7 +1228,7 @@ actions:
     sector: Reduce forestry production
   output_nodes:
   - id: forest_harvest_volume
-    tags: [ignore_content]
+    tags: [reference]
     # tags: [complement, non_additive]
     # to_dimensions:
     # - id: stakeholder

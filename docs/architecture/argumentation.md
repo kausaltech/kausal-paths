@@ -308,8 +308,9 @@ from the model.
 
 Consequences worth knowing:
 
-- `ignore_content` is no longer needed on an argument edge, and the tag retains
-  its old meaning for non-argument inputs, which was left alone deliberately.
+- `ignore_content` is no longer needed on an argument edge. It has since been
+  retired altogether: its other use — an edge whose mathematics is not yet known
+  — is now the `reference` port role. See §9.
 - Removing a zero from a sum changes floating-point associativity. Across
   `equalia`'s 108 nodes exactly one value moved, in the sixteenth significant
   figure (`1162845307.764707` to `...764706`); shapes, dimensions, year ranges
@@ -485,8 +486,9 @@ this file asserted otherwise):
   inlining data; it is also year-indexed only, so it could not have carried a
   dimensioned distribution anyway.
 
-- Argument nodes no longer need `ignore_content`, and no longer have to match
-  the target's dimensions: exclusion from arithmetic is structural (§6).
+- Argument nodes no longer need `ignore_content` (now retired, §9), and no
+  longer have to match the target's dimensions: exclusion from arithmetic is
+  structural (§6).
   `obj_not_our_emissions` is now attached to `net_emissions` itself, which is
   the number it disputes. Verified against `equalia` at HEAD: 108 node outputs,
   no change beyond one sixteenth-significant-figure float difference.
@@ -511,32 +513,68 @@ this file asserted otherwise):
   cannot suppress them per node (`baseline_visible_in_graphs` is instance-wide).
   The descriptions warn the reader instead, which is weaker than not showing a
   number that has no interpretation.
-- **`ignore_content` still zeroes rather than drops for non-argument inputs**,
-  and for a *factor* that means the product becomes zero rather than being left
-  unchanged. `resolve_input_nodes` drops such an input while `_add_nodes_impl`
-  zeroes it, so the two paths already disagree. Out of scope here — argument
-  nodes no longer depend on the tag — but it is a live inconsistency.
+- **`ignore_content` is gone**, and the two things it was doing are now separate
+  mechanisms. Recorded here because this file argued for the first half.
 
-  The redundant half of the tag's use has now been removed: of the 70 edges
-  carrying `ignore_content`, the **31 whose source was a `quantity: argument`
-  node** were deleted (`congestion_charge.yaml` 21, `forestry-fi.yaml` 8,
-  `finland-syke.yaml` 2), verified as a no-op against `dinspec`, `equalia`,
-  `finland-syke` and `forestry-fi` — 532 node outputs, no schema, row-count or
-  value difference, and no new failures.
+  The tag's 70 edges split cleanly. The **31 whose source was a `quantity:
+  argument` node** were redundant — `is_non_computational` already dropped them
+  before any tag was read — and were deleted (`congestion_charge.yaml` 21,
+  `forestry-fi.yaml` 8, `finland-syke.yaml` 2), verified as a no-op across 532
+  node outputs on `dinspec`, `equalia`, `finland-syke` and `forestry-fi`. Of the
+  other 39, the **sink nodes were deleted** (`budget.yaml`'s `collect_*`,
+  `dut_transport_actions.yaml`'s `sink_node`) — grouping nodes on a graph is not
+  a job for an arithmetic tag. The remaining **26 were the legitimate case**: an
+  edge the modeller knows matters and cannot yet write down.
 
-  The **39 remaining uses are a different mechanism wearing the same tag**:
-  "show this edge in the graph but contribute nothing", on sources carrying real
-  quantities that `quantity: argument` cannot absorb — `budget.yaml`'s
-  `collect_*` nodes (deleted), `dut_transport_actions.yaml`'s `sink_node` (deleted), and the
-  forestry utility chains (`forestry/greentransition.yaml` 9,
-  `greentransition.yaml` 8, `dut_transport_actions.yaml` 7, `budget.yaml` 6,
-  `forestry/economy.yaml` 4, `forestry-fi.yaml` 4,
-  `dinspec/car_to_bike_shift.yaml` 1). Retiring the tag altogether means
-  deciding what those become — the leading candidate is an edge-scoped
-  non-computational role, dropped at `resolve_input_nodes` /
-  `iter_computational_input_bindings` the way `is_non_computational` drops a
-  node, which would also retire `_ignore_content`'s dependency on the target's
-  output metric and its `FIXME`.
+  Those 26 are now `tags: [reference]`, and the mechanism behind the name is
+  **`Node.reference_port`** — an `InputPortDeclaration` declared on `Node`, so
+  every class offers it:
+
+  | Layer | Where |
+  |---|---|
+  | Declaration | `Node.reference_port`, merged into every subclass's `input_port_declarations` by `Node.__init_subclass__`; the per-class tuple is now `declared_input_ports` |
+  | Role resolution | `instance_loader._setup_runtime_inputs` overrides the role **per binding**; `NodeMeta._port_role_inference` classifies a wholly-reference port and reports the deprecated spelling |
+  | Legacy arithmetic | `operands.resolve_input_nodes` and `operands.is_reference_edge`, the latter reached through `Node._drop_non_computational` |
+
+  Why a declared role rather than a tag check: no shape rule names `reference`,
+  so the link carries no unit, quantity or dimension expectation — which is what
+  "the mathematics is not yet known" means — and no operation resolves the role,
+  so nothing has to remember to exclude it. `min_count`/`default_count` of zero
+  keep it out of `_plan_declared_input_port`, so a plain connect never lands
+  there; the editor's add-port menu grows a "Reference" entry from
+  `inputPortDeclarations` with no frontend change.
+
+  **The role is per binding, not per port.** A `multi` port legitimately holds
+  four additive terms and one reference; classifying the port would either miss
+  that binding or disown the other four. Getting this wrong first showed up as
+  `greentransition`'s `total_economic_benefit` gaining exactly the reference
+  input's 10 000 kEUR/a.
+
+  Three consequences worth knowing:
+
+  - **A reference no longer extends the target's year axis or its forecast
+    flags.** A zeroed frame contributed years and flags to every union it
+    entered; an absent input contributes neither. On `greentransition`,
+    `vehicle_number` and its two downstream nodes lost 2000–2009 — years that
+    existed only because two ignored inputs started in 2000 — and 2022/2023
+    stopped being labelled forecast on `vehicle_number` and `local_business`,
+    which is correct: their own `historical_values` end there. No value on any
+    year present both before and after moved.
+  - **`ignore_content` is retired, and the retirement needed the mirrors first.**
+    A database-sourced instance computes from its *stored* spec, so dropping the
+    name while a mirror still held it turned those edges into ordinary additive
+    inputs — no error, just a wrong number (`forestry-fi`'s
+    `rich_forest_biodiversity_area` doubled from 200 to 400 ha). The name was
+    accepted as an alias until `forestry-fi` was re-synced; `equalia` still holds
+    21 such bindings, all on argument nodes, which `is_non_computational` drops
+    whatever the tag says. The name now means nothing, and
+    `test_retired_ignore_content_tag_no_longer_marks_a_reference` pins that, so
+    re-introducing the alias is a deliberate act rather than a quiet one. **The
+    order generalises: retire a tag from the code only after every mirror that
+    stores it has been re-synced.**
+  - **The `_ignore_content` operation and its `FIXME` are gone**, along with the
+    dependency on the target's output metric that made an objection impossible
+    to attach to a dimensioned node.
 - **No CLI sweep for node-local parameters** (§7).
 - **The distributive dimension does not exist.** No cost or benefit node in the
   repo is disaggregated by stakeholder or income, so `obj_regressive_burden`

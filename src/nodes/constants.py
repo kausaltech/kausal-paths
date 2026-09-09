@@ -107,6 +107,21 @@ GROUPED_MIX_QUANTITY = 'grouped_mix'
 UTILITY_QUANTITY = 'utility'
 VALUE_WEIGHT_QUANTITY = 'value_weight'
 ARGUMENT_QUANTITY = 'argument'
+
+REFERENCE_ROLE = 'reference'
+"""Input port role for a link that documents a dependency without asserting an algebra.
+
+See ``Node.reference_port``. Lives here rather than on ``Node`` so the graph and
+constraint layers can name it without importing the runtime node class.
+"""
+
+REFERENCE_TAG = 'reference'
+"""Edge/binding tag selecting :data:`REFERENCE_ROLE` on a class not yet migrated to ports.
+
+Replaced ``ignore_content``, which neutralised such an edge by rewriting its frame to the
+target's no-effect value instead of dropping it. That name was accepted as a deprecated
+alias only while database-sourced mirrors still held it; both have since been re-synced.
+"""
 FRACTION_QUANTITY = 'fraction'
 
 ACTIVITY_QUANTITIES = {

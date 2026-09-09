@@ -22,6 +22,7 @@ from sentry_sdk import start_span
 from kausal_common.i18n.pydantic import TranslatedString, get_i18n_context, gettext_lazy as _, set_i18n_context
 
 from nodes.actions.action import ActionNode
+from nodes.constants import REFERENCE_ROLE, REFERENCE_TAG
 from nodes.exceptions import NodeError
 from params.discover import discover_global_parameters
 
@@ -1213,9 +1214,13 @@ class InstanceLoader:
                     continue
                 raise
             target = runtime_by_uuid.get(target_meta.id)
-            if target is None or not target.input_port_declarations:
+            if target is None or not target.declared_input_ports:
                 # Unmigrated classes keep using the legacy edge/dataset views,
                 # whose persisted port UUIDs need not match the exported spec.
+                # Asks about ``declared_input_ports`` rather than
+                # ``input_port_declarations``: every class carries the universal
+                # ``reference_port``, so the merged tuple is never empty and would
+                # pull every legacy class onto this path.
                 continue
             try:
                 target_port = definition.target_port
@@ -1224,6 +1229,12 @@ class InstanceLoader:
                     continue
                 raise
             role = target_meta.role_for_input_port(target_port)
+            # A reference is a property of the *binding*, not of the port: a ``multi`` port
+            # legitimately holds four additive terms and one link whose mathematics is not
+            # yet known, and the port stays additive for the other four. Classifying the
+            # port instead would either miss this binding or disown the rest.
+            if REFERENCE_TAG in definition.tags:
+                role = REFERENCE_ROLE
             if role is None:
                 continue
 

@@ -227,7 +227,7 @@ class HistoricalNode(AdditiveNode):
 class CCSNode(SimpleNode):
     emissions_port = InputPortDeclaration(role='emissions')
     ccs_share_port = InputPortDeclaration(role='ccs_share')
-    input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = (emissions_port, ccs_share_port)
+    declared_input_ports: ClassVar[tuple[InputPortDeclaration, ...]] = (emissions_port, ccs_share_port)
     legacy_input_port_roles_by_tag = {'emissions': 'emissions', 'ccs_share': 'ccs_share'}
     allowed_parameters = [
         NumberParameter(local_id='capture_efficiency', unit_str='%', is_customizable=True),

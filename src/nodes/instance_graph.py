@@ -7,6 +7,7 @@ from pydantic import Field, PrivateAttr, model_validator
 
 from kausal_common.i18n.pydantic import I18nString, set_i18n_context
 
+from nodes.constants import REFERENCE_ROLE, REFERENCE_TAG
 from nodes.constraints.rules import MissingPortRoleError
 from nodes.defs.binding_def import AnyPortBindingDef, DatasetBindingDef, EdgeBindingDef, NodePortRef
 from nodes.defs.graph import (
@@ -99,8 +100,21 @@ class NodeMeta(InstanceGraphBoundModel):
         candidates = tuple(
             port for port in self.spec.input_ports if port.role is None and not self._has_declaration_identifier_match(port)
         )
+        # A reference binding is classified by the framework, before the class hook sees
+        # the port. Universal by construction: the role is declared on ``Node`` for every
+        # class, and a class that overrides ``infer_legacy_port_roles`` would otherwise
+        # have to remember to handle it.
+        roles: dict[UUID, str] = {}
+        remaining: list[InputPortDef] = []
+        for port in candidates:
+            bindings = self.bindings_for_port(port.id)
+            if bindings and all(REFERENCE_TAG in binding.tags for binding in bindings):
+                roles[port.id] = REFERENCE_ROLE
+            else:
+                remaining.append(port)
+        candidates = tuple(remaining)
         if not candidates:
-            return {}, ()
+            return roles, ()
         metadata = self.graph.metadata
         # The hook may import runtime modules that construct i18n values.
         with set_i18n_context(metadata.primary_language, metadata.other_languages):
@@ -108,7 +122,6 @@ class NodeMeta(InstanceGraphBoundModel):
 
         candidate_ids = {port.id for port in candidates}
         declared_roles = {declaration.role for declaration in node_class.input_port_declarations}
-        roles: dict[UUID, str] = {}
         diagnostics: list[InstanceGraphDiagnostic] = []
         for item in result.inferred:
             if item.port_id not in candidate_ids:

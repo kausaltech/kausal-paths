@@ -14,6 +14,7 @@ from nodes.actions.simple import AdditiveAction
 from nodes.actions.values import BudgetingAction
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from nodes.datasets import FixedDataset
+from nodes.defs.binding_def import EdgeBindingDef
 from nodes.defs.instance_defs import InstanceMetadata, InstanceModelSpec
 from nodes.defs.node_defs import ActionConfig, NodeSpec
 from nodes.defs.port_def import InputPort, InputPortDeclaration, InputPortDef, OutputPortDef, pair_input_ports_to_outputs
@@ -285,6 +286,69 @@ def test_fill_new_category_accepts_dataset_and_edge_inputs() -> None:
     assert roles_by_source_kind == {'dataset': 'additive', 'edge': 'additive'}
 
 
+def test_reference_tagged_edge_resolves_to_the_reference_role() -> None:
+    """
+    The framework classifies a reference binding, before any class hook sees the port.
+
+    Universal by construction: the role is declared on ``Node``, so a class that
+    overrides ``infer_legacy_port_roles`` cannot forget to handle it. Here the target is
+    a ``MultiplicativeNode``, whose own hook sorts a port by unit — as it does for the
+    plain input here. Left to it, ``pcs`` against the target's ``%`` would come out as a
+    *factor*, silently multiplying the result by a number nobody claimed was a coefficient.
+    """
+    config = {
+        'id': 'reference_edge_role',
+        'default_language': 'en',
+        'supported_languages': [],
+        'name': 'Reference edge role',
+        'owner': 'Owner',
+        'target_year': 2030,
+        'minimum_historical_year': 2020,
+        'maximum_historical_year': 2020,
+        'reference_year': 2020,
+        'nodes': [
+            {
+                'id': 'factor',
+                'type': 'nodes.simple.AdditiveNode',
+                'name': 'Factor',
+                'unit': '%',
+                'quantity': 'fraction',
+                'output_nodes': ['target'],
+            },
+            {
+                'id': 'not_yet_known',
+                'type': 'nodes.simple.AdditiveNode',
+                'name': 'Not yet known',
+                'unit': 'pcs',
+                'quantity': 'number',
+                'output_nodes': [{'id': 'target', 'tags': ['reference']}],
+            },
+            {
+                'id': 'target',
+                'type': 'nodes.simple.MultiplicativeNode',
+                'name': 'Target',
+                'unit': '%',
+                'quantity': 'fraction',
+            },
+        ],
+    }
+    snapshot = parse_instance_snapshot(config, instance_uuid=uuid4())
+    loader = object.__new__(InstanceLoader)
+    loader.instance_config = None
+    loader._stash_snapshot_bindings(snapshot)
+    target = next(meta for meta in loader._instance_graph.nodes if meta.identifier == 'target')
+
+    roles = {
+        binding.source_node.identifier: target.role_for_input_port(binding.target_port)
+        for binding in target.input_bindings
+        if isinstance(binding, EdgeBindingDef)
+    }
+    assert roles == {'factor': 'additive', 'not_yet_known': 'reference'}
+
+    # A classified role is not an unresolved one: no diagnostic is raised for it.
+    assert [d.code for d in target.port_role_diagnostics if d.code == 'unclassified_port_role'] == []
+
+
 def test_additive_action_receives_inline_values_through_its_input_port() -> None:
     config = {
         'id': 'runtime_action_input',
@@ -507,7 +571,10 @@ def test_instance_loader_does_not_resolve_stale_dataset_port_ids_for_unmigrated_
 
     target = InstanceLoader(snapshot=snapshot).context.nodes['target']
 
-    assert target.input_port_declarations == ()
+    # An unmigrated class declares no computational roles; only the universal
+    # reference role is present, and that is what keeps it on the legacy path.
+    assert target.declared_input_ports == ()
+    assert target.input_port_declarations == (Node.reference_port,)
     assert target.runtime_input_bindings == ()
 
 

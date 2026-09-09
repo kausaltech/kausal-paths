@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 
     from nodes.context import Context
     from nodes.dimensions import Dimension
-    from nodes.node import Node, NodeMetric
+    from nodes.node import NodeMetric
     from nodes.units import Unit
 
 
@@ -64,7 +64,6 @@ class PathsExt:
         'fill_metrics_nan_null_zero': '_fill_metrics_nan_null_zero',
         'forecast_only': '_forecast_only',
         'geometric_inverse': '_geometric_inverse',
-        'ignore_content': '_ignore_content',
         'indifferent_history_ratio': '_indifferent_history_ratio',
         'inventory_only': '_inventory_only',
         'linear_interpolate': '_linear_interpolate',
@@ -1281,13 +1280,6 @@ class PathsExt:
 
     def _geometric_inverse(self, df: ppl.PathsDataFrame, _context: Context) -> ppl.PathsDataFrame:
         return df.divide_quantity(VALUE_COLUMN, unit_registry.parse_expression('1 * dimensionless'))
-
-    # FIXME Current version requires output metric of the target node. Use baskets instead.
-    def _ignore_content(self, df: ppl.PathsDataFrame, target_node: Node) -> ppl.PathsDataFrame:
-        no_effect_value = getattr(self, 'no_effect_value', 0.0)
-        df = df.with_columns(pl.lit(no_effect_value).alias(VALUE_COLUMN))
-        m = target_node.get_default_output_metric()
-        return df.set_unit(VALUE_COLUMN, m.unit, force=True)
 
     def _indifferent_history_ratio(self, df: ppl.PathsDataFrame, _context: Context) -> ppl.PathsDataFrame:
         return df.with_columns(
