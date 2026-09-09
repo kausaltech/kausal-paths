@@ -147,6 +147,7 @@ TAG_DESCRIPTIONS = {
     'splitter': _('The node is used as the distribution source for a new dimension.'),
     'split_evenly_to_cats': _('Distribute the total evenly across all categories of a dimension.'),
     'template': _('The dataset declaring the category combinations that are required to exist.'),
+    'trendline': _('Fit a linear trend to the last historical years (trend_years) and extrapolate it over the forecast years.'),
     'truncate_before_start': _('Truncate values before the reference year. There may be some from data'),
     'truncate_beyond_end': _('Truncate values beyond the model end year. There may be some from data'),
     'use_as_shares': _('Treat this input as fractional shares (dimensionless) to scale another quantity.'),

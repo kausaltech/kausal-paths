@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import functools
 import re
-from typing import TYPE_CHECKING, Any, ClassVar, Literal, TypedDict, overload
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, TypedDict, cast, overload
 
 from django.utils.translation import gettext_lazy as _
 
@@ -79,6 +79,7 @@ class GenericNode(SimpleNode):
         NumberParameter(local_id='selected_number', label=_('Number of the selected category')),
         BoolParameter(local_id='do_correction', label=_('Correct values with a correction factor?')),
         NumberParameter(local_id='no_correction_value', label=_('Value to use for no correction')),
+        NumberParameter(local_id='trend_years', label=_('Number of last historical years to fit a trendline to')),
     ]
     # Class-level default operations
     DEFAULT_OPERATIONS = 'get_single_dataset,multiply,add,other,apply_multiplier,impute'  # FIXME
@@ -107,6 +108,7 @@ class GenericNode(SimpleNode):
             'split_by_existing_shares': self._operation_split_by_existing_shares,
             'split_dims': self._operation_split_dims,
             'split_evenly_to_cats': self._operation_split_evenly_to_cats,
+            'trendline': self._operation_trendline,
             'use_as_totals': self._operation_use_as_totals,
             'use_as_shares': self._operation_use_as_shares,
         }
@@ -405,6 +407,74 @@ class GenericNode(SimpleNode):
         if not nodes:
             return df
         return self.impute_nodes_pl(df, nodes)
+
+    def _operation_trendline(self, df: PathsDataFrame | None) -> OperationReturn:
+        """
+        Fit a linear trend to the last historical years and extrapolate it into the future.
+
+        The window is the last ``trend_years`` historical years, counted back from the last
+        historical year; without that parameter, every historical year is used. The fit is an
+        ordinary least squares regression on the year, done in wide format, where each column
+        is one time series -- so every metric and every dimension category combination gets
+        its own line. Historical rows pass through unchanged, and the years from the last
+        historical one to ``model_end_year`` are replaced by the fitted line, marked as
+        forecast -- so any forecast the earlier operations produced is discarded, which is the
+        point of asking for a trendline.
+        """
+        if df is None:
+            raise NodeError(self, 'Cannot compute a trendline because no PathsDataFrame is available.')
+        if FORECAST_COLUMN not in df.columns:
+            df = df.with_columns(pl.lit(value=False).alias(FORECAST_COLUMN))
+        wide = df.paths.to_wide()
+        hist = wide.filter(~pl.col(FORECAST_COLUMN))
+        if hist.is_empty():
+            raise NodeError(self, 'Cannot compute a trendline because the input has no historical values.')
+        last_hist_year = cast('int', hist[YEAR_COLUMN].max())
+
+        trend_years = self.get_typed_parameter_value('trend_years', float, required=False)
+        if trend_years is None:
+            window = hist
+        else:
+            years = round(trend_years)
+            if years < 2:
+                raise NodeError(self, f'trend_years must be at least 2 for a trend to be defined, got {years}.')
+            window = hist.filter(pl.col(YEAR_COLUMN) > last_hist_year - years)
+        if len(window) < 2:  # One row per year in wide format.
+            raise NodeError(self, 'Cannot compute a trendline from fewer than two historical years.')
+
+        future_years = list(range(last_hist_year + 1, self.context.model_end_year + 1))
+        if not future_years:
+            return hist.paths.to_narrow()
+
+        series_cols = list(wide.metric_cols)
+        year_expr = pl.col(YEAR_COLUMN).cast(pl.Float64)
+        fit_exprs: list[pl.Expr] = []
+        for col in series_cols:
+            value = pl.col(col).cast(pl.Float64)
+            valid = value.is_not_null() & value.is_not_nan()
+            x = year_expr.filter(valid)
+            y = value.filter(valid)
+            slope = pl.cov(x, y) / x.var()
+            fit_exprs += [
+                slope.alias(f'{col}__slope'),
+                (y.mean() - slope * x.mean()).alias(f'{col}__intercept'),
+            ]
+        fit = window.select(fit_exprs)  # A single row: one slope and one intercept per series.
+
+        years_df = pl.DataFrame({YEAR_COLUMN: future_years}, schema={YEAR_COLUMN: wide.schema[YEAR_COLUMN]})
+        fdf = years_df.join(fit, how='cross')
+        fdf = fdf.with_columns([
+            (pl.col(f'{col}__intercept') + pl.col(f'{col}__slope') * year_expr).alias(col) for col in series_cols
+        ])
+        fdf = fdf.with_columns(pl.lit(value=True).alias(FORECAST_COLUMN)).select(wide.columns)
+
+        out = hist.paths.concat_vertical(ppl.to_ppdf(fdf, meta=wide.get_meta())).sort(YEAR_COLUMN)
+        out = out.paths.to_narrow()
+        # A series with fewer than two values over the window has no line, and to_wide gives a
+        # sparse category combination an all-null column. Drop those forecast rows rather than
+        # emit nulls -- or, worse, fabricate rows for a combination that never existed.
+        has_value = pl.any_horizontal([pl.col(col).is_not_null() for col in out.metric_cols])
+        return out.filter(~pl.col(FORECAST_COLUMN) | has_value)
 
     def drop_unnecessary_levels(self, df: PathsDataFrame, droplist: list[str]) -> PathsDataFrame:
         # Drop filter levels and empty dimension levels.
