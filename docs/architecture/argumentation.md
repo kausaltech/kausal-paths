@@ -533,7 +533,7 @@ this file asserted otherwise):
   | Layer | Where |
   |---|---|
   | Declaration | `Node.reference_port`, merged into every subclass's `input_port_declarations` by `Node.__init_subclass__`; the per-class tuple is now `declared_input_ports` |
-  | Role resolution | `instance_loader._setup_runtime_inputs` overrides the role **per binding**; `NodeMeta._port_role_inference` classifies a wholly-reference port and reports the deprecated spelling |
+  | Role resolution | `instance_loader._setup_runtime_inputs` overrides the role **per binding**; `NodeMeta._port_role_inference` classifies a port whose every binding is a reference, before the class hook sees it |
   | Legacy arithmetic | `operands.resolve_input_nodes` and `operands.is_reference_edge`, the latter reached through `Node._drop_non_computational` |
 
   Why a declared role rather than a tag check: no shape rule names `reference`,

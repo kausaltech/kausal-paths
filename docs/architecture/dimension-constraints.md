@@ -348,15 +348,25 @@ instance carrying its own unit, quantity and dimension expectations. Products
 therefore only ever happen across distinct ports; bindings on one port are
 always shape-equal.
 
+One role is universal rather than class-declared: **`reference`**
+(`Node.reference_port`, merged into every class's `input_port_declarations` by
+`Node.__init_subclass__`; a class's own tuple is `declared_input_ports`). It
+marks a link the modeller knows matters and cannot yet write down, so no shape
+rule names it and it carries no unit, quantity or dimension expectation. It is
+also the one role resolved **per binding** rather than per port
+(`instance_loader._setup_runtime_inputs`): a `multi` port legitimately holds
+several additive terms and one reference, and stays additive for the rest. See
+[`argumentation.md`](argumentation.md) §9.
+
 An anonymous legacy port can still be executed, but it cannot participate in
 a class-level rule until it has a role. During migration the node class
 itself classifies such ports — `Node.infer_legacy_port_roles(meta,
 candidates)`, implemented by `AdditiveNode` and `MultiplicativeNode` from
 binding tags and unit compatibility, mirroring the runtime's current
 behavior. The framework side (`NodeMeta`) computes the candidates (authored
-roles and declaration-identifier matches are filtered out, so the heuristic
-can never override them), validates that inferred roles exist in the class
-declarations, and formats uniform diagnostics. The classification is derived
+roles, declaration-identifier matches and reference-tagged ports are filtered
+out, so the heuristic can never override them), validates that inferred roles
+exist in the class declarations, and formats uniform diagnostics. The classification is derived
 state, recomputed per hydrated graph, never serialized. Implementing the
 hook for a new node class is always wrong — new classes declare roles at
 port creation — and the whole mechanism dies once persisted ports carry
