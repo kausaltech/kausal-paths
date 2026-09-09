@@ -3,7 +3,7 @@ default_language: de
 supported_languages: [en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 21d51982cac1ecd6aecf104de0f74474469d2520
+  commit: 282687a616031069881d7bbc56e2e17cd02810c3
   dvc_remote: kausal-s3
 name_de: Treibhausgas-Monitor Mainz
 name_en: GHG Monitor Mainz
@@ -166,6 +166,93 @@ dimensions:
   - id: we_4464
     label_de: Kita Jakob-Laubach-Str. (WE 4464)
     label_en: Kita Jakob-Laubach-Str. (WE 4464)
+
+# The measures of the KNSV package, as a dimension of the action datasets.
+#
+# A dimension of the *action space* rather than of the physical system, which is unusual but
+# is what keeps the measure factors in one dataset per factor shape instead of one dataset
+# per measure. Each action filters this dimension to its own category and flattens it away,
+# so nothing downstream carries it.
+#
+# Ids are identical to the action ids in `actions:` below. Deliberate redundancy: the dataset
+# and the model then name the same thing the same way, and a mismatch shows up as a missing
+# row rather than as a silent misattribution.
+#
+# Here rather than in `modules/gpc/municipal_balance.yaml` because these are Mainz's measures
+# and that module is also included by `reutlingen-klimabilanz`. If a second city arrives with
+# a measure package of its own, the dimension moves to the module and the categories stay
+# with the city.
+- id: measure
+  label_de: Maßnahme
+  label_en: Measure
+  help_text: Maßnahmen des Konzepts „Klimaneutrale Stadtverwaltung Mainz 2035" (Arqum,
+    16.10.2024), wie sie im Modell als Aktionen abgebildet sind.
+  categories:
+  - id: knsv_energetische_sanierung_waerme
+    label_de: Energetische Sanierung im Bestand (Wärme)
+    label_en: Energetic renovation of existing buildings (heat)
+  - id: knsv_nutzendenverhalten_waerme
+    label_de: Wärmeeinsparung durch Sensibilisierung der Nutzenden
+    label_en: Heat savings through user awareness
+  - id: knsv_energieeffizienz_gebaeude_strom
+    label_de: Energieeffizienter Gebäudestandard und LED-Umrüstung (Strom)
+    label_en: Energy-efficient building standard and LED conversion (electricity)
+  - id: knsv_nutzendenverhalten_strom
+    label_de: Stromeinsparung durch Verhalten der Nutzenden (KESch und KLiK)
+    label_en: Electricity savings through user behaviour (KESch and KLiK)
+  - id: knsv_photovoltaik_eigenerzeugung
+    label_de: Ausbau der städtischen Photovoltaik
+    label_en: Expansion of municipal photovoltaics
+  - id: knsv_dekarbonisierung_fernwaerme
+    label_de: Umstellung auf erneuerbare Fernwärme
+    label_en: Conversion to renewable district heating
+  - id: knsv_dekarbonisierung_strommix
+    label_de: Dekarbonisierung des Bundesstrommixes
+    label_en: Decarbonisation of the German electricity mix
+  - id: knsv_elektrifizierung_pkw_flotte
+    label_de: Umstellung der PKW-Flotte auf Elektroantrieb
+    label_en: Conversion of the passenger car fleet to electric drive
+  - id: knsv_alternative_antriebe_nutzfahrzeuge
+    label_de: Umstellung der Nutzfahrzeuge auf alternative Antriebe
+    label_en: Conversion of utility vehicles to alternative drives
+  - id: knsv_dienstreisen_vermeiden
+    label_de: Vermeidung von Dienstreisen und Verzicht auf Flugreisen
+    label_en: Avoiding business trips and giving up air travel
+  - id: knsv_homeoffice
+    label_de: Ausweitung der Homeoffice-Option
+    label_en: Extending the home working option
+  - id: knsv_papierloses_buero
+    label_de: Wandel hin zum papierlosen Büro
+    label_en: Shift towards the paperless office
+  - id: knsv_abfallreduktion
+    label_de: Reduktion der Abfallemissionen
+    label_en: Reduction of waste emissions
+  - id: knsv_led_strassenbeleuchtung
+    label_de: Umrüstung der Straßenbeleuchtung auf LED
+    label_en: Conversion of street lighting to LED
+  - id: knsv_klimafreundliche_veranstaltungen
+    label_de: Klimafreundliche Großveranstaltungen
+    label_en: Climate-friendly major events
+
+# The two ambition variants Arqum computed, as data rather than as two datasets.
+#
+# The report calculates every measure twice -- "die Maßnahmen so, wie sie von der
+# Stadtverwaltung angestrebt sind" against "in geringerem Umfang umgesetzt" -- and both
+# numbers are things the city owns and may revise. Side by side in the dataset, a revision
+# is an edit in the admin rather than a config change; the Paths scenario picks between them
+# with `select_variant` on each action's `selected_number`.
+- id: measure_scenario
+  label_de: Umsetzungsvariante
+  label_en: Implementation variant
+  help_text: Ambitionsniveau der Maßnahmenumsetzung nach Arqum, Maßnahmenbericht §4.
+  categories:
+  - id: szenario_1
+    label_de: Szenario 1 (ambitioniert)
+    label_en: Scenario 1 (ambitious)
+  - id: szenario_2
+    label_de: Szenario 2 (konservativ)
+    label_en: Scenario 2 (conservative)
+
 
 #//////  Nodes  ///////////////////////////////////////////////////////////////////////////////////////////////////
 # Mainz-specific nodes not (yet) part of the shared BISKO module. Kept as standalone
@@ -503,6 +590,875 @@ nodes:
     column: ratio
     forecast_from: 2025
 
+#//////  KNSV-Maßnahmen  ///////////////////////////////////////////////////////////////////////////////////////////
+
+# The measures of *Klimaneutrale Stadtverwaltung Mainz 2035* (Arqum GmbH, 16.10.2024), from
+# the Maßnahmenbericht §4.1 and the 19 Maßnahmensteckbriefe of 21.10.2024. They act on the
+# administration balance only -- nothing here touches the BISKO territorial inventory, whose
+# own measures are still to come.
+#
+# ## What an action is here
+#
+# A **relative factor**: the share of its target quantity that remains once the measure has
+# taken full effect, 1.0 meaning unchanged. Relative rather than absolute because Arqum
+# states percentages of a base, and writing those out absolutely would bake the 2019
+# distribution across property groups and carriers into the measure -- a restatement of the
+# underlying data would then silently invalidate it.
+#
+# Every number lives in `mainz/knsv_massnahmen_*`, produced by
+# `data/mainz/create_knsv_measures.py`, so the city can see and change an assumption in the
+# admin instead of asking us to edit a config file. Nothing below carries a value.
+#
+# Five datasets, one per factor *shape* rather than one per target node: two nodes that
+# differentiate on the same dimension share one, and the `measure` dimension keeps their rows
+# apart. Each dataset carries **every** category its target node has, with 1.0 on the ones the
+# measure does not touch -- `multiply_with_dims` joins inner, so a category missing from the
+# factor is a deleted row rather than an untouched one.
+#
+# ## The two Arqum scenarios
+#
+# Both ambition variants are in the data, under `measure_scenario`. `select_variant` picks
+# one and `selected_number` is the dial, so the Paths scenario `knsv_szenario_2` overrides
+# that one parameter per action and no action is duplicated. The dimension is flattened on
+# the way out; only one row survives the selection, so summing over it is a no-op.
+#
+# ## Not yet built
+#
+# Four KNSV assumptions are *shifts between categories*, not reductions of one, and a factor
+# cannot express them without asserting something false about the activity:
+#
+#   * connecting 40 % / 25 % of buildings to district heating by 2032 (gas and oil -> heat),
+#   * converting 10 % / 0 % of heating to pellets by 2028,
+#   * catering reaching 80 % / 65 % vegetarian (meat and mixed meals -> vegetarian),
+#   * commuting modal shift plus private EV uptake (car -> rail and public transport,
+#     petrol car -> electric car), the ~2,000 t/a of Steckbrief C4.
+#
+# They need `shift.ShiftAction` and absolute activity levels. The last two carry real weight
+# -- catering is 7,458 t of the 7,638 t procurement total in 2019, and commuting is 3,152 t of
+# the 3,206 t travel total -- so the scenario totals are short of Arqum's by roughly that much
+# until they land.
+
+action_groups:
+
+- id: gebaeude_energie
+  name_de: Gebäude und Energie
+  name_en: Buildings and energy
+  color: '#C2185B'
+
+- id: mobilitaet
+  name_de: Mobilität
+  name_en: Mobility
+  color: '#1E5AA8'
+
+- id: beschaffung
+  name_de: Beschaffung, Abfall und Veranstaltungen
+  name_en: Procurement, waste and events
+  color: '#8E24AA'
+
+actions:
+
+- id: knsv_energetische_sanierung_waerme
+  name_de: Energetische Sanierung im Bestand (Wärme)
+  name_en: Energetic renovation of existing buildings (heat)
+  type: simple.GenericAction
+  quantity: fraction
+  unit: dimensionless
+  no_effect_value: 1.0
+  group: gebaeude_energie
+  description_de: |
+    Die Baustandards der Stadtverwaltung geben für Sanierungen einen Zielwert von 25 kWh je m²
+    und Jahr vor; Ziel ist, dass alle Bestandsgebäude ihn erreichen. Maßnahmensteckbrief B1
+    beziffert das Potenzial: bei Erreichen des Zielwerts könnten „über 1/3 der Emissionen des
+    Wärmebereichs" gegenüber 2019 eingespart werden. Im Modell 35 % Minderung des Wärmebedarfs
+    bis 2035, in beiden Szenarien gleich -- der Bericht unterscheidet für die Sanierung nicht.<br/>
+    Erfolgsindikator laut Steckbrief ist die Sanierungsquote von 3 % nach dem
+    Energieeffizienzgesetz.
+  description_en: |
+    The city's building standards set a renovation target of 25 kWh per m² and year, and the
+    stated aim is for every existing building to reach it. Measure sheet B1 quantifies it:
+    reaching the target would save "more than 1/3 of the emissions of the heat sector" against
+    2019. Modelled as a 35 % cut in building heat demand by 2035, the same in both scenarios --
+    the report draws no distinction for renovation.<br/>
+    The success indicator in the measure sheet is the 3 % renovation rate of the German Energy
+    Efficiency Act.
+  input_dimensions: [ghg_category, measure_scenario]
+  output_dimensions: [ghg_category, measure_scenario]
+  input_datasets:
+  - id: mainz/knsv_massnahmen_bilanzkategorie
+    forecast_from: 2025
+    filters:
+    - dimension: measure
+      categories: [knsv_energetische_sanierung_waerme]
+      flatten: true
+  params:
+  - id: operations
+    value: get_single_dataset,select_variant
+  - id: categories
+    value: measure_scenario:szenario_1,szenario_2
+  - id: selected_number
+    value: 0
+    min_value: 0
+    max_value: 1
+    step: 1
+    is_customizable: true
+    label_de: Umsetzungsvariante (0 = Szenario 1, 1 = Szenario 2)
+    label_en: Implementation variant (0 = scenario 1, 1 = scenario 2)
+  output_nodes:
+  - id: municipal_building_energy
+    tags: [non_additive]
+    from_dimensions:
+    - id: measure_scenario
+      flatten: true
+
+- id: knsv_nutzendenverhalten_waerme
+  name_de: Wärmeeinsparung durch Sensibilisierung der Nutzenden
+  name_en: Heat savings through user awareness
+  type: simple.GenericAction
+  quantity: fraction
+  unit: dimensionless
+  no_effect_value: 1.0
+  group: gebaeude_energie
+  description_de: |
+    Sensibilisierung der Nutzenden der städtischen Liegenschaften. Szenario 1 rechnet mit 5 %,
+    Szenario 2 mit 2 % Minderung des Wärmeverbrauchs durch Verhaltensänderung bis 2030.<br/>
+    Maßnahmensteckbrief B4 nennt für das Nutzendenverhalten insgesamt „durchschnittlich 10 %
+    Energieeinsparungen"; die Szenariorechnung des Berichts bleibt darunter und ist hier
+    maßgeblich.
+  description_en: |
+    Awareness-raising among the users of city properties. Scenario 1 assumes a 5 % cut in heat
+    consumption from behavioural change by 2030, scenario 2 a 2 % cut.<br/>
+    Measure sheet B4 puts the potential of user behaviour overall at "10 % energy savings on
+    average"; the report's own scenario calculation stays below that and is what is used here.
+  input_dimensions: [ghg_category, measure_scenario]
+  output_dimensions: [ghg_category, measure_scenario]
+  input_datasets:
+  - id: mainz/knsv_massnahmen_bilanzkategorie
+    forecast_from: 2025
+    filters:
+    - dimension: measure
+      categories: [knsv_nutzendenverhalten_waerme]
+      flatten: true
+  params:
+  - id: operations
+    value: get_single_dataset,select_variant
+  - id: categories
+    value: measure_scenario:szenario_1,szenario_2
+  - id: selected_number
+    value: 0
+    min_value: 0
+    max_value: 1
+    step: 1
+    is_customizable: true
+    label_de: Umsetzungsvariante (0 = Szenario 1, 1 = Szenario 2)
+    label_en: Implementation variant (0 = scenario 1, 1 = scenario 2)
+  output_nodes:
+  - id: municipal_building_energy
+    tags: [non_additive]
+    from_dimensions:
+    - id: measure_scenario
+      flatten: true
+
+- id: knsv_energieeffizienz_gebaeude_strom
+  name_de: Energieeffizienter Gebäudestandard und LED-Umrüstung (Strom)
+  name_en: Energy-efficient building standard and LED conversion (electricity)
+  type: simple.GenericAction
+  quantity: fraction
+  unit: dimensionless
+  no_effect_value: 1.0
+  group: gebaeude_energie
+  description_de: |
+    Dieselbe Sanierung wie bei der Wärme, hier auf der Stromseite: der Baustandard von 25 kWh je
+    m² und Jahr gilt für Wärme- <i>und</i> Stromverbrauch, und die Sanierung schließt die
+    Umrüstung der Beleuchtung aller Gebäude auf LED ein.<br/>
+    <b>Die 20 % sind eine Annahme dieses Modells, keine Angabe des Berichts.</b> Arqum rechnet die
+    Stromseite aus Flächenkennwerten des Bundesanzeigers, die hier nicht vorliegen, und beziffert
+    nur die Wärmeseite. Der Wert steht als eigene Quelle im Datensatz und ist gegen die
+    Flächendaten der Gebäudewirtschaft zu prüfen.
+  description_en: |
+    The same renovation as on the heat side, here on electricity: the 25 kWh per m² and year
+    standard covers heat <i>and</i> electricity, and the renovation includes converting the
+    lighting of every building to LED.<br/>
+    <b>The 20 % is an assumption of this model, not a figure from the report.</b> Arqum computes
+    the electricity side from Bundesanzeiger floor-area benchmarks this model does not hold, and
+    quantifies only the heat side. The value is recorded under its own source in the dataset and
+    should be checked against the building management office's floor areas.
+  input_dimensions: [ghg_category, measure_scenario]
+  output_dimensions: [ghg_category, measure_scenario]
+  input_datasets:
+  - id: mainz/knsv_massnahmen_bilanzkategorie
+    forecast_from: 2025
+    filters:
+    - dimension: measure
+      categories: [knsv_energieeffizienz_gebaeude_strom]
+      flatten: true
+  params:
+  - id: operations
+    value: get_single_dataset,select_variant
+  - id: categories
+    value: measure_scenario:szenario_1,szenario_2
+  - id: selected_number
+    value: 0
+    min_value: 0
+    max_value: 1
+    step: 1
+    is_customizable: true
+    label_de: Umsetzungsvariante (0 = Szenario 1, 1 = Szenario 2)
+    label_en: Implementation variant (0 = scenario 1, 1 = scenario 2)
+  output_nodes:
+  - id: municipal_building_energy
+    tags: [non_additive]
+    from_dimensions:
+    - id: measure_scenario
+      flatten: true
+
+- id: knsv_nutzendenverhalten_strom
+  name_de: Stromeinsparung durch Verhalten der Nutzenden (KESch und KLiK)
+  name_en: Electricity savings through user behaviour (KESch and KLiK)
+  type: simple.GenericAction
+  quantity: fraction
+  unit: dimensionless
+  no_effect_value: 1.0
+  group: gebaeude_energie
+  description_de: |
+    Überarbeitung und Ausweitung von KESch und KLiK (Klimaschutz durch Energiesparen an Schulen
+    bzw. an Kindertagesstätten) zur Schulung von Hausmeistern, Lehrkräften und Schüler:innen,
+    zusammen mit erwarteten Einsparungen in den Verwaltungsgebäuden. Szenario 1 rechnet mit 5 %,
+    Szenario 2 mit 2 % Minderung des Stromverbrauchs bis 2030.
+  description_en: |
+    Revising and extending KESch and KLiK (energy-saving programmes in schools and day-care
+    centres) to train caretakers, teachers and pupils, together with expected savings in the
+    administrative buildings. Scenario 1 assumes 5 % and scenario 2 assumes 2 % lower electricity
+    consumption by 2030.
+  input_dimensions: [ghg_category, measure_scenario]
+  output_dimensions: [ghg_category, measure_scenario]
+  input_datasets:
+  - id: mainz/knsv_massnahmen_bilanzkategorie
+    forecast_from: 2025
+    filters:
+    - dimension: measure
+      categories: [knsv_nutzendenverhalten_strom]
+      flatten: true
+  params:
+  - id: operations
+    value: get_single_dataset,select_variant
+  - id: categories
+    value: measure_scenario:szenario_1,szenario_2
+  - id: selected_number
+    value: 0
+    min_value: 0
+    max_value: 1
+    step: 1
+    is_customizable: true
+    label_de: Umsetzungsvariante (0 = Szenario 1, 1 = Szenario 2)
+    label_en: Implementation variant (0 = scenario 1, 1 = scenario 2)
+  output_nodes:
+  - id: municipal_building_energy
+    tags: [non_additive]
+    from_dimensions:
+    - id: measure_scenario
+      flatten: true
+
+- id: knsv_photovoltaik_eigenerzeugung
+  name_de: Ausbau der städtischen Photovoltaik
+  name_en: Expansion of municipal photovoltaics
+  type: simple.GenericAction
+  quantity: fraction
+  unit: dimensionless
+  no_effect_value: 1.0
+  group: gebaeude_energie
+  description_de: |
+    Stand 2024 sind auf städtischen Liegenschaften 1.275,36 kWp installiert; der Bericht rechnet
+    mit 1.000 kWh Ertrag je kWp und Jahr, also rund 1.275 MWh/a. Szenario 1 verdoppelt die
+    Leistung gegenüber 2024, Szenario 2 baut bis 2030 50 % zu.<br/>
+    <b>Die Umrechnung in einen Anteil ist hier gerechnet, nicht im Bericht.</b> Der zusätzliche
+    Ertrag von 1.275 bzw. 638 MWh/a ersetzt Netzbezug und ist bezogen auf die 15.102 MWh
+    Stromverbrauch der Liegenschaften 2024 ein Anteil von 8,4 % bzw. 4,2 %.<br/>
+    Die Maßnahme mindert den <i>bezogenen</i> Strom. Sie ist nicht dasselbe wie der
+    nachrichtliche Posten „Vermiedene Emissionen durch Eigenerzeugung", der die bereits
+    bestehende Eigenerzeugung ausweist.
+  description_en: |
+    As of 2024 the city's properties carry 1,275.36 kWp of installed capacity; the report assumes
+    1,000 kWh per kWp and year, so about 1,275 MWh/a. Scenario 1 doubles the capacity against
+    2024, scenario 2 adds half as much again by 2030.<br/>
+    <b>The conversion into a share is done here, not in the report.</b> The extra yield of 1,275
+    or 638 MWh/a displaces purchased electricity, which against the properties' 15,102 MWh in
+    2024 is 8.4 % and 4.2 % respectively.<br/>
+    The measure reduces <i>purchased</i> electricity. It is not the same thing as the memo item
+    "avoided emissions from self-generation", which reports the self-generation already in place.
+  input_dimensions: [ghg_category, measure_scenario]
+  output_dimensions: [ghg_category, measure_scenario]
+  input_datasets:
+  - id: mainz/knsv_massnahmen_bilanzkategorie
+    forecast_from: 2025
+    filters:
+    - dimension: measure
+      categories: [knsv_photovoltaik_eigenerzeugung]
+      flatten: true
+  params:
+  - id: operations
+    value: get_single_dataset,select_variant
+  - id: categories
+    value: measure_scenario:szenario_1,szenario_2
+  - id: selected_number
+    value: 0
+    min_value: 0
+    max_value: 1
+    step: 1
+    is_customizable: true
+    label_de: Umsetzungsvariante (0 = Szenario 1, 1 = Szenario 2)
+    label_en: Implementation variant (0 = scenario 1, 1 = scenario 2)
+  output_nodes:
+  - id: municipal_building_energy
+    tags: [non_additive]
+    from_dimensions:
+    - id: measure_scenario
+      flatten: true
+
+- id: knsv_dekarbonisierung_fernwaerme
+  name_de: Umstellung auf erneuerbare Fernwärme
+  name_en: Conversion to renewable district heating
+  type: simple.GenericAction
+  quantity: fraction
+  unit: dimensionless
+  no_effect_value: 1.0
+  group: gebaeude_energie
+  description_de: |
+    Der Bericht nimmt an, dass der Anteil klimaneutraler Wärmequellen in der Fernwärme bis 2050
+    auf durchschnittlich 92 % steigt, und leitet daraus für 2035 einen erneuerbaren Anteil von
+    70 % (Szenario 1) bzw. 60 % (Szenario 2) ab. „Klimaneutral" heißt hier emissionsfrei, der
+    Emissionsfaktor der Fernwärme sinkt also im gleichen Verhältnis.<br/>
+    Maßnahmensteckbrief B3 nennt als Größenordnung rund 5.000 t CO2e jährlich bei 70 %. Das
+    Modell rechnet für 2019 mit 7.678 t Scope-2-Emissionen aus Fernwärme, 70 % davon sind
+    5.375 t -- die Größenordnungen stimmen überein.<br/>
+    Das Potenzial hängt vollständig vom Transformationsplan der Mainzer Stadtwerke ab, der hier
+    nicht vorliegt.
+  description_en: |
+    The report assumes the share of climate-neutral sources in district heating rises to 92 % on
+    average by 2050, and derives a renewable share in 2035 of 70 % (scenario 1) or 60 %
+    (scenario 2). "Climate-neutral" means emission-free here, so the district heating emission
+    factor falls in the same proportion.<br/>
+    Measure sheet B3 gives the order of magnitude as about 5,000 t CO2e a year at 70 %. This
+    model computes 7,678 t of Scope 2 district heating emissions for 2019, and 70 % of that is
+    5,375 t -- the magnitudes agree.<br/>
+    The potential depends entirely on the Mainzer Stadtwerke transformation plan, which is not
+    available here.
+  input_dimensions: [energy_carrier, measure_scenario]
+  output_dimensions: [energy_carrier, measure_scenario]
+  input_datasets:
+  - id: mainz/knsv_massnahmen_energietraeger
+    forecast_from: 2025
+    filters:
+    - dimension: measure
+      categories: [knsv_dekarbonisierung_fernwaerme]
+      flatten: true
+  params:
+  - id: operations
+    value: get_single_dataset,select_variant
+  - id: categories
+    value: measure_scenario:szenario_1,szenario_2
+  - id: selected_number
+    value: 0
+    min_value: 0
+    max_value: 1
+    step: 1
+    is_customizable: true
+    label_de: Umsetzungsvariante (0 = Szenario 1, 1 = Szenario 2)
+    label_en: Implementation variant (0 = scenario 1, 1 = scenario 2)
+  output_nodes:
+  - id: municipal_building_energy_ef
+    tags: [non_additive]
+    from_dimensions:
+    - id: measure_scenario
+      flatten: true
+
+- id: knsv_dekarbonisierung_strommix
+  name_de: Dekarbonisierung des Bundesstrommixes
+  name_en: Decarbonisation of the German electricity mix
+  type: simple.GenericAction
+  quantity: fraction
+  unit: dimensionless
+  no_effect_value: 1.0
+  group: gebaeude_energie
+  description_de: |
+    Der Bericht nimmt an, dass bis 2030 70 % (Szenario 1) bzw. 60 % (Szenario 2) des in
+    Deutschland erzeugten Stroms aus erneuerbaren Energien stammt.<br/>
+    <b>Die Umrechnung in eine Faktorminderung ist hier gerechnet.</b> 2019 lag der Anteil bei rund
+    42 %, der fossile Rest bei 58 %. Ein Anstieg auf 70 % senkt den Rest auf 30 %, den Faktor also
+    auf 30/58 = 51,7 %; bei 60 % entsprechend auf 40/58 = 69,0 %.<br/>
+    <b>Vorsicht bei der Auslegung.</b> Maßnahmensteckbrief B5 beziffert die Wirkung mit „über
+    6.000 t CO2e". Dieses Modell rechnet mit dem Emissionsfaktor der Stadtverwaltung von
+    73 kg CO2e/MWh, der auf einen bereits weitgehend grünen Liefervertrag hindeutet
+    (marktbasiertes Scope 2); darauf angewandt ergibt die Annahme nur rund 760 t. Die Differenz
+    ist keine Rechenungenauigkeit, sondern eine Bilanzierungsfrage -- Arqums 6.000 t setzen den
+    <i>standortbasierten</i> Bundesmix voraus. Siehe offene Frage 14 an die Stadt.
+  description_en: |
+    The report assumes that by 2030, 70 % (scenario 1) or 60 % (scenario 2) of electricity
+    generated in Germany comes from renewables.<br/>
+    <b>The conversion into a factor reduction is done here.</b> In 2019 the renewable share was
+    about 42 %, leaving a fossil remainder of 58 %. A rise to 70 % cuts that to 30 %, so the
+    factor falls to 30/58 = 51.7 %; at 60 %, to 40/58 = 69.0 %.<br/>
+    <b>Read the result with care.</b> Measure sheet B5 puts the effect at "over 6,000 t CO2e".
+    This model works from the administration's own factor of 73 kg CO2e/MWh, which points at an
+    already largely green supply contract (market-based Scope 2); applied to that, the assumption
+    yields about 760 t. The gap is not a rounding error but an accounting question -- Arqum's
+    6,000 t presuppose the <i>location-based</i> national mix. See open question 14 to the city.
+  input_dimensions: [energy_carrier, measure_scenario]
+  output_dimensions: [energy_carrier, measure_scenario]
+  input_datasets:
+  - id: mainz/knsv_massnahmen_energietraeger
+    forecast_from: 2025
+    filters:
+    - dimension: measure
+      categories: [knsv_dekarbonisierung_strommix]
+      flatten: true
+  params:
+  - id: operations
+    value: get_single_dataset,select_variant
+  - id: categories
+    value: measure_scenario:szenario_1,szenario_2
+  - id: selected_number
+    value: 0
+    min_value: 0
+    max_value: 1
+    step: 1
+    is_customizable: true
+    label_de: Umsetzungsvariante (0 = Szenario 1, 1 = Szenario 2)
+    label_en: Implementation variant (0 = scenario 1, 1 = scenario 2)
+  output_nodes:
+  - id: municipal_building_energy_ef
+    tags: [non_additive]
+    from_dimensions:
+    - id: measure_scenario
+      flatten: true
+
+- id: knsv_led_strassenbeleuchtung
+  name_de: Umrüstung der Straßenbeleuchtung auf LED
+  name_en: Conversion of street lighting to LED
+  type: simple.GenericAction
+  quantity: fraction
+  unit: dimensionless
+  no_effect_value: 1.0
+  group: gebaeude_energie
+  description_de: |
+    Maßnahmensteckbrief B6 setzt als Ziel bis 2035 die „Umrüstung aller Straßenleuchten auf
+    LED-Technik", bis 2030 einen stark gestiegenen Anteil an Solarlampen.<br/>
+    <b>Die 30 % sind eine Annahme dieses Modells.</b> Der Steckbrief quantifiziert das
+    Minderungspotenzial nicht und stuft es als „mittel" ein. Der gemessene Verbrauch ist zwischen
+    2019 und 2024 bereits von 7,5 auf 6,6 GWh gesunken, die Umrüstung läuft also.
+  description_en: |
+    Measure sheet B6 sets the 2035 target as "converting all street lamps to LED technology", and
+    for 2030 a strongly increased share of solar lamps.<br/>
+    <b>The 30 % is an assumption of this model.</b> The measure sheet does not quantify the
+    potential and rates it "medium". Measured consumption already fell from 7.5 to 6.6 GWh between
+    2019 and 2024, so the conversion is under way.
+  input_dimensions: [measure_scenario]
+  output_dimensions: [measure_scenario]
+  input_datasets:
+  - id: mainz/knsv_massnahmen_gesamt
+    forecast_from: 2025
+    filters:
+    - dimension: measure
+      categories: [knsv_led_strassenbeleuchtung]
+      flatten: true
+  params:
+  - id: operations
+    value: get_single_dataset,select_variant
+  - id: categories
+    value: measure_scenario:szenario_1,szenario_2
+  - id: selected_number
+    value: 0
+    min_value: 0
+    max_value: 1
+    step: 1
+    is_customizable: true
+    label_de: Umsetzungsvariante (0 = Szenario 1, 1 = Szenario 2)
+    label_en: Implementation variant (0 = scenario 1, 1 = scenario 2)
+  output_nodes:
+  - id: municipal_street_lighting_energy
+    tags: [non_additive]
+    from_dimensions:
+    - id: measure_scenario
+      flatten: true
+
+- id: knsv_elektrifizierung_pkw_flotte
+  name_de: Umstellung der PKW-Flotte auf Elektroantrieb
+  name_en: Conversion of the passenger car fleet to electric drive
+  type: simple.GenericAction
+  quantity: fraction
+  unit: dimensionless
+  no_effect_value: 1.0
+  group: mobilitaet
+  description_de: |
+    Beide Szenarien gehen von einer vollständigen Umstellung der PKW-Flotte auf alternative
+    Antriebe aus; Szenario 1 erreicht bis 2035 100 % Elektroantrieb, Szenario 2 erreicht diesen
+    Zielwert zu 80 %.<br/>
+    <b>Bilanzielle Einschränkung.</b> Der Fuhrpark ist im Modell nur in Litern Kraftstoff erfasst;
+    für Ladestrom der Dienstfahrzeuge gibt es in der Datenlieferung keine Kategorie (offener Punkt
+    in <code>data/mainz/README.md</code>). Die Maßnahme senkt hier den Kraftstoff, ohne den an
+    seine Stelle tretenden Stromverbrauch zu bilanzieren, und überschätzt die Einsparung um dessen
+    Emissionen. Arqum rechnet den Ladestrom mit.
+  description_en: |
+    Both scenarios assume the passenger car fleet converts fully to alternative drives; scenario 1
+    reaches 100 % electric by 2035, scenario 2 reaches 80 % of that target.<br/>
+    <b>An accounting caveat.</b> The fleet is recorded in litres of fuel only, and the data
+    delivery has no category for charging electricity for service vehicles (an open item in
+    <code>data/mainz/README.md</code>). The measure cuts fuel here without booking the electricity
+    that replaces it, and overstates the saving by its emissions. Arqum counts the charging
+    electricity.
+  input_dimensions: [vehicle_type, measure_scenario]
+  output_dimensions: [vehicle_type, measure_scenario]
+  input_datasets:
+  - id: mainz/knsv_massnahmen_fahrzeugtyp
+    forecast_from: 2025
+    filters:
+    - dimension: measure
+      categories: [knsv_elektrifizierung_pkw_flotte]
+      flatten: true
+  params:
+  - id: operations
+    value: get_single_dataset,select_variant
+  - id: categories
+    value: measure_scenario:szenario_1,szenario_2
+  - id: selected_number
+    value: 0
+    min_value: 0
+    max_value: 1
+    step: 1
+    is_customizable: true
+    label_de: Umsetzungsvariante (0 = Szenario 1, 1 = Szenario 2)
+    label_en: Implementation variant (0 = scenario 1, 1 = scenario 2)
+  output_nodes:
+  - id: municipal_fleet_fuel
+    tags: [non_additive]
+    from_dimensions:
+    - id: measure_scenario
+      flatten: true
+
+- id: knsv_alternative_antriebe_nutzfahrzeuge
+  name_de: Umstellung der Nutzfahrzeuge auf alternative Antriebe
+  name_en: Conversion of utility vehicles to alternative drives
+  type: simple.GenericAction
+  quantity: fraction
+  unit: dimensionless
+  no_effect_value: 1.0
+  group: mobilitaet
+  description_de: |
+    Nach der Clean-Vehicles-Directive müssen 15 % der Neuanschaffungen bis 2030 über alternative
+    Antriebe verfügen. Der Bericht rechnet bis 2035 mit einer Umstellung von 25 % (Szenario 1)
+    bzw. 10 % (Szenario 2) der Nutzfahrzeugflotte auf E- oder Wasserstoffantrieb.<br/>
+    Betrifft LKW und Arbeitsmaschinen, also den weitaus größten Teil des Kraftstoffverbrauchs des
+    Fuhrparks -- 1,25 Mio. Liter Diesel 2019 gegenüber 33.000 Litern bei den PKW. Dieselbe
+    bilanzielle Einschränkung wie bei der PKW-Flotte.
+  description_en: |
+    Under the Clean Vehicles Directive, 15 % of new acquisitions must have alternative drives by
+    2030. The report assumes 25 % (scenario 1) or 10 % (scenario 2) of the utility fleet converts
+    to electric or hydrogen drive by 2035.<br/>
+    This covers trucks and working machines, by far the larger part of fleet fuel use -- 1.25
+    million litres of diesel in 2019 against 33,000 litres for passenger cars. Same accounting
+    caveat as the passenger car fleet.
+  input_dimensions: [vehicle_type, measure_scenario]
+  output_dimensions: [vehicle_type, measure_scenario]
+  input_datasets:
+  - id: mainz/knsv_massnahmen_fahrzeugtyp
+    forecast_from: 2025
+    filters:
+    - dimension: measure
+      categories: [knsv_alternative_antriebe_nutzfahrzeuge]
+      flatten: true
+  params:
+  - id: operations
+    value: get_single_dataset,select_variant
+  - id: categories
+    value: measure_scenario:szenario_1,szenario_2
+  - id: selected_number
+    value: 0
+    min_value: 0
+    max_value: 1
+    step: 1
+    is_customizable: true
+    label_de: Umsetzungsvariante (0 = Szenario 1, 1 = Szenario 2)
+    label_en: Implementation variant (0 = scenario 1, 1 = scenario 2)
+  output_nodes:
+  - id: municipal_fleet_fuel
+    tags: [non_additive]
+    from_dimensions:
+    - id: measure_scenario
+      flatten: true
+
+- id: knsv_dienstreisen_vermeiden
+  name_de: Vermeidung von Dienstreisen und Verzicht auf Flugreisen
+  name_en: Avoiding business trips and giving up air travel
+  type: simple.GenericAction
+  quantity: fraction
+  unit: dimensionless
+  no_effect_value: 1.0
+  group: mobilitaet
+  description_de: |
+    Zwei Annahmen des Berichts, hier zusammengefasst, weil sie auf denselben Zweig wirken:
+    Termine, die nicht persönlich stattfinden müssen, werden online abgehalten (Szenario 1: 20 %
+    der Fahrten vermieden, Szenario 2: 10 %), und Flüge werden durch Bahn ersetzt -- die
+    Stadtverwaltung verzichtet bereits auf nationale Flüge.<br/>
+    Der Zweig ist klein: Dienstreisen verursachen 2019 insgesamt 54 t CO2e, davon 18 t aus Flügen.
+    Die Zusammenfassung kostet daher nichts an Aussagekraft.<br/>
+    Nicht abgebildet: die Umstellung der Mietwagen auf Elektrofahrzeuge (Szenario 1: 100 %,
+    Szenario 2: 75 %). Mietwagen sind in der Datenlieferung keine eigene Kategorie.
+  description_en: |
+    Two assumptions from the report, combined here because they act on the same branch: meetings
+    that need not be held in person move online (scenario 1 avoids 20 % of trips, scenario 2
+    10 %), and flights are replaced by rail -- the administration already forgoes domestic
+    flights.<br/>
+    The branch is small: business travel caused 54 t CO2e in 2019, 18 t of it from flights, so
+    combining the two costs nothing in explanatory power.<br/>
+    Not represented: switching rental cars to electric (scenario 1: 100 %, scenario 2: 75 %).
+    Rental cars are not a separate category in the data delivery.
+  input_dimensions: [ghg_category, measure_scenario]
+  output_dimensions: [ghg_category, measure_scenario]
+  input_datasets:
+  - id: mainz/knsv_massnahmen_bilanzkategorie
+    forecast_from: 2025
+    filters:
+    - dimension: measure
+      categories: [knsv_dienstreisen_vermeiden]
+      flatten: true
+  params:
+  - id: operations
+    value: get_single_dataset,select_variant
+  - id: categories
+    value: measure_scenario:szenario_1,szenario_2
+  - id: selected_number
+    value: 0
+    min_value: 0
+    max_value: 1
+    step: 1
+    is_customizable: true
+    label_de: Umsetzungsvariante (0 = Szenario 1, 1 = Szenario 2)
+    label_en: Implementation variant (0 = scenario 1, 1 = scenario 2)
+  output_nodes:
+  - id: municipal_travel
+    tags: [non_additive]
+    from_dimensions:
+    - id: measure_scenario
+      flatten: true
+
+- id: knsv_homeoffice
+  name_de: Ausweitung der Homeoffice-Option
+  name_en: Extending the home working option
+  type: simple.GenericAction
+  quantity: fraction
+  unit: dimensionless
+  no_effect_value: 1.0
+  group: mobilitaet
+  description_de: |
+    Durch die Ausweitung der Homeoffice-Option entfallen An- und Abreisewege zum Arbeitsplatz.
+    Szenario 1 rechnet mit 2 %, Szenario 2 mit 1 % weniger Arbeitsweg-Kilometern.<br/>
+    <b>Der zweite Teil der Arbeitswege-Annahme fehlt noch:</b> die Veränderung des Modal Split hin
+    zu Bahn und ÖPNV sowie die Zunahme privater Elektroautos, die Maßnahmensteckbrief C4 mit
+    „knapp 2.000 t CO2e" jährlich beziffert. Das ist eine Verlagerung zwischen Verkehrsmitteln und
+    keine Mengenminderung.<br/>
+    <b>Und die Datenlage trägt sie ohnehin nicht:</b> Arbeitswege wurden nur für 2019 erhoben, und
+    das Modell führt ab 2020 Nullen fort. Die Maßnahme wirkt deshalb derzeit auf einen Zweig, der
+    schon null ist. Siehe <i>Commuting reads zero from 2020</i> in
+    <code>data/mainz/README.md</code>.
+  description_en: |
+    Extending home working removes journeys to and from the workplace. Scenario 1 assumes 2 %
+    fewer commuting kilometres, scenario 2 assumes 1 %.<br/>
+    <b>The second half of the commuting assumption is still missing:</b> the modal shift towards
+    rail and public transport with rising private electric car ownership, which measure sheet C4
+    puts at "just under 2,000 t CO2e" a year. That is a shift between modes, not a reduction in
+    volume.<br/>
+    <b>And the data would not carry it anyway:</b> commuting was surveyed for 2019 only and the
+    model carries zeros forward from 2020, so this measure currently scales a branch that is
+    already zero. See <i>Commuting reads zero from 2020</i> in
+    <code>data/mainz/README.md</code>.
+  input_dimensions: [ghg_category, measure_scenario]
+  output_dimensions: [ghg_category, measure_scenario]
+  input_datasets:
+  - id: mainz/knsv_massnahmen_bilanzkategorie
+    forecast_from: 2025
+    filters:
+    - dimension: measure
+      categories: [knsv_homeoffice]
+      flatten: true
+  params:
+  - id: operations
+    value: get_single_dataset,select_variant
+  - id: categories
+    value: measure_scenario:szenario_1,szenario_2
+  - id: selected_number
+    value: 0
+    min_value: 0
+    max_value: 1
+    step: 1
+    is_customizable: true
+    label_de: Umsetzungsvariante (0 = Szenario 1, 1 = Szenario 2)
+    label_en: Implementation variant (0 = scenario 1, 1 = scenario 2)
+  output_nodes:
+  - id: municipal_travel
+    tags: [non_additive]
+    from_dimensions:
+    - id: measure_scenario
+      flatten: true
+
+- id: knsv_papierloses_buero
+  name_de: Wandel hin zum papierlosen Büro
+  name_en: Shift towards the paperless office
+  type: simple.GenericAction
+  quantity: fraction
+  unit: dimensionless
+  no_effect_value: 1.0
+  group: beschaffung
+  description_de: |
+    Durch Digitalisierung sinkt der Gesamtpapierverbrauch bis 2035 deutlich. Szenario 1 rechnet
+    mit 50 %, Szenario 2 mit 30 % weniger Papier gegenüber 2019.<br/>
+    Wirkt auf beide Papier-Zweige der Bilanz: die gezählten Blätter in der Beschaffung und die
+    Papiermenge in den Stoffströmen. Es ist dasselbe Papier, zweimal gemessen, deshalb eine
+    Maßnahme mit zwei Zielknoten und nicht zwei Maßnahmen.<br/>
+    Die Wirkung ist klein -- Papier verursacht 2019 rund 142 t CO2e in der Beschaffung. Nicht
+    abgebildet ist die Umstellung auf 100 % Recyclingpapier (Szenario 2: 75 %), eine Verlagerung
+    von Frischfaser zu Recycling.
+  description_en: |
+    Digitalisation cuts total paper consumption substantially by 2035. Scenario 1 assumes 50 %
+    less paper than in 2019, scenario 2 assumes 30 %.<br/>
+    It acts on both paper branches of the balance: the counted sheets in procurement and the
+    paper tonnage in the material flows. That is the same paper measured twice, hence one measure
+    with two target nodes rather than two measures.<br/>
+    The effect is small -- paper caused about 142 t CO2e in procurement in 2019. Not represented
+    is the switch to 100 % recycled paper (scenario 2: 75 %), a shift from virgin to recycled
+    fibre.
+  input_dimensions: [emission_source, measure_scenario]
+  output_dimensions: [emission_source, measure_scenario]
+  input_datasets:
+  - id: mainz/knsv_massnahmen_emissionsquelle
+    forecast_from: 2025
+    filters:
+    - dimension: measure
+      categories: [knsv_papierloses_buero]
+      flatten: true
+  params:
+  - id: operations
+    value: get_single_dataset,select_variant
+  - id: categories
+    value: measure_scenario:szenario_1,szenario_2
+  - id: selected_number
+    value: 0
+    min_value: 0
+    max_value: 1
+    step: 1
+    is_customizable: true
+    label_de: Umsetzungsvariante (0 = Szenario 1, 1 = Szenario 2)
+    label_en: Implementation variant (0 = scenario 1, 1 = scenario 2)
+  output_nodes:
+  - id: municipal_items_purchased
+    tags: [non_additive]
+    from_dimensions:
+    - id: measure_scenario
+      flatten: true
+  - id: municipal_material_use
+    tags: [non_additive]
+    from_dimensions:
+    - id: measure_scenario
+      flatten: true
+
+- id: knsv_abfallreduktion
+  name_de: Reduktion der Abfallemissionen
+  name_en: Reduction of waste emissions
+  type: simple.GenericAction
+  quantity: fraction
+  unit: dimensionless
+  no_effect_value: 1.0
+  group: beschaffung
+  description_de: |
+    Steigende Recyclingquote und sinkende Emissionsintensität der Entsorgungsbetriebe. Der Bericht
+    orientiert sich an den Zielen des Bundes-Klimaschutzgesetzes für den Abfallsektor und rechnet
+    bis 2045 mit einer Halbierung der Emissionen gegenüber dem Basisjahr (Szenario 1) bzw. einer
+    Minderung um 30 % (Szenario 2).<br/>
+    Zieljahr ist 2045 und nicht 2035, weil der Bericht den Pfad ausdrücklich auf 2045 bezieht.
+  description_en: |
+    A rising recycling rate and falling emission intensity in waste management. The report follows
+    the German Climate Protection Act's targets for the waste sector and assumes emissions halve
+    against the base year by 2045 (scenario 1) or fall by 30 % (scenario 2).<br/>
+    The target year is 2045 rather than 2035 because the report ties the path explicitly to 2045.
+  input_dimensions: [emission_source, measure_scenario]
+  output_dimensions: [emission_source, measure_scenario]
+  input_datasets:
+  - id: mainz/knsv_massnahmen_emissionsquelle
+    forecast_from: 2025
+    filters:
+    - dimension: measure
+      categories: [knsv_abfallreduktion]
+      flatten: true
+  params:
+  - id: operations
+    value: get_single_dataset,select_variant
+  - id: categories
+    value: measure_scenario:szenario_1,szenario_2
+  - id: selected_number
+    value: 0
+    min_value: 0
+    max_value: 1
+    step: 1
+    is_customizable: true
+    label_de: Umsetzungsvariante (0 = Szenario 1, 1 = Szenario 2)
+    label_en: Implementation variant (0 = scenario 1, 1 = scenario 2)
+  output_nodes:
+  - id: municipal_material_use
+    tags: [non_additive]
+    from_dimensions:
+    - id: measure_scenario
+      flatten: true
+
+- id: knsv_klimafreundliche_veranstaltungen
+  name_de: Klimafreundliche Großveranstaltungen
+  name_en: Climate-friendly major events
+  type: simple.GenericAction
+  quantity: fraction
+  unit: dimensionless
+  no_effect_value: 1.0
+  group: beschaffung
+  description_de: |
+    Umstieg auf vegetarische und vegane Gerichte, weniger Abfall und klimafreundlichere An- und
+    Abreise der Besuchenden. Der Bericht hält die Einzeleffekte für schwer bezifferbar und setzt
+    pauschal 40 % (Szenario 1) bzw. 20 % (Szenario 2) Minderung an.<br/>
+    Betrifft die Zeile Großveranstaltungen, die im Modell bereits als fertige Emissionsmenge
+    vorliegt. Material ist sie nur für 2019 mit 976 t CO2e; 2020 und 2021 fielen die
+    Veranstaltungen pandemiebedingt aus und ab 2022 endet die Reihe, sodass die Maßnahme derzeit
+    keine Wirkung zeigen kann.
+  description_en: |
+    A move to vegetarian and vegan dishes, less waste, and lower-carbon travel by attendees. The
+    report considers the individual effects hard to quantify and applies a blanket 40 %
+    (scenario 1) or 20 % (scenario 2) reduction.<br/>
+    It applies to the major events row, which the model holds as a finished emissions figure. That
+    is material for 2019 only, at 976 t CO2e; the events did not take place in 2020 or 2021 and
+    the series ends in 2022, so the measure can show no effect at present.
+  input_dimensions: [measure_scenario]
+  output_dimensions: [measure_scenario]
+  input_datasets:
+  - id: mainz/knsv_massnahmen_gesamt
+    forecast_from: 2025
+    filters:
+    - dimension: measure
+      categories: [knsv_klimafreundliche_veranstaltungen]
+      flatten: true
+  params:
+  - id: operations
+    value: get_single_dataset,select_variant
+  - id: categories
+    value: measure_scenario:szenario_1,szenario_2
+  - id: selected_number
+    value: 0
+    min_value: 0
+    max_value: 1
+    step: 1
+    is_customizable: true
+    label_de: Umsetzungsvariante (0 = Szenario 1, 1 = Szenario 2)
+    label_en: Implementation variant (0 = scenario 1, 1 = scenario 2)
+  output_nodes:
+  - id: municipal_event_emissions
+    tags: [non_additive]
+    from_dimensions:
+    - id: measure_scenario
+      flatten: true
+
 #//////  Parameters  ////////////////////////////////////////////////////////////////////////////////////////////////////
 params:
 
@@ -716,12 +1672,61 @@ pages:
 
 scenarios:
 
+# No measures. For the administration balance this is the KNSV base year held forward: the
+# 2019-2021 observations, extended, with nothing acting on them.
 - id: baseline
   name_de: Business as Usual
   name_en: Business as Usual
 
+# The ambitious path. For the administration balance every action selects Arqum's Szenario 1
+# -- "die Maßnahmen so, wie sie von der Stadtverwaltung entsprechend der Zielsetzung
+# angestrebt sind", with optimistic assumptions where one was needed. Named after the
+# Masterplan rather than after the KNSV because the territorial measures will join it here;
+# today it carries the administration measures alone.
 - id: default
   default: true
   all_actions_enabled: true
   name_de: Masterplan 100% Klimaschutz
   name_en: Masterplan 100% Climate Protection
+
+# Arqum's Szenario 2: the same measures, assumed to be implemented to a lesser extent. Both
+# variants live in the measure datasets under `measure_scenario`, so this scenario changes
+# nothing but which row each action selects -- `selected_number` 1 instead of 0. Every action
+# is listed, including the three whose two variants happen to carry the same value, so the
+# list reads as "this scenario is Szenario 2 throughout" rather than leaving a reader to work
+# out why some are missing.
+- id: knsv_szenario_2
+  all_actions_enabled: true
+  name_de: KNSV Szenario 2 (konservativ)
+  name_en: KNSV scenario 2 (conservative)
+  params:
+  - id: knsv_energetische_sanierung_waerme.selected_number
+    value: 1
+  - id: knsv_nutzendenverhalten_waerme.selected_number
+    value: 1
+  - id: knsv_energieeffizienz_gebaeude_strom.selected_number
+    value: 1
+  - id: knsv_nutzendenverhalten_strom.selected_number
+    value: 1
+  - id: knsv_photovoltaik_eigenerzeugung.selected_number
+    value: 1
+  - id: knsv_dekarbonisierung_fernwaerme.selected_number
+    value: 1
+  - id: knsv_dekarbonisierung_strommix.selected_number
+    value: 1
+  - id: knsv_led_strassenbeleuchtung.selected_number
+    value: 1
+  - id: knsv_elektrifizierung_pkw_flotte.selected_number
+    value: 1
+  - id: knsv_alternative_antriebe_nutzfahrzeuge.selected_number
+    value: 1
+  - id: knsv_dienstreisen_vermeiden.selected_number
+    value: 1
+  - id: knsv_homeoffice.selected_number
+    value: 1
+  - id: knsv_papierloses_buero.selected_number
+    value: 1
+  - id: knsv_abfallreduktion.selected_number
+    value: 1
+  - id: knsv_klimafreundliche_veranstaltungen.selected_number
+    value: 1

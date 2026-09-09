@@ -352,6 +352,64 @@ nodes:
 #     the surveyed state. Say so wherever the trend is shown; it is the honest carry, but
 #     it is not a measurement.
 
+# --------------------------------------------------------------------------------------
+# The neutral factor
+# --------------------------------------------------------------------------------------
+#
+# Every node below that a measure may scale is a `MultiplicativeNode2`, because a node a
+# relative action will probably hit should be multiplicative from the start -- no city
+# should have to change a node class in a module it merely includes. See
+# `docs/architecture/action-design.md` for the rule and for the four options weighed here.
+#
+# That has one mechanical consequence. `MultiplicativeNode2` raises *"Multiplication needs
+# at least two inputs, got none"* when its only input is a unit-compatible dataset, since
+# such a dataset is an addend rather than a factor. A city that includes this module with
+# no measures of its own -- `reutlingen-klimabilanz` today -- would stop computing. So the
+# module ships a factor of 1.0 and wires it into each of them.
+#
+# It changes no value: the product of a quantity and 1.0 is the quantity. Verified against
+# the balance as it stood beforehand, to the last digit, rather than asserted.
+#
+# The dataset carrying the quantity on each of those nodes is tagged `non_additive` for the
+# same reason -- untagged and unit-compatible, it would be classified as an addend and the
+# product would be the neutral factor alone. `municipal_building_energy` sums two datasets:
+# the SAP records are the factor, the rented-property rows stay additive.
+
+- id: municipal_measure_neutral_factor
+  is_editable: false
+  name_de: Neutraler Faktor (ohne Maßnahme)
+  name_en: Neutral factor (no measure)
+  description_de: |
+    Konstante 1,0. Sorgt dafür, dass die multiplikativen Aktivitätsknoten auch dann zwei
+    Faktoren haben, wenn keine Maßnahme angeschlossen ist. Verändert keinen Wert.
+  description_en: |
+    A constant 1.0. It gives the multiplicative activity nodes a second factor when no
+    measure is attached. It changes no value.
+  type: generic.ConstantNode
+  quantity: fraction
+  unit: dimensionless
+  params:
+  - id: constant
+    value: 1.0
+    unit: dimensionless
+  output_nodes:
+  - id: municipal_building_energy
+    tags: [non_additive]
+  - id: municipal_building_energy_ef
+    tags: [non_additive]
+  - id: municipal_street_lighting_energy
+    tags: [non_additive]
+  - id: municipal_fleet_fuel
+    tags: [non_additive]
+  - id: municipal_travel
+    tags: [non_additive]
+  - id: municipal_items_purchased
+    tags: [non_additive]
+  - id: municipal_material_use
+    tags: [non_additive]
+  - id: municipal_event_emissions
+    tags: [non_additive]
+
 - id: municipal_building_energy
   is_editable: false
   name_de: Endenergie der Liegenschaften der Stadtverwaltung
@@ -368,7 +426,7 @@ nodes:
     authoritative: the authority's inventory boundary is defined by its properties, and
     only this source knows which those are. Where the two disagree, the difference is
     recorded in the comment on the data point itself.
-  type: simple.AdditiveNode2
+  type: simple.MultiplicativeNode2
   quantity: energy
   unit: MWh/a
   input_dimensions: [ghg_category, municipal_facility_type, energy_carrier]
@@ -397,6 +455,7 @@ nodes:
   # excluding it understates by those three objects. Excluding is the smaller error and
   # the one that fails safe against a published figure.
   - id: gpc/municipal_building_energy
+    tags: [non_additive]
     column: energy
     extend: true
     filters:
@@ -453,13 +512,14 @@ nodes:
     (Mainzer Netze/Tiefbauamt). Not part of the Gebäudewirtschaft portfolio, hence its own
     activity rather than another property group in `municipal_building_energy`, whose
     filter deliberately excludes `street_lighting`.
-  type: simple.AdditiveNode2
+  type: simple.MultiplicativeNode2
   quantity: energy
   unit: kWh/a
   input_dimensions: [ghg_category, municipal_facility_type, energy_carrier]
   output_dimensions: [ghg_category, municipal_facility_type, energy_carrier]
   input_datasets:
   - id: gpc/municipal_street_lighting_energy
+    tags: [non_additive]
     column: energy
     extend: true
 
@@ -522,13 +582,14 @@ nodes:
     Fleet diesel, petrol and CNG in litres, as recorded in the fleet management system.
     Deliberately not converted to energy: the consultant's factors are stated per litre,
     and for CNG the recording unit is unresolved in the source itself.
-  type: simple.AdditiveNode2
+  type: simple.MultiplicativeNode2
   quantity: volume
   unit: l/a
   input_dimensions: [ghg_category, municipal_facility_type, energy_carrier, vehicle_type]
   output_dimensions: [ghg_category, municipal_facility_type, energy_carrier, vehicle_type]
   input_datasets:
   - id: gpc/municipal_balance_activity
+    tags: [non_additive]
     column: volume
     extend: true
     filters:
@@ -546,13 +607,14 @@ nodes:
     Entsorgungsweg.
   description_en: |
     Masses: refrigerant top-ups, paper by weight, and waste by disposal route.
-  type: simple.AdditiveNode2
+  type: simple.MultiplicativeNode2
   quantity: mass
   unit: kg/a
   input_dimensions: [ghg_category, municipal_facility_type, emission_source]
   output_dimensions: [ghg_category, municipal_facility_type, emission_source]
   input_datasets:
   - id: gpc/municipal_balance_activity
+    tags: [non_additive]
     column: mass
     extend: true
     filters:
@@ -574,13 +636,14 @@ nodes:
     because the source records the one-way distance and adds the return leg in the model;
     flights are whole journeys. Commuting exists for 2019 only -- 2020 and 2021 were not
     surveyed because of home working, which is a measurement gap and not a reduction.
-  type: simple.AdditiveNode2
+  type: simple.MultiplicativeNode2
   quantity: mileage
   unit: pkm/a
   input_dimensions: [ghg_category, municipal_facility_type, emission_source]
   output_dimensions: [ghg_category, municipal_facility_type, emission_source]
   input_datasets:
   - id: gpc/municipal_balance_activity
+    tags: [non_additive]
     column: mileage
     extend: true
     filters:
@@ -604,13 +667,14 @@ nodes:
     what is being counted is said by the emission source. Summing over that dimension
     would add meals to sheets of paper and is meaningless -- multiply by the factor
     first, then sum.
-  type: simple.AdditiveNode2
+  type: simple.MultiplicativeNode2
   quantity: number
   unit: pcs/a
   input_dimensions: [ghg_category, municipal_facility_type, emission_source]
   output_dimensions: [ghg_category, municipal_facility_type, emission_source]
   input_datasets:
   - id: gpc/municipal_balance_activity
+    tags: [non_additive]
     column: count
     extend: true
     filters:
@@ -664,13 +728,14 @@ nodes:
   is_editable: false
   name_de: Emissionsfaktoren Gebäudeenergie der Stadtverwaltung
   name_en: City administration building energy emission factors
-  type: simple.AdditiveNode2
+  type: simple.MultiplicativeNode2
   quantity: emission_factor
   unit: kg_co2e/MWh
   input_dimensions: [ghg_category, energy_carrier, scope]
   output_dimensions: [ghg_category, energy_carrier, scope]
   input_datasets:
   - id: gpc/municipal_balance_emission_factors
+    tags: [non_additive]
     extend: true  # GenericNode extended its dataset; keep that explicit
     column: emission_factor_per_energy
     filters:
@@ -1008,13 +1073,14 @@ nodes:
   description_en: |
     Already-computed emissions, not activity data. Material for 2019 only; the events did
     not take place in 2020 and 2021.
-  type: simple.AdditiveNode2
+  type: simple.MultiplicativeNode2
   quantity: emissions
   unit: t_co2e/a
   input_dimensions: [ghg_category, municipal_facility_type, emission_source, scope]
   output_dimensions: [ghg_category, municipal_facility_type, emission_source, scope]
   input_datasets:
   - id: gpc/municipal_balance_activity
+    tags: [non_additive]
     column: emissions
     filters:
     - column: energy_carrier
