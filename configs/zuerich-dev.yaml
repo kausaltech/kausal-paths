@@ -17,7 +17,7 @@ reference_year: 1990
 minimum_historical_year: 2010
 maximum_historical_year: 2024
 emission_unit: kt/a
-emission_forecast_from: 2025
+emission_forecast_from: 2026
 emission_dimensions: [emission_scope]
 emission_dataset: zuerich/emissions
 emission_sector_dimension: emission_sectors
@@ -1363,7 +1363,7 @@ actions:
     - target:
         node: solid_waste_incineration_ccs_share
       amounts:
-      - year: 2025
+      - year: 2026
         amount: 0
       - year: 2034
         amount: 0
@@ -1389,7 +1389,7 @@ actions:
     - target:
         node: sewage_sludge_processing_ccs_share
       amounts:
-      - year: 2025
+      - year: 2026
         amount: 0
       - year: 2028
         amount: 0
