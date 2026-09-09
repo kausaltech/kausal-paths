@@ -920,6 +920,22 @@ class Node:
         self._check_input_declaration(port)
         return (binding for binding in self.runtime_input_bindings if binding.port_role == port.role)
 
+    def iter_computational_input_bindings(self, port: InputPortDeclaration) -> Iterator[RuntimeInputBinding]:
+        """
+        Like ``iter_input_bindings``, minus the bindings that never take part in arithmetic.
+
+        Argument nodes are bound like any other input so that the edge shows in the graph,
+        the editor and explanations, but they carry no value to compute with. Every
+        arithmetic path resolves inputs through this accessor; structure-facing callers
+        (ports, specs, the graph) use ``iter_input_bindings`` and see everything.
+        """
+        from .operands import is_non_computational
+
+        for binding in self.iter_input_bindings(port):
+            if isinstance(binding.source, Node) and is_non_computational(binding.source):
+                continue
+            yield binding
+
     def iter_input_ports(self, declaration: InputPortDeclaration) -> Iterator[RuntimeInputPort]:
         """Yield instantiated ports without collapsing a repeatable role into anonymous values."""
         from collections import defaultdict
@@ -1004,7 +1020,7 @@ class Node:
     def iter_inputs(self, port: InputPortDeclaration) -> Iterator[ppl.PathsDataFrame]:
         """Yield every value bound to a semantic input role in stable binding order."""
         self._check_input_declaration(port)
-        bindings = tuple(self.iter_input_bindings(port))
+        bindings = tuple(self.iter_computational_input_bindings(port))
         if not bindings and port.required:
             raise NodeError(self, f'Required input role {port.role!r} has no bindings')
 
@@ -1091,6 +1107,17 @@ class Node:
         df = df.paths._add_missing_years(df, context)
         df = df.paths._extend_values(df, context)
         return df
+
+    def _drop_non_computational[T](self, nodes: list[Node], paired: list[T]) -> tuple[list[Node], list[T]]:
+        """
+        Drop inputs that never take part in arithmetic, keeping ``paired`` aligned.
+
+        Deferred import: ``nodes.operands`` reaches this module through
+        ``explanations`` -> ``formula``, so importing it at module scope is circular.
+        """
+        from .operands import drop_non_computational
+
+        return drop_non_computational(nodes, paired)
 
     def get_input_nodes(self, tag: str | None = None, quantity: str | None = None) -> list[Node]:
         matching_nodes = []
@@ -1912,6 +1939,9 @@ class Node:
         # Pair each multiplier with its node up front, so skipping a node keeps the rest aligned.
         apply_mult = bool(node_multipliers)
         mults = node_multipliers if node_multipliers is not None else [1.0] * len(nodes)
+        # Argument nodes are documentation and never take part in arithmetic; drop them
+        # before the dimension and unit tests they would otherwise have to satisfy.
+        nodes, mults = self._drop_non_computational(nodes, mults)
 
         if not nodes:
             if df is None:
@@ -2026,6 +2056,7 @@ class Node:
         An outer join keyed on dimensions, with values coalesced: each node's own value wins
         wherever it has one, and ``df``'s existing value survives only where the node has none.
         """
+        nodes, _ = self._drop_non_computational(nodes, nodes)
         for node in nodes:
             node_df = node.get_output_pl(self)
             if set(df.dim_ids) != set(node_df.dim_ids):
@@ -2073,6 +2104,7 @@ class Node:
         start_from_year: int | None = None,
     ) -> ppl.PathsDataFrame | None:
         """Multiply outputs from the given nodes using inner join and union of dimensions."""
+        nodes, _ = self._drop_non_computational(nodes, nodes)
         if len(nodes) == 0:
             if df is None:
                 return None

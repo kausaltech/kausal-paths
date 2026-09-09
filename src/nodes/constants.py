@@ -106,6 +106,7 @@ MIX_QUANTITY = 'mix'
 GROUPED_MIX_QUANTITY = 'grouped_mix'
 UTILITY_QUANTITY = 'utility'
 VALUE_WEIGHT_QUANTITY = 'value_weight'
+ARGUMENT_QUANTITY = 'argument'
 FRACTION_QUANTITY = 'fraction'
 
 ACTIVITY_QUANTITIES = {
@@ -193,7 +194,7 @@ KNOWN_QUANTITIES = (
         'health_effect',
         'rate',
         'speed',
-        'argument',
+        ARGUMENT_QUANTITY,
         'duration',
         'distance',
         'elasticity',

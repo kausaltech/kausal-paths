@@ -27,13 +27,13 @@ from typing import TYPE_CHECKING, Any, Literal
 
 import polars as pl
 
-from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
+from nodes.constants import ARGUMENT_QUANTITY, FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 
 from .exceptions import NodeError
 from .explanations import TAG_TO_BASKET
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Collection, Container
+    from collections.abc import Callable, Collection, Container, Sequence
 
     from common.polars import PathsDataFrame
     from nodes.datasets import Dataset
@@ -57,6 +57,40 @@ ROLE_TAGS: dict[str, OperandRole] = {
     FACTOR_TAG: 'factor',
     IMPUTE_TAG: 'impute',
 }
+
+
+def is_non_computational(source: Node) -> bool:
+    """
+    Return True for an input that exists in the graph but never takes part in arithmetic.
+
+    Argument nodes (``quantity: argument``) are documentation: they record a claim or an
+    objection and link it to the number it bears on, so the edge must show up in the graph
+    and in explanations. They carry no value anyone should compute with.
+
+    They used to be neutralised by *arithmetic* — ``ignore_content`` rewrote the frame to
+    the target's no-effect value and then let it be summed, which is a no-op only because
+    adding zero is. That made addition load-bearing for something semantically unrelated
+    to it, with two consequences: the frame still had to satisfy the target's dimension
+    check (so an objection could not be attached to a dimensioned node at all), and every
+    other operation needed its own patch. Excluding the input outright drops both problems,
+    and is what the tag was always trying to approximate.
+    """
+    return source.quantity == ARGUMENT_QUANTITY
+
+
+def drop_non_computational[T](nodes: Sequence[Node], paired: Sequence[T]) -> tuple[list[Node], list[T]]:
+    """
+    Filter ``nodes`` down to the computational ones, keeping ``paired`` aligned.
+
+    ``paired`` is whatever the caller holds per node (multipliers, most often); callers
+    with nothing to pair pass an equal-length dummy. Returned lists are always the same
+    length as each other.
+    """
+    keep = [(n, p) for n, p in zip(nodes, paired, strict=True) if not is_non_computational(n)]
+    if not keep:
+        return [], []
+    kept_nodes, kept_paired = zip(*keep, strict=True)
+    return list(kept_nodes), list(kept_paired)
 
 
 def role_from_tags(tags: Container[str]) -> OperandRole | None:
@@ -126,7 +160,7 @@ def resolve_input_nodes(
             continue
         source = edge.input_node
         tags = set(edge.tags) | set(source.tags)
-        if IGNORE_TAG in tags or source.id in exclude_ids:
+        if is_non_computational(source) or IGNORE_TAG in tags or source.id in exclude_ids:
             continue
 
         role = role_from_tags(tags)

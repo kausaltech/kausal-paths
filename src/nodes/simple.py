@@ -450,7 +450,7 @@ afterwards instead, replacing it wherever the tagged node has a value and leavin
         operands: list[Operand] = []
         dataset_values: list[tuple[RuntimeInputBinding, ppl.PathsDataFrame]] = []
         skipped = 0
-        for binding in self.iter_input_bindings(self.additive_port):
+        for binding in self.iter_computational_input_bindings(self.additive_port):
             try:
                 value = self.resolve_input_binding(binding)
             except NodeError:
@@ -487,7 +487,7 @@ afterwards instead, replacing it wherever the tagged node has a value and leavin
         metric = self.get_parameter_value_str('metric', required=False)
         assert self.unit is not None
         tolerant = self.context.tolerate_node_failures
-        bindings = list(self.iter_input_bindings(self.additive_port))
+        bindings = list(self.iter_computational_input_bindings(self.additive_port))
         additive, dataset_values, skipped = self._resolve_additive_operands(metric)
 
         unit = self.unit
@@ -531,7 +531,8 @@ afterwards instead, replacing it wherever the tagged node has a value and leavin
                 kind=binding.source_kind,
             )
             for binding, value in (
-                (binding, self.resolve_input_binding(binding)) for binding in self.iter_input_bindings(self.impute_port)
+                (binding, self.resolve_input_binding(binding))
+                for binding in self.iter_computational_input_bindings(self.impute_port)
             )
         ]
         if impute:
@@ -1235,7 +1236,7 @@ class MultiplicativeNode(SimpleNode, PipelineCompatibleNode):
 
     def _compute(self, input_df: ppl.PathsDataFrame | None = None) -> ppl.PathsDataFrame:  # noqa: C901, PLR0912
         assert self.unit is not None
-        factor_bindings = list(self.iter_input_bindings(self.factors_port))
+        factor_bindings = list(self.iter_computational_input_bindings(self.factors_port))
         operation_nodes = [binding.source if isinstance(binding.source, Node) else None for binding in factor_bindings]
         outputs = [self.resolve_input_binding(binding) for binding in factor_bindings]
 
@@ -1290,7 +1291,8 @@ class MultiplicativeNode(SimpleNode, PipelineCompatibleNode):
                 kind=binding.source_kind,
             )
             for binding, value in (
-                (binding, self.resolve_input_binding(binding)) for binding in self.iter_input_bindings(self.impute_port)
+                (binding, self.resolve_input_binding(binding))
+                for binding in self.iter_computational_input_bindings(self.impute_port)
             )
         ]
         if impute:

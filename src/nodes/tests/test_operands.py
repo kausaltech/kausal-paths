@@ -8,6 +8,7 @@ classes then do with the answer.
 
 import pytest
 
+from nodes.constants import VALUE_COLUMN
 from nodes.operands import (
     NodeOperands,
     claimed_by_other_operation,
@@ -16,7 +17,13 @@ from nodes.operands import (
     resolve_input_nodes,
     role_from_tags,
 )
-from nodes.tests.test_add_multiply_semantics import _connect, _generic, _make_context, _source
+from nodes.tests.test_add_multiply_semantics import (
+    _additive,
+    _connect,
+    _generic,
+    _make_context,
+    _source,
+)
 
 pytestmark = pytest.mark.django_db
 
@@ -197,3 +204,52 @@ def test_unreadable_unit_raises_unless_a_default_is_given():
 
     roles = _roles(resolve_input_nodes(node, unit_of=no_unit, default_role='factor'))
     assert roles['factors'] == ['unitless']
+
+
+# --- argument nodes: in the graph, out of the arithmetic -------------------------
+
+
+def test_argument_node_is_never_an_operand():
+    """``quantity: argument`` excludes an input from every bucket, tagged or not."""
+    ctx = _make_context('operands-argument')
+    node = _generic(ctx, 'target', 'add', unit='kWh')
+    _connect(_source(ctx, 'real', [(2020, 1.0)], unit='kWh'), node)
+    _connect(_source(ctx, 'bare_arg', [(2020, 5.0)], unit='dimensionless', quantity='argument'), node)
+    # Tags must not rescue it into the arithmetic either.
+    _connect(
+        _source(ctx, 'tagged_arg', [(2020, 5.0)], unit='kWh', quantity='argument'),
+        node,
+        tags=['additive'],
+    )
+
+    assert _roles(resolve_input_nodes(node)) == {
+        'additive': ['real'],
+        'factors': [],
+        'impute': [],
+        'claimed_elsewhere': [],
+    }
+
+
+def test_argument_node_does_not_have_to_match_dimensions():
+    """
+    A dimensionless argument node attaches to a *dimensioned* additive node.
+
+    This is the case the ``ignore_content`` mechanism could not express: it rewrote the
+    frame's values but left it dimensionless, so the target's dimension check rejected it
+    and every node downstream of the target failed with it.
+    """
+    ctx = _make_context('operands-argument-dims')
+    plain = _additive(ctx, 'plain', unit='kWh', dims=['sector'])
+    _connect(_source(ctx, 'data_a', [(2020, 'x', 1.0)], unit='kWh', dim='sector'), plain)
+
+    annotated = _additive(ctx, 'annotated', unit='kWh', dims=['sector'])
+    _connect(_source(ctx, 'data_b', [(2020, 'x', 1.0)], unit='kWh', dim='sector'), annotated)
+    _connect(
+        _source(ctx, 'objection', [(2020, 0.0)], unit='dimensionless', quantity='argument'),
+        annotated,
+    )
+
+    expected = plain.get_output_pl()
+    got = annotated.get_output_pl()
+    assert got.dim_ids == expected.dim_ids
+    assert got[VALUE_COLUMN].to_list() == expected[VALUE_COLUMN].to_list()
