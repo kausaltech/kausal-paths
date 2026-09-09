@@ -379,7 +379,7 @@ nodes:
   output_dimensions: [emission_scope]
   input_datasets:
   - id: zuerich/fgas_emissions
-    forecast_from: 2025
+    forecast_from: 2026
     filters:
     - column: emission_sectors
       value: fgases_transportation
