@@ -1056,3 +1056,48 @@ def test_backfill_is_per_category():
         (2020, 'y'): 5.0,
         (2021, 'y'): 50.0,
     }
+
+
+# =================================================================================
+# Splitting an input across a dimension it does not carry.
+#
+# Both regressions were found on 2026-09-10 while attaching a measure that is only
+# known at a coarser granularity than its target node: the source says how much
+# heat moves to district heating, and nothing about which property group it moves
+# in. Distributing that in the model, by the shares already in the data, is the
+# point of these operations -- writing the split into the dataset instead would
+# publish a proportional guess as though it were an observation.
+# =================================================================================
+
+
+def test_split_dims_distributes_an_input_across_a_dimension_it_lacks():
+    """
+    The `splittee` tag reaches the operation instead of failing the dimension test.
+
+    `splitter`/`splittee` were missing from TAG_TO_BASKET, so `claimed_by_other_operation`
+    returned False and the input was also swept into the additive bucket -- where a frame
+    without the node's dimension is refused before `split_dims` ever runs.
+    """
+    ctx = _make_context('split-dims-distributes')
+    node = _generic(ctx, 'n', 'add_datasets,split_dims', dims=['sector'])
+    _attach(node, 'ds', _ppdf([(2020, 'x', 80.0), (2020, 'y', 20.0)], dim='sector'))
+    _connect(_source(ctx, 'shift', [(2020, -10.0)]), node, tags=['splittee'])
+
+    # -10 distributed 80:20, then added to the base it was split by.
+    assert _values(node.compute(), dim='sector') == {(2020, 'x'): 72.0, (2020, 'y'): 18.0}
+
+
+def test_split_by_existing_shares_adds_the_base_not_the_splittee():
+    """
+    The legacy operation added back the frame it had just distributed.
+
+    `_dispatch_split_dims` ended with `splittee.paths.add_with_dims(...)`, which fails
+    outright whenever the splittee is missing a dimension -- the only shape the operation
+    exists for. `_operation_split_dims` always had this right; this one did not.
+    """
+    ctx = _make_context('split-shares-adds-base')
+    node = _generic(ctx, 'n', 'add_datasets,split_by_existing_shares', dims=['sector'])
+    _attach(node, 'ds', _ppdf([(2020, 'x', 75.0), (2020, 'y', 25.0)], dim='sector'))
+    _connect(_source(ctx, 'shift', [(2020, -20.0)]), node, tags=['split_by_existing_shares'])
+
+    assert _values(node.compute(), dim='sector') == {(2020, 'x'): 60.0, (2020, 'y'): 20.0}

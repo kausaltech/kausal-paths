@@ -296,7 +296,11 @@ class GenericNode(SimpleNode):
         df_scaled = splittee.paths.multiply_with_dims(df_ratio)
 
         if operation not in use_as:
-            df_scaled = splittee.paths.add_with_dims(df_scaled)
+            # The base to add back is the *splitter*, not the splittee. The splittee is the
+            # frame that was just distributed, and it is the one missing a dimension, so
+            # adding it here fails outright on the only shape these operations exist for.
+            # `_operation_split_dims` has always had this right.
+            df_scaled = splitter.paths.add_with_dims(df_scaled)
 
         return df_scaled
 
@@ -339,23 +343,33 @@ class GenericNode(SimpleNode):
         or 'splittee' to use it as the values to redistribute (df is the splitter).
         Splitter rows with no matching category in the splittee pass through unchanged.
         In contrast, splittee rows with no matching category in the splitter cannot be scaled and are dropped.
+
+        A no-op when neither tag is present, matching the convention 'impute' follows: a
+        shared module can then list the operation on a node that a city may or may not
+        attach a measure to, without every city that attaches none having to configure
+        anything.
         """
         if df is None:
             raise NodeError(self, 'Cannot operate: no PathsDataFrame available.')
-        if self.quantity not in STACKABLE_QUANTITIES:
-            raise NodeError(self, f'split_dims requires a stackable quantity, not {self.quantity}.')
 
         splitter_node = self.get_input_node(tag='splitter', required=False)
         splittee_node = self.get_input_node(tag='splittee', required=False)
+        if splitter_node is None and splittee_node is None:
+            return df
 
-        if splitter_node is not None and splittee_node is None:
+        if self.quantity not in STACKABLE_QUANTITIES:
+            raise NodeError(self, f'split_dims requires a stackable quantity, not {self.quantity}.')
+
+        if splitter_node is not None and splittee_node is not None:
+            raise NodeError(self, "Only one input node may be tagged 'splitter' or 'splittee'.")
+
+        if splitter_node is not None:
             df_splitter = splitter_node.get_output_pl(target_node=self, skip_dim_test=True)
             df_splittee = df
-        elif splittee_node is not None and splitter_node is None:
+        else:
+            assert splittee_node is not None
             df_splittee = splittee_node.get_output_pl(target_node=self, skip_dim_test=True)
             df_splitter = df
-        else:
-            raise NodeError(self, "Exactly one input node must be tagged 'splitter' or 'splittee'.")
 
         new_dims = [d for d in df_splitter.dim_ids if d not in df_splittee.dim_ids]
         if not new_dims:

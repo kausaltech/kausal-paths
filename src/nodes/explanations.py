@@ -47,6 +47,12 @@ TAG_TO_BASKET = {
     'skip_dim_test': 'skip_dim_test',
     'split_by_existing_shares': 'split_by_existing_shares',
     'split_evenly_to_cats': 'split_evenly_to_cats',
+    # `split_dims` resolves these itself; without them here `claimed_by_other_operation`
+    # returns False and the input is also swept into the additive bucket, where it fails
+    # the dimension test before the operation ever runs. That made the operation the
+    # docstring calls preferred unusable from YAML.
+    'splittee': 'split_dims',
+    'splitter': 'split_dims',
     'use_as_shares': 'use_as_shares',
     'use_as_totals': 'use_as_totals',
 }
@@ -61,6 +67,7 @@ BASKET_DISPLAY_NAMES = {  # FIXME We may not need explicit basket names.
     'other': _('other operations'),
     'skip_dim_test': _('skip dimension test'),
     'split_by_existing_shares': _('split by existing shares'),
+    'split_dims': _('split across dimensions'),
     'split_evenly_to_cats': _('split evenly to categories'),
     'use_as_shares': _('use as shares'),
     'use_as_totals': _('use as totals'),

@@ -215,12 +215,16 @@ full rationale. In brief:
   in annotations of those classes are allowed to stay behind `TYPE_CHECKING`.
 
 #### Actions
-- Deciding what an action emits and which node it feeds follows five rules, in
-  order of preference: an absolute change in the target's units; a relative
-  factor with the differentiating dimension in the action's dataset; a target
-  value via `DatasetReduceAction`; a node class chosen for the actions it will
-  attract, not for today; and always the node where the effect causally
-  happens. See
+- Deciding what an action emits and which node it feeds follows six rules: an
+  absolute change in the target's units; a relative factor with the
+  differentiating dimension in the action's dataset; **data at the granularity
+  the source has, with `split_dims` doing any disaggregation in the model rather
+  than a producer script inventing it**; a target value via
+  `DatasetReduceAction`; a node class chosen for the actions it will attract,
+  not for today (`generic.GenericNode` with
+  `operations: add_datasets,add,multiply`, not `MultiplicativeNode2`, which
+  needs two factors); and always the node where the effect causally happens.
+  See
   [`docs/architecture/action-design.md`](docs/architecture/action-design.md).
 - **`historical_values` / `forecast_values` in YAML are deprecated.** Fine as a
   first draft while a model is being built; the numbers belong in a dataset,
