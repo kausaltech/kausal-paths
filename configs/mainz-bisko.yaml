@@ -206,6 +206,9 @@ dimensions:
   - id: knsv_dekarbonisierung_fernwaerme
     label_de: Umstellung auf erneuerbare Fernwärme
     label_en: Conversion to renewable district heating
+  - id: knsv_fernwaerme_anschluss
+    label_de: Anschluss weiterer Liegenschaften an das Fernwärmenetz
+    label_en: Connecting further properties to the district heating network
   - id: knsv_dekarbonisierung_strommix
     label_de: Dekarbonisierung des Bundesstrommixes
     label_en: Decarbonisation of the German electricity mix
@@ -224,6 +227,9 @@ dimensions:
   - id: knsv_papierloses_buero
     label_de: Wandel hin zum papierlosen Büro
     label_en: Shift towards the paperless office
+  - id: knsv_vegetarische_verpflegung
+    label_de: Vegetarische Verpflegung in Kantinen und bei Veranstaltungen
+    label_en: Vegetarian catering in canteens and at events
   - id: knsv_abfallreduktion
     label_de: Reduktion der Abfallemissionen
     label_en: Reduction of waste emissions
