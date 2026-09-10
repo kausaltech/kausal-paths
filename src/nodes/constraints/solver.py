@@ -45,6 +45,7 @@ from nodes.constraints.rules import (
     ProductShapeRule,
     SameShapeRule,
 )
+from nodes.constraints.tags import tag_operation_is_opaque
 from nodes.constraints.values import (
     BindingValue,
     ConstraintConflict,
@@ -75,52 +76,6 @@ if TYPE_CHECKING:
     from nodes.instance_graph import InstanceGraph
 
 MAX_SOLVER_SWEEPS = 100
-
-NEUTRAL_TAG_OPERATIONS = frozenset({
-    'abs',
-    'absolute',
-    'add_missing_years',
-    'arithmetic_inverse',
-    'cumulative',
-    'drop_infs',
-    'drop_nans',
-    'drop_zeros',
-    'empty_to_zero',
-    'extend_all',
-    'extend_both_ways',
-    'extend_forecast_values',
-    'extend_to_history',
-    'extend_values',
-    'extrapolate',
-    'fill_metrics_nan_null_zero',
-    'forecast_only',
-    'ignore_content',
-    'inventory_only',
-    'linear_interpolate',
-    'make_nonnegative',
-    'make_nonpositive',
-    'minus',
-    'observed_only_extend_all',
-    'round_to_five',
-    'truncate_before_start',
-    'truncate_beyond_end',
-    'use_observations',
-})
-"""
-Registered tag operations that provably preserve dimensions, categories,
-unit, and quantity. Any *other* registered operation (``complement``,
-``geometric_inverse``, ``ratio_to_last_historical_value``, …) reshapes or
-re-units the value, so the binding carrying it goes opaque. A tag that is
-not a registered operation at all selects behavior instead of transforming
-the frame and stays neutral.
-"""
-
-
-def _tag_is_opaque(tag: str) -> bool:
-    from common.polars_ext import PathsExt
-
-    return tag in PathsExt._OPERATION_METHODS and tag not in NEUTRAL_TAG_OPERATIONS
-
 
 # --- Resolved transformation steps -------------------------------------------
 
@@ -387,14 +342,14 @@ def _resolve_binding_steps(  # noqa: C901, PLR0912
                     )
                 )
             case TagOperationOp():
-                if _tag_is_opaque(op.tag):
+                if tag_operation_is_opaque(op.tag):
                     steps.append(OpaqueStep(reason=f'tag operation {op.tag!r}', index=index))
             case _:
                 # Temporal, forecast, raw-column and marker ops do not touch
                 # dimensions, categories, unit, or quantity.
                 continue
     for tag in binding.tags:
-        if _tag_is_opaque(tag):
+        if tag_operation_is_opaque(tag):
             steps.append(OpaqueStep(reason=f'tag operation {tag!r}', index=len(binding.transformations)))
             break
     return tuple(steps)

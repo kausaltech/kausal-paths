@@ -1096,7 +1096,9 @@ class InstanceConfigParser:
                             fallback_id,
                         ),
                         identifier=identifier,
-                        unit=metric.unit if metric is not None else ds_def.unit,
+                        # An authored unit outranks the node's own output metric: on a
+                        # formula node the dataset is one term, not the result.
+                        unit=ds_def.unit if ds_def.unit is not None else (metric.unit if metric is not None else None),
                         quantity=metric.quantity if metric is not None else None,
                     )
                 )
