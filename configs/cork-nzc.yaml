@@ -1059,8 +1059,12 @@ nodes:
       categories: [walking]
   - id: population
   input_datasets:
+  # A formula term, so it keeps its own unit rather than the node's: the
+  # division by population and the trip conversion are what turn passenger
+  # kilometres into a per-capita daily distance.
   - id: cork/active_mobility
     tags: [cork_cycling, cleaned]
+    unit: Mpkm/a
   params:
   - id: constant
     value: 1.0
