@@ -305,3 +305,57 @@ include:
 
     with pytest.raises(TypeError, match='nodes_editable must be a boolean'):
         InstanceYAMLConfig.load_for_entrypoint(yaml_path)
+
+
+def _dataset_port_units(node_config: dict[str, Any]) -> dict[str | None, str | None]:
+    snapshot = parse_instance_snapshot(
+        {
+            'id': 'test',
+            'default_language': 'en',
+            'name': 'Test',
+            'owner': 'Owner',
+            'target_year': 2030,
+            'reference_year': 2020,
+            'minimum_historical_year': 2010,
+            'nodes': [node_config],
+        },
+        instance_uuid=uuid4(),
+    )
+    (node,) = snapshot.nodes
+    assert node.spec is not None
+    return {port.identifier: str(port.unit) if port.unit is not None else None for port in node.spec.input_ports}
+
+
+def test_an_authored_dataset_unit_wins_over_the_nodes_own_unit():
+    """
+    On a formula node a dataset is one term, united independently of the result.
+
+    Deriving the port's unit from the node's output metric claims the dataset
+    arrives in `km/cap/d` when it is passenger kilometres, which reads as a
+    constraint conflict against the dataset's own schema.
+    """
+    units = _dataset_port_units({
+        'id': 'active_mobility_distance',
+        'type': 'formula.FormulaNode',
+        'name': 'Active mobility distance',
+        'quantity': 'distance',
+        'unit': 'km/cap/d',
+        'input_datasets': [{'id': 'test/active_mobility', 'unit': 'Mpkm/a'}],
+        'params': [{'id': 'formula', 'value': 'test_active_mobility'}],
+    })
+
+    assert list(units.values()) == ['Mpkm/a']
+
+
+def test_a_dataset_port_without_an_authored_unit_still_takes_the_nodes_unit():
+    """The fallback is unchanged: an unstated unit is the node's own."""
+    units = _dataset_port_units({
+        'id': 'district_heating_consumption',
+        'type': 'simple.AdditiveNode',
+        'name': 'District heating consumption',
+        'quantity': 'energy',
+        'unit': 'GWh/a',
+        'input_datasets': [{'id': 'test/district_heating'}],
+    })
+
+    assert list(units.values()) == ['GWh/a']
