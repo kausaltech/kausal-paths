@@ -1297,7 +1297,7 @@ class CoalesceNode(GenericNode):
     DEFAULT_OPERATIONS = 'multiply,coalesce,add'
     primary_port = InputPortDeclaration(role='primary', required=False, label=_('Primary input'))
     secondary_port = InputPortDeclaration(role='secondary', required=False, label=_('Secondary input'))
-    input_port_declarations = (primary_port, secondary_port)
+    declared_input_ports = (primary_port, secondary_port)
 
     @classmethod
     def infer_legacy_port_roles(cls, meta: NodeMeta, candidates: Sequence[InputPortDef]) -> PortRoleInferenceResult:
@@ -1718,7 +1718,7 @@ class DatasetReduceNode(GenericNode):
     ]
     historical_port = InputPortDeclaration(role='historical', required=True, label=_('Historical input'))
     goal_port = InputPortDeclaration(role='goal', required=True, label=_('Goal input'))
-    input_port_declarations = (historical_port, goal_port)
+    declared_input_ports = (historical_port, goal_port)
 
     @classmethod
     def infer_legacy_port_roles(cls, meta: NodeMeta, candidates: Sequence[InputPortDef]) -> PortRoleInferenceResult:

@@ -240,7 +240,7 @@ afterwards instead, replacing it wherever the tagged node has a value and leavin
         role='impute', multi=True, required=False, min_count=0, default_count=0, label=_('Imputed values')
     )
     output_port = OutputPortDeclaration(role='output', identifier='default', label=_('Output'))
-    input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = (additive_port, impute_port)
+    declared_input_ports: ClassVar[tuple[InputPortDeclaration, ...]] = (additive_port, impute_port)
     output_port_declarations = (output_port,)
 
     @classmethod
@@ -450,7 +450,7 @@ afterwards instead, replacing it wherever the tagged node has a value and leavin
         operands: list[Operand] = []
         dataset_values: list[tuple[RuntimeInputBinding, ppl.PathsDataFrame]] = []
         skipped = 0
-        for binding in self.iter_input_bindings(self.additive_port):
+        for binding in self.iter_computational_input_bindings(self.additive_port):
             try:
                 value = self.resolve_input_binding(binding)
             except NodeError:
@@ -487,7 +487,7 @@ afterwards instead, replacing it wherever the tagged node has a value and leavin
         metric = self.get_parameter_value_str('metric', required=False)
         assert self.unit is not None
         tolerant = self.context.tolerate_node_failures
-        bindings = list(self.iter_input_bindings(self.additive_port))
+        bindings = list(self.iter_computational_input_bindings(self.additive_port))
         additive, dataset_values, skipped = self._resolve_additive_operands(metric)
 
         unit = self.unit
@@ -531,7 +531,8 @@ afterwards instead, replacing it wherever the tagged node has a value and leavin
                 kind=binding.source_kind,
             )
             for binding, value in (
-                (binding, self.resolve_input_binding(binding)) for binding in self.iter_input_bindings(self.impute_port)
+                (binding, self.resolve_input_binding(binding))
+                for binding in self.iter_computational_input_bindings(self.impute_port)
             )
         ]
         if impute:
@@ -585,7 +586,7 @@ afterwards instead, replacing it wherever the tagged input has a value.""")
         role='impute', multi=True, required=False, min_count=0, default_count=0, label=_('Imputed values')
     )
     output_port = OutputPortDeclaration(role='output', identifier='default', label=_('Output'))
-    input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = (additive_port, impute_port)
+    declared_input_ports: ClassVar[tuple[InputPortDeclaration, ...]] = (additive_port, impute_port)
     output_port_declarations = (output_port,)
 
     @classmethod
@@ -981,7 +982,7 @@ class SubtractiveNode(Node):  # FIXME Remove, when you clean Longmont.
         ),
     ]
     input_port = InputPortDeclaration(role='input', repeatable=True, label=_('Inputs'))
-    input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = (input_port,)
+    declared_input_ports: ClassVar[tuple[InputPortDeclaration, ...]] = (input_port,)
     legacy_untagged_input_role = 'input'
 
     def compute(self) -> ppl.PathsDataFrame:
@@ -1076,7 +1077,7 @@ class MultiplicativeNode(SimpleNode, PipelineCompatibleNode):
         role='impute', multi=True, required=False, min_count=0, default_count=0, label=_('Imputed values')
     )
     output_port = OutputPortDeclaration(role='output', identifier='default', label=_('Output'))
-    input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = (factors_port, additive_port, impute_port)
+    declared_input_ports: ClassVar[tuple[InputPortDeclaration, ...]] = (factors_port, additive_port, impute_port)
     output_port_declarations = (output_port,)
 
     @classmethod
@@ -1235,7 +1236,7 @@ class MultiplicativeNode(SimpleNode, PipelineCompatibleNode):
 
     def _compute(self, input_df: ppl.PathsDataFrame | None = None) -> ppl.PathsDataFrame:  # noqa: C901, PLR0912
         assert self.unit is not None
-        factor_bindings = list(self.iter_input_bindings(self.factors_port))
+        factor_bindings = list(self.iter_computational_input_bindings(self.factors_port))
         operation_nodes = [binding.source if isinstance(binding.source, Node) else None for binding in factor_bindings]
         outputs = [self.resolve_input_binding(binding) for binding in factor_bindings]
 
@@ -1290,7 +1291,8 @@ class MultiplicativeNode(SimpleNode, PipelineCompatibleNode):
                 kind=binding.source_kind,
             )
             for binding, value in (
-                (binding, self.resolve_input_binding(binding)) for binding in self.iter_input_bindings(self.impute_port)
+                (binding, self.resolve_input_binding(binding))
+                for binding in self.iter_computational_input_bindings(self.impute_port)
             )
         ]
         if impute:
@@ -1356,7 +1358,7 @@ afterwards, replacing it wherever the tagged input has a value.""")
         role='impute', multi=True, required=False, min_count=0, default_count=0, label=_('Imputed values')
     )
     output_port = OutputPortDeclaration(role='output', identifier='default', label=_('Output'))
-    input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = (factors_port, additive_port, impute_port)
+    declared_input_ports: ClassVar[tuple[InputPortDeclaration, ...]] = (factors_port, additive_port, impute_port)
     output_port_declarations = (output_port,)
 
     @classmethod
@@ -1551,7 +1553,7 @@ class FixedMultiplierNode(SimpleNode):  # FIXME Convert to a generic parameter i
         StringParameter(local_id='global_multiplier'),
     ]
     input_port = InputPortDeclaration(role='input', label=_('Input'))
-    input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = (input_port,)
+    declared_input_ports: ClassVar[tuple[InputPortDeclaration, ...]] = (input_port,)
     legacy_untagged_input_role = 'input'
 
     def compute(self) -> ppl.PathsDataFrame:
@@ -1582,7 +1584,7 @@ class FixedMultiplierNode(SimpleNode):  # FIXME Convert to a generic parameter i
 class MixNode(AdditiveNode):
     activity_port = InputPortDeclaration(role='activity', required=True)
     additive_port = InputPort.multi('additive', required=False, aggregation='sum', label=_('Additive inputs'))
-    input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = (activity_port, additive_port)
+    declared_input_ports: ClassVar[tuple[InputPortDeclaration, ...]] = (activity_port, additive_port)
     legacy_input_port_roles_by_tag = {'activity': 'activity'}
     legacy_untagged_input_role = 'additive'
     output_metrics = {
@@ -1696,7 +1698,7 @@ class ImprovementNode2(MultiplicativeNode):  # FIXME Remove, when you clean Long
 
 class RelativeNode(AdditiveNode):  # FIXME Remove. Only Espoo and budget use this.
     non_additive_port = InputPortDeclaration(role='non_additive', required=False)
-    input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = (
+    declared_input_ports: ClassVar[tuple[InputPortDeclaration, ...]] = (
         AdditiveNode.additive_port,
         AdditiveNode.impute_port,
         non_additive_port,
@@ -1922,7 +1924,7 @@ class AnnuityNode(AdditiveNode):
 class DiscountNode(AdditiveNode):
     discount_rate_port = InputPortDeclaration(role='discount_rate')
     currency_port = InputPortDeclaration(role='currency')
-    input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = (discount_rate_port, currency_port)
+    declared_input_ports: ClassVar[tuple[InputPortDeclaration, ...]] = (discount_rate_port, currency_port)
     legacy_input_port_roles_by_tag = {'discount_rate': 'discount_rate', 'currency': 'currency'}
     allowed_parameters = [
         *AdditiveNode.allowed_parameters,

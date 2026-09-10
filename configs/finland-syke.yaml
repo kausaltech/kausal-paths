@@ -855,9 +855,7 @@ nodes:
       value: Argument placeholder
   output_nodes:
   - id: forests_and_wood_products
-    tags: [ignore_content]
   - id: set_forest_emission_goal
-    tags: [ignore_content]
 
 - id: forest_emission_targets_reached
   name: Saavutetaanko metsien päästötavoitteet?

@@ -76,7 +76,7 @@ class SCurveAction(GenericAction):
     no_effect_value = 0.0
     input_port = InputPort.one('input', label=_('Historical input'))
     parameters_port = InputPort.one('parameters', label=_('S-curve parameters'))
-    input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = (input_port, parameters_port)
+    declared_input_ports: ClassVar[tuple[InputPortDeclaration, ...]] = (input_port, parameters_port)
     legacy_input_port_roles_by_tag = {'parameters': 'parameters'}
 
     @classmethod
@@ -272,7 +272,7 @@ class AdditiveAction(ActionNode):
     no_effect_value = 0.0
     legacy_fixed_dataset_input_role = 'input'
     input_port = InputPort.repeatable('input')
-    input_port_declarations = (input_port,)
+    declared_input_ports = (input_port,)
 
     @classmethod
     def infer_legacy_port_roles(
@@ -449,7 +449,7 @@ class TrajectoryAction(ActionNode):
         BoolParameter(local_id='keep_dimension'),
     ]
     input_port = InputPort.one('input', label=_('Trajectory'))
-    input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = (input_port,)
+    declared_input_ports: ClassVar[tuple[InputPortDeclaration, ...]] = (input_port,)
     legacy_fixed_dataset_input_role: ClassVar[str | None] = 'input'
     legacy_untagged_dataset_input_role: ClassVar[str | None] = 'input'
 
@@ -476,7 +476,7 @@ class GpcTrajectoryAction(TrajectoryAction, DatasetNode):
     GpcTrajectoryAction is a trajectory action that uses the DatasetNode to fetch the dataset.
     """)
     allowed_parameters = [*TrajectoryAction.allowed_parameters, *DatasetNode.allowed_parameters]
-    input_port_declarations = DatasetNode.input_port_declarations
+    declared_input_ports = DatasetNode.input_port_declarations
     legacy_fixed_dataset_input_role = DatasetNode.legacy_fixed_dataset_input_role
     legacy_untagged_dataset_input_role = DatasetNode.legacy_untagged_dataset_input_role
 

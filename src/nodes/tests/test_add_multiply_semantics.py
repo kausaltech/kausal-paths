@@ -24,7 +24,7 @@ import pytest
 from kausal_common.i18n.pydantic import TranslatedString
 
 from common.polars import DataFrameMeta, to_ppdf
-from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
+from nodes.constants import FORECAST_COLUMN, REFERENCE_ROLE, REFERENCE_TAG, VALUE_COLUMN, YEAR_COLUMN
 from nodes.datasets import Dataset
 from nodes.defs.transform_def import BackfillOp, ExtendOp, InterpolateOp, PortTransformOp
 from nodes.dimensions import Dimension, DimensionCategory
@@ -190,7 +190,11 @@ def _connect(source: Node, target: Node, tags: list[str] | None = None) -> None:
     source.add_edge(edge)
     target.add_edge(edge)
     role = None
-    if isinstance(target, AdditiveNode):
+    # Mirrors what the framework does before any class hook sees the port
+    # (``NodeMeta._port_role_inference``): a reference binding is classified by the tag.
+    if REFERENCE_TAG in tags:
+        role = REFERENCE_ROLE
+    elif isinstance(target, AdditiveNode):
         role = 'impute' if 'impute' in tags else None if 'non_additive' in tags else 'additive'
     elif isinstance(target, MultiplicativeNode):
         if 'impute' in tags:

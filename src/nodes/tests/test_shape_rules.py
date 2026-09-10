@@ -31,7 +31,7 @@ pytestmark = pytest.mark.django_db
 class DeclarativeRoleTestNode(Node):
     selected_port = InputPort.one('selected')
     remainder_port = InputPort.multi('remainder')
-    input_port_declarations = (selected_port, remainder_port)
+    declared_input_ports = (selected_port, remainder_port)
     legacy_input_port_roles_by_tag = {'selected': 'selected'}
     legacy_untagged_input_role = 'remainder'
 

@@ -31,16 +31,23 @@ def _make_node(context, cls=Node, identifier: str = 'node', unit: str = 'kt/a', 
 
 @pytest.mark.django_db
 def test_generic_node_port_roles_have_one_shared_typed_namespace():
-    assert AdditiveNode.input_port_declarations == (AdditiveNode.additive_port, AdditiveNode.impute_port)
+    assert AdditiveNode.declared_input_ports == (AdditiveNode.additive_port, AdditiveNode.impute_port)
+    # Every class also offers the universal, non-computational reference role.
+    assert AdditiveNode.input_port_declarations == (
+        AdditiveNode.additive_port,
+        AdditiveNode.impute_port,
+        Node.reference_port,
+    )
     assert AdditiveNode.additive_port.role == 'additive'
     assert AdditiveNode.output_port.role == 'output'
     assert AdditiveNode.output_port.identifier == 'default'
 
-    assert MultiplicativeNode.input_port_declarations == (
+    assert MultiplicativeNode.declared_input_ports == (
         MultiplicativeNode.factors_port,
         MultiplicativeNode.additive_port,
         MultiplicativeNode.impute_port,
     )
+    assert MultiplicativeNode.input_port_declarations[-1] is Node.reference_port
     assert MultiplicativeNode.factors_port.repeatable is True
     assert MultiplicativeNode.factors_port.min_count == 1
     assert MultiplicativeNode.factors_port.effective_default_count == 2
