@@ -13,7 +13,9 @@ from common import polars as ppl
 from nodes.calc import convert_to_co2e, extend_last_historical_value_pl
 from nodes.constraints.port_roles import PortRoleInferenceResult
 from nodes.constraints.rules import AnyShapeRule, MissingPortRoleError, ProductShapeRule, SameShapeRule
+from nodes.constraints.tags import tag_operation_inverts, tag_operation_is_opaque
 from nodes.defs.port_def import InputPort, InputPortDeclaration, InputPortDef, OutputPortDeclaration
+from nodes.defs.transform_def import TagOperationOp
 from nodes.units import Quantity
 from params.param import BoolParameter, NumberParameter, StringParameter
 
@@ -54,6 +56,76 @@ EMISSION_UNIT = 'kg'
 
 def _runtime_port_id(node_id: str, index: int) -> UUID:
     return uuid5(NAMESPACE_URL, f'kausal-paths:{node_id}:pipeline-input:{index}')
+
+
+def _binding_tags(meta: NodeMeta, port_id: UUID) -> list[set[str]]:
+    """
+    Tags carried by each binding on one input port, one set per delivery.
+
+    A tag reaches a binding either as an authored tag or, once the binding has a
+    pipeline, as a ``TagOperationOp`` in it; a dataset port ends up with both.
+    Reading only one of the two would miss the operation on half the bindings.
+    """
+    tags: list[set[str]] = []
+    for binding in meta.bindings_for_port(port_id):
+        binding_tags = set(binding.tags)
+        binding_tags.update(op.tag for op in binding.transformations if isinstance(op, TagOperationOp))
+        tags.append(binding_tags)
+    return tags
+
+
+def _partition_product_operands(meta: NodeMeta, factor_ports: Sequence[UUID]) -> tuple[tuple[UUID, ...], tuple[UUID, ...]] | None:
+    """
+    Split factor ports into the direct and the inverse operands of a product.
+
+    ``geometric_inverse`` is authored on a *binding* while the product rule is
+    compiled from *ports*, so the tag has to be read back off the bindings here.
+    A port whose deliveries are all inverted divides the product rather than
+    multiplying it, which ``ProductShapeRule.inverse_inputs`` states exactly.
+
+    ``None`` means the algebra is not expressible and the caller should state no
+    rule at all: a port mixing inverted with direct deliveries has no single unit
+    contribution, and any other opaque tag operation re-units its factor beyond
+    what a product can say. Declining beats guessing — an unstated constraint is
+    merely incomplete, while a wrong one is a false conflict against the node's
+    own declared output.
+    """
+    direct: list[UUID] = []
+    inverse: list[UUID] = []
+    for port_id in factor_ports:
+        delivery_tags = _binding_tags(meta, port_id)
+        if any(tag_operation_is_opaque(tag) and not tag_operation_inverts(tag) for tags in delivery_tags for tag in tags):
+            return None
+        inverted = [any(tag_operation_inverts(tag) for tag in tags) for tags in delivery_tags]
+        if any(inverted) and not all(inverted):
+            return None
+        (inverse if any(inverted) else direct).append(port_id)
+    return tuple(direct), tuple(inverse)
+
+
+_RATIO_PARAM_IDS = ('reference_category', 'share_dimension')
+"""Params that divide a node's own sum by a slice of itself, collapsing its unit."""
+
+
+def _normalizes_to_ratio(meta: NodeMeta) -> bool:
+    """
+    Whether this node's params turn its sum into a dimensionless ratio.
+
+    ``reference_category`` divides every category by a reference one
+    (``SimpleNode.scale_by_reference_category``) and ``share_dimension``
+    converts values to shares over a dimension (``SimpleNode.get_shares``).
+    Both divide the sum by a slice of itself, so the output is dimensionless
+    however the inputs are united, and the plain "output shares the inputs'
+    shape" rule would contradict the node's own declaration.
+    """
+    return any(
+        param.local_id in _RATIO_PARAM_IDS and getattr(param, 'value', None) not in (None, '') for param in meta.spec.params
+    )
+
+
+def _ratio_total_value_id(node_uuid: UUID) -> UUID:
+    """Identity of the intermediate holding the sum, before it is divided by its own slice."""
+    return uuid5(node_uuid, 'kausal-paths:additive-ratio-total')
 
 
 def additive_multiplicity_hint(node_class: type[Node], edge: Edge | None) -> InputPortMultiplicityHint:
@@ -249,6 +321,19 @@ afterwards instead, replacing it wherever the tagged node has a value and leavin
         inputs = meta.input_port_ids_for_roles('additive', 'impute')
         if not inputs:
             return ()
+        if _normalizes_to_ratio(meta):
+            # The inputs still add together, so they share a shape with each
+            # other — but with the *sum*, not with the output, which is that
+            # sum divided by a slice of itself. Stating the division as a
+            # product of the sum over the sum gets both halves right: the unit
+            # cancels to dimensionless, and the dimensions survive it, because
+            # dividing by a reference category or normalizing to shares
+            # reindexes nothing.
+            total = _ratio_total_value_id(meta.id)
+            return (
+                SameShapeRule(inputs=inputs, output=total),
+                ProductShapeRule(inputs=(total,), inverse_inputs=(total,), output=output.id),
+            )
         return (SameShapeRule(inputs=inputs, output=output.id),)
 
     @classmethod
@@ -1085,7 +1170,10 @@ class MultiplicativeNode(SimpleNode, PipelineCompatibleNode):
         rules: list[AnyShapeRule] = []
         factors = meta.input_port_ids_for_roles('factors')
         if factors:
-            rules.append(ProductShapeRule(inputs=factors, output=output.id))
+            operands = _partition_product_operands(meta, factors)
+            if operands is not None:
+                direct, inverse = operands
+                rules.append(ProductShapeRule(inputs=direct, inverse_inputs=inverse, output=output.id))
         same_shaped = meta.input_port_ids_for_roles('additive', 'impute')
         if same_shaped:
             rules.append(SameShapeRule(inputs=same_shaped, output=output.id))
@@ -1365,7 +1453,10 @@ afterwards, replacing it wherever the tagged input has a value.""")
         rules: list[AnyShapeRule] = []
         factors = meta.input_port_ids_for_roles('factors')
         if factors:
-            rules.append(ProductShapeRule(inputs=factors, output=output.id))
+            operands = _partition_product_operands(meta, factors)
+            if operands is not None:
+                direct, inverse = operands
+                rules.append(ProductShapeRule(inputs=direct, inverse_inputs=inverse, output=output.id))
         same_shaped = meta.input_port_ids_for_roles('additive', 'impute')
         if same_shaped:
             rules.append(SameShapeRule(inputs=same_shaped, output=output.id))

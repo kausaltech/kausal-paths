@@ -476,10 +476,18 @@ def _dataset_input_port_for_column(
     column: str,
 ) -> InputPortDef:
     metric = _metric_for_column(node, column)
+    declared_unit = getattr(dataset, 'unit', None)
     return InputPortDef(
         id=_dataset_port_id(node, dataset_index, column),
         identifier=_port_identifier_for_column(column),
-        unit=metric.unit if metric is not None else getattr(dataset, 'unit', None),
+        # An authored unit on the input dataset outranks the node's own output
+        # metric, because it is the one the port actually receives: it compiles
+        # to the pipeline's closing `ensure_unit`, so the value arrives in it.
+        # Falling back to the node's metric is a guess that only holds for a
+        # node whose dataset input is in its own output unit; on a formula node
+        # a dataset is one term, united independently of the formula's result.
+        # See the mirror in `instance_parser._build_dataset_input_ports`.
+        unit=declared_unit if declared_unit is not None else (metric.unit if metric is not None else None),
         quantity=metric.quantity if metric is not None else None,
     )
 

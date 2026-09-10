@@ -1094,7 +1094,9 @@ class InstanceConfigParser:
                             fallback_id,
                         ),
                         identifier=identifier,
-                        unit=metric.unit if metric is not None else ds_def.unit,
+                        # An authored unit outranks the node's own output metric; see the
+                        # mirror in `spec_export._dataset_input_port_for_column`.
+                        unit=ds_def.unit if ds_def.unit is not None else (metric.unit if metric is not None else None),
                         quantity=metric.quantity if metric is not None else None,
                     )
                 )
