@@ -34,11 +34,12 @@ from nodes.defs import (
     YearsSpec,
 )
 from nodes.defs.port_def import InputPortDef, OutputPortDef
+from nodes.defs.transform_def import resolve_metric_columns
 from nodes.goals import NodeGoals
 from nodes.visualizations import NodeVisualizations
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Iterable, Sequence
     from uuid import UUID
 
     from kausal_common.i18n.pydantic import I18nString
@@ -49,6 +50,7 @@ if TYPE_CHECKING:
         FormulaConfig,
     )
     from nodes.defs.node_defs import NodeSpecExtra
+    from nodes.defs.transform_def import PortTransformOp
     from nodes.edges import Edge, EdgeDimension
     from nodes.instance import Instance
     from nodes.models import InstanceConfig, NodeConfig
@@ -370,24 +372,38 @@ def _dataset_port_id(node: Node, dataset_index: int, column: str) -> UUID:
     return uuid_from_identifiers(node.context.instance, [node.id, 'dataset', str(dataset_index), column])
 
 
-def pair_metrics_to_columns(columns: list[str], metric_keys: list[str], *, log_ctx: str) -> list[tuple[str, str]]:
+def pair_metrics_to_columns(
+    columns: list[str],
+    metric_keys: list[str],
+    *,
+    log_ctx: str,
+    transformations: Sequence[PortTransformOp] = (),
+) -> list[tuple[str, str]]:
     """
     Pair a column-less binding's dataset schema metrics with node columns.
 
     Returns ``(port_column, metric_key)`` pairs: which input port delivers
-    which source metric. Name matches pair first (case-insensitively, since
-    schema metrics are lowercase identifiers while node columns are often
-    TitleCase, e.g. ``fuel`` feeding ``Fuel``); a lone leftover on both sides
-    pairs too, since a single remaining metric can only feed the single
-    remaining column. Anything still unmatched gets no binding — inventing a
-    mapping would be worse than omitting it, and a dangling binding worse
-    than a missing one.
+    which source metric. Matching runs on the column each metric is *delivered*
+    as, after the binding's renames and drops (see ``resolve_metric_columns``) —
+    the raw schema name is only the starting point, and a metric the pipeline
+    drops is not missing but deliberately unused, so it pairs with nothing and
+    is not warned about.
+
+    Name matches pair first (case-insensitively, since schema metrics are
+    lowercase identifiers while node columns are often TitleCase, e.g. ``fuel``
+    feeding ``Fuel``); a lone leftover on both sides pairs too, since a single
+    remaining metric can only feed the single remaining column. Anything still
+    unmatched gets no binding — inventing a mapping would be worse than
+    omitting it, and a dangling binding worse than a missing one.
     """
+    delivered, dropped = resolve_metric_columns(metric_keys, transformations)
+    if dropped:
+        logger.debug('%s: schema metrics %s are dropped by the binding pipeline; no binding' % (log_ctx, dropped))
     pairs: list[tuple[str, str]] = []
-    remaining_metrics = list(metric_keys)
+    remaining_metrics = [key for key in metric_keys if key in delivered]
     remaining_columns = list(columns)
     for column in columns:
-        match = next((metric for metric in remaining_metrics if metric.lower() == column.lower()), None)
+        match = next((metric for metric in remaining_metrics if delivered[metric].lower() == column.lower()), None)
         if match is not None:
             pairs.append((column, match))
             remaining_metrics.remove(match)
@@ -406,7 +422,12 @@ def _pair_schema_metrics_to_columns(
     metric_keys: list[str],
 ) -> list[tuple[str, str]]:
     columns = _dataset_binding_columns_for_node(node, ds_instance)
-    return pair_metrics_to_columns(columns, metric_keys, log_ctx=f'Dataset {ds_instance.id} on node {node.id}')
+    return pair_metrics_to_columns(
+        columns,
+        metric_keys,
+        log_ctx=f'Dataset {ds_instance.id} on node {node.id}',
+        transformations=ds_instance.transformations,
+    )
 
 
 def _metric_for_column(node: Node, column: str) -> NodeMetric | None:

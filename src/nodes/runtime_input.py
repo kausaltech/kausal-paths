@@ -17,8 +17,17 @@ if TYPE_CHECKING:
 
 
 def _load_dataset_value(definition: DatasetBindingDef, source: Dataset) -> PathsDataFrame:
+    from nodes.defs.transform_def import resolve_metric_columns
+
     df = source.get_copy()
     metric = definition.external_metric_id
+    if metric is not None:
+        # The metric is named as the dataset schema has it, but the frame has
+        # been through the binding's pipeline, which routinely renames a wide
+        # DVC column into the node's own (``Suorite`` -> ``mileage``). Match on
+        # the column the pipeline actually delivers, or a renamed metric never
+        # narrows the frame and a multi-metric port silently stays wide.
+        metric = resolve_metric_columns([metric], definition.transformations)[0].get(metric)
     if metric is not None and metric in df.metric_cols and len(df.metric_cols) > 1:
         from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN
 

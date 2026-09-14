@@ -127,7 +127,12 @@ def resolve_dataset_port_snapshots(  # noqa: C901, PLR0912
             elif not schema.metric_keys:
                 pairs = [(column, column) for column in columns]
             else:
-                pairs = pair_metrics_to_columns(columns, schema.metric_keys, log_ctx=log_ctx)
+                pairs = pair_metrics_to_columns(
+                    columns,
+                    schema.metric_keys,
+                    log_ctx=log_ctx,
+                    transformations=group_spec.transformations,
+                )
                 if not pairs:
                     logger.warning('%s: keeping bindings with unresolved port ids so the input dataset survives' % log_ctx)
                     pairs = [(name, name) for name in schema.metric_keys]

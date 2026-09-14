@@ -464,6 +464,39 @@ def unit_from_transformations(transformations: Sequence[PortTransformOp]) -> Uni
     return None
 
 
+def resolve_metric_columns(
+    metric_keys: list[str],
+    transformations: Sequence[PortTransformOp],
+) -> tuple[dict[str, str], list[str]]:
+    """
+    Trace each schema metric through the binding's pipeline to the column the node sees.
+
+    Returns ``(metric_key -> delivered column name, metric keys the pipeline drops)``.
+
+    The pipeline is what stands between the dataset's own column names and the
+    node's: a wide DVC dataset is routinely renamed into the node's metric
+    columns (``Suorite`` -> ``mileage``) and its unused columns dropped, so
+    pairing on the raw schema names compares two things that were never meant
+    to match. Ops are replayed in execution order, since a later op names the
+    column as an earlier one left it.
+    """
+    delivered: dict[str, str] = {key: key for key in metric_keys}
+    dropped: list[str] = []
+    for op in transformations:
+        if isinstance(op, RenameColumnOp):
+            if op.new_name is None:
+                continue
+            for key, column in delivered.items():
+                if column == op.column:
+                    delivered[key] = op.new_name
+        elif isinstance(op, FilterColumnOp) and op.drop_col:
+            for key, column in list(delivered.items()):
+                if column == op.column:
+                    del delivered[key]
+                    dropped.append(key)
+    return delivered, dropped
+
+
 TEMPORAL_FILL_KINDS = frozenset({'interpolate', 'backfill', 'extend'})
 """Pipeline kinds hidden temporarily from GraphQL for old model-editor compatibility."""
 
