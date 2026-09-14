@@ -217,7 +217,7 @@ nodes:
   name_de: Anteil abgeschiedenes CO2 bei der Klärschlammverwertungsanlage
   name_en: Share of CO2 captured with CCS in sewage sludge processing
   type: simple.AdditiveNode
-  historical_values: [[2015, 0], [2024, 0]]
+  historical_values: [[2015, 0], [2025, 0]]
   input_dataset_processors: [LinearInterpolation]
   unit: '%'
   quantity: fraction
@@ -377,7 +377,7 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   unit: '%'
   quantity: fraction
-  historical_values: [[2010, 0], [2024, 0]]
+  historical_values: [[2010, 0], [2025, 0]]
 
 - id: biogas_processing_indirect_emissions
   name_de: Biogas processing indirect emissions
