@@ -4,7 +4,7 @@ supported_languages: [sv, en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   # commit: f1a7f7cd69a10d5fb1c7f95eeea6cb65f7add0f3
-  commit: 8963394f6bc0de09d57d648ef251b28f7a4b7227 # Commit before DB -> DVC update.
+  commit: 83849ed18b383d4b1cb72821b1ebe1ceaca4f84b
   dvc_remote: kausal-s3
 name_fi: Hiilineutraali Espoo 2030, Luonnos 2026
 name_en: Carbon-neutral Espoo 2030, Draft 2026
@@ -18,7 +18,7 @@ model_end_year: 2035
 target_year: 2030
 reference_year: 1990
 minimum_historical_year: 1990
-maximum_historical_year: 2024
+maximum_historical_year: 2025
 features:
   baseline_visible_in_graphs: false
   show_accumulated_effects: true
@@ -1094,6 +1094,7 @@ nodes:
   - id: building_use_index
   output_nodes:
   - id: building_heating_emissions
+    tags: [modelled]
     from_dimensions:
     - id: building_use
       flatten: true
@@ -1124,9 +1125,47 @@ nodes:
     - column: Sektori3
       flatten: true
 
+- id: building_heating_inventory_availability
+  name_fi: Lämmityksen inventaariodatan kattavuus
+  name_en: Heating inventory data availability
+  name_sv: Täckning av inventeringsdata för uppvärmning
+  description_fi: Mille vuosille ja sektoreille HSY:n päästöinventaario sisältää
+    lämmityksen arvon (1) ja mille ei (0). Luetaan ennen interpolointia ja
+    jatkamista, jotta eteenpäin kannettu arvo ei väitä kattavansa vuotta, jota
+    inventaario ei ole mitannut.
+  description_en: For which years and sectors the HSY inventory holds a heating
+    value (1) and for which it does not (0). Read before interpolation and
+    extension, so a value carried forward does not claim to cover a year the
+    inventory never measured. This is what selects the inventory over the model
+    in <code>building_heating_emissions</code>, one year at a time.
+  type: simple.DataAvailabilityNode
+  tags: [other_node]
+  quantity: fraction
+  unit: dimensionless
+  # No dimensions: HSY publishes whole inventory years, so "is this year in the inventory" is a
+  # year-level fact, and it is the only thing `prefer_by_year` reads from a coverage frame. The
+  # sector columns are flattened away rather than renamed, which also keeps this node clear of
+  # the label-to-category mapping that only the GenericDataset pipeline performs.
+  input_datasets:
+  - id: hsy/pks_khk_paastot
+    column: Päästöt
+    filters:
+    - rename_col: Vuosi
+      value: Year
+    - column: Kaupunki
+      ref: municipality_name
+    - column: Sektori1
+      value: Lämmitys
+    - column: Sektori2
+      flatten: true
+    - column: Sektori3
+      flatten: true
+    - column: Sektori4
+      flatten: true
+
 - id: building_heating_emissions
   name: Lämmityksen päästöt
-  type: generic.CoalesceNode
+  type: formula.FormulaNode
   quantity: emissions
   unit: kt/a
   input_dimensions: [emission_sector, economic_sector]
@@ -1134,9 +1173,11 @@ nodes:
   color: '#ff4f57'
   input_nodes:
   - id: building_heating_emissions_historical
-    tags: [inventory_only, primary]
+    tags: [inventory]
+  - id: building_heating_inventory_availability
+    tags: [coverage]
   params:
-    operations: add,coalesce
+    formula: prefer_by_year(inventory, modelled, coverage)
   output_nodes:
   - id: net_emissions
 
@@ -1851,11 +1892,43 @@ nodes:
     - column: Sektori3
       flatten: true
 
+- id: transport_inventory_availability
+  name_fi: Liikenteen inventaariodatan kattavuus
+  name_en: Transport inventory data availability
+  name_sv: Täckning av inventeringsdata för transport
+  description_fi: Mille vuosille HSY:n päästöinventaario sisältää liikenteen
+    arvon (1) ja mille ei (0). Luetaan ennen interpolointia ja jatkamista.
+  description_en: For which years the HSY inventory holds a transport value (1)
+    and for which it does not (0). Read before interpolation and extension, so a
+    value carried forward does not claim to cover a year the inventory never
+    measured. This is what selects the inventory over the model in
+    <code>transport_emissions</code>, one year at a time.
+  type: simple.DataAvailabilityNode
+  tags: [other_node]
+  quantity: fraction
+  unit: dimensionless
+  input_datasets:
+  - id: hsy/pks_khk_paastot
+    column: Päästöt
+    filters:
+    - rename_col: Vuosi
+      value: Year
+    - column: Kaupunki
+      ref: municipality_name
+    - column: Sektori1
+      value: Liikenne
+    - column: Sektori2
+      flatten: true
+    - column: Sektori3
+      flatten: true
+    - column: Sektori4
+      flatten: true
+
 - id: transport_emissions
   name_fi: Liikenteen päästöt
   name_en: Transport emissions
   name_sv: Transportutsläpp
-  type: generic.CoalesceNode
+  type: formula.FormulaNode
   quantity: emissions
   unit: kt/a
   color: '#014B30'
@@ -1863,10 +1936,12 @@ nodes:
   output_dimensions: [emission_sector, economic_sector]
   input_nodes:
   - id: transport_emissions_historical
-    tags: [inventory_only, primary]
+    tags: [inventory]
+  - id: transport_inventory_availability
+    tags: [coverage]
   output_nodes: [net_emissions]
   params:
-    operations: add,coalesce
+    formula: prefer_by_year(inventory, road + rail + water, coverage)
 
 ## WASTE
 
@@ -1944,8 +2019,42 @@ nodes:
     tags: [use_as_shares]
   output_nodes:
   - id: waste_treatment_emissions
+    tags: [modelled]
   params:
     operations: get_single_dataset,add,use_as_shares
+
+- id: waste_treatment_inventory_availability
+  name_fi: Jätteenkäsittelyn inventaariodatan kattavuus
+  name_en: Waste treatment inventory data availability
+  name_sv: Täckning av inventeringsdata för avfallsbehandling
+  description_fi: Mille vuosille HSY:n päästöinventaario sisältää jätteiden
+    käsittelyn arvon (1) ja mille ei (0). Luetaan ennen interpolointia ja
+    jatkamista.
+  description_en: For which years the HSY inventory holds a waste treatment value
+    (1) and for which it does not (0). Read before interpolation and extension, so
+    a value carried forward does not claim to cover a year the inventory never
+    measured. This is what selects the inventory over the model in
+    <code>waste_treatment_emissions</code>, one year at a time.
+  type: simple.DataAvailabilityNode
+  tags: [other_node]
+  quantity: fraction
+  unit: dimensionless
+  input_datasets:
+  - id: hsy/pks_khk_paastot
+    column: Päästöt
+    filters:
+    - rename_col: Vuosi
+      value: Year
+    - column: Kaupunki
+      ref: municipality_name
+    - column: Sektori1
+      value: Jätteiden käsittely
+    - column: Sektori2
+      flatten: true
+    - column: Sektori3
+      flatten: true
+    - column: Sektori4
+      flatten: true
 
 - id: waste_treatment_emissions
   name_fi: Jätteenkäsittelyn päästöt
@@ -1953,7 +2062,7 @@ nodes:
   name_sv: Utsläppdata om avfallsbehandlingen
   description_fi: Data on saatu Juha Viholaiselta maaliskuussa 2024. 
     Historiallisen datan osalta kuitenkin käytetään HSY:n tilastoa.
-  type: generic.CoalesceNode
+  type: formula.FormulaNode
   quantity: emissions
   unit: kt/a
   color: '#8b6f47'  # brown
@@ -1961,7 +2070,9 @@ nodes:
   output_dimensions: [waste_treatment, economic_sector]
   input_nodes:
   - id: waste_treatment_emission_shares
-    tags: [inventory_only, primary]
+    tags: [inventory]
+  - id: waste_treatment_inventory_availability
+    tags: [coverage]
   output_nodes:
   - id: net_emissions
     from_dimensions:
@@ -1972,7 +2083,7 @@ nodes:
       categories: [waste_treatment]
     - id: economic_sector
   params:
-    operations: add,coalesce
+    formula: prefer_by_year(inventory, modelled, coverage)
 
 # MODIFIED HSY NODES
 

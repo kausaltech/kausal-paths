@@ -190,6 +190,7 @@ nodes:
   - id: road_traffic_emission_factors
   output_nodes:
   - id: transport_emissions
+    tags: [road]
     from_dimensions:
     - id: vehicle_type
       flatten: true
@@ -232,6 +233,7 @@ nodes:
   - id: rail_transport_energy
   output_nodes:
   - id: transport_emissions
+    tags: [rail]
     from_dimensions:
     - id: vehicle_type
       flatten: true
@@ -252,6 +254,7 @@ nodes:
     sector: Liikenne|Laivaliikenne|_vehicle_type_|_economic_sector_
   output_nodes:
   - id: transport_emissions
+    tags: [water]
     from_dimensions:
     - id: vehicle_type
       flatten: true
