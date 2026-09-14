@@ -293,3 +293,65 @@ def test_formula_node_three_argument_form_matches_the_documented_example():
         _connect(n, target)
 
     assert _as_map(target.compute()) == {2020: 100.0, 2021: 110.0, 2022: 500.0}
+
+
+def _ppdf_fc(rows: list[tuple[int, float | None, bool]], unit: str = 'MWh/a') -> ppl.PathsDataFrame:
+    """Like ``_ppdf``, but each row carries its own Forecast flag."""
+    df = pl.DataFrame(
+        {
+            YEAR_COLUMN: [r[0] for r in rows],
+            VALUE_COLUMN: [r[1] for r in rows],
+            FORECAST_COLUMN: [r[2] for r in rows],
+        },
+        schema={YEAR_COLUMN: pl.Int64, VALUE_COLUMN: pl.Float64, FORECAST_COLUMN: pl.Boolean},
+    )
+    meta = DataFrameMeta(units={VALUE_COLUMN: unit_registry.parse_units(unit)}, primary_keys=[YEAR_COLUMN])
+    return to_ppdf(df, meta)
+
+
+def _flag_map(df: ppl.PathsDataFrame) -> dict[int, bool]:
+    return {row[0]: row[1] for row in df.select([YEAR_COLUMN, FORECAST_COLUMN]).iter_rows()}
+
+
+def test_prefer_by_year_takes_the_flag_from_the_frame_that_supplied_the_value():
+    """
+    The mainz-bisko regression: a covered year must not inherit the fallback's forecast flag.
+
+    ``join_over_index`` ORs the two flags, which is right for a sum and wrong here -- the
+    fallback contributes nothing to a covered year's value, so it must not label it. The city's
+    own 2024 was reported as forecast because the national series it replaced stops at 2023.
+    """
+    own = _ppdf_fc([(2023, 100.0, False), (2024, 110.0, False)])
+    default = _ppdf_fc([(2023, 10.0, False), (2024, 20.0, True), (2025, 30.0, True)])
+
+    out = own.paths.prefer_by_year(default)
+
+    assert _as_map(out) == {2023: 100.0, 2024: 110.0, 2025: 30.0}
+    assert _flag_map(out) == {2023: False, 2024: False, 2025: True}
+
+
+def test_coalesce_df_takes_the_flag_from_the_side_that_supplied_the_value():
+    """
+    The espoo-2026 regression: an inventory value must not be labelled forecast.
+
+    The inventory branch wins the value wherever it has one, so it must win the flag there too;
+    only the years it leaves empty take the modelled branch's flag.
+    """
+    inventory = _ppdf_fc([(2024, 294.0, False), (2025, 170.0, False)])
+    modelled = _ppdf_fc([(2024, 291.0, False), (2025, 150.0, True), (2026, 100.0, True)])
+
+    out = inventory.paths.coalesce_df(modelled)
+
+    assert _as_map(out) == {2024: 294.0, 2025: 170.0, 2026: 100.0}
+    assert _flag_map(out) == {2024: False, 2025: False, 2026: True}
+
+
+def test_coalesce_df_takes_the_fallback_flag_where_the_primary_has_no_value():
+    """A null on the primary side is a gap, so that row is the other branch's in value and flag."""
+    inventory = _ppdf_fc([(2024, 294.0, False), (2025, None, False)])
+    modelled = _ppdf_fc([(2024, 291.0, False), (2025, 150.0, True)])
+
+    out = inventory.paths.coalesce_df(modelled)
+
+    assert _as_map(out) == {2024: 294.0, 2025: 150.0}
+    assert _flag_map(out) == {2024: False, 2025: True}

@@ -733,6 +733,11 @@ class PathsExt:
         meta = sm.copy()
         ldf_cols = set(ldf.collect_schema().keys())
         if FORECAST_COLUMN in ldf_cols and fc_right in ldf_cols:
+            # A *combining* rule: a result built from a forecast is a forecast. It is wrong for a
+            # combiner that instead *chooses* one side's value (`coalesce_df`, `prefer_by_year`) --
+            # there the discarded side contributes nothing and must not label the result. Those
+            # callers rename their right-hand flag before joining so it never reaches this OR, and
+            # resolve it themselves to follow the value.
             ldf = ldf.with_columns([
                 pl.col(FORECAST_COLUMN).fill_null(value=False) | pl.col(fc_right).fill_null(value=False),
             ])
@@ -898,12 +903,31 @@ class PathsExt:
         out_col = df.metric_cols[0]
         input_col = odf.metric_cols[0]
         odf = odf.ensure_unit(input_col, df.get_unit(out_col)).rename({input_col: '_Right'})
+        # Take the flag out of `join_over_index`'s reach: its OR is a *combining* rule, right for
+        # a sum and wrong here, where the losing side contributes nothing to the value but would
+        # still contaminate its label. Resolved below, per row, to follow the value.
+        both_have_forecast = FORECAST_COLUMN in df.columns and FORECAST_COLUMN in odf.columns
+        if both_have_forecast:
+            odf = odf.rename({FORECAST_COLUMN: '_RightForecast'})
         df = df.paths.join_over_index(odf, how=how)
         if debug:
             print(f"In node {id}, column '{out_col}' is prioritised over '_Right' if available.")
             print(df)
-        expr = pl.coalesce([pl.col(out_col), pl.col('_Right')]).alias(out_col)
-        df = df.with_columns(expr).drop('_Right')
+        exprs = [pl.coalesce([pl.col(out_col), pl.col('_Right')]).alias(out_col)]
+        if both_have_forecast:
+            # One `with_columns`, so both expressions read the pre-join values of `out_col`:
+            # the flag is chosen by which side *supplied* the value, before the value is replaced.
+            exprs.append(
+                pl
+                .when(pl.col(out_col).is_not_null())
+                .then(pl.col(FORECAST_COLUMN))
+                .otherwise(pl.col('_RightForecast'))
+                .fill_null(value=False)
+                .alias(FORECAST_COLUMN),
+            )
+        df = df.with_columns(exprs).drop('_Right')
+        if both_have_forecast:
+            df = df.drop('_RightForecast')
         return df
 
     def prefer_by_year(self, odf: ppl.PathsDataFrame, coverage: ppl.PathsDataFrame | None = None) -> ppl.PathsDataFrame:
@@ -959,15 +983,29 @@ class PathsExt:
         if set(df.dim_ids) != set(odf.dim_ids):
             raise ValueError(f'Dimensions must match for prefer_by_year(): {df.dim_ids} vs {odf.dim_ids}.')
 
+        # Keep the flag away from `join_over_index`'s OR, which would mark a covered year as
+        # forecast whenever the fallback is one. The year is served entirely from one frame, so
+        # its flag comes wholesale from that frame too.
+        both_have_forecast = FORECAST_COLUMN in df.columns and FORECAST_COLUMN in odf.columns
+        if both_have_forecast:
+            odf = odf.rename({FORECAST_COLUMN: '_FallbackForecast'})
         df = df.paths.join_over_index(odf, how='outer')
-        expr = (
-            pl
-            .when(pl.col(YEAR_COLUMN).is_in(covered.implode()))
-            .then(pl.col(out_col))
-            .otherwise(pl.col('_Fallback'))
-            .alias(out_col)
-        )
-        df = df.with_columns(expr).drop('_Fallback')
+        is_covered = pl.col(YEAR_COLUMN).is_in(covered.implode())
+        exprs = [
+            pl.when(is_covered).then(pl.col(out_col)).otherwise(pl.col('_Fallback')).alias(out_col),
+        ]
+        if both_have_forecast:
+            exprs.append(
+                pl
+                .when(is_covered)
+                .then(pl.col(FORECAST_COLUMN))
+                .otherwise(pl.col('_FallbackForecast'))
+                .fill_null(value=False)
+                .alias(FORECAST_COLUMN),
+            )
+        df = df.with_columns(exprs).drop('_Fallback')
+        if both_have_forecast:
+            df = df.drop('_FallbackForecast')
         return df.filter(pl.col(out_col).is_not_null())
 
     def compare_df(  # Based on add_with_dims
