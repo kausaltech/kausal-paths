@@ -2904,7 +2904,11 @@ query NodeConstraintFields($instanceId: ID!) {
                         role
                         effectiveShape {
                             dimensionUuids
-                            unit { standard }
+                            unit {
+                                standard
+                                short
+                                htmlShort
+                            }
                             quantity
                         }
                     }
@@ -2983,6 +2987,38 @@ def test_node_level_conflicts_and_effective_shapes(gql_client: PathsTestClient, 
     assert shape is not None
     assert shape['unit']['standard'] == 'kt/a'
     assert spec['supportsAuthoredPorts'] is False
+
+
+def test_effective_shape_formats_denominator_only_unit(
+    gql_client: PathsTestClient,
+    db_instance_config: InstanceConfig,
+) -> None:
+    reciprocal_unit = unit_registry.parse_units('1/a')
+    NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='reciprocal_rate',
+        spec=_make_node_spec(
+            input_ports=[
+                InputPortDef(
+                    id=_port_uuid('input'),
+                    identifier='input',
+                    unit=reciprocal_unit,
+                    quantity='emissions',
+                )
+            ],
+            output_ports=[OutputPortDef(id=_port_uuid('default'), unit=reciprocal_unit, quantity='emissions')],
+        ),
+    )
+
+    data = gql_client.query_data(NODE_CONSTRAINT_FIELDS, variables={'instanceId': str(db_instance_config.pk)})
+    node = next(entry for entry in data['modelInstance']['nodes'] if entry['identifier'] == 'reciprocal_rate')
+    (port,) = node['editor']['spec']['inputPorts']
+
+    assert port['effectiveShape']['unit'] == {
+        'standard': '1/a',
+        'short': '1/yr',
+        'htmlShort': '1\u2215yr',
+    }
 
 
 def test_input_port_declaration_catalog(gql_client: PathsTestClient, db_instance_config: InstanceConfig):

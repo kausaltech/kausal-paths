@@ -28,6 +28,7 @@ def format_unit(unit: Unit, long: bool = False, html: bool = False) -> str:  # n
     if dict(unit._units) == dict(percent=1):
         return '%'
 
+    has_numerator = any(float(exponent) > 0 for exponent in unit._units.values() if not isinstance(exponent, complex))
     full_lang = get_language()
     locale = locale_cache.get(full_lang)
     if not locale:
@@ -43,7 +44,9 @@ def format_unit(unit: Unit, long: bool = False, html: bool = False) -> str:  # n
         unit,
         uspec='Z',
         sort_func=None,
-        use_plural=not long,
+        # Pint pluralizes the final numerator component. Reciprocal-only units
+        # have no such component, so asking it to pluralize raises IndexError.
+        use_plural=not long and has_numerator,
         length='long' if long else 'short',
         locale=locale,
     )
