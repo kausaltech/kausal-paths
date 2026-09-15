@@ -27,13 +27,13 @@ from typing import TYPE_CHECKING, Any, Literal
 
 import polars as pl
 
-from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
+from nodes.constants import ARGUMENT_QUANTITY, FORECAST_COLUMN, REFERENCE_TAG, VALUE_COLUMN, YEAR_COLUMN
 
 from .exceptions import NodeError
 from .explanations import TAG_TO_BASKET
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Collection, Container
+    from collections.abc import Callable, Collection, Container, Sequence
 
     from common.polars import PathsDataFrame
     from nodes.datasets import Dataset
@@ -45,7 +45,6 @@ type OperandRole = Literal['additive', 'factor', 'impute']
 ADDITIVE_TAG = 'additive'
 FACTOR_TAG = 'non_additive'
 IMPUTE_TAG = 'impute'
-IGNORE_TAG = 'ignore_content'
 
 #: Tags that name a role outright, in the order they are checked. The arithmetic tags come
 #: first because that is the precedence ``GenericNode`` has always applied; an input tagged
@@ -57,6 +56,71 @@ ROLE_TAGS: dict[str, OperandRole] = {
     FACTOR_TAG: 'factor',
     IMPUTE_TAG: 'impute',
 }
+
+
+def is_non_computational(source: Node) -> bool:
+    """
+    Return True for an input that exists in the graph but never takes part in arithmetic.
+
+    Argument nodes (``quantity: argument``) are documentation: they record a claim or an
+    objection and link it to the number it bears on, so the edge must show up in the graph
+    and in explanations. They carry no value anyone should compute with.
+
+    They used to be neutralised by *arithmetic* — the ``ignore_content`` tag rewrote the
+    frame to the target's no-effect value and then let it be summed, which is a no-op only
+    because adding zero is. That made addition load-bearing for something semantically
+    unrelated to it, with two consequences: the frame still had to satisfy the target's
+    dimension check (so an objection could not be attached to a dimensioned node at all),
+    and every other operation needed its own patch. Excluding the input outright drops both
+    problems, and is what the tag was always trying to approximate. The tag is gone; its
+    other use — an edge whose mathematics is not yet known — is now
+    :func:`is_reference_edge` and ``Node.reference_port``.
+    """
+    return source.quantity == ARGUMENT_QUANTITY
+
+
+def is_reference_edge(target: Node, source: Node) -> bool:
+    """
+    Return True when the link from ``source`` into ``target`` is a reference, not a term.
+
+    The edge-scoped counterpart of :func:`is_non_computational`: both endpoints compute,
+    this one link does not, because the modeller knows the dependency exists and not yet
+    how it works. Reads the tag rather than the resolved port role because the classes
+    holding such edges today are the ones not yet migrated to ports — they have no
+    ``declared_input_ports``, so their bindings never reach role resolution at all
+    (``instance_loader._setup_runtime_inputs``). For a migrated class the same edge
+    resolves to ``Node.reference_port`` and never reaches an operation to begin with.
+    """
+    return any(REFERENCE_TAG in edge.tags for edge in source.edges if edge.output_node is target)
+
+
+def drop_non_computational[T](
+    nodes: Sequence[Node],
+    paired: Sequence[T],
+    *,
+    target: Node | None = None,
+) -> tuple[list[Node], list[T]]:
+    """
+    Filter ``nodes`` down to the computational ones, keeping ``paired`` aligned.
+
+    ``paired`` is whatever the caller holds per node (multipliers, most often); callers
+    with nothing to pair pass an equal-length dummy. Returned lists are always the same
+    length as each other.
+
+    ``target`` is the node the inputs are being resolved *for*. Given it, reference edges
+    into that target are dropped as well — the node lists these legacy helpers receive
+    carry no edge information of their own, so the target is the only way to reach the
+    tag. Omitted, only the node-scoped rule applies.
+    """
+    keep = [
+        (n, p)
+        for n, p in zip(nodes, paired, strict=True)
+        if not is_non_computational(n) and not (target is not None and is_reference_edge(target, n))
+    ]
+    if not keep:
+        return [], []
+    kept_nodes, kept_paired = zip(*keep, strict=True)
+    return list(kept_nodes), list(kept_paired)
 
 
 def role_from_tags(tags: Container[str]) -> OperandRole | None:
@@ -126,7 +190,7 @@ def resolve_input_nodes(
             continue
         source = edge.input_node
         tags = set(edge.tags) | set(source.tags)
-        if IGNORE_TAG in tags or source.id in exclude_ids:
+        if is_non_computational(source) or REFERENCE_TAG in tags or source.id in exclude_ids:
             continue
 
         role = role_from_tags(tags)

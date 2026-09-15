@@ -27,7 +27,7 @@ class Population(Node):  # FIXME Convert functionality to GenericNode
     quantity = 'population'
     historical_port = InputPort.one('historical')
     forecast_port = InputPort.optional('forecast')
-    input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = (historical_port, forecast_port)
+    declared_input_ports: ClassVar[tuple[InputPortDeclaration, ...]] = (historical_port, forecast_port)
 
     @classmethod
     def infer_legacy_port_roles(cls, _meta: NodeMeta, candidates: Sequence[InputPortDef]) -> PortRoleInferenceResult:

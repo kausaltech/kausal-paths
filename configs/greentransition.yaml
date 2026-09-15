@@ -666,7 +666,7 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: transportation_service_level
-    tags: [ignore_content]
+    tags: [reference]
 
 - id: tourism
   name: Turismin määrä
@@ -681,7 +681,7 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: local_business
-    tags: [ignore_content]
+    tags: [reference]
 
 - id: local_business
   name: Paikallisten yritysten liikevaihto
@@ -695,7 +695,7 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: total_economic_benefit
-    tags: [ignore_content]
+    tags: [reference]
 
 - id: number_of_evs
   name: Sähköautojen määrä
@@ -970,9 +970,9 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   input_nodes:
   - id: vehicle_need
-    tags: [ignore_content]
+    tags: [reference]
   - id: number_of_evs
-    tags: [ignore_content]
+    tags: [reference]
   params:
   - id: drop_nulls
     value: true
@@ -987,7 +987,7 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   input_nodes:
   - id: vehicle_number
-    tags: [decrease, ignore_content]
+    tags: [decrease, reference]
 
 - id: car_km
   name: Autokilometrien määrä kaupungissa
@@ -1064,7 +1064,7 @@ nodes:
       value: 300
   output_nodes:
   - id: accessibility
-    tags: [ignore_content]
+    tags: [reference]
 
 - id: accessibility
   name: Liikenteen saavutettavuus
@@ -1190,7 +1190,7 @@ nodes:
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
   - id: transportation_service_level
-    tags: [ignore_content]
+    tags: [reference]
   goals:
   - is_main_goal: true
     default: true

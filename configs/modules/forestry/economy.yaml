@@ -123,7 +123,7 @@ nodes:
     - id: stakeholder
   output_nodes:
   - id: total_cost
-    tags: [ignore_content]
+    tags: [reference]
     to_dimensions:
     - id: cost_type
     - id: stakeholder
@@ -252,7 +252,7 @@ nodes:
   - id: price_of_forest_protection
   output_nodes:
   - id: total_economic_cost
-    tags: [ignore_content]
+    tags: [reference]
 
 - id: price_of_carbon_sinks
   name: Price of carbon sinks
@@ -281,7 +281,7 @@ nodes:
     - id: species
       categories: [pine] # TODO Remove
   - id: price_of_carbon_sinks
-    tags: [ignore_content] # [additive]
+    tags: [reference] # [additive]
     to_dimensions:
     - id: species
       categories: [pine] # TODO Remove
@@ -300,7 +300,7 @@ nodes:
 # #     - id: case
 # #       categories: [case1]
 # #   - id: premature_cuts_destroy_income
-# #     tags: [ignore_content]
+# #     tags: [reference]
 # #   output_nodes:
 # #   - id: total_economic_cost
 # #     to_dimensions:
@@ -421,6 +421,6 @@ actions:
   input_datasets: [sunnydale/forestry_fi]
   output_nodes:
   - id: price_of_carbon_sinks
-    tags: [ignore_content]
+    tags: [reference]
   params:
     sector: Yes/no decision

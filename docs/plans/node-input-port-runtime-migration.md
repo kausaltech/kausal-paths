@@ -290,6 +290,15 @@ making the current snapshot loader grow another lossy projection.
 
 ## Node-facing examples
 
+A class declares its roles in **`declared_input_ports`**, not
+`input_port_declarations`. The latter is computed per subclass by
+`Node.__init_subclass__` as `declared_input_ports` plus the universal
+`Node.reference_port`, so assigning it in a class body is silently overwritten
+and the class loses every role it meant to declare. An empty
+`declared_input_ports` is also what still marks a class as unmigrated
+(`instance_loader._setup_runtime_inputs`), which is why the distinction is not
+cosmetic.
+
 ### BuildingEnergy
 
 `BuildingEnergy` currently selects two datasets by tag and carries a configured
@@ -300,7 +309,7 @@ declared form should be:
 class BuildingEnergy(Node):
     energy_port = InputPort.one('energy', label=_('Building energy'))
     other_fuel_use_port = InputPort.one('other_fuel_use', label=_('Other fuel use'))
-    input_port_declarations = (energy_port, other_fuel_use_port)
+    declared_input_ports = (energy_port, other_fuel_use_port)
 
     def compute(self) -> PathsDataFrame:
         df = self.get_input(self.energy_port)
@@ -331,7 +340,7 @@ class DistrictHeatProductionMix(MixNode, GasGridMixin):
     additive_port = InputPort.multi('additive', required=False, aggregation='sum')
     gas_mix_port = InputPort.optional('gas_mix')
     grid_share_port = InputPort.optional('grid_share')
-    input_port_declarations = (
+    declared_input_ports = (
         base_mix_port,
         additive_port,
         gas_mix_port,

@@ -162,7 +162,26 @@ To combine moral priorities with economic and other criteria: build the moral va
 
 **Files in this module:**
 
-- `value_weights.yaml` — ValueActions (VAL-1–VAL-9), utility nodes, placeholder contribution/risk nodes, `risk_premium_cost`, and `total_utility`. No global weight params; each value's weight is the ValueAction's slider.
+- `value_weights.yaml` — ValueActions (VAL-1–VAL-9), utility nodes, placeholder contribution/risk nodes, `risk_premium_cost`, and `total_utility`.
+- `objections.yaml` — the **objection register**: the arguments a city coordinator meets, each classified and reconstructed against a fixed schema, plus the computed consistency test for the "too small to matter" family. See [`docs/architecture/argumentation.md`](../../../docs/architecture/argumentation.md) for the taxonomy and the literature it comes from — read that before adding an entry. Included in `equalia`; all its nodes compute. The consistency test is structural and needs no dataset — see §4 and §7 of the architecture doc for why that is a property of the argument rather than a shortcut.
+
+## 6. Objections (the other half)
+
+`value_weights.yaml` answers "what do we owe, and how much does each value
+matter to us". It does not help a coordinator who is being *argued at*. That is
+what `objections.yaml` is for.
+
+The two are complements: a value the user weights at zero changes the priority
+ranking, and an objection is what someone says out loud in a committee meeting.
+The register documents the objection in its own terms, classifies it by what is
+actually in dispute (fact / definition / value / authority), by the inference
+pattern it uses, and by what the model can legitimately contribute — including
+`value_only` and `out_of_scope`, which are recorded rather than answered.
+
+The design rule that matters: **the target is the third party, not the
+objector.** Arguments are documented and refuted so that they stop persuading
+the undecided, which requires granting each objection its strongest form and
+conceding the ones that are correct. Objections are documented, never toggled. No global weight params; each value's weight is the ValueAction's slider.
 
 ### Including the module
 

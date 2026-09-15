@@ -331,7 +331,43 @@ Read the reported series directly and say so in the node description. Only an
 emissions-level action can act on such a source, and that is a structural fact to
 record rather than a gap to fill with an invented activity.
 
-### 5.4 Growth drivers
+### 5.4 Dependencies you cannot yet quantify
+
+A workbook often asserts that one quantity bears on another without giving the
+relationship — the causal claim is in a footnote, and the coefficient is
+nowhere. Draw the edge and mark it `tags: [reference]`:
+
+```yaml
+- id: rich_forest_biodiversity_area
+  type: simple.AdditiveNode
+  unit: ha
+  historical_values: [[2010, 200], [2023, 100]]
+  input_nodes:
+  - id: protected_forest_area
+    tags: [reference]
+```
+
+The edge stays in the graph, the editor and the explanations, and **no value is
+computed from it**. It asserts nothing about units, quantities or dimensions, so
+it costs nothing to add and cannot be wrong — which is the point: the dependency
+is recorded where a reader will find it, instead of living in a comment or being
+dropped because it could not be written as arithmetic yet.
+
+Two things to know:
+
+- **It is not a zero.** Earlier models used a tag that rewrote such an input to
+  zero and then summed it. That worked for addition only, and a zeroed frame
+  still contributed its years and forecast flags to the target. A reference is
+  dropped outright, so it cannot lengthen a series or relabel a year.
+- **A whole node, rather than one edge, uses `quantity: argument`** — for a
+  claim or objection that never computes anywhere. `reference` is per edge: both
+  endpoints compute, this one link does not. See
+  [`architecture/argumentation.md`](architecture/argumentation.md).
+
+When the relationship does become known, replace the tag with the arithmetic —
+`non_additive` for a factor, a `FormulaNode` for anything else.
+
+### 5.5 Growth drivers
 
 If the forecast workbook tags each activity with a growth driver, that is the
 model's forecast. Attach the driver as an input node with
@@ -347,7 +383,7 @@ category. Resolve it per category in the dataset and read it as one dimensioned
 driver node. Assert that everything else uses the default driver, so a workbook
 that changes one is caught rather than discovered.
 
-### 5.5 Actions from published reduction curves
+### 5.6 Actions from published reduction curves
 
 If the workbook publishes a per-policy reduction series, wire each one as an
 action subtracting its curve from the sector it acts on (`multiplier` as a
@@ -444,9 +480,9 @@ sum of the published reduction curves.
 - [ ] Emission sectors mirror the inventory's own reporting sectors (§5.1)
 - [ ] Every source is activity × factor where an activity basis exists; sources
       without one documented as emissions-only (§5.2, §5.3)
-- [ ] Growth drivers attached with `ratio_to_max_hist_year` (§5.4)
+- [ ] Growth drivers attached with `ratio_to_max_hist_year` (§5.5)
 - [ ] Published reduction curves wired as actions, with the no-mechanism
-      limitation agreed with the city (§5.5)
+      limitation agreed with the city (§5.6)
 - [ ] Extractor validates against published totals and its own invariants (§6.1)
 - [ ] Model verified for **every** year and sector, and per scenario (§6.2)
 - [ ] Findings register, ranked open questions, and known departures handed back

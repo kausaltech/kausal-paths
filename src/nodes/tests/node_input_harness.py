@@ -32,7 +32,7 @@ def frame(values: Iterable[float], *, unit: str = 'kWh') -> PathsDataFrame:
 
 def node_case(*declarations: InputPortDeclaration) -> Node:
     """Return a minimally initialised Node suitable for input accessor tests."""
-    node_class = type('InputTestNode', (Node,), {'input_port_declarations': declarations})
+    node_class = type('InputTestNode', (Node,), {'declared_input_ports': declarations})
     node: Node = object.__new__(node_class)
     node.id = 'test_node'
     return node

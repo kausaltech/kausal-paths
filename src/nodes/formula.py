@@ -12,7 +12,7 @@ import polars as pl
 
 from common import polars as ppl
 from nodes.calc import convert_to_co2e, extend_last_historical_value_pl
-from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN
+from nodes.constants import FORECAST_COLUMN, REFERENCE_TAG, VALUE_COLUMN
 from nodes.exceptions import NodeError
 from nodes.units import Quantity, QuantityType, Unit, unit_registry
 from params.param import BoolParameter, NumberParameter, StringParameter
@@ -623,18 +623,16 @@ class FormulaNode(Node):
         if implicit_add:
             df = self.add_nodes_pl(df, implicit_add)
 
-        # Unused nodes (not in formula, not ignore_content, not impute) are also added for backward compatibility
+        # Unused nodes (not in formula, not a reference, not impute) are also added for
+        # backward compatibility. Argument nodes need no clause here: add_nodes_pl drops
+        # every non-computational input itself (see nodes.operands.is_non_computational).
         all_nodes = set(varss.nodes.values())
         used_nodes = {varss.nodes[name] for name in used_node_names if name in varss.nodes}
         unused_nodes = list(all_nodes - used_nodes)
         for edge in self.edges:
             node = edge.input_node
             if node in unused_nodes and (
-                'ignore_content' in edge.tags
-                or 'ignore_content' in node.tags
-                or 'impute' in edge.tags
-                or 'impute' in node.tags
-                or node.quantity == 'argument'
+                REFERENCE_TAG in edge.tags or REFERENCE_TAG in node.tags or 'impute' in edge.tags or 'impute' in node.tags
             ):
                 unused_nodes.remove(node)
 
