@@ -23,6 +23,7 @@ from nodes.instance_serialization import (
 )
 from nodes.node import Node
 from nodes.units import unit_registry
+from params.param import StringParameter
 
 pytestmark = pytest.mark.django_db
 
@@ -587,3 +588,142 @@ def test_quantity_mismatch_on_same_shape_rule() -> None:
     result = graph.solve_constraints()
     conflict = next(c for c in result.conflicts if c.code == 'quantity_mismatch')
     assert all(origin.kind == 'declaration' for origin in conflict.origins)
+
+
+# --- Unit-changing semantics the rules have to state ------------------------------------
+
+
+def _tagged_edge(source: NodeSnapshot, source_port: UUID, target: NodeSnapshot, target_port: UUID, tags: list[str]):
+    edge = _edge(source, source_port, target, target_port)
+    return edge.model_copy(update={'tags': tags})
+
+
+def test_geometric_inverse_factor_divides_the_product() -> None:
+    """A ``geometric_inverse`` factor is a divisor, so the product's unit is a quotient."""
+    numerator_port = InputPortDef(id=uuid4(), identifier='pkm', unit=_unit('Mpkm/a'))
+    divisor_port = InputPortDef(id=uuid4(), identifier='population', unit=_unit('cap'))
+    target, output_id = _multiplicative_target([numerator_port, divisor_port], output_unit='Mpkm/cap/a')
+    numerator, numerator_out = _source_node('pkm', 'Mpkm/a')
+    divisor, divisor_out = _source_node('population', 'cap')
+    graph = _build(
+        [numerator, divisor, target],
+        [
+            _edge(numerator, numerator_out, target, numerator_port.id),
+            _tagged_edge(divisor, divisor_out, target, divisor_port.id, ['geometric_inverse']),
+        ],
+    )
+
+    result = graph.solve_constraints()
+    assert result.converged
+    assert _codes(result) == set()
+    assert result.shapes[PortValue(target.uuid, output_id, 'output')].unit == _unit('Mpkm/cap/a')
+
+
+def test_geometric_inverse_factor_is_not_multiplied_into_the_product() -> None:
+    """The pre-fix behaviour — multiplying the divisor — would have to conflict here."""
+    numerator_port = InputPortDef(id=uuid4(), identifier='pkm', unit=_unit('Mpkm/a'))
+    divisor_port = InputPortDef(id=uuid4(), identifier='population', unit=_unit('cap'))
+    target, _output_id = _multiplicative_target([numerator_port, divisor_port], output_unit='Mpkm*cap/a')
+    numerator, numerator_out = _source_node('pkm', 'Mpkm/a')
+    divisor, divisor_out = _source_node('population', 'cap')
+    graph = _build(
+        [numerator, divisor, target],
+        [
+            _edge(numerator, numerator_out, target, numerator_port.id),
+            _tagged_edge(divisor, divisor_out, target, divisor_port.id, ['geometric_inverse']),
+        ],
+    )
+
+    result = graph.solve_constraints()
+    assert 'unit_incompatible' in _codes(result)
+
+
+def test_an_opaque_factor_tag_states_no_product_rule() -> None:
+    """``complement`` re-units its factor, so the product declines rather than guess."""
+    factor_port = InputPortDef(id=uuid4(), identifier='factor', unit=_unit('t/a'))
+    share_port = InputPortDef(id=uuid4(), identifier='share', unit=_unit('%'))
+    target, output_id = _multiplicative_target([factor_port, share_port], output_unit='kg/a')
+    factor, factor_out = _source_node('factor', 't/a')
+    share, share_out = _source_node('share', '%')
+    graph = _build(
+        [factor, share, target],
+        [
+            _edge(factor, factor_out, target, factor_port.id),
+            _tagged_edge(share, share_out, target, share_port.id, ['complement']),
+        ],
+    )
+
+    result = graph.solve_constraints()
+    assert result.converged
+    assert _codes(result) == set()
+    # No product rule was stated, so the output keeps only what it declares.
+    assert result.shapes[PortValue(target.uuid, output_id, 'output')].unit == _unit('kg/a')
+
+
+def _ratio_target(
+    port: InputPortDef,
+    params: list,
+    output_unit: str = '',
+    output_quantity: str | None = None,
+) -> tuple[NodeSnapshot, UUID]:
+    output_id = uuid4()
+    snapshot = NodeSnapshot(
+        uuid=uuid4(),
+        identifier='target',
+        spec=NodeSpec(
+            type_config=SimpleConfig(node_class='simple.AdditiveNode'),
+            input_ports=[port],
+            output_ports=[OutputPortDef(id=output_id, identifier='default', unit=_unit(output_unit), quantity=output_quantity)],
+            params=params,
+        ),
+    )
+    return snapshot, output_id
+
+
+@pytest.mark.parametrize(
+    ('param', 'input_unit', 'input_quantity', 'output_quantity'),
+    [
+        (StringParameter(local_id='reference_category', value='pollutant:co2'), 'g/kWh', 'emission_factor', 'emission_factor'),
+        (StringParameter(local_id='share_dimension', value='age'), 'cap', 'population', 'fraction'),
+    ],
+)
+def test_a_normalizing_additive_node_outputs_a_dimensionless_ratio(
+    param, input_unit: str, input_quantity: str, output_quantity: str
+) -> None:
+    """``reference_category`` and ``share_dimension`` divide the sum by a slice of itself."""
+    port = InputPortDef(id=uuid4(), identifier='additive', multi=True, unit=_unit(input_unit), quantity=input_quantity)
+    target, output_id = _ratio_target(port, [param], output_quantity=output_quantity)
+    source, source_port = _source_node('a', input_unit, quantity=input_quantity)
+    graph = _build([source, target], [_edge(source, source_port, target, port.id)])
+
+    result = graph.solve_constraints()
+    assert result.converged
+    assert _codes(result) == set()
+    output = result.shapes[PortValue(target.uuid, output_id, 'output')]
+    assert output.unit == _unit('')
+    assert output.quantity == output_quantity
+
+
+def test_a_plain_additive_node_still_shares_its_inputs_unit() -> None:
+    """Without a normalizing param the output must keep the inputs' unit."""
+    port = InputPortDef(id=uuid4(), identifier='additive', multi=True, unit=_unit('g/kWh'))
+    target, _output_id = _ratio_target(port, [], output_unit='')
+    source, source_port = _source_node('a', 'g/kWh')
+    graph = _build([source, target], [_edge(source, source_port, target, port.id)])
+
+    result = graph.solve_constraints()
+    assert 'unit_incompatible' in _codes(result)
+
+
+def test_a_normalizing_additive_node_keeps_its_dimensions() -> None:
+    """Dividing by a reference category reindexes nothing, so the dimensions survive."""
+    pollutant = _dimension('pollutant', 'co2', 'nox')
+    port = InputPortDef(id=uuid4(), identifier='additive', multi=True, unit=_unit('g/kWh'))
+    target, output_id = _ratio_target(port, [StringParameter(local_id='reference_category', value='pollutant:co2')])
+    source, source_port = _source_node('a', 'g/kWh', dimensions=['pollutant'])
+    graph = _build([source, target], [_edge(source, source_port, target, port.id)], dimensions=(pollutant,))
+
+    result = graph.solve_constraints()
+    assert result.converged
+    assert _codes(result) == set()
+    assert result.shapes[PortValue(target.uuid, output_id, 'output')].dimensions == {pollutant.id}
