@@ -140,8 +140,8 @@ dimensions:
     label: Tuotosvaikutus
     label_en: Gross output
   - id: carbon_shadow
-    label: Hiilen varjohinta
-    label_en: Shadow cost of carbon
+    label: Päästökustannus
+    label_en: Emissions cost
   - id: health_impacts
     label: Terveysvaikutukset
     label_en: Health impacts
@@ -171,6 +171,9 @@ dimensions:
   - id: gas_biogas
     label: Kaasu/Biokaasu
     label_en: Gas/Biogas
+  - id: plusbus
+    label: Plusbussi/Sähkö
+    label_en: Plusbus/Electricity
 
 - id: road_type
   label: Tietyyppi
@@ -538,9 +541,12 @@ dimensions:
   - id: smart_grid_and_virtual_power_plant_development
     label: Älykäs energiaverkko ja virtuaalilaitoksen kehitys
     label_en: Smart grid and virtual power plant development
-  - id: superbus_investments
-    label: Superbussi-investoinnit
-    label_en: Superbus investments
+  - id: plusbus_investments
+    label: Plusbussi-investoinnit
+    label_en: Plusbus investments
+  - id: energy_efficiency_renovations_in_private_buildings
+    label: Korjausrakentaminen yksityisissä kiinteistöissä
+    label_en: Energy efficiency renovations in private buildings
 
 # ----- Kelicobe
 
