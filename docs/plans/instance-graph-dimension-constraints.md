@@ -1232,11 +1232,9 @@ dataset revision isolation tests pass.
 
 - ~~Drop the `NodeEdge` / `DatasetPort` tables~~ (done 2026-08-30, below).
 - ~~Stop generating `supported_dimensions` and remove the Pydantic field~~
-  (done 2026-08-31, below). The GraphQL surface (deprecated read field
-  resolving to an empty list, deprecated ignored input field) remains until
-  the editor UI's queries are confirmed migrated — remove it together with
-  the identifier-based inputs.
-- Remove identifier-based GraphQL inputs after measured client migration.
+  (done 2026-08-31, below); ~~its GraphQL surface~~ (done 2026-09-15, below).
+- ~~Remove identifier-based GraphQL inputs after measured client migration~~
+  (done 2026-09-15, below; `NodePortRef.nodeId` stays, see the note).
 - Remove snapshot identifier upgraders only when the supported revision window
   allows it; keep offline export upgrade tooling longer if needed.
 - Remove legacy multiplicative role inference and the split-binding projection.
@@ -1248,6 +1246,37 @@ dataset revision isolation tests pass.
 - ~~Retire `DatasetPortSpec.output_dimensions` once schema + ops derive it~~
   (done 2026-08-31, below; the non-executing `flatten` placeholder was already
   gone — step 2).
+
+Implementation note (2026-09-15, deprecated GraphQL surface removed): one
+schema change covering everything the identifier era left behind —
+`supportedDimensions` (read field and `InputPortInput` field), the four legacy
+`createEdge` fields (`fromNodeId` / `toNodeId` / `fromPort` / `toPort`), the
+`toRef` / `nodeRef` aliases, the `selectCategories` / `assignCategory` /
+`flatten` members of `EdgeTransformationInput` together with their input
+types and the three never-emitted output types in `PortTransformationUnion`
+(every reader passes through `modernized_transformations()`, so the union
+members were unreachable), and the `updateNode` / `deleteNode` /
+`addNodeInputPort` / `addNodeOutputPort` mutations that `nodeEditor` replaced.
+The UI checkout (2026-09-11) uses none of them; its `toEdgeTransformationInputs`
+branches for the legacy output types were dead code. Two decisions:
+
+- The legacy fields carried one behavior the canonical form lacked: omitting
+  `toPort` invoked the step-8 connect-time port planning, and omitting
+  `fromPort` selected the node's only output. `NodePortRefInput.portId` is now
+  optional with exactly those semantics, so planning stays reachable (the UI
+  always names the port; the assistant toolkit resolves ports client-side).
+  `fromRef` / `portRef` became required.
+- `NodePortRef.nodeId` (the human-readable identifier on refs) is **kept**,
+  still deprecated: the UI's dataset query reads it deliberately because
+  `model.nodes(id:)` resolves identifiers, not UUIDs. Removing it waits on
+  that resolver accepting UUIDs; it is not a pk leak, so there is no hurry.
+
+Gates: schema export diff limited to the listed removals plus the `portId`
+nullability change; `test_model_editor`, `test_revisions` and
+`test_dataset_bindings_graphql` migrated to `nodeEditor` and `fromRef` /
+`portRef` (the `trailhead_demo_smoke` command likewise, declaring its
+ex-`flatten` dimensions as `requiredDimensions` on the port it adds); full
+`src/` pytest, repo mypy and ruff clean.
 
 Implementation note (2026-08-31, parse-oracle repair): before starting these
 slices the oracle's 4/53 state was diagnosed and fixed — two defects in the

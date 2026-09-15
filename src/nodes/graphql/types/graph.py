@@ -54,12 +54,6 @@ class NodeEdgeType(EditableEntity):
     port_ref: NodePortRef = sb.field(description='Reference to the node and input port this edge binds to.')
     tags: list[str]
 
-    @sb.field(deprecation_reason='Use portRef instead.')
-    @staticmethod
-    def to_ref(root: 'NodeEdgeType') -> NodePortRef:
-        """Compatibility alias for the target port reference."""
-        return root.port_ref
-
     _node: sb.Private['Node | None'] = None
     """The target node that this edge feeds into (set when resolving input port bindings)."""
 
@@ -204,12 +198,6 @@ class DatasetPortType(EditableEntity):
     )
     external_metric_id: str | None = sb.field(description='Stable identifier of the metric within the external dataset.')
     tags: list[str] = sb.field(description='Legacy semantic tags carried by this binding.')
-
-    @sb.field(deprecation_reason='Use portRef instead.')
-    @staticmethod
-    def node_ref(root: 'DatasetPortType') -> NodePortRef:
-        """Compatibility alias for the bound input port reference."""
-        return root.port_ref
 
     _node: sb.Private['Node | None'] = None
     """The node that owns the bound input port (set when resolving input port bindings)."""

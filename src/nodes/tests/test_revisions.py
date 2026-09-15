@@ -605,9 +605,11 @@ mutation CreateNode($instanceId: ID!, $input: CreateNodeInput!) {
 UPDATE_NODE_PoC = """
 mutation UpdateNode($instanceId: ID!, $nodeId: ID!, $input: UpdateNodeInput!) {
     instanceEditor(instanceId: $instanceId) {
-        updateNode(nodeId: $nodeId, input: $input) {
-            ... on NodeInterface { identifier name }
-            ... on OperationInfo { messages { kind message } }
+        nodeEditor(nodeId: $nodeId) {
+            update(input: $input) {
+                ... on NodeInterface { identifier name }
+                ... on OperationInfo { messages { kind message } }
+            }
         }
     }
 }
@@ -616,8 +618,10 @@ mutation UpdateNode($instanceId: ID!, $nodeId: ID!, $input: UpdateNodeInput!) {
 DELETE_NODE_PoC = """
 mutation DeleteNode($instanceId: ID!, $nodeId: ID!) {
     instanceEditor(instanceId: $instanceId) {
-        deleteNode(nodeId: $nodeId) {
-            messages { kind message }
+        nodeEditor(nodeId: $nodeId) {
+            delete {
+                messages { kind message }
+            }
         }
     }
 }
@@ -1508,8 +1512,8 @@ def test_poc_create_edge_emits_change_operation(gql_client, empty_db_instance: I
             'instanceId': str(empty_db_instance.pk),
             'input': {
                 'instanceId': str(empty_db_instance.pk),
-                'fromNodeId': src.identifier,
-                'toNodeId': dst.identifier,
+                'fromRef': {'nodeUuid': str(src.uuid)},
+                'portRef': {'nodeUuid': str(dst.uuid)},
             },
         },
     )
@@ -1629,9 +1633,9 @@ def test_create_edge_auto_creates_matching_target_port(
             'instanceId': str(empty_db_instance.pk),
             'input': {
                 'instanceId': str(empty_db_instance.pk),
-                'fromNodeId': src.identifier,
-                'toNodeId': dst.identifier,
-                # toPort omitted — auto-create is expected
+                'fromRef': {'nodeUuid': str(src.uuid)},
+                # portId omitted — auto-create is expected
+                'portRef': {'nodeUuid': str(dst.uuid)},
             },
         },
     )

@@ -139,9 +139,11 @@ mutation CreateEdge($instanceId: ID!, $input: CreateEdgeInput!) {
 ADD_NODE_INPUT_PORT = """
 mutation AddNodeInputPort($instanceId: ID!, $nodeId: ID!, $input: InputPortInput!) {
     instanceEditor(instanceId: $instanceId) {
-        addNodeInputPort(nodeId: $nodeId, input: $input) {
-            ... on InputPortType { id quantity unit { standard } }
-            ... on OperationInfo { messages { kind message } }
+        nodeEditor(nodeId: $nodeId) {
+            addInputPort(input: $input) {
+                ... on InputPortType { id quantity unit { standard } }
+                ... on OperationInfo { messages { kind message } }
+            }
         }
     }
 }
@@ -379,18 +381,21 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(f'✓ Created node {action_id}'))
 
         # 7. Wire edges. For each metric: add a fresh matching input port
-        # on the target, then connect the edge with the same dimension
-        # transformations CCS uses (flatten unused dimensions). This is
-        # what produces a computable model rather than just tracked
-        # structure.
+        # on the target, declaring the dimensions CCS delivers on it, then
+        # connect the edge. This is what produces a computable model rather
+        # than just tracked structure.
         edge_plan = [
             # (metric, target_node, output_unit, output_quantity,
-            #  flatten_dimensions_before_target)
+            #  dimensions_declared_on_the_target_port)
             ('emissions', 'chp_emissions', 't/a', 'emissions', ['energy_usage', 'cost_type']),
             ('energy', 'electricity_demand', 'TJ/a', 'energy', ['cost_type', 'sector', 'ghg']),
             ('currency', 'energy_costs', 'DKK/a', 'currency', ['energy_carrier', 'energy_usage', 'ghg']),
         ]
-        for metric_key, target, unit, quantity, flatten_dims in edge_plan:
+        node_uuids = {
+            nc.identifier: str(nc.uuid)
+            for nc in ic.nodes.filter(identifier__in=[action_id, *(target for _, target, *_ in edge_plan)])
+        }
+        for metric_key, target, unit, quantity, declared_dims in edge_plan:
             # 7a. Add a new input port on the target that accepts this quantity.
             port_resp = client.query_data(
                 ADD_NODE_INPUT_PORT,
@@ -401,24 +406,21 @@ class Command(BaseCommand):
                         'quantity': quantity,
                         'unit': unit,
                         'multi': False,
+                        'requiredDimensions': declared_dims,
                     },
                 },
             )
-            to_port_id = port_resp['instanceEditor']['addNodeInputPort']['id']
+            to_port_id = port_resp['instanceEditor']['nodeEditor']['addInputPort']['id']
 
-            # 7b. Connect the edge with the matching flatten transformations.
-            transformations = [{'flatten': {'dimension': dim}} for dim in flatten_dims]
+            # 7b. Connect the edge.
             resp = client.query(
                 CREATE_EDGE,
                 variables={
                     'instanceId': str(ic.pk),
                     'input': {
                         'instanceId': str(ic.pk),
-                        'fromNodeId': action_id,
-                        'fromPort': port_uuids[metric_key],
-                        'toNodeId': target,
-                        'toPort': to_port_id,
-                        'transformations': transformations,
+                        'fromRef': {'nodeUuid': node_uuids[action_id], 'portId': port_uuids[metric_key]},
+                        'portRef': {'nodeUuid': node_uuids[target], 'portId': to_port_id},
                     },
                 },
                 assert_no_errors=False,

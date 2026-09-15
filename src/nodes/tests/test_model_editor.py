@@ -725,7 +725,8 @@ def test_set_instance_locked_can_unlock_locked_instance(gql_client: PathsTestCli
 UPDATE_NODE = gql("""
 mutation UpdateNode($instanceId: ID!, $nodeId: ID!, $input: UpdateNodeInput!) {
     instanceEditor(instanceId: $instanceId) {
-        updateNode(nodeId: $nodeId, input: $input) {
+      nodeEditor(nodeId: $nodeId) {
+        update(input: $input) {
             ... on NodeInterface {
                 identifier
                 name
@@ -780,6 +781,7 @@ mutation UpdateNode($instanceId: ID!, $nodeId: ID!, $input: UpdateNodeInput!) {
             }
             ... on OperationInfo { messages { kind message } }
         }
+      }
     }
 }
 """)
@@ -859,7 +861,7 @@ def test_update_node_direct_fields(gql_client: PathsTestClient, db_instance_conf
             },
         },
     )
-    node = data['instanceEditor']['updateNode']
+    node = data['instanceEditor']['nodeEditor']['update']
     assert node['name'] == 'Updated'
     assert node['color'] == '#00ff00'
     assert node['isVisible'] is False
@@ -1229,7 +1231,7 @@ def test_update_node_modeling_fields(gql_client: PathsTestClient, db_instance_co
         },
     )
 
-    node = data['instanceEditor']['updateNode']
+    node = data['instanceEditor']['nodeEditor']['update']
     assert node['kind'] == 'ACTION'
     assert node['shortName'] == 'CCS'
     assert node['description'] == 'Carbon capture update'
@@ -1452,8 +1454,10 @@ def test_update_node_not_found(gql_client: PathsTestClient, db_instance_config: 
 DELETE_NODE = gql("""
 mutation DeleteNode($instanceId: ID!, $nodeId: ID!) {
     instanceEditor(instanceId: $instanceId) {
-        deleteNode(nodeId: $nodeId) {
-            messages { kind message }
+        nodeEditor(nodeId: $nodeId) {
+            delete {
+                messages { kind message }
+            }
         }
     }
 }
@@ -1554,11 +1558,6 @@ mutation CreateEdge($instanceId: ID!, $input: CreateEdgeInput!) {
                     nodeId
                     portId
                 }
-                toRef {
-                    nodeUuid
-                    nodeId
-                    portId
-                }
                 transformations {
                     __typename
                     ... on FilterDimensionType {
@@ -1566,9 +1565,6 @@ mutation CreateEdge($instanceId: ID!, $input: CreateEdgeInput!) {
                     }
                     ... on AssignDimensionType {
                         dimension category
-                    }
-                    ... on FlattenType {
-                        dimension
                     }
                 }
                 tags
@@ -1587,6 +1583,27 @@ mutation DeleteEdge($instanceId: ID!, $edgeId: ID!) {
     }
 }
 """)
+
+
+def _edge_input(
+    ic: InstanceConfig,
+    from_node: str,
+    to_node: str,
+    *,
+    from_port: UUID | None = None,
+    to_port: UUID | None = None,
+    **extra: Any,
+) -> dict[str, Any]:
+    """Build a `CreateEdgeInput` from node identifiers; ports omitted are left for the server to plan."""
+    from nodes.models import NodeConfig
+
+    nodes = {nc.identifier: nc for nc in NodeConfig.objects.filter(instance=ic, identifier__in=[from_node, to_node])}
+    return {
+        'instanceId': str(ic.pk),
+        'fromRef': {'nodeUuid': str(nodes[from_node].uuid), 'portId': str(from_port) if from_port else None},
+        'portRef': {'nodeUuid': str(nodes[to_node].uuid), 'portId': str(to_port) if to_port else None},
+        **extra,
+    }
 
 
 def test_create_and_delete_edge(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
@@ -1611,18 +1628,14 @@ def test_create_and_delete_edge(gql_client: PathsTestClient, db_instance_config:
         ),
     )
 
-    # Create; the deprecated legacy input vocabulary is still accepted, but it
-    # is stored and read back in the current one.
     data = gql_client.query_data(
         CREATE_EDGE,
         variables={
             'instanceId': str(db_instance_config.pk),
             'input': {
-                'instanceId': str(db_instance_config.pk),
-                'fromNodeId': 'node_a',
-                'toNodeId': 'node_b',
+                **_edge_input(db_instance_config, 'node_a', 'node_b'),
                 'transformations': [
-                    {'selectCategories': {'dimension': 'sector', 'categories': ['buildings'], 'flatten': True}},
+                    {'filterDimension': {'dimension': 'sector', 'categories': ['buildings'], 'flatten': True}},
                 ],
             },
         },
@@ -1635,7 +1648,6 @@ def test_create_and_delete_edge(gql_client: PathsTestClient, db_instance_config:
     assert edge['portRef']['nodeId'] == 'node_b'
     assert edge['portRef']['nodeUuid'] == str(nc_b.uuid)
     assert edge['portRef']['portId'] == str(_port_uuid('input'))
-    assert edge['toRef'] == edge['portRef']
     assert edge['transformations'] == [
         {
             '__typename': 'FilterDimensionType',
@@ -1768,14 +1780,9 @@ def test_create_edge_replace_requires_an_explicit_to_port(gql_client: PathsTestC
         CREATE_EDGE,
         variables={
             'instanceId': str(db_instance_config.pk),
-            'input': {
-                'instanceId': str(db_instance_config.pk),
-                'fromNodeId': 'node_a',
-                'toNodeId': 'node_b',
-                'replace': True,
-            },
+            'input': _edge_input(db_instance_config, 'node_a', 'node_b', replace=True),
         },
-        assert_error_message='requires an explicit `toPort`',
+        assert_error_message='requires an explicit `portRef.portId`',
     )
 
 
@@ -1802,13 +1809,7 @@ def test_create_edge_replace_displaces_the_existing_edge(gql_client: PathsTestCl
         CREATE_EDGE,
         variables={
             'instanceId': str(db_instance_config.pk),
-            'input': {
-                'instanceId': str(db_instance_config.pk),
-                'fromNodeId': 'node_c',
-                'toNodeId': 'node_b',
-                'toPort': str(_port_uuid('input')),
-                'replace': True,
-            },
+            'input': _edge_input(db_instance_config, 'node_c', 'node_b', to_port=_port_uuid('input'), replace=True),
         },
     )['instanceEditor']['createEdge']
 
@@ -1836,13 +1837,7 @@ def test_create_edge_replace_displaces_a_dataset_binding(gql_client: PathsTestCl
         CREATE_EDGE,
         variables={
             'instanceId': str(db_instance_config.pk),
-            'input': {
-                'instanceId': str(db_instance_config.pk),
-                'fromNodeId': 'node_a',
-                'toNodeId': 'node_b',
-                'toPort': str(_port_uuid('input')),
-                'replace': True,
-            },
+            'input': _edge_input(db_instance_config, 'node_a', 'node_b', to_port=_port_uuid('input'), replace=True),
         },
     )
 
@@ -1990,7 +1985,6 @@ query ModelInstanceTest($id: ID!) {
                         quantity
                         multi
                         requiredDimensions
-                        supportedDimensions
                         bindings {
                             __typename
                             ... on NodeEdgeType {
@@ -2705,11 +2699,7 @@ def test_create_edge_roundtrip(gql_client: PathsTestClient, db_instance_config: 
         CREATE_EDGE,
         variables={
             'instanceId': str(db_instance_config.pk),
-            'input': {
-                'instanceId': str(db_instance_config.pk),
-                'fromNodeId': 'src',
-                'toNodeId': 'dst',
-            },
+            'input': _edge_input(db_instance_config, 'src', 'dst'),
         },
     )
 
@@ -2739,11 +2729,7 @@ def test_create_edge_rejects_quantity_mismatch(gql_client: PathsTestClient, db_i
         CREATE_EDGE,
         variables={
             'instanceId': str(db_instance_config.pk),
-            'input': {
-                'instanceId': str(db_instance_config.pk),
-                'fromNodeId': 'src',
-                'toNodeId': 'dst',
-            },
+            'input': _edge_input(db_instance_config, 'src', 'dst'),
         },
     )
     result = data['instanceEditor']['createEdge']
@@ -2790,13 +2776,9 @@ def test_create_edge_rejects_second_binding_for_non_multi_port(gql_client: Paths
         CREATE_EDGE,
         variables={
             'instanceId': str(db_instance_config.pk),
-            'input': {
-                'instanceId': str(db_instance_config.pk),
-                'fromNodeId': 'src_b',
-                'toNodeId': 'dst',
-                'fromPort': str(_port_uuid('default')),
-                'toPort': str(_port_uuid('input')),
-            },
+            'input': _edge_input(
+                db_instance_config, 'src_b', 'dst', from_port=_port_uuid('default'), to_port=_port_uuid('input')
+            ),
         },
         assert_error_message='already has a binding',
     )
@@ -2837,13 +2819,9 @@ def test_create_edge_allows_second_binding_for_multi_port(gql_client: PathsTestC
         CREATE_EDGE,
         variables={
             'instanceId': str(db_instance_config.pk),
-            'input': {
-                'instanceId': str(db_instance_config.pk),
-                'fromNodeId': 'src_b',
-                'toNodeId': 'dst',
-                'fromPort': str(_port_uuid('default')),
-                'toPort': str(_port_uuid('input')),
-            },
+            'input': _edge_input(
+                db_instance_config, 'src_b', 'dst', from_port=_port_uuid('default'), to_port=_port_uuid('input')
+            ),
         },
     )
     edge = data['instanceEditor']['createEdge']
@@ -3112,11 +3090,7 @@ def test_connect_instantiates_a_declared_factor_port(gql_client: PathsTestClient
             CREATE_EDGE,
             variables={
                 'instanceId': str(db_instance_config.pk),
-                'input': {
-                    'instanceId': str(db_instance_config.pk),
-                    'fromNodeId': from_node,
-                    'toNodeId': 'product',
-                },
+                'input': _edge_input(db_instance_config, from_node, 'product'),
             },
         )['instanceEditor']['createEdge']
 
