@@ -8,7 +8,6 @@ from wagtail.snippets.models import register_snippet
 
 from wagtail_color_panel.edit_handlers import NativeColorPanel
 
-from kausal_common.admin_site.panels import SuperuserOnlyFieldPanel
 from kausal_common.i18n.panels import TranslatedFieldPanel, TranslatedFieldRowPanel
 
 from admin_site.viewsets import PathsViewSet
