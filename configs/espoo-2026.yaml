@@ -2820,7 +2820,7 @@ actions:
   output_dimensions: [emission_sector]
   input_datasets:
   - id: espoo/teollisuuden_ja_tyokoneiden_paastojen_vahentaminen
-    forecast_from: 2025
+    forecast_from: 2026
     column: vahennysprosentti
   output_nodes:
   - id: industry_machinery_emissions
