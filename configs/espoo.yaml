@@ -3,7 +3,7 @@ default_language: fi
 supported_languages: [sv, en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 9e9c2483ba4459868b35f3a763a0b97c30753cae
+  commit: 83849ed18b383d4b1cb72821b1ebe1ceaca4f84b
   # commit: a9aadd988475e40d3e69fcfc15cfa18abedfed10 # Commit before DB -> DVC update.
   dvc_remote: kausal-s3
 name_fi: Hiilineutraali Espoo 2030
@@ -18,7 +18,7 @@ model_end_year: 2035
 target_year: 2030
 reference_year: 1990
 minimum_historical_year: 1990
-maximum_historical_year: 2024
+maximum_historical_year: 2025
 features:
   baseline_visible_in_graphs: false
   show_accumulated_effects: true
