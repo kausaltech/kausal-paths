@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from enum import Enum
+from importlib.util import find_spec
 from typing import Annotated
 from uuid import UUID
 
@@ -157,14 +158,7 @@ class GrapheneMutations(FrameworksMutations):
     pass
 
 
-SBQuery = merge_types('Query', (SBNodesQuery, ModelEditorQuery, SBParamsQuery, CommonQuery, UsersQuery))
-
-
-@sb.type
-class Query(GrapheneQuery, SBQuery):  # type: ignore[valid-type, misc]
-    pass
-
-
+SB_QUERY_TYPES: list[type] = [SBNodesQuery, ModelEditorQuery, SBParamsQuery, CommonQuery, UsersQuery]
 SB_MUTATION_TYPES: list[type] = [
     NodesMutation,
     ModelEditorMutation,
@@ -172,8 +166,21 @@ SB_MUTATION_TYPES: list[type] = [
     FrameworkMutation,
     UsersMutation,
 ]
+if find_spec('kausal_paths_extensions') is not None:
+    from kausal_paths_extensions import schema as _kpe_schema  # type: ignore[import-not-found]
+
+    SB_QUERY_TYPES.append(_kpe_schema.Query)
+    SB_MUTATION_TYPES.append(_kpe_schema.Mutation)
 if test_mode_enabled():
     SB_MUTATION_TYPES.append(TestModeMutations)
+
+SBQuery = merge_types('Query', tuple(SB_QUERY_TYPES))
+
+
+@sb.type
+class Query(GrapheneQuery, SBQuery):  # type: ignore[valid-type, misc]
+    pass
+
 
 SBMutation = merge_types('Mutation', tuple(SB_MUTATION_TYPES))
 
