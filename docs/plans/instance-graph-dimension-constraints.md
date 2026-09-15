@@ -657,6 +657,16 @@ identifier during common graph construction.
 **Gate:** the document, compatibility assumptions, and measured baseline agree
 with current production-shaped data.
 
+Note (2026-09-15): the document had fallen behind the plan — its "Current
+state and next steps" still listed unified bindings, the flatten retirement,
+consuming-port execution, node signatures and propagation as *next*. Rewritten
+to the landed state with the step 6–8 decisions graduated into it (role
+semantics, the untrusted-subclass rule, baseline-diff validation, strict
+publication, the binding-tag whitelist, the two single authorities for binding
+order and dataset grouping). The performance baseline this step asked for was
+never recorded and is still open; the only numbers are the step-7 "all 66
+instances solve under 100 ms" remark.
+
 ### 2. Retire the `flatten` placeholder onto port declarations
 
 Independent of the graph and deliberately early: it removes a non-executable
