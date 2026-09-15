@@ -194,7 +194,7 @@ legacy runtime-introspection exporter remains available explicitly through
 - `nodes/instance_parser.py` — parses YAML into an `InstanceSnapshot`
 - `nodes/spec_sync.py` — writes parsed snapshots to the database
 - `nodes/spec_export.py` — legacy runtime-introspection exporter
-- `nodes/instance_from_db.py` — serializes DB specs back to config dicts for InstanceLoader
+- `nodes/instance_loader.py` — builds the runtime natively from an `InstanceSnapshot` (the config-dict shim is gone)
 - `nodes/management/commands/sync_instance_to_db.py` — management command
 
 ## 9. NodeSpecExtra: the attic

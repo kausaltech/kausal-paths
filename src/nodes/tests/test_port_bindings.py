@@ -35,7 +35,6 @@ from nodes.defs.transform_def import (
     SetForecastFromOp,
     unsupported_transformations_for_binding,
 )
-from nodes.instance_from_db import _serialize_dataset_groups
 from nodes.instance_serialization import DatasetMetricSource, InputBindingSnapshot, group_unified_dataset_bindings
 from nodes.spec_export import _drop_ambiguous_port_identifiers, _port_identifier_for_column
 from nodes.units import unit_registry
@@ -351,7 +350,10 @@ def _serialize_node_rows(
     node_spec: NodeSpec | None = None,
 ) -> list[dict[str, Any]]:
     groups = group_unified_dataset_bindings([(row, 0) for row in rows], {node: node_spec})
-    return _serialize_dataset_groups(groups.get(node, []))
+    return [
+        spec.to_input_dataset(id=dataset_id).model_dump(mode='json', exclude_defaults=True, exclude_none=True)
+        for spec, dataset_id, _rows in groups.get(node, [])
+    ]
 
 
 def test_two_bindings_of_one_dataset_stay_separate_when_specs_match():

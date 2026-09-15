@@ -21,12 +21,14 @@ from nodes.defs.transform_def import (
     DropNullsOp,
     EnsureUnitOp,
     ExtendOp,
+    FilterColumnOp,
     FilterDimensionOp,
     FilterTemporalOp,
     IndexTemporalOp,
     InterpolateOp,
     RemapLegacyYearsOp,
     RenameColumnOp,
+    RenameItemOp,
     SelectMetricOp,
     SetForecastFromOp,
 )
@@ -301,47 +303,52 @@ def test_a_binding_forecast_year_is_not_overridden_by_the_dataset_default():
     assert forecast_from_transformations(with_forecast_from(ops, 2030)) == 2025
 
 
-def test_explanations_still_describe_a_pipeline_shaped_dataset_config():
-    """
-    The explanation text must not depend on which config source the instance uses.
+def test_explanations_describe_the_dataset_pipeline_in_order():
+    """The explanation text is derived from the typed pipeline, whichever config source produced it."""
+    from nodes.defs.node_defs import InputDatasetDef
+    from nodes.explanations import DatasetRule, _drops_nulls, _forecast_from, dataset_pipeline
 
-    Database-backed instances carry an ordered pipeline where YAML carries flat
-    fields, and the explanations were written against the latter.
-    """
-    from nodes.explanations import _flat_keys_from_transformations
-
-    config = {
-        'id': 'some/dataset',
-        'transformations': [
-            {'kind': 'rename_column', 'column': 'Vuosi', 'new_name': 'Year'},
-            {'kind': 'set_forecast_from', 'year': 2025},
-            {'kind': 'filter_column', 'column': 'action', 'value': 'x'},
-            {'kind': 'filter_dimension', 'dimension': 'sector', 'categories': ['a'], 'flatten': True},
-            {'kind': 'assign_dimension', 'dimension': 'sector', 'category': 'b'},
-            {'kind': 'rename_item', 'column': 'sector', 'old_item': 'old', 'new_item': 'new'},
-            {'kind': 'drop_nulls'},
+    dataset = InputDatasetDef(
+        id='some/dataset',
+        transformations=[
+            RenameColumnOp(column='Vuosi', new_name='Year'),
+            SetForecastFromOp(year=2025),
+            FilterColumnOp(column='action', value='x'),
+            RenameItemOp(column='sector', old_item='old', new_item='new'),
+            DropNullsOp(),
         ],
-    }
+    )
+    pipeline = dataset_pipeline(dataset)
 
-    flat = _flat_keys_from_transformations(config)
-
-    assert flat['forecast_from'] == 2025
-    assert flat['dropna'] is True
-    assert flat['filters'] == [
-        {'rename_col': 'Vuosi', 'value': 'Year'},
-        {'column': 'action', 'value': 'x'},
-        {'dimension': 'sector', 'categories': ['a'], 'flatten': True},
-        {'dimension': 'sector', 'assign_category': 'b'},
-        {'rename_item': 'sector|old', 'value': 'new'},
+    assert _forecast_from(pipeline) == 2025
+    assert _drops_nulls(pipeline) is True
+    html = DatasetRule().explain_pipeline(pipeline, context=None)  # type: ignore[arg-type]
+    assert html == [
+        '<li>Renames the following columns:<ul>',
+        '<li>Vuosi &rarr; Year.</li>',
+        '</ul></li>',
+        '<li>Has the following filters:<ol>',
+        '<li>Filter column <i>action</i> by including <i>x</i>.</li><li>Drop column <i>action</i>.</li>',
+        'Rename item <i>old</i> to <i>new</i> in column <i>sector</i>.',
+        '</ol></li>',
     ]
 
 
-def test_flat_key_translation_leaves_yaml_shaped_configs_alone():
-    from nodes.explanations import _flat_keys_from_transformations
+def test_dataset_pipeline_compiles_yaml_shaped_definitions():
+    """A definition authored with flat fields is described through the same compiled pipeline."""
+    from nodes.defs.node_defs import InputDatasetDef
+    from nodes.explanations import _forecast_from, dataset_pipeline
 
-    config = {'id': 'some/dataset', 'forecast_from': 2025, 'filters': [{'column': 'action', 'value': 'x'}]}
+    dataset = InputDatasetDef.model_validate({
+        'id': 'some/dataset',
+        'forecast_from': 2025,
+        'filters': [{'column': 'action', 'value': 'x'}],
+    })
 
-    assert _flat_keys_from_transformations(config) is config
+    pipeline = dataset_pipeline(dataset)
+
+    assert _forecast_from(pipeline) == 2025
+    assert any(isinstance(op, FilterColumnOp) and op.column == 'action' for op in pipeline)
 
 
 def test_input_binding_transformations_are_migration_serializable() -> None:

@@ -502,6 +502,17 @@ def make_trans_string(  # noqa: C901, PLR0912
     return TranslatedString(**langs, default_language=default_language)
 
 
+def _param_config(param: Parameter) -> dict[str, Any]:
+    """Convert a spec parameter into the overrides the parameter builder merges over the class default."""
+    from params.param import ReferenceParameter
+
+    if isinstance(param, ReferenceParameter):
+        return {'id': param.local_id, 'ref': param.target_id}
+    config = param.model_dump(exclude_none=True)
+    config['id'] = config.pop('local_id')
+    return config
+
+
 class InstanceLoader:
     instance: Instance
     context: Context
@@ -1000,9 +1011,7 @@ class InstanceLoader:
         self._output_nodes[node.id] = []
 
         if spec.params:
-            from nodes.instance_from_db import _param_to_dict
-
-            self._make_node_params({'params': [_param_to_dict(p) for p in spec.params]}, node)
+            self._make_node_params({'params': [_param_config(p) for p in spec.params]}, node)
 
         if extra.tags:
             node.tags.update(extra.tags)
@@ -1395,17 +1404,18 @@ class InstanceLoader:
 
     def setup_node_explanations(self):
         """Install a lazy builder for the explanation system; nothing consumes it during loading."""
+        from nodes.explanation_inputs import explained_nodes_from_graph
         from nodes.explanations import build_node_explanation_system
 
-        snapshot = self.snapshot
+        graph = self._instance_graph
+        datasets_by_node = {
+            node_uuid: [ds_def for ds_def, _rows in groups] for node_uuid, groups in self._snapshot_dataset_groups.items()
+        }
 
-        def build_from_snapshot(context: Context) -> NodeExplanationSystem:
-            from nodes.instance_from_db import snapshot_nodes_to_config_dicts
+        def build_from_graph(context: Context) -> NodeExplanationSystem:
+            return build_node_explanation_system(context, explained_nodes_from_graph(graph, datasets_by_node))
 
-            nodes_list, actions_list = snapshot_nodes_to_config_dicts(snapshot)
-            return build_node_explanation_system(context, [*nodes_list, *actions_list])
-
-        self.context._nes_factory = build_from_snapshot
+        self.context._nes_factory = build_from_graph
 
     @classmethod
     def from_snapshot(

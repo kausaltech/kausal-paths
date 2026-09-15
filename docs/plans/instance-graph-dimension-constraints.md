@@ -1242,10 +1242,40 @@ dataset revision isolation tests pass.
   `NodeInputPortBinding` / `InputBindingSnapshot`; retire `EdgeSnapshot` /
   `DatasetPortSnapshot` as the snapshot union members in the same move~~
   (done 2026-09-01, below; the carrier classes remain parse/sync-internal).
-- Retire the `NodeExplanationSystem` dict shim (`snapshot_nodes_to_config_dicts`).
+- ~~Retire the `NodeExplanationSystem` dict shim (`snapshot_nodes_to_config_dicts`)~~
+  (done 2026-09-15, below).
 - ~~Retire `DatasetPortSpec.output_dimensions` once schema + ops derive it~~
   (done 2026-08-31, below; the non-executing `flatten` placeholder was already
   gone — step 2).
+
+Implementation note (2026-09-15, explanation system on typed inputs):
+`nodes/instance_from_db.py` is deleted. The explanation rules read a typed
+model they own — `ExplainedNode` / `ExplainedEdge` / `ExplainedParam` in
+`nodes/explanation_inputs.py`, with dataset bindings as the same
+`InputDatasetDef`s the runtime constructs from — built by
+`explained_nodes_from_graph()` from the loader's `InstanceGraph` plus its
+grouped dataset definitions. Graph edges come from `EdgeBindingDef`s merged
+per source node (the runtime's one-edge-per-source view), dataset pipelines
+are described op by op, and parameters through their own serialization.
+The last `_param_to_dict` use became a private loader helper (the parameter
+builder still merges dicts over the class default; typing that is separate
+work), and the dimension-ORM coverage check moved onto `InstanceConfig`.
+
+Gate: the explanation, validation, basket and graph-input output of all 98
+buildable local instances dumped before and after and diffed, with two
+deliberate changes: (a) input order now follows the authored per-port
+position order the runtime uses — the dict shim ordered a node's inputs by
+the source's first appearance anywhere in the global edge list, so `t1`/`t2`
+labels and basket order could disagree with the runtime; verified on
+`m-demo`'s `total_cost` against `node.input_nodes`; and (b) dataset terms
+describe their pipeline again (forecast year, dropped nulls, renames,
+filters). That description existed for YAML flat fields, and
+`_flat_keys_from_transformations` was written to keep it for pipelines, but
+the only caller of the flattening was a dead method, so since step 10 routed
+everything through pipelines no dataset term had described its filters.
+Adds a detail block on ~4,100 dataset terms fleet-wide, no removals.
+Everything else is byte-identical up to the metric-name order inside merged
+multi-metric edges. The full nodes/paths pytest, repo mypy and ruff are clean.
 
 Implementation note (2026-09-15, deprecated GraphQL surface removed): one
 schema change covering everything the identifier era left behind —
