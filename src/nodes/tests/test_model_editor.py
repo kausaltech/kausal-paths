@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, cast
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from django.db import connection
 from django.test.utils import CaptureQueriesContext
@@ -255,6 +255,28 @@ def test_node_layout_is_readable_per_node_and_in_bulk(
         if 'FROM "nodes_nodelayout"' in query['sql'] and 'WHERE "nodes_nodelayout"."node_id" =' in query['sql']
     ]
     assert per_node_layout_queries == []
+
+
+def test_model_nodes_resolve_identifiers_and_uuids_interchangeably(
+    gql_client: PathsTestClient,
+    db_instance_config: InstanceConfig,
+) -> None:
+    from nodes.models import _pytest_instances
+
+    by_name = NodeConfigFactory.create(instance=db_instance_config, identifier='by_name', spec=_make_node_spec())
+    by_uuid = NodeConfigFactory.create(instance=db_instance_config, identifier='by_uuid', spec=_make_node_spec())
+    _pytest_instances.pop(db_instance_config.identifier, None)
+
+    data = gql_client.query_data(
+        """
+        query NodesByIdOrUuid($ids: [ID!]) {
+            instance { model { nodes(id: $ids) { id } } }
+        }
+        """,
+        variables={'ids': ['by_name', str(by_uuid.uuid), str(uuid4())]},
+    )
+
+    assert [node['id'] for node in data['instance']['model']['nodes']] == [by_name.identifier, by_uuid.identifier]
 
 
 def test_clear_node_layouts_bypasses_model_change_tracking(

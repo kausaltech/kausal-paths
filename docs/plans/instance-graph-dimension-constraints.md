@@ -1325,10 +1325,13 @@ branches for the legacy output types were dead code. Two decisions:
   optional with exactly those semantics, so planning stays reachable (the UI
   always names the port; the assistant toolkit resolves ports client-side).
   `fromRef` / `portRef` became required.
-- `NodePortRef.nodeId` (the human-readable identifier on refs) is **kept**,
-  still deprecated: the UI's dataset query reads it deliberately because
-  `model.nodes(id:)` resolves identifiers, not UUIDs. Removing it waits on
-  that resolver accepting UUIDs; it is not a pk leak, so there is no hurry.
+- `NodePortRef.nodeId` (the human-readable identifier on refs) is **kept**
+  for one more deploy cycle: the UI's dataset query read it because
+  `model.nodes(id:)` resolved identifiers only. Later the same day the
+  resolver started accepting UUIDs interchangeably (resolved through the
+  node's `NodeConfig` row, with the derived fallback identity for nodes
+  without one) and the UI moved to `nodeUuid`. Remove `nodeId` once the
+  backend and then the UI are deployed.
 
 Gates: schema export diff limited to the listed removals plus the `portId`
 nullability change; `test_model_editor`, `test_revisions` and
