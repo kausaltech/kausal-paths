@@ -25,8 +25,8 @@ Some important pieces already exist:
 
 - Runtime node and edge specs already exist in `NodeSpec`, `InputPortDef`,
   `OutputPortDef`, and related models.
-- Runtime export into DB-backed specs already exists via
-  [`nodes/spec_export.py`](/home/jey/sync/devel/kausal-paths/nodes/spec_export.py).
+- YAML parses directly into DB-backed specs via `nodes/instance_parser.py`
+  and `nodes/spec_sync.py`.
 - There is already a Strawberry model-editor schema in
   [`nodes/schema_model_editor.py`](/home/jey/sync/devel/kausal-paths/nodes/schema_model_editor.py)
   that can:

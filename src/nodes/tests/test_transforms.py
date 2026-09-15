@@ -31,6 +31,7 @@ from nodes.defs.transform_def import (
     RenameItemOp,
     SelectMetricOp,
     SetForecastFromOp,
+    resolve_metric_columns,
 )
 from nodes.transforms import PipelineEnv, apply_port_transformations
 from nodes.units import unit_registry
@@ -361,3 +362,23 @@ def test_input_binding_transformations_are_migration_serializable() -> None:
     assert 'FilterDimensionOp' in serialized
     assert 'PydanticSchemaField' in serialized
     assert 'import django_pydantic_field.fields' in imports
+
+
+def test_resolve_metric_columns_traces_renames_and_records_drops():
+    """A metric is known by its delivered column, and a dropped one is reported separately."""
+    ops: list[PortTransformOp] = [
+        RenameColumnOp(column='Suorite', new_name='mileage'),
+        RenameColumnOp(column='Toteutuskustannus', new_name='currency'),
+        FilterColumnOp(column='Päästökerroin', drop_col=True),
+    ]
+    delivered, dropped = resolve_metric_columns(['Päästökerroin', 'Suorite', 'Toteutuskustannus'], ops)
+    assert delivered == {'Suorite': 'mileage', 'Toteutuskustannus': 'currency'}
+    assert dropped == ['Päästökerroin']
+
+
+def test_resolve_metric_columns_follows_a_chained_rename():
+    """A later op names the column as an earlier one left it, so renames chain."""
+    ops: list[PortTransformOp] = [RenameColumnOp(column='A', new_name='B'), RenameColumnOp(column='B', new_name='C')]
+    delivered, dropped = resolve_metric_columns(['A'], ops)
+    assert delivered == {'A': 'C'}
+    assert dropped == []

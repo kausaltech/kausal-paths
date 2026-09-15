@@ -36,7 +36,6 @@ from nodes.defs.transform_def import (
     unsupported_transformations_for_binding,
 )
 from nodes.instance_serialization import DatasetMetricSource, InputBindingSnapshot, group_unified_dataset_bindings
-from nodes.spec_export import _drop_ambiguous_port_identifiers, _port_identifier_for_column
 from nodes.units import unit_registry
 
 pytestmark = pytest.mark.django_db
@@ -241,29 +240,6 @@ def test_input_and_output_ports_have_separate_identifier_namespaces():
 
     assert set(spec.input_port_by_identifier) == {'energy'}
     assert set(spec.output_port_by_identifier) == {'energy'}
-
-
-def test_port_identifier_is_derived_from_the_bound_column_when_usable():
-    assert _port_identifier_for_column('population') == 'population'
-    assert _port_identifier_for_column('Electricity') == 'Electricity'
-    # The generic column name is not a usable port name.
-    assert _port_identifier_for_column('Value') is None
-    # Legacy wide-DVC labels are not identifier-shaped.
-    assert _port_identifier_for_column('Trucks and lorries') is None
-
-
-def test_identifiers_that_would_collide_on_export_are_dropped():
-    """
-    Derived names are not unique: two datasets can expose the same column.
-
-    An unnamed port is better than two ports sharing a name, and the editor can
-    always assign one afterwards.
-    """
-    ports = [_input_port('emissions'), _input_port('emissions'), _input_port('energy')]
-
-    _drop_ambiguous_port_identifiers('some_node', ports)
-
-    assert [port.identifier for port in ports] == [None, None, 'energy']
 
 
 # ---------------------------------------------------------------------------

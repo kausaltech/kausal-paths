@@ -1,9 +1,9 @@
 """
-Load a YAML instance via InstanceLoader and export its spec to the DB.
+Parse a YAML instance into an InstanceSnapshot and sync its spec to the DB.
 
 Usage:
-    python manage.py sync_instance_to_db configs/espoo.yaml
-    python manage.py sync_instance_to_db configs/espoo.yaml --dry-run
+    python manage.py sync_instance_to_db espoo
+    python manage.py sync_instance_to_db espoo --dry-run
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ class DryRunError(Exception):
 
 
 class Command(BaseCommand):
-    help = 'Load instance from YAML, export spec to InstanceConfig + NodeConfig'
+    help = 'Parse instance YAML and sync its spec to InstanceConfig + NodeConfig'
 
     def add_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument('instance', nargs='*', type=str, help='Instance identifier(s)')
@@ -32,14 +32,8 @@ class Command(BaseCommand):
         parser.add_argument('--dry-run', action='store_true', help='Load and export but do not save to DB')
         parser.add_argument('--start-after', type=str, help='Instance identifier to start after')
         parser.add_argument('--skip', dest='skip', metavar='INSTANCE_ID', action='append', help='Instances to skip')
-        parser.add_argument(
-            '--runtime-export',
-            action='store_true',
-            help='Use the legacy runtime-based export (full instance init) instead of the parse-only sync',
-        )
 
-    def sync_one_instance(self, instance_id: str, dry_run: bool = False, *, runtime_export: bool = False) -> None:
-        from nodes.spec_export import sync_instance_to_db
+    def sync_one_instance(self, instance_id: str, dry_run: bool = False) -> None:
         from nodes.spec_sync import sync_parsed_instance_to_db
 
         self.stdout.write(f'Syncing instance {instance_id}')
@@ -47,10 +41,7 @@ class Command(BaseCommand):
         try:
             with transaction.atomic():
                 try:
-                    if runtime_export:
-                        sync_instance_to_db(instance_id)
-                    else:
-                        sync_parsed_instance_to_db(instance_id)
+                    sync_parsed_instance_to_db(instance_id)
                 except FileNotFoundError as e:
                     self.stderr.write(self.style.ERROR(f'Error loading YAML for {instance_id}: {e}'))
                     return
@@ -76,7 +67,7 @@ class Command(BaseCommand):
             if options['skip'] and instance_id in options['skip']:
                 self.stdout.write(f'Skipping instance {instance_id}')
                 continue
-            self.sync_one_instance(instance_id, dry_run=dry_run, runtime_export=options['runtime_export'])
+            self.sync_one_instance(instance_id, dry_run=dry_run)
         if dry_run:
             self.stdout.write(self.style.SUCCESS('Dry run complete — no changes made.'))
             return

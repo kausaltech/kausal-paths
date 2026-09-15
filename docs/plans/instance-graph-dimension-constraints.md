@@ -1254,9 +1254,28 @@ dataset revision isolation tests pass.
   (done 2026-09-01, below; the carrier classes remain parse/sync-internal).
 - ~~Retire the `NodeExplanationSystem` dict shim (`snapshot_nodes_to_config_dicts`)~~
   (done 2026-09-15, below).
+- ~~Retire `spec_export` and `parse_oracle` together, once the binding
+  serialization they guarded had settled~~ (done 2026-09-15, below).
 - ~~Retire `DatasetPortSpec.output_dimensions` once schema + ops derive it~~
   (done 2026-08-31, below; the non-executing `flatten` placeholder was already
   gone — step 2).
+
+Implementation note (2026-09-15, exporter and oracle retired):
+`nodes/spec_export.py` (the runtime-introspection exporter), `tools/parse_oracle.py`
+and the `sync_instance_to_db --runtime-export` flag are gone; the parser is the
+only spec producer. The four helpers the parse-only sync still used —
+`pair_metrics_to_columns`, `_get_db_datasets`, `_dataset_metric_binding_key`,
+`_promote_dataset_forecast_defaults` — moved into `nodes/spec_sync.py`. Tests
+that exercised the exporter were retargeted where the behavior lives: the
+multi-port collapse is tested through `parse_instance_snapshot`, metric-to-
+column pairing directly on the moved function, forecast-default promotion on
+its new import, and the class-declaration namespace test moved to
+`test_shape_rules`; the two tests of exporter-only identifier derivation went
+with the exporter (the parser derives port identifiers from source node names
+and drops duplicates itself). The oracle's cache directory (`.parse-oracle-cache/`)
+left `.gitignore`; a local copy may still exist on developer machines. With the
+oracle gone, the regression net for parse/sync changes is `sync_instance_to_db
+--dry-run` plus `test_instance --compare` and the double-sync idempotency check.
 
 Implementation note (2026-09-15, explanation system on typed inputs):
 `nodes/instance_from_db.py` is deleted. The explanation rules read a typed

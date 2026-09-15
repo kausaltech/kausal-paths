@@ -30,7 +30,7 @@ published snapshot is immutable or version-pinned.
 
 | Area | State | Notes |
 | --- | --- | --- |
-| Parse-only YAML sync | Complete | YAML parses directly into `InstanceSnapshot`; `sync_instance_to_db` writes it through `nodes/spec_sync.py`. The runtime-introspection exporter remains behind `--runtime-export`. |
+| Parse-only YAML sync | Complete | YAML parses directly into `InstanceSnapshot`; `sync_instance_to_db` writes it through `nodes/spec_sync.py`. The runtime-introspection exporter and the parse oracle were retired on 2026-09-15. |
 | Node identity/computation split | Complete | `NodeConfig` owns identity/display metadata; `NodeSpec` owns computation. Snapshot schema v4 and migration/bootstrap landed in `00e31e3a`. |
 | Stable snapshot references | Complete | Node references use UUIDs; shared editor layout is snapshot-backed. |
 | Snapshot-backed public GraphQL | Complete | Draft and published runtimes bind their selected `InstanceSnapshot`/`NodeSnapshot`; non-editor GraphQL reads model content from those snapshots. Landed in `54fa1dd3`. |

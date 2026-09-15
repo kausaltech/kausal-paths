@@ -712,3 +712,60 @@ def test_write_bindings_preserves_dataset_port_uuids_across_resync(db_instance):
     snapshot.dataset_bindings[0].port_id = uuid.uuid4()
     _write_bindings_for(db_instance, snapshot, {node.uuid: node})
     assert NodeInputPortBinding.objects.get(instance=db_instance).uuid == first.uuid
+
+
+def test_pair_metrics_to_columns_matches_names_case_insensitively():
+    from nodes.spec_sync import pair_metrics_to_columns
+
+    pairs = pair_metrics_to_columns(['Fuel', 'Electricity'], ['electricity', 'fuel'], log_ctx='node')
+
+    assert pairs == [('Fuel', 'fuel'), ('Electricity', 'electricity')]
+
+
+def test_pair_metrics_to_columns_pairs_a_lone_leftover_on_both_sides():
+    from nodes.spec_sync import pair_metrics_to_columns
+
+    pairs = pair_metrics_to_columns(['emissions', 'Value'], ['emissions', 'share'], log_ctx='node')
+
+    assert pairs == [('emissions', 'emissions'), ('Value', 'share')]
+
+
+def test_pair_metrics_to_columns_leaves_unmatched_metrics_unbound():
+    from nodes.spec_sync import pair_metrics_to_columns
+
+    pairs = pair_metrics_to_columns(['emissions', 'energy'], ['emissions', 'foo', 'bar'], log_ctx='node')
+
+    assert pairs == [('emissions', 'emissions')]
+
+
+def test_pair_metrics_to_columns_pairs_through_the_bindings_renames():
+    """
+    Renamed metrics must still pair with the node's columns.
+
+    Pairing on the raw schema names found no match and no lone leftover (three
+    metrics, two columns), so every binding fell back to schema-metric-keyed
+    port ids that no port carried — and the DB load then refused them.
+    """
+    from nodes.defs.transform_def import FilterColumnOp, PortTransformOp, RenameColumnOp
+    from nodes.spec_sync import pair_metrics_to_columns
+
+    ops: list[PortTransformOp] = [
+        RenameColumnOp(column='Suorite', new_name='mileage'),
+        RenameColumnOp(column='Toteutuskustannus', new_name='currency'),
+        FilterColumnOp(column='Päästökerroin', drop_col=True),
+    ]
+    pairs = pair_metrics_to_columns(
+        ['currency', 'mileage'],
+        ['Päästökerroin', 'Suorite', 'Toteutuskustannus'],
+        log_ctx='test',
+        transformations=ops,
+    )
+    assert sorted(pairs) == [('currency', 'Toteutuskustannus'), ('mileage', 'Suorite')]
+
+
+def test_pair_metrics_to_columns_without_transformations_is_unchanged():
+    """Name matching and the lone-leftover rule still hold when no pipeline is given."""
+    from nodes.spec_sync import pair_metrics_to_columns
+
+    assert pair_metrics_to_columns(['Fuel'], ['fuel'], log_ctx='test') == [('Fuel', 'fuel')]
+    assert pair_metrics_to_columns(['Value'], ['share'], log_ctx='test') == [('Value', 'share')]

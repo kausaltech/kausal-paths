@@ -29,7 +29,6 @@ if TYPE_CHECKING:
     from nodes.context import Context
     from nodes.datasets import DatasetWithFilters
     from nodes.models import InstanceConfig
-    from nodes.node import Node
 
 
 # This way GraphQL LSPs recognize the query strings as GraphQL
@@ -2302,182 +2301,10 @@ def test_dataset_ports_rebuild_uses_dataset_forecast_default(db_instance_config:
     assert ds.forecast_from == 2026
 
 
-def test_dataset_port_sync_uses_one_port_per_dataset_metric(db_instance_config: InstanceConfig):
-    from types import SimpleNamespace
-
-    from nodes.datasets import DBDataset
-    from nodes.defs.node_defs import ColumnDatasetFilterDef
-    from nodes.models import NodeInputPortBinding
-    from nodes.node import NodeMetric
-    from nodes.spec_export import _export_input_ports, _update_bindings
-
-    dataset = DatasetFactory.create(identifier='sync_multi_metric_actions', scope=db_instance_config)
-    DatasetMetricFactory.create(schema=dataset.schema, name='emissions', label='Emissions', unit='t/a')
-    DatasetMetricFactory.create(schema=dataset.schema, name='energy', label='Energy', unit='TJ/a')
-
-    context = cast('Context', SimpleNamespace(instance=SimpleNamespace(config=db_instance_config)))
-    ds_instance = DBDataset(
-        id='sync_multi_metric_actions',
-        context=context,
-        db_dataset_obj=dataset,
-        transformations=InputDatasetDef(
-            id='sync_multi_metric_actions',
-            forecast_from=2024,
-            filters=[ColumnDatasetFilterDef(column='action', value='multi_metric_action')],
-        ).to_transformations(),
-        forecast_from=2024,
-    )
-    node = cast(
-        'Node',
-        SimpleNamespace(
-            id='multi_metric_action',
-            context=context,
-            input_dataset_instances=[ds_instance],
-            output_metrics={
-                'emissions': NodeMetric(unit='t/a', quantity='emissions', id='emissions', column_id='emissions'),
-                'energy': NodeMetric(unit='TJ/a', quantity='energy', id='energy', column_id='energy'),
-            },
-            edges=[],
-            input_dimensions={},
-        ),
-    )
-    nc = NodeConfigFactory.create(
-        instance=db_instance_config,
-        identifier='multi_metric_action',
-        spec=NodeSpec(
-            type_config=ActionConfig(
-                node_class=ACTION_NODE_CLASS,
-                decision_level=DecisionLevel.MUNICIPALITY,
-            ),
-        ),
-    )
-
-    input_ports = _export_input_ports(node)
-    assert [port.quantity for port in input_ports] == ['emissions', 'energy']
-
-    ctx = cast('Context', SimpleNamespace(nodes={'multi_metric_action': node}))
-    assert _update_bindings(db_instance_config, ctx, {'multi_metric_action': nc}) == (0, 2)
-    bindings = list(NodeInputPortBinding.objects.filter(node=nc).select_related('metric').order_by('metric__name'))
-    assert [binding.metric.name for binding in bindings if binding.metric is not None] == ['emissions', 'energy']
-    assert {binding.port_id for binding in bindings} == {port.id for port in input_ports}
-    assert all(forecast_from_transformations(binding.transformations) == 2024 for binding in bindings)
-    for binding in bindings:
-        filter_op = next(op for op in binding.transformations if isinstance(op, FilterColumnOp))
-        assert filter_op.column == 'action'
-
-
-def _column_less_sync_fixture(
-    db_instance_config: InstanceConfig,
-    *,
-    metric_names: list[str],
-    node_columns: list[str],
-):
-    """Build a runtime node + DB dataset pair for exercising the metric-to-port pairing."""
-    from types import SimpleNamespace
-
-    from nodes.datasets import DBDataset
-    from nodes.node import NodeMetric
-
-    dataset = DatasetFactory.create(identifier='pairing_dataset', scope=db_instance_config)
-    for name in metric_names:
-        DatasetMetricFactory.create(schema=dataset.schema, name=name, label=name.title(), unit='t/a')
-
-    context = cast('Context', SimpleNamespace(instance=SimpleNamespace(config=db_instance_config)))
-    ds_instance = DBDataset(
-        id='pairing_dataset',
-        context=context,
-        db_dataset_obj=dataset,
-        transformations=InputDatasetDef(id='pairing_dataset').to_transformations(),
-    )
-    node = cast(
-        'Node',
-        SimpleNamespace(
-            id='pairing_node',
-            context=context,
-            input_dataset_instances=[ds_instance],
-            output_metrics={
-                column: NodeMetric(unit='t/a', quantity='emissions', id=column.lower(), column_id=column)
-                for column in node_columns
-            },
-            edges=[],
-            input_dimensions={},
-        ),
-    )
-    nc = NodeConfigFactory.create(
-        instance=db_instance_config,
-        identifier='pairing_node',
-        spec=NodeSpec(type_config=SimpleConfig(node_class=SIMPLE_NODE_CLASS)),
-    )
-    return node, nc
-
-
-def test_dataset_port_sync_pairs_a_renamed_metric_to_the_node_column(db_instance_config: InstanceConfig):
-    """
-    A schema metric named differently from the node column must still bind to a real port.
-
-    The port UUID comes from the node-side column (where the metric is
-    delivered); the metric FK names the source. Keying the port by the schema
-    metric name produced bindings pointing at ports absent from the node spec.
-    """
-    from types import SimpleNamespace
-
-    from nodes.models import NodeInputPortBinding
-    from nodes.spec_export import _export_input_ports, _update_bindings
-
-    node, nc = _column_less_sync_fixture(db_instance_config, metric_names=['share'], node_columns=['Value'])
-
-    input_ports = _export_input_ports(node)
-    ctx = cast('Context', SimpleNamespace(nodes={'pairing_node': node}))
-    assert _update_bindings(db_instance_config, ctx, {'pairing_node': nc}) == (0, 1)
-
-    binding = NodeInputPortBinding.objects.get(node=nc)
-    assert binding.metric is not None
-    assert binding.metric.name == 'share'
-    assert binding.port_id in {port.id for port in input_ports}
-
-
-def test_dataset_port_sync_drops_unmatched_extra_metrics(db_instance_config: InstanceConfig):
-    """A metric with no defensible port gets no binding, as long as the dataset keeps at least one row."""
-    from types import SimpleNamespace
-
-    from nodes.models import NodeInputPortBinding
-    from nodes.spec_export import _update_bindings
-
-    node, nc = _column_less_sync_fixture(
-        db_instance_config, metric_names=['emissions', 'foo', 'bar'], node_columns=['emissions', 'energy']
-    )
-
-    ctx = cast('Context', SimpleNamespace(nodes={'pairing_node': node}))
-    assert _update_bindings(db_instance_config, ctx, {'pairing_node': nc}) == (0, 1)
-    only_metric = NodeInputPortBinding.objects.get(node=nc).metric
-    assert only_metric is not None
-    assert only_metric.name == 'emissions'
-
-
-def test_dataset_port_sync_keeps_an_unpairable_binding_alive(db_instance_config: InstanceConfig):
-    """
-    When nothing pairs, the rows stay (dangling) rather than disappear.
-
-    ``_serialize_dataset_ports`` rebuilds ``input_datasets`` from these rows,
-    so zero rows would silently remove the dataset from DB-sourced models —
-    worse than an editor binding whose port id is unresolved.
-    """
-    from types import SimpleNamespace
-
-    from nodes.models import NodeInputPortBinding
-    from nodes.spec_export import _update_bindings
-
-    node, nc = _column_less_sync_fixture(db_instance_config, metric_names=['foo', 'bar'], node_columns=['emissions', 'energy'])
-
-    ctx = cast('Context', SimpleNamespace(nodes={'pairing_node': node}))
-    assert _update_bindings(db_instance_config, ctx, {'pairing_node': nc}) == (0, 2)
-    assert {dp.metric.name for dp in NodeInputPortBinding.objects.filter(node=nc) if dp.metric is not None} == {'foo', 'bar'}
-
-
 def test_dataset_port_forecast_from_promotes_to_dataset_default(db_instance_config: InstanceConfig):
     from nodes.dataset_materialization import materialize_dataset
     from nodes.models import DatasetMaterialization, NodeInputPortBinding
-    from nodes.spec_export import _promote_dataset_forecast_defaults
+    from nodes.spec_sync import _promote_dataset_forecast_defaults
 
     promoted_dataset = DatasetFactory.create(identifier='promoted', scope=db_instance_config)
     promoted_metric = DatasetMetricFactory.create(schema=promoted_dataset.schema, name='value', label='Value', unit='kt/a')
@@ -2560,7 +2387,7 @@ def test_dataset_port_forecast_from_not_promoted_for_external_placeholder(db_ins
     the binding-level value with nothing left to read it back.
     """
     from nodes.models import NodeInputPortBinding
-    from nodes.spec_export import _promote_dataset_forecast_defaults
+    from nodes.spec_sync import _promote_dataset_forecast_defaults
 
     placeholder_dataset = DatasetFactory.create(identifier='placeholder', scope=db_instance_config, is_external_placeholder=True)
     placeholder_metric = DatasetMetricFactory.create(schema=placeholder_dataset.schema, name='value', label='Value', unit='kt/a')
