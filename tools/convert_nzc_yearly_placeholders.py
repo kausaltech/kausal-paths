@@ -6,15 +6,20 @@ Reads either a canonical CSV file or (by default) the DVC dataset
 ``nzc/placeholders_yearly``, and writes ``MeasureTemplateDefaultDataPoint``
 records plus updates ``MeasureTemplate.default_value_scaling``.
 
+Invoke it as a module, not as a script -- ``python -m tools.convert_nzc_yearly_placeholders``.
+The script form puts ``tools/`` on ``sys.path`` instead of the repo root, so the
+``frameworks`` / ``kausal_common`` imports only resolve where the repo happens to be
+installed editable; on a deployment it fails at import.
+
 Usage:
     # Load from DVC (default):
-    python tools/import_nzc_yearly_placeholders.py
+    python -m tools.convert_nzc_yearly_placeholders
 
     # Load from a specific CSV:
-    python tools/import_nzc_yearly_placeholders.py path/to/file.csv
+    python -m tools.convert_nzc_yearly_placeholders path/to/file.csv
 
     # Dry run (parse + validate, then roll back DB changes):
-    python tools/import_nzc_yearly_placeholders.py --dry-run
+    python -m tools.convert_nzc_yearly_placeholders --dry-run
 """
 
 import argparse
@@ -132,7 +137,13 @@ def load_rows_from_dvc(framework_identifier: str) -> list[dict[str, str]]:
     if repo is None:
         print('No dataset repo available for this instance.', file=sys.stderr)
         raise SystemExit(1)
-    repo.set_target_commit(None)  # Use the newest commit
+    # set_target_commit(None) only means "stop pinning"; it returns without touching the
+    # git remote, so on its own it reads the newest commit *the local clone already has*.
+    # Without the fetch below, a server whose dvctest clone predates the push imports the
+    # old bounds and reports success, which is exactly how the 2026-09-16 import of the
+    # widened electricity-price bounds silently did nothing.
+    repo.set_target_commit(None)
+    repo.pull_datasets()
     if not repo.has_dataset(PLACEHOLDER_YEARLY_DATASET_IDENTIFIER):
         print(f'Dataset {PLACEHOLDER_YEARLY_DATASET_IDENTIFIER!r} not found in DVC.', file=sys.stderr)
         raise SystemExit(1)

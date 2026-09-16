@@ -37,7 +37,7 @@ Usage:
 
     python manage.py rename_dataset bisko/final_energy kommune/endenergieverbrauch
     python manage.py rename_dataset bisko/final_energy kommune/endenergieverbrauch --apply
-    python manage.py rename_dataset --from-file data/bisko/renames.yaml --apply
+    python manage.py rename_dataset --from-file "$PATHS_DATA/modules/bisko/renames.yaml" --apply
 
 A mapping entry is either a bare target identifier or a table that also carries labels:
 

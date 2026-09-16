@@ -298,7 +298,7 @@ python manage.py rename_dataset bisko/final_energy kommune/endenergieverbrauch
 python manage.py rename_dataset bisko/final_energy kommune/endenergieverbrauch --apply
 
 # A whole namespace at once, as one transaction
-python manage.py rename_dataset --from-file data/bisko/renames.yaml --apply
+python manage.py rename_dataset --from-file "$PATHS_DATA/modules/bisko/renames.yaml" --apply
 ```
 
 The mapping file is a flat `old: new` YAML document:
@@ -410,7 +410,9 @@ row whose pk is in the range the sync minted is the placeholder, not the real da
 The database is one of three sides, and the order is forced rather than a preference:
 
 1. **Copy** the DVC paths, leaving the old ones in place, and bump the pins
-   (`data/bisko/copy_dataset_paths.py --push` does the copy, reading the same mapping file).
+   (`modules/bisko/copy_dataset_paths.py --push` in paths-data does the copy, reading the same
+   mapping file; it runs only from a kausal-paths checkout, so copy it in first -- its guard
+   says how).
 2. `rename_dataset --from-file … --apply`.
 3. Update `configs/`, deploy.
 4. Delete the old DVC paths — the only irreversible step, and only once 1–3 are verified.

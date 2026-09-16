@@ -1164,7 +1164,7 @@ dimensions:
     aliases: [Arbeitsgeraete]
   # BISKO's Linienbus, one of the two OeSPV modes. The consumption factor and fuel shares
   # are delivered under the label 'Linienbus'; see the migration note in
-  # data/bisko/migrate_category_ids.py.
+  # modules/bisko/migrate_category_ids.py in the paths-data repo.
   - id: local_buses
     label_en: Local buses
     label_de: Linienbusse
@@ -1690,7 +1690,8 @@ nodes:
   input_datasets:
   # The dataset's second metric column. Nothing creates it automatically -- an earlier comment
   # here claimed upload_new_dataset.py did, and it does not: `quality` is rows in the source
-  # CSV with Metric=quality, exactly like the value rows. See data/bisko/dataset-uploads.md.
+  # CSV with Metric=quality, exactly like the value rows. See modules/bisko/dataset-uploads.md
+  # in the paths-data repo.
   - id: kommune/endenergieverbrauch
     # All three temporal fills off, and `interpolate` explicitly because AdditiveNode2 turns it
     # on by default. A Datengüte is a statement about where *one year's* figure came from, so
