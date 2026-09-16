@@ -6256,6 +6256,48 @@ actions:
   - id: net_cost
     tags: [discount_rate]
 
+- id: parameter_diesel_price
+  name: Dieselin hinta
+  name_en: Diesel price
+  type: simple.ParameterAction
+  group: parameters
+  unit: EUR/l
+  quantity: unit_price
+  input_dimensions: []
+  output_dimensions: []
+  params:
+  - id: from_value
+    value: 2.12
+    min_value: 1.5
+    max_value: 3.0
+    step: 0.1
+    unit: EUR/l
+    description: Dieselin hinta
+    description_en: Diesel price
+  - id: percent_change
+    value: 0.0
+    min_value: -5.0
+    max_value: 5.0
+    step: 0.1
+    unit: '%/a'
+    description: Hinnan muutos
+    description_en: Price change
+  - id: default_value
+    value: 2.12
+    unit: EUR/l
+  - id: default_change
+    value: 0.0
+    unit: '%/a'
+  # output_nodes:
+  # - id: fuel_unit_prices
+  #   to_dimensions:
+  #   - id: energy_carrier
+  #     categories: [diesel]
+  #   - id: owner
+  #     categories: [private]
+  #   - id: cost_type
+  #     categories: [energy]
+
 - id: parameter_district_heating_price
   name: Kaukolämmön hinta
   name_en: District heating price
@@ -6381,6 +6423,48 @@ actions:
       categories: [private]
     - id: cost_type
       categories: [energy]
+
+- id: parameter_petrol_price
+  name: Bensiinin hinta
+  name_en: Petrol price
+  type: simple.ParameterAction
+  group: parameters
+  unit: EUR/l
+  quantity: unit_price
+  input_dimensions: []
+  output_dimensions: []
+  params:
+  - id: from_value
+    value: 2.0
+    min_value: 1.5
+    max_value: 3.0
+    step: 0.1
+    unit: EUR/l
+    description: Bensiinin hinta
+    description_en: Petrol price
+  - id: percent_change
+    value: 0.0
+    min_value: -5.0
+    max_value: 5.0
+    step: 0.1
+    unit: '%/a'
+    description: Hinnan muutos
+    description_en: Price change
+  - id: default_value
+    value: 2.0
+    unit: EUR/l
+  - id: default_change
+    value: 0.0
+    unit: '%/a'
+  # output_nodes:
+  # - id: fuel_unit_prices
+  #   to_dimensions:
+  #   - id: energy_carrier
+  #     categories: [gasoline]
+  #   - id: owner
+  #     categories: [private]
+  #   - id: cost_type
+  #     categories: [energy]
 
 # - id: streetlight_replacement_action
 #   name: Streetlight Replacement Detailed Action
