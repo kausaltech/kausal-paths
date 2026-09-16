@@ -16,7 +16,7 @@ id: nzc
 default_language: en
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: eb62b63210792805ad5041bb32579585d29314f1
+  commit: ed78d2d5522af1da60bb05a56cf90e534724ac7e
   dvc_remote: kausal-s3
 name: Demonstration BASIC+ Greenhouse Gas Inventory
 owner: City of Demonstration
