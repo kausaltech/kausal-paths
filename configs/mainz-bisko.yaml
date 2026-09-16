@@ -628,21 +628,40 @@ nodes:
 # that one parameter per action and no action is duplicated. The dimension is flattened on
 # the way out; only one row survives the selection, so summing over it is a no-op.
 #
-# ## Not yet built
+# ## The four measures that move activity between categories
 #
-# Four KNSV assumptions are *shifts between categories*, not reductions of one, and a factor
-# cannot express them without asserting something false about the activity:
+# Four KNSV assumptions are not reductions of one category but *moves* between two, and a
+# factor cannot express them without asserting something false -- scaling the branch down
+# would say there is less heating, or that fewer meals are served, when what changed is what
+# kind.
 #
-#   * connecting 40 % / 25 % of buildings to district heating by 2032 (gas and oil -> heat),
-#   * converting 10 % / 0 % of heating to pellets by 2028,
-#   * catering reaching 80 % / 65 % vegetarian (meat and mixed meals -> vegetarian),
-#   * commuting modal shift plus private EV uptake (car -> rail and public transport,
-#     petrol car -> electric car), the ~2,000 t/a of Steckbrief C4.
+# **They are absolute changes read from a dataset, not `shift.ShiftAction`.** That class takes
+# cumulative per-year increments written into YAML, which puts the numbers back in the config
+# and makes the trajectory hard to read. Instead each is a signed quantity in the branch's own
+# unit -- negative where the activity leaves a category, positive where it arrives -- added to
+# the node, with `data/mainz/create_knsv_measures.py` asserting the rows sum to zero per
+# measure, variant and year. That is rule 1 of `docs/architecture/action-design.md`.
 #
-# They need `shift.ShiftAction` and absolute activity levels. The last two carry real weight
-# -- catering is 7,458 t of the 7,638 t procurement total in 2019, and commuting is 3,152 t of
-# the 3,206 t travel total -- so the scenario totals are short of Arqum's by roughly that much
-# until they land.
+# Built, in `mainz/knsv_verlagerung_*`:
+#
+#   * `knsv_fernwaerme_anschluss` -- 40 % / 25 % of buildings connected to district heating by
+#     2032 (gas, oil and propane -> district heating). The dataset names the carriers and not
+#     the property groups, because the source does not; `split_dims` allocates them.
+#   * `knsv_vegetarische_verpflegung` -- catering reaching 80 % / 65 % vegetarian by 2035
+#     (meat and mixed hot meals -> vegetarian).
+#
+# Not built, and for different reasons:
+#
+#   * converting 10 % / 0 % of heating to pellets by 2028 -- `municipal_building_energy_ef`
+#     carries six carriers and none is biomass, so heat moved there would be dropped by the
+#     multiply's inner join. Needs an emission factor first.
+#   * commuting modal shift plus private EV uptake, the ~2,000 t/a of Steckbrief C4 -- the
+#     branch reads zero from 2020 (see data/mainz/README.md), and subtracting an absolute
+#     quantity from zero would produce negative passenger kilometres. Blocked on the data,
+#     not on the mechanism.
+#
+# Commuting is 3,152 t of the 3,206 t travel total, so the Scope 3 line stays short of
+# Arqum's until it lands.
 
 action_groups:
 

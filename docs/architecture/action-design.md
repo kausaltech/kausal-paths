@@ -249,7 +249,8 @@ people who own it — a city user can open a dataset in the admin, see what an
 assumption is and change it, and can do none of that with a literal in YAML. The
 assumptions behind a measure are exactly the numbers they should own.
 
-Publishing a dataset goes through `tools/upload_new_dataset.py`. Write the producer
+Publishing a dataset goes through `python -m tools.upload_new_dataset` (the module
+form, not the script path — see `docs/trailhead/tools.md`). Write the producer
 script alongside the model work rather than treating inline values as finished
 because the upload is someone else's step.
 
