@@ -176,8 +176,9 @@ script) or `python -m devtool`. Class-based so the TUI can reuse it:
   `nodes.instance_import.import_instance_export`), creating a database-sourced
   instance or filling an empty one, never a populated one. Remote import
   comes later through `PathsClient`. Load documents with
-  `InstanceExport.from_serialized_data`, not `model_validate_json`: the
-  JSON-mode path trips on `TranslatedString` (open issue, see below).
+  `InstanceExport.from_serialized_data`, which runs the snapshot upgraders;
+  plain `model_validate_json` also works since the `TranslatedString`
+  JSON-mode fix in kausal_common, but skips the upgraders.
 
 **Deviation from the plan below: tokens are cached in a 0600-mode file**
 (`~/.config/kausal-paths-devtool/tokens.json`), not the OS keyring — same
@@ -254,11 +255,10 @@ classes. Textual goes in the dev dependency group.
 
 ## Open questions
 
-- `TranslatedString`'s `json_or_python_schema` fails under Pydantic's JSON-mode
-  validation (`model_validate_json`) with a `str`/`dict` union error on every
-  translated field; the dict path (`model_validate(json.loads(...))`) is fine
-  and dump-stable. Nothing in the codebase uses JSON mode, but the export
-  documents make it tempting. Worth a look at the core schema.
+- ~~`TranslatedString` fails under `model_validate_json`~~ — resolved: the
+  cause was `I18nBaseModel`'s before-validator building instances that the
+  JSON branch of `json_or_python_schema` could not accept; the schema is now
+  one union with the instance check in both modes.
 
 - Keycloak realm details: does the realm enforce verified emails (gates the
   A1 flip)? Token lifespans — if ID-token lifetime is much shorter than the

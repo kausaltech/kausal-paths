@@ -1,5 +1,6 @@
 """The ``instance.export`` GraphQL field, export provenance, and loading a document back in."""
 
+import json
 from typing import TYPE_CHECKING
 from uuid import UUID
 
@@ -65,6 +66,8 @@ def test_superuser_gets_a_loadable_export_document(client: Client, superuser: Us
 
     reloaded = InstanceExport.from_serialized_data(document)
     assert reloaded.model_dump(mode='json') == document, 'the document is a fixed point of dump/load'
+    from_text = InstanceExport.model_validate_json(json.dumps(document))
+    assert from_text.model_dump(mode='json') == document, 'JSON-mode validation agrees with the dict path'
 
 
 def test_instance_admin_is_not_enough(client: Client, db_instance: InstanceConfig) -> None:
