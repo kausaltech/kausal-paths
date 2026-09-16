@@ -4223,10 +4223,19 @@ nodes:
   color: '#ff69b4'
   input_dimensions: [transport_mode, energy_carrier]
   output_dimensions: [transport_mode, energy_carrier]
+  # The transport_mode filter here and on fully_electric_heavy_truck_share keeps each
+  # node to its own truck class. Without it both nodes carry both rows, which
+  # double-counts in freight_transport_energy_carrier_shares and makes both nodes claim
+  # both measure UUIDs, so NZP Data Studio cannot pin either measure to a single node
+  # and shows no value for them.
   input_datasets:
   - id: nzc/freight_transport
     tags: [city_data]
     column: share_of_trucks_fully_electric_not_including_hybrids
+    filters:
+    - column: transport_mode
+      value: light_trucks
+      drop_col: false
 
 - id: fully_electric_heavy_truck_share
   name_en: Fully electric heavy truck share
@@ -4245,6 +4254,10 @@ nodes:
   - id: nzc/freight_transport
     tags: [city_data]
     column: share_of_trucks_fully_electric_not_including_hybrids
+    filters:
+    - column: transport_mode
+      value: heavy_trucks
+      drop_col: false
 
 - id: freight_transport_energy_carrier_shares
   name_en: Freight transport energy carrier shares
@@ -7211,22 +7224,11 @@ nodes:
     tags: [city_data]
     column: share_of_total_electricity_demand_produced_by_fossil
 
-- id: electricity_share_fossil
-  name_en: Electricity share from fossil sources
-  name_fi: Fossiilisista lähteistä tuotetun sähkön osuus
-  type: generic.GenericNode
-  quantity: fraction
-  unit: '%'
-  input_dimensions: [fuel_type, energy_carrier]
-  output_dimensions: [fuel_type, energy_carrier]
-  input_datasets:
-  - id: nzc/electricity
-    tags: [city_data]
-    column: share_of_total_electricity_demand_produced_by_fossil
-    filters:
-    - column: fuel_type
-      value: fossil
-      drop_col: false
+# electricity_share_fossil was removed: it had no consumers, but it bound the same
+# nzc/electricity column as electricity_shares, so both claimed measure UUID
+# 82c7d588-6369-4db8-b961-c83a93d1ae42 ("Fossil sources") and NZP Data Studio could
+# not resolve that measure to a single node. electricity_shares is the node the
+# progress tracker already reads for fossil electricity.
 
 # WASTE
 
