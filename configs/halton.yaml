@@ -12,9 +12,9 @@ target_year: 2045
 model_end_year: 2045
 reference_year: 2023
 minimum_historical_year: 2023
-maximum_historical_year: 2024
+maximum_historical_year: 2025
 emission_unit: t_co2e/a
-emission_forecast_from: 2025
+emission_forecast_from: 2026
 emission_dimensions: [department, scope]
 features:
   baseline_visible_in_graphs: true
@@ -267,6 +267,8 @@ dimensions:
     label: SKY Mineland
   - id: sw_agriculture_outside
     label: SKY Agriculture Outside
+  - id: bmc_lystek
+    label: BMC Lystek
   - id: bmc_oak_se
     label: BMC Oak SE
   - id: bmc_oak_sw
@@ -279,6 +281,8 @@ dimensions:
     label: BMC Agriculture Outside
   - id: bmc_agriculture_inside
     label: BMC Agriculture Inside
+  - id: bmc_dw_agriculture_outside
+    label: BMC DW Agriculture Outside
   - id: sky_bmc
     label: SKY BMC
 
@@ -801,6 +805,8 @@ dimensions:
     label: John Armstrong Terrace
   - id: john_r_rhodes_residence
     label: John R Rhodes Residence
+  - id: kerr_st_265
+    label: Kerr St 265
   - id: kin_ct
     label: Kin Ct
   - id: lakeview_villa
