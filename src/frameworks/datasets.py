@@ -20,41 +20,43 @@ if TYPE_CHECKING:
 ENABLE_UNIT_CONVERSION = True
 
 
+MEASURE_DATAPOINT_SCHEMA: dict[str, type[pl.DataType]] = {
+    'uuid': pl.String,
+    'MeasureYear': pl.Int64,
+    'MeasureValue': pl.Float64,
+    'MeasureDefaultValue': pl.Float64,
+    'MeasureUnit': pl.String,
+}
+
+
+def load_measure_datapoints(framework_config_id: int) -> pl.DataFrame:
+    """Load one instance's raw measure values without model display ordering."""
+    from django.db.models import TextField
+    from django.db.models.functions import Cast
+
+    dps = (
+        MeasureDataPoint.objects
+        .filter(measure__framework_config_id=framework_config_id)
+        .order_by()
+        .annotate(uuid=Cast('measure__measure_template__uuid', output_field=TextField()))
+        .values_list('uuid', 'year', 'value', 'default_value', 'measure__measure_template__unit')
+    )
+    return pl.DataFrame(data=list(dps), schema=MEASURE_DATAPOINT_SCHEMA, orient='row')
+
+
 def collect_measure_datapoints(
     fwd: FrameworkConfigData | None,
     uuids: list[str],
 ) -> pl.DataFrame:
     """
-    Query the DB for all MeasureDataPoints matching the given UUIDs under fwd.
+    Select binding UUIDs from the context's lazy snapshot of raw measure values.
 
-    Returns a plain DataFrame with columns: uuid, MeasureYear, MeasureValue,
-    MeasureDefaultValue, MeasureUnit. No unit conversion is applied — callers
-    that need values in a specific unit should convert themselves.
-    Returns an empty DataFrame with the same schema if fwd is None or uuids is empty.
+    Unit conversion and observation/default selection remain the caller's responsibility.
+    Empty selections do not trigger a database read.
     """
-    from django.db.models import TextField
-    from django.db.models.functions import Cast
-
-    from frameworks.models import Measure
-
-    schema: dict[str, type[pl.DataType]] = {
-        'uuid': pl.String,
-        'MeasureYear': pl.Int64,
-        'MeasureValue': pl.Float64,
-        'MeasureDefaultValue': pl.Float64,
-        'MeasureUnit': pl.String,
-    }
     if fwd is None or not uuids:
-        return pl.DataFrame(schema=schema)
-
-    measures = Measure.objects.filter(framework_config=fwd.id).filter(measure_template__uuid__in=uuids)
-    dps = (
-        MeasureDataPoint.objects
-        .filter(measure__in=measures)
-        .annotate(uuid=Cast('measure__measure_template__uuid', output_field=TextField()))
-        .values_list('uuid', 'year', 'value', 'default_value', 'measure__measure_template__unit')
-    )
-    return pl.DataFrame(data=list(dps), schema=schema, orient='row')
+        return pl.DataFrame(schema=MEASURE_DATAPOINT_SCHEMA)
+    return fwd.measure_datapoints.filter(pl.col('uuid').is_in(uuids))
 
 
 @dataclass
@@ -68,11 +70,6 @@ class FrameworkMeasureDVCDataset(DVCDataset):
         return data
 
     def _override_with_measure_datapoints(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
-        from django.db.models import TextField
-        from django.db.models.functions import Cast
-
-        from frameworks.models import Measure
-
         context = self.context
         fwd = context.framework_config_data
         ref_year = context.instance.reference_year
@@ -109,21 +106,7 @@ class FrameworkMeasureDVCDataset(DVCDataset):
         )
 
         uuids = df['UUID'].unique().to_list()
-        measures = Measure.objects.filter(framework_config=fwd.id).filter(measure_template__uuid__in=uuids)
-        dps = (
-            MeasureDataPoint.objects
-            .filter(measure__in=measures)
-            .annotate(uuid=Cast('measure__measure_template__uuid', output_field=TextField()))
-            .values_list('uuid', 'year', 'value', 'default_value', 'measure__measure_template__unit')
-        )
-        schema = (
-            ('UUID', pl.String),
-            ('MeasureYear', pl.Int64),
-            ('MeasureValue', pl.Float64),
-            ('MeasureDefaultValue', pl.Float64),
-            ('MeasureUnit', pl.String),
-        )
-        dpdf = ppl.PathsDataFrame(data=list(dps), schema=schema, orient='row')
+        dpdf = collect_measure_datapoints(fwd, uuids).rename({'uuid': 'UUID'})
 
         meta = df.get_meta()
         df_cols = df.columns
@@ -509,11 +492,6 @@ class ObservationDataset(DVCDataset):
 
     def _overlay_observations(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:  # noqa: C901,PLR0912,PLR0915
         """Query DB for observations and overlay onto DVC data, adding observed/placeholder columns."""
-        from django.db.models import TextField
-        from django.db.models.functions import Cast
-
-        from frameworks.models import Measure
-
         context = self.context
         fwd = context.framework_config_data
 
@@ -560,16 +538,7 @@ class ObservationDataset(DVCDataset):
         dvc_uuids = df['uuid'].unique().drop_nulls().to_list()
         db_uuids = [u.replace('_', '-') for u in dvc_uuids]
 
-        measures = Measure.objects.filter(
-            framework_config=fwd.id,
-            measure_template__uuid__in=db_uuids,
-        )
-        raw_dps = list(
-            MeasureDataPoint.objects
-            .filter(measure__in=measures)
-            .annotate(uuid_str=Cast('measure__measure_template__uuid', output_field=TextField()))
-            .values_list('uuid_str', 'year', 'value', 'default_value', 'measure__measure_template__unit')
-        )
+        raw_dps = collect_measure_datapoints(fwd, db_uuids).rows()
         if not raw_dps:
             return self._reattach_passthrough(df, _passthrough)
 

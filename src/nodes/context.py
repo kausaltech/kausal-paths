@@ -35,6 +35,7 @@ if TYPE_CHECKING:
 
     import dvc_pandas
     import networkx  # noqa: ICN001
+    import polars as pl
     from rich.repr import RichReprResult
     from sentry_sdk.tracing import Span
 
@@ -61,6 +62,13 @@ if TYPE_CHECKING:
 class FrameworkConfigData:
     last_modified_at: datetime
     id: int
+
+    @cached_property
+    def measure_datapoints(self) -> pl.DataFrame:
+        """Raw measure values shared by bindings for this computation context's lifetime."""
+        from frameworks.datasets import load_measure_datapoints
+
+        return load_measure_datapoints(self.id)
 
 
 class Context:
