@@ -7,7 +7,9 @@ from typing import TYPE_CHECKING, Annotated, Any, Protocol, Self, cast
 from uuid import UUID
 
 import strawberry as sb
+from django.http import HttpRequest
 from django.utils import timezone
+from graphql import GraphQLError
 from strawberry import auto
 from wagtail.blocks.stream_block import StreamValue
 
@@ -15,6 +17,7 @@ from grapple.types.streamfield import StreamFieldInterface
 
 from kausal_common.models.uuid import query_pk_or_uuid_or_identifier
 from kausal_common.strawberry.grapple import grapple_field
+from kausal_common.strawberry.permissions import SuperuserOnly
 from kausal_common.strawberry.pydantic import StrawberryPydanticType
 
 from paths import gql
@@ -727,6 +730,26 @@ class InstanceType:
 
     def instance(self, info: gql.Info) -> Instance:
         return info.context.require_instance(self._config, source=self._source)
+
+    @sb.field(
+        graphql_type=sb.scalars.JSON,
+        permission_classes=[SuperuserOnly],
+        description=(
+            'Self-contained export of the instance as an InstanceExport document: model snapshot, '
+            'dataset bodies and page tree, with provenance (exportedAt, exportedFrom, draftHeadToken). '
+            'Loadable with InstanceExport.from_serialized_data. Superusers only.'
+        ),
+    )
+    def export(self, info: gql.Info) -> dict[str, Any]:
+        from nodes.instance_serialization import export_instance
+
+        request = info.context.request
+        origin = request.build_absolute_uri('/') if isinstance(request, HttpRequest) else None
+        try:
+            export = export_instance(self._config, exported_from=origin)
+        except (ValueError, FileNotFoundError) as e:
+            raise GraphQLError(str(e)) from e
+        return export.model_dump(mode='json')
 
     @sb.field(description='Display title for the instance.')
     def site_title(self) -> str:

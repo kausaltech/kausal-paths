@@ -1152,7 +1152,36 @@ class InstanceExport(BaseModel):
     # copied/restored via Wagtail's own machinery). Node references are by identifier.
     pages: list[PageSnapshot] = Field(default_factory=list)
 
+    # Provenance of a standalone export document. All optional with null
+    # defaults, so documents written before these existed validate without a
+    # schema-version bump.
+    exported_at: datetime | None = None
+    exported_from: str | None = Field(
+        default=None,
+        description='Base URL of the backend that produced this document.',
+    )
+    draft_head_token: UUID | None = Field(
+        default=None,
+        description='Optimistic-locking token of the source draft at export time; null if it had no edits.',
+    )
+
     model_config = {'arbitrary_types_allowed': True}
+
+    @classmethod
+    def from_serialized_data(cls, data: dict[str, Any]) -> Self:
+        """
+        Load a persisted export document.
+
+        Plain ``model_validate`` would validate the nested snapshot through
+        Pydantic alone and skip its schema-version upgraders; route it through
+        ``InstanceSnapshot.from_serialized_data`` so documents saved under an
+        older snapshot schema still load.
+        """
+        data = dict(data)
+        instance_data = data.get('instance')
+        if isinstance(instance_data, dict):
+            data['instance'] = InstanceSnapshot.from_serialized_data(instance_data)
+        return cls.model_validate(data)
 
 
 # ---------------------------------------------------------------------------
@@ -1529,9 +1558,16 @@ def _datasets_for_instance_export(ic: InstanceConfig, ic_ct: ContentType) -> lis
     return sorted(datasets_by_key.values(), key=_dataset_export_key)
 
 
-def export_instance(ic: InstanceConfig) -> InstanceExport:
-    """Serialize a DB-sourced InstanceConfig with dataset bodies included."""
+def export_instance(ic: InstanceConfig, *, exported_from: str | None = None) -> InstanceExport:
+    """
+    Serialize a DB-sourced InstanceConfig with dataset bodies included.
+
+    ``exported_from`` is recorded as provenance when the document is meant to
+    leave this database (the GraphQL ``instance.export`` field passes the
+    backend's base URL); in-process uses such as ``copy_instance`` leave it out.
+    """
     from django.contrib.contenttypes.models import ContentType
+    from django.utils import timezone
 
     from nodes.page_snapshot import build_instance_page_snapshots
 
@@ -1540,7 +1576,14 @@ def export_instance(ic: InstanceConfig) -> InstanceExport:
     ic_ct = ContentType.objects.get_for_model(ic)
     datasets = [DatasetSnapshot.from_model_for_instance(ds, ic) for ds in _datasets_for_instance_export(ic, ic_ct)]
 
-    return InstanceExport(instance=snapshot, datasets=datasets, pages=build_instance_page_snapshots(ic))
+    return InstanceExport(
+        instance=snapshot,
+        datasets=datasets,
+        pages=build_instance_page_snapshots(ic),
+        exported_at=timezone.now(),
+        exported_from=exported_from,
+        draft_head_token=ic.draft_head_token,
+    )
 
 
 # ---------------------------------------------------------------------------
