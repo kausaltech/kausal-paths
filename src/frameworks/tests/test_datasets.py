@@ -32,6 +32,7 @@ def test_framework_measure_dataset_injects_only_bound_config_datapoints() -> Non
     MeasureDataPoint.objects.create(measure=measure, year=2020, value=42.0, default_value=7.0)
     MeasureDataPoint.objects.create(measure=other_measure, year=2020, value=99.0, default_value=8.0)
 
+    raw: ppl.PathsDataFrame
     context = cast(
         'Context',
         SimpleNamespace(

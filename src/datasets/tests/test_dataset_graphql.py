@@ -1073,6 +1073,7 @@ def test_dataset_detail_batches_rules_and_comments(
     from nodes.roles import instance_admin_role
 
     instance_config, dataset, first_metric, category = dataset_setup
+    assert dataset.schema is not None
     DatasetSchemaScope.objects.create(
         schema=dataset.schema,
         scope_content_type=ContentType.objects.get_for_model(instance_config),
