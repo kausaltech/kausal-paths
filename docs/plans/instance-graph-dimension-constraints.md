@@ -657,6 +657,16 @@ identifier during common graph construction.
 **Gate:** the document, compatibility assumptions, and measured baseline agree
 with current production-shaped data.
 
+Note (2026-09-15): the document had fallen behind the plan — its "Current
+state and next steps" still listed unified bindings, the flatten retirement,
+consuming-port execution, node signatures and propagation as *next*. Rewritten
+to the landed state with the step 6–8 decisions graduated into it (role
+semantics, the untrusted-subclass rule, baseline-diff validation, strict
+publication, the binding-tag whitelist, the two single authorities for binding
+order and dataset grouping). The performance baseline this step asked for was
+never recorded and is still open; the only numbers are the step-7 "all 66
+instances solve under 100 ms" remark.
+
 ### 2. Retire the `flatten` placeholder onto port declarations
 
 Independent of the graph and deliberately early: it removes a non-executable
@@ -1232,11 +1242,9 @@ dataset revision isolation tests pass.
 
 - ~~Drop the `NodeEdge` / `DatasetPort` tables~~ (done 2026-08-30, below).
 - ~~Stop generating `supported_dimensions` and remove the Pydantic field~~
-  (done 2026-08-31, below). The GraphQL surface (deprecated read field
-  resolving to an empty list, deprecated ignored input field) remains until
-  the editor UI's queries are confirmed migrated — remove it together with
-  the identifier-based inputs.
-- Remove identifier-based GraphQL inputs after measured client migration.
+  (done 2026-08-31, below); ~~its GraphQL surface~~ (done 2026-09-15, below).
+- ~~Remove identifier-based GraphQL inputs after measured client migration~~
+  (done 2026-09-15, below; `NodePortRef.nodeId` stays, see the note).
 - Remove snapshot identifier upgraders only when the supported revision window
   allows it; keep offline export upgrade tooling longer if needed.
 - Remove legacy multiplicative role inference and the split-binding projection.
@@ -1244,10 +1252,93 @@ dataset revision isolation tests pass.
   `NodeInputPortBinding` / `InputBindingSnapshot`; retire `EdgeSnapshot` /
   `DatasetPortSnapshot` as the snapshot union members in the same move~~
   (done 2026-09-01, below; the carrier classes remain parse/sync-internal).
-- Retire the `NodeExplanationSystem` dict shim (`snapshot_nodes_to_config_dicts`).
+- ~~Retire the `NodeExplanationSystem` dict shim (`snapshot_nodes_to_config_dicts`)~~
+  (done 2026-09-15, below).
+- ~~Retire `spec_export` and `parse_oracle` together, once the binding
+  serialization they guarded had settled~~ (done 2026-09-15, below).
 - ~~Retire `DatasetPortSpec.output_dimensions` once schema + ops derive it~~
   (done 2026-08-31, below; the non-executing `flatten` placeholder was already
   gone — step 2).
+
+Implementation note (2026-09-15, exporter and oracle retired):
+`nodes/spec_export.py` (the runtime-introspection exporter), `tools/parse_oracle.py`
+and the `sync_instance_to_db --runtime-export` flag are gone; the parser is the
+only spec producer. The four helpers the parse-only sync still used —
+`pair_metrics_to_columns`, `_get_db_datasets`, `_dataset_metric_binding_key`,
+`_promote_dataset_forecast_defaults` — moved into `nodes/spec_sync.py`. Tests
+that exercised the exporter were retargeted where the behavior lives: the
+multi-port collapse is tested through `parse_instance_snapshot`, metric-to-
+column pairing directly on the moved function, forecast-default promotion on
+its new import, and the class-declaration namespace test moved to
+`test_shape_rules`; the two tests of exporter-only identifier derivation went
+with the exporter (the parser derives port identifiers from source node names
+and drops duplicates itself). The oracle's cache directory (`.parse-oracle-cache/`)
+left `.gitignore`; a local copy may still exist on developer machines. With the
+oracle gone, the regression net for parse/sync changes is `sync_instance_to_db
+--dry-run` plus `test_instance --compare` and the double-sync idempotency check.
+
+Implementation note (2026-09-15, explanation system on typed inputs):
+`nodes/instance_from_db.py` is deleted. The explanation rules read a typed
+model they own — `ExplainedNode` / `ExplainedEdge` / `ExplainedParam` in
+`nodes/explanation_inputs.py`, with dataset bindings as the same
+`InputDatasetDef`s the runtime constructs from — built by
+`explained_nodes_from_graph()` from the loader's `InstanceGraph` plus its
+grouped dataset definitions. Graph edges come from `EdgeBindingDef`s merged
+per source node (the runtime's one-edge-per-source view), dataset pipelines
+are described op by op, and parameters through their own serialization.
+The last `_param_to_dict` use became a private loader helper (the parameter
+builder still merges dicts over the class default; typing that is separate
+work), and the dimension-ORM coverage check moved onto `InstanceConfig`.
+
+Gate: the explanation, validation, basket and graph-input output of all 98
+buildable local instances dumped before and after and diffed, with two
+deliberate changes: (a) input order now follows the authored per-port
+position order the runtime uses — the dict shim ordered a node's inputs by
+the source's first appearance anywhere in the global edge list, so `t1`/`t2`
+labels and basket order could disagree with the runtime; verified on
+`m-demo`'s `total_cost` against `node.input_nodes`; and (b) dataset terms
+describe their pipeline again (forecast year, dropped nulls, renames,
+filters). That description existed for YAML flat fields, and
+`_flat_keys_from_transformations` was written to keep it for pipelines, but
+the only caller of the flattening was a dead method, so since step 10 routed
+everything through pipelines no dataset term had described its filters.
+Adds a detail block on ~4,100 dataset terms fleet-wide, no removals.
+Everything else is byte-identical up to the metric-name order inside merged
+multi-metric edges. The full nodes/paths pytest, repo mypy and ruff are clean.
+
+Implementation note (2026-09-15, deprecated GraphQL surface removed): one
+schema change covering everything the identifier era left behind —
+`supportedDimensions` (read field and `InputPortInput` field), the four legacy
+`createEdge` fields (`fromNodeId` / `toNodeId` / `fromPort` / `toPort`), the
+`toRef` / `nodeRef` aliases, the `selectCategories` / `assignCategory` /
+`flatten` members of `EdgeTransformationInput` together with their input
+types and the three never-emitted output types in `PortTransformationUnion`
+(every reader passes through `modernized_transformations()`, so the union
+members were unreachable), and the `updateNode` / `deleteNode` /
+`addNodeInputPort` / `addNodeOutputPort` mutations that `nodeEditor` replaced.
+The UI checkout (2026-09-11) uses none of them; its `toEdgeTransformationInputs`
+branches for the legacy output types were dead code. Two decisions:
+
+- The legacy fields carried one behavior the canonical form lacked: omitting
+  `toPort` invoked the step-8 connect-time port planning, and omitting
+  `fromPort` selected the node's only output. `NodePortRefInput.portId` is now
+  optional with exactly those semantics, so planning stays reachable (the UI
+  always names the port; the assistant toolkit resolves ports client-side).
+  `fromRef` / `portRef` became required.
+- `NodePortRef.nodeId` (the human-readable identifier on refs) is **kept**
+  for one more deploy cycle: the UI's dataset query read it because
+  `model.nodes(id:)` resolved identifiers only. Later the same day the
+  resolver started accepting UUIDs interchangeably (resolved through the
+  node's `NodeConfig` row, with the derived fallback identity for nodes
+  without one) and the UI moved to `nodeUuid`. Remove `nodeId` once the
+  backend and then the UI are deployed.
+
+Gates: schema export diff limited to the listed removals plus the `portId`
+nullability change; `test_model_editor`, `test_revisions` and
+`test_dataset_bindings_graphql` migrated to `nodeEditor` and `fromRef` /
+`portRef` (the `trailhead_demo_smoke` command likewise, declaring its
+ex-`flatten` dimensions as `requiredDimensions` on the port it adds); full
+`src/` pytest, repo mypy and ruff clean.
 
 Implementation note (2026-08-31, parse-oracle repair): before starting these
 slices the oracle's 4/53 state was diagnosed and fixed — two defects in the

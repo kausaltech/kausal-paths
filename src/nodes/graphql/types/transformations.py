@@ -25,24 +25,20 @@ from strawberry import UNSET, Maybe, auto
 from kausal_common.strawberry.pydantic import StrawberryPydanticType, pydantic_input, pydantic_type
 
 from nodes.defs.transform_def import (
-    AssignCategoryTransformation,
     AssignDimensionOp,
     DropNullsOp,
     EnsureUnitOp,
     FilterColumnOp,
     FilterDimensionOp,
     FilterTemporalOp,
-    FlattenTransformation,
     IndexTemporalOp,
     PortTransformOp,
     RemapLegacyYearsOp,
     RenameColumnOp,
     RenameItemOp,
-    SelectCategoriesTransformation,
     SelectMetricOp,
     SetForecastFromOp,
     TagOperationOp,
-    modernized_transformations,
 )
 
 if TYPE_CHECKING:
@@ -149,25 +145,6 @@ class TagOperationType(StrawberryPydanticType[TagOperationOp], PortTransformatio
     tag: auto
 
 
-@pydantic_type(model=SelectCategoriesTransformation)
-class SelectCategoriesType(StrawberryPydanticType[SelectCategoriesTransformation], PortTransformationInterface):
-    dimension: auto
-    categories: auto
-    flatten: auto
-    exclude: auto
-
-
-@pydantic_type(model=AssignCategoryTransformation)
-class AssignCategoryType(StrawberryPydanticType[AssignCategoryTransformation], PortTransformationInterface):
-    dimension: auto
-    category: auto
-
-
-@pydantic_type(model=FlattenTransformation)
-class FlattenType(StrawberryPydanticType[FlattenTransformation], PortTransformationInterface):
-    dimension: auto
-
-
 PortTransformationType = Annotated[
     FilterDimensionType
     | AssignDimensionType
@@ -181,10 +158,7 @@ PortTransformationType = Annotated[
     | SelectMetricType
     | IndexTemporalType
     | RemapLegacyYearsType
-    | TagOperationType
-    | SelectCategoriesType
-    | AssignCategoryType
-    | FlattenType,
+    | TagOperationType,
     sb.union('PortTransformationUnion'),
 ]
 
@@ -266,25 +240,6 @@ class TagOperationInput(StrawberryPydanticType[TagOperationOp]):
     tag: auto
 
 
-@pydantic_input(model=SelectCategoriesTransformation)
-class SelectCategoriesInput(StrawberryPydanticType[SelectCategoriesTransformation]):
-    dimension: auto
-    categories: auto
-    flatten: auto
-    exclude: auto
-
-
-@pydantic_input(model=AssignCategoryTransformation)
-class AssignCategoryInput(StrawberryPydanticType[AssignCategoryTransformation]):
-    dimension: auto
-    category: auto
-
-
-@pydantic_input(model=FlattenTransformation)
-class FlattenInput(StrawberryPydanticType[FlattenTransformation]):
-    dimension: auto
-
-
 @sb.input(
     one_of=True,
     description='Exactly one transformation of a dataset binding. Order in the containing list is execution order.',
@@ -316,18 +271,6 @@ class DatasetTransformationInput:
 class EdgeTransformationInput:
     filter_dimension: Maybe[FilterDimensionInput]
     assign_dimension: Maybe[AssignDimensionInput]
-    select_categories: Maybe[SelectCategoriesInput] = sb.field(
-        default=UNSET,
-        deprecation_reason='Use filterDimension instead.',
-    )
-    assign_category: Maybe[AssignCategoryInput] = sb.field(
-        default=UNSET,
-        deprecation_reason='Use assignDimension instead.',
-    )
-    flatten: Maybe[FlattenInput] = sb.field(
-        default=UNSET,
-        deprecation_reason='A port shape declaration, not a transformation; it moves onto the input port.',
-    )
 
 
 _DATASET_INPUT_FIELDS = (
@@ -349,9 +292,6 @@ _DATASET_INPUT_FIELDS = (
 _EDGE_INPUT_FIELDS = (
     'filter_dimension',
     'assign_dimension',
-    'select_categories',
-    'assign_category',
-    'flatten',
 )
 
 
@@ -389,8 +329,4 @@ def dataset_transformations_from_input(entries: list[DatasetTransformationInput]
 
 
 def edge_transformations_from_input(entries: list[EdgeTransformationInput]) -> list[PortTransformOp]:
-    """Convert edge input entries, rewriting the deprecated legacy kinds into the current vocabulary."""
-    transformations = [_transformation_from_one_of(entry, _EDGE_INPUT_FIELDS) for entry in entries]
-    if any(isinstance(transformation, FlattenTransformation) for transformation in transformations):
-        raise ValueError('`flatten` is a consuming-port shape declaration, not an edge transformation')
-    return modernized_transformations(transformations)
+    return [_transformation_from_one_of(entry, _EDGE_INPUT_FIELDS) for entry in entries]

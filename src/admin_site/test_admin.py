@@ -328,6 +328,11 @@ def test_check_login_method_kausal_domain_falls_back_when_sso_not_configured(cli
     # KausalAuth absent from AUTHENTICATION_BACKENDS (client not provisioned):
     # routing to it would strand the user on a dead begin URL.
     settings.SOCIAL_AUTH_KAUSAL_EMAIL_DOMAINS = ['kausal.tech']
+    if 'kausal_common.auth.backends.KausalAuth' in settings.AUTHENTICATION_BACKENDS:
+        backends = list(settings.AUTHENTICATION_BACKENDS)
+        backends.remove('kausal_common.auth.backends.KausalAuth')
+        settings.AUTHENTICATION_BACKENDS = backends
+
     user = UserFactory.create(email='dev@kausal.tech', is_staff=True, is_superuser=True)
     user.set_unusable_password()
     user.save()

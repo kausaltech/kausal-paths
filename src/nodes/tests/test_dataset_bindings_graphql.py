@@ -83,7 +83,6 @@ BIND_DATASET = gql("""
             ... on DatasetPortType {
               id
               portRef { nodeId portId }
-              nodeRef { nodeId portId }
               metric { name }
               transformations {
                 __typename
@@ -178,7 +177,6 @@ def test_add_port_then_bind_a_dataset_metric_to_it(gql_client: PathsTestClient, 
     )['instanceEditor']['nodeEditor']['bindDataset']
 
     assert binding['portRef']['portId'] == port['id']
-    assert binding['nodeRef'] == binding['portRef']
     assert binding['metric']['name'] == 'Energy'
     # A default list is generated, so a client needs no knowledge of the
     # generated markers just to create a working binding — and the interface
@@ -453,7 +451,7 @@ def test_edge_vocabulary_is_rejected_on_a_dataset_binding(gql_client: PathsTestC
         variables={
             'instanceId': str(db_instance_config.pk),
             'bindingId': binding_id,
-            'input': {'transformations': [{'selectCategories': {'dimension': 'sector', 'categories': ['a']}}]},
+            'input': {'transformations': [{'notAKind': {'dimension': 'sector', 'categories': ['a']}}]},
         },
         assert_error_message='DatasetTransformationInput',
     )
@@ -853,7 +851,6 @@ UPDATE_EDGE_BINDING = gql("""
                 __typename
                 ... on FilterDimensionType { dimension categories groups flatten exclude }
                 ... on AssignDimensionType { dimension category }
-                ... on FlattenType { dimension }
               }
             }
             ... on ConstraintViolations { conflicts { code message } }

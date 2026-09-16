@@ -3,9 +3,11 @@ Parse a YAML-shaped config dict into an ``InstanceSnapshot`` without building a 
 
 This is the parse half of the loader inversion: it consumes the merged config
 dict (the output of ``InstanceYAMLConfig.load_for_entrypoint``) and produces
-the same spec objects that ``nodes/spec_export.py`` derives from a fully
-initialized runtime. The contract is exact equivalence with the export path —
-verified by ``tools/parse_oracle.py`` across all YAML instances.
+the spec objects the runtime loader consumes. Until 2026-09-15 a
+runtime-introspection exporter derived the same specs from an initialized
+runtime, and an oracle verified the two agreed across every YAML instance;
+the parser is the only producer now, and the "mirror" notes below name the
+runtime behavior each derivation reproduces.
 
 Constraints: no ``Context``, no database access, no runtime ``Node`` or
 ``Dataset`` construction. Node *classes* are imported for their metadata
@@ -213,7 +215,7 @@ class InstanceConfigParser:
         # scenario_id -> list of (param_global_id, cleaned value)
         self._scenario_values: dict[str, list[tuple[str, Any]]] = {}
 
-    # -- uuid derivations (must match nodes/spec_export.py) ------------------
+    # -- uuid derivations (deterministic: stored rows were minted with these) --
 
     def _uuid_from_identifiers(self, identifiers: Sequence[str]) -> UUID:
         return uuid3(self.instance_uuid, ':'.join(identifiers))
@@ -1027,7 +1029,7 @@ class InstanceConfigParser:
                 self.nodes[edge.from_node if edge.from_node != node.identifier else edge.to_node].edges.append(edge)
 
     def _build_output_ports(self, parsed: _ParsedNode) -> list[OutputPortDef]:
-        """Mirror ``_export_output_ports``."""
+        """Derive the output ports from the node's metrics, as the runtime exposes them."""
         role_by_metric_id = {
             declaration.identifier: declaration.role for declaration in parsed.node_class.output_port_declarations
         }
@@ -1077,7 +1079,7 @@ class InstanceConfigParser:
         return None
 
     def _build_dataset_input_ports(self, parsed: _ParsedNode) -> list[InputPortDef]:
-        """Mirror ``_export_dataset_input_ports``."""
+        """Derive one input port per bound dataset metric."""
         ports: list[InputPortDef] = []
         for idx, ds_def in enumerate(parsed.dataset_defs):
             for column in self._dataset_binding_columns(parsed, ds_def):
@@ -1147,7 +1149,7 @@ class InstanceConfigParser:
     def _apply_multi_hints(
         self, parsed: _ParsedNode, ports: list[InputPortDef], candidates: list[_InputPortMultiCandidate]
     ) -> None:
-        """Mirror ``_apply_input_port_multi_hints``."""
+        """Collapse compatible additive inputs onto one ``multi`` port, as the runtime groups them."""
         by_group: dict[str, list[_InputPortMultiCandidate]] = {}
         for candidate in candidates:
             by_group.setdefault(candidate.group, []).append(candidate)
@@ -1178,7 +1180,7 @@ class InstanceConfigParser:
             ports[:] = [port for port in ports if port is first.port or port.id not in ports_to_remove]
 
     def _build_input_ports(self, parsed: _ParsedNode) -> list[InputPortDef]:  # noqa: C901
-        """Mirror ``_export_input_ports``."""
+        """Derive the input ports from incoming edges and dataset bindings."""
         from collections import Counter
 
         ports = self._build_dataset_input_ports(parsed)
@@ -1247,7 +1249,7 @@ class InstanceConfigParser:
     # -- snapshot assembly -------------------------------------------------------------
 
     def _parse_type_config(self, parsed: _ParsedNode) -> ActionConfig | SimpleConfig:
-        """Mirror ``_export_type_config``."""
+        """Derive the node's type configuration from its class and action settings."""
         kls = parsed.node_class
         node_class = f'{kls.__module__}.{kls.__qualname__}'
         if not parsed.is_action:
@@ -1300,7 +1302,7 @@ class InstanceConfigParser:
         return validated
 
     def _parse_node_extra(self, parsed: _ParsedNode) -> NodeSpecExtra:
-        """Mirror ``_export_node_extra``."""
+        """Collect the legacy extra fields the spec keeps but the runtime does not model."""
         config = parsed.config
         historical_values = config.get('historical_values') or None
         forecast_values = config.get('forecast_values') or None

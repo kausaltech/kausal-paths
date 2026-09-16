@@ -702,7 +702,7 @@ which is what made removing it safe rather than plausible.
 1. Check the error: `python manage.py test_instance --start-from the_instance --dry-run`
 2. Diff a suspicious node: `python -m tools.debug_instance -i the_instance --diff-node the_node`
 3. Switch to YAML to verify it works: `python -m tools.debug_instance -i the_instance --source yaml --save`
-4. Fix the serialization in `instance_from_db.py`
+4. Fix the construction in `instance_loader.py` (`from_snapshot` builds the runtime from the typed snapshot)
 5. Re-sync and switch back: `python manage.py sync_instance_to_db the_instance`
 
 ### The ClusterableModel save() trap

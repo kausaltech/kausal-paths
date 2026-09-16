@@ -6,10 +6,10 @@ import pytest
 from nodes.instance_export_sync import compile_instance_export_from_yaml
 from nodes.instance_loader import InstanceYAMLConfig
 from nodes.instance_parser import InstanceConfigParser, parse_instance_snapshot
-from nodes.spec_export import _export_node_params
-from nodes.tests.factories import AdditiveActionFactory, InstanceConfigFactory, NodeConfigFactory
+from nodes.tests.factories import InstanceConfigFactory, NodeConfigFactory
 
 if TYPE_CHECKING:
+    from nodes.defs.port_def import InputPortDef
     from nodes.instance_serialization import InstanceSnapshot
 
 pytestmark = pytest.mark.django_db
@@ -199,10 +199,64 @@ def test_authored_action_enabled_parameter_is_persisted():
     assert [param.local_id for param in snapshot.nodes[0].spec.params] == ['enabled']
 
 
-def test_runtime_export_omits_implicit_action_enabled_parameter():
-    action = AdditiveActionFactory.create()
+def _target_input_ports(target: dict[str, Any], sources: list[dict[str, Any]]) -> list[InputPortDef]:
+    snapshot = parse_instance_snapshot(
+        {
+            'id': 'test',
+            'default_language': 'en',
+            'name': 'Test',
+            'owner': 'Owner',
+            'target_year': 2030,
+            'reference_year': 2020,
+            'minimum_historical_year': 2010,
+            'nodes': [*sources, target],
+        },
+        instance_uuid=uuid4(),
+    )
+    node = next(n for n in snapshot.nodes if n.identifier == 'target')
+    assert node.spec is not None
+    return node.spec.input_ports
 
-    assert _export_node_params(action) == []
+
+def _source(identifier: str, *, unit: str = 'kt/a', quantity: str = 'emissions') -> dict[str, Any]:
+    return {'id': identifier, 'type': 'simple.AdditiveNode', 'name': identifier, 'unit': unit, 'quantity': quantity}
+
+
+def _additive_target(input_nodes: list[Any]) -> dict[str, Any]:
+    return {
+        'id': 'target',
+        'type': 'simple.AdditiveNode',
+        'name': 'Target',
+        'unit': 'kt/a',
+        'quantity': 'emissions',
+        'input_nodes': input_nodes,
+    }
+
+
+def test_parser_collapses_plain_additive_inputs_onto_one_multi_port():
+    ports = _target_input_ports(_additive_target(['source_a', 'source_b']), [_source('source_a'), _source('source_b')])
+
+    assert len(ports) == 1
+    assert ports[0].multi is True
+    assert ports[0].role == 'additive'
+
+
+def test_parser_keeps_a_non_additive_input_on_its_own_port():
+    ports = _target_input_ports(
+        _additive_target(['additive_source', {'id': 'non_additive_source', 'tags': ['non_additive']}]),
+        [_source('additive_source'), _source('non_additive_source')],
+    )
+
+    assert [port.multi for port in ports] == [True, False]
+
+
+def test_parser_keeps_additive_inputs_single_when_units_are_incompatible():
+    ports = _target_input_ports(
+        _additive_target(['emissions_source', 'energy_source']),
+        [_source('emissions_source'), _source('energy_source', unit='MWh/a', quantity='energy')],
+    )
+
+    assert [port.multi for port in ports] == [False, False]
 
 
 def test_compile_instance_export_preserves_identity_without_db_metadata(tmp_path):

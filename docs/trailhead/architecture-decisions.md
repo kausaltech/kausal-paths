@@ -175,8 +175,8 @@ to populate the `i18n` dict for a set of languages.
 
 **Decision:** `sync_instance_to_db` parses YAML directly into an
 `InstanceSnapshot`, then writes its computation graph to the database. The
-legacy runtime-introspection exporter remains available explicitly through
-`--runtime-export` while parity work continues.
+legacy runtime-introspection exporter (`nodes/spec_export.py`) and the oracle
+that verified parse-vs-export parity were retired on 2026-09-15.
 
 **Why:**
 - Parsing is independent of runtime node initialization and computation.
@@ -193,8 +193,7 @@ legacy runtime-introspection exporter remains available explicitly through
 **Key files:**
 - `nodes/instance_parser.py` — parses YAML into an `InstanceSnapshot`
 - `nodes/spec_sync.py` — writes parsed snapshots to the database
-- `nodes/spec_export.py` — legacy runtime-introspection exporter
-- `nodes/instance_from_db.py` — serializes DB specs back to config dicts for InstanceLoader
+- `nodes/instance_loader.py` — builds the runtime natively from an `InstanceSnapshot` (the config-dict shim is gone)
 - `nodes/management/commands/sync_instance_to_db.py` — management command
 
 ## 9. NodeSpecExtra: the attic

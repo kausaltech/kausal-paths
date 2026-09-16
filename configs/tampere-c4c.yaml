@@ -140,8 +140,8 @@ dimensions:
     label: Tuotosvaikutus
     label_en: Gross output
   - id: carbon_shadow
-    label: Hiilen varjohinta
-    label_en: Shadow cost of carbon
+    label: Päästökustannus
+    label_en: Emissions cost
   - id: health_impacts
     label: Terveysvaikutukset
     label_en: Health impacts
@@ -171,6 +171,9 @@ dimensions:
   - id: gas_biogas
     label: Kaasu/Biokaasu
     label_en: Gas/Biogas
+  - id: plusbus
+    label: Plusbussi/Sähkö
+    label_en: Plusbus/Electricity
 
 - id: road_type
   label: Tietyyppi
@@ -538,9 +541,12 @@ dimensions:
   - id: smart_grid_and_virtual_power_plant_development
     label: Älykäs energiaverkko ja virtuaalilaitoksen kehitys
     label_en: Smart grid and virtual power plant development
-  - id: superbus_investments
-    label: Superbussi-investoinnit
-    label_en: Superbus investments
+  - id: plusbus_investments
+    label: Plusbussi-investoinnit
+    label_en: Plusbus investments
+  - id: energy_efficiency_renovations_in_private_buildings
+    label: Korjausrakentaminen yksityisissä kiinteistöissä
+    label_en: Energy efficiency renovations in private buildings
 
 # ----- Kelicobe
 
@@ -1920,9 +1926,9 @@ nodes:
     - column: road_type
     - column: scope
 
-- id: car_propulsion_mix
-  name: Passenger car propulsion mix
-  name_en: Passenger car propulsion mix
+- id: baseline_car_propulsion_mix
+  name: Baseline passenger car propulsion mix
+  name_en: Baseline passenger car propulsion mix
   type: simple.AdditiveNode
   quantity: mix
   unit: vkm/vkm
@@ -1939,6 +1945,96 @@ nodes:
     - column: ghg
     - column: road_type
     - column: sector
+
+- id: car_propulsion_mix_action_impact
+  name: Passenger car propulsion mix action impact
+  type: simple.AdditiveNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: []
+  output_dimensions: []
+  forecast_values: [[2024, 2.33999730], [2025, 4.67999460], [2026, 7.01999190], [2027, 9.35998921], [2028, 11.69998651], [2029, 14.03998381], [2030, 16.37998111]]
+  output_nodes:
+  - id: car_propulsion_percentage_electric
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+    - id: scope
+      categories: [scope2]
+    - id: vehicle_type
+      categories: [passenger_cars]
+  - id: car_propulsion_percentage_non_electric
+    tags: [arithmetic_inverse]
+
+- id: car_propulsion_percentage_electric
+  name: 'Passenger car propulsion percentage: electric'
+  name_en: 'Passenger car propulsion percentage: electric'
+  type: simple.AdditiveNode
+  quantity: mix
+  unit: '%'
+  input_dimensions: [energy_carrier, scope, vehicle_type]
+  output_dimensions: [energy_carrier, scope, vehicle_type]
+  input_nodes:
+  - id: baseline_car_propulsion_mix
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+
+- id: car_propulsion_percentage_non_electric
+  name: 'Passenger car propulsion percentage: non-electric'
+  name_en: 'Passenger car propulsion percentage: non-electric'
+  type: simple.AdditiveNode
+  quantity: mix
+  unit: '%'
+  input_dimensions: []
+  output_dimensions: []
+  input_nodes:
+  - id: baseline_car_propulsion_mix
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+      exclude: true
+      flatten: true
+    - id: scope
+      flatten: true
+    - id: vehicle_type
+      flatten: true
+    to_dimensions: []
+
+- id: baseline_car_propulsion_mix_non_electric
+  name: 'Baseline passenger car propulsion mix: non-electric'
+  name_en: 'Baseline passenger car propulsion mix: non-electric'
+  type: simple.MixNode
+  quantity: mix
+  unit: '%'
+  input_dimensions: [energy_carrier, scope, vehicle_type]
+  output_dimensions: [energy_carrier, scope, vehicle_type]
+  input_nodes:
+  - id: baseline_car_propulsion_mix
+    tags: [activity]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+      exclude: true
+
+- id: car_propulsion_mix
+  name: Passenger car propulsion mix
+  name_en: Passenger car propulsion mix
+  type: formula.FormulaNode
+  quantity: mix
+  unit: '%'
+  input_dimensions: [energy_carrier, scope, vehicle_type]
+  output_dimensions: [energy_carrier, scope, vehicle_type]
+  params:
+    formula: total_electric + (total_non_electric * mix_non_electric)
+  input_nodes:
+  - id: car_propulsion_percentage_electric
+    tags: [total_electric]
+  - id: car_propulsion_percentage_non_electric
+    tags: [total_non_electric]
+    to_dimensions: []
+  - id: baseline_car_propulsion_mix_non_electric
+    tags: [mix_non_electric]
 
 - id: car_kilometers_by_propulsion
   name: Passenger car kilometers by propulsion

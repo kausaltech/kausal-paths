@@ -17,8 +17,10 @@ from uuid import uuid3
 
 from loguru import logger
 
+from nodes.defs.transform_def import resolve_metric_columns
+
 if TYPE_CHECKING:
-    from collections.abc import Hashable
+    from collections.abc import Hashable, Sequence
     from uuid import UUID
 
     from kausal_common.datasets.models import Dataset as DatasetModel, DatasetMetric
@@ -27,6 +29,7 @@ if TYPE_CHECKING:
     from datasets.validation_rules import ValidationRule
     from nodes.defs.graph import DatasetMeta
     from nodes.defs.node_defs import NodeSpec
+    from nodes.defs.transform_def import PortTransformOp
     from nodes.instance_serialization import InputBindingSnapshot, InstanceSnapshot, NodeSnapshot
     from nodes.models import InstanceConfig, NodeConfig
     from nodes.yaml_port_refs import YamlPortReferenceCatalog
@@ -50,8 +53,6 @@ def collect_dataset_schema_info(ic: InstanceConfig) -> dict[str, DatasetSchemaIn
     """Collect per-dataset schema info for an instance's datasets (by identifier)."""
     from kausal_common.datasets.models import DatasetMetric
 
-    from nodes.spec_export import _dataset_metric_binding_key, _get_db_datasets
-
     db_datasets = _get_db_datasets(ic)
     schema_pks = {ds.schema.pk for ds in db_datasets.values() if ds.schema is not None}
     metrics_by_schema: dict[int, list[DatasetMetric]] = {}
@@ -69,6 +70,149 @@ def collect_dataset_schema_info(ic: InstanceConfig) -> dict[str, DatasetSchemaIn
             info.metric_names[key] = metric.name or str(metric.uuid)
         result[identifier] = info
     return result
+
+
+def _get_db_datasets(ic: InstanceConfig) -> dict[str, DatasetModel]:
+    """Build a lookup of dataset identifier -> DB Dataset for an instance."""
+    from kausal_common.datasets.models import Dataset as DatasetModel
+
+    return {
+        ds.identifier: ds
+        for ds in DatasetModel.objects.get_queryset().for_instance_config(ic).select_related('schema')
+        if ds.identifier
+    }
+
+
+def _dataset_metric_binding_key(metric: DatasetMetric) -> str:
+    """
+    Return the metric identifier used in dataset-port bindings.
+
+    DB-backed datasets deserialize their metric columns using the same fallback order:
+    ``name``, then ``label``, then ``uuid``. Keep dataset-port lookup aligned with that
+    runtime behavior so bindings resolve to the same effective metric column.
+    """
+    if metric.name:
+        return metric.name
+    if metric.label:
+        return metric.label
+    return str(metric.uuid)
+
+
+def pair_metrics_to_columns(
+    columns: list[str],
+    metric_keys: list[str],
+    *,
+    log_ctx: str,
+    transformations: Sequence[PortTransformOp] = (),
+) -> list[tuple[str, str]]:
+    """
+    Pair a column-less binding's dataset schema metrics with node columns.
+
+    Returns ``(port_column, metric_key)`` pairs: which input port delivers
+    which source metric. Matching runs on the column each metric is *delivered*
+    as, after the binding's renames and drops (see ``resolve_metric_columns``) —
+    the raw schema name is only the starting point, and a metric the pipeline
+    drops is not missing but deliberately unused, so it pairs with nothing and
+    is not warned about.
+
+    Name matches pair first (case-insensitively, since schema metrics are
+    lowercase identifiers while node columns are often TitleCase, e.g. ``fuel``
+    feeding ``Fuel``); a lone leftover on both sides pairs too, since a single
+    remaining metric can only feed the single remaining column. Anything still
+    unmatched gets no binding — inventing a mapping would be worse than
+    omitting it, and a dangling binding worse than a missing one.
+    """
+    delivered, dropped = resolve_metric_columns(metric_keys, transformations)
+    if dropped:
+        logger.debug('%s: schema metrics %s are dropped by the binding pipeline; no binding' % (log_ctx, dropped))
+    pairs: list[tuple[str, str]] = []
+    remaining_metrics = [key for key in metric_keys if key in delivered]
+    remaining_columns = list(columns)
+    for column in columns:
+        match = next((metric for metric in remaining_metrics if delivered[metric].lower() == column.lower()), None)
+        if match is not None:
+            pairs.append((column, match))
+            remaining_metrics.remove(match)
+            remaining_columns.remove(column)
+    if len(remaining_metrics) == 1 and len(remaining_columns) == 1:
+        pairs.append((remaining_columns[0], remaining_metrics[0]))
+        remaining_metrics.clear()
+    if remaining_metrics:
+        logger.warning('%s: no input port column for schema metrics %s; they get no binding' % (log_ctx, remaining_metrics))
+    return pairs
+
+
+def _promote_dataset_forecast_defaults(ic: InstanceConfig) -> int:
+    """
+    Promote binding-level forecast years to dataset defaults when unambiguous.
+
+    YAML allows ``forecast_from`` per input-dataset binding. In the DB editor we
+    want the common case to be dataset-scoped, with the binding pipeline's
+    ``set_forecast_from`` op kept as an override. If all non-null binding years
+    for an instance dataset agree, store that year on
+    ``Dataset.spec.forecast_from`` and clear matching binding overrides so
+    those bindings inherit the dataset default.
+    """
+    from collections import defaultdict
+
+    from nodes.dataset_materialization import refresh_dataset_materialization
+    from nodes.models import DatasetMaterialization, NodeInputPortBinding
+
+    ports_by_dataset: dict[int, list[NodeInputPortBinding]] = defaultdict(list)
+    ports = (
+        NodeInputPortBinding.objects.filter(instance=ic, dataset__isnull=False).select_related('dataset').order_by('dataset_id')
+    )
+    for port in ports:
+        assert port.dataset_id is not None
+        ports_by_dataset[port.dataset_id].append(port)
+
+    materializations = {
+        materialization.dataset_id: materialization
+        for materialization in DatasetMaterialization.objects.select_for_update().filter(
+            dataset_id__in=ports_by_dataset,
+        )
+    }
+
+    promoted = 0
+    for dataset_ports in ports_by_dataset.values():
+        dataset = dataset_ports[0].dataset
+        assert dataset is not None
+        # External placeholders (no real DB dataset content) are loaded via plain DVCDataset at
+        # runtime, which has no fallback to Dataset.spec.forecast_from (only DBDataset.from_def
+        # does). Promoting for these would clear the binding-level value with nothing left to
+        # read it back, silently dropping forecast_from and breaking Forecast-column synthesis.
+        if dataset.is_external_placeholder:
+            continue
+        from nodes.defs.transform_def import forecast_from_transformations
+
+        years = {
+            year for port in dataset_ports if (year := forecast_from_transformations(port.transformations or [])) is not None
+        }
+        if len(years) == 1:
+            year = years.pop()
+            spec = dict(dataset.spec or {})
+            if spec.get('forecast_from') != year:
+                spec['forecast_from'] = year
+                dataset.spec = spec
+                dataset.save(update_fields=['spec'])
+                promoted += 1
+
+            from nodes.defs.transform_def import without_transformations
+
+            changed_ports: list[NodeInputPortBinding] = []
+            for port in dataset_ports:
+                if forecast_from_transformations(port.transformations or []) == year:
+                    port.transformations = without_transformations(port.transformations or [], 'set_forecast_from')
+                    changed_ports.append(port)
+            if changed_ports:
+                NodeInputPortBinding.objects.bulk_update(changed_ports, ['transformations'])
+
+        forecast_from = (dataset.spec or {}).get('forecast_from')
+        materialization = materializations.get(dataset.pk)
+        if forecast_from is not None and (materialization is None or materialization.forecast_from != forecast_from):
+            refresh_dataset_materialization(dataset)
+
+    return promoted
 
 
 def _binding_columns(spec_column: str | None, node_spec: NodeSpec) -> list[str]:
@@ -103,7 +247,6 @@ def resolve_dataset_port_snapshots(  # noqa: C901, PLR0912
     rows when nothing pairs, and drop entries whose metric doesn't exist.
     """
     from nodes.instance_serialization import DatasetMetricSource, InputBindingSnapshot, group_dataset_bindings
-    from nodes.spec_export import pair_metrics_to_columns
 
     node_specs: dict[UUID, NodeSpec] = {}
     for n in snapshot.nodes:
@@ -289,7 +432,7 @@ def _sync_dataset_metadata_from_snapshot(ic: InstanceConfig, snapshot: InstanceS
                 # Warning is safe because this declaration is an *edit constraint*, not a binding:
                 # a rule with no metric constrains nothing and cannot leave a dataset wrongly
                 # editable. A metric a node actually binds is still enforced, and still raises --
-                # see `No metric ... for node ...` above and in `spec_export.py`.
+                # see `No metric ... for node ...` above.
                 logger.warning(
                     f"datasets entry '{ds_id}' declares rules for metric "
                     f"'{metric_meta.identifier}', which the dataset of instance "
@@ -455,7 +598,6 @@ def _write_bindings(
         ordered_unified_bindings,
     )
     from nodes.models import NodeInputPortBinding
-    from nodes.spec_export import _get_db_datasets
 
     edges = snapshot.edge_bindings
     edge_keys: list[tuple[Hashable, ...]] = []
@@ -596,9 +738,9 @@ def sync_parsed_instance_to_db(
     """
     Parse an instance's YAML into specs and sync them to the DB — no runtime init.
 
-    This is the parse-only replacement for ``nodes.spec_export.sync_instance_to_db``
-    (which still exists as the runtime-derived baseline the parse oracle
-    compares against).
+    The runtime-introspection exporter this replaced (``nodes/spec_export.py``)
+    and the oracle that compared the two were retired on 2026-09-15, once the
+    binding serialization they guarded had settled.
     """
     from django.db import transaction
 
@@ -609,7 +751,6 @@ def sync_parsed_instance_to_db(
     from nodes.instance_parser import parse_instance_snapshot
     from nodes.instance_serialization import reconcile_snapshot_node_metadata
     from nodes.models import InstanceConfig, NodeConfig
-    from nodes.spec_export import _promote_dataset_forecast_defaults
 
     if yaml_path is None:
         yaml_path = Path(f'configs/{instance_id}.yaml').resolve()

@@ -7,6 +7,15 @@ from typing import TYPE_CHECKING, Any, Literal, cast
 from kausal_common.i18n.pydantic import gettext_lazy as _
 
 from .constants import TIME_INTERVAL
+from .defs.transform_def import (
+    AssignDimensionOp,
+    DropNullsOp,
+    FilterColumnOp,
+    FilterDimensionOp,
+    RenameColumnOp,
+    RenameItemOp,
+    SetForecastFromOp,
+)
 from .formula import (
     FormulaSpec,
     analyze_formula_dimensions,
@@ -20,10 +29,15 @@ from .formula import (
 from .units import unit_registry
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from kausal_common.i18n.pydantic import I18nString
 
     from nodes.context import Context
+    from nodes.defs.node_defs import InputDatasetDef
+    from nodes.defs.transform_def import PortTransformOp
 
+    from .explanation_inputs import ExplainedEdge, ExplainedNode
     from .formula import (
         UnitOverride,
     )
@@ -619,10 +633,10 @@ NODE_CLASS_DESCRIPTIONS: dict[str, NodeInfo] = {
 class GraphRepresentation:
     """Normalized representation of the complete node graph."""
 
-    nodes: dict[str, dict[str, Any]] = field(default_factory=dict)  # node_id -> node_config
+    nodes: dict[str, ExplainedNode] = field(default_factory=dict)
     inputs: dict[str, list[str]] = field(default_factory=dict)  # node_id -> list of input_node_ids
     outputs: dict[str, list[str]] = field(default_factory=dict)  # node_id -> list of output_node_ids
-    edges: dict[tuple[str, str], dict[str, Any]] = field(default_factory=dict)  # (from_node, to_node) -> edge_properties
+    edges: dict[tuple[str, str], ExplainedEdge] = field(default_factory=dict)
 
 
 @dataclass
@@ -736,57 +750,21 @@ def _merge_node_explanations(parts: list[NodeExplanation]) -> NodeExplanation:
 
 class GraphBuilder:
     @staticmethod
-    def build_graph(all_node_configs: list[dict[str, Any]]) -> GraphRepresentation:
-        """Build normalized graph from all node configs."""
+    def build_graph(nodes: Sequence[ExplainedNode]) -> GraphRepresentation:
+        """Index the nodes and their incoming edges; a source outside the set is kept as an input, never validated here."""
+        nodes_dict = {node.id: node for node in nodes}
+        inputs: dict[str, list[str]] = {node_id: [] for node_id in nodes_dict}
+        outputs: dict[str, list[str]] = {node_id: [] for node_id in nodes_dict}
+        edges: dict[tuple[str, str], ExplainedEdge] = {}
 
-        # Create node_id set for quick lookups
-        node_ids = {node['id'] for node in all_node_configs}
-        nodes_dict = {node['id']: node for node in all_node_configs}
-
-        inputs: dict[str, list[str]] = {node_id: [] for node_id in node_ids}
-        outputs: dict[str, list[str]] = {node_id: [] for node_id in node_ids}
-        edges: dict[tuple[str, str], dict[str, Any]] = {}
-
-        for node in all_node_configs:
-            node_id: str = node['id']
-
-            # Handle input_nodes - don't validate existence yet
-            for input_spec in node.get('input_nodes', []):
-                input_node_id, edge_props = GraphBuilder._parse_edge_spec(input_spec)
-                inputs[node_id].append(input_node_id)
-                if input_node_id in node_ids:
-                    outputs[input_node_id].append(node_id)
-                edges[(input_node_id, node_id)] = edge_props
-
-            # Handle output_nodes
-            for output_spec in node.get('output_nodes', []):
-                output_node_id, edge_props = GraphBuilder._parse_edge_spec(output_spec)
-                outputs[node_id].append(output_node_id)
-                if output_node_id in node_ids:
-                    inputs[output_node_id].append(node_id)
-
-                # Check for duplicate edges
-                edge_key = (node_id, output_node_id)
-                if edge_key in edges:
-                    raise ValueError(f'Duplicate edge definition: {edge_key}')
-                edges[edge_key] = edge_props
+        for node in nodes:
+            for edge in node.inputs:
+                inputs[node.id].append(edge.source_id)
+                if edge.source_id in nodes_dict:
+                    outputs[edge.source_id].append(node.id)
+                edges[(edge.source_id, node.id)] = edge
 
         return GraphRepresentation(nodes=nodes_dict, inputs=inputs, outputs=outputs, edges=edges)
-
-    @staticmethod
-    def _parse_edge_spec(input_spec) -> tuple[str, dict[str, Any]]:
-        """Extract node_id and edge properties from input specification."""
-        if isinstance(input_spec, str):
-            return input_spec, {}
-
-        if isinstance(input_spec, dict):
-            spec_copy = input_spec.copy()
-            node_id = spec_copy.pop('id', None)
-            if not node_id:
-                raise KeyError(f'No node id found in input spec: {input_spec}')
-            return node_id, spec_copy
-
-        raise ValueError(f'Invalid input specification: {input_spec}')
 
 
 @dataclass
@@ -795,7 +773,7 @@ class NodeExplanationSystem:
 
     graph: GraphRepresentation = field(init=False)
 
-    all_node_configs: InitVar[list[dict[str, Any]]]
+    nodes: InitVar[Sequence[ExplainedNode]]
 
     explanations: dict[str, NodeExplanation] = field(default_factory=dict)
     """Static explanations generated from node configurations."""
@@ -804,7 +782,7 @@ class NodeExplanationSystem:
 
     baskets: dict[str, dict[str, list[str]]] = field(default_factory=dict)
 
-    def __post_init__(self, all_node_configs: list[dict[str, Any]]):
+    def __post_init__(self, nodes: Sequence[ExplainedNode]):
         self.rules = [
             NodeClassRule(),
             DatasetRule(),
@@ -813,42 +791,17 @@ class NodeExplanationSystem:
             FormulaDimensionRule(),
             FormulaUnitRule(),
         ]
-        self.generate_graph(all_node_configs)
-
-    def generate_graph(self, node_configs: list[dict[str, Any]]) -> NodeExplanationSystem:
-        """Validate all nodes with complete graph information."""
-
-        import copy
-
-        all_node_configs = copy.deepcopy(node_configs)
-        all_results: dict[str, list[ValidationResult]] = {}
-
-        # Step 1: Build complete graph representation
-        try:
-            graph = GraphBuilder.build_graph(all_node_configs)
-            self.graph = graph
-        except KeyError as e:
-            # Return graph-level errors for all nodes
-            graph_error = ValidationResult(method='graph_rule', is_valid=False, level='error', message=str(e))
-            all_results = {node['id']: [graph_error] for node in all_node_configs}
-            self.validations = all_results  # FIXME edge dimensions don't end up here if 'output_nodes' used.(?)
-            self.graph = GraphRepresentation()
-
-        return self
+        self.graph = GraphBuilder.build_graph(nodes)
 
     def generate_validations(self) -> dict[str, list[ValidationResult]]:
         """Validate all nodes with complete graph information."""
         all_results: dict[str, list[ValidationResult]] = {}
 
         # Step 2: Validate each node with complete graph context
-        for node_id, node_config in self.graph.nodes.items():
-            # Run all validation rules
-            node_results = []
+        for node_id, node in self.graph.nodes.items():
+            node_results: list[ValidationResult] = []
             for rule in self.rules:
-                if isinstance(node_config, dict):
-                    results = rule.validate(node_config, self.context)
-                    node_results.extend(results)
-
+                node_results.extend(rule.validate(node, self.context))
             all_results[node_id] = node_results
 
         self.validations = all_results
@@ -858,11 +811,8 @@ class NodeExplanationSystem:
         """Generate structured explanations for all nodes."""
         all_results: dict[str, NodeExplanation] = {}
 
-        for node_id, node_config in self.graph.nodes.items():
-            if not isinstance(node_config, dict):
-                all_results[node_id] = NodeExplanation()
-                continue
-            parts = [rule.explain(node_config, self.context) for rule in self.rules]
+        for node_id, node in self.graph.nodes.items():
+            parts = [rule.explain(node, self.context) for rule in self.rules]
             all_results[node_id] = _merge_node_explanations(parts)
 
         self.explanations = all_results
@@ -874,17 +824,16 @@ class NodeExplanationSystem:
         # Special tags that should be skipped completely
         skip_tags = {'ignore_content'}
 
-        for node_id, node_config in self.graph.nodes.items():
+        for node_id, node in self.graph.nodes.items():
             baskets[node_id] = {}
 
             # Categorize nodes by tags
-            assert isinstance(node_config, dict)
             for input_id in self.graph.inputs.get(node_id, []):
                 basket = 'unknown'
                 input_node = self.graph.nodes[input_id]
-                edge_props = self.graph.edges.get((input_id, node_id), {})
-                edge_tags = edge_props.get('tags', []) if isinstance(edge_props, dict) else []
-                node_tags = input_node.get('tags', []) if isinstance(input_node, dict) else []
+                edge = self.graph.edges.get((input_id, node_id))
+                edge_tags = edge.tags if edge is not None else ()
+                node_tags = input_node.tags
                 assigned = False
                 if any(tag in node_tags or tag in edge_tags for tag in skip_tags):
                     basket = 'skip'
@@ -896,8 +845,8 @@ class NodeExplanationSystem:
                             break
 
                 if not assigned:
-                    node_unit = node_config.get('unit')  # FIXME Does not Work with multi-metric nodes.
-                    input_unit = input_node.get('unit') if isinstance(input_node, dict) else None
+                    node_unit = node.unit  # FIXME Does not Work with multi-metric nodes.
+                    input_unit = input_node.unit
                     if node_unit is None or input_unit is None:
                         basket = 'unknown'
                     else:
@@ -940,9 +889,9 @@ class NodeExplanationSystem:
         return {node_id: message for node_id, message in messages.items() if len(message) > 0}
 
 
-def build_node_explanation_system(context: Context, node_configs: list[dict[str, Any]]) -> NodeExplanationSystem:
+def build_node_explanation_system(context: Context, nodes: Sequence[ExplainedNode]) -> NodeExplanationSystem:
     """Construct the explanation system and run its generation passes."""
-    nes = NodeExplanationSystem(context, node_configs)
+    nes = NodeExplanationSystem(context, nodes)
     # The rules reach back through context.node_explanation_system, so it must
     # be assigned before the generation passes run.
     context.node_explanation_system = nes
@@ -1033,81 +982,52 @@ class ValidationRule(ABC):
     """Base class for validation rules that also generate explanations."""
 
     @abstractmethod
-    def explain(self, node_config: dict[str, Any], context: Context) -> NodeExplanation:
-        """Generate structured explanation from node config."""
-        pass
+    def explain(self, node: ExplainedNode, context: Context) -> NodeExplanation:
+        """Generate structured explanation from the node's typed description."""
 
     @abstractmethod
-    def validate(self, node_config: dict[str, Any], context: Context) -> list[ValidationResult]:
-        """Validate the node configuration."""
-        pass
+    def validate(self, node: ExplainedNode, context: Context) -> list[ValidationResult]:
+        """Validate the node's typed description."""
 
-    def get_param(self, node_config: dict[str, Any], param_id: str) -> str:
-        if 'params' not in node_config:
+    def get_param(self, node: ExplainedNode, param_id: str) -> str:
+        param = node.param(param_id)
+        if param is None:
             return ''
-        params = node_config['params']
-        if isinstance(params, dict):
-            for id, v in params.items():
-                if id == param_id:
-                    return v
-        else:
-            for param in params:
-                assert isinstance(param, dict)
-                v = param.get('value')
-                u = param.get('unit', '')
-                if 'id' in param and param['id'] == param_id:
-                    return f'{v} {u}'
-        return ''
+        return f'{param.value} {param.unit}'
 
-    def get_all_params(self, node_config: dict[str, Any], drop: list[str]) -> list[list[str] | None]:
+    def get_all_params(self, node: ExplainedNode, drop: list[str]) -> list[list[str] | None]:
         out: list[list[str] | None] = []
-        if 'params' not in node_config:
-            return out
-        params = node_config['params']
-        if isinstance(params, dict):
-            for id, v in params.items():
-                if id in drop:
-                    continue
-                out.append([id, _format_explanation_value(v)])
-        else:  # Assumes list of dicts
-            for param in params:
-                assert isinstance(param, dict)
-                id = param.get('id')
-                if id in drop:
-                    continue
-                assert isinstance(id, str)
-                v = param.get('value') or _('referencing to <i>%s</i>') % param.get('ref')
-                u = param.get('unit', '')
-                out.append([id, f'{_format_explanation_value(v)} {u}'])
+        for param in node.params:
+            if param.id in drop:
+                continue
+            v = param.value or _('referencing to <i>%s</i>') % param.ref
+            out.append([param.id, f'{_format_explanation_value(v)} {param.unit}'])
         return out
 
 
 class NodeClassRule(ValidationRule):
-    def explain(self, node_config: dict[str, Any], context: Context) -> NodeExplanation:
-        typ: str = node_config.get('type') or ''
-        typ = typ.rsplit('.', maxsplit=1)[-1]
+    def explain(self, node: ExplainedNode, context: Context) -> NodeExplanation:
+        typ = node.class_name
         desc = NODE_CLASS_DESCRIPTIONS.get(typ) or NODE_CLASS_DESCRIPTIONS['Unknown']
-        operations = self.get_param(node_config, 'operations') or None
-        other = self.get_all_params(node_config, drop=['operations', 'formula'])
+        operations = self.get_param(node, 'operations') or None
+        other = self.get_all_params(node, drop=['operations', 'formula'])
         params: list[tuple[str, str]] = []
         for p in other:
             assert p is not None
             params.append((str(p[0]), str(p[1])))
         return NodeExplanation(
-            node_id=node_config['id'],
+            node_id=node.id,
             node_type=typ,
             description=str(desc.description),
             operations=operations,
             params=params,
         )
 
-    def validate(self, node_config: dict[str, Any], context: Context) -> list[ValidationResult]:
+    def validate(self, node: ExplainedNode, context: Context) -> list[ValidationResult]:
         results: list[ValidationResult] = []
 
-        typ = node_config.get('type')
-        if isinstance(typ, str):
-            typ = typ.split('.')[-1]
-
+        typ = node.class_name
+        if typ:
             if typ not in NODE_CLASS_DESCRIPTIONS.keys():
                 results.append(
                     ValidationResult(
@@ -1131,154 +1051,90 @@ class NodeClassRule(ValidationRule):
         return results
 
 
-def _flat_keys_from_transformations(dataset_config: dict[str, Any]) -> dict[str, Any]:
-    """
-    Describe a transform pipeline using the flat keys the explanations below read.
+def dataset_pipeline(dataset: InputDatasetDef) -> list[PortTransformOp]:
+    """Return the binding pipeline; a definition still carrying the YAML-era flat fields compiles them first."""
+    if dataset.transformations is not None:
+        return list(dataset.transformations)
+    return dataset.to_transformations()
 
-    Database-backed instances carry an ordered pipeline where YAML carries flat
-    fields, and the explanations were written against the latter. This keeps the
-    generated text identical for both, and goes away when the explanations
-    describe the pipeline in order — which is the point of having one.
-    """
-    transformations = dataset_config.get('transformations')
-    if not transformations:
-        return dataset_config
 
-    config = dict(dataset_config)
-    filters: list[dict[str, Any]] = []
-    for op in transformations:
-        kind = op.get('kind')
-        params = {key: value for key, value in op.items() if key != 'kind'}
-        if kind in ('filter_column', 'filter_dimension'):
-            filters.append(params)
-        elif kind == 'assign_dimension':
-            filters.append({'dimension': op['dimension'], 'assign_category': op['category']})
-        elif kind == 'rename_column':
-            filters.append({'rename_col': op['column'], 'value': op.get('new_name')})
-        elif kind == 'rename_item':
-            filters.append({'rename_item': f'{op["column"]}|{op["old_item"]}', 'value': op['new_item']})
-        elif kind == 'set_forecast_from':
-            config['forecast_from'] = op['year']
-        elif kind == 'drop_nulls':
-            config['dropna'] = True
-    if filters:
-        config['filters'] = filters
-    return config
+def _forecast_from(pipeline: Sequence[PortTransformOp]) -> int | None:
+    year: int | None = None
+    for op in pipeline:
+        if isinstance(op, SetForecastFromOp):
+            year = op.year
+    return year
+
+
+def _drops_nulls(pipeline: Sequence[PortTransformOp]) -> bool:
+    return any(isinstance(op, DropNullsOp) for op in pipeline)
 
 
 class DatasetRule(ValidationRule):
-    def explain(self, node_config: dict[str, Any], context: Context) -> NodeExplanation:
+    def explain(self, node: ExplainedNode, context: Context) -> NodeExplanation:
         # Terms (including datasets) are handled by BasketRule to keep inputs in one place.
         return NodeExplanation()
 
-    def _explain_single_dataset(self, dataset_config: dict[str, Any], context: Context) -> list[str]:
-        """Explain a single dataset configuration."""
-        if isinstance(dataset_config, str):
-            return [f'<li><i>{dataset_config}</i></li>']
-        dataset_config = _flat_keys_from_transformations(dataset_config)
-        tags: list[Any] = dataset_config.get('tags', [])
-        tag_str = ', '.join(tags) + ': ' if tags else ''
-        html = [f'<li>{tag_str}{dataset_config["id"]}<ul>']
-
-        col = dataset_config.get('column')
-        if col is not None:
-            html.append(f'<li>{_("Metric: %(name)s") % {"name": col}}</li>')
-
-        year = dataset_config.get('forecast_from')
-        if year is not None:
-            html.append(f'<li>{_("Has forecast values from: %(year)s") % {"year": year}}</li>')
-
-        dropna = dataset_config.get('dropna')
-        if dropna:
-            html.append(f'<li>{_("Rows with missing values are dropped.")}</li>')
-
-        # Handle filters
-        filters = dataset_config.get('filters')
-        if filters:
-            html.extend(self._explain_filters(filters, context))
-
-        html.append('</ul></li>')
-        return html
-
-    def _explain_filters(self, filters: list[dict[str, Any]], context: Context) -> list[str]:
-        """Explain dataset filters."""
-        html = []
-        renames = [rename for rename in filters if 'rename_col' in rename]
+    def explain_pipeline(self, pipeline: Sequence[PortTransformOp], context: Context) -> list[str]:
+        """Describe the column renames and the filters of a dataset pipeline, in execution order."""
+        html: list[str] = []
+        renames = [op for op in pipeline if isinstance(op, RenameColumnOp)]
         if renames:
             html.append(f'<li>{_("Renames the following columns:")}<ul>')
-            for d in renames:
-                col = d['rename_col']
-                val = d.get('value', '')
-                html.append(f'<li>{col} &rarr; {val}.</li>')
+            html.extend(f'<li>{rename.column} &rarr; {rename.new_name or ""}.</li>' for rename in renames)
             html.append('</ul></li>')
-        true_filters = [d for d in filters if 'rename_col' not in d]
-        if true_filters:
+        filters = [op for op in pipeline if isinstance(op, (FilterColumnOp, FilterDimensionOp, AssignDimensionOp, RenameItemOp))]
+        if filters:
             html.append(f'<li>{_("Has the following filters:")}<ol>')
-            for d in true_filters:
-                if 'column' in d:
-                    html.append(self._explain_column_filter(d, context))
-                if 'dimension' in d:
-                    html.append(self._explain_dim_filter(d, context))
-                if 'rename_item' in d:
-                    html.append(self._explain_rename_item_filter(d))
-
+            for op in filters:
+                match op:
+                    case FilterColumnOp():
+                        html.append(self._explain_column_filter(op, context))
+                    case FilterDimensionOp():
+                        html.append(self._explain_dim_filter(op, context))
+                    case AssignDimensionOp():
+                        html.append(self._explain_assign(op, context))
+                    case RenameItemOp():
+                        html.append(self._explain_rename_item(op))
             html.append('</ol></li>')
         return html
 
-    def _explain_column_filter(self, d: dict[str, Any], context: Context) -> str:
-        col = d['column']
-        v: str = d.get('value', '')
-        vals: list[str] = d.get('values', [])
-        ref: str = d.get('ref', '')
-        if v:
-            vals.append(v)
-        if ref:
-            param = context.global_parameters[ref]
+    def _explain_column_filter(self, op: FilterColumnOp, context: Context) -> str:
+        vals = list(op.values)
+        if op.value:
+            vals.append(op.value)
+        if op.ref:
+            param = context.global_parameters[op.ref]
             label = param.label
             if isinstance(label, dict):
                 label = next(iter(label.values()), '')
             vals.append(_('global parameter %(label)s') % {'label': str(label)})
-        drop: bool = d.get('drop_col', True)
-        exclude: bool = d.get('exclude', False)
         if ''.join(vals):
-            if exclude:
+            if op.exclude:
                 text = _('Filter column <i>%(name)s</i> by excluding <i>%(values)s</i>.') % {
-                    'name': col,
+                    'name': op.column,
                     'values': ', '.join(vals),
                 }
             else:
                 text = _('Filter column <i>%(name)s</i> by including <i>%(values)s</i>.') % {
-                    'name': col,
+                    'name': op.column,
                     'values': ', '.join(vals),
                 }
             out = f'<li>{text}</li>'
         else:
             out = ''
-        if d.get('flatten', False):
-            out += f'<li>{_("Sum up column <i>%(name)s</i>.") % {"name": col}}</li>'
-        elif drop:
-            out += f'<li>{_("Drop column <i>%(name)s</i>.") % {"name": col}}</li>'
+        if op.flatten:
+            out += f'<li>{_("Sum up column <i>%(name)s</i>.") % {"name": op.column}}</li>'
+        elif op.drop_col:
+            out += f'<li>{_("Drop column <i>%(name)s</i>.") % {"name": op.column}}</li>'
         return out
 
-    def _explain_dim_filter(self, d: dict[str, Any], context: Context) -> str:
-        dim_id = d['dimension']
-        dim = context.dimensions[dim_id]
-        if 'assign_category' in d:
-            cat_id = d['assign_category']
-            dim = context.dimensions[dim_id]
-            cat_label = next(str(cat.label) for cat in dim.categories if cat.id == cat_id)
-            text = _('Assign dataset to category <i>%(cat_label)s</i> on dimension <i>%(dim_label)s</i>.') % {
-                'cat_label': cat_label,
-                'dim_label': dim.label,
-            }
-            return f'<li>{text}</li>'
-
-        if 'groups' in d:
-            grp_ids = d['groups']
-            items = [str(group.label) for group in dim.groups if group.id in grp_ids]
-        elif 'categories' in d:
-            cat_ids = d['categories']
-            items = [str(cat.label) for cat in dim.categories if cat.id in cat_ids]
+    def _explain_dim_filter(self, op: FilterDimensionOp, context: Context) -> str:
+        dim = context.dimensions[op.dimension]
+        if op.groups:
+            items = [str(group.label) for group in dim.groups if group.id in op.groups]
+        elif op.categories:
+            items = [str(cat.label) for cat in dim.categories if cat.id in op.categories]
         else:
             items = []
         if items:
@@ -1289,92 +1145,64 @@ class DatasetRule(ValidationRule):
             out = f'<li>{text}</li>'
         else:
             out = ''
-        if d.get('flatten', False):
+        if op.flatten:
             out += f'<li>{_("Sum up the dimension <i>%(label)s</i>.") % {"label": dim.label}}</li>'
         return out
 
-    def _explain_rename_item_filter(self, d: dict[str, Any]) -> str:
-        old = d['rename_item'].split('|')
-        col = old[0]
-        item = old[1]
-        new_item = d.get('value', '')
+    def _explain_assign(self, op: AssignDimensionOp, context: Context) -> str:
+        dim = context.dimensions[op.dimension]
+        cat_label = next(str(cat.label) for cat in dim.categories if cat.id == op.category)
+        text = _('Assign dataset to category <i>%(cat_label)s</i> on dimension <i>%(dim_label)s</i>.') % {
+            'cat_label': cat_label,
+            'dim_label': dim.label,
+        }
+        return f'<li>{text}</li>'
+
+    def _explain_rename_item(self, op: RenameItemOp) -> str:
         return _('Rename item <i>%(old_string)s</i> to <i>%(new_string)s</i> in column <i>%(column)s</i>.') % {
-            'old_string': item,
-            'new_string': new_item,
-            'column': col,
+            'old_string': op.old_item,
+            'new_string': op.new_item,
+            'column': op.column,
         }
 
-    def validate(self, node_config: dict[str, Any], context: Context) -> list[ValidationResult]:
+    def validate(self, node: ExplainedNode, context: Context) -> list[ValidationResult]:
         results: list[ValidationResult] = []
-
-        input_datasets = node_config.get('input_datasets', [])
-
-        for i, dataset_config in enumerate(input_datasets):
-            if isinstance(dataset_config, dict):
-                dataset_results = self._validate_single_dataset(dataset_config, i)
-                results.extend(dataset_results)
-
+        for index, dataset in enumerate(node.datasets):
+            results.extend(self._validate_single_dataset(dataset, index))
         return results
 
-    def _validate_single_dataset(self, dataset_config: dict[str, Any], index: int) -> list[ValidationResult]:
-        """Validate a single dataset configuration."""
-        results = []
-
-        # Check for required fields
-        if 'id' not in dataset_config:
+    def _validate_single_dataset(self, dataset: InputDatasetDef, index: int) -> list[ValidationResult]:
+        results: list[ValidationResult] = []
+        if dataset.column is not None and not dataset.column.strip():
             results.append(
                 ValidationResult(
-                    method='dataset_id_check',
+                    method='dataset_column_check',
                     is_valid=False,
                     level='error',
-                    message=f"Dataset {index} is missing required 'id' field",
+                    message=f'Dataset {index} is missing column: {dataset.column}',
                 )
             )
-
-        # Validate column specification
-        if 'column' in dataset_config:
-            column = dataset_config['column']
-            if not isinstance(column, str) or not column.strip():
-                results.append(
-                    ValidationResult(
-                        method='dataset_column_check',
-                        is_valid=False,
-                        level='error',
-                        message=f'Dataset {index} is missing column: {column}',
-                    )
+        year = _forecast_from(dataset_pipeline(dataset))
+        if year is not None and (year < 1900 or year > 2100):
+            results.append(
+                ValidationResult(
+                    method='dataset_forecast_year_check',
+                    is_valid=False,
+                    level='warning',
+                    message=f'Dataset {index} has questionable forecast year: {year}',
                 )
-
-        # Validate forecast_from year
-        if 'forecast_from' in dataset_config:
-            year = dataset_config['forecast_from']
-            if not isinstance(year, int) or year < 1900 or year > 2100:
-                results.append(
-                    ValidationResult(
-                        method='dataset_forecast_year_check',
-                        is_valid=False,
-                        level='warning',
-                        message=f'Dataset {index} has questionable forecast year: {year}',
-                    )
-                )
-
+            )
         return results
 
 
 class EdgeRule(ValidationRule):
-    def explain(self, node_config: dict[str, Any], context: Context) -> NodeExplanation:
+    def explain(self, node: ExplainedNode, context: Context) -> NodeExplanation:
         # Terms are handled by BasketRule to keep inputs in one place.
         return NodeExplanation()
 
-    def get_explanation_for_tag(
-        self,
-        node: dict[str, Any] | str,
-        skip_tags: set[str] | None = None,
-    ) -> list[str]:
+    def get_explanation_for_tag(self, tags: Sequence[str], skip_tags: set[str] | None = None) -> list[str]:
         html: list[str] = []
-        if isinstance(node, str):
-            return html
-
-        for tag in node.get('tags', []):
+        for tag in tags:
             if skip_tags and tag in skip_tags:
                 continue
             if tag in TAG_TO_BASKET.keys():  # These show up in basket explanations
@@ -1383,21 +1211,18 @@ class EdgeRule(ValidationRule):
             html.append(f'<li>{description}</li>')
         return html
 
-    def get_explanation_for_edge_from(self, node: dict[str, Any] | str, context: Context) -> list[str]:
+    def get_explanation_for_edge_from(self, edge: ExplainedEdge, context: Context) -> list[str]:
         edge_html: list[str] = []
-        if isinstance(node, str):
-            return edge_html
-
-        for dim in node.get('from_dimensions', []):
-            if 'id' not in dim:
+        for op in edge.transformations:
+            if not isinstance(op, FilterDimensionOp):
                 continue
-            dimlabel = str(context.dimensions[dim['id']].label)
-            cats = dim.get('categories', [])
+            dimlabel = str(context.dimensions[op.dimension].label)
+            cats = list(op.categories)
 
             if cats:
-                category_dict = {cat.id: cat for cat in context.dimensions[dim['id']].categories}
+                category_dict = {cat.id: cat for cat in context.dimensions[op.dimension].categories}
                 cats_str = ', '.join([str(category_dict[c].label) for c in cats])
-                if dim.get('exclude', False):
+                if op.exclude:
                     text = _('From dimension <i>%(dimension)s</i>, exclude categories: <i>%(categories)s</i>') % {
                         'dimension': dimlabel,
                         'categories': cats_str,
@@ -1409,51 +1234,43 @@ class EdgeRule(ValidationRule):
                     }
                 edge_html.append(f'<li>{text}</li>')
 
-            if dim.get('flatten', False):
+            if op.flatten:
                 edge_html.append(_('<li>Sum over dimension <i>%(dim)s</i></li>') % {'dim': dimlabel})
         return edge_html
 
-    def get_explanation_for_edge_to(self, node: dict[str, Any] | str, context: Context) -> list[str]:
+    def get_explanation_for_edge_to(self, edge: ExplainedEdge, context: Context) -> list[str]:
         edge_html: list[str] = []
-        if isinstance(node, str):
-            return edge_html
-
-        for dim in node.get('to_dimensions', []):
-            if 'id' not in dim:
-                return edge_html
-            dimlabel = str(context.dimensions[dim['id']].label)
-            cats = dim.get('categories', [])
-
-            if cats:
-                category_dict = {cat.id: cat for cat in context.dimensions[dim['id']].categories}
-                cats_str = ', '.join([str(category_dict[c].label) for c in cats])
-                text = _('Categorize the values to <i>%(categories)s</i> in a new dimension <i>%(dimension)s</i>.') % {
-                    'categories': cats_str,
-                    'dimension': dimlabel,
-                }
-                edge_html.append(f'<li>{text}</li>')
+        for op in edge.transformations:
+            if not isinstance(op, AssignDimensionOp):
+                continue
+            dimension = context.dimensions[op.dimension]
+            category_dict = {cat.id: cat for cat in dimension.categories}
+            text = _('Categorize the values to <i>%(categories)s</i> in a new dimension <i>%(dimension)s</i>.') % {
+                'categories': str(category_dict[op.category].label),
+                'dimension': str(dimension.label),
+            }
+            edge_html.append(f'<li>{text}</li>')
         return edge_html
 
-    def validate(self, node_config: dict[str, Any], context: Context) -> list[ValidationResult]:
+    def validate(self, node: ExplainedNode, context: Context) -> list[ValidationResult]:
         return [
             ValidationResult(method='edge_rule', is_valid=True, level='info', message='There is no validation rule for edges.')
         ]
 
 
 class BasketRule(ValidationRule):
-    def explain(self, node_config: dict[str, Any] | str, context: Context) -> NodeExplanation:
-        assert isinstance(node_config, dict)
-        node_id = node_config['id']
+    def explain(self, node: ExplainedNode, context: Context) -> NodeExplanation:
+        node_id = node.id
 
         nes = context.node_explanation_system
         assert nes is not None
         baskets = nes.baskets[node_id]
-        operation_list = self.get_param(nes.graph.nodes[node_id], 'operations')
+        operation_list = self.get_param(node, 'operations')
         if not operation_list:
             operation_list = context.nodes[node_id].DEFAULT_OPERATIONS
         operations = [o.strip() for o in operation_list.split(',')]
-        raw_terms = self._collect_terms(node_config, context, node_id)
-        formula = self._build_formula_from_config(node_config, operations, baskets, raw_terms)
+        raw_terms = self._collect_terms(node, context)
+        formula = self._build_formula_from_config(node, operations, baskets, raw_terms)
         if not formula and not raw_terms:
             return NodeExplanation()
 
@@ -1477,7 +1294,7 @@ class BasketRule(ValidationRule):
             for op in operations
             if not (op == 'get_single_dataset' and not has_dataset_terms) and not (op == 'impute' and not has_impute_inputs)
         ]
-        functions = self._collect_functions(filtered_ops, raw_terms, node_config)
+        functions = self._collect_functions(filtered_ops, raw_terms, node)
 
         remaining_baskets = [b for b in baskets if b not in operations and b != 'skip']
         leftover: list[str] = []
@@ -1498,7 +1315,7 @@ class BasketRule(ValidationRule):
             leftover_html=leftover,
         )
 
-    def validate(self, node_config: dict[str, Any], context: Context) -> list[ValidationResult]:
+    def validate(self, node: ExplainedNode, context: Context) -> list[ValidationResult]:
         return [
             ValidationResult(
                 method='basket_rule', is_valid=True, level='info', message='There is no validation rule for baskets.'
@@ -1507,67 +1324,24 @@ class BasketRule(ValidationRule):
         # Each input node must belong to some basket
         # If an input node belongs to the unknown basket, give a warning
 
-    def _collect_terms(  # noqa: C901, PLR0912, PLR0915
+    def _collect_terms(  # noqa: C901, PLR0912
         self,  # FIXME Somehow does not show edge function list correctly
-        node_config: dict[str, Any],
+        node: ExplainedNode,
         context: Context,
-        node_id: str,
     ) -> list[dict[str, Any]]:
         terms: list[dict[str, Any]] = []
-        input_specs = list(node_config.get('input_nodes', []))
         nes = context.node_explanation_system
         assert nes is not None
-        merged_specs: list[dict[str, Any]] = []
-        index_by_id: dict[str, int] = {}
-        for input_spec in input_specs:
-            input_id = input_spec if isinstance(input_spec, str) else input_spec.get('id')
-            if not input_id:
-                continue
-            if isinstance(input_spec, dict) and 'ignore_content' in (input_spec.get('tags') or []):
-                continue
-            spec = {'id': input_id}
-            if isinstance(input_spec, dict):
-                spec.update(input_spec)
-            index_by_id[input_id] = len(merged_specs)
-            merged_specs.append(spec)
-        for input_id in nes.graph.inputs.get(node_id, []):
-            edge_props = nes.graph.edges.get((input_id, node_id), {})
-            if 'ignore_content' in (edge_props.get('tags') or []):
-                continue
-            if input_id in index_by_id:
-                spec = merged_specs[index_by_id[input_id]]
-                for key, value in edge_props.items():
-                    if key not in spec or not spec.get(key):
-                        spec[key] = value
-                        continue
-                    if key == 'tags' and value:
-                        tags = list(spec.get('tags', []))
-                        for tag in value:
-                            if tag not in tags:
-                                tags.append(tag)
-                        spec['tags'] = tags
-                continue
-            merged_specs.append({'id': input_id, **edge_props})
-            index_by_id[input_id] = len(merged_specs) - 1
-        input_specs = merged_specs
-        input_datasets = node_config.get('input_datasets', [])
-        params = node_config.get('params', [])
 
-        for input_spec in input_specs:
-            input_id = input_spec if isinstance(input_spec, str) else input_spec.get('id')
-            if not input_id:
+        for edge in node.inputs:
+            if 'ignore_content' in edge.tags:
                 continue
-            input_node = context.node_explanation_system.graph.nodes.get(input_id, {})  # type: ignore[union-attr]
-            label_tag = None
-            func_tags: list[str] = []
-            if isinstance(input_spec, dict):
-                func_tags = [tag for tag in input_spec.get('tags', []) if tag in TAG_DESCRIPTIONS and tag not in TAG_TO_BASKET]
-                label_tag = next(
-                    (tag for tag in input_spec.get('tags', []) if tag not in TAG_TO_BASKET and tag not in TAG_DESCRIPTIONS),
-                    None,
-                )
+            input_id = edge.source_id
+            input_node = nes.graph.nodes.get(input_id)
+            func_tags = [tag for tag in edge.tags if tag in TAG_DESCRIPTIONS and tag not in TAG_TO_BASKET]
+            label_tag = next((tag for tag in edge.tags if tag not in TAG_TO_BASKET and tag not in TAG_DESCRIPTIONS), None)
             if not func_tags or label_tag is None:
-                node_tags = input_node.get('tags', []) if isinstance(input_node, dict) else []
+                node_tags = input_node.tags if input_node is not None else ()
                 if not func_tags:
                     func_tags = [tag for tag in node_tags if tag in TAG_DESCRIPTIONS and tag not in TAG_TO_BASKET]
                 if label_tag is None:
@@ -1575,96 +1349,73 @@ class BasketRule(ValidationRule):
                         (tag for tag in node_tags if tag not in TAG_TO_BASKET and tag not in TAG_DESCRIPTIONS),
                         None,
                     )
-            output_dimensions = input_node.get('output_dimensions')
-            adjusted_dims: list[Any] | None = None
-            from_dims = input_spec.get('from_dimensions', [])
-            to_dims = input_spec.get('to_dimensions', [])
-            if output_dimensions is not None or from_dims or to_dims:
-                adjusted_dims = []
-                dim_ids = []
-                for dim in output_dimensions or []:
-                    if isinstance(dim, dict):
-                        dim_id = dim.get('id')
-                    else:
-                        dim_id = dim
-                    if isinstance(dim_id, str):
-                        dim_ids.append(dim_id)
-                for dim in from_dims or []:
-                    dim_id = dim.get('id') if isinstance(dim, dict) else dim
-                    if not isinstance(dim_id, str):
+            output_dimensions: list[str] | None = None
+            if input_node is not None and input_node.output_dimensions is not None:
+                output_dimensions = list(input_node.output_dimensions)
+            # The delivered shape: the source's dimensions, minus what the edge
+            # sums over, plus what it filters on, declares or assigns.
+            filter_ops = [op for op in edge.transformations if isinstance(op, FilterDimensionOp)]
+            assigned = [op.dimension for op in edge.transformations if isinstance(op, AssignDimensionOp)]
+            adjusted_dims: list[str] | None = None
+            if output_dimensions is not None or filter_ops or edge.declared_dimensions or assigned:
+                dim_ids = list(output_dimensions or [])
+                for op in filter_ops:
+                    if op.flatten:
+                        if op.dimension in dim_ids:
+                            dim_ids.remove(op.dimension)
                         continue
-                    if isinstance(dim, dict) and dim.get('flatten'):
-                        if dim_id in dim_ids:
-                            dim_ids.remove(dim_id)
-                        continue
+                    if op.dimension not in dim_ids:
+                        dim_ids.append(op.dimension)
+                for dim_id in [*edge.declared_dimensions, *assigned]:
                     if dim_id not in dim_ids:
                         dim_ids.append(dim_id)
-                for dim in to_dims or []:
-                    dim_id = dim.get('id') if isinstance(dim, dict) else dim
-                    if isinstance(dim_id, str) and dim_id not in dim_ids:
-                        dim_ids.append(dim_id)
-                for dim_id in dim_ids:
-                    adjusted_dims.append(dim_id)
+                adjusted_dims = dim_ids
 
             term = {
                 'kind': 'node',
                 'key': input_id,
                 'label': label_tag,
                 'name': context.nodes[input_id].name,
-                'var_names': self._term_var_names(input_spec, input_id),
-                'unit': input_node.get('unit'),
+                'var_names': self._term_var_names(edge),
+                'unit': input_node.unit if input_node is not None else None,
                 'output_dimensions': adjusted_dims if adjusted_dims is not None else output_dimensions,
                 'functions': func_tags,
-                'details': self._node_term_details(input_spec, context, label_tag),
+                'details': self._node_term_details(edge, context, label_tag),
             }
             terms.append(term)
 
-        for dataset_config in input_datasets:
-            if not isinstance(dataset_config, dict):
-                continue
-            ds_id = dataset_config.get('id')
-            if not ds_id:
-                continue
+        for dataset in node.datasets:
             # Binding-level output_dimensions was retired; the node's declared
             # dimensions are the only source.
-            ds_output_dimensions = node_config.get('output_dimensions')
-            ds_unit = dataset_config.get('unit')
-            if ds_unit is None:
-                ds_unit = node_config.get('unit')
-            tags = [tag for tag in dataset_config.get('tags', []) if tag != 'cleaned']
+            ds_output_dimensions = list(node.output_dimensions) if node.output_dimensions is not None else None
+            ds_unit = str(dataset.unit) if dataset.unit is not None else node.unit
+            tags = [tag for tag in dataset.tags if tag != 'cleaned']
             label_tag = tags[0] if tags else None
             term = {
                 'kind': 'dataset',
-                'key': ds_id,
+                'key': dataset.id,
                 'label': label_tag,
-                'name': ds_id,
-                'var_names': self._dataset_var_names(dataset_config, ds_id),
+                'name': dataset.id,
+                'var_names': self._dataset_var_names(dataset),
                 'unit': ds_unit,
                 'output_dimensions': ds_output_dimensions,
                 'functions': [],
-                'details': self._dataset_term_details(dataset_config, context),
+                'details': self._dataset_term_details(dataset, context),
             }
             terms.append(term)
 
-        if isinstance(params, dict):
-            params = [dict(id=param_id, value=value) for param_id, value in params.items()]
-        for param in params:
-            if not isinstance(param, dict):
+        for param in node.params:
+            if param.id in ['formula', 'operations']:
                 continue
-            param_id = param.get('id')
-            if param_id in ['formula', 'operations']:
-                continue
-            value = param.get('value')
-            unit = param.get('unit', '')
-            if param_id and value is not None:
+            if param.value is not None:
                 term = {
                     'kind': 'constant',
-                    'key': param_id,
-                    'label': param_id,
+                    'key': param.id,
+                    'label': param.id,
                     'name': _('Constant'),
-                    'var_names': [param_id],
-                    'unit': unit or None,
-                    'value': value,
+                    'var_names': [param.id],
+                    'unit': param.unit or None,
+                    'value': param.value,
                     'functions': [],
                     'details': [],
                 }
@@ -1682,11 +1433,11 @@ class BasketRule(ValidationRule):
         self,
         operations: list[str],
         terms: list[dict[str, Any]],
-        node_config: dict[str, Any],
+        node: ExplainedNode,
     ) -> list[str]:
         functions: list[str] = []
         ops_seen: set[str] = set()
-        formula_param = self.get_param(node_config, 'formula')
+        formula_param = self.get_param(node, 'formula')
         if formula_param:
             for func in self._extract_formula_functions(formula_param):
                 if func in ops_seen:
@@ -1753,28 +1504,26 @@ class BasketRule(ValidationRule):
                 updated = re.sub(rf'\b{re.escape(var)}\b', wrapped, updated)
         return updated
 
-    def _term_var_names(self, input_spec: dict[str, Any] | str, input_id: str) -> list[str]:
-        if isinstance(input_spec, str):
-            return [input_id]
-        tags = [tag for tag in input_spec.get('tags', []) if tag not in TAG_TO_BASKET and tag not in TAG_DESCRIPTIONS]
+    def _term_var_names(self, edge: ExplainedEdge) -> list[str]:
+        tags = [tag for tag in edge.tags if tag not in TAG_TO_BASKET and tag not in TAG_DESCRIPTIONS]
         if tags:
             return tags
-        return [input_id]
+        return [edge.source_id]
 
-    def _dataset_var_names(self, dataset_config: dict[str, Any], ds_id: str) -> list[str]:
-        tags = [tag for tag in dataset_config.get('tags', []) if tag != 'cleaned']
+    def _dataset_var_names(self, dataset: InputDatasetDef) -> list[str]:
+        tags = [tag for tag in dataset.tags if tag != 'cleaned']
         if tags:
             return tags
-        return [ds_id]
+        return [dataset.id]
 
     def _build_formula_from_config(  # noqa: C901
         self,
-        node_config: dict[str, Any],
+        node: ExplainedNode,
         operations: list[str],
         baskets: dict[str, list[str]],
         terms: list[dict[str, Any]],
     ) -> str:
-        formula_param = self.get_param(node_config, 'formula')
+        formula_param = self.get_param(node, 'formula')
         label_by_id: dict[str, str] = {}
         for term in terms:
             label = str(term['label'])
@@ -1801,10 +1550,7 @@ class BasketRule(ValidationRule):
             if unused_labels:
                 return f'({formula_param} + {" + ".join(unused_labels)})'
             return formula_param
-        typ = node_config.get('type') or ''
-        if isinstance(typ, str):
-            typ = typ.split('.')[-1]
-        if typ == 'AdditiveNode':
+        if node.class_name == 'AdditiveNode':
             add_terms = [term['label'] for term in terms if term['kind'] != 'constant']
             if not add_terms:
                 return ''
@@ -1878,49 +1624,43 @@ class BasketRule(ValidationRule):
 
     def _node_term_details(
         self,
-        input_spec: dict[str, Any] | str,
+        edge: ExplainedEdge,
         context: Context,
         label_tag: str | None,
     ) -> list[str]:
-        if isinstance(input_spec, str):
-            return []
         details: list[str] = []
-        metrics = input_spec.get('metrics', [])
-        if metrics:
-            metrics_str = ', '.join(metrics)
+        if edge.metrics:
+            metrics_str = ', '.join(edge.metrics)
             details.append(f'<li>{_("Metrics: %(metrics)s") % {"metrics": metrics_str}}</li>')
-        func_tags = [tag for tag in input_spec.get('tags', []) if tag in TAG_DESCRIPTIONS and tag not in TAG_TO_BASKET]
+        func_tags = [tag for tag in edge.tags if tag in TAG_DESCRIPTIONS and tag not in TAG_TO_BASKET]
         details.extend(
             EdgeRule().get_explanation_for_tag(
-                input_spec,
+                edge.tags,
                 skip_tags=set(filter(None, [label_tag, *func_tags])) or None,
             )
         )
-        details.extend(EdgeRule().get_explanation_for_edge_from(input_spec, context))
-        details.extend(EdgeRule().get_explanation_for_edge_to(input_spec, context))
+        details.extend(EdgeRule().get_explanation_for_edge_from(edge, context))
+        details.extend(EdgeRule().get_explanation_for_edge_to(edge, context))
         return details
 
-    def _dataset_term_details(self, dataset_config: dict[str, Any], context: Context) -> list[str]:
+    def _dataset_term_details(self, dataset: InputDatasetDef, context: Context) -> list[str]:
         html: list[str] = []
-        col = dataset_config.get('column')
-        if col is not None:
-            text = _('Metric: %(name)s') % {'name': col}
+        if dataset.column is not None:
+            text = _('Metric: %(name)s') % {'name': dataset.column}
             html.append(f'<li>{text}</li>')
-        year = dataset_config.get('forecast_from')
+        pipeline = dataset_pipeline(dataset)
+        year = _forecast_from(pipeline)
         if year is not None:
             text = _('Has forecast values from: %(year)s') % {'year': year}
             html.append(f'<li>{text}</li>')
-        dropna = dataset_config.get('dropna')
-        if dropna:
+        if _drops_nulls(pipeline):
             html.append(f'<li>{_("Rows with missing values are dropped.")}</li>')
-        filters = dataset_config.get('filters')
-        if filters:
-            html.extend(DatasetRule()._explain_filters(filters, context))
+        html.extend(DatasetRule().explain_pipeline(pipeline, context))
         return html
 
 
 class FormulaValidationMixin(ValidationRule, ABC):
-    def explain(self, _node_config: dict[str, Any], _context: Context) -> NodeExplanation:
+    def explain(self, _node: ExplainedNode, _context: Context) -> NodeExplanation:
         return NodeExplanation()
 
     def _ensure_baskets(self, context: Context) -> GraphRepresentation:
@@ -1941,28 +1681,28 @@ class FormulaValidationMixin(ValidationRule, ABC):
             operation_list = context.nodes[node_id].DEFAULT_OPERATIONS
         return [o.strip() for o in operation_list.split(',') if o.strip()]
 
-    def _build_formula_spec(  # noqa: PLR0912, C901
+    def _build_formula_spec(  # noqa: C901
         self,
-        node_config: dict[str, Any],
+        node: ExplainedNode,
         context: Context,
         operations: list[str],
     ) -> FormulaSpec:
-        node_id = node_config['id']
+        node_id = node.id
         nes = context.node_explanation_system
         assert nes is not None
 
         basket_rule = BasketRule()
-        terms = basket_rule._collect_terms(node_config, context, node_id)
+        terms = basket_rule._collect_terms(node, context)
         baskets = nes.baskets.get(node_id, {})
 
         display_expression = basket_rule._build_formula_from_config(
-            node_config,
+            node,
             operations,
             baskets,
             terms,
         )
 
-        formula_param = self.get_param(node_config, 'formula')
+        formula_param = self.get_param(node, 'formula')
         label_by_id: dict[str, str] = {}
         for term in terms:
             label = term['key']
@@ -1988,25 +1728,19 @@ class FormulaValidationMixin(ValidationRule, ABC):
                 expression = f'({formula_param} + {" + ".join(unused_labels)})'
             else:
                 expression = formula_param
+        elif node.class_name == 'AdditiveNode':
+            add_terms = [label_by_id[term['key']] for term in terms if term['kind'] != 'constant' and term['key'] in label_by_id]
+            expression = f'({BASKET_OPERATION_LABEL["add"].join(add_terms)})' if add_terms else ''
+        elif not operations:
+            expression = ''
         else:
-            typ = node_config.get('type') or ''
-            if isinstance(typ, str):
-                typ = typ.split('.')[-1]
-            if typ == 'AdditiveNode':
-                add_terms = [
-                    label_by_id[term['key']] for term in terms if term['kind'] != 'constant' and term['key'] in label_by_id
-                ]
-                expression = f'({BASKET_OPERATION_LABEL["add"].join(add_terms)})' if add_terms else ''
-            elif not operations:
-                expression = ''
-            else:
-                expression = basket_rule._build_formula_from_operations(
-                    operations,
-                    baskets,
-                    label_by_id,
-                    terms,
-                    has_dataset_terms=any(term['kind'] == 'dataset' for term in terms),
-                )
+            expression = basket_rule._build_formula_from_operations(
+                operations,
+                baskets,
+                label_by_id,
+                terms,
+                has_dataset_terms=any(term['kind'] == 'dataset' for term in terms),
+            )
 
         if expression:
             expression = normalize_formula_identifiers(
@@ -2020,43 +1754,32 @@ class FormulaValidationMixin(ValidationRule, ABC):
             terms=terms,
         )
 
-    @staticmethod
-    def _normalize_dims(dims: list[Any] | None) -> set[str]:
-        out: set[str] = set()
-        for dim in dims or []:
-            if isinstance(dim, dict) and isinstance(dim_id := dim.get('id'), str) and dim_id:
-                out.add(dim_id)
-            elif isinstance(dim, str):
-                out.add(dim)
-        return out
-
 
 class FormulaDimensionRule(FormulaValidationMixin):
-    def validate(self, node_config: dict[str, Any], context: Context) -> list[ValidationResult]:
+    def validate(self, node: ExplainedNode, context: Context) -> list[ValidationResult]:
         results: list[ValidationResult] = []
-        node_id = node_config['id']
         nes = context.node_explanation_system
         if nes is None:
             return results
         graph = self._ensure_baskets(context)
-        operations = self._get_operations(node_id, context, graph)
-        spec = self._build_formula_spec(node_config, context, operations)
+        operations = self._get_operations(node.id, context, graph)
+        spec = self._build_formula_spec(node, context, operations)
         if not spec.expression:
             return results
 
-        results.extend(self._validate_dataset_dims(node_config, spec))
+        results.extend(self._validate_dataset_dims(node, spec))
         results.extend(self._validate_formula_dims(spec))
-        results.extend(self._validate_output_dims(node_config, spec))
+        results.extend(self._validate_output_dims(node, spec))
         return results
 
     def _validate_dataset_dims(
         self,
-        node_config: dict[str, Any],
+        node: ExplainedNode,
         spec: FormulaSpec,
     ) -> list[ValidationResult]:
         results: list[ValidationResult] = []
         used_names = BasketRule()._extract_formula_identifiers(spec.expression)
-        node_output_dimensions = node_config.get('output_dimensions')
+        node_output_dimensions = node.output_dimensions
         for term in spec.terms:
             if term.get('kind') != 'dataset':
                 continue
@@ -2113,11 +1836,11 @@ class FormulaDimensionRule(FormulaValidationMixin):
 
     def _validate_output_dims(
         self,
-        node_config: dict[str, Any],
+        node: ExplainedNode,
         spec: FormulaSpec,
     ) -> list[ValidationResult]:
         results: list[ValidationResult] = []
-        expected_dims = self._normalize_dims(node_config.get('output_dimensions'))
+        expected_dims = set(node.output_dimensions or ())
         analysis = analyze_formula_dimensions(
             spec.expression,
             build_name_dimension_map(spec.terms)[0],
@@ -2140,23 +1863,22 @@ class FormulaDimensionRule(FormulaValidationMixin):
 
 
 class FormulaUnitRule(FormulaValidationMixin):
-    def validate(self, node_config: dict[str, Any], context: Context) -> list[ValidationResult]:
+    def validate(self, node: ExplainedNode, context: Context) -> list[ValidationResult]:
         results: list[ValidationResult] = []
-        node_unit = node_config.get('unit')
+        node_unit = node.unit
         if not node_unit:
             return results
-        node_id = node_config['id']
         nes = context.node_explanation_system
         if nes is None:
             return results
         graph = self._ensure_baskets(context)
-        operations = self._get_operations(node_id, context, graph)
-        spec = self._build_formula_spec(node_config, context, operations)
+        operations = self._get_operations(node.id, context, graph)
+        spec = self._build_formula_spec(node, context, operations)
         if not spec.expression:
             return results
 
         name_units = build_name_unit_map(spec.terms)
-        results.extend(self._apply_multiplier_unit_inference(node_config, operations, spec, name_units))
+        results.extend(self._apply_multiplier_unit_inference(node, operations, spec, name_units))
 
         unit_analysis = analyze_formula_units(
             spec.expression,
@@ -2208,31 +1930,21 @@ class FormulaUnitRule(FormulaValidationMixin):
                 )
         return results
 
-    def _apply_multiplier_unit_inference(  # noqa: C901, PLR0912
+    def _apply_multiplier_unit_inference(
         self,
-        node_config: dict[str, Any],
+        node: ExplainedNode,
         operations: list[str],
         spec: FormulaSpec,
         name_units: dict[str, Unit | None],
     ) -> list[ValidationResult]:
         results: list[ValidationResult] = []
-        params = node_config.get('params', [])
-        multiplier_unit = None
-        if isinstance(params, dict):
-            multiplier_unit = params.get('multiplier_unit')
-        else:
-            for param in params:
-                if isinstance(param, dict) and param.get('id') == 'multiplier':
-                    multiplier_unit = param.get('unit')
-                    break
-        if not multiplier_unit or 'apply_multiplier' not in operations:
+        multiplier = node.param('multiplier')
+        multiplier_unit = multiplier.unit if multiplier is not None else None
+        if not multiplier_unit or 'apply_multiplier' not in operations or node.unit is None:
             return results
 
-        explicit_ds_units: set[str] = set()
-        for ds in node_config.get('input_datasets', []) or []:
-            if isinstance(ds, dict) and ds.get('id') and ds.get('unit') is not None:
-                explicit_ds_units.add(ds['id'])
-        inferred_unit = cast('Unit', unit_registry.parse_units(node_config['unit']) / unit_registry.parse_units(multiplier_unit))
+        explicit_ds_units = {ds.id for ds in node.datasets if ds.unit is not None}
+        inferred_unit = cast('Unit', unit_registry.parse_units(node.unit) / unit_registry.parse_units(multiplier_unit))
         used_multiplier_inference = False
         for term in spec.terms:
             if term.get('kind') != 'dataset':

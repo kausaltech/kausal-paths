@@ -108,12 +108,6 @@ class InputPortType(StrawberryPydanticType[InputPortDef]):
     paired_output_port_id: auto
     is_editable: auto
     required_dimensions: list[DimensionRef]
-    # The spec field is gone (plan step 11); the schema field stays until the
-    # editor UI's queries are confirmed migrated, resolving to an empty list.
-    supported_dimensions: list[DimensionRef] = sb.field(
-        deprecation_reason='Never had solver semantics; effectiveShape carries the derived shape.',
-        default_factory=list,
-    )
     bindings: list[Annotated['InputPortBinding', sb.lazy('nodes.schema')]] = sb.field(default_factory=list)
 
     _node_uuid: sb.Private[UUID | None] = None

@@ -222,11 +222,10 @@ Value,t_co2e/a,,Historical emissions,heating,330770,...
 ## 6. `sync_instance_to_db` — YAML instance spec → DB
 
 **Location:** `nodes/management/commands/sync_instance_to_db.py`  
-**Invocation:** `python manage.py sync_instance_to_db <instance-id> [--all] [--dry-run] [--start-after <id>] [--runtime-export]`
+**Invocation:** `python manage.py sync_instance_to_db <instance-id> [--all] [--dry-run] [--start-after <id>] [--skip <id>]`
 
 Parses an instance's YAML config into a structured snapshot and writes its
-computation graph into the Django DB (`InstanceConfig` + `NodeConfig`). The
-`--runtime-export` option selects the legacy full-runtime introspection path.
+computation graph into the Django DB (`InstanceConfig` + `NodeConfig`).
 This is separate from dataset management: it syncs node kinds, parameters,
 ports and related graph configuration, not data values.
 

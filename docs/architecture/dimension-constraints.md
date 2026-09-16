@@ -73,26 +73,27 @@ metric it carries (a `DatasetMetric` for dataset bindings, an output port
 for edges); the op pipeline only reshapes what that selection produced.
 
 
-### `FlattenTransformation` is not a flatten
+### `FlattenTransformation` was not a flatten
 
-The current `FlattenTransformation` type is a misnomer and must not be
+The retired `FlattenTransformation` op was a misnomer and was deliberately not
 folded into `FilterDimension(flatten=True)`.
 
-It is only ever produced from a bare `to_dimensions` entry (one with no
-`categories`), and `_get_output_for_target()` skips to-dimension entries
-that have no categories. Its only runtime effect is that its dimension id
-joins the set asserted against the edge output. In other words it is a
-**shape declaration about the consuming port**, not an operation.
+It was only ever produced from a bare `to_dimensions` entry (one with no
+`categories`), and the runtime skipped such entries during execution. Its only
+effect was that its dimension id joined the set asserted against the edge
+output. In other words it was a **shape declaration about the consuming
+port**, not an operation. Real flattening on an edge is
+`FilterDimension(categories=[], flatten=True)`, produced from a bare
+`from_dimensions` entry.
 
-Real flattening on an edge is `SelectCategoriesTransformation(categories=[],
-flatten=True)`, produced from a bare `from_dimensions` entry.
-
-The target state is therefore:
-
-- the shape declaration moves to the port (`InputPortDef`), where
-  constraint propagation can compute or validate it
-- `FlattenTransformation` disappears from the op vocabulary rather than
-  merging into another op
+The declaration now lives on the port: `InputPortDef.required_dimensions`
+(instance-graph plan step 2, 2026-08). The parser and the exporter populate it
+from bare `to_dimensions` entries, no sync emits `flatten` any more, and the
+GraphQL `flatten` input and output types are gone (2026-09-15). The op class
+survives only as tolerated *stored* input: `modernized_transformations()`
+drops it on read, and `build_instance_graph()` first recovers its dimension
+into `EdgeBindingDef.declared_dimensions`, because pinned published revisions
+are immutable and database rows that were never re-synced still carry it.
 
 
 ### How constraint propagation works
@@ -154,8 +155,8 @@ single upstream pass: forward derivation of computed output shapes,
 backward propagation of requirements, iterated until stable. On the
 graphs Paths works with this converges trivially: information only tightens
 during one evaluation (required lower bounds grow and allowed upper bounds
-shrink). The implementation should still be written as a fixpoint, not as one
-walk with special cases.
+shrink). The implementation is a fixpoint all the same
+(`nodes/constraints/solver.py`), not one walk with special cases.
 
 Two consequences for the editor:
 
@@ -194,6 +195,13 @@ two `dimensionless` ports may still be incompatible because one is a
 share of buildings and the other a ratio of prices. Where quantities are
 declared, they constrain; where not, only units do.
 
+The quantity algebra is data in the quantity-kind registry
+(`nodes/quantities.py`, `configs/quantities/quantity_kinds.yaml`): a kind may
+be a scalar identity for products (`is_scalar_identity`) and may name the kinds
+whose product it is (per-factor `numerator` references, validated at load).
+In v1 the algebra only *validates*; it never invents a quantity a port did not
+declare.
+
 Validation reports each facet separately — "dimensions match but units
 are incompatible" and "units match but quantities differ" are distinct,
 actionable errors. The fixpoint carries the triple; there is no separate
@@ -221,12 +229,13 @@ refuse non-structural dimensions rather than silently summing them.
 
 | What | Where | Static or computed? |
 |---|---|---|
-| Node class dimension rules | Node class or pipeline definition | Static (per class/pipeline) |
+| Node class shape rules | `Node.shape_rules(meta)` on the class, or the compiled pipeline | Static (per class/pipeline) |
 | Outcome node required dims | `OutputPortDef.dimensions` | Static (user-configured) |
-| Port shape declarations (ex-`FlattenTransformation`) | `InputPortDef` | Static (user-configured) |
-| Binding transformations | `PortBindingDef.transformations` on the **consuming** port | Static (user-configured) |
-| Input port effective requirement | Computed from downstream | Computed at validation/editor time |
-| Dataset produced dims | Dataset schema | Static |
+| Consuming-port shape declaration (ex-`FlattenTransformation`) | `InputPortDef.required_dimensions` | Static (user-configured) |
+| Port role | `InputPortDef.role` / `OutputPortDef.role`, matching a class-level declaration | Static (set at port creation) |
+| Binding transformations | `NodeInputPortBinding.transformations`, presented as `PortBindingDef.transformations` on the **consuming** port | Static (user-configured) |
+| Dataset produced dims and observed categories | Dataset schema; `DatasetShapeProfile` facts recorded at materialization | Static / observed |
+| Effective shapes, conflicts, provenance | `InstanceGraph.solve_constraints()` | Computed per graph, never stored |
 
 
 ### Authored vs computed declarations
@@ -234,32 +243,35 @@ refuse non-structural dimensions rather than silently summing them.
 Stored dimension fields on ports are **authored** data. Propagation
 results are **computed** and must not be written back over them.
 
-This is not yet fully true in the code: the multi-port grouping in
-`_apply_input_port_multi_hints()` still fills `required_dimensions`
-on the group's port from observed runtime
-dimensions, which stores computed data in authored fields — the
+One exception remains in the code: the multi-port grouping
+(`_apply_input_port_multi_hints()` in the exporter and its parser mirror)
+still fills `required_dimensions` on the group's port from observed runtime
+dimensions, which stores computed data in an authored field — the
 drifting-registry failure that [`metric-dataframe.md`](metric-dataframe.md)
-warns against. (The blanket per-port fill this section used to describe is
-gone; only the multi-group path remains.) The same applies to
-`DatasetPortSpec.output_dimensions`, a manual override of what the dataset
-schema plus the op pipeline should derive.
+warns against. The other two offenders are gone: `supported_dimensions` was
+removed on 2026-08-31 (every stored value equalled the generated
+`required_dimensions`, none was authored), and `DatasetPortSpec.output_dimensions`
+the same day (inert everywhere; schema plus pipeline derive it).
 
-Rules going forward:
+Rules:
 
-- The current `InputPortDef.required_dimensions` (eventually
-  `dimensions.required`) is authored, and meaningful for explicit
-  consuming-port shape declarations. An outcome's requested result shape is
-  instead authored on its output port; the node signature carries it back to
-  the inputs. Everywhere else the input requirement is computed.
-- Propagation results are exposed as a separate derived field (for
-  example `effectiveRequiredDimensions` in GraphQL), never by overwriting
-  the authored one.
-- No mutation may accept computed dimension sets as input.
-  `DatasetPortSpec.output_dimensions` stays read-only and is retired once
-  schema + ops can derive it.
+- `InputPortDef.required_dimensions` is authored, and meaningful for explicit
+  consuming-port shape declarations. The solver reads it as a *lower bound* on
+  the port aggregate; the exact per-binding assertion mirrors the runtime:
+  bare declared entries plus that binding's own assigned dimensions. An
+  outcome's requested result shape is instead authored on its output port; the
+  node's shape rule carries it back to the inputs. Everywhere else the input
+  requirement is computed.
+- Propagation results are exposed as separate derived GraphQL fields —
+  `effectiveShape` on both port types, `constraintConflicts` on the instance
+  editor and on nodes — never by overwriting the authored one.
+- No mutation accepts computed dimension sets as input.
 
 
-## Proposed data model
+## Data model
+
+*Implemented 2026-08 (instance-graph plan steps 3–9); this section records the
+shape and the reasons for it.*
 
 There are four different kinds of state here. Keeping them separate is more
 important than the exact class names:
@@ -268,34 +280,27 @@ important than the exact class names:
 |---|---|---|
 | Authored port declarations | Pydantic values inside `NodeSpec` | Yes, in `NodeConfig.spec` |
 | Node shape algebra | Node-class or pipeline rules | No duplicate copy in the database |
-| Input bindings and transformations | One ORM row per binding | Yes |
+| Input bindings and transformations | One `NodeInputPortBinding` row per binding | Yes |
 | Effective shapes, provenance and conflicts | Constraint-engine values | No; derived for the current graph |
 
-In particular, there should be no `DimensionConstraint` Django model. A
-constraint is invalidated by ordinary graph edits and is cheap to recompute.
-Persisting it would create a cache-coherency problem and, worse, a second
-authored-looking source of truth.
+In particular, there is no `DimensionConstraint` Django model. A constraint is
+invalidated by ordinary graph edits and is cheap to recompute. Persisting it
+would create a cache-coherency problem and, worse, a second authored-looking
+source of truth.
 
 
 ### Authored port declarations
 
-The current `OutputPortDef.dimensions=[]` value is ambiguous: it can mean
-either “scalar output” or “not known yet”. The constraint engine must represent
-an exact known produced set separately from an unknown produced set. That is a
-property of its derived facts, not a reason to invent authored upper-bound
-semantics for `supported_dimensions`.
-
-One possible authored Pydantic shape is:
+The authored shape is the existing pair of fields, not a wrapper type (a
+`DimensionSetSpec` was considered and found unnecessary once
+`supported_dimensions` was gone):
 
 ```python
-class DimensionSetSpec(BaseModel):
-    required: UniqueList[DimensionRef] = Field(default_factory=list)
-
-
 class InputPortDef(I18nBaseModel):
     id: UUID
     identifier: NodePortIdentifier | None = None
-    dimensions: DimensionSetSpec = Field(default_factory=DimensionSetSpec)
+    role: MixedCaseIdentifier | None = None
+    required_dimensions: UniqueList[DimensionRef] = []   # authored lower bound
     unit: Unit | None = None
     quantity: QuantityKindRef | None = None
     multi: bool = False
@@ -303,64 +308,55 @@ class InputPortDef(I18nBaseModel):
 
 class OutputPortDef(I18nBaseModel):
     id: UUID
-    identifier: NodePortIdentifier | None = None
-    # None has no authored declaration; [] is an authored scalar.
-    dimensions: UniqueList[DimensionRef] | None = None
-    unit: Unit | None = None
+    identifier: MixedCaseIdentifier | None = None
+    role: MixedCaseIdentifier | None = None
+    dimensions: UniqueList[DimensionRef] = []             # seeds the output when non-empty
+    unit: Unit
     quantity: QuantityKindRef | None = None
 ```
 
-`OutputPortDef.unit` becomes optional for the same reason as dimensions: a
-multiplicative output can derive its unit from its inputs. It remains required
-by validation for node rules that do not derive it.
-
-This does not require an immediate JSON migration. The first implementation
-can translate the current fields at the boundary:
-
-```text
-required_dimensions != []      -> dimensions.required
-OutputPortDef.dimensions != []  -> dimensions
-```
-
-The empty output `dimensions` case needs a deliberate migration rule because
-its meaning cannot be recovered from the value alone. The safe default is no
-authored output declaration, with node classes that are genuinely scalar-only
-declaring an exact empty set. `supported_dimensions` was removed (2026-08-31)
-after auditing the generated multi-port values — every stored occurrence
-equalled `required_dimensions` and no authored occurrence existed — and was
-not translated into a new field. The GraphQL read field remains as a
-deprecated empty list until the editor UI's queries are confirmed migrated.
-
-Internally the solver uses `known: frozenset[UUID] | None`, where `None` is
-unknown and an empty set is an exact scalar. Consumer requirements remain a
+`OutputPortDef.dimensions == []` is ambiguous on its own: it can mean "scalar
+output" or "not known yet". The solver keeps the distinction in its derived
+facts instead of in a new authored field: an empty authored list seeds nothing,
+and the port's exact set is then whatever the node rule derives from its
+inputs; only a rule (or an outcome declaration) pins an exact empty set.
+Internally facts carry `known: frozenset[UUID] | None`, where `None` is unknown
+and an empty set is an exact scalar, with the consumer requirement as a
 separate lower-bound set. Neither fact is written back into the authored port.
+External placeholder datasets with no declared dimensions are *unknown*, not
+scalar.
 
 Port UUIDs are durable instance-local identity and are what bindings refer to.
-A port's link to its class semantics is the persisted `role` field
-(`InputPortDef.role` / `OutputPortDef.role`), matching a class-level
-`InputPortDeclaration` / `OutputPortDeclaration`. Port identifiers remain
-human/formula names and are freely renameable without detaching the port from
-its role. The declarations distinguish two multiplicities that must not be
-conflated: a **multi** port (one port, many bindings) is a *homogeneous*
-aggregate — every binding shape-equal, summed — while a **repeatable** role
-(many port instances, e.g. each factor of a product) is *heterogeneous*, each
-instance carrying its own unit, quantity and dimension expectations. Products
-therefore only ever happen across distinct ports; bindings on one port are
-always shape-equal.
+Sync preserves them: the parser keeps an authored UUID, otherwise matches the
+stored port by structural role, and mints a deterministic UUID only on first
+creation. A port's link to its class semantics is the persisted `role` field,
+matching a class-level `InputPortDeclaration` / `OutputPortDeclaration`. Port
+identifiers remain human/formula names and are freely renameable without
+detaching the port from its role. The declarations distinguish two
+multiplicities that must not be conflated: a **multi** port (one port, many
+bindings) is a *homogeneous* aggregate — every binding shape-equal, summed —
+while a **repeatable** role (many port instances, e.g. each factor of a
+product) is *heterogeneous*, each instance carrying its own unit, quantity
+and dimension expectations. Products therefore only ever happen across
+distinct ports; bindings on one port are always shape-equal. The declaration
+catalog is what the editor's connect-time planning instantiates: connecting to
+a node with a free declared role gets a port of that role (repeatable roles
+always, missing non-repeatable roles unless their `default_count` is 0), and
+`createNode` without explicit ports instantiates every declaration at its
+default count.
 
 An anonymous legacy port can still be executed, but it cannot participate in
 a class-level rule until it has a role. During migration the node class
 itself classifies such ports — `Node.infer_legacy_port_roles(meta,
-candidates)`, implemented by `AdditiveNode` and `MultiplicativeNode` from
-binding tags and unit compatibility, mirroring the runtime's current
-behavior. The framework side (`NodeMeta`) computes the candidates (authored
-roles and declaration-identifier matches are filtered out, so the heuristic
-can never override them), validates that inferred roles exist in the class
-declarations, and formats uniform diagnostics. The classification is derived
-state, recomputed per hydrated graph, never serialized. Implementing the
-hook for a new node class is always wrong — new classes declare roles at
-port creation — and the whole mechanism dies once persisted ports carry
-explicit roles.
+candidates)`, implemented per class from binding tags and unit compatibility,
+mirroring the runtime's behavior. The framework side (`NodeMeta`) computes the
+candidates (authored roles and declaration-identifier matches are filtered
+out, so the heuristic can never override them), validates that inferred roles
+exist in the class declarations, and formats uniform `inferred_port_role` /
+`unclassified_port_role` diagnostics. The classification is derived state,
+recomputed per hydrated graph, never serialized. Implementing the hook for a
+new node class is always wrong — new classes declare roles at port creation —
+and the whole mechanism dies once persisted ports carry explicit roles.
 
 
 ### Node shape rules
@@ -386,9 +382,10 @@ class SameShapeRule(BaseModel):
 class ProductShapeRule(BaseModel):
     kind: Literal['product'] = 'product'
     inputs: tuple[UUID, ...]
+    inverse_inputs: tuple[UUID, ...] = ()   # divisors: same union, unit in the denominator
     output: UUID
-    # Output dimensions are the union, units the product, and quantity is
-    # obtained from the quantity algebra when one is registered.
+    # Output dimensions are the union, units the product over the quotient,
+    # and quantity is obtained from the quantity algebra when one is registered.
 
 
 class DimensionTransformRule(BaseModel):
@@ -440,11 +437,20 @@ port direction, unknown value or dimension, intermediate cycle) raises
 whose legacy spec lacks ports for a required role compiles to no rules and a
 `missing_role_port` diagnostic. Incompleteness never blocks anything.
 
+Rules are only trusted where the declaring class's computation is intact. A
+subclass that overrides `compute()` / `_compute()` / `perform_operation()` /
+`operate_pairwise()` below the class that declared `shape_rules` compiles to
+no rules plus an `inherited_shape_rules_skipped` diagnostic, and its
+multi-port aggregates are not shape-equalized either (legacy specs of such
+classes group heterogeneous inputs onto one port). Re-declaring `shape_rules`
+in the subclass is the explicit opt-in. This is the enforcement half of "a
+rule must not lie".
+
 
 ### One input-binding table
 
-`NodeEdge` and `DatasetPort` are two storage forms for one domain concept: a
-source bound to a consuming input port. They should converge on one model so
+`NodeEdge` and `DatasetPort` were two storage forms for one domain concept: a
+source bound to a consuming input port. They converged on one model so that
 ordering, transformations, tags and constraint provenance have one identity:
 
 ```python
@@ -542,7 +548,7 @@ rows solely to obtain an FK would split one authored node specification across
 two revision mechanisms. Referential checks belong in the aggregate write
 service that updates a node spec or its bindings atomically.
 
-The nullable ORM branches should not leak into snapshots or the runtime. Those
+The nullable ORM branches do not leak into snapshots or the runtime. Those
 use a discriminated source value:
 
 ```python
@@ -554,145 +560,148 @@ class NodePortSource(BaseModel):
 
 class DatasetMetricSource(BaseModel):
     kind: Literal['dataset'] = 'dataset'
-    # Natural references keep portable exports restore-stable, matching the
-    # current dataset snapshot boundary.
+    # Natural references keep portable exports restore-stable; the UUIDs make a
+    # published snapshot self-contained, and the pinned revision is what it computed from.
     dataset: str
     metric: str
+    dataset_uuid: UUID | None = None
+    metric_uuid: UUID | None = None
+    dataset_revision: int | None = None
 
 
 type InputBindingSource = NodePortSource | DatasetMetricSource
 
 
 class InputBindingSnapshot(ModelSnapshot):
+    uuid: UUID | None = None
     node_id: UUID
     port_id: UUID
-    position: int
+    position: int = 0
     source: InputBindingSource = Field(discriminator='kind')
     transformations: list[PortTransformOp] = Field(default_factory=list)
     tags: list[str] = Field(default_factory=list)
 ```
 
-`EdgeBindingDef` and `DatasetBindingDef` may remain as convenient narrowed
-runtime views, but both are constructed from this one persisted shape. The ORM
-resolves the dataset and metric strings to its FKs; unlike graph-internal node
-and port references, these are intentionally natural keys at the portable
-snapshot boundary.
+`EdgeBindingDef` and `DatasetBindingDef` remain as narrowed graph views, both
+constructed from this one shape. The ORM resolves the dataset and metric
+strings to its FKs; unlike graph-internal node and port references, these are
+intentionally natural keys at the portable snapshot boundary.
 
-A staged migration is safer than replacing both tables at once (stages 1–2
-landed 2026-08-12: the table exists as a derived mirror, kept fresh at the
-write boundaries by `nodes/input_bindings.py:sync_input_bindings()`, and
-`annotate_ports()` reads it; the legacy tables stay authoritative until
-stage 4):
+The convergence landed in stages (2026-08-12 → 2026-09-01): a backfilled
+mirror first, binding UUIDs made stable across re-sync by structural matching
+(`match_preserved_uuids()`; a rebind to a *different* dataset is a new
+identity by design), one discriminated snapshot list, the authority flip
+(2026-08-18), the table drop (`NodeEdge` / `DatasetPort`, 2026-08-30), and
+finally snapshot v11 with `bindings: list[InputBindingSnapshot]` and the
+transitional `dataset_spec` / `dataset_index` fields retired. Two authorities
+came out of it and both must stay single:
 
-1. Create `NodeInputPortBinding` and dual-read it behind the existing
-   `PortBindingDef` projection.
-2. Backfill `NodeEdge` rows, preserving their UUIDs and deterministic current
-   iteration order; backfill `DatasetPort` rows using `dataset_index` as the
-   initial `position`.
-3. Move the snapshot to `input_bindings: list[InputBindingSnapshot]` in a new
-   schema version, with an upgrader for `edges` plus `dataset_ports`.
-4. Make GraphQL writes target the new table and validate the complete node
-   aggregate in one transaction.
-5. Remove the old tables only after the native snapshot loader consumes the
-   unified binding directly.
+- `ordered_binding_snapshots()` assigns positions — per port, edges first in
+  authored (creation) order, then dataset rows — for the parser, the sync
+  writers and `build_instance_graph()` alike, so the graph and the ORM cannot
+  disagree about order. Positions are stored; nothing recomputes them from
+  primary keys.
+- `group_unified_dataset_bindings()` recovers the runtime's dataset groups
+  from native fields only: a row whose pipeline selects a metric is a
+  singleton; the column-less rows of one (node, dataset) are the per-metric
+  fan-out of one whole-frame binding, closed when a metric repeats. The
+  loader, the sync resolution, the explanation system, the placeholders, the
+  export ordering and the GraphQL fan-out all derive groups from it. Fanned-out
+  groups have **no durable identity** — each per-metric row is its own binding.
 
-During steps 1–4, dataset-only compatibility data still present in
-`DatasetPortSpec` needs an explicit adapter. `column` is replaced by the metric
-FK, `interpolate` becomes an ordered op, `input_dataset` is resolved into the
-dataset source reference, and `output_dimensions` is removed after derivation
-works. Do not copy those fields onto the common model: that would make the
-transitional encoding permanent.
+The dataset-only compatibility data that used to ride on `DatasetPortSpec`
+was not copied onto the common model: `column` is the metric FK plus a
+`select_metric` marker in the pipeline, `interpolate` / `backfill` / `extend`
+are ordered ops, `input_dataset` left the persisted path (YAML-only until the
+YAML era ends), and `output_dimensions` was removed.
 
 
 ### Computed constraint values
 
-The solver needs bounds, not only a concrete set. A small immutable value model
-is enough:
+*`nodes/constraints/values.py` and `solver.py` (plan step 7, 2026-08-11).*
 
-```python
-@dataclass(frozen=True)
-class SetBounds[T]:
-    required: frozenset[T] = frozenset()
-    allowed: frozenset[T] | None = None
-
-
-@dataclass(frozen=True)
-class ValueShape:
-    dimensions: SetBounds[DimensionRef]
-    categories: Mapping[DimensionRef, SetBounds[DimensionCategoryRef]]
-    unit: Unit | None
-    quantity: QuantityKindRef | None
-
-
-@dataclass(frozen=True)
-class PortKey:
-    node_id: UUID
-    port_id: UUID
-    direction: Literal['input', 'output']
-
-
-@dataclass(frozen=True)
-class ConstraintOrigin:
-    kind: Literal['declaration', 'node_rule', 'binding', 'transformation', 'dataset_schema']
-    node_id: UUID | None = None
-    port_id: UUID | None = None
-    binding_id: UUID | None = None
-    transformation_index: int | None = None
-
-
-@dataclass(frozen=True)
-class ConstraintConflict:
-    code: str
-    facet: Literal['dimensions', 'categories', 'unit', 'quantity']
-    origins: tuple[ConstraintOrigin, ...]
-    message: str
-```
+The solver needs bounds, not only a concrete set. Every value it reasons
+about gets a key — `PortValue` (the aggregate at one port), `BindingValue`
+(one delivered binding), `DatasetSourceValue` (a metric before its binding
+pipeline), `IntermediateValue` (a compiled pipeline stage) — and a mutable,
+multi-facet `ValueFacts` record inside a `FactStore`: dimensions,
+categories, unit and quantity together. Facts are monotone: unknown may
+become known, requirement sets only grow, known upper bounds only shrink, and
+a contradicting fact never overwrites an established one — it records a
+`ConstraintConflict` carrying both origins instead. That is what makes the
+fixpoint terminate and makes its result independent of evaluation order.
 
 `allowed=None` means unknown/unbounded, not an empty set. Combining independent
 requirements unions their lower bounds and intersects known upper bounds. A
 conflict exists when the resulting required set is not a subset of the allowed
-set. Category bounds use the same operation within a dimension. This gives the
-fixpoint a monotone representation and makes chained filters that select
-disjoint categories the same kind of contradiction as incompatible dimension
-sets. Separate downstream branches may require disjoint categories without a
-conflict: their requirements union at the shared producer.
+set. Category bounds use the same operation within a dimension, first-writer-
+wins per (value, dimension) with same-writer recompute allowed. Chained filters
+that select disjoint categories are the same kind of contradiction as
+incompatible dimension sets (`disjoint_category_filter`, evaluated against the
+dataset's *observed* categories when a shape profile is known). Separate
+downstream branches may require disjoint categories without a conflict: their
+requirements union at the shared producer.
 
 Units merge differently from set bounds. Two known units satisfy an equality
 rule when they are convertible; the solver retains the consuming port's
 preferred unit for boundary conversion rather than requiring identical unit
-strings. A product rule derives a new unit, and `ensure_unit` replaces the
-representative unit after checking convertibility. Quantities use exact kind
-equality except where the registered quantity algebra derives a product.
+strings. A product rule derives a new unit (product over quotient for
+`inverse_inputs`), and `ensure_unit` replaces the representative unit after
+checking convertibility. Quantities use exact kind equality except where the
+registered quantity algebra derives a product.
 
-Origins attach to individual facts inside the solver, even though the compact
-example above shows them only on conflicts. A transformation is addressed by
-stable binding UUID plus list index: transformations are intentionally
-whole-list values and do not need their own persistent identity.
+Binding tags are handled by whitelist: the registered tag operations that
+provably preserve shape and unit pass facts through; any other registered
+operation (`geometric_inverse`, `complement`, the ratio family) makes the
+binding opaque — facts stop rather than lie. Unregistered tags select behavior
+and stay neutral.
 
-The in-memory graph is keyed by `PortKey`. GraphQL projects it into derived
-types such as:
+A `ConstraintOrigin` attaches to every fact and is kept as the fact's *born*
+origin while it propagates, so a conflict names the two authored sources that
+disagree — a declaration, a node rule, a binding, a transformation (binding
+UUID plus list index; transformations are whole-list values without identity
+of their own) or a dataset schema — not the propagation step that collided.
+Conflict codes include `dimension_mismatch`, `unit_incompatible`,
+`quantity_mismatch`, `assigned_dimension_missing`,
+`produced_dimension_missing`, `disjoint_category_filter`,
+`unknown_dimension_reference`, `unknown_category_reference` and
+`multiple_bindings_on_single_port`.
 
-```graphql
-type EffectivePortShape {
-  requiredDimensions: [Dimension!]!
-  allowedDimensions: [Dimension!]
-  unit: String
-  quantity: QuantityKind
-  conflicts: [PortConstraintConflict!]!
-}
-```
+GraphQL projects the result into read-only derived types: `EffectiveShape`
+(exact `dimensionUuids` or null when unknown, `requiredDimensionUuids`,
+`forbiddenDimensionUuids`, per-dimension categories, unit, quantity) as
+`effectiveShape` on both port types, and `ConstraintConflict` (code, message,
+the value it is about, its origins) as `constraintConflicts` on the instance
+editor and, filtered by involvement, on each node. Whole-graph solves are
+request-memoized on `InstanceRequestResources` so every port resolver shares
+one solve and one profile load. The compiled program is a cached property of
+the `InstanceGraph`; solve results are memoized in-process only, by profile
+versions and overlay content, because solver logic is code and must never
+outlive the hydrated graph. Nothing here is included in `NodeSnapshot`,
+accepted by a mutation, or restored as authored state.
 
-This result may be memoized by an instance revision or a deterministic graph
-hash, but such a memo is a disposable cache. It is never included in
-`NodeSnapshot`, accepted by a mutation, or restored as authored state.
+Validation uses the solver by **baseline diff** (`nodes/constraints/validation.py`):
+a candidate edit is a `BindingChange` (bindings to add, binding ids to remove,
+input ports and datasets to add), the current graph is solved, the graph with
+the change applied is solved, and only conflicts absent from the baseline
+reject the edit. Pre-existing model debt therefore never blocks an unrelated
+edit, while publication (`InstanceConfig.validate_draft_constraints()`) is
+strict on every conflict. Mutations return rejections as data — a
+`ConstraintViolations` union member carrying typed conflicts — because a
+rejected connection is an answer, not an error; occupancy of a non-multi
+port stays a hard validation error, since it is structural capacity, not
+shape.
 
 
 ### Reference identity
 
-Constraint provenance should use node, port and binding UUIDs. The current
-`DimensionRef` and `DimensionCategoryRef` identifier vocabulary can remain at
-the authored YAML/`NodeSpec` boundary for the first implementation; the solver
-resolves it once against the instance dimension registry. This proposal does
+Constraint provenance uses node, port and binding UUIDs, and the `InstanceGraph`
+carries a UUID catalog of dimensions, categories, datasets and metrics
+(snapshot v8), so that a published graph does not drift after a rename.
+`InstanceGraph.describe_uuid()` turns those back into identifiers for
+diagnostics only. The `DimensionRef` and `DimensionCategoryRef` identifier
+vocabulary remains at the authored YAML/`NodeSpec` boundary; the solver
+resolves it once against the graph's dimension catalog. This proposal does
 not make identifiers into a new durable graph identity. If dimensions later
 become renameable editor objects, their existing ORM UUIDs should become the
 stored references through an explicit snapshot-version migration rather than
@@ -702,31 +711,44 @@ by silently changing the meaning of `DimensionRef`.
 ### Transformations attach to the consuming port
 
 Propagation walks upstream *through input ports*, so it needs
-transformations attached to the binding at the consuming port. The code
-does not do this yet: edge transformations execute on the **producing**
-node, in `_get_output_for_target()`, keyed by consumer identity. Dataset
-filters execute inside dataset loading. Neither runs at the port.
+transformations attached to the binding at the consuming port. The runtime
+agrees with that now: the loader constructs one `RuntimeInputBinding` per
+graph binding (`nodes/runtime_input.py`), whose loader reads the source
+value — the bound output column of the source node, or the bound metric of
+the dataset — applies the binding's own pipeline through the shared executor,
+and delivers it to the consuming node, which resolves inputs by role through
+`get_input(port)` / `iter_inputs(port)` / `require_input(port)` against its
+class-level port declarations. The pipeline that used to be derived from
+producer-side `from_dimensions` / `to_dimensions` dicts is gone with the
+config-dict loader (plan step 10, 2026-08-16); a binding executes exactly the
+ops it stores.
 
-Propagation also needs port identity that is authored and stable. Ports
-are currently derived at export time and their ids are hashed from
-`(node, direction, key)`, so a structural edit can regenerate them on sync and
-stored bindings cannot safely treat them as durable authored identity.
+Not every node class has moved onto the role accessors yet. The remaining
+classes still read inputs through the legacy `get_input_dataset*()` /
+`get_output_pl(target=…)` accessors, which the loader feeds from the same
+bindings, so the two paths cannot disagree about *what* is delivered — only
+about how the class asks for it. Migrating a class means declaring its ports
+and replacing those calls; nothing else changes.
+
+Port identity is authored and stable (see [Authored port declarations](#authored-port-declarations)),
+so a stored binding's `port_id` survives a re-sync.
 
 
 ## Unification with dataset transforms
 
 The dimension-aware subset of dataset transforms and edge transforms are
-the same operations. Today's encodings map like this:
+the same operations. The legacy edge encodings mapped like this:
 
 ```
-Edge: SelectCategoriesTransformation  ≡  Dataset: FilterDimensionDatasetTransformOp
-Edge: AssignCategoryTransformation    ≡  Dataset: FilterDimensionDatasetTransformOp(assign_category=...)
-Edge: FlattenTransformation           ≡  (nothing — it is a port shape declaration)
+Edge: select_categories  ->  filter_dimension
+Edge: assign_category    ->  assign_dimension
+Edge: flatten            ->  (nothing — it was a port shape declaration; see above)
 ```
 
-The second line describes a **legacy encoding** that is being retired:
-assignment is its own operation (`AssignDimension`), not a field on a
-dimension filter.
+The legacy kinds survive only as tolerated *stored* input on old rows and
+pinned revisions: `modernized_transformations()` rewrites them on every read,
+no sync emits them, and the GraphQL inputs and output types for them were
+removed on 2026-09-15.
 
 ### Decision: one op type, not two layers
 
@@ -747,70 +769,64 @@ The ops:
 | `assign_dimension` | edge, dataset | Was `assign_category` on the dataset dimension filter. |
 | `drop_nulls` | edge, dataset | |
 | `filter_temporal` | edge, dataset | Currently the yearly specialization (`min_year` / `max_year`). |
-| `filter_column` | dataset | Legacy, pre-dimension column filtering. |
+| `ensure_unit` | edge, dataset | Explicit conversion declared on the binding; the unit analog of a dimension adapter. |
+| `tag_operation` | edge, dataset | A registered tag behavior applied as an ordered stage. |
+| `filter_column` | dataset | Legacy, pre-dimension column filtering. Shape-neutral to the solver unless its column is one of the dataset's declared dimensions, in which case it filters and, with `drop_col`, removes that dimension. |
 | `rename_column` | dataset | Legacy wide-DVC column labels. |
 | `rename_item` | dataset | Category value remapping. |
 | `set_forecast_from` | dataset | Sets the forecast **qualifier**; see `metric-dataframe.md`. |
 | `interpolate` | dataset | Fills missing interior years linearly; the interpolation qualifier follows the `MetricDataFrame` migration. |
 | `backfill` | dataset | Copies the first known value backwards over existing leading null rows. |
 | `extend` | dataset | Carries the last historical value to the instance model end year. |
+| `select_metric`, `index_temporal`, `remap_legacy_years` | dataset | **System-managed** stage markers the compiler inserts; clients render them read-only and pass them back unchanged. |
 
-There is deliberately no `select_column` op: metric selection is the
-binding's source reference, not a transformation.
+Metric *selection* is not a transformation: a binding names the single
+metric it carries (a `DatasetMetric` for dataset bindings, an output port for
+edges). The `select_metric` marker only records where in the pipeline the
+bound column is aliased to `Value`, so that a pipeline can be executed
+literally; it does not choose the metric.
 
 
 ## Current state and next steps
 
-**Done:**
-- `PortTransformOp` is the one vocabulary; dataset bindings execute it as a
-  pipeline, and `PortBindingDef` carries `transformations` for both kinds,
-  always presented in the current vocabulary.
-- `NodeEdge.transformations` stores the unified kinds: `select_categories` and
-  `assign_category` were migrated to `filter_dimension` / `assign_dimension`
-  (`0054`), sync emits the new kinds, and the legacy kinds survive only as
-  tolerated input. `flatten` remains stored as the placeholder for a port
-  shape declaration.
-- Editing over GraphQL: `bindingEditor` resolves both kinds;
-  `updateDatasetBinding` / `updateEdgeBinding` / `deleteBinding`, plus
-  `bindDataset` and `createEdge`. Each kind has its own `oneOf` input type,
-  so applicability is the input type's field list, introspectable by the
-  editor UI; `createEdge` still accepts the deprecated legacy fields.
-- Ports may carry an optional human-readable `identifier`.
-- The runtime executes the typed op pipeline at the edge boundary
-  (`6d798054`): `_get_output_for_target()` derives ops via
-  `Edge.to_transforms()` and runs the shared executor, with `flatten`
-  excluded from execution (it only feeds the output-shape assertion).
-  Execution still happens on the producing node, fed from the legacy
-  dicts — the consuming-port half of step 3 below remains.
+**Done (2026-08 → 2026-09):**
 
-**Next, in dependency order.** The first three are prerequisites for
-propagation, not independent work:
+- `PortTransformOp` is the one vocabulary; both binding kinds execute it as a
+  pipeline at the consuming port, and every reader sees the current kinds.
+- `flatten` retired onto `InputPortDef.required_dimensions` (step 2).
+- Stable port UUIDs, the persisted `role`, and the snapshot UUID catalog
+  (step 3).
+- `InstanceGraph`: the immutable, cached metadata graph built from a snapshot
+  without a `Context` (step 4); dataset shape profiles recorded at
+  materialization and pinned at publication (step 5).
+- Shape rules per node class with pipeline compilation to the same rules
+  (step 6); the multi-facet fixpoint solver with provenance (step 7);
+  baseline-diff validation, strict publication, and the derived GraphQL
+  fields (step 8).
+- One `NodeInputPortBinding` table, one snapshot binding list, legacy tables
+  dropped, transitional fields retired (step 9 and step 11).
+- The native loader: YAML, draft and published all build the runtime from the
+  snapshot through the graph (step 10); the explanation system reads typed
+  inputs built from the same graph (2026-09-15).
+- `supported_dimensions`, `DatasetPortSpec.output_dimensions`, and the
+  deprecated identifier-era GraphQL surface removed.
 
-1. Give ports authored, stable identity that survives a sync, and make
-   `instance_from_db` emit port wiring that the loader consumes. Until
-   then port ids are cosmetic. Related: unify `NodeEdge` and `DatasetPort`
-   into one `NodeInputPortBinding` table. That is where a binding's ordering
-   within a `multi` port can live — ordering has to be shared, because a port
-   may hold both an edge and a dataset — and it retires the
-   `(node, dataset_index)` grouping that stands in for binding identity today.
-2. Move the ex-`FlattenTransformation` shape declarations onto
-   `InputPortDef` and retire the `flatten` kind.
-3. Consume the op pipeline **at the consuming port** from the stored
-   binding. `_get_output_for_target()` already executes the typed ops
-   through the shared executor, but derives them from the producer-side
-   `from_dimensions` / `to_dimensions` dicts, and
-   `_get_output_for_node()`'s metric selection and node-column filter are
-   still outside the pipeline. Until the stored binding feeds the runtime
-   directly, `_transforms_to_config()` in `instance_from_db.py` is the seam
-   that translates stored transformations back into those dicts, and it
-   bounds what an edge can execute — which is why `EdgeTransformationInput`
-   accepts only the dimension-reshaping kinds for now. This step widens it
-   with `drop_nulls` / `filter_temporal` / `ensure_unit` (additive,
-   non-breaking).
-4. Add node dimension signatures (requires/consumes/produces/transparent)
-   to node classes or pipeline definitions.
-5. Implement upstream constraint propagation for the editor's validation
-   and port compatibility checks, exposing results as derived fields.
+**Open, in no particular dependency order:**
 
-Removed from this list: "remove the `side` field from edge
-transformations" — there is no such field in `edge_def.py`.
+1. The multi-group `required_dimensions` fill in the exporter and parser is
+   the last place computed dimensions land in an authored field.
+2. Legacy port-role inference (`infer_legacy_port_roles`) dies when every
+   persisted port carries a role. Count the `inferred_port_role` diagnostics
+   across the fleet after a resync before removing it.
+3. Node classes still on the legacy input accessors should declare their
+   ports and move to `get_input(port)`.
+4. `dimension_transform` rules have no production declarer yet; the first
+   class with a genuine consumes/produces signature (GWP, disaggregation)
+   makes the union member real.
+5. Publication is strict on all conflicts and nothing has published yet;
+   revisit `disjoint_category_filter` severity if a bind-then-fill workflow
+   on a fresh empty dataset hits it.
+6. The quantity algebra is validation-only; deriving a product quantity is a
+   later step once the registry has enough coverage.
+7. Snapshot identifier upgraders go only when the supported revision window
+   allows.

@@ -280,7 +280,7 @@ def _select_existing_target_port(to_node: NodeConfig, source_port: OutputPortDef
 def _plan_target_port(
     info: gql.Info,
     to_node: NodeConfig,
-    to_port: str | None,
+    to_port: UUID | None,
     source_port: OutputPortDef,
 ) -> tuple[UUID, InputPortDef | None]:
     """
@@ -293,9 +293,8 @@ def _plan_target_port(
     when the connection is accepted.
     """
     if to_port is not None:
-        port_id = _parse_port_id(info, to_port, field_name='toPort')
-        if _get_input_port(to_node, port_id) is not None:
-            return port_id, None
+        if _get_input_port(to_node, to_port) is not None:
+            return to_port, None
         raise GraphQLValidationError(info, f'Input port "{to_port}" does not exist on node "{to_node.identifier}"')
 
     existing = _select_existing_target_port(to_node, source_port)
@@ -335,14 +334,18 @@ def _append_input_port(to_node: NodeConfig, port: InputPortDef) -> None:
     record_change(to_node, action='node.update', before=before, after=to_node.serializable_data())
 
 
-def _resolve_source_port(info: gql.Info, from_node: NodeConfig, from_port: str) -> UUID:
+def _resolve_source_port(info: gql.Info, from_node: NodeConfig, from_port: UUID | None) -> UUID:
     assert from_node.spec is not None
     output_ports = from_node.spec.output_ports
-    if from_port == 'output' and len(output_ports) == 1:
-        return output_ports[0].id
-    port_id = _parse_port_id(info, from_port, field_name='fromPort')
-    if _get_output_port(from_node, port_id) is not None:
-        return port_id
+    if from_port is None:
+        if len(output_ports) == 1:
+            return output_ports[0].id
+        raise GraphQLValidationError(
+            info,
+            f'Node "{from_node.identifier}" has {len(output_ports)} output ports; `fromRef.portId` must name one',
+        )
+    if _get_output_port(from_node, from_port) is not None:
+        return from_port
     raise GraphQLValidationError(
         info,
         f'Output port "{from_port}" does not exist on node "{from_node.identifier}"',
@@ -427,10 +430,6 @@ class InputPortInput:
         description='Null keeps the existing value when `id` names an existing port; defaults to true for new ports.',
     )
     required_dimensions: list[str] | None = None
-    supported_dimensions: list[str] | None = sb.field(
-        default=None,
-        deprecation_reason='Never had solver semantics and is no longer stored.',
-    )
 
 
 @sb.input
@@ -601,61 +600,40 @@ class UpdateNodeLayoutInput:
 @sb.input
 class NodePortRefInput:
     node_uuid: UUID
-    port_id: UUID
+    port_id: UUID | None = sb.field(
+        default=None,
+        description=(
+            "Omit to let the server choose. On the source side that is the node's only output port; "
+            'on the target side a free matching port is reused, or a new one is instantiated from the '
+            "node class's port declarations."
+        ),
+    )
 
 
 @sb.input
 class CreateEdgeInput:
     instance_id: sb.ID
-    from_ref: NodePortRefInput | None = None
-    port_ref: NodePortRefInput | None = None
-    from_node_id: str | None = sb.field(default=None, deprecation_reason='Use fromRef instead.')
-    to_node_id: str | None = sb.field(default=None, deprecation_reason='Use portRef instead.')
-    from_port: str | None = sb.field(default=None, deprecation_reason='Use fromRef instead.')
-    to_port: str | None = sb.field(default=None, deprecation_reason='Use portRef instead.')
+    from_ref: NodePortRefInput
+    port_ref: NodePortRefInput
     transformations: list[EdgeTransformationInput] | None = None
     replace: bool = sb.field(
         default=False,
         description=(
             'Atomically displace whatever occupies the target port — an edge or a dataset binding — '
             'instead of rejecting the edge. Validation runs first, so a rejected edge leaves the old '
-            'binding untouched. Requires an explicit `toPort` (an auto-selected port is never occupied) '
-            'and is not valid for `multi` ports.'
+            'binding untouched. Requires an explicit `portRef.portId` (an auto-selected port is never '
+            'occupied) and is not valid for `multi` ports.'
         ),
     )
 
 
-def _resolve_create_edge_refs(
-    info: gql.Info,
-    ic: InstanceConfig,
-    input: CreateEdgeInput,
-) -> tuple[NodeConfig, NodeConfig, str, str | None]:
-    """Resolve one complete canonical or legacy edge-reference form."""
-    has_canonical = input.from_ref is not None or input.port_ref is not None
-    has_legacy = any(value is not None for value in (input.from_node_id, input.to_node_id, input.from_port, input.to_port))
-    if has_canonical and has_legacy:
-        raise GraphQLValidationError(info, 'Supply either `fromRef`/`portRef` or the deprecated edge fields, not both')
-    if has_canonical:
-        if input.from_ref is None or input.port_ref is None:
-            raise GraphQLValidationError(info, 'Canonical edge references require both `fromRef` and `portRef`')
-        try:
-            from_node = NodeConfig.objects.get(instance=ic, uuid=input.from_ref.node_uuid)
-            to_node = NodeConfig.objects.get(instance=ic, uuid=input.port_ref.node_uuid)
-        except NodeConfig.DoesNotExist:
-            raise GraphQLError('Source or target node not found') from None
-        return from_node, to_node, str(input.from_ref.port_id), str(input.port_ref.port_id)
-
-    if input.from_node_id is None or input.to_node_id is None:
-        raise GraphQLValidationError(
-            info,
-            'Edge creation requires both `fromRef`/`portRef` or both deprecated node ID fields',
-        )
+def _resolve_create_edge_nodes(ic: InstanceConfig, input: CreateEdgeInput) -> tuple[NodeConfig, NodeConfig]:
     try:
-        from_node = NodeConfig.objects.get(instance=ic, identifier=input.from_node_id)
-        to_node = NodeConfig.objects.get(instance=ic, identifier=input.to_node_id)
+        from_node = NodeConfig.objects.get(instance=ic, uuid=input.from_ref.node_uuid)
+        to_node = NodeConfig.objects.get(instance=ic, uuid=input.port_ref.node_uuid)
     except NodeConfig.DoesNotExist:
         raise GraphQLError('Source or target node not found') from None
-    return from_node, to_node, input.from_port or 'output', input.to_port
+    return from_node, to_node
 
 
 @sb.input
@@ -1639,27 +1617,6 @@ class InstanceEditorMutation:
 
         return _resolve_runtime_node(info, ic, nc.pk)
 
-    @gql.mutation(
-        description='Update an existing node',
-        graphql_type=AnyNodeType,
-        deprecation_reason='Use instanceEditor.nodeEditor(nodeId).update instead.',
-    )
-    @staticmethod
-    def update_node(info: gql.Info, root: sb.Parent[Me], node_id: sb.ID, input: UpdateNodeInput) -> Node:
-        ic = root.instance
-        editor = NodeEditorMutation(instance=ic, node=InstanceEditorMutation._lookup_node(info, ic, node_id))
-        return NodeEditorMutation.update(info, editor, input)
-
-    @gql.mutation(
-        description='Delete a node and its edges',
-        deprecation_reason='Use instanceEditor.nodeEditor(nodeId).delete instead.',
-    )
-    @staticmethod
-    def delete_node(root: sb.Parent[Me], info: gql.Info, node_id: sb.ID) -> None:
-        ic = root.instance
-        editor = NodeEditorMutation(instance=ic, node=InstanceEditorMutation._lookup_node(info, ic, node_id))
-        NodeEditorMutation.delete(info, editor)
-
     @sb.field(description='Edit a node that belongs to this instance')
     @staticmethod
     def node_editor(info: gql.Info, root: sb.Parent[Me], node_id: sb.ID) -> NodeEditorMutation:
@@ -1759,10 +1716,11 @@ class InstanceEditorMutation:
         if ic.config_source != 'database':
             raise GraphQLError('Cannot edit YAML-sourced instances')
 
-        from_node, to_node, requested_from_port, requested_to_port = _resolve_create_edge_refs(info, ic, input)
+        from_node, to_node = _resolve_create_edge_nodes(ic, input)
         to_node.ensure_gql_action_allowed(info, 'change')
 
-        from_port = _resolve_source_port(info, from_node, requested_from_port)
+        requested_to_port = input.port_ref.port_id
+        from_port = _resolve_source_port(info, from_node, input.from_ref.port_id)
         source_port = _get_output_port(from_node, from_port)
         assert source_port is not None  # _resolve_source_port validated it
 
@@ -1775,7 +1733,7 @@ class InstanceEditorMutation:
             if requested_to_port is None:
                 raise GraphQLValidationError(
                     info,
-                    '`replace` requires an explicit `toPort`: an auto-selected or auto-created port is never occupied',
+                    '`replace` requires an explicit `portRef.portId`: an auto-selected or auto-created port is never occupied',
                 )
             displaced = _port_occupants(info, to_node, to_port)
         elif planned_port is None:
@@ -1878,44 +1836,6 @@ class InstanceEditorMutation:
         if for_change:
             nc.ensure_gql_action_allowed(info, 'change')
         return nc
-
-    @gql.mutation(
-        description='Append a new input port to a node',
-        graphql_type=InputPortType,
-        deprecation_reason='Use instanceEditor.nodeEditor(nodeId).addInputPort instead.',
-    )
-    @staticmethod
-    def add_node_input_port(
-        info: gql.Info,
-        root: sb.Parent[Me],
-        node_id: sb.ID,
-        input: InputPortInput,
-    ) -> InputPortDef:
-        ic = root.instance
-        if ic.config_source != 'database':
-            raise GraphQLError('Cannot edit YAML-sourced instances')
-
-        editor = NodeEditorMutation(instance=ic, node=InstanceEditorMutation._lookup_node(info, ic, node_id, with_spec=True))
-        return NodeEditorMutation.add_input_port(info, editor, input)
-
-    @gql.mutation(
-        description='Append a new output port to a node',
-        graphql_type=OutputPortType,
-        deprecation_reason='Use instanceEditor.nodeEditor(nodeId).addOutputPort instead.',
-    )
-    @staticmethod
-    def add_node_output_port(
-        info: gql.Info,
-        root: sb.Parent[Me],
-        node_id: sb.ID,
-        input: OutputPortInput,
-    ) -> OutputPortDef:
-        ic = root.instance
-        if ic.config_source != 'database':
-            raise GraphQLError('Cannot edit YAML-sourced instances')
-
-        editor = NodeEditorMutation(instance=ic, node=InstanceEditorMutation._lookup_node(info, ic, node_id, with_spec=True))
-        return NodeEditorMutation.add_output_port(info, editor, input)
 
     # -- Dimension mutations --------------------------------------------------
 

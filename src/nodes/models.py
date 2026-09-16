@@ -1173,10 +1173,9 @@ class InstanceConfig(
                     return instance
                 # Fall through to the draft path if no published revision exists.
 
-            from .instance_from_db import _check_dimension_orm_coverage
             from .instance_serialization import build_instance_snapshot
 
-            _check_dimension_orm_coverage(self)
+            self._check_dimension_orm_coverage()
             snapshot = build_instance_snapshot(self)
             loader = InstanceLoader.from_snapshot(
                 snapshot,
@@ -1312,6 +1311,48 @@ class InstanceConfig(
         with instance_cache_lock:
             instance = self._initialize_instance(node_refs=node_refs, source=source)
         return instance
+
+    def _check_dimension_orm_coverage(self) -> None:
+        """
+        Check the ORM covers spec.dimensions.
+
+        Transitional: during the migration from `InstanceSpec.dimensions` to the
+        ORM Dimension/DimensionCategory tables (plus their `spec` JSONFields),
+        we keep both sources and verify the ORM is not missing anything the
+        runtime needs. The computation model fails when a dim or cat is missing;
+        extras or cosmetic diffs (labels, colors, aliases) only cause log noise.
+        """
+        spec = self.spec
+        assert spec is not None, f'InstanceConfig {self.identifier!r} has no spec'
+        orm_cats_by_dim = self._orm_category_ids_by_dim()
+        missing: list[str] = []
+        for dim_dict in spec.dimensions:
+            dim_id = dim_dict['id']
+            spec_cat_ids = {cat['id'] for cat in dim_dict.get('categories', [])}
+            orm_cat_ids = orm_cats_by_dim.get(dim_id)
+            if orm_cat_ids is None:
+                missing.append(f'dim {dim_id!r} not present in ORM')
+                continue
+            missing_cats = spec_cat_ids - orm_cat_ids
+            if missing_cats:
+                missing.append(f'dim {dim_id!r}: missing cats {sorted(missing_cats)}')
+
+        if missing:
+            for line in missing:
+                logger.error('Dimension ORM gap for {id}: {line}', id=self.identifier, line=line)
+            raise AssertionError(f'Dimension ORM missing entries for instance {self.identifier!r}: {missing}')
+
+    def _orm_category_ids_by_dim(self) -> dict[str, set[str]]:
+        from kausal_common.datasets.models import DimensionScope
+
+        scopes = (
+            DimensionScope.objects.for_instance_config(self).select_related('dimension').prefetch_related('dimension__categories')
+        )
+        result: dict[str, set[str]] = {}
+        for scope in scopes:
+            assert scope.identifier is not None
+            result[scope.identifier] = {cat.identifier for cat in scope.dimension.categories.all() if cat.identifier is not None}
+        return result
 
     def get_instance(
         self,

@@ -162,6 +162,13 @@ def _instance_admin_allowed(ic: InstanceConfig, info: gql.Info) -> bool:
     return ic.permission_policy().is_admin(user, ic)
 
 
+def _parse_uuid(value: str) -> UUID | None:
+    try:
+        return UUID(str(value))
+    except ValueError:
+        return None
+
+
 def _node_is_publicly_visible(node: Node) -> bool:
     if node.source_snapshot is not None:
         return node.source_snapshot.is_visible
@@ -569,6 +576,15 @@ class InstanceModelType:
                 node.db_obj = nc
         self._editor_nodes_prepared = True
 
+    def _nodes_by_uuid(self) -> dict[UUID, Node]:
+        from nodes.graphql.types.node import _get_node_uuid_with_fallback
+
+        # The UUID of a runtime node comes from its NodeConfig row when there is
+        # one; attach the rows first so a UUID lookup never falls back to the
+        # derived identity for a node that has a real one.
+        self._prepare_editor_nodes()
+        return {_get_node_uuid_with_fallback(node): node for node in self._instance.context.nodes.values()}
+
     @sb.field
     def goals(self, id: sb.ID | None = None) -> list[InstanceGoalEntry]:
         ret = []
@@ -602,15 +618,22 @@ class InstanceModelType:
             ret.append(out)
         return ret
 
-    @sb.field(graphql_type=list[Annotated['NodeInterface', sb.lazy('nodes.schema')]])
+    @sb.field(
+        graphql_type=list[Annotated['NodeInterface', sb.lazy('nodes.schema')]],
+        description='Nodes of the model. `id` accepts node identifiers and node UUIDs interchangeably.',
+    )
     def nodes(self, info: gql.Info, id: list[sb.ID] | None = None) -> list[Node]:
         can_edit = _instance_editor_allowed(self._config, info)
         if can_edit:
             self._prepare_editor_nodes()
         if id is not None:
             nodes: list[Node] = []
+            nodes_by_uuid = self._nodes_by_uuid() if any(_parse_uuid(obj_id) for obj_id in id) else {}
             for obj_id in id:
                 node = self._instance.context.nodes.get(obj_id)
+                if node is None:
+                    requested_uuid = _parse_uuid(obj_id)
+                    node = nodes_by_uuid.get(requested_uuid) if requested_uuid is not None else None
                 if node is None:
                     continue
                 if not can_edit and not _node_is_publicly_visible(node):
