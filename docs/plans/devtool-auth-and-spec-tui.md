@@ -146,15 +146,40 @@ Design notes as planned and verified:
 Deliverable: `curl -H "Authorization: Bearer <id_token>" .../v1/graphql/`
 executes as the associated user, locally and on deployments.
 
-## Phase A3 — Devtool-side login flow (first version in `tools/paths_devtool.py`)
+## Phase A3 — Devtool-side login flow (DONE, `src/devtool/`)
 
-Implemented as a plain OAuth client (no Django imports), invoked as
-`python -m tools.paths_devtool {login,whoami,token}`: PKCE flow with a
-loopback callback on port 8765 (`http://127.0.0.1:8765/callback` must be
-registered on the Keycloak client), silent refresh keyed to both `exp` and
-the server's 600 s `iat` freshness bound, and a `me { email }` GraphQL smoke
-test. `token` prints a fresh ID token for curl use. **Deviation from the
-plan below: tokens are cached in a 0600-mode file**
+Implemented as a plain OAuth client (no Django imports) in the `devtool`
+package, invoked as `paths-devtool {login,whoami,token,logout}` (console
+script) or `python -m devtool`. Class-based so the TUI can reuse it:
+
+- `devtool.auth.SsoAuth` — PKCE flow with a loopback callback on port 8765
+  (`http://127.0.0.1:8765/callback` must be registered on the Keycloak
+  client), silent refresh keyed to both `exp` and the server's 600 s `iat`
+  freshness bound; `TokenCache` holds the tokens; `AuthProvider` is the
+  protocol the client consumes, so a dev escape hatch can slot in later.
+- `devtool.client.PathsClient` — GraphQL operations over a
+  `GraphQLTransport` protocol; `HttpTransport` is the remote one, the
+  in-process one is Phase B.
+- HTTP goes through `httpx2`, which verifies TLS against the system CA store
+  via `truststore` by default, so portless-issued local CAs (`*.test`) work
+  without configuration. Both are dev-group dependencies.
+- `devtool/tests/` drives the flows with `httpx2.MockTransport`; the root
+  `conftest.py` exempts the tree from the instance-building autouse fixtures.
+- **First real operation: `export` / `import`.** `InstanceType.export`
+  (superusers only) returns the `InstanceExport` document as a JSON scalar;
+  the document is its own wire format with `schema_version` and upgraders,
+  so it is not projected into GraphQL object types. It carries provenance
+  (`exported_at`, `exported_from`, `draft_head_token`) as null-default
+  fields, no schema bump. `paths-devtool export <id>` saves it verbatim as
+  `<id>.instance-export.json`; `paths-devtool import FILE` loads it into the
+  *local* database only (boots Django via `init_django()`, then
+  `nodes.instance_import.import_instance_export`), creating a database-sourced
+  instance or filling an empty one, never a populated one. Remote import
+  comes later through `PathsClient`. Load documents with
+  `InstanceExport.from_serialized_data`, not `model_validate_json`: the
+  JSON-mode path trips on `TranslatedString` (open issue, see below).
+
+**Deviation from the plan below: tokens are cached in a 0600-mode file**
 (`~/.config/kausal-paths-devtool/tokens.json`), not the OS keyring — same
 posture as `gh` without a keyring backend. Moving to `keyring` (new
 dependency) is an open follow-up.
@@ -174,9 +199,9 @@ dependency) is an open follow-up.
 
 ## Phase B — TUI foundation
 
-Textual app under `tools/spec_tui/`, launched as `python -m tools.spec_tui`
-(module form, same reasoning as `tools/debug_instance`). Textual goes in the
-dev dependency group.
+Textual app under `src/devtool/tui/`, launched through the same
+`paths-devtool` entry point, on top of the A3 `SsoAuth` / `PathsClient`
+classes. Textual goes in the dev dependency group.
 
 - **One client, two transports.** Remote: HTTP POST to `/v1/graphql/`.
   Local: `django.test.Client` against the same path — in-process, no
@@ -228,6 +253,12 @@ dev dependency group.
 - Device flow, non-Kausal IdPs, token-granted authorization.
 
 ## Open questions
+
+- `TranslatedString`'s `json_or_python_schema` fails under Pydantic's JSON-mode
+  validation (`model_validate_json`) with a `str`/`dict` union error on every
+  translated field; the dict path (`model_validate(json.loads(...))`) is fine
+  and dump-stable. Nothing in the codebase uses JSON mode, but the export
+  documents make it tempting. Worth a look at the core schema.
 
 - Keycloak realm details: does the realm enforce verified emails (gates the
   A1 flip)? Token lifespans — if ID-token lifetime is much shorter than the

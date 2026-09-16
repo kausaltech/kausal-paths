@@ -43,17 +43,21 @@ _pytest_default_language_ctx = set_i18n_context('en', [])
 _pytest_default_language_ctx.__enter__()
 
 
-_KAUSAL_COMMON_DIR = Path(__file__).parent / 'kausal_common'
+_REPO_ROOT = Path(__file__).parent
+# Test trees that know nothing about Paths instances and must not be made to need a database
+# by this conftest: the submodule shared with Watch, and the devtool, which is pure client code.
+_INSTANCE_FREE_TEST_DIRS = (_REPO_ROOT / 'kausal_common', _REPO_ROOT / 'src' / 'devtool')
 
 
-def _is_shared_test(request: pytest.FixtureRequest) -> bool:
+def _is_instance_free_test(request: pytest.FixtureRequest) -> bool:
     """
-    Say whether this is a test of the shared submodule rather than of Paths.
+    Say whether this test belongs to a tree that has no business with Paths instances.
 
     The autouse fixtures below build a Paths `Instance` and an `InstanceConfig` row, which is the
     right default for a test in this repo and wrong for one in `kausal_common/`: that code is
     shared with Watch, knows nothing about instances, and its tests should not need a database
-    because of a conftest belonging to one of its two consumers.
+    because of a conftest belonging to one of its two consumers. The same holds for `src/devtool/`,
+    an OAuth + GraphQL *client* of the backend with no Django imports at all.
 
     It was not a theoretical problem. `kausal_common/tests/test_storage.py` is a pure unit test of
     the S3 media backend with no `django_db` mark, so the autouse `instance_config` fixture failed
@@ -65,9 +69,10 @@ def _is_shared_test(request: pytest.FixtureRequest) -> bool:
     `context` build in memory, and `instance` is in any case shadowed by the `register(...)`
     call below, which defines a fixture of the same name.
 
-    No test under `kausal_common/` requests `instance_config`, so skipping it there costs nothing.
+    No test under these trees requests `instance_config`, so skipping it there costs nothing.
     """
-    return _KAUSAL_COMMON_DIR in Path(request.path).parents
+    parents = Path(request.path).parents
+    return any(d in parents for d in _INSTANCE_FREE_TEST_DIRS)
 
 
 @pytest.fixture(autouse=True)
@@ -189,8 +194,8 @@ def custom_scenario(instance: Instance):
 @pytest.fixture(autouse=True)
 def instance_config(request, instance: Instance):
     # The one autouse fixture that writes to the database, and therefore the one that has to stay
-    # out of the shared submodule's way. See `_is_shared_test`.
-    if _is_shared_test(request):
+    # out of the instance-free trees' way. See `_is_instance_free_test`.
+    if _is_instance_free_test(request):
         return None
     return InstanceConfigFactory(identifier=instance.id, instance=instance)
 

@@ -7,6 +7,7 @@ module-name = [
   "admin_site",
   "common",
   "datasets",
+  "devtool",
   "frameworks",
   "gql_client",
   "nodes",
@@ -126,12 +127,16 @@ dependencies = [
   "xxhash",
 ]
 
+[project.scripts]
+paths-devtool = "devtool.cli:main"
+
 [dependency-groups]
 dev = [
   "basedpyright",
   "daphne",
   "debugpy>=1.8.15",
   "django-debug-toolbar",
+  "httpx2>=2.13.0",
   "inotify",
   "ipdb",
   "ipython",
@@ -141,6 +146,7 @@ dev = [
   "pdbr[ipython]",
   "pip",
   "plotext",
+  "truststore>=0.10.4",
   "virtualenvwrapper>=6.1.1",
   "viztracer",
   { include-group = "lint" },
