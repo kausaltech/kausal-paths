@@ -2,13 +2,18 @@ from __future__ import annotations
 
 from datetime import date
 from decimal import Decimal
+from typing import TYPE_CHECKING
 from uuid import uuid4
+
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 
 import pytest
 
 from kausal_common.datasets.models import (
     DataPoint,
     DataPointComment,
+    DatasetMetricValidationRule,
     DatasetSourceReference,
     DataSource,
 )
@@ -27,6 +32,13 @@ from paths.tests.graphql import PathsTestClient
 from nodes.defs.instance_defs import InstanceModelSpec, YearsSpec
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory
 from users.tests.factories import UserFactory
+
+if TYPE_CHECKING:
+    from django.test import Client
+
+    from kausal_common.datasets.models import Dataset, DatasetMetric, DimensionCategory
+
+    from nodes.models import InstanceConfig
 
 pytestmark = pytest.mark.django_db
 
@@ -1044,6 +1056,95 @@ def test_data_point_comments_query(gql_client: PathsTestClient, dataset_setup):
     assert [c['id'] for c in ds['dataPointComments']] == [str(comment.uuid)]
     dp = next(d for d in ds['dataPoints'] if d['id'] == str(data_point.uuid))
     assert [c['id'] for c in dp['comments']] == [str(comment.uuid)]
+
+
+@pytest.mark.parametrize(('metric_count', 'point_count'), [(1, 1), (4, 10)])
+def test_dataset_detail_batches_rules_and_comments(
+    client: Client,
+    gql_client: PathsTestClient,
+    dataset_setup: tuple[InstanceConfig, Dataset, DatasetMetric, DimensionCategory],
+    metric_count: int,
+    point_count: int,
+) -> None:
+    from django.contrib.contenttypes.models import ContentType
+
+    from kausal_common.datasets.models import DatasetSchemaScope
+
+    from nodes.roles import instance_admin_role
+
+    instance_config, dataset, first_metric, category = dataset_setup
+    DatasetSchemaScope.objects.create(
+        schema=dataset.schema,
+        scope_content_type=ContentType.objects.get_for_model(instance_config),
+        scope_id=instance_config.pk,
+    )
+    user = UserFactory.create(is_superuser=False)
+    instance_admin_role.assign_user(instance_config, user)
+    client.force_login(user)
+    metrics = [first_metric] + [
+        DatasetMetricFactory.create(schema=dataset.schema, name=f'metric-{index}', unit='t/a') for index in range(1, metric_count)
+    ]
+    expected_rules = {}
+    expected_comments = {}
+    for metric in metrics:
+        rules = [
+            DatasetMetricValidationRule.objects.create(
+                metric=metric, order=index, rule={'kind': 'value_range', 'enforcement': 'block_edit', 'min': index}
+            )
+            for index in range(2)
+        ]
+        expected_rules[str(metric.uuid)] = [str(rule.uuid) for rule in rules]
+        for index in range(point_count):
+            point = DataPointFactory.create(
+                dataset=dataset,
+                metric=metric,
+                date=date(2020 + index, 1, 1),
+                value=10,
+                dimension_categories=[category],
+            )
+            comments = [DataPointComment.objects.create(data_point=point, text=f'Comment {n}', created_by=user) for n in range(2)]
+            DataPointComment.objects.create(data_point=point, text='Deleted', is_soft_deleted=True)
+            expected_comments[str(point.uuid)] = [str(comment.uuid) for comment in reversed(comments)]
+    empty_point = DataPointFactory.create(dataset=dataset, metric=first_metric, date=date(2050, 1, 1))
+    expected_comments[str(empty_point.uuid)] = []
+
+    with CaptureQueriesContext(connection) as queries:
+        data = gql_client.query_data(
+            """
+            query InstanceDataset($datasetId: ID!) {
+                instance {
+                    id
+                    editor {
+                        dataset(id: $datasetId) {
+                            id
+                            metrics { id validationRules { id } }
+                            dataPoints {
+                                id date value
+                                metric { id validationRules { id } }
+                                dimensionCategories { uuid }
+                                comments { id text createdBy { id } }
+                            }
+                        }
+                    }
+                }
+            }
+        """,
+            variables={'datasetId': str(dataset.uuid)},
+        )
+    detail = data['instance']['editor']['dataset']
+    for metric_data in detail['metrics']:
+        assert [rule['id'] for rule in metric_data['validationRules']] == expected_rules[metric_data['id']]
+    assert len(detail['dataPoints']) == len(expected_comments)
+    for point_data in detail['dataPoints']:
+        assert [comment['id'] for comment in point_data['comments']] == expected_comments[point_data['id']]
+        assert all(comment['createdBy']['id'] == str(user.uuid) for comment in point_data['comments'])
+        metric_data = point_data['metric']
+        assert [rule['id'] for rule in metric_data['validationRules']] == expected_rules[metric_data['id']]
+    rule_queries = [q for q in queries if 'FROM "datasets_datasetmetricvalidationrule"' in q['sql']]
+    comment_queries = [q for q in queries if 'FROM "datasets_datapointcomment"' in q['sql']]
+    assert len(rule_queries) == 2
+    assert len(comment_queries) == 1
+    assert len(queries) <= 30
 
 
 def test_comment_mutation_emits_change_operation(gql_client: PathsTestClient, dataset_setup):

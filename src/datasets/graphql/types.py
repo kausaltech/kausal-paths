@@ -1,8 +1,9 @@
 """Strawberry GraphQL types for DB-backed datasets."""
 
+from collections import defaultdict
 from datetime import date, datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Annotated, Any, cast
+from typing import TYPE_CHECKING, Annotated, Any
 from uuid import UUID
 
 import strawberry as sb
@@ -332,23 +333,26 @@ class DataPointType:
     dimension_categories: list[DatasetDimensionCategoryType]
 
     _model: sb.Private['DataPointModel | None'] = None
+    _comments: sb.Private[list[DataPointCommentModel] | None] = None
 
-    @sb.field(description='Comments attached to this data point, newest first.')
+    @sb.field(graphql_type=list[DataPointCommentType], description='Comments attached to this data point, newest first.')
     @staticmethod
-    def comments(root: 'DataPointType') -> list[DataPointCommentType]:
+    def comments(root: 'DataPointType') -> list[DataPointCommentModel]:
+        if root._comments is not None:
+            return root._comments
         if root._model is None:
             return []
-        return cast('list[DataPointCommentType]', list(_comments_queryset_for_data_point(root._model)))
+        return list(_comments_queryset_for_data_point(root._model))
 
-    @sb.field(description='Source references attached directly to this data point, newest first.')
+    @sb.field(
+        graphql_type=list[Annotated['DatasetSourceReferenceType', sb.lazy('datasets.graphql.types')]],
+        description='Source references attached directly to this data point, newest first.',
+    )
     @staticmethod
-    def source_references(root: 'DataPointType') -> "list['DatasetSourceReferenceType']":
+    def source_references(root: 'DataPointType') -> list[DatasetSourceReferenceModel]:
         if root._model is None:
             return []
-        return cast(
-            'list[DatasetSourceReferenceType]',
-            list(_source_references_queryset_for_data_point(root._model)),
-        )
+        return list(_source_references_queryset_for_data_point(root._model))
 
     @classmethod
     def from_model(cls, data_point: DataPointModel) -> DataPointType:
@@ -451,7 +455,7 @@ class DatasetType(UserPermissionsMixin):
     def metrics(root: 'DatasetType') -> list[DatasetMetricType]:
         if root._model is None or root._model.schema is None:
             return []
-        metrics = list(root._model.schema.metrics.all())
+        metrics = list(root._model.schema.metrics.prefetch_related('validation_rules'))
         return [
             DatasetMetricType.from_model(metric, previous_sibling=prev_id, next_sibling=next_id)
             for metric, prev_id, next_id in with_sibling_ids(metrics, lambda metric: sb.ID(str(metric.uuid)))
@@ -462,17 +466,28 @@ class DatasetType(UserPermissionsMixin):
     def data_points(root: 'DatasetType') -> list[DataPointType]:
         if root._model is None:
             return []
-        data_points = root._model.data_points.select_related('metric').prefetch_related('dimension_categories__dimension')
-        return [DataPointType.from_model(data_point) for data_point in data_points]
+        data_points = root._model.data_points.select_related('metric').prefetch_related(
+            'metric__validation_rules', 'dimension_categories__dimension'
+        )
+        comments_by_data_point: dict[int, list[DataPointCommentModel]] = defaultdict(list)
+        for comment in _comments_queryset_for_dataset(root._model):
+            comments_by_data_point[comment.data_point_id].append(comment)
+        result = []
+        for data_point in data_points:
+            obj = DataPointType.from_model(data_point)
+            obj._comments = comments_by_data_point[data_point.pk]
+            result.append(obj)
+        return result
 
-    @sb.field(description='All data point comments in this dataset, newest first.')
+    @sb.field(graphql_type=list[DataPointCommentType], description='All data point comments in this dataset, newest first.')
     @staticmethod
-    def data_point_comments(root: 'DatasetType') -> list[DataPointCommentType]:
+    def data_point_comments(root: 'DatasetType') -> list[DataPointCommentModel]:
         if root._model is None:
             return []
-        return cast('list[DataPointCommentType]', list(_comments_queryset_for_dataset(root._model)))
+        return list(_comments_queryset_for_dataset(root._model))
 
     @sb.field(
+        graphql_type=list[Annotated['DatasetSourceReferenceType', sb.lazy('datasets.graphql.types')]],
         description=(
             'Source references inside this dataset. `target` selects refs attached '
             'directly to the dataset, refs attached to its data points, or both.'
@@ -482,20 +497,20 @@ class DatasetType(UserPermissionsMixin):
     def source_references(
         root: 'DatasetType',
         target: DatasetSourceReferenceTarget = DatasetSourceReferenceTarget.DATASET,
-    ) -> "list['DatasetSourceReferenceType']":
+    ) -> list[DatasetSourceReferenceModel]:
         if root._model is None:
             return []
-        return cast(
-            'list[DatasetSourceReferenceType]',
-            list(_source_references_queryset_for_dataset(root._model, target)),
-        )
+        return list(_source_references_queryset_for_dataset(root._model, target))
 
-    @sb.field(description='DataSources referenced from this dataset (via refs on it or its data points).')
+    @sb.field(
+        graphql_type=list[DataSourceType],
+        description='DataSources referenced from this dataset (via refs on it or its data points).',
+    )
     @staticmethod
-    def data_sources(root: 'DatasetType') -> list[DataSourceType]:
+    def data_sources(root: 'DatasetType') -> list[DataSourceModel]:
         if root._model is None:
             return []
-        return cast('list[DataSourceType]', list(_data_sources_queryset_for_dataset(root._model)))
+        return list(_data_sources_queryset_for_dataset(root._model))
 
     @sb.field(graphql_type=list[Annotated['DimensionalMetricType', sb.lazy('nodes.graphql.types.metric')]])
     @staticmethod
