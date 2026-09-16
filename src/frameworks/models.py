@@ -771,7 +771,11 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
 
     @property
     def instance_years(self) -> YearsSpec:
-        return self.instance_config.ensure_spec().years
+        """Read persisted instance-owned years without refreshing the shared YAML spec."""
+        spec = self.instance_config.spec
+        if spec is None:
+            raise ValueError(f'Framework instance {self.instance_config.identifier} has no persisted spec')
+        return spec.years
 
     @property
     def reference_year(self) -> int:

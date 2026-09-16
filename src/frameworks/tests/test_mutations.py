@@ -416,6 +416,69 @@ def test_framework_config_instances_do_not_cause_n_plus_one_queries(
     assert len(query_ctx) <= 13
 
 
+@pytest.mark.parametrize('config_count', [1, 10])
+def test_framework_config_listing_reads_persisted_years(
+    client: Client,
+    monkeypatch: pytest.MonkeyPatch,
+    config_count: int,
+) -> None:
+    from paths.tests.graphql import PathsTestClient
+
+    from nodes.instance_loader import InstanceYAMLConfig
+
+    framework = FrameworkFactory.create(identifier='nzc')
+    user = User.objects.create_user(username='listing-admin', email='listing-admin@test.com')
+    expected_years = {}
+    for index in range(config_count):
+        identifier = f'listing-city-{index}'
+        years = YearsSpec(reference=2010 + index, target=2040 + index)
+        ic = InstanceConfigFactory.create(
+            identifier=identifier,
+            name=f'City {index}',
+            config_source='database',
+            spec=InstanceModelSpec(years=years),
+        )
+        FrameworkConfigFactory.create(framework=framework, instance_config=ic)
+        instance_admin_role.assign_user(ic, user)
+        # Simulate persisted city years alongside an outdated shared YAML spec.
+        InstanceConfig.objects.filter(pk=ic.pk).update(config_source='yaml', yaml_mtime_hash='stale', yaml_spec_version=0)
+        expected_years[identifier] = (years.reference, years.target)
+    client.force_login(user)
+
+    def fail_yaml_load(*args: object, **kwargs: object) -> None:
+        raise AssertionError('framework listings must not load shared YAML')
+
+    monkeypatch.setattr(InstanceYAMLConfig, 'load_for_entrypoint', fail_yaml_load)
+    with CaptureQueriesContext(connection) as queries:
+        data = PathsTestClient(client).query_data("""
+            query GetFrameworkConfigs {
+              framework(identifier: "nzc") {
+                id
+                configs {
+                  id
+                  organizationName
+                  baselineYear
+                  targetYear
+                  viewUrl
+                  resultsDownloadUrl
+                  instanceIdentifier
+                  isLocked
+                }
+              }
+            }
+        """)
+
+    configs = data['framework']['configs']
+    assert {config['instanceIdentifier']: (config['baselineYear'], config['targetYear']) for config in configs} == expected_years
+    assert len(queries) <= 13
+    unexpected_queries = [
+        query['sql']
+        for query in queries
+        if not query['sql'].lstrip().upper().startswith(('SELECT', 'SAVEPOINT', 'RELEASE SAVEPOINT'))
+    ]
+    assert unexpected_queries == []
+
+
 def test_framework_config_view_url_resolves_for_child_instance_admin(
     client: Client,
     framework: Framework,
