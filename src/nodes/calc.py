@@ -41,8 +41,8 @@ def extend_last_historical_value_pl(  # noqa: C901, PLR0912
 
     if FORECAST_COLUMN not in df.columns:
         df = df.with_columns([pl.lit(False).alias(FORECAST_COLUMN)])  # noqa: FBT003
-    hist_df = df.filter(pl.col(FORECAST_COLUMN).eq(False))  # noqa: FBT003
-    if hist_df.is_empty():  # Nothing to extend if there are no historical values
+    historical_years = df[YEAR_COLUMN].filter(df[FORECAST_COLUMN].eq(False))  # noqa: FBT003
+    if historical_years.is_empty():  # Nothing to extend if there are no historical values
         return df
 
     meta = df.get_meta().copy()
@@ -52,19 +52,22 @@ def extend_last_historical_value_pl(  # noqa: C901, PLR0912
         df = df.drop(all_null_dims)
         meta.primary_keys = [pk for pk in meta.primary_keys if pk not in all_null_dims]
         dim_ids = [dim_id for dim_id in dim_ids if dim_id not in all_null_dims]
-    first_forecast_year = cast('int | None', df.filter(pl.col(FORECAST_COLUMN).eq(True))[YEAR_COLUMN].min())  # noqa: FBT003
+    first_forecast_year = cast('int | None', df[YEAR_COLUMN].filter(df[FORECAST_COLUMN].eq(True)).min())  # noqa: FBT003
     if first_forecast_year is not None:
         last_hist_year = first_forecast_year - 1
     else:
-        last_hist_year = cast('int | None', hist_df[YEAR_COLUMN].max())
+        last_hist_year = cast('int | None', historical_years.max())
 
-    years_df = df.select(YEAR_COLUMN).unique().sort(YEAR_COLUMN)
+    # Keep the grid construction and filling in one query rather than materializing
+    # a dataframe after each operation. The final sort orders each forward-fill group.
+    source = df.lazy()
+    years_df = source.select(YEAR_COLUMN).unique().sort(YEAR_COLUMN)
     if last_hist_year is not None and last_hist_year < end_year:
-        future_years = pl.DataFrame(data=range(last_hist_year + 1, end_year + 1), schema=[YEAR_COLUMN])
+        future_years = pl.DataFrame(data=range(last_hist_year + 1, end_year + 1), schema=[YEAR_COLUMN]).lazy()
         years_df = pl.concat([years_df, future_years], how='vertical').unique().sort(YEAR_COLUMN)
 
     if dim_ids:
-        dim_df = df.select(dim_ids).unique(maintain_order=True)
+        dim_df = source.select(dim_ids).unique(maintain_order=True)
         base_df = dim_df.join(years_df, how='cross')
         fill_exprs = [pl.col(col).fill_null(strategy='forward').over(dim_ids).alias(col) for col in metric_cols]
         sort_cols = [*dim_ids, YEAR_COLUMN]
@@ -73,7 +76,7 @@ def extend_last_historical_value_pl(  # noqa: C901, PLR0912
         fill_exprs = [pl.col(col).fill_null(strategy='forward').alias(col) for col in metric_cols]
         sort_cols = [YEAR_COLUMN]
 
-    value_df = df.select([*dim_ids, YEAR_COLUMN, *metric_cols]).sort(sort_cols)
+    value_df = source.select([*dim_ids, YEAR_COLUMN, *metric_cols]).sort(sort_cols)
     jdf = base_df.join(value_df, on=sort_cols, how='left').sort(sort_cols).with_columns(fill_exprs)
 
     if last_hist_year is not None:
@@ -88,10 +91,10 @@ def extend_last_historical_value_pl(  # noqa: C901, PLR0912
             for col in metric_cols
         ]
         jdf = jdf.with_columns(forecast_fill_exprs)
-    cast_exprs = [pl.col(dim_id).cast(pl.Categorical) for dim_id in dim_ids if jdf.schema[dim_id] != pl.Categorical]
+    cast_exprs = [pl.col(dim_id).cast(pl.Categorical) for dim_id in dim_ids if df.schema[dim_id] != pl.Categorical]
     if cast_exprs:
         jdf = jdf.with_columns(cast_exprs)
-    return ppl.to_ppdf(jdf, meta=meta)
+    return ppl.to_ppdf(jdf.collect(), meta=meta)
 
 
 def extend_last_historical_value(df: pd.DataFrame, end_year: int) -> pd.DataFrame:
