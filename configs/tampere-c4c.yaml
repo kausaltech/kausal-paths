@@ -1673,10 +1673,8 @@ nodes:
     - column: energy_carrier
     - column: road_type
   output_nodes:
-  - id: bus_emissions
   - id: motorcycle_emissions
   - id: truck_emissions
-  - id: van_emissions
   - id: onroad_emissions_impacts
     to_dimensions:
     - id: vehicle_type
@@ -1711,6 +1709,24 @@ nodes:
     - id: ghg
     - id: scope
 
+- id: onroad_transportation_electricity_factors
+  name: On-road transport electricity consumption per kilometer
+  name_en: On-road transport electricity consumption per kilometer
+  type: simple.AdditiveNode
+  quantity: energy_factor
+  unit: kWh/vkm
+  input_dimensions: [vehicle_type, energy_carrier, scope]
+  output_dimensions: [vehicle_type, energy_carrier, scope]
+  input_datasets:
+  - id: tampere/onroad_transportation
+    column: energy_factor
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - column: ghg
+    - column: road_type
+    - column: sector
+
 # ----- Buses
 
 - id: bus_kilometers
@@ -1719,8 +1735,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: mileage
   unit: Mvkm/a
-  input_dimensions: [vehicle_type, scope]
-  output_dimensions: [vehicle_type, scope]
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
   input_datasets:
   - id: tampere/onroad_transportation
     column: mileage
@@ -1729,38 +1745,165 @@ nodes:
     filters:
     - column: sector
       value: ii11
-    - column: ghg
     - dimension: vehicle_type
       categories: [buses]
     - column: energy_carrier
+    - column: ghg
     - column: road_type
-  output_nodes:
-  - id: bus_emissions
+    - column: scope
+
+- id: baseline_bus_propulsion_mix
+  name: Baseline bus propulsion mix
+  name_en: Baseline bus propulsion mix
+  type: simple.AdditiveNode
+  quantity: mix
+  unit: vkm/vkm
+  input_dimensions: [energy_carrier, scope, vehicle_type]
+  output_dimensions: [energy_carrier, scope, vehicle_type]
+  input_datasets:
+  - id: tampere/onroad_transportation
+    column: propulsion_fraction
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - dimension: vehicle_type
+      categories: [buses]
+    - column: ghg
+    - column: road_type
+    - column: sector
+
+- id: bus_propulsion_percentage_electric
+  name: 'Bus propulsion percentage: electric'
+  name_en: 'Bus propulsion percentage: electric'
+  type: simple.AdditiveNode
+  quantity: mix
+  unit: '%'
+  input_dimensions: [energy_carrier, scope, vehicle_type]
+  output_dimensions: [energy_carrier, scope, vehicle_type]
+  input_nodes:
+  - id: baseline_bus_propulsion_mix
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+
+- id: bus_propulsion_percentage_non_electric
+  name: 'Bus propulsion percentage: non-electric'
+  name_en: 'Bus propulsion percentage: non-electric'
+  type: simple.AdditiveNode
+  quantity: mix
+  unit: '%'
+  input_dimensions: [energy_carrier, scope, vehicle_type]
+  output_dimensions: [energy_carrier, scope, vehicle_type]
+  input_nodes:
+  - id: baseline_bus_propulsion_mix
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+      exclude: true
+
+- id: bus_propulsion_mix
+  name: Bus propulsion mix
+  name_en: Bus propulsion mix
+  type: simple.AdditiveNode
+  quantity: mix
+  unit: '%'
+  input_dimensions: [energy_carrier, scope, vehicle_type]
+  output_dimensions: [energy_carrier, scope, vehicle_type]
+  input_nodes:
+  - id: bus_propulsion_percentage_electric
+  - id: bus_propulsion_percentage_non_electric
+
+- id: bus_kilometers_by_propulsion
+  name: Bus kilometers by propulsion
+  name_en: Bus kilometers by propulsion
+  type: simple.MultiplicativeNode
+  quantity: mileage
+  unit: Mvkm/a
+  input_dimensions: [energy_carrier, scope, vehicle_type]
+  output_dimensions: [energy_carrier, scope, vehicle_type]
+  input_nodes:
+  - id: bus_kilometers
+    tags: [non_additive]
     to_dimensions:
     - id: vehicle_type
-    - id: scope
+  - id: bus_propulsion_mix
+
+- id: bus_electricity_consumption
+  name: Bus electricity consumption
+  name_en: Bus electricity consumption
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: kWh/a
+  input_dimensions: [energy_carrier, scope, vehicle_type]
+  output_dimensions: [energy_carrier, scope, vehicle_type]
+  input_nodes:
+  - id: bus_kilometers_by_propulsion
+  - id: onroad_transportation_electricity_factors
+
+- id: bus_fuel_emission_factors
+  name: Bus fuel emission factors
+  name_en: Bus fuel emission factors
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: g_co2e/vkm
+  input_dimensions: [energy_carrier, ghg, scope, vehicle_type]
+  output_dimensions: [energy_carrier, ghg, scope, vehicle_type]
+  input_datasets:
+  - id: tampere/onroad_transportation
+    column: emission_factor_by_energy_carrier
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - dimension: vehicle_type
+      categories: [buses]
+    - column: road_type
+    - column: sector
 
 - id: bus_emissions
   name: Bussiliikenteen päästöt
   name_en: Bus emissions
-  type: simple.MultiplicativeNode
+  type: formula.FormulaNode
   quantity: emissions
   unit: kt_co2e/a
-  input_dimensions: [vehicle_type, ghg, scope]
-  output_dimensions: [vehicle_type, ghg, scope]
-  output_nodes:
-  - id: bus_emissions_total
+  input_dimensions: [energy_carrier, ghg, scope, vehicle_type]
+  output_dimensions: [energy_carrier, ghg, scope, vehicle_type]
+  params:
+    formula: (kilometers_by_fuel * fuel_emission_factors) + (electricity_consumption * electricity_emission_factor)
+  input_nodes:
+  - id: bus_kilometers_by_propulsion
+    tags: [kilometers_by_fuel]
+    to_dimensions:
+    - id: energy_carrier
+    - id: scope
+    - id: vehicle_type
+  - id: bus_fuel_emission_factors
+    tags: [fuel_emission_factors]
+  - id: bus_electricity_consumption
+    tags: [electricity_consumption]
+    to_dimensions:
+    - id: energy_carrier
+    - id: scope
+    - id: vehicle_type
+  - id: other_electricity_emission_factors
+    tags: [electricity_emission_factor]
+    to_dimensions:
+    - id: energy_carrier
+    - id: ghg
+    - id: scope
 
 - id: bus_emissions_total
   name: Bussiliikenteen kokonaispäästöt
   name_en: Total bus emissions
-  type: simple.AdditiveNode
+  type: formula.FormulaNode
   quantity: emissions
   unit: kt_co2e/a
   input_dimensions: [vehicle_type, ghg, scope]
   output_dimensions: [vehicle_type, ghg, scope]
+  params:
+    formula: emissions + (mileage_2023 * emission_factor) + emissions_by_energy_carrier
   input_datasets:
   - id: tampere/onroad_transportation
+    tags: [emissions]
     column: emissions
     dropna: true
     forecast_from: 2024
@@ -1771,7 +1914,29 @@ nodes:
       categories: [buses]
     - column: energy_carrier
     - column: road_type
+  - id: tampere/onroad_transportation
+    tags: [mileage_2023]
+    column: mileage
+    dropna: true
+    max_year: 2023
+    filters:
+    - column: sector
+      value: ii11
+    - dimension: vehicle_type
+      categories: [buses]
+    - column: energy_carrier
+    - column: ghg
+    - column: road_type
+    - column: scope
   input_dataset_processors: [LinearInterpolation]
+  input_nodes:
+  - id: onroad_transportation_emission_factors
+    tags: [emission_factor]
+  - id: bus_emissions
+    tags: [emissions_by_energy_carrier]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
   output_nodes:
   - id: transportation_emissions
     from_dimensions:
@@ -2051,26 +2216,6 @@ nodes:
     - id: vehicle_type
   - id: car_propulsion_mix
 
-- id: car_electricity_factor
-  name: Passenger car electricity consumption per kilometer
-  name_en: Passenger car electricity consumption per kilometer
-  type: simple.AdditiveNode
-  quantity: energy_factor
-  unit: kWh/vkm
-  input_dimensions: [energy_carrier, scope, vehicle_type]
-  output_dimensions: [energy_carrier, scope, vehicle_type]
-  input_datasets:
-  - id: tampere/onroad_transportation
-    column: energy_factor
-    dropna: true
-    forecast_from: 2024
-    filters:
-    - dimension: vehicle_type
-      categories: [passenger_cars]
-    - column: ghg
-    - column: road_type
-    - column: sector
-
 - id: car_electricity_consumption
   name: Passenger car electricity consumption
   name_en: Passenger car electricity consumption
@@ -2081,7 +2226,7 @@ nodes:
   output_dimensions: [energy_carrier, scope, vehicle_type]
   input_nodes:
   - id: car_kilometers_by_propulsion
-  - id: car_electricity_factor
+  - id: onroad_transportation_electricity_factors
 
 - id: car_fuel_emission_factors
   name: Passenger car fuel emission factors
@@ -2317,8 +2462,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: mileage
   unit: Mvkm/a
-  input_dimensions: [vehicle_type, scope]
-  output_dimensions: [vehicle_type, scope]
+  input_dimensions: [vehicle_type]
+  output_dimensions: [vehicle_type]
   input_datasets:
   - id: tampere/onroad_transportation
     column: mileage
@@ -2327,38 +2472,194 @@ nodes:
     filters:
     - column: sector
       value: ii11
-    - column: ghg
     - dimension: vehicle_type
       categories: [vans]
     - column: energy_carrier
+    - column: ghg
     - column: road_type
-  output_nodes:
-  - id: van_emissions
+    - column: scope
+
+- id: baseline_van_propulsion_mix
+  name: Baseline van propulsion mix
+  name_en: Baseline van propulsion mix
+  type: simple.AdditiveNode
+  quantity: mix
+  unit: vkm/vkm
+  input_dimensions: [energy_carrier, scope, vehicle_type]
+  output_dimensions: [energy_carrier, scope, vehicle_type]
+  input_datasets:
+  - id: tampere/onroad_transportation
+    column: propulsion_fraction
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - dimension: vehicle_type
+      categories: [vans]
+    - column: ghg
+    - column: road_type
+    - column: sector
+
+- id: van_propulsion_percentage_electric
+  name: 'Van propulsion percentage: electric'
+  name_en: 'Van propulsion percentage: electric'
+  type: simple.AdditiveNode
+  quantity: mix
+  unit: '%'
+  input_dimensions: [energy_carrier, scope, vehicle_type]
+  output_dimensions: [energy_carrier, scope, vehicle_type]
+  input_nodes:
+  - id: baseline_van_propulsion_mix
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+
+- id: van_propulsion_percentage_non_electric
+  name: 'Van propulsion percentage: non-electric'
+  name_en: 'Van propulsion percentage: non-electric'
+  type: simple.AdditiveNode
+  quantity: mix
+  unit: '%'
+  input_dimensions: []
+  output_dimensions: []
+  input_nodes:
+  - id: baseline_van_propulsion_mix
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+      exclude: true
+      flatten: true
+    - id: scope
+      flatten: true
+    - id: vehicle_type
+      flatten: true
+    to_dimensions: []
+
+- id: baseline_van_propulsion_mix_non_electric
+  name: 'Baseline van propulsion mix: non-electric'
+  name_en: 'Baseline van propulsion mix: non-electric'
+  type: simple.MixNode
+  quantity: mix
+  unit: '%'
+  input_dimensions: [energy_carrier, scope, vehicle_type]
+  output_dimensions: [energy_carrier, scope, vehicle_type]
+  input_nodes:
+  - id: baseline_van_propulsion_mix
+    tags: [activity]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+      exclude: true
+
+- id: van_propulsion_mix
+  name: Van propulsion mix
+  name_en: Van propulsion mix
+  type: formula.FormulaNode
+  quantity: mix
+  unit: '%'
+  input_dimensions: [energy_carrier, scope, vehicle_type]
+  output_dimensions: [energy_carrier, scope, vehicle_type]
+  params:
+    formula: total_electric + (total_non_electric * mix_non_electric)
+  input_nodes:
+  - id: van_propulsion_percentage_electric
+    tags: [total_electric]
+  - id: van_propulsion_percentage_non_electric
+    tags: [total_non_electric]
+    to_dimensions: []
+  - id: baseline_van_propulsion_mix_non_electric
+    tags: [mix_non_electric]
+
+- id: van_kilometers_by_propulsion
+  name: Van kilometers by propulsion
+  name_en: Van kilometers by propulsion
+  type: simple.MultiplicativeNode
+  quantity: mileage
+  unit: Mvkm/a
+  input_dimensions: [energy_carrier, scope, vehicle_type]
+  output_dimensions: [energy_carrier, scope, vehicle_type]
+  input_nodes:
+  - id: van_kilometers
+    tags: [non_additive]
     to_dimensions:
     - id: vehicle_type
-    - id: scope
+  - id: van_propulsion_mix
+
+- id: van_electricity_consumption
+  name: Van electricity consumption
+  name_en: Van electricity consumption
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: kWh/a
+  input_dimensions: [energy_carrier, scope, vehicle_type]
+  output_dimensions: [energy_carrier, scope, vehicle_type]
+  input_nodes:
+  - id: van_kilometers_by_propulsion
+  - id: onroad_transportation_electricity_factors
+
+- id: van_fuel_emission_factors
+  name: Van fuel emission factors
+  name_en: Van fuel emission factors
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: g_co2e/vkm
+  input_dimensions: [energy_carrier, ghg, scope, vehicle_type]
+  output_dimensions: [energy_carrier, ghg, scope, vehicle_type]
+  input_datasets:
+  - id: tampere/onroad_transportation
+    column: emission_factor_by_energy_carrier
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - dimension: vehicle_type
+      categories: [vans]
+    - column: road_type
+    - column: sector
 
 - id: van_emissions
   name: Pakettiautoliikenteen päästöt
   name_en: Van emissions
-  type: simple.MultiplicativeNode
+  type: formula.FormulaNode
   quantity: emissions
   unit: kt_co2e/a
-  input_dimensions: [vehicle_type, ghg, scope]
-  output_dimensions: [vehicle_type, ghg, scope]
-  output_nodes:
-  - id: van_emissions_total
+  input_dimensions: [energy_carrier, ghg, scope, vehicle_type]
+  output_dimensions: [energy_carrier, ghg, scope, vehicle_type]
+  params:
+    formula: (kilometers_by_fuel * fuel_emission_factors) + (electricity_consumption * electricity_emission_factor)
+  input_nodes:
+  - id: van_kilometers_by_propulsion
+    tags: [kilometers_by_fuel]
+    to_dimensions:
+    - id: energy_carrier
+    - id: scope
+    - id: vehicle_type
+  - id: van_fuel_emission_factors
+    tags: [fuel_emission_factors]
+  - id: van_electricity_consumption
+    tags: [electricity_consumption]
+    to_dimensions:
+    - id: energy_carrier
+    - id: scope
+    - id: vehicle_type
+  - id: other_electricity_emission_factors
+    tags: [electricity_emission_factor]
+    to_dimensions:
+    - id: energy_carrier
+    - id: ghg
+    - id: scope
 
 - id: van_emissions_total
   name: Pakettiautoliikenteen kokonaispäästöt
   name_en: Total van emissions
-  type: simple.AdditiveNode
+  type: formula.FormulaNode
   quantity: emissions
   unit: kt_co2e/a
   input_dimensions: [vehicle_type, ghg, scope]
   output_dimensions: [vehicle_type, ghg, scope]
+  params:
+    formula: emissions + (mileage_2023 * emission_factor) + emissions_by_energy_carrier
   input_datasets:
   - id: tampere/onroad_transportation
+    tags: [emissions]
     column: emissions
     dropna: true
     forecast_from: 2024
@@ -2369,7 +2670,29 @@ nodes:
       categories: [vans]
     - column: energy_carrier
     - column: road_type
+  - id: tampere/onroad_transportation
+    tags: [mileage_2023]
+    column: mileage
+    dropna: true
+    max_year: 2023
+    filters:
+    - column: sector
+      value: ii11
+    - dimension: vehicle_type
+      categories: [vans]
+    - column: energy_carrier
+    - column: ghg
+    - column: road_type
+    - column: scope
   input_dataset_processors: [LinearInterpolation]
+  input_nodes:
+  - id: onroad_transportation_emission_factors
+    tags: [emission_factor]
+  - id: van_emissions
+    tags: [emissions_by_energy_carrier]
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
   output_nodes:
   - id: transportation_emissions
     from_dimensions:
