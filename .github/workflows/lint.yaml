@@ -3,8 +3,34 @@ on:
   pull_request:
   push:
 
+permissions:
+  contents: read
+  actions: read
+  checks: write
+  pull-requests: write
+
 jobs:
+  previous:
+    uses: kausaltech/github-actions/.github/workflows/result-lookup.yaml@main
+    with:
+      task: lint
+      # Reviewdog filters/reports relative to this diff and PR context.
+      identity: ${{ format('v1:{0}:{1}:{2}', github.event_name, github.event.before || github.event.pull_request.base.sha, github.event.pull_request.number) }}
+
   reviewdog:
+    needs: previous
+    if: needs.previous.outputs.hit != 'true'
     uses: kausaltech/github-actions/.github/workflows/reviewdog-backend.yaml@main
     secrets:
       PRIVATE_SUBMODULE_DEPLOY_KEY: ${{ secrets.PRIVATE_SUBMODULE_DEPLOY_KEY }}
+
+  result:
+    needs: [previous, reviewdog]
+    if: always()
+    uses: kausaltech/github-actions/.github/workflows/result-record.yaml@main
+    with:
+      task: lint
+      identity: ${{ format('v1:{0}:{1}:{2}', github.event_name, github.event.before || github.event.pull_request.base.sha, github.event.pull_request.number) }}
+      reused: ${{ needs.previous.outputs.hit == 'true' }}
+      source_url: ${{ needs.previous.outputs.source_url }}
+      successful: ${{ needs.reviewdog.result == 'success' }}

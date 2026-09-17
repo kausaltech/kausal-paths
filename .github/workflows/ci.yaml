@@ -5,7 +5,15 @@ env:
 
 jobs:
   build:
-    uses: kausaltech/github-actions/.github/workflows/build.yaml@main
+    permissions:
+      contents: read
+      actions: read
+      checks: write
+      id-token: write
+      packages: write
+      attestations: write
+      artifact-metadata: write
+    uses: kausaltech/github-actions/.github/workflows/build-cached.yaml@main
     secrets:
       SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
       PRIVATE_SUBMODULE_DEPLOY_KEY: ${{ secrets.PRIVATE_SUBMODULE_DEPLOY_KEY }}
@@ -19,6 +27,10 @@ jobs:
 
   test:
     needs: [build]
+    permissions:
+      actions: read
+      checks: write
+      contents: read
     uses: ./.github/workflows/test.yaml
     secrets: inherit
     with:
@@ -27,6 +39,10 @@ jobs:
       build_id: ${{ needs.build.outputs.build_id }}
 
   ui-e2e-test:
+    permissions:
+      contents: read
+      actions: read
+      checks: write
     needs: [build]
     uses: ./.github/workflows/ui-e2e-tests.yaml
     secrets:

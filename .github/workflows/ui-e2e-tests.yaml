@@ -58,7 +58,7 @@ on:
     outputs:
       test_report_url:
         description: "URL to e2e test report"
-        value: ${{ jobs.e2e_test.outputs.test_report_url }}
+        value: ${{ jobs.e2e_test.outputs.test_report_url || fromJSON(jobs.previous.outputs.outputs || '{}').test_report_url }}
 
 env:
   POSTGRES_PASSWORD: abcd
@@ -66,8 +66,16 @@ env:
   POSTGRES_DATABASE: app
 
 jobs:
+  previous:
+    uses: kausaltech/github-actions/.github/workflows/result-lookup.yaml@main
+    with:
+      task: ui-e2e-tests
+      identity: ${{ format('v1:{0}:{1}', inputs.product_id, inputs.instance_identifiers) }}
+
   e2e_test:
     name: Run UI end-to-end tests
+    needs: previous
+    if: needs.previous.outputs.hit != 'true'
     runs-on: runner-prod
     services:
       ui:
@@ -241,3 +249,15 @@ jobs:
           url: https://codecoverage.kausal.dev
           flags: e2e-tests
           recurse_submodules: true
+
+  result:
+    needs: [previous, e2e_test, upload-coverage]
+    if: always()
+    uses: kausaltech/github-actions/.github/workflows/result-record.yaml@main
+    with:
+      task: ui-e2e-tests
+      identity: ${{ format('v1:{0}:{1}', inputs.product_id, inputs.instance_identifiers) }}
+      reused: ${{ needs.previous.outputs.hit == 'true' }}
+      source_url: ${{ needs.previous.outputs.source_url }}
+      successful: ${{ needs.e2e_test.result == 'success' && (needs.upload-coverage.result == 'success' || needs.upload-coverage.result == 'skipped') }}
+      outputs: ${{ toJSON(needs.e2e_test.outputs) }}
