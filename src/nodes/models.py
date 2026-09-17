@@ -457,6 +457,11 @@ class InstanceConfig(
 
     identifier = IdentifierField(max_length=100, unique=True, validators=[InstanceIdentifierValidator()])
     is_active = models.BooleanField(default=True, help_text=_('Whether this instance is active or soft-deleted.'))
+    in_customer_use = models.BooleanField(
+        default=False,
+        verbose_name=_('in customer use'),
+        help_text=_('Whether this instance is in customer use, including startup computation and operational monitoring.'),
+    )
     name = models.CharField[str, str](max_length=150, verbose_name=_('name'), unique=True)
     owner = models.CharField[str, str](
         blank=True,
