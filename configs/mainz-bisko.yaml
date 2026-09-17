@@ -3,7 +3,7 @@ default_language: de
 supported_languages: [en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 282687a616031069881d7bbc56e2e17cd02810c3
+  commit: 2b7d0998085ba7728e8a1e5eb1a1db6912a790a3
   dvc_remote: kausal-s3
 name_de: Treibhausgas-Monitor Mainz
 name_en: GHG Monitor Mainz
@@ -258,6 +258,34 @@ dimensions:
   - id: szenario_2
     label_de: Szenario 2 (konservativ)
     label_en: Scenario 2 (conservative)
+
+# The territorial Masterplan measures, kept apart from `measure` above on purpose: that
+# dimension carries the administration concept (KNSV) and its help text says so, the two
+# never meet in one dataset, and a city user opening the admin should not have to tell one
+# concept's measure list from the other's.
+#
+# The category label opens with the measure number of the Masterplan Maßnahmenkatalog, so a
+# row here, an action in this model and an action in Kausal Watch can be lined up by eye.
+# Where the number in the dataset comes from the IE Leipzig scenario comparison rather than
+# from the measure sheet, the action description says so -- the Maßnahmenkatalog states
+# hardly any quantities, because it rates GHG reduction as gering/mittel/hoch and leaves
+# quantification to "Fachbüro falls quantifizierbar".
+- id: mp100_measure
+  label_de: Masterplan-Maßnahme
+  label_en: Masterplan measure
+  help_text: Maßnahmen des Masterplans 100 % Klimaschutz (Fortschreibung 2022) und der
+    Szenarien des IE-Leipzig-Szenarienvergleichs 2021, wie sie im Modell als Aktionen
+    abgebildet sind.
+  categories:
+  - id: mp100_elektrifizierung_pkw
+    label_de: C 6.1 Förderung der E-Mobilität – Elektrifizierung der Pkw-Fahrleistung
+    label_en: C 6.1 Promotion of e-mobility – electrification of car mileage
+  - id: mp100_elektrifizierung_busse
+    label_de: C 3.1 Zukunftsorientierter ÖPNV – Elektrifizierung der Busflotte
+    label_en: C 3.1 Forward-looking public transport – electrification of the bus fleet
+  - id: mp100_radverkehr
+    label_de: C 4.1 Fahrradfreundliches Mainz – Verlagerung vom Pkw auf das Fahrrad
+    label_en: C 4.1 Cycling-friendly Mainz – shift from the car to the bicycle
 
 
 #//////  Nodes  ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -639,14 +667,16 @@ nodes:
 # cumulative per-year increments written into YAML, which puts the numbers back in the config
 # and makes the trajectory hard to read. Instead each is a signed quantity in the branch's own
 # unit -- negative where the activity leaves a category, positive where it arrives -- added to
-# the node, with `data/mainz/create_knsv_measures.py` asserting the rows sum to zero per
-# measure, variant and year. That is rule 1 of `docs/architecture/action-design.md`.
+# the node, with `paths-data/models/mainz/create_knsv_measures.py` asserting the rows sum to
+# zero per measure, variant and year. That is rule 1 of `docs/architecture/action-design.md`.
 #
-# Built, in `mainz/knsv_verlagerung_*`:
+# Built and wired, from `mainz/knsv_verlagerung_*`:
 #
 #   * `knsv_fernwaerme_anschluss` -- 40 % / 25 % of buildings connected to district heating by
 #     2032 (gas, oil and propane -> district heating). The dataset names the carriers and not
-#     the property groups, because the source does not; `split_dims` allocates them.
+#     the property groups, because the source does not; `split_dims` allocates each carrier's
+#     row by that carrier's own share across the groups. The emission factor is not keyed by
+#     property group, so that allocation moves no emissions.
 #   * `knsv_vegetarische_verpflegung` -- catering reaching 80 % / 65 % vegetarian by 2035
 #     (meat and mixed hot meals -> vegetarian).
 #
@@ -725,7 +755,13 @@ actions:
     min_value: 0
     max_value: 1
     step: 1
-    is_customizable: true
+    # Not customizable and not visible: the variant is chosen by picking a scenario, not by
+    # dragging a slider on one action. Because `is_customizable: false` also stops the loader
+    # from folding the value into the default scenario (`instance_loader.py`), every scenario
+    # below has to set it explicitly -- that is what makes the value depend on the scenario
+    # rather than on this default.
+    is_customizable: false
+    is_visible: false
     label_de: Umsetzungsvariante (0 = Szenario 1, 1 = Szenario 2)
     label_en: Implementation variant (0 = scenario 1, 1 = scenario 2)
   output_nodes:
@@ -773,7 +809,13 @@ actions:
     min_value: 0
     max_value: 1
     step: 1
-    is_customizable: true
+    # Not customizable and not visible: the variant is chosen by picking a scenario, not by
+    # dragging a slider on one action. Because `is_customizable: false` also stops the loader
+    # from folding the value into the default scenario (`instance_loader.py`), every scenario
+    # below has to set it explicitly -- that is what makes the value depend on the scenario
+    # rather than on this default.
+    is_customizable: false
+    is_visible: false
     label_de: Umsetzungsvariante (0 = Szenario 1, 1 = Szenario 2)
     label_en: Implementation variant (0 = scenario 1, 1 = scenario 2)
   output_nodes:
@@ -826,7 +868,13 @@ actions:
     min_value: 0
     max_value: 1
     step: 1
-    is_customizable: true
+    # Not customizable and not visible: the variant is chosen by picking a scenario, not by
+    # dragging a slider on one action. Because `is_customizable: false` also stops the loader
+    # from folding the value into the default scenario (`instance_loader.py`), every scenario
+    # below has to set it explicitly -- that is what makes the value depend on the scenario
+    # rather than on this default.
+    is_customizable: false
+    is_visible: false
     label_de: Umsetzungsvariante (0 = Szenario 1, 1 = Szenario 2)
     label_en: Implementation variant (0 = scenario 1, 1 = scenario 2)
   output_nodes:
@@ -873,7 +921,13 @@ actions:
     min_value: 0
     max_value: 1
     step: 1
-    is_customizable: true
+    # Not customizable and not visible: the variant is chosen by picking a scenario, not by
+    # dragging a slider on one action. Because `is_customizable: false` also stops the loader
+    # from folding the value into the default scenario (`instance_loader.py`), every scenario
+    # below has to set it explicitly -- that is what makes the value depend on the scenario
+    # rather than on this default.
+    is_customizable: false
+    is_visible: false
     label_de: Umsetzungsvariante (0 = Szenario 1, 1 = Szenario 2)
     label_en: Implementation variant (0 = scenario 1, 1 = scenario 2)
   output_nodes:
@@ -929,7 +983,13 @@ actions:
     min_value: 0
     max_value: 1
     step: 1
-    is_customizable: true
+    # Not customizable and not visible: the variant is chosen by picking a scenario, not by
+    # dragging a slider on one action. Because `is_customizable: false` also stops the loader
+    # from folding the value into the default scenario (`instance_loader.py`), every scenario
+    # below has to set it explicitly -- that is what makes the value depend on the scenario
+    # rather than on this default.
+    is_customizable: false
+    is_visible: false
     label_de: Umsetzungsvariante (0 = Szenario 1, 1 = Szenario 2)
     label_en: Implementation variant (0 = scenario 1, 1 = scenario 2)
   output_nodes:
@@ -986,12 +1046,106 @@ actions:
     min_value: 0
     max_value: 1
     step: 1
-    is_customizable: true
+    # Not customizable and not visible: the variant is chosen by picking a scenario, not by
+    # dragging a slider on one action. Because `is_customizable: false` also stops the loader
+    # from folding the value into the default scenario (`instance_loader.py`), every scenario
+    # below has to set it explicitly -- that is what makes the value depend on the scenario
+    # rather than on this default.
+    is_customizable: false
+    is_visible: false
     label_de: Umsetzungsvariante (0 = Szenario 1, 1 = Szenario 2)
     label_en: Implementation variant (0 = scenario 1, 1 = scenario 2)
   output_nodes:
   - id: municipal_building_energy_ef
     tags: [non_additive]
+    from_dimensions:
+    - id: measure_scenario
+      flatten: true
+
+# The first of the two measures that move activity between categories rather than scaling one
+# down (see the note above the action list). It is an absolute, signed energy quantity: negative
+# on the three fossil carriers the buildings leave, positive on district heating, summing to zero
+# per variant and year -- `create_knsv_measures.py` asserts that.
+#
+# The dataset names carriers and not property groups, because the source does not. The
+# `split_dims` operation on `municipal_building_energy` distributes each carrier's row across the
+# property groups by that carrier's own share of the base year, so the per-group figures are an
+# allocation rather than a statement about which buildings were connected. Nothing downstream
+# depends on the choice: `municipal_building_energy_ef` is not keyed by property group, so the
+# emissions are the same whichever group the converted kilowatt-hours are booked in.
+- id: knsv_fernwaerme_anschluss
+  name_de: Anschluss weiterer Liegenschaften an das Fernwärmenetz
+  name_en: Connecting further properties to the district heating network
+  type: simple.GenericAction
+  quantity: energy
+  unit: MWh/a
+  group: gebaeude_energie
+  description_de: |
+    Maßnahmensteckbrief §4.1.1: Anschluss zusätzlicher oder neuer Gebäude an das
+    Fernwärmenetz, in Szenario 1 40 % der Gebäude bis 2032, in Szenario 2 25 %.<br/>
+    Der Anteil ist auf den fossil beheizten Endenergieverbrauch der Liegenschaften im
+    Basisjahr 2024 bezogen (Erdgas 10.463,6, Heizöl 560,4, Flüssiggas 430,2 MWh/a) und
+    proportional auf die drei Energieträger verteilt. Die Summe wandert auf Fernwärme, die
+    Verlagerung ist also energieerhaltend -- der Wärmebedarf sinkt nicht, er wird anders
+    gedeckt.<br/>
+    Nicht enthalten ist der Träger „nicht definiert" (Mietliegenschaften, 2.287 MWh/a): sein
+    Energieträger ist unbekannt und sein Emissionsfaktor mit 258 kg/MWh ohnehin nahe dem der
+    Fernwärme. Eine Verlagerung brächte dort kaum etwas und würde eine Kenntnis behaupten,
+    die fehlt.<br/>
+    Welche Gebäude angeschlossen werden, sagt der Bericht nicht. Die Verlagerung wird deshalb
+    je Energieträger anteilig auf die Liegenschaftsgruppen verteilt, entsprechend deren
+    heutigem Verbrauch dieses Trägers. Das ist eine Annahme und keine Planung; auf die
+    Emissionen wirkt sie nicht, weil der Emissionsfaktor nicht nach Liegenschaftsgruppe
+    unterscheidet. Sind die Gebäude bekannt, gehören sie in den Datensatz.
+  description_en: |
+    Measure sheet §4.1.1: connecting additional or new buildings to the district heating
+    network -- 40 % of buildings by 2032 in scenario 1, 25 % in scenario 2.<br/>
+    The share applies to the fossil-heated final energy of the properties in the 2024 base
+    year (natural gas 10,463.6, heating oil 560.4, LPG 430.2 MWh/a) and is distributed across
+    the three carriers in proportion. The total moves to district heating, so the shift
+    conserves energy: heat demand does not fall, it is met differently.<br/>
+    The carrier "not defined" (rented properties, 2,287 MWh/a) is left out: its carrier is
+    unknown and its emission factor, at 258 kg/MWh, is close to that of district heating
+    anyway. Shifting it would gain almost nothing and would assert knowledge we do not have.<br/>
+    The report does not say which buildings are connected. The shift is therefore distributed
+    across the property groups per carrier, in proportion to their current use of that
+    carrier. That is an assumption and not a plan; it moves no emissions, because the emission
+    factor does not distinguish by property group. Once the buildings are known, they belong
+    in the dataset.
+  input_dimensions: [ghg_category, energy_carrier, measure_scenario]
+  output_dimensions: [ghg_category, energy_carrier, measure_scenario]
+  input_datasets:
+  - id: mainz/knsv_verlagerung_energietraeger
+    forecast_from: 2025
+    filters:
+    - dimension: measure
+      categories: [knsv_fernwaerme_anschluss]
+      flatten: true
+  params:
+  - id: operations
+    value: get_single_dataset,select_variant
+  - id: categories
+    value: measure_scenario:szenario_1,szenario_2
+  - id: selected_number
+    value: 0
+    min_value: 0
+    max_value: 1
+    step: 1
+    # Not customizable and not visible: the variant is chosen by picking a scenario, not by
+    # dragging a slider on one action. Because `is_customizable: false` also stops the loader
+    # from folding the value into the default scenario (`instance_loader.py`), every scenario
+    # below has to set it explicitly -- that is what makes the value depend on the scenario
+    # rather than on this default.
+    is_customizable: false
+    is_visible: false
+    label_de: Umsetzungsvariante (0 = Szenario 1, 1 = Szenario 2)
+    label_en: Implementation variant (0 = scenario 1, 1 = scenario 2)
+  output_nodes:
+  # `splittee`, not `additive`: the frame is missing `municipal_facility_type`, so adding it
+  # directly would fail the dimension test. `split_dims` resolves this input itself, and the
+  # tag is what keeps it out of the additive bucket as well.
+  - id: municipal_building_energy
+    tags: [splittee]
     from_dimensions:
     - id: measure_scenario
       flatten: true
@@ -1046,7 +1200,13 @@ actions:
     min_value: 0
     max_value: 1
     step: 1
-    is_customizable: true
+    # Not customizable and not visible: the variant is chosen by picking a scenario, not by
+    # dragging a slider on one action. Because `is_customizable: false` also stops the loader
+    # from folding the value into the default scenario (`instance_loader.py`), every scenario
+    # below has to set it explicitly -- that is what makes the value depend on the scenario
+    # rather than on this default.
+    is_customizable: false
+    is_visible: false
     label_de: Umsetzungsvariante (0 = Szenario 1, 1 = Szenario 2)
     label_en: Implementation variant (0 = scenario 1, 1 = scenario 2)
   output_nodes:
@@ -1095,7 +1255,13 @@ actions:
     min_value: 0
     max_value: 1
     step: 1
-    is_customizable: true
+    # Not customizable and not visible: the variant is chosen by picking a scenario, not by
+    # dragging a slider on one action. Because `is_customizable: false` also stops the loader
+    # from folding the value into the default scenario (`instance_loader.py`), every scenario
+    # below has to set it explicitly -- that is what makes the value depend on the scenario
+    # rather than on this default.
+    is_customizable: false
+    is_visible: false
     label_de: Umsetzungsvariante (0 = Szenario 1, 1 = Szenario 2)
     label_en: Implementation variant (0 = scenario 1, 1 = scenario 2)
   output_nodes:
@@ -1149,7 +1315,13 @@ actions:
     min_value: 0
     max_value: 1
     step: 1
-    is_customizable: true
+    # Not customizable and not visible: the variant is chosen by picking a scenario, not by
+    # dragging a slider on one action. Because `is_customizable: false` also stops the loader
+    # from folding the value into the default scenario (`instance_loader.py`), every scenario
+    # below has to set it explicitly -- that is what makes the value depend on the scenario
+    # rather than on this default.
+    is_customizable: false
+    is_visible: false
     label_de: Umsetzungsvariante (0 = Szenario 1, 1 = Szenario 2)
     label_en: Implementation variant (0 = scenario 1, 1 = scenario 2)
   output_nodes:
@@ -1200,7 +1372,13 @@ actions:
     min_value: 0
     max_value: 1
     step: 1
-    is_customizable: true
+    # Not customizable and not visible: the variant is chosen by picking a scenario, not by
+    # dragging a slider on one action. Because `is_customizable: false` also stops the loader
+    # from folding the value into the default scenario (`instance_loader.py`), every scenario
+    # below has to set it explicitly -- that is what makes the value depend on the scenario
+    # rather than on this default.
+    is_customizable: false
+    is_visible: false
     label_de: Umsetzungsvariante (0 = Szenario 1, 1 = Szenario 2)
     label_en: Implementation variant (0 = scenario 1, 1 = scenario 2)
   output_nodes:
@@ -1255,7 +1433,13 @@ actions:
     min_value: 0
     max_value: 1
     step: 1
-    is_customizable: true
+    # Not customizable and not visible: the variant is chosen by picking a scenario, not by
+    # dragging a slider on one action. Because `is_customizable: false` also stops the loader
+    # from folding the value into the default scenario (`instance_loader.py`), every scenario
+    # below has to set it explicitly -- that is what makes the value depend on the scenario
+    # rather than on this default.
+    is_customizable: false
+    is_visible: false
     label_de: Umsetzungsvariante (0 = Szenario 1, 1 = Szenario 2)
     label_en: Implementation variant (0 = scenario 1, 1 = scenario 2)
   output_nodes:
@@ -1314,7 +1498,13 @@ actions:
     min_value: 0
     max_value: 1
     step: 1
-    is_customizable: true
+    # Not customizable and not visible: the variant is chosen by picking a scenario, not by
+    # dragging a slider on one action. Because `is_customizable: false` also stops the loader
+    # from folding the value into the default scenario (`instance_loader.py`), every scenario
+    # below has to set it explicitly -- that is what makes the value depend on the scenario
+    # rather than on this default.
+    is_customizable: false
+    is_visible: false
     label_de: Umsetzungsvariante (0 = Szenario 1, 1 = Szenario 2)
     label_en: Implementation variant (0 = scenario 1, 1 = scenario 2)
   output_nodes:
@@ -1369,7 +1559,13 @@ actions:
     min_value: 0
     max_value: 1
     step: 1
-    is_customizable: true
+    # Not customizable and not visible: the variant is chosen by picking a scenario, not by
+    # dragging a slider on one action. Because `is_customizable: false` also stops the loader
+    # from folding the value into the default scenario (`instance_loader.py`), every scenario
+    # below has to set it explicitly -- that is what makes the value depend on the scenario
+    # rather than on this default.
+    is_customizable: false
+    is_visible: false
     label_de: Umsetzungsvariante (0 = Szenario 1, 1 = Szenario 2)
     label_en: Implementation variant (0 = scenario 1, 1 = scenario 2)
   output_nodes:
@@ -1422,7 +1618,13 @@ actions:
     min_value: 0
     max_value: 1
     step: 1
-    is_customizable: true
+    # Not customizable and not visible: the variant is chosen by picking a scenario, not by
+    # dragging a slider on one action. Because `is_customizable: false` also stops the loader
+    # from folding the value into the default scenario (`instance_loader.py`), every scenario
+    # below has to set it explicitly -- that is what makes the value depend on the scenario
+    # rather than on this default.
+    is_customizable: false
+    is_visible: false
     label_de: Umsetzungsvariante (0 = Szenario 1, 1 = Szenario 2)
     label_en: Implementation variant (0 = scenario 1, 1 = scenario 2)
   output_nodes:
@@ -1474,7 +1676,13 @@ actions:
     min_value: 0
     max_value: 1
     step: 1
-    is_customizable: true
+    # Not customizable and not visible: the variant is chosen by picking a scenario, not by
+    # dragging a slider on one action. Because `is_customizable: false` also stops the loader
+    # from folding the value into the default scenario (`instance_loader.py`), every scenario
+    # below has to set it explicitly -- that is what makes the value depend on the scenario
+    # rather than on this default.
+    is_customizable: false
+    is_visible: false
     label_de: Umsetzungsvariante (0 = Szenario 1, 1 = Szenario 2)
     label_en: Implementation variant (0 = scenario 1, 1 = scenario 2)
   output_nodes:
@@ -1483,6 +1691,243 @@ actions:
     from_dimensions:
     - id: measure_scenario
       flatten: true
+
+# The second of the two category-moving measures. Signed counts of meals, negative on the two
+# categories that shrink and positive on vegetarian, summing to zero per variant and year.
+#
+# Plain `additive` here, unlike the heat shift: the dataset carries all three dimensions the
+# target node has, so nothing needs splitting. The number of meals served is unchanged; what
+# changes is what is on the plate, and `municipal_items_ef` prices that difference.
+- id: knsv_vegetarische_verpflegung
+  name_de: Vegetarische Verpflegung in Kantinen und bei Veranstaltungen
+  name_en: Vegetarian catering in canteens and at events
+  type: simple.GenericAction
+  quantity: number
+  unit: pcs/a
+  group: beschaffung
+  description_de: |
+    Maßnahmensteckbrief §4.1.7: Szenario 1 geht davon aus, dass 80 % der angebotenen
+    Verpflegung vegetarisch ist, Szenario 2 65 %.<br/>
+    Bezugsgröße sind die warmen Mahlzeiten -- im Basisjahr 2024 23.778 mit Fleisch oder Fisch,
+    665.555 gemischt und 721.536 vegetarisch, zusammen 1.410.869 --, weil nur für sie die
+    Unterscheidung erhoben wird. Kalte Mahlzeiten bleiben unberührt. Der Zuwachs vegetarischer
+    Mahlzeiten wird den beiden anderen Kategorien proportional entnommen; die Gesamtzahl der
+    Mahlzeiten bleibt gleich.
+  description_en: |
+    Measure sheet §4.1.7: scenario 1 assumes 80 % of the catering offered is vegetarian,
+    scenario 2 65 %.<br/>
+    The reference quantity is hot meals -- in the 2024 base year 23,778 with meat or fish,
+    665,555 mixed and 721,536 vegetarian, 1,410,869 together -- because the distinction is
+    only recorded for those. Cold meals are untouched. The increase in vegetarian meals is
+    taken from the other two categories in proportion; the total number of meals is unchanged.
+  input_dimensions: [ghg_category, municipal_facility_type, emission_source, measure_scenario]
+  output_dimensions: [ghg_category, municipal_facility_type, emission_source, measure_scenario]
+  input_datasets:
+  - id: mainz/knsv_verlagerung_verpflegung
+    forecast_from: 2025
+    filters:
+    - dimension: measure
+      categories: [knsv_vegetarische_verpflegung]
+      flatten: true
+  params:
+  - id: operations
+    value: get_single_dataset,select_variant
+  - id: categories
+    value: measure_scenario:szenario_1,szenario_2
+  - id: selected_number
+    value: 0
+    min_value: 0
+    max_value: 1
+    step: 1
+    # Not customizable and not visible: the variant is chosen by picking a scenario, not by
+    # dragging a slider on one action. Because `is_customizable: false` also stops the loader
+    # from folding the value into the default scenario (`instance_loader.py`), every scenario
+    # below has to set it explicitly -- that is what makes the value depend on the scenario
+    # rather than on this default.
+    is_customizable: false
+    is_visible: false
+    label_de: Umsetzungsvariante (0 = Szenario 1, 1 = Szenario 2)
+    label_en: Implementation variant (0 = scenario 1, 1 = scenario 2)
+  output_nodes:
+  - id: municipal_items_purchased
+    tags: [additive]
+    from_dimensions:
+    - id: measure_scenario
+      flatten: true
+
+# The first two territorial Masterplan measures. Both are reallocations of vehicle
+# kilometres between energy carriers, in the percentage points `transport_energy_shares`
+# is written in: positive on electricity, negative on the carriers it displaces, summing
+# to zero per fahrzeugklasse and Strassentyp so the shares still make 100 %.
+#
+# `transport_energy_shares` splits *mileage*, not energy -- it multiplies vehicle
+# kilometres, and each carrier then applies its own kWh/vehicle-km factor -- which is why
+# a target stated as a share of kilometres lands on it directly and needs no conversion.
+#
+# Plain `additive`, and the node stays `simple.AdditiveNode2`: a signed quantity in the
+# node's own unit is rule 1, and the dataset carries all three of its dimensions. Nothing
+# in the shared BISKO module changes for the other seven cities.
+
+- id: mp100_elektrifizierung_pkw
+  name_de: Elektrifizierung der Pkw-Fahrleistung (C 6.1)
+  name_en: Electrification of car mileage (C 6.1)
+  type: simple.GenericAction
+  quantity: fraction
+  unit: '%'
+  group: mobilitaet
+  description_de: |
+    Der IE-Leipzig-Szenarienvergleich 2021 setzt im Szenario KN-2035 einen Anteil von
+    90 % Elektro-Pkw bis 2035 an, flankiert vom Ausbau der Ladeinfrastruktur und einem
+    Zulassungsstopp für Verbrennungsmotoren ab 2025 (Tabelle 3). Die Maßnahme entspricht
+    dem Steckbrief C 6.1 „Förderung der E-Mobilität" des Maßnahmenkatalogs; die Zahl
+    stammt aus dem Szenarienvergleich, weil der Katalog für diese Maßnahme keine nennt.<br/>
+    Im Modell als Anteil an der <b>Fahrleistung</b> gelesen, nicht am Fahrzeugbestand:
+    die Quelle sagt „Anteil Elektro-Pkw", also Bestand, und beides fiele nur zusammen,
+    wenn Elektro- und Verbrenner-Pkw gleich viele Kilometer im Jahr fahren.<br/>
+    Der verdrängte Anteil wird den übrigen Energieträgern proportional zu ihren
+    Basisjahresanteilen entnommen. Das Szenario untersagt ab 2025 die Zulassung von
+    Verbrennungsmotoren und bevorzugt damit keinen Träger gegenüber einem anderen.
+  description_en: |
+    In its KN-2035 scenario the IE Leipzig scenario comparison of 2021 assumes a 90 %
+    share of electric cars by 2035, alongside charging infrastructure and a stop on new
+    combustion-engine registrations from 2025 (Tabelle 3). The measure corresponds to
+    sheet C 6.1 "Promotion of e-mobility" of the measure catalogue; the number comes from
+    the scenario comparison, because the catalogue states none for this measure.<br/>
+    Modelled as a share of <b>mileage</b> rather than of the fleet: the source says
+    "share of electric cars", which is a fleet share, and the two coincide only if
+    electric and combustion cars drive the same number of kilometres a year.<br/>
+    The displaced share is taken from the remaining carriers in proportion to their
+    base-year shares, since the scenario bans new combustion registrations from 2025 and
+    so privileges no one carrier over another.
+  input_dimensions: [vehicle_type, road_type, energy_carrier, mp100_measure]
+  output_dimensions: [vehicle_type, road_type, energy_carrier]
+  input_datasets:
+  - id: mainz/mp100_verlagerung_energietraeger_verkehr
+    forecast_from: 2025
+    filters:
+    - dimension: mp100_measure
+      categories: [mp100_elektrifizierung_pkw]
+      flatten: true
+  params:
+  - id: operations
+    value: get_single_dataset
+  output_nodes:
+  - id: transport_energy_shares
+    tags: [additive]
+
+- id: mp100_elektrifizierung_busse
+  name_de: Elektrifizierung der Busflotte (C 3.1)
+  name_en: Electrification of the bus fleet (C 3.1)
+  type: simple.GenericAction
+  quantity: fraction
+  unit: '%'
+  group: mobilitaet
+  description_de: |
+    Szenario KN-2035 des IE-Leipzig-Szenarienvergleichs 2021: 80 % der gefahrenen
+    Bus-Kilometer elektrisch bis 2035, „fast ausschließlich Elektrobusse" (Tabelle 3).
+    Die Stützjahre 2025 und 2030 stammen aus dem Steckbrief C 3.1 „Leistungsfähiger und
+    zukunftsorientierter ÖPNV", der 25 % bzw. 60 % „dekarbonisierte Busflotte"
+    vorsieht.<br/>
+    „Dekarbonisiert" ist im Katalog nicht definiert und wird als elektrisch gelesen. Das
+    ist nicht nur eine Frage der Einheitlichkeit der drei Stützjahre: eine Dekarbonisierung
+    von 80 % der Busflotte über Biokraftstoffe scheitert an der Rohstoffverfügbarkeit. Wo
+    Biokraftstoffe eingesetzt werden, gehören sie in die schwer elektrifizierbaren
+    Anwendungen -- vor allem Bio-Kerosin im Luftverkehr --, während der Linienbus der
+    leichte Fall ist. Biodiesel, Biogas und Erdgas zählen hier daher zu den verdrängten
+    Trägern, obwohl die Busflotte 2024 bereits zu 7,1 % mit Biodiesel und Biogas fährt.
+  description_en: |
+    The KN-2035 scenario of the 2021 IE Leipzig scenario comparison: 80 % of bus
+    kilometres electric by 2035, "almost exclusively electric buses" (Tabelle 3). The
+    interim years 2025 and 2030 come from measure sheet C 3.1 "Forward-looking public
+    transport", which sets 25 % and 60 % "decarbonised bus fleet".<br/>
+    "Decarbonised" is not defined in the catalogue and is read as electric. That is not
+    only a matter of making the three milestone years describe one quantity: decarbonising
+    80 % of a bus fleet on biofuel fails on feedstock availability. Where biofuel is used
+    it belongs in the applications that are hard to electrify -- bio-kerosene in aviation
+    above all -- while a line bus is the easy case. Biodiesel, biogas and natural gas are
+    therefore treated here as displaced carriers, even though 7.1 % of the 2024 bus fleet
+    already runs on biodiesel and biogas.
+  input_dimensions: [vehicle_type, road_type, energy_carrier, mp100_measure]
+  output_dimensions: [vehicle_type, road_type, energy_carrier]
+  input_datasets:
+  - id: mainz/mp100_verlagerung_energietraeger_verkehr
+    forecast_from: 2025
+    filters:
+    - dimension: mp100_measure
+      categories: [mp100_elektrifizierung_busse]
+      flatten: true
+  params:
+  - id: operations
+    value: get_single_dataset
+  output_nodes:
+  - id: transport_energy_shares
+    tags: [additive]
+
+# C 4.1: cycling reaches 20 % of Verkehrsleistung by 2035, and the passenger kilometres come
+# out of the car. A negative absolute change in the target node's own unit -- not a
+# reallocation, because a bicycle has no vehicle-mileage row for the negative side to balance
+# against.
+#
+# It attaches straight to `vehicle_kilometers`, which is a FormulaNode: an input the formula
+# does not name is added to the result after the formula is evaluated, so no change to the
+# shared BISKO module is needed and the other seven cities see nothing.
+
+- id: mp100_radverkehr
+  name_de: Verlagerung vom Pkw auf das Fahrrad (C 4.1)
+  name_en: Shift from the car to the bicycle (C 4.1)
+  type: simple.GenericAction
+  quantity: mileage
+  unit: Mvkm/a
+  group: mobilitaet
+  description_de: |
+    Maßnahmensteckbrief C 4.1 „Fahrradfreundliches Mainz", Ziel bis 2035: „Anteil Radverkehr
+    an Verkehrsleistung min. 20 %". Es ist das einzige der quantifizierten Verkehrsziele des
+    Katalogs, das in Personenkilometern und nicht in Wegen formuliert ist, und damit das
+    einzige, das ohne Annahmen zur mittleren Wegelänge abgebildet werden kann.<br/>
+    Basis 2024: 1.901 Mio. Personenkilometer insgesamt, davon 88 Mio. Fahrrad (4,63 %) und
+    1.326 Mio. Pkw (69,75 %). Für einen Radanteil von 20 % sind 292 Mio. Pkm zusätzlich
+    erforderlich; sie werden vollständig dem Pkw entnommen und mit dem Besetzungsgrad von
+    1,4 Personen je Pkw in Fahrleistung umgerechnet: <b>−209 Mio. Fahrzeugkilometer im
+    Jahr</b>.<br/>
+    Die Minderung fällt Außerorts und Innerorts an, nicht auf der Autobahn, und dort anteilig
+    zur heutigen Fahrleistung. Gemessen an der Nicht-Autobahn-Fahrleistung sind das 40 %. Das
+    Ziel ist ambitioniert formuliert, und diese Größenordnung ist seine Folge, nicht eine
+    Zutat des Modells.<br/>
+    Die gesamte Verkehrsleistung bleibt dabei konstant. Der IE-Leipzig-Szenarienvergleich
+    nennt für KN-2035 zusätzlich eine „deutliche Senkung der Fahrleistungen", beziffert sie
+    aber nicht; fällt die Gesamtleistung, ist die hier ausgewiesene Pkw-Minderung eine
+    Obergrenze.
+  description_en: |
+    Measure sheet C 4.1 "Cycling-friendly Mainz", target for 2035: "cycling share of
+    transport performance at least 20 %". It is the only one of the catalogue's quantified
+    transport targets stated in passenger kilometres rather than in trips, and therefore the
+    only one that can be modelled without assuming a mean trip length.<br/>
+    2024 base: 1,901 M passenger kilometres in total, of which 88 M by bicycle (4.63 %) and
+    1,326 M by car (69.75 %). Reaching a 20 % cycling share needs 292 M pkm more; they are
+    taken entirely from the car and converted to mileage at 1.4 passengers per car:
+    <b>−209 M vehicle kilometres a year</b>.<br/>
+    The reduction falls on rural and urban roads, not the motorway, and there in proportion
+    to today's mileage. Measured against non-motorway mileage that is 40 %. The target is
+    ambitiously formulated, and this magnitude is its consequence rather than something the
+    model adds.<br/>
+    Total transport performance is held constant. The IE Leipzig scenario comparison also
+    calls for a "significant reduction in mileage" under KN-2035 but does not quantify it; if
+    the total falls, the car reduction shown here is an upper bound.
+  input_dimensions: [vehicle_type, road_type, mp100_measure]
+  output_dimensions: [vehicle_type, road_type]
+  input_datasets:
+  - id: mainz/mp100_fahrleistungsminderung_verkehr
+    forecast_from: 2025
+    filters:
+    - dimension: mp100_measure
+      categories: [mp100_radverkehr]
+      flatten: true
+  params:
+  - id: operations
+    value: get_single_dataset
+  output_nodes:
+  - id: vehicle_kilometers
+    tags: [additive]
 
 #//////  Parameters  ////////////////////////////////////////////////////////////////////////////////////////////////////
 params:
@@ -1702,6 +2147,44 @@ scenarios:
 - id: baseline
   name_de: Business as Usual
   name_en: Business as Usual
+  # Listed although no action is enabled here: `selected_number` is no longer customizable, so
+  # the loader does not fold it into any scenario by itself, and a parameter absent from a
+  # scenario keeps whatever the previously activated one left behind.
+  params:
+  - id: knsv_energetische_sanierung_waerme.selected_number
+    value: 0
+  - id: knsv_nutzendenverhalten_waerme.selected_number
+    value: 0
+  - id: knsv_energieeffizienz_gebaeude_strom.selected_number
+    value: 0
+  - id: knsv_nutzendenverhalten_strom.selected_number
+    value: 0
+  - id: knsv_photovoltaik_eigenerzeugung.selected_number
+    value: 0
+  - id: knsv_dekarbonisierung_fernwaerme.selected_number
+    value: 0
+  - id: knsv_fernwaerme_anschluss.selected_number
+    value: 0
+  - id: knsv_dekarbonisierung_strommix.selected_number
+    value: 0
+  - id: knsv_led_strassenbeleuchtung.selected_number
+    value: 0
+  - id: knsv_elektrifizierung_pkw_flotte.selected_number
+    value: 0
+  - id: knsv_alternative_antriebe_nutzfahrzeuge.selected_number
+    value: 0
+  - id: knsv_dienstreisen_vermeiden.selected_number
+    value: 0
+  - id: knsv_homeoffice.selected_number
+    value: 0
+  - id: knsv_papierloses_buero.selected_number
+    value: 0
+  - id: knsv_abfallreduktion.selected_number
+    value: 0
+  - id: knsv_klimafreundliche_veranstaltungen.selected_number
+    value: 0
+  - id: knsv_vegetarische_verpflegung.selected_number
+    value: 0
 
 # The ambitious path. For the administration balance every action selects Arqum's Szenario 1
 # -- "die Maßnahmen so, wie sie von der Stadtverwaltung entsprechend der Zielsetzung
@@ -1713,13 +2196,51 @@ scenarios:
   all_actions_enabled: true
   name_de: Masterplan 100% Klimaschutz
   name_en: Masterplan 100% Climate Protection
+  # Szenario 1 throughout, stated rather than inherited from the parameter defaults -- see the
+  # note on `selected_number` above.
+  params:
+  - id: knsv_energetische_sanierung_waerme.selected_number
+    value: 0
+  - id: knsv_nutzendenverhalten_waerme.selected_number
+    value: 0
+  - id: knsv_energieeffizienz_gebaeude_strom.selected_number
+    value: 0
+  - id: knsv_nutzendenverhalten_strom.selected_number
+    value: 0
+  - id: knsv_photovoltaik_eigenerzeugung.selected_number
+    value: 0
+  - id: knsv_dekarbonisierung_fernwaerme.selected_number
+    value: 0
+  - id: knsv_fernwaerme_anschluss.selected_number
+    value: 0
+  - id: knsv_dekarbonisierung_strommix.selected_number
+    value: 0
+  - id: knsv_led_strassenbeleuchtung.selected_number
+    value: 0
+  - id: knsv_elektrifizierung_pkw_flotte.selected_number
+    value: 0
+  - id: knsv_alternative_antriebe_nutzfahrzeuge.selected_number
+    value: 0
+  - id: knsv_dienstreisen_vermeiden.selected_number
+    value: 0
+  - id: knsv_homeoffice.selected_number
+    value: 0
+  - id: knsv_papierloses_buero.selected_number
+    value: 0
+  - id: knsv_abfallreduktion.selected_number
+    value: 0
+  - id: knsv_klimafreundliche_veranstaltungen.selected_number
+    value: 0
+  - id: knsv_vegetarische_verpflegung.selected_number
+    value: 0
 
 # Arqum's Szenario 2: the same measures, assumed to be implemented to a lesser extent. Both
 # variants live in the measure datasets under `measure_scenario`, so this scenario changes
 # nothing but which row each action selects -- `selected_number` 1 instead of 0. Every action
-# is listed, including the three whose two variants happen to carry the same value, so the
-# list reads as "this scenario is Szenario 2 throughout" rather than leaving a reader to work
-# out why some are missing.
+# is listed, including the three whose two variants happen to carry the same value: partly so
+# the list reads as "this scenario is Szenario 2 throughout" rather than leaving a reader to
+# work out why some are missing, and partly because it is now required -- the parameter is not
+# customizable, so a scenario that omits it inherits the last activated scenario's value.
 - id: knsv_szenario_2
   all_actions_enabled: true
   name_de: KNSV Szenario 2 (konservativ)
@@ -1736,6 +2257,8 @@ scenarios:
   - id: knsv_photovoltaik_eigenerzeugung.selected_number
     value: 1
   - id: knsv_dekarbonisierung_fernwaerme.selected_number
+    value: 1
+  - id: knsv_fernwaerme_anschluss.selected_number
     value: 1
   - id: knsv_dekarbonisierung_strommix.selected_number
     value: 1
@@ -1754,4 +2277,6 @@ scenarios:
   - id: knsv_abfallreduktion.selected_number
     value: 1
   - id: knsv_klimafreundliche_veranstaltungen.selected_number
+    value: 1
+  - id: knsv_vegetarische_verpflegung.selected_number
     value: 1

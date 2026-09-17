@@ -134,6 +134,22 @@ Two mechanics worth knowing:
 * It both distributes *and* adds, so it replaces `add` for that input rather than
   running before it.
 
+### A `FormulaNode` takes additive inputs too
+
+Worth knowing before concluding that a formula node cannot receive an action.
+`FormulaNode` adds **every input node the formula does not name** to the result after
+evaluating it, and an input tagged `add_to_existing_dims` is added explicitly
+(`src/nodes/formula.py`). Only `impute`, which overlays, and `ignore_content` are left
+out. So a rule 1 absolute change attaches to a formula node the same way it attaches to
+an `AdditiveNode2`, carrying the node's full dimension set, and the formula string does
+not have to mention it.
+
+This matters most for a shared module: a city can hang a measure on a formula node in
+its own config without the module changing under the other cities that include it.
+
+It cuts the other way as well. An input node accidentally left out of a formula is
+silently **added** rather than ignored, and nothing raises.
+
 ## 4. A target value, rather than a deviation, is `DatasetReduceAction`
 
 Where the estimate is "this reaches X by 2035" rather than "this is Y less than
@@ -257,8 +273,10 @@ because the upload is someone else's step.
 
 ## A worked example
 
-`configs/mainz-bisko.yaml` carries fifteen measures of a city-administration climate
-concept, all of them rule 2 (the source states percentages of a base). The shape:
+`configs/mainz-bisko.yaml` carries seventeen measures of a city-administration climate
+concept. Fifteen are rule 2 (the source states percentages of a base) and two are rule 1
+shifts, which move activity between categories of one dimension instead of scaling it. The
+shape:
 
 * Five datasets, one per factor **shape** rather than one per target node — two nodes
   that differentiate on the same dimension share a dataset, and a `measure` dimension
@@ -270,11 +288,22 @@ concept, all of them rule 2 (the source states percentages of a base). The shape
   `measure_scenario` dimension. `select_variant` picks one and `selected_number` is
   the dial, so a scenario overrides one parameter per action and no action is
   duplicated.
-* `modules/gpc/municipal_balance.yaml` declares its eight measure-bearing nodes
-  `generic.GenericNode` with `operations: add_datasets,multiply,add`.
+* `selected_number` is **not** customizable and not visible. The variant belongs to the
+  scenario, not to a slider on one action, and leaving it customizable would let a visitor
+  produce a mixture of the two published variants that the source never states. The
+  consequence is the next point.
+* **Every scenario lists every one of those parameters.** `is_customizable: false` also
+  stops `instance_loader.py` folding the value into the default scenario, and a parameter
+  no scenario carries keeps whatever the last activated scenario left in it — so the
+  values would depend on click order rather than on the scenario. Three scenarios × 17
+  actions is verbose, and it is the price of the value being a scenario's property.
+* `modules/gpc/municipal_balance.yaml` declares its measure-bearing nodes
+  `generic.GenericNode`; the node that receives a shift adds `split_dims` to the string,
+  before the `add` and `multiply` that follow it
+  (`operations: add_datasets,split_dims,add,multiply`).
 
-`data/mainz/create_knsv_measures.py` is the producer, and the derivation of every
-value that is not quoted straight from the source is in the row's own `Comment`.
+`paths-data/models/mainz/create_knsv_measures.py` is the producer, and the derivation of
+every value that is not quoted straight from the source is in the row's own `Comment`.
 
 
 ## Checklist
@@ -291,3 +320,5 @@ value that is not quoted straight from the source is in the row's own `Comment`.
       after the multiply?
 - [ ] Is the branch unchanged when the action is off? Snapshot and diff.
 - [ ] Are the numbers in a dataset rather than in the config?
+- [ ] If a variant dial picks between published ambition levels: is it hidden and
+      non-customizable, and set explicitly in *every* scenario?
