@@ -14,6 +14,22 @@ if TYPE_CHECKING:
 
 GRAPHQL_PATH = '/v1/graphql/'
 
+INSTANCES_QUERY = """
+query DevtoolInstances {
+  instances {
+    identifier
+    name
+    uuid
+    isLocked
+    editor {
+      configSource
+      hasUnpublishedChanges
+      lastPublishedAt
+    }
+  }
+}
+"""
+
 INSTANCE_EXPORT_QUERY = """
 query DevtoolInstanceExport($id: ID!) @instance(identifier: $id) {
   instance {
@@ -114,6 +130,10 @@ class PathsClient:
     def me(self) -> dict[str, Any] | None:
         """Return the authenticated user as the backend sees it, or ``None`` if the request counted as anonymous."""
         return self.execute('{ me { email } }').get('me')
+
+    def list_instances(self) -> list[dict[str, Any]]:
+        """Return the instances the signed-in user may view; the backend refuses anonymous callers."""
+        return list(self.execute(INSTANCES_QUERY).get('instances') or [])
 
     def export_instance(self, identifier: str) -> dict[str, Any]:
         """Return the instance's InstanceExport document, exactly as the backend serialized it."""

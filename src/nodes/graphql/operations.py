@@ -8,6 +8,7 @@ from graphql.error import GraphQLError
 
 from loguru import logger
 
+from kausal_common.strawberry.permissions import AuthenticatedOnly
 from kausal_common.strawberry.registry import register_strawberry_type
 
 from paths import gql
@@ -42,6 +43,19 @@ class Query:
             )
         snapshot = info.context.instance_snapshot_for_type(config)
         return InstanceType.from_model(config, snapshot=snapshot)
+
+    @sb.field(
+        graphql_type=list[InstanceType],
+        permission_classes=[AuthenticatedOnly],
+        description=(
+            'Instances the signed-in user may view, ordered by identifier. Needs only view permission, '
+            'so public instances are included; anonymous requests are refused.'
+        ),
+    )
+    @staticmethod
+    def instances(info: gql.Info) -> list[InstanceType]:
+        qs = InstanceConfig.objects.qs.viewable_by(info.context.get_user()).order_by('identifier')
+        return [InstanceType.from_model(ic) for ic in qs]
 
     @sb.field(graphql_type=list[NodeInterface])
     @pass_context

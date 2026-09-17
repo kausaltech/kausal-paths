@@ -51,3 +51,30 @@ def describe_export(document: dict[str, Any]) -> str:
         f'draft head:      {document.get("draft_head_token") or "-"}',
     ]
     return '\n'.join(lines)
+
+
+def format_instance_table(instances: list[dict[str, Any]]) -> str:
+    """Render the ``editableInstances`` rows as a fixed-width table."""
+    if not instances:
+        return 'No editable instances.'
+    rows: list[tuple[str, ...]] = []
+    for inst in sorted(instances, key=lambda i: str(i.get('identifier'))):
+        editor = inst.get('editor') or {}
+        flags = []
+        if inst.get('isLocked'):
+            flags.append('locked')
+        if editor.get('hasUnpublishedChanges'):
+            flags.append('draft')
+        published = editor.get('lastPublishedAt') or '-'
+        rows.append((
+            str(inst.get('identifier', '')),
+            str(editor.get('configSource') or '?'),
+            ' '.join(flags),
+            str(published)[:10],
+            str(inst.get('name', '')),
+        ))
+    header = ('identifier', 'source', 'state', 'published', 'name')
+    widths = [max(len(r[i]) for r in (header, *rows)) for i in range(len(header) - 1)]
+    lines = ['  '.join(col.ljust(widths[i]) for i, col in enumerate(header[:-1])) + '  ' + header[-1]]
+    lines.extend('  '.join(col.ljust(widths[i]) for i, col in enumerate(r[:-1])) + '  ' + r[-1] for r in rows)
+    return '\n'.join(lines)

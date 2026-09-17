@@ -5,11 +5,12 @@ Command-line front end of the devtool.
     paths-devtool logout                      # forget cached tokens
     paths-devtool token                       # print a fresh ID token, for curl
     paths-devtool whoami [--api-url URL]      # authenticated `me` query (the default command)
-    paths-devtool export INSTANCE [--api-url URL] [-o FILE]
-    paths-devtool import FILE [--into ID] [--organization REF] [--name NAME] [--dry-run]
+    paths-devtool instance list [--api-url URL]
+    paths-devtool instance export INSTANCE [--api-url URL] [-o FILE]
+    paths-devtool instance import FILE [--into ID] [--organization REF] [--name NAME] [--dry-run]
 
-`import` writes to the local database (it boots Django); the other commands
-talk to a backend over HTTP. ``python -m devtool`` is equivalent.
+`instance import` writes to the local database (it boots Django); the other
+commands talk to a backend over HTTP. ``python -m devtool`` is equivalent.
 """
 
 import argparse
@@ -22,7 +23,7 @@ import httpx2
 from devtool.auth import DEFAULT_CALLBACK_PORT, DEFAULT_CLIENT_ID, DEFAULT_OIDC_ENDPOINT, SsoAuth, SsoConfig
 from devtool.client import HttpTransport, PathsClient
 from devtool.errors import DevtoolError, GraphQLError
-from devtool.instances import default_export_path, describe_export, save_export_document
+from devtool.instances import default_export_path, describe_export, format_instance_table, save_export_document
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -52,11 +53,17 @@ def build_parser() -> argparse.ArgumentParser:
     commands.add_parser('token', help='Print a fresh ID token')
     with_api_url(commands.add_parser('whoami', help='Show who the backend thinks you are'))
 
-    export = with_api_url(commands.add_parser('export', help='Download an InstanceExport document'))
+    instance = commands.add_parser('instance', help='List, export and import instances')
+    instance.set_defaults(subcommand='list')
+    instance_commands = instance.add_subparsers(dest='subcommand')
+
+    with_api_url(instance_commands.add_parser('list', help='List the instances you can edit'))
+
+    export = with_api_url(instance_commands.add_parser('export', help='Download an InstanceExport document'))
     export.add_argument('instance', help='Instance identifier')
     export.add_argument('-o', '--output', type=Path, help='Output file (default: <identifier>.instance-export.json)')
 
-    imp = commands.add_parser('import', help='Load an InstanceExport file into the local database')
+    imp = instance_commands.add_parser('import', help='Load an InstanceExport file into the local database')
     imp.add_argument('file', type=Path)
     imp.add_argument('--into', help='Target instance identifier (default: the one in the document)')
     imp.add_argument('--organization', help='Organization UUID or name for a newly created instance')
@@ -78,6 +85,11 @@ def whoami(client: PathsClient) -> int:
         print(' - your Keycloak identity has no associated user (sign in to the admin UI once first)')
         return 1
     print(f'Authenticated as: {me["email"]}')
+    return 0
+
+
+def list_command(client: PathsClient) -> int:
+    print(format_instance_table(client.list_instances()))
     return 0
 
 
@@ -107,7 +119,7 @@ def import_command(args: argparse.Namespace) -> int:
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
-        if args.command == 'import':
+        if args.command == 'instance' and args.subcommand == 'import':
             return import_command(args)
 
         config = SsoConfig(oidc_endpoint=args.oidc_endpoint, client_id=args.client_id, callback_port=args.port)
@@ -126,8 +138,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0
 
         client = PathsClient(HttpTransport(args.api_url, http=http), auth=auth)
-        if args.command == 'export':
-            return export_command(client, args.instance, args.output)
+        if args.command == 'instance':
+            if args.subcommand == 'export':
+                return export_command(client, args.instance, args.output)
+            return list_command(client)
         return whoami(client)
     except DevtoolError as e:
         print(f'error: {e}', file=sys.stderr)
