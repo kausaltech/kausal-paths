@@ -91,7 +91,7 @@ def test_export_records_provenance_only_when_asked(db_instance: InstanceConfig) 
 def test_from_serialized_data_runs_snapshot_upgraders(db_instance: InstanceConfig, monkeypatch) -> None:
     document = export_instance(db_instance).model_dump(mode='json')
     seen: list[int] = []
-    original = InstanceSnapshot.from_serialized_data.__func__
+    original = InstanceSnapshot.from_serialized_data.__func__  # type: ignore[attr-defined]
 
     def spy(cls, data):
         seen.append(data['schema_version'])
