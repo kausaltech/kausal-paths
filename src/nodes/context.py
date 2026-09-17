@@ -371,13 +371,25 @@ class Context:
             git_ssh_public_key_file=os.getenv('DVC_SSH_PUBLIC_KEY_FILE'),
             git_ssh_private_key_file=os.getenv('DVC_SSH_PRIVATE_KEY_FILE'),
         )
-        dataset_repo = dvc_pandas.Repository(
-            repo_url=self.dataset_repo_spec.url,
-            dvc_remote=self.dataset_repo_spec.dvc_remote,
-            repo_credentials=creds,
-            # cache_prefix=instance_id
-        )
-        dataset_repo.set_target_commit(self.dataset_repo_spec.commit)
+        with self.start_perf_span(
+            'dvc repo init',
+            kind=PerfKind.DATASET_REPO,
+            id='dvc',
+            op='dvc_repo_init',
+        ):
+            dataset_repo = dvc_pandas.Repository(
+                repo_url=self.dataset_repo_spec.url,
+                dvc_remote=self.dataset_repo_spec.dvc_remote,
+                repo_credentials=creds,
+                # cache_prefix=instance_id
+            )
+        with self.start_perf_span(
+            'dvc repo set target commit',
+            kind=PerfKind.DATASET_REPO,
+            id='dvc',
+            op='dvc_repo_set_commit',
+        ):
+            dataset_repo.set_target_commit(self.dataset_repo_spec.commit)
         return dataset_repo
 
     def load_dvc_dataset(self, ds_id: str) -> dvc_pandas.Dataset:
