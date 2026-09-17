@@ -170,8 +170,11 @@ script) or `python -m devtool`. Class-based so the TUI can reuse it:
   the document is its own wire format with `schema_version` and upgraders,
   so it is not projected into GraphQL object types. It carries provenance
   (`exported_at`, `exported_from`, `draft_head_token`) as null-default
-  fields, no schema bump. `paths-devtool export <id>` saves it verbatim as
-  `<id>.instance-export.json`; `paths-devtool import FILE` loads it into the
+  fields, no schema bump. `paths-devtool instance list` shows the instances
+  the user may view (root `instances` query, signed-in users only, view
+  permission); `paths-devtool instance export <id>` saves the document
+  verbatim as `<id>.instance-export.json`; `paths-devtool instance import
+  FILE` loads it into the
   *local* database only (boots Django via `init_django()`, then
   `nodes.instance_import.import_instance_export`), creating a database-sourced
   instance or filling an empty one, never a populated one. Remote import
