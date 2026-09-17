@@ -265,6 +265,11 @@ class PathsGraphQLContext[InstanceType: Instance | None = Instance | None](Graph
     expected_version: UUID | None = None
     tolerate_node_failures: bool = False
 
+    def get_metric_attributes(self) -> dict[str, str]:
+        if self.instance_config is None:
+            return {}
+        return {'instance.id': self.instance_config.identifier, 'instance.uuid': str(self.instance_config.uuid)}
+
     def __post_init__(self):
         super().__post_init__()
         user = self.get_user()
