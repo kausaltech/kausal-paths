@@ -886,20 +886,26 @@ class Context:
 
     @contextmanager
     def run(self):
-        with ExitStack() as stack:
-            span_ctx = self.start_span(
-                'context run',
-                op=MODEL_CALC_OP,
-                attributes=dict(
-                    instance_id=self.instance.id,
-                    context_id=self.obj_id,
-                ),
-            )
-            stack.enter_context(span_ctx)
-            stack.enter_context(self.cache)
-            self.perf_run = stack.enter_context(self.perf_context)
-            yield
-        self.perf_run = None
+        previous_aggregate_only = self.perf_context.aggregate_only
+        try:
+            with ExitStack() as stack:
+                span = stack.enter_context(
+                    self.start_span(
+                        'context run',
+                        op=MODEL_CALC_OP,
+                        attributes=dict(instance_id=self.instance.id, context_id=self.obj_id),
+                    )
+                )
+                sampled = span.sampled is True
+                self.perf_context.aggregate_only = sampled and not self.perf_context.enabled
+                stack.enter_context(self.cache)
+                self.perf_run = stack.enter_context(self.perf_context)
+                yield
+                if sampled:
+                    span.set_data('model.perf', self.perf_run.operation_breakdown())
+        finally:
+            self.perf_run = None
+            self.perf_context.aggregate_only = previous_aggregate_only
 
     def clean(self):
         for param in self.get_all_parameters():
