@@ -28,6 +28,8 @@ on:
         required: false
       AWS_SECRET_ACCESS_KEY:
         required: false
+      CODECOV_TOKEN:
+        required: false
 
 env:
   POSTGRES_PASSWORD: abcd
@@ -36,8 +38,16 @@ env:
   ELASTICSEARCH_PASSWORD: abcde
 
 jobs:
+  check-previous-tests:
+    uses: kausaltech/github-actions/.github/workflows/result-lookup.yaml@main
+    with:
+      task: unit-tests
+      identity: ${{ format('v1:{0}:{1}:{2}', inputs.docker_image_repo, inputs.docker_image_tag, inputs.build_id) }}
+
   run-tests:
     name: Run unit tests
+    needs: check-previous-tests
+    if: needs.check-previous-tests.outputs.hit != 'true'
     runs-on: runner-prod
     services:
       postgres:
@@ -88,7 +98,7 @@ jobs:
     name: Upload test results
     runs-on: ubuntu-latest
     needs: run-tests
-    if: always()
+    if: ${{ !cancelled() && needs.run-tests.result == 'success' }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -119,3 +129,14 @@ jobs:
           url: https://codecoverage.kausal.dev
           recurse_submodules: true
           flags: unittests
+
+  test-result:
+    needs: [check-previous-tests, run-tests, upload-test-results]
+    if: always()
+    uses: kausaltech/github-actions/.github/workflows/result-record.yaml@main
+    with:
+      task: unit-tests
+      identity: ${{ format('v1:{0}:{1}:{2}', inputs.docker_image_repo, inputs.docker_image_tag, inputs.build_id) }}
+      reused: ${{ needs.check-previous-tests.outputs.hit == 'true' }}
+      source_url: ${{ needs.check-previous-tests.outputs.source_url }}
+      successful: ${{ needs.run-tests.result == 'success' && needs.upload-test-results.result == 'success' }}
