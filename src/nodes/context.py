@@ -450,6 +450,17 @@ class Context:
                 all_datasets.add(ds.id)
         return all_datasets
 
+    def warm_dvc_cache(self) -> None:
+        """Ensure model DVC inputs are on disk, independently of computation cache hits."""
+        identifiers = self.get_all_dvc_dataset_ids()
+        if not identifiers:
+            return
+        repo = self.dataset_repo
+        missing = sorted(identifier for identifier in identifiers if not repo.is_dataset_cached(identifier))
+        if missing:
+            # The public API also deserializes these files; only load missing inputs.
+            repo.load_datasets(missing)
+
     def load_all_dvc_datasets(self):
         """
         Load all the DVC datasets that are needed by the nodes.

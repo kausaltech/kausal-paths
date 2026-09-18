@@ -22,7 +22,7 @@ def test_warmup_script_allows_startup_after_success_failure_or_timeout(tmp_path:
         timeout=3,
         check=True,
     )
-    assert 'manage.py compute_instances --in-customer-use' in result.stdout
+    assert 'manage.py compute_instances --in-customer-use --warm-dvc-cache' in result.stdout
     if behavior == 'exit 0':
         assert 'warm-up completed' in result.stdout
     else:

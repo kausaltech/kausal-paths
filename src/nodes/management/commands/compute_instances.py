@@ -17,8 +17,9 @@ class Command(BaseCommand):
     def add_arguments(self, parser: CommandParser) -> None:
         parser.add_argument('identifiers', nargs='*', help='Instance identifiers to compute')
         parser.add_argument('--in-customer-use', action='store_true', help='Select instances marked as in customer use')
+        parser.add_argument('--warm-dvc-cache', action='store_true', help='Download missing DVC inputs before computing')
 
-    def compute_instance(self, config: InstanceConfig) -> None:
+    def compute_instance(self, config: InstanceConfig, *, warm_dvc_cache: bool = False) -> None:
         with config.enter_instance_context(source=PreferredInstanceSource.PUBLISHED) as instance:
             try:
                 context = instance.context
@@ -29,6 +30,8 @@ class Command(BaseCommand):
                 if baseline is not None and baseline is not default:
                     scenarios.append(baseline)
                 with context.run():
+                    if warm_dvc_cache:
+                        context.warm_dvc_cache()
                     for scenario in scenarios:
                         with scenario.override(set_active=True):
                             for node in outcomes:
@@ -55,7 +58,7 @@ class Command(BaseCommand):
             instance_started = time.monotonic()
             self.stdout.write(f'Computing {config.identifier}...')
             try:
-                self.compute_instance(config)
+                self.compute_instance(config, warm_dvc_cache=options['warm_dvc_cache'])
             except Exception:
                 logger.exception('Unable to compute instance {}', config.identifier)
                 failed.append(config.identifier)
