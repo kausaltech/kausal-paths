@@ -10,7 +10,7 @@ are allowed. Hooks inherit the server's user, environment and cache paths.
 Paths supplies `10-compute-instances.sh`, which runs:
 
 ```sh
-python manage.py compute_instances --in-customer-use
+python manage.py compute_instances --in-customer-use --warm-dvc-cache
 ```
 
 `InstanceConfig.in_customer_use` defaults to false. Set it explicitly for the
@@ -26,6 +26,11 @@ python manage.py compute_instances first-instance second-instance
 
 The command uses the normal runtime loader, preferring published data when
 available, and computes outcome nodes in the default and baseline scenarios.
+With `--warm-dvc-cache`, the command first ensures all declared DVC inputs are
+on disk, even when computation results are already in the external cache. Instances
+without DVC inputs skip this step. Already-cached files are not loaded again;
+the current dvc-pandas API also deserializes newly downloaded files.
+
 It leaves normal external caching enabled. Each instance is cleaned up before
 moving on; failures are logged and remaining instances are attempted. The
 command exits unsuccessfully if any selected instance failed.

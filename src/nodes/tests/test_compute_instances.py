@@ -8,6 +8,7 @@ from django.core.management.base import CommandError
 
 import pytest
 
+from nodes.context import Context
 from nodes.management.commands.compute_instances import Command
 from nodes.models import PreferredInstanceSource
 from nodes.tests.factories import InstanceConfigFactory
@@ -45,8 +46,9 @@ def test_failure_continues_to_next_instance() -> None:
     assert [args.args[0].identifier for args in compute.call_args_list] == ['first', 'second']
 
 
+@pytest.mark.parametrize('warm_dvc_cache', [True, False])
 @pytest.mark.parametrize('fail', [True, False])
-def test_compute_outcomes_in_default_and_baseline_and_clean(fail: bool) -> None:
+def test_compute_outcomes_in_default_and_baseline_and_clean(fail: bool, warm_dvc_cache: bool) -> None:
     config = MagicMock()
     instance = config.enter_instance_context.return_value.__enter__.return_value
     context = instance.context
@@ -71,6 +73,7 @@ def test_compute_outcomes_in_default_and_baseline_and_clean(fail: bool) -> None:
     context.get_outcome_nodes.return_value = [node]
 
     def output() -> None:
+        assert context.warm_dvc_cache.call_count == int(warm_dvc_cache)
         computed.append(current[-1])
         if fail:
             raise ValueError('failed output')
@@ -78,9 +81,9 @@ def test_compute_outcomes_in_default_and_baseline_and_clean(fail: bool) -> None:
     node.get_output_pl.side_effect = output
     if fail:
         with pytest.raises(ValueError, match='failed output'):
-            Command().compute_instance(config)
+            Command().compute_instance(config, warm_dvc_cache=warm_dvc_cache)
     else:
-        Command().compute_instance(config)
+        Command().compute_instance(config, warm_dvc_cache=warm_dvc_cache)
     assert computed == (['default'] if fail else ['default', 'baseline'])
     assert current == []
     config.enter_instance_context.assert_called_once_with(source=PreferredInstanceSource.PUBLISHED)
@@ -93,3 +96,41 @@ def test_no_selected_customers_is_successful() -> None:
         call_command('compute_instances', in_customer_use=True, stdout=output)
     compute.assert_not_called()
     assert 'Computed 0 instances; 0 failed' in output.getvalue()
+
+
+@pytest.mark.parametrize('cached', [set(), {'first'}, {'first', 'second'}])
+def test_warm_dvc_downloads_only_missing_files(cached: set[str]) -> None:
+    context = Context.__new__(Context)
+    repo = MagicMock()
+    context.dataset_repo = repo
+    repo.is_dataset_cached.side_effect = lambda identifier: identifier in cached
+    with patch.object(Context, 'get_all_dvc_dataset_ids', return_value={'first', 'second'}):
+        context.warm_dvc_cache()
+    missing = sorted({'first', 'second'} - cached)
+    if missing:
+        repo.load_datasets.assert_called_once_with(missing)
+    else:
+        repo.load_datasets.assert_not_called()
+
+
+def test_warm_dvc_without_inputs_does_not_initialize_repository() -> None:
+    context = Context.__new__(Context)
+    context.nodes = {}
+    context.warm_dvc_cache()
+    assert 'dataset_repo' not in context.__dict__
+
+
+def test_warm_dvc_option_is_forwarded() -> None:
+    config = InstanceConfigFactory.create(name='warm-dvc')
+    with patch.object(Command, 'compute_instance') as compute:
+        call_command('compute_instances', config.identifier, '--warm-dvc-cache', stdout=StringIO())
+    assert compute.call_args.kwargs == {'warm_dvc_cache': True}
+
+
+def test_warm_dvc_failure_cleans_instance() -> None:
+    config = MagicMock()
+    instance = config.enter_instance_context.return_value.__enter__.return_value
+    instance.context.warm_dvc_cache.side_effect = ValueError('download failed')
+    with pytest.raises(ValueError, match='download failed'):
+        Command().compute_instance(config, warm_dvc_cache=True)
+    instance.clean.assert_called_once()

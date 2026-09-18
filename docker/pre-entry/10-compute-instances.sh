@@ -4,7 +4,7 @@ set -eo pipefail
 # Keep startup bounded even when a model or remote dataset is unavailable.
 # Inherit the server's user, environment and on-disk cache directories.
 if timeout --kill-after=5s "${COMPUTE_INSTANCES_TIMEOUT:-120}s" \
-    python manage.py compute_instances --in-customer-use; then
+    python manage.py compute_instances --in-customer-use --warm-dvc-cache; then
     echo 'Instance warm-up completed.'
 else
     status=$?
