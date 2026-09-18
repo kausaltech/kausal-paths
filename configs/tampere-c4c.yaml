@@ -81,6 +81,9 @@ dimensions:
   - id: buses
     label: Bussi
     label_en: Buses
+  - id: combination_trucks
+    label: Yhdistelmäajoneuvo
+    label_en: Combination trucks
   - id: local_trains
     label: Paikallisjuna
     label_en: Local trains
@@ -90,6 +93,12 @@ dimensions:
   - id: passenger_cars
     label: Henkilöauto
     label_en: Passenger cars
+  - id: plusbuses
+    label: Plusbussi
+    label_en: Plusbuses
+  - id: rigid_trucks
+    label: Muut kuorma-auto
+    label_en: Rigid trucks
   - id: trams
     label: Ratikka
     label_en: Trams
