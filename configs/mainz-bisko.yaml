@@ -295,6 +295,41 @@ dimensions:
 
 nodes:
 
+- id: emission_reductions # Located here to make this the default outcome node.
+  name_de: Emissionenreduktionen
+  name_en: Emission reductions
+  description: A technical sink node to enable visualizing action impacts on the /massnahmen
+    page. NOTE! The node contains double counting and its output should not be used for anything.
+    Only impacts are meaningful.
+  type: generic.GenericNode
+  quantity: emissions
+  unit: t_co2e/a
+  is_outcome: true
+  # color: '#8eeffd'
+  input_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: sector
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+  - id: municipal_balance_emissions
+    from_dimensions:
+    - id: scope
+      flatten: true
+    - id: ghg_category
+      flatten: true
+    - id: municipal_facility_type
+      flatten: true
+  - id: municipal_scope3_emissions
+    from_dimensions:
+    - id: ghg_category
+      flatten: true
+    - id: municipal_facility_type
+      flatten: true
+    - id: scope
+      flatten: true
+
 # Three outcome nodes overridden for exactly one reason: to attach a net-zero-by-2035 goal
 # line. All three are otherwise byte-identical copies of the module version -- keep them in
 # step with modules/bisko/model.yaml and modules/gpc/municipal_balance.yaml, since
