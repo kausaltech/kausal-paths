@@ -221,9 +221,30 @@ class SBMutation:
 
         setting_storage = context.setting_storage
         assert setting_storage is not None
+        custom = context.custom_scenario
+
+        # Editing a parameter while a *named* scenario is active starts a new custom
+        # scenario branched from that one; editing while the custom scenario is already
+        # active adds to the branch already in progress.
+        #
+        # Without the first half, the stored overrides were an append-only diff against
+        # the default scenario for the whole session: a user who turned one action off in
+        # the default scenario, moved to the baseline and turned a different action on got
+        # every action enabled except the first, and a user who touched anything while a
+        # non-default scenario was active silently lost that scenario's other values. The
+        # frontend only issues this mutation from a slider, an input or a switch
+        # (`ParameterWidget.tsx`, `NodeDetailsPanel.tsx`), so a branch here always follows
+        # a deliberate edit and never discards a saved branch behind the user's back.
+        # `active_scenario` is set for every request before a resolver runs
+        # (`paths/schema_context.py` activates the stored one, or the default).
+        active = context.active_scenario
+        if active is not custom:
+            setting_storage.clear_params()
+            setting_storage.set_custom_base(active.id)
+
         setting_storage.set_param(str(id), value)
-        setting_storage.set_active_scenario(context.custom_scenario.id)
-        context.activate_scenario(context.custom_scenario)
+        setting_storage.set_active_scenario(custom.id)
+        context.activate_scenario(custom)
 
         return SetParameterResult(ok=True, parameter=param)
 
@@ -239,6 +260,9 @@ class SBMutation:
 
         customized_params = storage.get_customized_param_values()
         if not customized_params:
+            # No overrides left, so there is no branch either. Leaving the base behind
+            # would make the next edit inherit a scenario the user has since left.
+            storage.set_custom_base(None)
             default_scenario_id = context.get_default_scenario().id
             active_scenario_id = storage.get_active_scenario()
             if active_scenario_id is not None and active_scenario_id != default_scenario_id:

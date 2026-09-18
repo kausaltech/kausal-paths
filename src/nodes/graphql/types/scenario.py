@@ -6,7 +6,7 @@ from kausal_common.strawberry.pydantic import pydantic_type
 
 from paths.graphql_helpers import pass_context
 
-from nodes.scenario import Scenario
+from nodes.scenario import CustomScenario, Scenario
 
 from .metric import MetricDimensionCategoryType, MetricDimensionType
 
@@ -48,13 +48,46 @@ class ScenarioType:
     def description(root: Scenario) -> str | None:
         return str(root.description) if root.description is not None else None
 
-    @sb.field
+    @sb.field(
+        description=(
+            'For the custom scenario, the scenario its overrides are applied on top of; null for '
+            'every other scenario. The custom scenario is a diff, and this is what it is a diff '
+            'against -- it changes when the visitor edits a parameter while a different scenario '
+            'is active.'
+        ),
+    )
+    @staticmethod
+    def base_scenario(root: Scenario) -> Annotated['ScenarioType', sb.lazy('nodes.graphql.types.scenario')] | None:
+        if not isinstance(root, CustomScenario):
+            return None
+        return cast('ScenarioType', root.resolve_base())
+
+    @sb.field(
+        description=(
+            'The parameters this scenario sets. Empty for the custom scenario: a visitor'
+            "'s own overrides live in the session rather than in the model, so use "
+            '`customizedParameters` to learn which parameters differ from the base.'
+        ),
+    )
     @staticmethod
     def parameter_overrides(root: Scenario) -> list[ScenarioParameterOverrideType]:
         return [
             ScenarioParameterOverrideType(parameter_id=param_id, value=cast('sb.scalars.JSON', value))
             for param_id, value in root.param_values.items()
         ]
+
+    @sb.field(
+        description=(
+            'Ids of the parameters the custom scenario overrides on top of its base; empty for '
+            'every other scenario. Together with `baseScenario` this is enough to show a visitor '
+            'how their own scenario differs from the one they branched from.'
+        ),
+    )
+    @staticmethod
+    def customized_parameters(root: Scenario) -> list[str]:
+        if not isinstance(root, CustomScenario):
+            return []
+        return list(root.get_customized_param_ids())
 
     @sb.field
     @pass_context

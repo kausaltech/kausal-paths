@@ -36,8 +36,20 @@ class SettingStorage:
         """Reset a global option to its default value."""
         raise NotImplementedError()
 
+    def clear_params(self):
+        """Forget every customized parameter, leaving options and the active scenario alone."""
+        raise NotImplementedError()
+
     def get_customized_param_values(self) -> dict[str, Any]:
         """Return ids of all currently customized parameters with their values."""
+        raise NotImplementedError()
+
+    def set_custom_base(self, id: str | None):
+        """Record which scenario the customized parameters are a deviation from."""
+        raise NotImplementedError()
+
+    def get_custom_base(self) -> str | None:
+        """Return the scenario the customized parameters are a deviation from."""
         raise NotImplementedError()
 
     def set_active_scenario(self, id: str | None):
@@ -54,6 +66,16 @@ class InstanceData(BaseModel):
     options: dict[str, Any] = Field(default_factory=dict)
     active_scenario: str | None = None
 
+    custom_base: str | None = None
+    """Which scenario ``params`` is a deviation *from*.
+
+    The custom scenario is a diff, and a diff is meaningless without the thing it is a
+    diff against. Before this field the base was hard-wired to the default scenario, so
+    a user who customised an action while looking at another scenario silently got the
+    default's values for everything they had not touched. ``None`` means no branch has
+    been taken yet and the default scenario stands in.
+    """
+
 
 class SessionStorage(SettingStorage):
     session: SessionBase
@@ -67,7 +89,11 @@ class SessionStorage(SettingStorage):
         self.log = logger.bind(session=session.session_key)
 
     def reset(self):
-        self.session[self.instance.id] = {}
+        # Also drop the in-memory copy. Writing only to the session left `self.data`
+        # holding the values that had just been discarded, so anything reading the
+        # storage again in the same request saw them come back.
+        self.data = InstanceData()
+        self.session[self.instance.id] = self.data.model_dump()
 
     @classmethod
     def get_instance_settings(cls, session: SessionBase, instance_id: str) -> InstanceData:
@@ -122,8 +148,23 @@ class SessionStorage(SettingStorage):
         del self.data.options[id]
         self.mark_modified()
 
+    def clear_params(self):
+        if not self.data.params:
+            return
+        self.data.params = {}
+        self.mark_modified()
+
     def get_customized_param_values(self) -> dict[str, Any]:
         return self.data.params.copy()
+
+    def set_custom_base(self, id: str | None):
+        if self.data.custom_base == id:
+            return
+        self.data.custom_base = id
+        self.mark_modified()
+
+    def get_custom_base(self) -> str | None:
+        return self.data.custom_base
 
     def set_active_scenario(self, id: str | None):
         if self.data.active_scenario == id:

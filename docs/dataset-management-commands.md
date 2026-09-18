@@ -20,6 +20,21 @@ The two layers are separate: uploading to DVC does not automatically populate th
 
 Reads a wide-format CSV and pushes one or more datasets to the DVC parquet store.
 
+**`-i` is a plain filesystem path.** The tool does not expand `$PATHS_DATA` or resolve a
+path against it, so a setup that lives in the `paths-data` repo has to be named either
+with the shell expanding the variable, or relatively from the `kausal-paths` checkout the
+command is run in:
+
+```bash
+python -m tools.upload_new_dataset -i "$PATHS_DATA/models/mainz/mainz_mp100_measures.csv" ...
+python -m tools.upload_new_dataset -i ../paths-data/models/mainz/mainz_mp100_measures.csv ...
+```
+
+A bare `models/mainz/…` fails, and the failure reads like a missing file rather than a
+missing variable. **Open:** making the tool fall back to `$PATHS_DATA` for a relative path
+it cannot find in the working directory would remove the papercut; it is a small change to
+shared tooling that nobody has asked for yet.
+
 ### Processing pipeline
 
 1. Load CSV

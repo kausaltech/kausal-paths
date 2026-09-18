@@ -293,10 +293,12 @@ shape:
   produce a mixture of the two published variants that the source never states. The
   consequence is the next point.
 * **Every scenario lists every one of those parameters.** `is_customizable: false` also
-  stops `instance_loader.py` folding the value into the default scenario, and a parameter
-  no scenario carries keeps whatever the last activated scenario left in it — so the
-  values would depend on click order rather than on the scenario. Three scenarios × 17
-  actions is verbose, and it is the price of the value being a scenario's property.
+  stops `instance_loader.py` folding the value into the default scenario, so a scenario
+  can only set what it names — a parameter no scenario carries sits at its config default
+  everywhere. Strictly, only the scenario that wants a non-default variant needs its
+  entries; listing all three is a statement of intent, and it keeps the model from
+  depending on the node default and the scenario's intent continuing to coincide. See
+  [`scenarios.md`](scenarios.md).
 * `modules/gpc/municipal_balance.yaml` declares its measure-bearing nodes
   `generic.GenericNode`; the node that receives a shift adds `split_dims` to the string,
   before the `add` and `multiply` that follow it

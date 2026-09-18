@@ -145,6 +145,13 @@ Three co-existing translation mechanisms (django-modeltrans, Wagtail locales,
 `TranslatedString`), each with its own language code format. See
 [`docs/architecture/i18n.md`](docs/architecture/i18n.md) for the full picture.
 
+#### Scenarios
+Activating a scenario resets the parameters it names; what it *omits* matters as much.
+The custom scenario is a diff plus a base, and the base is whichever scenario the user
+branched from. A non-customizable parameter is not folded into the default scenario by
+the loader, so a scenario can only set what it names. See
+[`docs/architecture/scenarios.md`](docs/architecture/scenarios.md).
+
 #### Permission Policies
 Every model requiring access control inherits from `PermissionedModel` and
 implements `permission_policy()`. Policies extend `ModelPermissionPolicy` and

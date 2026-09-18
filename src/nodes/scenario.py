@@ -121,12 +121,58 @@ class Scenario(I18nBaseModel):
 
 
 class CustomScenario(Scenario):
+    """
+    The user's own scenario: a stored set of parameter overrides on top of another one.
+
+    **The base is whichever scenario the user branched from**, not a fixed one. It was
+    fixed to the default scenario until 18 Sep 2026, which made the custom scenario a
+    diff against something the user might not be looking at, with two visible
+    consequences: overrides made in one scenario survived a visit to another and
+    reappeared on top of the default, and touching any action while a non-default
+    scenario was active silently re-based everything else onto the default's values.
+    On Mainz that meant turning a measure *off* could lower emissions, because the
+    hidden variant switch outweighed the measure.
+
+    `base_scenario` remains as the fallback for a session that has not branched yet, and
+    for a stored base id that no longer resolves.
+    """
+
     base_scenario: Scenario
     kind: ScenarioKind | None = ScenarioKind.CUSTOM
     _storage: SettingStorage = PrivateAttr(init=False)
 
     def set_storage(self, storage: SettingStorage):
         self._storage = storage
+
+    def has_storage(self) -> bool:
+        """
+        Return whether a session has been attached yet.
+
+        The storage arrives per request (`paths/schema_context.py`), so a caller outside
+        a request -- a management command, a test, a resolver reached by an unusual path
+        -- can legitimately meet this scenario without one.
+        """
+        # An unset pydantic `PrivateAttr(init=False)` raises on access, so `hasattr` is
+        # the check. `'_storage' in self.__private_attributes__` is *not* -- that names
+        # the declared attribute and is true whether or not a value was ever assigned.
+        return hasattr(self, '_storage')
+
+    def resolve_base(self) -> Scenario:
+        """Return the scenario this custom scenario is currently a deviation from."""
+        if not self.has_storage():
+            return self.base_scenario
+        base_id = self._storage.get_custom_base()
+        if base_id is None:
+            return self.base_scenario
+        scenario = self.context.scenarios.get(base_id)
+        if scenario is None or scenario is self:
+            # A base the config no longer has, or a session that stored this scenario's
+            # own id. Falling back is right: the stored overrides are still meaningful
+            # against the default, and refusing to activate would strand the session.
+            self.context.log.warning('custom scenario base %s does not resolve; using %s' % (base_id, self.base_scenario.id))
+            self._storage.set_custom_base(None)
+            return self.base_scenario
+        return scenario
 
     def reset(self):
         self._storage.reset()
@@ -154,8 +200,22 @@ class CustomScenario(Scenario):
             assert param is not None
             yield param, cleaned_val
 
+    def get_customized_param_ids(self) -> list[ParameterGlobalId]:
+        """
+        Return the parameters this scenario overrides on top of its base.
+
+        Reported separately from `param_values`, which stays empty here: a custom
+        scenario's overrides live in the session rather than in the model, so the base
+        class's view of "what this scenario sets" does not see them.
+        """
+        if not self.has_storage():
+            return []
+        # `ParameterGlobalId` is an annotated `str` alias, so the keys are already of
+        # that type; it is not a constructor.
+        return list(self._storage.get_customized_param_values())
+
     def activate(self):
-        self.base_scenario.activate()
+        self.resolve_base().activate()
         for param, val in self.get_param_values():
             if not param.is_value_equal(val):
                 param.set(val)
