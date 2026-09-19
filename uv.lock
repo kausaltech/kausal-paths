@@ -1119,15 +1119,11 @@ wheels = [
 
 [[package]]
 name = "django-modeltrans"
-version = "0.7.5"
-source = { url = "https://github.com/kausaltech/django-modeltrans/archive/a734040c3f38c2e404a61dc0be2c017874a9ea45.zip" }
+version = "0.9.0"
+source = { git = "https://github.com/kausaltech/django-modeltrans?rev=37ed924498fa0e6a431e0b6fc1e6982a3f3b3a84#37ed924498fa0e6a431e0b6fc1e6982a3f3b3a84" }
 dependencies = [
     { name = "django" },
 ]
-sdist = { hash = "sha256:4bc9c5feb7fb675ac6a23980e7f616207d68d76fc346b4ba6b0511871c9980c0" }
-
-[package.metadata]
-requires-dist = [{ name = "django", specifier = ">=3.2" }]
 
 [[package]]
 name = "django-oauth-toolkit"
@@ -2783,7 +2779,7 @@ requires-dist = [
     { name = "django-environ" },
     { name = "django-extensions" },
     { name = "django-image-cropping", specifier = ">=1.7" },
-    { name = "django-modeltrans", url = "https://github.com/kausaltech/django-modeltrans/archive/a734040c3f38c2e404a61dc0be2c017874a9ea45.zip" },
+    { name = "django-modeltrans", git = "https://github.com/kausaltech/django-modeltrans?rev=37ed924498fa0e6a431e0b6fc1e6982a3f3b3a84" },
     { name = "django-oauth-toolkit" },
     { name = "django-pydantic-field" },
     { name = "django-storages", extras = ["s3"] },
