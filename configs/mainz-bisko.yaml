@@ -3,7 +3,7 @@ default_language: de
 supported_languages: [en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 2b7d0998085ba7728e8a1e5eb1a1db6912a790a3
+  commit: 9916c6b51b0e1e82d0be78c124519d3566ddd9bf
   dvc_remote: kausal-s3
 name_de: Treibhausgas-Monitor Mainz
 name_en: GHG Monitor Mainz
@@ -86,6 +86,19 @@ include:
   # left for the node to extend. See data/mainz/create_chp_parameters.py.
   - from: kommune/kwk_anlagenparameter
     to: mainz/kwk_anlagenparameter
+  # BISKO Moeglichkeit 3: the declared predominant generation variant, which for Mainz is
+  # waste-fired CHP and is valued at 130 g CO2e/kWh from BISKO Tabelle 5 -- half the 260 g/kWh
+  # Kohle-KWK standard factor the balance used until 2026-09-18 for want of any declaration.
+  # Declared for 2019-2024 only; earlier years keep the standard factor, so there is a step at
+  # the 2018/2019 seam that is a change of method and not a fall in emissions.
+  #
+  # Moeglichkeit 1, the city's own plant data, would be better and we have the fuel input for
+  # 2021-2024 -- but `de/emissionsfaktoren_endenergie` carries no fuel-input factor for waste
+  # or sewage sludge, which are 83 % of this network, and route 1 outranks route 3 in
+  # `district_heating_emissions`. Filling the plant template today would therefore replace a
+  # defensible factor with a near-zero one. See models/mainz/create_fernwaerme_variante.py.
+  - from: kommune/fernwaerme_erzeugungsvariante
+    to: mainz/fernwaerme_erzeugungsvariante
   # Mainz's own degree-day ratio (private_households, commerce_trade_services,
   # municipal_facilities; industry and transport stay at 1.0), replacing the shipped Potsdam
   # placeholder. Does not change conformity: criterion 5 forbids the correction outright,
@@ -330,10 +343,155 @@ nodes:
     - id: scope
       flatten: true
 
-# Three outcome nodes overridden for exactly one reason: to attach a net-zero-by-2035 goal
-# line. All three are otherwise byte-identical copies of the module version -- keep them in
-# step with modules/bisko/model.yaml and modules/gpc/municipal_balance.yaml, since
-# allow_override: true means a change there does NOT reach Mainz until mirrored here.
+
+# The balance beside the balance: BISKO plus what BISKO leaves out.
+#
+# `net_emissions` is the BISKO territorial inventory and must stay exactly that -- energy-related
+# emissions inside the city boundary, nothing else, because that is what the certification audits
+# and what the -95 % goal above is measured against. But Mainz will want to report things BISKO
+# does not cover: the waste sector and the other non-energy sectors (Abwasser, Landwirtschaft,
+# LULUCF, IPPU) that Frau Steinkrueger has asked for, and which Lorig parked until after the
+# Gremienlauf (correspondence, 17.09.2026). This node is where they go, so that adding them later
+# is one `input_nodes` entry and not a restructuring.
+#
+# WHAT IS IN IT, AND WHY NOT municipal_balance_emissions
+# ------------------------------------------------------
+# Only branches that do not overlap each other may be summed, and the administration's Scope 1+2
+# overlaps the territorial balance by construction: its buildings are the municipal_facilities
+# sector there and its fleet is inside transport. Measured on 2026-09-18, municipal_balance_
+# emissions is 11.73 kt against a territorial 1,554.3 kt in 2024 -- a 0.75 % double count, small
+# but not zero, and it grows as a share of the remainder as the territorial total falls.
+# municipal_scope3_emissions has no such overlap: procurement, commuting and paper lie outside
+# the territorial boundary altogether, which is precisely what makes them non-BISKO.
+#
+# THE CONSEQUENCE, MEASURED, BECAUSE IT IS NOT OBVIOUS
+# ----------------------------------------------------
+# The 20 actions split cleanly in two and the split is total. All 3 mp100_* actions reach
+# net_emissions and have exactly 0.0 impact on the administration balance; all 17 knsv_* actions
+# reach the administration balance and have exactly 0.0 impact on net_emissions -- the two
+# inventories are fed from different datasets, so nothing propagates between them. Of the 17,
+# eleven have no Scope 3 component at all (knsv_energieeffizienz_gebaeude_strom,
+# knsv_nutzendenverhalten_strom, knsv_photovoltaik_eigenerzeugung, knsv_dekarbonisierung_strommix,
+# knsv_led_strassenbeleuchtung and the rest), so on THIS node they show an impact of zero.
+#
+# That is why `emission_reductions` above is still there and still the default outcome node: it
+# sums all three branches, double count and all, so that every action's impact bar is visible on
+# /massnahmen. Its level is meaningless and its description says so. The two nodes do different
+# jobs on purpose -- this one is an aggregate whose level is meant to be read, that one is a sink
+# whose level is not. Do not merge them without solving the propagation gap first: the real fix
+# is for the KNSV actions to feed the territorial municipal_facilities sector, which needs the
+# two balances to share a data path rather than sit side by side.
+- id: total_emissions_incl_non_bisko
+  is_editable: false
+  name_de: Gesamtbilanz (BISKO und weitere Emissionen)
+  name_en: Total balance (BISKO and further emissions)
+  description_de: |
+    Die BISKO-Territorialbilanz zuzueglich der Emissionen, die BISKO nicht abdeckt.<br/>
+    BISKO bilanziert ausschliesslich <b>energiebedingte</b> Emissionen innerhalb der
+    Stadtgrenze. Nicht enthalten sind damit der Abfallsektor, Abwasser, Landwirtschaft,
+    Landnutzung (LULUCF) und Prozessemissionen der Industrie (IPPU) sowie alles, was
+    ausserhalb des Stadtgebiets anfaellt. Dieser Knoten fuehrt beides zusammen und ist der
+    Ort, an dem die nicht-energetischen Sektoren ergaenzt werden, sobald Daten vorliegen.<br/>
+    <b>Er ersetzt die Territorialbilanz nicht.</b> Das Klimaschutzziel und die
+    BISKO-Zertifizierung beziehen sich auf <i>Netto-Emissionen</i>; diese Darstellung ist
+    zusaetzlich und bewusst weiter gefasst.<br/>
+    Die Scope-1- und Scope-2-Emissionen der Stadtverwaltung sind hier <b>nicht</b> addiert:
+    sie stecken bereits in der Territorialbilanz (Gebaeude im Sektor Kommunale Einrichtungen,
+    Fuhrpark im Verkehr) und waeren eine Doppelzaehlung. Scope 3 der Verwaltung liegt
+    dagegen ausserhalb der Stadtgrenze und wird deshalb ergaenzt.
+  description_en: |
+    The BISKO territorial inventory plus the emissions BISKO does not cover.<br/>
+    BISKO accounts for <b>energy-related</b> emissions inside the city boundary only. Waste,
+    wastewater, agriculture, land use (LULUCF) and industrial process emissions (IPPU) are
+    therefore absent, as is anything arising outside the city. This node brings the two
+    together and is where the non-energy sectors are added once data exists.<br/>
+    <b>It does not replace the territorial inventory.</b> The climate target and the BISKO
+    certification are defined on <i>net emissions</i>; this view is additional and
+    deliberately broader.<br/>
+    The city administration's Scope 1 and Scope 2 emissions are <b>not</b> added here: they
+    are already inside the territorial inventory (buildings under municipal facilities,
+    fleet under transport) and would be counted twice. Its Scope 3 lies outside the city
+    boundary and is therefore included.
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt_co2e/a
+  is_outcome: true
+  input_nodes:
+  - id: net_emissions
+    from_dimensions:
+    - id: sector
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+  - id: municipal_scope3_emissions
+    from_dimensions:
+    - id: ghg_category
+      flatten: true
+    - id: municipal_facility_type
+      flatten: true
+    - id: scope
+      flatten: true
+  # Waste and the other non-energy sectors attach here. Deliberately not added as zero-valued
+  # placeholder rows: a zero asserts that the sector emits nothing, which is false, and the
+  # README's *Declared gaps* rule is that a missing sector stays visibly missing rather than
+  # being filled with a number nobody measured.
+
+# Four outcome nodes overridden for exactly one reason: to attach a goal line. All four are
+# otherwise byte-identical copies of the module version -- keep them in step with
+# modules/bisko/model.yaml and modules/gpc/municipal_balance.yaml, since allow_override: true
+# means a change there does NOT reach Mainz until mirrored here.
+#
+# WHICH GOAL, AND WHY IT IS NOT NET ZERO 2035
+# -------------------------------------------
+# Until 2026-09-18 all three carried `Ziel: Netto-Null bis 2035`, value 0 at 2035. That is the
+# city's *aspiration*, not its resolved target, and the two differ in both the year and the
+# depth. Stadtratsbeschluss 0024/2021/1 of 10.02.2021 (`client/Szenarien (Scenarios)/BV-21-0024
+# Klimaneutralitaet session.pdf`) says it in two separate paragraphs:
+#
+#   Nr. 1 -- the resolved target: "bis spaetestens 2050 gegenueber 1990 die
+#   Treibhausgas-Emissionen um 95 % und den Endenergiebedarf um 50 % zu reduzieren".
+#   Mainz replaced 2050 with 2045 (Lorig, 17.09.2026) in view of the federal 2045 and the
+#   Rhineland-Palatinate 2040 target. Reference year 1990 throughout.
+#
+#   Nr. 2 -- the aspiration: the city "strebt an, die Klimaneutralitaet deutlich vorher zu
+#   erreichen -- idealerweise bereits bis zum Jahr 2035", explicitly qualified by the limits of
+#   what a municipality can decide on its own.
+#
+#   Nr. 3 -- and separately, for the ADMINISTRATION: "Die Stadtverwaltung sowie die staedtischen
+#   und stadtnahen Gesellschaften ... streben eine Klimaneutralitaet bis 2035 an." So net zero by
+#   2035 IS the right goal on municipal_balance_emissions, and only there.
+#
+# Two things follow, and both are now built. The territorial goal is -95 % against 1990, not
+# zero, and it falls due in 2045, not 2035 -- a line that ends above the axis. And the second
+# half of the same resolution, -50 % final energy, was not represented anywhere; it now sits on
+# total_final_energy_use.
+#
+# On the 2035/2045 corridor: Lorig, 17.09.2026, "Fuer mein Verstaendnis ist das Ziel 2035 aus
+# Sicht der Restemission pro Jahr mit dem Ziel 2045 identisch, auch wenn wir ueber den (bis 2045
+# laengeren) Weg natuerlich mehr Emissionen im Sinne eines CO2-Budgets verbrauchen." The annual
+# residual is the same number; only the path and the cumulative budget differ. So one goal line
+# to 2045 states the commitment without claiming the faster path. It cannot be two goal lines on
+# one node: NodeGoals.validate_unique (nodes/goals.py) rejects two entries with the same
+# dimension path, and NodeGoalsEntry.get_id() is the node id for a dimensionless goal, so two
+# would also collide in Instance.get_goals().
+#
+# The absolute values come from the model's own 1990 baseline, since the goal is expressed
+# against it. Recompute both if the 1990 data ever moves:
+#
+#   python -m tools.debug_instance -i mainz-bisko -c "
+#       for nid in ('net_emissions', 'total_final_energy_use'):
+#           n = ctx.get_node(nid); col = n.get_default_output_metric().column_id
+#           df = n.get_output_pl(); import polars as pl
+#           v = df.filter(pl.col('Year') == 1990)[col].sum()
+#           print(nid, n.unit, v, 'target:', v * 0.05, v * 0.5)"
+#
+#   net_emissions          1990 = 3,400.8 kt_co2e/a  ->  -95 % =   170.04 kt_co2e/a
+#   total_final_energy_use 1990 = 8,477,235 MWh/a    ->  -50 % = 4,238,618 MWh/a
+#
+# For scale: 2024 is 1,554.1 kt (-54.3 % against 1990) and 4,973,402 MWh (-41.3 %). The energy
+# target needs a further -14.8 % from today; the emissions target needs -89.1 %. Both 2024 figures
+# moved slightly on 18 Sep 2026 with the chimney-sweep correction; 1990 did not, so the goal
+# values below are unaffected.
 #
 # `auto_start: true` reads the node's own computed value at maximum_historical_year (2024)
 # as the starting point, rather than a number typed into this file -- so the goal line
@@ -355,15 +513,15 @@ nodes:
   output_dimensions: [sector, energy_carrier]
   is_outcome: true
   goals:
-  - label_de: 'Ziel: Netto-Null bis 2035'
-    label_en: 'Goal: net zero by 2035'
+  - label_de: 'Ziel: -95 % ggue. 1990 bis 2045 (Beschluss 0024/2021/1)'
+    label_en: 'Goal: -95 % vs 1990 by 2045 (council resolution 0024/2021/1)'
     default: true
     is_main_goal: true
     linear_interpolation: true
     auto_start: true
     values:
-    - year: 2035
-      value: 0
+    - year: 2045
+      value: 170.04     # 5 % of the 1990 baseline of 3,400.8 kt_co2e/a -- see the note above
 
 - id: net_emissions_by_energy_carrier
   is_editable: false
@@ -387,15 +545,15 @@ nodes:
   # look at is_main_goal at all -- it reads NodeGoals.get_dimensionless() unconditionally --
   # so the target line here is unaffected; only the global selector shrinks to net_emissions'
   # one remaining entry, which is the one that actually makes sense as a site-wide default.
-  - label_de: 'Ziel: Netto-Null bis 2035'
-    label_en: 'Goal: net zero by 2035'
+  - label_de: 'Ziel: -95 % ggue. 1990 bis 2045 (Beschluss 0024/2021/1)'
+    label_en: 'Goal: -95 % vs 1990 by 2045 (council resolution 0024/2021/1)'
     default: true
     is_main_goal: false
     linear_interpolation: true
     auto_start: true
     values:
-    - year: 2035
-      value: 0
+    - year: 2045
+      value: 170.04     # the same target as net_emissions; this page shows it split by carrier
 
 - id: municipal_balance_emissions
   is_editable: false
@@ -438,6 +596,13 @@ nodes:
   # is_main_goal: false -- see the identical note on net_emissions_by_energy_carrier above.
   # This page's own target line still renders (Node.goals ignores is_main_goal); only the
   # site-wide selector is kept to net_emissions' one entry, so it no longer appears at all.
+  #
+  # NET ZERO BY 2035 IS RIGHT HERE, and is deliberately not the -95 %/2045 line the two
+  # territorial nodes above now carry. Beschluss 0024/2021/1 Nr. 3 sets a target for the
+  # administration specifically -- "Die Stadtverwaltung sowie die staedtischen und stadtnahen
+  # Gesellschaften kommen ihrer Vorbildfunktion nach und streben eine Klimaneutralitaet bis 2035
+  # an" -- while the quantified -95 %/-50 % target of Nr. 1 is about the city territory. Do not
+  # "harmonise" these two; they come from different paragraphs and mean different things.
   - label_de: 'Ziel: Netto-Null bis 2035'
     label_en: 'Goal: net zero by 2035'
     default: true
@@ -447,6 +612,74 @@ nodes:
     values:
     - year: 2035
       value: 0
+
+# The fourth overridden node, and the only one that is not an emissions outcome: it exists here
+# to carry the -50 % final-energy half of Beschluss 0024/2021/1. Byte-identical to
+# modules/bisko/model.yaml apart from the `goals:` block appended at the end -- keep it in step.
+- id: total_final_energy_use
+  is_editable: false
+  name_en: Final energy use by sector
+  name_de: Endenergieverbrauch nach Sektoren
+  description_en: |
+    Final energy use of all five BISKO sectors by energy carrier: the four stationary sectors
+    from the city's own energy data, plus transport, whose energy is summed over the vehicle
+    types. BISKO requires the energy balance — not only the greenhouse gas balance — to be
+    shown by sector and by energy carrier, transport included (criterion 2.1).<br/>
+    Municipal facilities are reported as their own sector here, and their consumption has already
+    been removed from commerce, trade and services where the city declared that its figure for
+    that sector contains it, so nothing is counted twice. See
+    <i>Municipal facility energy included in commerce</i> for the size of that correction.
+  description_de: |
+    Endenergieverbrauch aller fünf BISKO-Sektoren nach Energieträgern: die vier stationären
+    Sektoren aus den eigenen Energiedaten der Kommune sowie der Verkehr, dessen Energie über
+    die Fahrzeugtypen summiert wird. BISKO verlangt, dass nicht nur die Treibhausgasbilanz,
+    sondern auch die Energiebilanz nach Sektoren und Energieträgern dargestellt wird, und zwar
+    einschließlich des Verkehrs (Prüfschritt 2.1).<br/>
+    Kommunale Einrichtungen werden hier als eigener Sektor ausgewiesen, und ihr Verbrauch wurde
+    bereits aus Gewerbe, Handel, Dienstleistungen herausgerechnet, sofern die Kommune erklärt hat,
+    dass er im Wert dieses Sektors enthalten ist; es wird also nichts doppelt gezählt. Die Höhe
+    dieser Korrektur zeigt <i>Endenergie der kommunalen Einrichtungen im GHD-Wert</i>.
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_nodes:
+  - id: final_energy_use
+  - id: transport_energy
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+    - id: sector
+      categories: [transport]
+
+  goals:
+  # The second half of Beschluss 0024/2021/1 Nr. 1: "den Endenergiebedarf um 50 % zu
+  # reduzieren", same 1990 reference year and same deadline as the emissions target. It had no
+  # representation in the model before 2026-09-18, which mattered more than it sounds -- it is
+  # the target Mainz is closest to meeting (2024 is -41.3 % against 1990, so 14.8 % of the way
+  # still to go), and nothing on screen said so.
+  #
+  # This is the node that carries it rather than final_energy_use, because the resolution says
+  # Endenergiebedarf without qualification and final_energy_use is the four stationary sectors
+  # only. Transport is a fifth of the total (4,973,402 vs 3,897,459 MWh in 2024), so putting the
+  # goal on the stationary node would have measured the city against four fifths of its own
+  # target.
+  #
+  # is_main_goal: false, so the site-wide goal selector keeps net_emissions' single entry --
+  # see the note on net_emissions_by_energy_carrier. The line still renders on this node's own
+  # chart, which is where it is wanted.
+  - label_de: 'Ziel: -50 % Endenergie ggue. 1990 bis 2045 (Beschluss 0024/2021/1)'
+    label_en: 'Goal: -50 % final energy vs 1990 by 2045 (council resolution 0024/2021/1)'
+    default: true
+    is_main_goal: false
+    linear_interpolation: true
+    auto_start: true
+    values:
+    - year: 2045
+      value: 4238618      # 50 % of the 1990 baseline of 8,477,235 MWh/a -- see the note above
 
 # Overrides the module's node of the same id (the include now sets allow_override: true), for
 # one reason only: to point `t_supply` at an instance-level parameter instead of holding a
@@ -1803,6 +2036,80 @@ actions:
 # node's own unit is rule 1, and the dataset carries all three of its dimensions. Nothing
 # in the shared BISKO module changes for the other seven cities.
 
+- id: kwp_waermewende
+  name_de: Wärmewende nach der Kommunalen Wärmeplanung (Zielszenario 2040)
+  name_en: Heat transition per the municipal heat plan (target scenario 2040)
+  type: simple.GenericAction
+  quantity: energy
+  unit: MWh/a
+  group: gebaeude_energie
+  description_de: |
+    Der Wärmeplan der Stadt Mainz (Kommunale Wärmeplanung, KWP) nach dem
+    Wärmeplanungsgesetz (WPG), Auswertung vom 16.06.2026, Zielszenario 2040. Er ist der
+    einzige beschlussreife Pfad für die Wärmeversorgung und beschreibt vier Stützjahre:
+    <b>2024, 2030, 2035 und 2040</b>.<br/>
+    Bis 2040 gehen Erdgas- und Ölheizungen auf null (34.054 bzw. 3.478 Gebäude heute),
+    das Wärmenetz wächst von 5.021 auf 18.392 Gebäude, Wärmepumpen von keiner auf 24.165,
+    und der Wärmebedarf sinkt um rund 13 %.<br/>
+    <b>Wie die Maßnahme gerechnet wird.</b> Der Wärmeplan ist ein Gebäudetypen-Modell und
+    keine Messung; sein Wert für 2024 weicht von der Bilanz ab -- allein sein Heizgas
+    übersteigt den gesamten gemessenen Erdgasabsatz der Stadt. Übernommen wird deshalb
+    nicht sein Niveau, sondern sein <i>relativer Pfad</i>, angewandt auf den Bilanzwert
+    2024 jedes Energieträgers. Die Wärmepumpen sind die Ausnahme: ihre Flottengröße ist
+    eine Planungsgröße und wird als absolute Zunahme des Wärmeplans übernommen.<br/>
+    <b>Was sie nicht kann.</b> Der Wärmeplan kennt keine Sektoren. Die Änderung je
+    Energieträger wird deshalb anteilig auf die vier stationären Sektoren verteilt, auch
+    auf die Industrie -- deren Erdgas zum Teil Prozesswärme ist, die kein Wärmeplan
+    stilllegt. Der Pfad überzeichnet dort also, was erreichbar ist.<br/>
+    <b>Zur Einordnung der Emissionen.</b> Der Wärmeplan rechnet die Fernwärme mit rund
+    4 g CO₂e/kWh (Stromgutschriftmethode nach GEG), das Modell mit dem
+    BISKO-Standardfaktor von 260 g/kWh, weil die Brennstoffeinsatzdaten der Erzeugung
+    fehlen. Der Faktor unterscheidet sich also um das Sechzigfache, und genau auf dieses
+    Netz verlagert die Maßnahme die Wärme. Die <i>Energie</i>-Wirkung dieser Maßnahme ist
+    belastbar, ihre <i>Emissions</i>-Wirkung erst, wenn der Fernwärmefaktor geklärt ist.
+  description_en: |
+    The city's statutory municipal heat plan (Kommunale Wärmeplanung under the
+    Wärmeplanungsgesetz), evaluation of 16.06.2026, target scenario 2040 — the only
+    decision-ready path for heat supply, stated for four years: <b>2024, 2030, 2035,
+    2040</b>.<br/>
+    By 2040 gas and oil heating go to zero (34,054 and 3,478 buildings today), the heat
+    network grows from 5,021 to 18,392 buildings, heat pumps from none to 24,165, and heat
+    demand falls by about 13 %.<br/>
+    <b>How it is computed.</b> The heat plan is a building-typology model, not a
+    measurement, and its 2024 column differs from the balance — its heating gas alone
+    exceeds the city's entire metered gas consumption. So its <i>relative</i> path is
+    applied to each carrier's 2024 value in the balance rather than its levels. Heat pumps
+    are the exception: the size of that fleet is a planning quantity and is taken from the
+    plan in absolute terms.<br/>
+    <b>What it cannot do.</b> The heat plan has no sectors, so each carrier's change is
+    distributed across the four stationary sectors in proportion — industry included, part
+    of whose gas is process heat that no heat plan retires. The path therefore overstates
+    what is reachable there.<br/>
+    <b>Reading the emissions.</b> The heat plan values district heat at about
+    4 g CO₂e/kWh (Stromgutschriftmethode under the GEG); the model uses the BISKO default
+    of 260 g/kWh, because the generation fuel input is still missing. That is a factor of
+    sixty, on exactly the network this measure moves heat onto. The <i>energy</i> effect of
+    this action is sound; its <i>emissions</i> effect is not, until the district heating
+    factor is settled.
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: mainz/kwp_zielszenario_waermeversorgung
+    forecast_from: 2025
+    # The dataset carries the plan's four support years plus a 2050 anchor holding the 2040
+    # value; everything between is the model's straight line, which is also how the plan's own
+    # chart reads between its support years.
+    interpolate: true
+  params:
+  - id: operations
+    value: get_single_dataset
+  output_nodes:
+  # Untagged, and additive by that fact: `final_energy_use` is a formula.FormulaNode, and a
+  # FormulaNode adds every input its formula does not name (src/nodes/formula.py). That is what
+  # lets this attach without copying the module's central node into this file -- see the
+  # producer's docstring for why a relative factor would have required exactly that.
+  - id: final_energy_use
+
 - id: mp100_elektrifizierung_pkw
   name_de: Elektrifizierung der Pkw-Fahrleistung (C 6.1)
   name_en: Electrification of car mileage (C 6.1)
@@ -2268,6 +2575,15 @@ scenarios:
     value: 0
   - id: knsv_vegetarische_verpflegung.selected_number
     value: 0
+  # The heat plan is deliberately OFF in Masterplan 100 %, although `all_actions_enabled: true`
+  # would otherwise switch it on. The two documents own different halves of the same quantity:
+  # the Waermeplanung owns the supply side of building heat (which carrier, which network), the
+  # Masterplan owns everything else. Leaving it on here would show the heat transition as a
+  # Masterplan result and then count it a second time in the combined scenario below. See
+  # `models/mainz/correspondence/kmw-szenario-handlungsoptionen.md` section 4, where this
+  # boundary was set out for the city.
+  - id: kwp_waermewende.enabled
+    value: false
 
 # Arqum's Szenario 2: the same measures, assumed to be implemented to a lesser extent. Both
 # variants live in the measure datasets under `measure_scenario`, so this scenario changes
@@ -2315,3 +2631,99 @@ scenarios:
     value: 1
   - id: knsv_vegetarische_verpflegung.selected_number
     value: 1
+
+
+# The statutory heat plan on its own: no Masterplan measures, no administration measures, only
+# the carrier path of the Kommunale Waermeplanung. This is what Lorig asked for on 17.09.2026 --
+# "dass die KWP ein eigenstaendig auswaehlbares Szenario wird". Read beside `baseline` it shows
+# what the heat plan alone does to the balance.
+#
+# The knsv `selected_number` parameters are listed although every action here is disabled, for
+# the reason given on `baseline`: the parameter is not customizable, so a scenario that omits it
+# inherits whatever the previously activated scenario left behind.
+- id: kwp
+  all_actions_enabled: false
+  name_de: Kommunale Wärmeplanung (Zielszenario 2040)
+  name_en: Municipal heat plan (target scenario 2040)
+  params:
+  - id: kwp_waermewende.enabled
+    value: true
+  - id: knsv_energetische_sanierung_waerme.selected_number
+    value: 0
+  - id: knsv_nutzendenverhalten_waerme.selected_number
+    value: 0
+  - id: knsv_energieeffizienz_gebaeude_strom.selected_number
+    value: 0
+  - id: knsv_nutzendenverhalten_strom.selected_number
+    value: 0
+  - id: knsv_photovoltaik_eigenerzeugung.selected_number
+    value: 0
+  - id: knsv_dekarbonisierung_fernwaerme.selected_number
+    value: 0
+  - id: knsv_fernwaerme_anschluss.selected_number
+    value: 0
+  - id: knsv_dekarbonisierung_strommix.selected_number
+    value: 0
+  - id: knsv_led_strassenbeleuchtung.selected_number
+    value: 0
+  - id: knsv_elektrifizierung_pkw_flotte.selected_number
+    value: 0
+  - id: knsv_alternative_antriebe_nutzfahrzeuge.selected_number
+    value: 0
+  - id: knsv_dienstreisen_vermeiden.selected_number
+    value: 0
+  - id: knsv_homeoffice.selected_number
+    value: 0
+  - id: knsv_papierloses_buero.selected_number
+    value: 0
+  - id: knsv_abfallreduktion.selected_number
+    value: 0
+  - id: knsv_klimafreundliche_veranstaltungen.selected_number
+    value: 0
+  - id: knsv_vegetarische_verpflegung.selected_number
+    value: 0
+
+# Masterplan 100 % and the heat plan together -- "MP100 % + KWP das Gesamtbild", Lorig
+# 17.09.2026. The two do not overlap by construction (see the note on `default`), so this is a
+# plain sum of the two rather than a third set of assumptions.
+- id: mp100_kwp
+  all_actions_enabled: true
+  name_de: Masterplan 100% und Kommunale Wärmeplanung
+  name_en: Masterplan 100% and municipal heat plan
+  params:
+  - id: kwp_waermewende.enabled
+    value: true
+  - id: knsv_energetische_sanierung_waerme.selected_number
+    value: 0
+  - id: knsv_nutzendenverhalten_waerme.selected_number
+    value: 0
+  - id: knsv_energieeffizienz_gebaeude_strom.selected_number
+    value: 0
+  - id: knsv_nutzendenverhalten_strom.selected_number
+    value: 0
+  - id: knsv_photovoltaik_eigenerzeugung.selected_number
+    value: 0
+  - id: knsv_dekarbonisierung_fernwaerme.selected_number
+    value: 0
+  - id: knsv_fernwaerme_anschluss.selected_number
+    value: 0
+  - id: knsv_dekarbonisierung_strommix.selected_number
+    value: 0
+  - id: knsv_led_strassenbeleuchtung.selected_number
+    value: 0
+  - id: knsv_elektrifizierung_pkw_flotte.selected_number
+    value: 0
+  - id: knsv_alternative_antriebe_nutzfahrzeuge.selected_number
+    value: 0
+  - id: knsv_dienstreisen_vermeiden.selected_number
+    value: 0
+  - id: knsv_homeoffice.selected_number
+    value: 0
+  - id: knsv_papierloses_buero.selected_number
+    value: 0
+  - id: knsv_abfallreduktion.selected_number
+    value: 0
+  - id: knsv_klimafreundliche_veranstaltungen.selected_number
+    value: 0
+  - id: knsv_vegetarische_verpflegung.selected_number
+    value: 0
