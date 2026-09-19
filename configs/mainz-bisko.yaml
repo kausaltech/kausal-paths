@@ -3,7 +3,7 @@ default_language: de
 supported_languages: [en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 9916c6b51b0e1e82d0be78c124519d3566ddd9bf
+  commit: 8ab41147a146813ce9bb4f41e9bcf4841a38a3e2
   dvc_remote: kausal-s3
 name_de: Treibhausgas-Monitor Mainz
 name_en: GHG Monitor Mainz
@@ -299,6 +299,27 @@ dimensions:
   - id: mp100_radverkehr
     label_de: C 4.1 Fahrradfreundliches Mainz – Verlagerung vom Pkw auf das Fahrrad
     label_en: C 4.1 Cycling-friendly Mainz – shift from the car to the bicycle
+
+# The two ambition variants of the IE Leipzig Szenarienvergleich 2021, side by side in one
+# dataset -- the same choice, for the same reason, as `measure_scenario` above: the pair is one
+# study's two readings of the same quantity, and a revision of either should be an edit to the
+# data and not a second dataset.
+#
+# These are whole-sector *paths*, not measures. They are the aggregate outcome of the Masterplan
+# package, so they must never run beside the individual `mp100_*` actions, which are members of
+# that same package -- see the scenarios `ie_mp2050` and `ie_kn2035`.
+- id: ie_szenario
+  label_de: IE-Leipzig-Szenario
+  label_en: IE Leipzig scenario
+  help_text: Ambitionsniveau der Szenarien des IE-Leipzig-Szenarienvergleichs 2021
+    („Klimaneutralität 2035 – Erste Einschätzung der Machbarkeit").
+  categories:
+  - id: mp_2050
+    label_de: MP-2050 (Maßnahmenpaket des Masterplans, Klimaneutralität 2050)
+    label_en: MP-2050 (Masterplan measure package, climate neutrality 2050)
+  - id: kn_2035
+    label_de: KN-2035 (verstärkte Maßnahmen, Klimaneutralität 2035)
+    label_en: KN-2035 (strengthened measures, climate neutrality 2035)
 
 
 #//////  Nodes  ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2110,6 +2131,337 @@ actions:
   # producer's docstring for why a relative factor would have required exactly that.
   - id: final_energy_use
 
+# ///// IE Leipzig territorial scenarios -- COMMENTED OUT UNTIL THE DATASETS ARE UPLOADED /////
+#
+# The four actions and two scenarios below are finished and verified as far as they can be
+# without their data: the instance loads, each action resolves and attaches to the right target
+# node, and `create_ie_leipzig_scenario.py` in paths-data lands every sector on the study's own
+# relative path to within 0.05 %. What is missing is the two DVC datasets.
+#
+# They are commented out rather than left live because a missing dataset does not break only
+# these scenarios -- it breaks **every** scenario, `default` included. `final_energy_use` is a
+# FormulaNode, and `_role_from_unit` (src/nodes/operands.py) computes each unused input just to
+# read its unit, so a *disabled* action whose dataset will not load still takes `net_emissions`
+# down with it.
+#
+# To switch them on:
+#
+#   python tools/upload_new_dataset.py -n mainz-bisko -l de \
+#       -i $PATHS_DATA/models/mainz/mainz_ie_leipzig_stationaer.csv \
+#       -o mainz/ie_leipzig_szenarien_stationaer \
+#       --sources-csv $PATHS_DATA/models/mainz/mainz_sources.csv
+#   python tools/upload_new_dataset.py -n mainz-bisko -l de \
+#       -i $PATHS_DATA/models/mainz/mainz_ie_leipzig_verkehr.csv \
+#       -o mainz/ie_leipzig_szenarien_verkehr \
+#       --sources-csv $PATHS_DATA/models/mainz/mainz_sources.csv
+#
+# then bump `dataset_repo.commit` above, uncomment down to the matching end marker, and
+# recompute. Background: paths-data `models/mainz/README.md`, *The IE Leipzig scenarios are
+# built, and wait only on the upload*.
+
+- id: ie_mp2050_stationaer
+  name_de: 'IE-Leipzig-Szenario MP-2050: stationäre Sektoren'
+  name_en: 'IE Leipzig scenario MP-2050: stationary sectors'
+  type: simple.GenericAction
+  quantity: energy
+  unit: MWh/a
+  group: gebaeude_energie
+  description_de: |
+    Der IE-Leipzig-Szenarienvergleich 2021 („Klimaneutralität 2035 – Erste Einschätzung der
+    Machbarkeit") ist neben dem Wärmeplan der einzige quantifizierte Gesamtpfad, den Mainz
+    besitzt. Er beziffert den Endenergieverbrauch je Sektor und Energieträger für 2020, 2030,
+    2035 und – nur im Szenario MP-2050 – 2050, in zwei Ambitionsstufen:<br/>
+    &bull; <b>MP-2050</b>: das Maßnahmenpaket des Masterplans unverändert fortgeführt,
+    Klimaneutralität 2050.<br/>
+    &bull; <b>KN-2035</b>: verstärkte und zusätzliche Maßnahmen, Klimaneutralität 2035.<br/>
+    Diese Maßnahme bildet den Pfad der stationären Sektoren (Haushalte, Industrie, GHD) des Szenarios <b>MP-2050</b> ab.<br/>
+    <b>Wie sie gerechnet wird.</b> Übernommen wird nicht das Niveau der Studie, sondern ihr
+    <i>relativer Pfad</i>, angewandt auf den Bilanzwert 2024 jedes Energieträgers – die
+    Sektorniveaus beider Seiten weichen um bis zu 22 % voneinander ab, und zwar in beide
+    Richtungen. Weil sich auch der Energieträgermix 2024 unterscheidet, wird der Sektor
+    zusätzlich mit einem Korrekturfaktor je Stützjahr auf den Gesamtpfad der Studie
+    zurückgeführt; er steht in jeder Datenzeile. Basisjahr ist 2024 und nicht 2018: der Schritt
+    2018 → 2020 beträgt −8,9 % und ist die Pandemie, keine Maßnahme.<br/>
+    <b>Die Zahlen sind Messwerte.</b> Die Balkensummen der Abbildungen sind beziffert, die
+    Anteile der Energieträger nicht; sie wurden am 17./18.09.2026 von Hand am gedruckten
+    Diagramm in Millimetern gemessen.<br/>
+    <b>Was sie nicht kann.</b> Der Pfad ist das aggregierte Ergebnis des Masterplanpakets und
+    darf deshalb nicht zusammen mit den einzelnen MP100-Maßnahmen laufen, die Teil desselben
+    Pakets sind. Die Emissionswirkung ist zudem schwächer belegt als die Energiewirkung: der
+    Fernwärmefaktor steht mangels Brennstoffeinsatzdaten auf dem BISKO-Standard von 260 g/kWh,
+    und der Strommix wird bis 2050 konstant gehalten, obwohl jedes Szenario von seiner
+    Dekarbonisierung ausgeht.
+  description_en: |
+    The IE Leipzig scenario comparison of 2021 is, beside the municipal heat plan, the only
+    quantified whole-city path Mainz has. It states final energy by sector and energy carrier
+    for 2020, 2030, 2035 and — in MP-2050 only — 2050, in two ambition levels:<br/>
+    &bull; <b>MP-2050</b>: the Masterplan's measure package carried forward unchanged, climate
+    neutrality in 2050.<br/>
+    &bull; <b>KN-2035</b>: strengthened and additional measures, climate neutrality in 2035.<br/>
+    This action carries the stationary-sector path (households, industry, commerce) of the <b>MP-2050</b> scenario.<br/>
+    <b>How it is computed.</b> Not the study's levels but its <i>relative</i> path, applied to
+    each carrier's 2024 value in the balance — the two sides' sector levels differ by up to
+    22 %, in both directions. Because the 2024 carrier mixes differ too, each sector is
+    additionally brought back onto the study's own total path by one correction factor per
+    support year, which is recorded in every data row. The base year is 2024 and not 2018: the
+    2018 → 2020 step is −8.9 % and that is the pandemic, not a measure.<br/>
+    <b>These are measurements.</b> The bar totals are printed in the figures; the carrier shares
+    are not, and were measured by hand in millimetres from the printed chart on 17–18 September
+    2026.<br/>
+    <b>What it cannot do.</b> The path is the aggregate outcome of the Masterplan package and
+    must therefore not run beside the individual MP100 measures, which are members of that
+    same package. Its emissions effect is also weaker evidence than its energy effect: the
+    district heating factor sits at the BISKO default of 260 g/kWh for want of generation fuel
+    data, and the grid factor is held flat to 2050 although every scenario assumes it falls.
+  input_dimensions: [sector, energy_carrier, ie_szenario]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: mainz/ie_leipzig_szenarien_stationaer
+    forecast_from: 2025
+    # The dataset carries 2024 (all zero, by construction) and the study's support years;
+    # everything between is the model's straight line. KN-2035 ends in 2035 and its 2035 value
+    # is repeated at 2050, so the path holds rather than rebounds.
+    interpolate: true
+    filters:
+    - dimension: ie_szenario
+      categories: [mp_2050]
+      flatten: true
+  params:
+  - id: operations
+    value: get_single_dataset
+  output_nodes:
+  # Untagged, and additive by that fact, exactly as `kwp_waermewende` attaches: the target sums
+  # its inputs, so this needs no copy of the shared module's node into this file.
+  - id: final_energy_use
+
+- id: ie_mp2050_verkehr
+  name_de: 'IE-Leipzig-Szenario MP-2050: Verkehr'
+  name_en: 'IE Leipzig scenario MP-2050: transport'
+  type: simple.GenericAction
+  quantity: energy
+  unit: MWh/a
+  group: mobilitaet
+  description_de: |
+    Der IE-Leipzig-Szenarienvergleich 2021 („Klimaneutralität 2035 – Erste Einschätzung der
+    Machbarkeit") ist neben dem Wärmeplan der einzige quantifizierte Gesamtpfad, den Mainz
+    besitzt. Er beziffert den Endenergieverbrauch je Sektor und Energieträger für 2020, 2030,
+    2035 und – nur im Szenario MP-2050 – 2050, in zwei Ambitionsstufen:<br/>
+    &bull; <b>MP-2050</b>: das Maßnahmenpaket des Masterplans unverändert fortgeführt,
+    Klimaneutralität 2050.<br/>
+    &bull; <b>KN-2035</b>: verstärkte und zusätzliche Maßnahmen, Klimaneutralität 2035.<br/>
+    Diese Maßnahme bildet den Verkehrspfad des Szenarios <b>MP-2050</b> ab.<br/>
+    <b>Wie sie gerechnet wird.</b> Übernommen wird nicht das Niveau der Studie, sondern ihr
+    <i>relativer Pfad</i>, angewandt auf den Bilanzwert 2024 jedes Energieträgers – die
+    Sektorniveaus beider Seiten weichen um bis zu 22 % voneinander ab, und zwar in beide
+    Richtungen. Weil sich auch der Energieträgermix 2024 unterscheidet, wird der Sektor
+    zusätzlich mit einem Korrekturfaktor je Stützjahr auf den Gesamtpfad der Studie
+    zurückgeführt; er steht in jeder Datenzeile. Basisjahr ist 2024 und nicht 2018: der Schritt
+    2018 → 2020 beträgt −8,9 % und ist die Pandemie, keine Maßnahme.<br/>
+    <b>Die Zahlen sind Messwerte.</b> Die Balkensummen der Abbildungen sind beziffert, die
+    Anteile der Energieträger nicht; sie wurden am 17./18.09.2026 von Hand am gedruckten
+    Diagramm in Millimetern gemessen.<br/>
+    <b>Was sie nicht kann.</b> Der Pfad ist das aggregierte Ergebnis des Masterplanpakets und
+    darf deshalb nicht zusammen mit den einzelnen MP100-Maßnahmen laufen, die Teil desselben
+    Pakets sind – für den Verkehr betrifft das C 6.1 (Elektrifizierung der Pkw-Fahrleistung),
+    C 3.1 (Busflotte) und C 4.1 (Radverkehr). Die Emissionswirkung ist zudem schwächer belegt
+    als die Energiewirkung: der Strommix wird bis 2050 konstant gehalten, obwohl jedes Szenario
+    von seiner Dekarbonisierung ausgeht, und genau darauf verlagert dieser Pfad den Verkehr.
+  description_en: |
+    The IE Leipzig scenario comparison of 2021 is, beside the municipal heat plan, the only
+    quantified whole-city path Mainz has. It states final energy by sector and energy carrier
+    for 2020, 2030, 2035 and — in MP-2050 only — 2050, in two ambition levels:<br/>
+    &bull; <b>MP-2050</b>: the Masterplan's measure package carried forward unchanged, climate
+    neutrality in 2050.<br/>
+    &bull; <b>KN-2035</b>: strengthened and additional measures, climate neutrality in 2035.<br/>
+    This action carries the transport path of the <b>MP-2050</b> scenario.<br/>
+    <b>How it is computed.</b> Not the study's levels but its <i>relative</i> path, applied to
+    each carrier's 2024 value in the balance — the two sides' sector levels differ by up to
+    22 %, in both directions. Because the 2024 carrier mixes differ too, each sector is
+    additionally brought back onto the study's own total path by one correction factor per
+    support year, which is recorded in every data row. The base year is 2024 and not 2018: the
+    2018 → 2020 step is −8.9 % and that is the pandemic, not a measure.<br/>
+    <b>These are measurements.</b> The bar totals are printed in the figures; the carrier shares
+    are not, and were measured by hand in millimetres from the printed chart on 17–18 September
+    2026.<br/>
+    <b>What it cannot do.</b> The path is the aggregate outcome of the Masterplan package and
+    must therefore not run beside the individual MP100 measures, which are members of that
+    same package — for transport that is C 6.1 (car electrification), C 3.1 (the bus fleet) and
+    C 4.1 (cycling). Its emissions effect is also weaker evidence than its energy effect: the
+    grid factor is held flat to 2050 although every scenario assumes it falls, and this path
+    moves transport onto exactly that grid.
+  input_dimensions: [vehicle_type, energy_carrier, ie_szenario]
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_datasets:
+  - id: mainz/ie_leipzig_szenarien_verkehr
+    forecast_from: 2025
+    # The dataset carries 2024 (all zero, by construction) and the study's support years;
+    # everything between is the model's straight line. KN-2035 ends in 2035 and its 2035 value
+    # is repeated at 2050, so the path holds rather than rebounds.
+    interpolate: true
+    filters:
+    - dimension: ie_szenario
+      categories: [mp_2050]
+      flatten: true
+  params:
+  - id: operations
+    value: get_single_dataset
+  output_nodes:
+  # Untagged, and additive by that fact, exactly as `kwp_waermewende` attaches: the target sums
+  # its inputs, so this needs no copy of the shared module's node into this file.
+  - id: transport_energy
+
+- id: ie_kn2035_stationaer
+  name_de: 'IE-Leipzig-Szenario KN-2035: stationäre Sektoren'
+  name_en: 'IE Leipzig scenario KN-2035: stationary sectors'
+  type: simple.GenericAction
+  quantity: energy
+  unit: MWh/a
+  group: gebaeude_energie
+  description_de: |
+    Der IE-Leipzig-Szenarienvergleich 2021 („Klimaneutralität 2035 – Erste Einschätzung der
+    Machbarkeit") ist neben dem Wärmeplan der einzige quantifizierte Gesamtpfad, den Mainz
+    besitzt. Er beziffert den Endenergieverbrauch je Sektor und Energieträger für 2020, 2030,
+    2035 und – nur im Szenario MP-2050 – 2050, in zwei Ambitionsstufen:<br/>
+    &bull; <b>MP-2050</b>: das Maßnahmenpaket des Masterplans unverändert fortgeführt,
+    Klimaneutralität 2050.<br/>
+    &bull; <b>KN-2035</b>: verstärkte und zusätzliche Maßnahmen, Klimaneutralität 2035.<br/>
+    Diese Maßnahme bildet den Pfad der stationären Sektoren (Haushalte, Industrie, GHD) des Szenarios <b>KN-2035</b> ab.<br/>
+    <b>Wie sie gerechnet wird.</b> Übernommen wird nicht das Niveau der Studie, sondern ihr
+    <i>relativer Pfad</i>, angewandt auf den Bilanzwert 2024 jedes Energieträgers – die
+    Sektorniveaus beider Seiten weichen um bis zu 22 % voneinander ab, und zwar in beide
+    Richtungen. Weil sich auch der Energieträgermix 2024 unterscheidet, wird der Sektor
+    zusätzlich mit einem Korrekturfaktor je Stützjahr auf den Gesamtpfad der Studie
+    zurückgeführt; er steht in jeder Datenzeile. Basisjahr ist 2024 und nicht 2018: der Schritt
+    2018 → 2020 beträgt −8,9 % und ist die Pandemie, keine Maßnahme.<br/>
+    <b>Die Zahlen sind Messwerte.</b> Die Balkensummen der Abbildungen sind beziffert, die
+    Anteile der Energieträger nicht; sie wurden am 17./18.09.2026 von Hand am gedruckten
+    Diagramm in Millimetern gemessen.<br/>
+    <b>Was sie nicht kann.</b> Der Pfad ist das aggregierte Ergebnis des Masterplanpakets und
+    darf deshalb nicht zusammen mit den einzelnen MP100-Maßnahmen laufen, die Teil desselben
+    Pakets sind. Die Emissionswirkung ist zudem schwächer belegt als die Energiewirkung: der
+    Fernwärmefaktor steht mangels Brennstoffeinsatzdaten auf dem BISKO-Standard von 260 g/kWh,
+    und der Strommix wird bis 2050 konstant gehalten, obwohl jedes Szenario von seiner
+    Dekarbonisierung ausgeht.
+  description_en: |
+    The IE Leipzig scenario comparison of 2021 is, beside the municipal heat plan, the only
+    quantified whole-city path Mainz has. It states final energy by sector and energy carrier
+    for 2020, 2030, 2035 and — in MP-2050 only — 2050, in two ambition levels:<br/>
+    &bull; <b>MP-2050</b>: the Masterplan's measure package carried forward unchanged, climate
+    neutrality in 2050.<br/>
+    &bull; <b>KN-2035</b>: strengthened and additional measures, climate neutrality in 2035.<br/>
+    This action carries the stationary-sector path (households, industry, commerce) of the <b>KN-2035</b> scenario.<br/>
+    <b>How it is computed.</b> Not the study's levels but its <i>relative</i> path, applied to
+    each carrier's 2024 value in the balance — the two sides' sector levels differ by up to
+    22 %, in both directions. Because the 2024 carrier mixes differ too, each sector is
+    additionally brought back onto the study's own total path by one correction factor per
+    support year, which is recorded in every data row. The base year is 2024 and not 2018: the
+    2018 → 2020 step is −8.9 % and that is the pandemic, not a measure.<br/>
+    <b>These are measurements.</b> The bar totals are printed in the figures; the carrier shares
+    are not, and were measured by hand in millimetres from the printed chart on 17–18 September
+    2026.<br/>
+    <b>What it cannot do.</b> The path is the aggregate outcome of the Masterplan package and
+    must therefore not run beside the individual MP100 measures, which are members of that
+    same package. Its emissions effect is also weaker evidence than its energy effect: the
+    district heating factor sits at the BISKO default of 260 g/kWh for want of generation fuel
+    data, and the grid factor is held flat to 2050 although every scenario assumes it falls.
+  input_dimensions: [sector, energy_carrier, ie_szenario]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: mainz/ie_leipzig_szenarien_stationaer
+    forecast_from: 2025
+    # The dataset carries 2024 (all zero, by construction) and the study's support years;
+    # everything between is the model's straight line. KN-2035 ends in 2035 and its 2035 value
+    # is repeated at 2050, so the path holds rather than rebounds.
+    interpolate: true
+    filters:
+    - dimension: ie_szenario
+      categories: [kn_2035]
+      flatten: true
+  params:
+  - id: operations
+    value: get_single_dataset
+  output_nodes:
+  # Untagged, and additive by that fact, exactly as `kwp_waermewende` attaches: the target sums
+  # its inputs, so this needs no copy of the shared module's node into this file.
+  - id: final_energy_use
+
+- id: ie_kn2035_verkehr
+  name_de: 'IE-Leipzig-Szenario KN-2035: Verkehr'
+  name_en: 'IE Leipzig scenario KN-2035: transport'
+  type: simple.GenericAction
+  quantity: energy
+  unit: MWh/a
+  group: mobilitaet
+  description_de: |
+    Der IE-Leipzig-Szenarienvergleich 2021 („Klimaneutralität 2035 – Erste Einschätzung der
+    Machbarkeit") ist neben dem Wärmeplan der einzige quantifizierte Gesamtpfad, den Mainz
+    besitzt. Er beziffert den Endenergieverbrauch je Sektor und Energieträger für 2020, 2030,
+    2035 und – nur im Szenario MP-2050 – 2050, in zwei Ambitionsstufen:<br/>
+    &bull; <b>MP-2050</b>: das Maßnahmenpaket des Masterplans unverändert fortgeführt,
+    Klimaneutralität 2050.<br/>
+    &bull; <b>KN-2035</b>: verstärkte und zusätzliche Maßnahmen, Klimaneutralität 2035.<br/>
+    Diese Maßnahme bildet den Verkehrspfad des Szenarios <b>KN-2035</b> ab.<br/>
+    <b>Wie sie gerechnet wird.</b> Übernommen wird nicht das Niveau der Studie, sondern ihr
+    <i>relativer Pfad</i>, angewandt auf den Bilanzwert 2024 jedes Energieträgers – die
+    Sektorniveaus beider Seiten weichen um bis zu 22 % voneinander ab, und zwar in beide
+    Richtungen. Weil sich auch der Energieträgermix 2024 unterscheidet, wird der Sektor
+    zusätzlich mit einem Korrekturfaktor je Stützjahr auf den Gesamtpfad der Studie
+    zurückgeführt; er steht in jeder Datenzeile. Basisjahr ist 2024 und nicht 2018: der Schritt
+    2018 → 2020 beträgt −8,9 % und ist die Pandemie, keine Maßnahme.<br/>
+    <b>Die Zahlen sind Messwerte.</b> Die Balkensummen der Abbildungen sind beziffert, die
+    Anteile der Energieträger nicht; sie wurden am 17./18.09.2026 von Hand am gedruckten
+    Diagramm in Millimetern gemessen.<br/>
+    <b>Was sie nicht kann.</b> Der Pfad ist das aggregierte Ergebnis des Masterplanpakets und
+    darf deshalb nicht zusammen mit den einzelnen MP100-Maßnahmen laufen, die Teil desselben
+    Pakets sind – für den Verkehr betrifft das C 6.1 (Elektrifizierung der Pkw-Fahrleistung),
+    C 3.1 (Busflotte) und C 4.1 (Radverkehr). Die Emissionswirkung ist zudem schwächer belegt
+    als die Energiewirkung: der Strommix wird bis 2050 konstant gehalten, obwohl jedes Szenario
+    von seiner Dekarbonisierung ausgeht, und genau darauf verlagert dieser Pfad den Verkehr.
+  description_en: |
+    The IE Leipzig scenario comparison of 2021 is, beside the municipal heat plan, the only
+    quantified whole-city path Mainz has. It states final energy by sector and energy carrier
+    for 2020, 2030, 2035 and — in MP-2050 only — 2050, in two ambition levels:<br/>
+    &bull; <b>MP-2050</b>: the Masterplan's measure package carried forward unchanged, climate
+    neutrality in 2050.<br/>
+    &bull; <b>KN-2035</b>: strengthened and additional measures, climate neutrality in 2035.<br/>
+    This action carries the transport path of the <b>KN-2035</b> scenario.<br/>
+    <b>How it is computed.</b> Not the study's levels but its <i>relative</i> path, applied to
+    each carrier's 2024 value in the balance — the two sides' sector levels differ by up to
+    22 %, in both directions. Because the 2024 carrier mixes differ too, each sector is
+    additionally brought back onto the study's own total path by one correction factor per
+    support year, which is recorded in every data row. The base year is 2024 and not 2018: the
+    2018 → 2020 step is −8.9 % and that is the pandemic, not a measure.<br/>
+    <b>These are measurements.</b> The bar totals are printed in the figures; the carrier shares
+    are not, and were measured by hand in millimetres from the printed chart on 17–18 September
+    2026.<br/>
+    <b>What it cannot do.</b> The path is the aggregate outcome of the Masterplan package and
+    must therefore not run beside the individual MP100 measures, which are members of that
+    same package — for transport that is C 6.1 (car electrification), C 3.1 (the bus fleet) and
+    C 4.1 (cycling). Its emissions effect is also weaker evidence than its energy effect: the
+    grid factor is held flat to 2050 although every scenario assumes it falls, and this path
+    moves transport onto exactly that grid.
+  input_dimensions: [vehicle_type, energy_carrier, ie_szenario]
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_datasets:
+  - id: mainz/ie_leipzig_szenarien_verkehr
+    forecast_from: 2025
+    # The dataset carries 2024 (all zero, by construction) and the study's support years;
+    # everything between is the model's straight line. KN-2035 ends in 2035 and its 2035 value
+    # is repeated at 2050, so the path holds rather than rebounds.
+    interpolate: true
+    filters:
+    - dimension: ie_szenario
+      categories: [kn_2035]
+      flatten: true
+  params:
+  - id: operations
+    value: get_single_dataset
+  output_nodes:
+  # Untagged, and additive by that fact, exactly as `kwp_waermewende` attaches: the target sums
+  # its inputs, so this needs no copy of the shared module's node into this file.
+  - id: transport_energy
+# ///// end of the commented-out IE Leipzig block /////
+
 - id: mp100_elektrifizierung_pkw
   name_de: Elektrifizierung der Pkw-Fahrleistung (C 6.1)
   name_en: Electrification of car mileage (C 6.1)
@@ -2493,6 +2845,20 @@ scenarios:
   # the loader does not fold it into any scenario by itself, and a parameter absent from a
   # scenario keeps whatever the previously activated one left behind.
   params:
+  # The IE Leipzig paths are deliberately OFF here, exactly as `kwp_waermewende` is, and
+  # `all_actions_enabled: true` is why they have to be named: it switches on every action,
+  # which would turn both variants on at once and stack them on the `mp100_*` measures whose
+  # aggregate outcome they already are. Listed even where `all_actions_enabled` is false,
+  # because a parameter absent from a scenario keeps whatever the previously activated one
+  # left behind -- the same reason the `selected_number` block below is spelled out.
+  - id: ie_mp2050_stationaer.enabled
+    value: false
+  - id: ie_mp2050_verkehr.enabled
+    value: false
+  - id: ie_kn2035_stationaer.enabled
+    value: false
+  - id: ie_kn2035_verkehr.enabled
+    value: false
   - id: knsv_energetische_sanierung_waerme.selected_number
     value: 0
   - id: knsv_nutzendenverhalten_waerme.selected_number
@@ -2541,6 +2907,20 @@ scenarios:
   # Szenario 1 throughout, stated rather than inherited from the parameter defaults -- see the
   # note on `selected_number` above.
   params:
+  # The IE Leipzig paths are deliberately OFF here, exactly as `kwp_waermewende` is, and
+  # `all_actions_enabled: true` is why they have to be named: it switches on every action,
+  # which would turn both variants on at once and stack them on the `mp100_*` measures whose
+  # aggregate outcome they already are. Listed even where `all_actions_enabled` is false,
+  # because a parameter absent from a scenario keeps whatever the previously activated one
+  # left behind -- the same reason the `selected_number` block below is spelled out.
+  - id: ie_mp2050_stationaer.enabled
+    value: false
+  - id: ie_mp2050_verkehr.enabled
+    value: false
+  - id: ie_kn2035_stationaer.enabled
+    value: false
+  - id: ie_kn2035_verkehr.enabled
+    value: false
   - id: knsv_energetische_sanierung_waerme.selected_number
     value: 0
   - id: knsv_nutzendenverhalten_waerme.selected_number
@@ -2597,6 +2977,20 @@ scenarios:
   name_de: KNSV Szenario 2 (konservativ)
   name_en: KNSV scenario 2 (conservative)
   params:
+  # The IE Leipzig paths are deliberately OFF here, exactly as `kwp_waermewende` is, and
+  # `all_actions_enabled: true` is why they have to be named: it switches on every action,
+  # which would turn both variants on at once and stack them on the `mp100_*` measures whose
+  # aggregate outcome they already are. Listed even where `all_actions_enabled` is false,
+  # because a parameter absent from a scenario keeps whatever the previously activated one
+  # left behind -- the same reason the `selected_number` block below is spelled out.
+  - id: ie_mp2050_stationaer.enabled
+    value: false
+  - id: ie_mp2050_verkehr.enabled
+    value: false
+  - id: ie_kn2035_stationaer.enabled
+    value: false
+  - id: ie_kn2035_verkehr.enabled
+    value: false
   - id: knsv_energetische_sanierung_waerme.selected_number
     value: 1
   - id: knsv_nutzendenverhalten_waerme.selected_number
@@ -2646,6 +3040,20 @@ scenarios:
   name_de: Kommunale Wärmeplanung (Zielszenario 2040)
   name_en: Municipal heat plan (target scenario 2040)
   params:
+  # The IE Leipzig paths are deliberately OFF here, exactly as `kwp_waermewende` is, and
+  # `all_actions_enabled: true` is why they have to be named: it switches on every action,
+  # which would turn both variants on at once and stack them on the `mp100_*` measures whose
+  # aggregate outcome they already are. Listed even where `all_actions_enabled` is false,
+  # because a parameter absent from a scenario keeps whatever the previously activated one
+  # left behind -- the same reason the `selected_number` block below is spelled out.
+  - id: ie_mp2050_stationaer.enabled
+    value: false
+  - id: ie_mp2050_verkehr.enabled
+    value: false
+  - id: ie_kn2035_stationaer.enabled
+    value: false
+  - id: ie_kn2035_verkehr.enabled
+    value: false
   - id: kwp_waermewende.enabled
     value: true
   - id: knsv_energetische_sanierung_waerme.selected_number
@@ -2691,8 +3099,183 @@ scenarios:
   name_de: Masterplan 100% und Kommunale Wärmeplanung
   name_en: Masterplan 100% and municipal heat plan
   params:
+  # The IE Leipzig paths are deliberately OFF here, exactly as `kwp_waermewende` is, and
+  # `all_actions_enabled: true` is why they have to be named: it switches on every action,
+  # which would turn both variants on at once and stack them on the `mp100_*` measures whose
+  # aggregate outcome they already are. Listed even where `all_actions_enabled` is false,
+  # because a parameter absent from a scenario keeps whatever the previously activated one
+  # left behind -- the same reason the `selected_number` block below is spelled out.
+  - id: ie_mp2050_stationaer.enabled
+    value: false
+  - id: ie_mp2050_verkehr.enabled
+    value: false
+  - id: ie_kn2035_stationaer.enabled
+    value: false
+  - id: ie_kn2035_verkehr.enabled
+    value: false
   - id: kwp_waermewende.enabled
     value: true
+  - id: knsv_energetische_sanierung_waerme.selected_number
+    value: 0
+  - id: knsv_nutzendenverhalten_waerme.selected_number
+    value: 0
+  - id: knsv_energieeffizienz_gebaeude_strom.selected_number
+    value: 0
+  - id: knsv_nutzendenverhalten_strom.selected_number
+    value: 0
+  - id: knsv_photovoltaik_eigenerzeugung.selected_number
+    value: 0
+  - id: knsv_dekarbonisierung_fernwaerme.selected_number
+    value: 0
+  - id: knsv_fernwaerme_anschluss.selected_number
+    value: 0
+  - id: knsv_dekarbonisierung_strommix.selected_number
+    value: 0
+  - id: knsv_led_strassenbeleuchtung.selected_number
+    value: 0
+  - id: knsv_elektrifizierung_pkw_flotte.selected_number
+    value: 0
+  - id: knsv_alternative_antriebe_nutzfahrzeuge.selected_number
+    value: 0
+  - id: knsv_dienstreisen_vermeiden.selected_number
+    value: 0
+  - id: knsv_homeoffice.selected_number
+    value: 0
+  - id: knsv_papierloses_buero.selected_number
+    value: 0
+  - id: knsv_abfallreduktion.selected_number
+    value: 0
+  - id: knsv_klimafreundliche_veranstaltungen.selected_number
+    value: 0
+  - id: knsv_vegetarische_verpflegung.selected_number
+    value: 0
+
+# ///// IE Leipzig territorial scenarios -- COMMENTED OUT UNTIL THE DATASETS ARE UPLOADED /////
+#
+# The four actions and two scenarios below are finished and verified as far as they can be
+# without their data: the instance loads, each action resolves and attaches to the right target
+# node, and `create_ie_leipzig_scenario.py` in paths-data lands every sector on the study's own
+# relative path to within 0.05 %. What is missing is the two DVC datasets.
+#
+# They are commented out rather than left live because a missing dataset does not break only
+# these scenarios -- it breaks **every** scenario, `default` included. `final_energy_use` is a
+# FormulaNode, and `_role_from_unit` (src/nodes/operands.py) computes each unused input just to
+# read its unit, so a *disabled* action whose dataset will not load still takes `net_emissions`
+# down with it.
+#
+# To switch them on:
+#
+#   python tools/upload_new_dataset.py -n mainz-bisko -l de \
+#       -i $PATHS_DATA/models/mainz/mainz_ie_leipzig_stationaer.csv \
+#       -o mainz/ie_leipzig_szenarien_stationaer \
+#       --sources-csv $PATHS_DATA/models/mainz/mainz_sources.csv
+#   python tools/upload_new_dataset.py -n mainz-bisko -l de \
+#       -i $PATHS_DATA/models/mainz/mainz_ie_leipzig_verkehr.csv \
+#       -o mainz/ie_leipzig_szenarien_verkehr \
+#       --sources-csv $PATHS_DATA/models/mainz/mainz_sources.csv
+#
+# then bump `dataset_repo.commit` above, uncomment down to the matching end marker, and
+# recompute. Background: paths-data `models/mainz/README.md`, *The IE Leipzig scenarios are
+# built, and wait only on the upload*.
+#
+#
+# The IE Leipzig MP-2050 variant: the Masterplan measure package carried forward
+# unchanged, climate neutrality in 2050. This is the `MP-2050` ambition level the model has
+# been missing -- until now every scenario carried one.
+#
+# `all_actions_enabled: false` is the whole point. These paths are the *aggregate outcome* of
+# the Masterplan package, and the three `mp100_*` actions are individual measures of that same
+# package -- C 6.1, C 3.1 and C 4.1. Switching both on counts the transport measures twice. The
+# heat plan is off here for a different reason: it claims the same heat carriers from a newer
+# source, and which of the two owns the heat layer is a decision the city has not taken.
+# `kwp` and `mp100_kwp` are where the heat plan lives.
+- id: ie_mp2050
+  all_actions_enabled: false
+  name_de: 'IE-Leipzig-Szenario MP-2050 (Klimaneutralität 2050)'
+  name_en: 'IE Leipzig scenario MP-2050 (climate neutrality 2050)'
+  params:
+  # The IE Leipzig paths are deliberately OFF here, exactly as `kwp_waermewende` is, and
+  # `all_actions_enabled: true` is why they have to be named: it switches on every action,
+  # which would turn both variants on at once and stack them on the `mp100_*` measures whose
+  # aggregate outcome they already are. Listed even where `all_actions_enabled` is false,
+  # because a parameter absent from a scenario keeps whatever the previously activated one
+  # left behind -- the same reason the `selected_number` block below is spelled out.
+  - id: ie_mp2050_stationaer.enabled
+    value: true
+  - id: ie_mp2050_verkehr.enabled
+    value: true
+  - id: ie_kn2035_stationaer.enabled
+    value: false
+  - id: ie_kn2035_verkehr.enabled
+    value: false
+  - id: kwp_waermewende.enabled
+    value: false
+  - id: knsv_energetische_sanierung_waerme.selected_number
+    value: 0
+  - id: knsv_nutzendenverhalten_waerme.selected_number
+    value: 0
+  - id: knsv_energieeffizienz_gebaeude_strom.selected_number
+    value: 0
+  - id: knsv_nutzendenverhalten_strom.selected_number
+    value: 0
+  - id: knsv_photovoltaik_eigenerzeugung.selected_number
+    value: 0
+  - id: knsv_dekarbonisierung_fernwaerme.selected_number
+    value: 0
+  - id: knsv_fernwaerme_anschluss.selected_number
+    value: 0
+  - id: knsv_dekarbonisierung_strommix.selected_number
+    value: 0
+  - id: knsv_led_strassenbeleuchtung.selected_number
+    value: 0
+  - id: knsv_elektrifizierung_pkw_flotte.selected_number
+    value: 0
+  - id: knsv_alternative_antriebe_nutzfahrzeuge.selected_number
+    value: 0
+  - id: knsv_dienstreisen_vermeiden.selected_number
+    value: 0
+  - id: knsv_homeoffice.selected_number
+    value: 0
+  - id: knsv_papierloses_buero.selected_number
+    value: 0
+  - id: knsv_abfallreduktion.selected_number
+    value: 0
+  - id: knsv_klimafreundliche_veranstaltungen.selected_number
+    value: 0
+  - id: knsv_vegetarische_verpflegung.selected_number
+    value: 0
+
+# The IE Leipzig KN-2035 variant: strengthened and additional measures, climate
+# neutrality in 2035 -- the target the city council actually resolved on. It ends in 2035,
+# and its 2035 level is held to 2050 rather than extrapolated.
+#
+# `all_actions_enabled: false` is the whole point. These paths are the *aggregate outcome* of
+# the Masterplan package, and the three `mp100_*` actions are individual measures of that same
+# package -- C 6.1, C 3.1 and C 4.1. Switching both on counts the transport measures twice. The
+# heat plan is off here for a different reason: it claims the same heat carriers from a newer
+# source, and which of the two owns the heat layer is a decision the city has not taken.
+# `kwp` and `mp100_kwp` are where the heat plan lives.
+- id: ie_kn2035
+  all_actions_enabled: false
+  name_de: 'IE-Leipzig-Szenario KN-2035 (Klimaneutralität 2035)'
+  name_en: 'IE Leipzig scenario KN-2035 (climate neutrality 2035)'
+  params:
+  # The IE Leipzig paths are deliberately OFF here, exactly as `kwp_waermewende` is, and
+  # `all_actions_enabled: true` is why they have to be named: it switches on every action,
+  # which would turn both variants on at once and stack them on the `mp100_*` measures whose
+  # aggregate outcome they already are. Listed even where `all_actions_enabled` is false,
+  # because a parameter absent from a scenario keeps whatever the previously activated one
+  # left behind -- the same reason the `selected_number` block below is spelled out.
+  - id: ie_mp2050_stationaer.enabled
+    value: false
+  - id: ie_mp2050_verkehr.enabled
+    value: false
+  - id: ie_kn2035_stationaer.enabled
+    value: true
+  - id: ie_kn2035_verkehr.enabled
+    value: true
+  - id: kwp_waermewende.enabled
+    value: false
   - id: knsv_energetische_sanierung_waerme.selected_number
     value: 0
   - id: knsv_nutzendenverhalten_waerme.selected_number
