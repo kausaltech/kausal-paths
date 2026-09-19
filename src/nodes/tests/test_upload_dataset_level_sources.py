@@ -124,12 +124,81 @@ def test_uncited_source_without_a_registry_entry_warns(tmp_path):
     assert {s['name'] for s in sources or []} == {'Energiebilanz', 'Nicht registriert'}
 
 
-def test_datasets_restriction_naming_a_dataset_the_run_does_not_produce_is_refused(tmp_path):
+def test_datasets_restriction_naming_a_dataset_the_run_does_not_produce_is_counted(tmp_path, capsys):
+    """
+    It reports rather than raises, because a registry serves a module and not one upload.
+
+    This used to raise, on the reasoning that a restriction matching nothing is silently
+    inert. That holds when the registry accompanies a single upload. It stopped holding once
+    one registry described a whole module -- `bisko_sources.csv` covers 23 datasets that are
+    uploaded a few at a time, and is read by `restamp_dataset_sources` for the ones with no
+    generator CSV at all -- because then most entries legitimately name datasets any given run
+    does not produce, and raising failed every upload. "Not in this run" cannot be told from
+    "typo" without the module's full dataset list, which this command does not have; a count
+    is what it can say honestly, and a count is not silent.
+    """
     registry = _registry(tmp_path)
 
     check_registry_dataset_names(registry, ['Fahrleistung', 'Energieverbrauch'])
-    with pytest.raises(ValueError, match='which this run does not produce'):
-        check_registry_dataset_names(registry, ['Energieverbrauch'])
+    assert 'name no dataset in this run' not in capsys.readouterr().out
+
+    check_registry_dataset_names(registry, ['Energieverbrauch'])
+    assert '1 of 3 registry source(s) name no dataset in this run' in capsys.readouterr().out
+
+
+def test_datasets_restriction_may_be_a_full_identifier(tmp_path):
+    """A `Datasets` entry may name the DVC identifier the run writes, not only the leaf."""
+    registry = _registry(
+        tmp_path,
+        'Name,Authority,Target,Datasets\nVerkehrsmodell,City,dataset,de/Fahrleistung\n',
+    )
+    entry = registry['Verkehrsmodell']
+
+    assert entry.applies_to('Fahrleistung', 'de/Fahrleistung') is True
+    assert entry.applies_to('Fahrleistung') is False, 'the leaf alone must not satisfy a de/ restriction'
+
+
+def test_the_namespace_separates_two_datasets_sharing_a_leaf_name(tmp_path):
+    """
+    The reason full identifiers are preferred: leaf names repeat across namespaces.
+
+    Six BISKO leaf names exist in both `de/` and `kommune/` -- the national ifeu factor tables
+    and a city's editable copies of them. Matching on the leaf would stamp the national table's
+    provenance onto the city's copy, which says something false about who produced it.
+    """
+    registry = _registry(
+        tmp_path,
+        'Name,Authority,Target,Datasets\n'
+        'ifeu,ifeu,dataset,de/emissionsfaktoren_erzeugung\n'
+        'Lokale Kopie,Kommune,dataset,kommune/emissionsfaktoren_erzeugung\n',
+    )
+    df = pl.DataFrame({'Year': [2023], 'Value': [1.0]})
+
+    national = build_sources_metadata(df, registry, 'emissionsfaktoren_erzeugung', 'de/emissionsfaktoren_erzeugung')
+    local = build_sources_metadata(df, registry, 'emissionsfaktoren_erzeugung', 'kommune/emissionsfaktoren_erzeugung')
+
+    assert [s['name'] for s in national or []] == ['ifeu']
+    assert [s['name'] for s in local or []] == ['Lokale Kopie']
+
+
+def test_without_a_namespace_the_check_falls_back_to_leaf_names(tmp_path, capsys):
+    """
+    `--output-csv` with no `--output-dvc` writes nothing and so knows no namespace.
+
+    The check still has to work there, since that is the mode an upload is rehearsed in, so it
+    compares leaves on both sides -- giving up only the distinction the run has not been told
+    enough to draw.
+    """
+    registry = _registry(
+        tmp_path,
+        'Name,Authority,Target,Datasets\nVerkehrsmodell,City,dataset,de/Fahrleistung\n',
+    )
+
+    check_registry_dataset_names(registry, ['Fahrleistung'])
+    assert 'name no dataset in this run' not in capsys.readouterr().out
+
+    check_registry_dataset_names(registry, ['Fahrleistung'], 'kommune')
+    assert '1 of 1 registry source(s) name no dataset in this run' in capsys.readouterr().out
 
 
 def test_a_single_dataset_run_ignores_a_datasets_restriction():
