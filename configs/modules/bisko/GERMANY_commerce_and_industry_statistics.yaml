@@ -101,7 +101,8 @@ nodes:
 # ----- DE-wide leaf data, by wz_code (Destatis) -----
 # Not yet wired into the rest of the model; provides the DE-average per-employee
 # and per-revenue ratios that a city-specific module can later multiply by its
-# own local employee counts (e.g. Mainz's GHD/Industrie electricity split).
+# own local employee counts (for instance to split a city's electricity between
+# GHD and Industrie).
 
 - id: sector_electricity_consumption
   name_en: Electricity consumption by sector (DE)
@@ -215,7 +216,7 @@ nodes:
 # ----- Local (city-specific) leaf data and derived consumption, by wz_code -----
 # 'bisko/local_employees_by_sector' is a generic placeholder id: cities that
 # include this module supply their own local employee counts via
-# dataset_replacements (see mainz-bisko.yaml for the Mainz replacement).
+# dataset_replacements, in their own config.
 
 - id: sector_employees_local
   name_en: Employees by sector (local)

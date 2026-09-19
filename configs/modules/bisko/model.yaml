@@ -47,16 +47,16 @@ datasets:
   is_editable: false
 - id: demography/population_lau               # Eurostat GISCO population per municipality
   # Locked, and outside `de/`, because it is neither editable nor German-specific: the same
-  # 94,000 municipalities serve Zurich, Cork and Lappeenranta, exactly as
+  # 94,000 municipalities serve every European instance, German or not, exactly as
   # `weather/heating_degree_days` does. `data/population/` rebuilds it from the Eurostat GISCO
   # LAU releases once a year.
   #
   # **Municipality level, not NUTS-3.** A NUTS-3 region is the city only where the city is a
   # Kreisfreie Stadt; a headcount is a sum over an area, so for a city that is not its own Kreis
-  # the region's population is not an approximation of the city's but a different number --
-  # `DE141` is the Landkreis Reutlingen, 293,000 against 118,500 in the town. The LAU table is
-  # keyed on the municipality itself, and for Germany the LAU code **is the AGS**, so
-  # `DE_07315000` is Mainz -- the same municipality `ags_number` already names.
+  # the region's population is not an approximation of the city's but a different number: a
+  # Landkreis can hold several times the population of the town it is named after. The LAU table
+  # is keyed on the municipality itself, and for Germany the LAU code **is the AGS**, so
+  # `DE_<AGS>` is the same municipality `ags_number` already names.
   #
   # Read as an **external DVC placeholder**, not loaded into an instance's database. Its
   # `municipality` column is a human-readable label rather than a dimension, and 94,000
@@ -188,15 +188,15 @@ datasets:
     - {kind: value_range, enforcement: block_edit, min: 0, max: 1}
 - id: kommune/witterungsbereinigung            # degree days; not part of the BISKO baseline
   # Editable, and in the municipal namespace, because degree days are a property of the city's
-  # own weather -- the shipped values are a Potsdam delivery standing in until the city has its
-  # own. It sat in `de/` and locked until 2026-08-21, which said "national methodology
+  # own weather -- the shipped values are one German city's delivery standing in until the city
+  # has its own. It sat in `de/` and locked until 2026-08-21, which said "national methodology
   # constant" about a number that is neither. Being editable does not make a weather-corrected
   # balance conformant: criterion 5 forbids the correction outright, and `has_no_weather_
   # correction` gates on the switch, not on these values.
   #
   # `data/weather/` builds a city's own factors from the Eurostat degree-day table, at NUTS-3
   # so the region is the city rather than its hinterland, keyed on the instance's `nuts_code`
-  # parameter. Mainz was the first off the placeholder (2026-08-27). Note that the Eurostat
+  # parameter. Note that the Eurostat
   # convention (18 degC reference) and the German Gradtagzahl G20/15 (20 degC) are not
   # interchangeable -- the German factors are measurably flatter -- so a city that supplies its
   # own VDI 3807 series is not supplying the same quantity. See `data/weather/README.md`.
@@ -636,6 +636,23 @@ dimensions:
     aliases: [Abfall KWK]
     color: '#35271C'
     order: 2
+  # Added 2026-09-19. Sewage sludge is a real and growing district-heating fuel -- on some German
+  # networks a quarter or more of the fuel input -- and ifeu delivers no emission factor for it,
+  # in either sheet.
+  # It carries the residual category's factor (0.330 t CO2e/MWh) as a placeholder, which asserts
+  # nothing new: a fuel the carrier list does not name is booked under
+  # `other_conventional_energy_carriers` anyway, so that is the number a sludge-burning network
+  # already gets. Naming the carrier only makes it visible instead of hidden in the residue.
+  #
+  # An empty factor was the first plan and is worse: an unvalued fuel does not raise, its row drops
+  # out of the multiplication, and the sludge would be silently emission-free. The value errs high
+  # -- sludge carbon is largely biogenic -- which is the safe direction for an inventory. Replace
+  # it when ifeu answers. See modules/bisko/bisko-moeglichkeit-1-factor-table.md in paths-data.
+  - id: sewage_sludge
+    label_en: Sewage sludge
+    label_de: Klärschlamm
+    color: '#4E4033'
+    order: 3
   - id: conventional_waste_heat_gt_90
     label_en: Conventional waste heat > 90 C
     label_de: Konventioneller Abwärme >90 C
@@ -779,126 +796,13 @@ dimensions:
     color: '#303030'
     order: 26
 
-# Two granularities coexist here, because two sources report at two levels: the
-# KSP Datenerfassung (Daten kommunale Einrichtungen) merges schools with day-care
-# centres and lumps everything else into `other_infrastructure`, while a
-# GHG-Protocol administration balance reports per property group. Categories for
-# both are declared so each source can be written at the level it actually has.
-#
-# `schools_kitas` therefore OVERLAPS `schools` + `day_care_centres`. Never mix the
-# two levels within one dataset -- that double-counts. Pick the level the source
-# reports at, and aggregate afterwards if a coarser view is wanted.
-#
-# Aggregating over this dimension is safe at any point: every emission factor node
-# in this module is dimensioned on `energy_carrier` (some also on
-# `per_what_energy`) and none on `municipal_facility_type`, so factors broadcast
-# across facility type and activity x factor gives the same total whether the
-# aggregation happens before or after the multiply.
-- id: municipal_facility_type
-  label_en: Municipal facility type
-  label_de: Art der kommunalen Einrichtung
-  help_text: Municipal facility groups. Coarse categories follow the KSP
-    Datenerfassung (Daten kommunale Einrichtungen); the finer property groups
-    follow GHG-Protocol administration balances.
-  categories:
-  # --- KSP Datenerfassung level ---
-  - id: street_lighting
-    label_en: Street lighting
-    label_de: Straßenbeleuchtung
-  - id: administrative_buildings
-    label_en: Municipal administrative buildings
-    label_de: Kommunale Verwaltungsgebäude
-    aliases: [kommunale_verwaltungsgebaude, verwaltungen]
-  - id: schools_kitas
-    label_en: Schools and day-care centres
-    label_de: Schulen und Kindertagesstätten
-    aliases: [schulen_kitas]
-  - id: other_infrastructure
-    label_en: Other municipal buildings and infrastructure
-    label_de: Sonstige kommunale Gebäude und Infrastruktur
-  # --- Administration-balance property groups (finer than the above) ---
-  - id: fire_and_civil_protection
-    label_en: Fire brigades and civil protection
-    label_de: Feuerwehren und Zivilschutz
-    aliases: [feuerwehren_zivilschutz]
-  - id: schools
-    label_en: Schools
-    label_de: Schulen
-  - id: day_care_centres
-    label_en: Day-care centres
-    label_de: Kindertagesstätten
-    aliases: [kitas]
-  - id: cultural_facilities
-    label_en: Cultural facilities
-    label_de: Kultureinrichtungen
-  - id: childrens_youth_and_social_facilities
-    label_en: Children's, youth and social facilities
-    label_de: Kinder-, Jugend- und Sozialeinrichtungen
-  - id: youth_centres
-    label_en: Youth centres
-    label_de: Jugendhäuser
-  - id: parks_and_environment_buildings
-    label_en: Parks and environment department buildings
-    label_de: Gebäude des Grün- und Umweltamtes
-  # --- Not a property group ---
-  # The administration balance books fleet fuel, business travel, commuting,
-  # procurement and postal transport against the authority as a whole, because no
-  # property owns them. Distinct from a blank cell, which says the dimension does
-  # not apply to the row at all.
-  - id: cross_cutting
-    label_en: Cross-cutting (no single property)
-    label_de: Übergreifend
-    aliases: [uebergreifend]
-
-  # Consumption that belongs to a property the source does not identify well enough to
-  # place in a group *yet*. Three different statements, and they must not be conflated:
-  #
-  #   cross_cutting      no single property owns it (fleet fuel, postal transport)
-  #   to_be_determined   a property owns it, we have not yet established which group --
-  #                      an open question, expected to be answered and then to disappear
-  #   (a blank cell)     the dimension does not apply to this row at all
-  #
-  # A fourth, "unknown" -- a property owns it and no further detail will ever arrive --
-  # is deliberately absent until something needs it. It is the resting state of a
-  # question that has been asked and closed; `to_be_determined` is one still open.
-  #
-  # First user: the Gebäudewirtschaft SAP records, where the WE ranges 5000-5199 and
-  # 5200-7999 (and the separately metered 2500-* and 2820 rows) carry real consumption
-  # that the Arqum comparison does not place in any group. Keeping it visible under its
-  # own category beats folding it into the nearest plausible group, and beats a blank,
-  # which would leave the dimension partly populated for that metric.
-  - id: to_be_determined
-    label_en: To be determined
-    label_de: Noch zuzuordnen
-    aliases: [noch_zuzuordnen]
-
-  # The two groups a GHG-Protocol administration balance on an operational-control
-  # boundary leaves out. They are municipal property and their energy is real; they are
-  # simply not the Kernverwaltung, so a balance scoped to it excludes them *explicitly*
-  # rather than by not having the data.
-  #
-  # Named from the Arqum report's own boundary section (§2.3.1): "Ausgenommen sind das
-  # Staatstheater (Objektcode 3010, 3020) sowie Sport- und Freizeitanlagen (Objektcode
-  # 5000-5199) und sonstige Einrichtungen wie Wohnungen und Lager (Objektcode
-  # 5200-7999)." Mainz's property register agrees: 5000-5199 is sports grounds, halls,
-  # changing rooms, the ice rink and a pool; 5200-7999 is housing, depots, storage halls
-  # and monuments.
-  #
-  # Carrying them as categories rather than dropping the rows keeps the exclusion
-  # auditable: the balance node names what it leaves out, and the consumption is still
-  # in the dataset for anyone asking what the whole portfolio uses.
-  - id: sports_and_leisure_facilities
-    label_en: Sports and leisure facilities
-    label_de: Sport- und Freizeitanlagen
-    aliases: [sport_und_freizeitanlagen]
-  # Declared for the boundary statement and not yet carried by any row: the SAP range
-  # that holds these properties (5200-7999) also holds objects 6815, 6817 and 6818,
-  # which the same report puts *inside* Verwaltungen, so that range stays
-  # `to_be_determined` until the split is known. See parse_sap_evu.py.
-  - id: housing_and_storage
-    label_en: Housing, depots and storage
-    label_de: Wohnungen und Lager
-    aliases: [wohnungen_und_lager]
+# `municipal_facility_type` was defined here until 2026-09-19 and now lives in
+# `modules/gpc/municipal_balance.yaml`, the only module that uses it. Nothing in this file
+# references it: the one node that would, `final_municipal_facilities_energy_use_by_type`,
+# has been commented out since before the dimension existed. If that node is ever brought
+# back, move the dimension here rather than declaring a second one -- a dimension cannot be
+# defined twice, and its coarse KSP-Datenerfassung categories are territorial-balance
+# categories that both modules would then need to reach.
 
 - id: per_what_energy
   label_en: Per what energy
@@ -1348,9 +1252,9 @@ nodes:
     <b>BISKO does not permit this correction</b> (criterion 5). The balance computes without it
     by default; switching <i>Witterungsbereinigung durchführen</i> on makes the result explicitly
     non-conformant, and <code>has_no_weather_correction</code> reports that. The factors are
-    city data — the shipped series is a Potsdam delivery standing in until the city enters its
-    own degree days — but editing them cannot make a corrected balance conformant, because the
-    conformity test is on the switch, not on the values.
+    city data — the shipped series is a stand-in until the city enters its own degree days — but
+    editing them cannot make a corrected balance conformant, because the conformity test is on
+    the switch, not on the values.
   description_de: |
     Das Verhältnis der Gradtagzahlen des Bilanzjahres zum langjährigen Mittel (1970–2014), je
     Sektor. Es skaliert den raumwärmebedingten Anteil des Endenergieverbrauchs eines Sektors auf
@@ -1362,8 +1266,8 @@ nodes:
     <b>BISKO lässt diese Bereinigung nicht zu</b> (Kriterium 5). Die Bilanz rechnet
     standardmäßig ohne sie; wird <i>Witterungsbereinigung durchführen</i> eingeschaltet, ist das
     Ergebnis ausdrücklich nicht BISKO-konform, und <code>has_no_weather_correction</code> weist
-    das aus. Die Faktoren sind kommunale Daten – die ausgelieferte Reihe ist eine Potsdamer
-    Lieferung als Vorbelegung, bis die Kommune eigene Gradtagzahlen einträgt –, doch ihre
+    das aus. Die Faktoren sind kommunale Daten – die ausgelieferte Reihe ist eine Vorbelegung,
+    bis die Kommune eigene Gradtagzahlen einträgt –, doch ihre
     Bearbeitung kann eine bereinigte Bilanz nicht konform machen, denn geprüft wird der Schalter
     und nicht der Wert.
   type: generic.GenericNode
@@ -1526,8 +1430,9 @@ nodes:
     # The same backfill and extend as final_energy_use's own binding, because the correction has
     # to span the same years as the figure it comes out of. Without them the subtraction stops
     # where the environmental-heat series stops while the electricity it corrects keeps being
-    # extended, so the double count quietly returns for the later years -- mainz-bisko is the live
-    # case, its environmental heat ends in 2018 and its balance runs to 2023.
+    # extended, so the double count quietly returns for the later years. This is not theoretical:
+    # an environmental-heat series that stops several years before the balance does is the common
+    # case, because heat-pump figures arrive later than electricity figures.
     backfill: true
     extend: true
     filters:
@@ -1700,7 +1605,8 @@ nodes:
     # between the grades -- the scale is A/B/C/D = 100/50/25/0 %, and 62,5 % is not a grade
     # BISKO has a name for. The gate never depended on the fills (has_all_data_quality_grades
     # reads final_energy_use_quality_availability, which strips them), but the displayed
-    # Gesamtdatengüte did: with them on, schwerin-bisko reported 83,2 % for 2050.
+    # Gesamtdatengüte did: with them on, an instance reported a Gesamtdatengüte above 80 % for a
+    # forecast year in which nobody had graded anything.
     backfill: false
     extend: false
     interpolate: false
@@ -1923,22 +1829,31 @@ nodes:
 
 - id: district_heating_energy_use
   is_editable: false
-  name_de: Endenergieverbrauch Fernwärme
+  name_de: Energieeinsatz und Wärmeabgabe der Fernwärmeanlagen
   description_en: |
-    District heating delivered to the four stationary sectors, in final energy at the house
-    connection. This is the quantity a Fernwärme emission factor is applied to, whichever of
-    BISKO's three routes the year takes.<br/>
-    It is the consumption side. The plant side — the fuel a heat network burns and the heat it
-    produces — is <i>District heating plant data availability</i> and the dataset behind it, and
-    it is only needed for Möglichkeit 1.
+    The <b>plant side</b> of the city's district heating: the fuel a heat network burns, per
+    carrier, and the heat it produces, per generation technology. Both in MWh per year, as the
+    heat supplier reports them.<br/>
+    This is the input to BISKO Möglichkeit 1 and is needed for nothing else. The exergetic
+    allocation divides the fuel emissions between heat and electricity, and the result becomes the
+    network's own emission factor. A year the supplier has not reported falls through to
+    Möglichkeit 3 or 2; <i>Own CHP plant data availability</i> reports which years those are.<br/>
+    Not to be confused with the <b>consumption side</b> — the district heating the four stationary
+    sectors buy at the house connection, which is part of <i>Final energy use</i> and is what any
+    Fernwärme emission factor is ultimately applied to, on all three routes.
   description_de: |
-    An die vier stationären Sektoren gelieferte Fernwärme, als Endenergie am Hausanschluss. Das ist
-    die Größe, auf die ein Fernwärme-Emissionsfaktor angewendet wird, unabhängig davon, welchen der
-    drei BISKO-Wege ein Jahr nimmt.<br/>
-    Dies ist die Verbrauchsseite. Die Anlagenseite – der Brennstoff, den ein Wärmenetz einsetzt, und
-    die Wärme, die es erzeugt – steht in „Datenverfügbarkeit der Fernwärme-Anlagendaten" und dem
-    Datensatz dahinter und wird nur für Möglichkeit 1 gebraucht.
-  name_en: District heating final energy use
+    Die <b>Anlagenseite</b> der kommunalen Fernwärme: der Brennstoff, den das Wärmenetz einsetzt,
+    je Energieträger, und die Wärme, die es erzeugt, je Erzeugungstechnik. Beides in MWh pro Jahr,
+    wie der Wärmeversorger sie meldet.<br/>
+    Das ist die Eingangsgröße der BISKO-Möglichkeit 1 und wird für nichts anderes gebraucht. Die
+    exergetische Allokation teilt die Brennstoffemissionen zwischen Wärme und Strom auf, und daraus
+    entsteht der netzeigene Emissionsfaktor. Ein Jahr ohne Meldung des Versorgers fällt auf
+    Möglichkeit 3 oder 2 zurück; „Datenverfügbarkeit der eigenen KWK-Anlagendaten" weist aus,
+    welche Jahre das sind.<br/>
+    Nicht zu verwechseln mit der <b>Verbrauchsseite</b> – der Fernwärme, die die vier stationären
+    Sektoren am Hausanschluss beziehen. Diese steht in „Endenergieverbrauch" und ist die Größe, auf
+    die ein Fernwärme-Emissionsfaktor auf allen drei Wegen letztlich angewendet wird.
+  name_en: District heating plant fuel input and heat output
   type: simple.AdditiveNode2
   quantity: energy
   unit: MWh/a
@@ -1971,13 +1886,46 @@ nodes:
   input_dimensions: [energy_carrier, per_what_energy]
   output_dimensions: [energy_carrier, per_what_energy]
   input_datasets:
-  - id: de/emissionsfaktoren_endenergie
+  # The GENERATION factors, not the end-energy ones. This is the fuel a heat plant burns, and
+  # `de/emissionsfaktoren_endenergie` describes what an end user buys -- a different quantity that
+  # happens to share most of its carrier names. On the ordinary fuels the two differ only a little
+  # (natural gas 0.238 against 0.252, heating oil 0.306 against 0.313), but the residual category
+  # differs by a factor of thirteen (0.330 against 0.025), and `waste` -- the largest input of many
+  # German heat networks -- exists only here.
+  #
+  # Changed 2026-09-19. Until then this read the end-energy table, so Möglichkeit 1 selected
+  # correctly and then valued the fuel wrongly. Invisible twice over: no instance is on that route,
+  # and the conformity matrix's fixture used natural gas and hard coal, whose factors are
+  # near-identical in both tables. `de/emissionsfaktoren_erzeugung` was completed in the same pass
+  # with the seven carriers that are heat-network inputs but not combustion fuels (power-to-heat,
+  # heat pumps, solar thermal, the four waste-heat grades), copied from the end-energy table with
+  # the reason in each row's own comment. Full finding and measurement:
+  # `modules/bisko/bisko-moeglichkeit-1-factor-table.md` in paths-data.
+  #
+  # **The dataset, not `electricity_production_emission_factors`**, although that node reads the
+  # same table. That node carries a `local` port over `kommune/emissionsfaktoren_erzeugung` and
+  # the `use_national_values` switch, and routing Möglichkeit 1 through it would let a city change
+  # its district heating factor by editing a factor table. Criterion 6.2 is the reason
+  # `emission_factors_for_district_heating_by_generic_fuel` has no local port either: a city that
+  # wants its own figure describes its network -- plant fuel input and heat output -- and the
+  # exergetic allocation derives the factor. Reading `de/` straight is what keeps that closed.
+  - id: de/emissionsfaktoren_erzeugung
     extend: true  # GenericNode extended its dataset; keep that explicit
     # The left operand of the multiplication, not an addend: it carries the node's own unit,
     # so the unit rule alone would add it. (Same as kommune/endenergieverbrauch below.)
     tags: [non_additive]
     filters:
     - column: upstream_included
+    # The fuel side only. The generation table also carries `electricity_output` rows -- wind,
+    # photovoltaic, hydropower -- which have no business in a heat plant's fuel valuation; before
+    # this filter they reached the node's output as wind 6.5 and photovoltaic 20.5 g/kWh, saved
+    # from reaching the balance only by the plant form having no electricity-output cells. Named
+    # positively rather than as `exclude: [electricity_output]` so that a `heat_output` block, if
+    # ifeu ever adds one to this sheet, does not silently collide with the heat-output factors
+    # that `emission_factors_without_fuel_data` contributes below.
+    - column: per_what_energy
+      value: fuel_input
+      drop_col: false
   input_nodes:
   - id: combined_heat_and_power_chp_fraction
     from_dimensions:
@@ -2468,30 +2416,60 @@ nodes:
 
 - id: electricity_production_emission_factors
   is_editable: false
-  name_de: Emissionsfaktoren für Erzeugung
-  name_en: Emission factors for electricity production
+  name_de: Emissionsfaktoren der Energieerzeugung
+  name_en: Emission factors for energy generation
   description_en: |
-    The emission factors are given per final electricity produced. They are relevant for renewable electricity
-    production or power plants producing only electricity (i.e., not combined heat and power plants) anywhere in
-    Germany. They include upstream emissions of energy used for production. Upstream products (gray emissions)
-    are not included. The gases considered are CO<sub>2</sub>, CH<sub>4</sub>, and N<sub>2</sub>O, and the values
-    are CO<sub>2</sub> equivalents for 100-year global warming potential.<br/>
-    These emission factors were received from IFEU, and they are updated annually. The detailed data sources are given
-    in the dataset. There are two versions of this dataset, national and local. You can toggle between the two
-    via 'Edit scenario' panel with the national vs. local toggle.<br/> Originally the datasets
-    are the same, but the city admin user can edit the local values via the admin user interface.
+    The ifeu <i>Erzeugung</i> factor table, shown in full. It has two sides, and they are different
+    quantities:<br/>
+    <b>Fuel input</b> — what a plant emits per unit of fuel it burns, for every carrier a German
+    heat or power plant can be fired with. This is the side BISKO Möglichkeit 1 values a city's own
+    plant data with, in <i>District heating fuel emission factors</i>.<br/>
+    <b>Electricity output</b> — what a plant emits per unit of electricity it produces, for
+    renewable generation and for plants producing electricity only (not combined heat and power).
+    Shown for reference and <b>deliberately unused</b>: BISKO values a city's electricity
+    consumption at the national grid mix and does not net off local generation, so a locally
+    derived electricity factor has no place in the balance (criterion 4.3).<br/>
+    The factors include upstream emissions of the energy used for production; upstream products
+    (grey emissions) are not included. The gases are CO<sub>2</sub>, CH<sub>4</sub> and
+    N<sub>2</sub>O, as CO<sub>2</sub> equivalents over 100 years. They come from ifeu and are
+    updated annually; the data sources are given in the dataset.<br/>
+    There are a national and a local version, switchable in the 'Edit scenario' panel. The local
+    one is a snapshot taken when it was created, not a mirror: it does not follow later additions to
+    the national table, so it can carry fewer carriers. A city admin can edit it — but a balance
+    computed on local factors
+    is not BISKO-conform, and <i>Has national electricity emission factors?</i> drops to 0 the
+    moment the switch is thrown. District heating does not follow this switch: Möglichkeit 1 reads
+    the national table directly, because criterion 6.2 does not allow a city's district heating
+    factor to be typed in at all.
   description_de: |
-    Die Emissionsfaktoren sind pro erzeugter Endstrommenge angegeben. Sie sind relevant für erneuerbare
-    Stromerzeugung oder Kraftwerke, die ausschließlich Strom erzeugen (d. h. keine
-    Kraft-Wärme-Kopplungsanlagen) überall in Deutschland. Sie enthalten Vorkettenemissionen der für die
-    Produktion verwendeten Brennstoffe. Die berücksichtigten Gase sind CO<sub>2</sub>, CH<sub>4</sub> und
-    N<sub>2</sub>O, und die Werte sind CO<sub>2</sub>-Äquivalente für ein 100-jähriges
-    Treibhauspotenzial (GWP).<br/>
-    Diese Emissionsfaktoren stammen von IFEU und werden jährlich aktualisiert. Die detaillierten Datenquellen sind
-    im Datensatz angegeben. Es gibt zwei Versionen dieses Datensatzes, national und lokal. Sie können zwischen den
-    beiden über das Panel „Szenario bearbeiten“ mit dem national-vs.-lokal-Schalter wechseln.<br/> Ursprünglich sind
-    die Datensätze gleich, aber die Stadt-Admin-Benutzer können die lokalen Werte über die
-    Admin-Benutzeroberfläche anpassen.
+    Die ifeu-Faktortabelle <i>Erzeugung</i>, vollständig dargestellt. Sie hat zwei Seiten, und das
+    sind unterschiedliche Größen:<br/>
+    <b>Brennstoffeinsatz</b> – was eine Anlage je eingesetzter Brennstoffmenge emittiert, für jeden
+    Energieträger, mit dem ein deutsches Heiz- oder Kraftwerk befeuert werden kann. Mit dieser Seite
+    bewertet die BISKO-Möglichkeit 1 die eigenen Anlagendaten einer Kommune, in
+    „Fernwärme Brennstoffemissionfaktoren".<br/>
+    <b>Stromabgabe</b> – was eine Anlage je erzeugter Strommenge emittiert, für erneuerbare
+    Erzeugung und für Anlagen, die ausschließlich Strom erzeugen (keine Kraft-Wärme-Kopplung). Zur
+    Einsicht dargestellt und <b>bewusst ungenutzt</b>: BISKO bewertet den Stromverbrauch einer
+    Kommune mit dem Bundesstrommix und rechnet die lokale Erzeugung nicht gegen, ein lokal
+    abgeleiteter Stromfaktor hat in der Bilanz also nichts zu suchen (Kriterium 4.3).<br/>
+    Die Faktoren enthalten Vorkettenemissionen der für die Produktion verwendeten Energie;
+    Vorprodukte (graue Emissionen) sind nicht enthalten. Berücksichtigt sind CO<sub>2</sub>,
+    CH<sub>4</sub> und N<sub>2</sub>O als CO<sub>2</sub>-Äquivalente über 100 Jahre. Sie stammen
+    von ifeu und werden jährlich aktualisiert; die Datenquellen stehen im Datensatz.<br/>
+    Es gibt eine nationale und eine lokale Fassung, umschaltbar im Panel „Szenario bearbeiten". Die
+    lokale ist eine Momentaufnahme aus dem Zeitpunkt ihrer Anlage und kein Spiegel: Sie folgt
+    späteren Ergänzungen der nationalen Tabelle nicht und kann daher weniger Energieträger führen.
+    Die Stadt-Administration kann sie bearbeiten – eine Bilanz auf lokalen Faktoren ist jedoch nicht
+    BISKO-konform, und „Hat nationale Stromemissionsfaktoren?" fällt auf 0, sobald der Schalter
+    umgelegt wird. Die Fernwärme folgt diesem Schalter nicht:
+    Möglichkeit 1 liest die nationale Tabelle direkt, denn Kriterium 6.2 lässt einen eingetragenen
+    Fernwärme-Emissionsfaktor überhaupt nicht zu.
+  # Kept although no node consumes it: this is the only place either side of the Erzeugung table
+  # can be inspected, which is what Pruefschritt 6.1 and 7.1 ask for, and it is listed in the
+  # result_excels of both configs under review for that reason. The fuel-input side reaching the
+  # balance goes through `district_heating_fuel_emission_factors`, which binds the dataset itself
+  # rather than this node -- see the comment there for why that is deliberate.
   type: formula.FormulaNode
   quantity: emission_factor
   unit: g_co2e/kWh
@@ -2502,7 +2480,7 @@ nodes:
     filters:
     - column: upstream_included
     tags: [national]
-  - id: kommune/emissionsfaktoren_erzeugung  # dataset from another city (Ddorf or Potsdam), change to city-specific data IF NEEDED
+  - id: kommune/emissionsfaktoren_erzeugung  # seeded from the national table; replace with city-specific values IF NEEDED
     tags: [local]
   params:
   - id: formula
@@ -2674,9 +2652,9 @@ nodes:
   # kommune/kwk_anlagenparameter template, where it is 373 K throughout. It only takes effect
   # where a city deliberately leaves the column out.
   #
-  # Mainz is the first such case. Its utility gives a *range* rather than a figure -- "die
-  # Vorlauftemperatur beträgt 90-115 °C, je nach Außentemperatur/Jahreszeit" -- and a dataset
-  # column would have to freeze one value out of it. The bounds below are that range; the
+  # That happens when the heat supplier gives a *range* rather than a figure -- a supply
+  # temperature quoted as 90-115 °C depending on outside temperature and season is typical -- and
+  # a dataset column would have to freeze one value out of it. The bounds below are that range; the
   # default is its midpoint. Making it adjustable is also honest about how little it matters:
   # across the whole 90-115 °C span the heat share of the allocation moves about 4 points,
   # where a realistic swing in the electricity fraction moves it by 8.
@@ -2703,7 +2681,7 @@ nodes:
   #   - id: chp_electricity_output_share
   #     tags: [electricity_fraction]
   # And anything the dataset does not carry falls back to the parameter of the same name, which
-  # is how bayreuth-bisko supplies its two values without a dataset.
+  # is how an instance can supply its two values without a dataset at all.
 
 #//////  Transport  /////////////////////////////////////////////////////////////////////////////////
 
@@ -4323,9 +4301,9 @@ nodes:
 # "ENERGIETRÄGER UND VERKEHRSARTEN" and carries Straßenverkehr (22,9 %), Schienenverkehr (0,4 %) and
 # Linienverkehr (0,5 %) beside Strom, Erdgas and Fernwärme. Transport is roughly a fifth to a half
 # of a city's final energy, so leaving it out of a breakdown does not merely omit rows: it reweights
-# every remaining one and reports a better Datengüte than the balance has. On mainz-bisko the
-# stationary-only version read 0.629 against a true 0.602 for 2023, because the excluded transport
-# runs on the ifeu defaults at grade B.
+# every remaining one and reports a better Datengüte than the balance has. Measured on a live
+# instance, the stationary-only version read about three points high, because the excluded
+# transport runs on the ifeu defaults at grade B while the stationary sectors are city data.
 #
 # BISKO requires only the single Gesamtdatengüte (Prüfschritt 7.2); neither breakdown is asked for.
 # The by-carrier one is nonetheless the shape of BISKO's own table, and the by-sector one is ours.
@@ -4754,8 +4732,9 @@ nodes:
     column: Value
     filters:
     # The four BISKO consumption sectors, named rather than taken as-is: a city's own energy
-    # export can carry extra columns that are not BISKO sectors at all (muenchen's has a
-    # 'Sonja_sektor'), and an unknown category makes the whole node fail rather than be ignored.
+    # export can carry extra columns that are not BISKO sectors at all -- a working column left in
+    # by whoever built the export is the usual one -- and an unknown category makes the whole node
+    # fail rather than be ignored.
     # Municipal facilities are deliberately absent. Prüfschritt 2.1 says their absence must not
     # make the balance non-conform, and the second Prüfprotokoll confirms it ('KE muss keine Werte
     # enthalten'), so prompting for those cells as if they were required misstates the
@@ -5263,8 +5242,8 @@ nodes:
     prefix, naming the same municipality as <i>AGS number</i>.<br/>
     <b>This is the city, not its Kreis.</b> An earlier version of this node read Eurostat's
     NUTS-3 table, where the region is the city only for a Kreisfreie Stadt — for a city that is
-    not its own Kreis it reported the surrounding Landkreis, which for Reutlingen is 293,000
-    against 118,500 in the town. Degree days survive that substitution because weather is much
+    not its own Kreis it reported the surrounding Landkreis, which can hold several times the
+    town's population. Degree days survive that substitution because weather is much
     the same across a Kreis; a headcount does not, because it is a sum over an area rather than
     a property of the place.<br/>
     <b>The series runs 2011–2024, and has holes.</b> GISCO publishes one release per year and
@@ -5284,8 +5263,8 @@ nodes:
     Präfix <code>DE_</code> und bezeichnet dieselbe Gemeinde wie <i>AGS-Nummer</i>.<br/>
     <b>Das ist die Stadt, nicht ihr Kreis.</b> Eine frühere Fassung dieses Knotens las die
     NUTS-3-Tabelle von Eurostat, in der die Region nur bei einer Kreisfreien Stadt die Kommune
-    ist – bei einer nicht kreisfreien Kommune wies sie den umgebenden Landkreis aus, bei
-    Reutlingen 293.000 gegenüber 118.500 in der Stadt. Heizgradtage überstehen diese Ersetzung,
+    ist – bei einer nicht kreisfreien Kommune wies sie den umgebenden Landkreis aus, der ein
+    Mehrfaches der Einwohnerzahl der Stadt umfassen kann. Heizgradtage überstehen diese Ersetzung,
     weil das Wetter im ganzen Kreis nahezu gleich ist; eine Einwohnerzahl nicht, weil sie eine
     Summe über eine Fläche ist und keine Eigenschaft des Ortes.<br/>
     <b>Die Reihe läuft von 2011 bis 2024 und hat Lücken.</b> GISCO veröffentlicht eine Ausgabe

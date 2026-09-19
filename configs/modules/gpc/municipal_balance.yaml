@@ -1,4 +1,4 @@
-# GHG-Protocol city-administration balance (Verwaltungsbilanz / KNSV)
+# GHG-Protocol city-administration balance (Verwaltungsbilanz)
 #
 # ## NOT part of the BISKO inventory — which is why it lives here and not under `bisko/`
 #
@@ -17,8 +17,8 @@
 # dataset identifiers moved with it (`gpc/municipal_balance_*`); those are placeholders
 # rewritten per city by `dataset_replacements`, so no DVC path changed.
 #
-# It is included by `mainz-bisko` and, as a structural stub with no data wired in yet,
-# `reutlingen-klimabilanz`. Keep it to cities that have asked for it.
+# Two instances include it today: one with its data wired in, one as a structural stub.
+# Keep it to cities that have asked for it.
 #
 # ## What it still borrows from `modules/bisko/model.yaml`
 #
@@ -46,14 +46,15 @@
 #     footprint, reported against a different boundary.
 #
 # The two are related but not additive, which is exactly how the UBA guide
-# "Treibhausgasneutrale Verwaltung" and the city's own KNSV concept treat them.
+# "Treibhausgasneutrale Verwaltung" treats them, as do the climate-neutral-administration
+# programmes cities run alongside their territorial inventories.
 #
 # ## How the arithmetic works
 #
 # Activity rows carry no `scope`; factor rows do, one per scope a source contributes to.
 # The multiply therefore broadcasts each activity across scope, so one litre of fleet
 # diesel produces both its Scope 1 combustion row and its Scope 3 upstream row from a
-# single input. See data/mainz/extract_verwaltung.py, "Scope is a property of the
+# single input. See the city's own `extract_verwaltung.py`, "Scope is a property of the
 # factor".
 #
 # Activity is split into nodes by (metric, which dimension keys it), because those are
@@ -63,7 +64,7 @@
 
 datasets:
 
-# The emission factors are methodology data (UBA / GHG-Protocol / KNSV factor sets), not
+# The emission factors are methodology data (UBA and GHG-Protocol factor sets), not
 # municipal observations, so they are locked like the BISKO reference tables. This was the
 # one emission factor dataset in the bisko family that a city admin could still rewrite.
 - id: gpc/municipal_balance_emission_factors
@@ -78,16 +79,17 @@ datasets:
 # carry `we_from`/`we_to` as raw index columns, which no dimension resolves, so
 # `load_dvc_dataset` cannot import them into the database at all and they stay external
 # DVC placeholders. That is the accepted price of keeping the property key that lets a
-# reader re-derive the group assignment instead of inheriting it. See
-# data/mainz/parse_sap_evu.py.
+# reader re-derive the group assignment instead of inheriting it. See the city's own
+# property-record extractor.
 - id: gpc/municipal_building_energy
   is_editable: false
 - id: gpc/municipal_water_use
   is_editable: false
 
-# Billed through Mainzer Netze/Tiefbauamt, not through the Gebäudewirtschaft SAP-EM system
-# municipal_building_energy comes from -- that node's filter deliberately excludes
-# `street_lighting`, so this is its own dataset rather than another facility-type row there.
+# Billed through the network operator and the roads department, not through the building
+# management office whose records `municipal_building_energy` comes from -- that node's filter
+# deliberately excludes `street_lighting`, so this is its own dataset rather than another
+# facility-type row there.
 - id: gpc/municipal_street_lighting_energy
   is_editable: false
 
@@ -95,25 +97,151 @@ datasets:
 # purchase. Reported as a memo item (see municipal_avoided_emissions below), never netted
 # into municipal_balance_emissions -- the same relationship municipal_scope3_emissions has
 # to the main total, for the same reason: different question, data of different
-# completeness. Does NOT include BHKW gas consumption -- see data/mainz/create_avoided_energy.py
-# for why that would risk double-counting against municipal_building_energy.
+# completeness. Does NOT include BHKW gas consumption -- see the city's own avoided-energy
+# extractor for why that would risk double-counting against municipal_building_energy.
 - id: gpc/municipal_avoided_energy
   is_editable: false
 
 dimensions:
 
-# These two dimensions live here rather than in the core BISKO module because nothing
-# outside this module uses them. `municipal_facility_type` is the opposite case and
-# stays in the core module: its coarse KSP-Datenerfassung categories belong to the
-# territorial balance (see the commented-out
-# `final_municipal_facilities_energy_use_by_type` there), and only its finer property
-# groups are administration-balance specific -- a dimension cannot be defined twice, so
-# it belongs where both can reach it.
+# These dimensions live here rather than in the core BISKO module because nothing outside
+# this module uses them.
+#
+# `municipal_facility_type` joined them on 2026-09-19. It had stayed in the core module on
+# the argument that its coarse KSP-Datenerfassung categories belong to the territorial
+# balance and only its finer property groups are administration-balance specific -- true of
+# the categories, but the node that would have used them there,
+# `final_municipal_facilities_energy_use_by_type`, has been commented out throughout, so the
+# core module referenced the dimension nowhere and carried it for a reader who never arrived.
+# A dimension cannot be defined twice, so if that node is revived the dimension moves back
+# rather than being duplicated; the pointer left in the core module says so.
+#
+# It is the least generic dimension in either module: its property groups are one authority's
+# way of organising its estate, not a standard's. They are kept as a starting point, being
+# meaningful to most German city administrations, and a city they do not fit declares its own
+# version rather than bending these.
 #
 # `ghg_category` is the reporting structure the balance is published in -- the ten
 # worksheets of a GHG-Protocol corporate inventory. It is not derivable from
 # `emission_source`: business travel and commuting share every mode, and only this
 # dimension separates them.
+# Two granularities coexist here, because two sources report at two levels: the
+# KSP Datenerfassung (Daten kommunale Einrichtungen) merges schools with day-care
+# centres and lumps everything else into `other_infrastructure`, while a
+# GHG-Protocol administration balance reports per property group. Categories for
+# both are declared so each source can be written at the level it actually has.
+#
+# `schools_kitas` therefore OVERLAPS `schools` + `day_care_centres`. Never mix the
+# two levels within one dataset -- that double-counts. Pick the level the source
+# reports at, and aggregate afterwards if a coarser view is wanted.
+#
+# Aggregating over this dimension is safe at any point: every emission factor node
+# in this module is dimensioned on `energy_carrier` (some also on
+# `per_what_energy`) and none on `municipal_facility_type`, so factors broadcast
+# across facility type and activity x factor gives the same total whether the
+# aggregation happens before or after the multiply.
+- id: municipal_facility_type
+  label_en: Municipal facility type
+  label_de: Art der kommunalen Einrichtung
+  help_text: Municipal facility groups. Coarse categories follow the KSP
+    Datenerfassung (Daten kommunale Einrichtungen); the finer property groups
+    follow GHG-Protocol administration balances.
+  categories:
+  # --- KSP Datenerfassung level ---
+  - id: street_lighting
+    label_en: Street lighting
+    label_de: Straßenbeleuchtung
+  - id: administrative_buildings
+    label_en: Municipal administrative buildings
+    label_de: Kommunale Verwaltungsgebäude
+    aliases: [kommunale_verwaltungsgebaude, verwaltungen]
+  - id: schools_kitas
+    label_en: Schools and day-care centres
+    label_de: Schulen und Kindertagesstätten
+    aliases: [schulen_kitas]
+  - id: other_infrastructure
+    label_en: Other municipal buildings and infrastructure
+    label_de: Sonstige kommunale Gebäude und Infrastruktur
+  # --- Administration-balance property groups (finer than the above) ---
+  - id: fire_and_civil_protection
+    label_en: Fire brigades and civil protection
+    label_de: Feuerwehren und Zivilschutz
+    aliases: [feuerwehren_zivilschutz]
+  - id: schools
+    label_en: Schools
+    label_de: Schulen
+  - id: day_care_centres
+    label_en: Day-care centres
+    label_de: Kindertagesstätten
+    aliases: [kitas]
+  - id: cultural_facilities
+    label_en: Cultural facilities
+    label_de: Kultureinrichtungen
+  - id: childrens_youth_and_social_facilities
+    label_en: Children's, youth and social facilities
+    label_de: Kinder-, Jugend- und Sozialeinrichtungen
+  - id: youth_centres
+    label_en: Youth centres
+    label_de: Jugendhäuser
+  - id: parks_and_environment_buildings
+    label_en: Parks and environment department buildings
+    label_de: Gebäude des Grün- und Umweltamtes
+  # --- Not a property group ---
+  # The administration balance books fleet fuel, business travel, commuting,
+  # procurement and postal transport against the authority as a whole, because no
+  # property owns them. Distinct from a blank cell, which says the dimension does
+  # not apply to the row at all.
+  - id: cross_cutting
+    label_en: Cross-cutting (no single property)
+    label_de: Übergreifend
+    aliases: [uebergreifend]
+
+  # Consumption that belongs to a property the source does not identify well enough to
+  # place in a group *yet*. Three different statements, and they must not be conflated:
+  #
+  #   cross_cutting      no single property owns it (fleet fuel, postal transport)
+  #   to_be_determined   a property owns it, we have not yet established which group --
+  #                      an open question, expected to be answered and then to disappear
+  #   (a blank cell)     the dimension does not apply to this row at all
+  #
+  # A fourth, "unknown" -- a property owns it and no further detail will ever arrive --
+  # is deliberately absent until something needs it. It is the resting state of a
+  # question that has been asked and closed; `to_be_determined` is one still open.
+  #
+  # It exists because a city's own property records routinely carry real consumption for
+  # buildings that the balance's boundary statement does not place in any group. Keeping that
+  # visible under its own category beats folding it into the nearest plausible group, and beats
+  # a blank, which would leave the dimension partly populated for that metric.
+  - id: to_be_determined
+    label_en: To be determined
+    label_de: Noch zuzuordnen
+    aliases: [noch_zuzuordnen]
+
+  # The two groups a GHG-Protocol administration balance on an operational-control
+  # boundary leaves out. They are municipal property and their energy is real; they are
+  # simply not the Kernverwaltung, so a balance scoped to it excludes them *explicitly*
+  # rather than by not having the data.
+  #
+  # These are the two groups such a boundary statement typically names as excluded, alongside
+  # cultural venues: sports and leisure facilities (grounds, halls, changing rooms, ice rinks,
+  # pools) and other properties such as housing, depots and storage.
+  #
+  # Carrying them as categories rather than dropping the rows keeps the exclusion
+  # auditable: the balance node names what it leaves out, and the consumption is still
+  # in the dataset for anyone asking what the whole portfolio uses.
+  - id: sports_and_leisure_facilities
+    label_en: Sports and leisure facilities
+    label_de: Sport- und Freizeitanlagen
+    aliases: [sport_und_freizeitanlagen]
+  # Declared for the boundary statement and not yet carried by any row: the property-register
+  # range that holds these also tends to hold individual objects a boundary statement puts
+  # *inside* the administration, so that range stays
+  # `to_be_determined` until the split is known. See the city's own property-record extractor.
+  - id: housing_and_storage
+    label_en: Housing, depots and storage
+    label_de: Wohnungen und Lager
+    aliases: [wohnungen_und_lager]
+
 - id: ghg_category
   label_en: GHG inventory category
   label_de: Bilanzkategorie
@@ -175,8 +303,8 @@ dimensions:
 # Categories are named after the emission factor they select, not after a physical
 # object: 'toilet_paper_recycled_jumbo' exists because the factor per jumbo roll
 # differs from the factor per standard roll. Several therefore share the unit
-# `pcs` while counting entirely different things -- see the note on `pcs` in
-# data/mainz/extract_verwaltung.py. Summing across this dimension is meaningless;
+# `pcs` while counting entirely different things -- see the note on `pcs` in the city's own
+# administration extractor. Summing across this dimension is meaningless;
 # multiply by the factor first, then sum the emissions.
 - id: emission_source
   label_en: Emission source
@@ -223,7 +351,7 @@ dimensions:
   # Office paper is reported twice over, once as a sheet count and once as a weight,
   # each with its own factor. They are kept apart because they are separate
   # measurements of possibly overlapping purchases, not one measurement in two units;
-  # see PAPER_MEASURED_TWICE in data/mainz/extract_verwaltung.py.
+  # see PAPER_MEASURED_TWICE in the city's own administration extractor.
   - id: office_paper_virgin_sheets
     label_en: Office paper, virgin fibre, by sheet
     label_de: Frischfaser Papier (Blatt)
@@ -363,8 +491,8 @@ nodes:
 #
 # `GenericNode` and not `MultiplicativeNode2`, which is the obvious choice and the wrong
 # one here: `MultiplicativeNode2` needs at least two factors, so a city that includes this
-# module with no measures of its own -- `reutlingen-klimabilanz` today -- would need the
-# module to ship a neutral 1.0 factor just to keep it computing. `GenericNode` takes one
+# module with no measures of its own -- which is how a city starts -- would need the module to
+# ship a neutral 1.0 factor just to keep it computing. `GenericNode` takes one
 # factor happily, and with none at all the operations simply pass the dataset through.
 #
 # The operations are the whole mechanism:
@@ -392,14 +520,14 @@ nodes:
   name_de: Endenergie der Liegenschaften der Stadtverwaltung
   name_en: City administration building energy use
   description_de: |
-    Wärme und Strom der städtischen Liegenschaften, objektscharf aus den SAP-Auswertungen
-    der Gebäudewirtschaft. Maßgeblich sind diese Werte und nicht die Summen des
+    Wärme und Strom der städtischen Liegenschaften, objektscharf aus den Auswertungen der
+    Gebäudeverwaltung. Maßgeblich sind diese Werte und nicht die Summen des
     Versorgers: die Bilanzgrenze der Verwaltung ist über die Liegenschaften definiert,
     und nur diese Quelle weiß, welche das sind. Abweichungen zum Versorgerwert stehen als
     Kommentar am jeweiligen Datenpunkt.
   description_en: |
     Heat and electricity of the city's own properties, taken property by property from the
-    building management office's SAP records. These figures, not the utility's totals, are
+    building management office's records. These figures, not the utility's totals, are
     authoritative: the authority's inventory boundary is defined by its properties, and
     only this source knows which those are. Where the two disagree, the difference is
     recorded in the comment on the data point itself.
@@ -412,27 +540,27 @@ nodes:
   output_dimensions: [ghg_category, municipal_facility_type, energy_carrier]
   input_datasets:
 
-  # The Gebäudewirtschaft SAP records, 2010-2023: the whole GWM-managed portfolio, per
-  # property group and carrier. This is the primary source and it also *is* the source
-  # Arqum built its own figures from -- `parse_sap_evu.py --check` reproduces seven of
-  # Arqum's property groups from it to the last kilowatt-hour, 81 comparisons over
-  # 2019-2021 -- which is why the two are not blended here. Blending them would double
-  # the overlap years.
+  # The building management office's own property records: the whole managed portfolio,
+  # per property group and carrier, over the full reporting period.
+  #
+  # **Where a city also has an earlier consultant balance, this is the primary source and
+  # the two are not blended.** A consultant balance of this kind is normally built from
+  # these same records, so the extractor's `--check` mode reproduces the consultant's
+  # property groups from them kilowatt-hour for kilowatt-hour; adding both would double the
+  # overlap years. The consultant figures enter only where the records genuinely do not
+  # reach — see the rented properties below.
   #
   # The boundary is applied here rather than in the extractor, so that what the balance
-  # covers is legible in the model. The seven groups below are the Arqum report's own
-  # list (§2.3.1) of what the GHG-Protocol operational-control boundary includes:
-  # Verwaltungen, Feuerwehren und Zivilschutz, Schulen, Kultureinrichtungen, Kinder-,
-  # Jugend- und Sozialeinrichtungen, Kitas, Jugendhäuser. Stated as an inclusion rather
-  # than an exclusion so that a category added later has to be considered rather than
-  # silently swept in.
+  # covers is legible in the model. The groups below are an operational-control boundary's
+  # inclusion list, stated as an inclusion rather than an exclusion so that a category added
+  # later has to be considered rather than silently swept in.
   #
-  # `to_be_determined` is excluded with them, and that is a *decision to understate*
-  # rather than a neutral one: WE 5200-7999 is mostly out of boundary but also holds
-  # objects 6815, 6817 and 6818, which the same report puts inside Verwaltungen. Until
-  # that range is split, including it would overstate by the housing and depots and
-  # excluding it understates by those three objects. Excluding is the smaller error and
-  # the one that fails safe against a published figure.
+  # `to_be_determined` is excluded with them, and that is a *decision to understate* rather
+  # than a neutral one: the property-register range it mostly stands for is out of boundary,
+  # but such a range typically also holds a few individual objects the boundary statement
+  # puts inside the administration. Until the range is split, including it overstates by the
+  # housing and depots and excluding it understates by those few objects. Excluding is the
+  # smaller error and the one that fails safe against a published figure.
   - id: gpc/municipal_building_energy
     column: energy
     extend: true
@@ -449,21 +577,21 @@ nodes:
     - column: we_to
       flatten: true
 
-  # The rented properties, which the SAP records do not contain at all.
+  # The rented properties (Mietliegenschaften), which the building management records do
+  # not contain at all -- the office meters what it manages, and a rented property is billed
+  # through service charges where the landlord's carrier is often unknown. That is the one
+  # part of the balance a consultant source is not reproducible from the records, and so
+  # remains the only source for; on a typical portfolio it is a low single-digit percentage
+  # of building energy.
   #
-  # Arqum books them under the carrier `not_defined`: heat billed through service charges
-  # where the landlord's carrier is unknown, about 2,200 MWh/a, 3% of building energy.
-  # They are inside the boundary -- the report discusses Mietliegenschaften explicitly --
-  # but the Gebäudewirtschaft only meters what it manages, so this is the one part of the
-  # balance where Arqum is not reproducible from SAP and remains the only source.
+  # Booked under the carrier `not_defined` and **restricted to that one carrier on purpose**.
+  # Every other carrier in this dataset is the same measurement the branch above already
+  # carries, and taking both would count the overlap years twice.
   #
-  # Restricted to that one carrier on purpose. Every other carrier in this dataset is the
-  # same measurement the SAP branch above already carries, and taking both would count
-  # 2019-2021 twice.
-  #
-  # It ends in 2021, which is a declared gap for 2022 onwards and *not* a zero: the model
-  # will carry 2021 forward. Whether persistence or zero is the better assumption for the
-  # rented portfolio is open -- see README, Open items.
+  # A consultant delivery ends when the engagement did, which is a declared gap from the
+  # following year and *not* a zero: the model carries the last value forward. Whether
+  # persistence or zero is the better assumption for a rented portfolio is open -- see the
+  # city's README, Open items.
   - id: gpc/municipal_balance_activity
     column: energy
     extend: true
@@ -481,15 +609,15 @@ nodes:
   name_de: Energieverbrauch der Straßenbeleuchtung
   name_en: Street lighting energy use
   description_de: |
-    Stromverbrauch der städtischen Straßenbeleuchtung, aus der EKA-RLP-Datenlieferung
-    (Mainzer Netze/Tiefbauamt). Läuft nicht über die Gebäudewirtschaft und ist deshalb ein
-    eigener Datenpunkt statt einer weiteren Liegenschaftsgruppe in
+    Stromverbrauch der städtischen Straßenbeleuchtung, aus der Datenlieferung des
+    Netzbetreibers bzw. des zuständigen Amtes. Läuft nicht über die Gebäudeverwaltung und ist
+    deshalb ein eigener Datenpunkt statt einer weiteren Liegenschaftsgruppe in
     `municipal_building_energy`, dessen Filter `street_lighting` bewusst ausschließt.
   description_en: |
-    Electricity consumption of the city's street lighting, from the EKA-RLP delivery
-    (Mainzer Netze/Tiefbauamt). Not part of the Gebäudewirtschaft portfolio, hence its own
-    activity rather than another property group in `municipal_building_energy`, whose
-    filter deliberately excludes `street_lighting`.
+    Electricity consumption of the city's street lighting, from the network operator's or
+    the responsible department's own delivery. Not part of the building management portfolio,
+    hence its own activity rather than another property group in `municipal_building_energy`,
+    whose filter deliberately excludes `street_lighting`.
   type: generic.GenericNode
   params:
     operations: add_datasets,add,multiply
@@ -509,16 +637,16 @@ nodes:
   description_de: |
     Strom- und Wärmeerzeugung der städtischen BHKW-Anlagen sowie PV-Eigenverbrauch, die
     einen sonst nötigen Bezug ersetzt haben. Nicht enthalten: der Gasverbrauch der
-    BHKW-Anlagen (Doppelzählungsrisiko mit `municipal_building_energy`, siehe
-    data/mainz/create_avoided_energy.py). BHKW-Strom/-Wärme ist in dieser Lieferung nicht
+    BHKW-Anlagen (Doppelzählungsrisiko mit `municipal_building_energy`, siehe den
+    Eigenerzeugungs-Extraktor der Kommune). BHKW-Strom/-Wärme ist in dieser Lieferung nicht
     nach Eigenverbrauch/Netzeinspeisung aufgeschlüsselt und wird vollständig als
     Eigenverbrauch behandelt -- das überschätzt den vermiedenen Bezug in dem Maß, in dem
     tatsächlich Überschuss eingespeist wurde.
   description_en: |
     Electricity and heat generation from the city's CHP units, plus PV self-consumption,
     that displaced an otherwise-needed purchase. Does not include CHP gas consumption
-    (double-counting risk against `municipal_building_energy`, see
-    data/mainz/create_avoided_energy.py). CHP electricity/heat is not split into
+    (double-counting risk against `municipal_building_energy`, see the city's own
+    avoided-energy extractor). CHP electricity/heat is not split into
     self-consumed vs. fed-in in this delivery and is treated as fully self-consumed, which
     overstates the avoided amount to the extent any of it was actually exported.
   type: simple.AdditiveNode2
@@ -532,9 +660,9 @@ nodes:
     extend: true
     filters:
     # The delivery is one row per installation -- a single CHP unit or PV array -- and
-    # several installations share a property group: two schools (WE 2118, WE 2710) and two
-    # Kitas. Summed here, because this node reports by property group and the balance has
-    # no per-installation consumer.
+    # several installations routinely share a property group, two schools or two day-care
+    # centres each carrying their own unit. Summed here, because this node reports by property
+    # group and the balance has no per-installation consumer.
     #
     # `flatten`, not `drop_col`, and the distinction is not cosmetic: dropping without
     # summing leaves two rows sharing an index, which is what made this node fail with
@@ -542,9 +670,10 @@ nodes:
     # installation was still buried in the comment prose. Same reason `we_from`/`we_to` are
     # flattened rather than dropped in `municipal_building_energy`.
     #
-    # By dimension rather than by column: `installation` is a declared dimension (in
-    # `configs/mainz-bisko.yaml`, since the categories are named Mainz buildings), so a
-    # frame arriving without it should fail loudly rather than flatten nothing.
+    # By dimension rather than by column: `installation` is a declared dimension, and it is
+    # declared in the city's own config rather than here, since its categories are that city's
+    # named buildings. A frame arriving without it should fail loudly rather than flatten
+    # nothing.
     - dimension: installation
       flatten: true
 
@@ -675,10 +804,10 @@ nodes:
   input_dimensions: [ghg_category, municipal_facility_type, emission_source]
   output_dimensions: [ghg_category, municipal_facility_type, emission_source]
   input_datasets:
-  # Same substitution as the building-energy node: the SAP records are the source Arqum
-  # drew on, so they replace it rather than adding to it. Water has no rented-property
-  # counterpart to carry alongside -- Arqum's drinking water came from the same SAP
-  # extract -- so this is the only input.
+  # Same substitution as the building-energy node: the property records are the source an
+  # earlier consultant balance drew on, so they replace it rather than adding to it. Water has
+  # no rented-property counterpart to carry alongside -- the consultant's drinking water came
+  # from the same extract -- so this is the only input.
   - id: gpc/municipal_water_use
     column: volume
     extend: true
@@ -687,10 +816,10 @@ nodes:
       categories: [administrative_buildings, fire_and_civil_protection, schools,
                    cultural_facilities, childrens_youth_and_social_facilities,
                    day_care_centres, youth_centres]
-    # The SAP export is drinking water and nothing else, so it carries no
-    # `emission_source` column. The Arqum dataset it replaces did, and the factor node
-    # is still keyed by it, so the category is assigned here rather than dropped from
-    # the node -- one water source, named, instead of a dimension quietly going missing.
+    # The property-record export is drinking water and nothing else, so it carries no
+    # `emission_source` column. The consultant dataset it replaces did, and the factor node is
+    # still keyed by it, so the category is assigned here rather than dropped from the node --
+    # one water source, named, instead of a dimension quietly going missing.
     - dimension: emission_source
       assign_category: drinking_water
     - column: we_from
@@ -1065,16 +1194,16 @@ nodes:
   input_dimensions: [ghg_category, municipal_facility_type, emission_source, scope]
   output_dimensions: [ghg_category, municipal_facility_type, emission_source, scope]
   input_datasets:
-  # NOTE: this binding carries no `extend: true`, and until 10 Sep 2026 the series
-  # therefore stopped in 2021 and the node read null afterwards. It now holds 2021's
-  # 1.2 t forward, because `AdditiveNode2` honours the binding's extend flag and
+  # NOTE: this binding carries no `extend: true`, and until 10 Sep 2026 the series therefore
+  # stopped at its last reported year and the node read null afterwards. It now holds that
+  # year's value forward, because `AdditiveNode2` honours the binding's extend flag and
   # `GenericNode` does not -- converting the node for the measure changed this as a side
   # effect. `extend: false` does not suppress it; the extension is not the binding's.
   #
-  # The effect is +1.2 t/a on `municipal_scope3_emissions` from 2022 (9,424.7 -> 9,426.0),
-  # and neither reading is right: 1.2 t is a pandemic-cancelled year held flat, null is a
-  # measured zero that was never measured. Left as it now is rather than fought, and
-  # recorded so the change is not mistaken for data. See data/mainz/README.md.
+  # The effect is well under a per mille of `municipal_scope3_emissions`, and neither reading
+  # is right: holding a pandemic-suppressed year flat is wrong, and null reads as a measured
+  # zero that was never measured. Left as it now is rather than fought, and recorded so the
+  # change is not mistaken for data. See the city's own README.
   - id: gpc/municipal_balance_activity
     column: emissions
     filters:
@@ -1114,12 +1243,12 @@ nodes:
   name_en: City administration building energy data quality
   description_de: |
     BISKO-Datengüte je Datenpunkt: A = 1, B = 0,5, C = 0,25, D = 0. Übernommen aus der
-    Qualitätsspalte der Arqum-Arbeitsmappe (hoch / mittel / niedrig). Ergänzte Nullwerte
+    Qualitätsspalte der zugrunde liegenden Arbeitsmappe (hoch / mittel / niedrig). Ergänzte Nullwerte
     tragen die schwächste Note ihrer Reihe, was die gewichtete Güte nicht verändert, weil
     BISKO nach Verbrauch gewichtet und eine Null nichts wiegt.
   description_en: |
-    BISKO data quality per data point: A = 1, B = 0.5, C = 0.25, D = 0, taken from the
-    Arqum workbook's own quality column. Filled zeros carry their series' weakest grade,
+    BISKO data quality per data point: A = 1, B = 0.5, C = 0.25, D = 0, taken from the source
+    workbook's own quality column. Filled zeros carry their series' weakest grade,
     which does not move the weighted figure: BISKO weights by consumption and a zero
     weighs nothing.
   type: simple.AdditiveNode2
