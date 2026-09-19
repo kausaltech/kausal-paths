@@ -279,17 +279,29 @@ class SourceRegistryEntry:
     def target(self) -> str:
         return self.fields.get('target') or SOURCE_TARGET_DATA_POINT
 
-    def applies_to(self, dataset_name: str | None) -> bool:
+    def applies_to(self, dataset_name: str | None, dvc_path: str | None = None) -> bool:
         """
         Tell whether this source belongs in `dataset_name`'s metadata.
 
-        A run that produces a single dataset passes ``None`` -- there is nothing to
-        choose between, so a 'Datasets' restriction is moot and every dataset-level
-        source applies.
+        A 'Datasets' entry may be spelled either way round, and both are matched:
+
+        * the **leaf name**, as the input CSV's 'Dataset' column spells it
+          (``emissionsfaktoren_endenergie``);
+        * the **full DVC identifier** the run writes to (``de/emissionsfaktoren_endenergie``),
+          which is what `dvc_path` carries.
+
+        Prefer the full identifier when writing a registry. Leaf names repeat across
+        namespaces -- six of the BISKO names exist in both ``de/`` and ``kommune/`` -- so a
+        bare leaf restriction cannot say which of the two it means, and would attach a
+        source describing the national factor table to a city's editable copy of it.
+
+        A run that produces a single dataset and names neither passes ``None`` for both --
+        there is nothing to choose between, so the restriction is moot and every
+        dataset-level source applies.
         """
-        if self.datasets is None or dataset_name is None:
+        if self.datasets is None or (dataset_name is None and dvc_path is None):
             return True
-        return dataset_name in self.datasets
+        return bool(self.datasets & {n for n in (dataset_name, dvc_path) if n is not None})
 
 
 def _unregistered_source_fields() -> dict[str, str | None]:
@@ -405,30 +417,68 @@ def load_sources_registry(path: str) -> dict[str, SourceRegistryEntry]:
     return registry
 
 
-def check_registry_dataset_names(registry: dict[str, SourceRegistryEntry] | None, dataset_names: Iterable[str]) -> None:
+def check_registry_dataset_names(
+    registry: dict[str, SourceRegistryEntry] | None,
+    dataset_names: Iterable[str],
+    namespace: str | None = None,
+) -> None:
     """
-    Refuse a 'Datasets' restriction that names a dataset this run doesn't produce.
+    Report 'Datasets' restrictions that this run's upload does not reach.
 
-    Such an entry is silently inert -- the source is attached to nothing, and the dataset
-    it was meant for imports with no provenance at all. Only callable where the full set of
-    dataset names is known, i.e. the split-by-'Dataset'-column path.
+    A restriction that matches nothing is silently inert: the source attaches to nothing and
+    the dataset it was meant for imports with no provenance at all. That is worth saying out
+    loud, and this says it.
+
+    **It counts rather than raising, and the reason is structural.** A sources registry is one
+    file per module, not one per upload -- `bisko_sources.csv` describes 23 datasets that are
+    uploaded a few at a time, and the same file is read by `restamp_dataset_sources` for the
+    ones that have no generator CSV at all. So on any given run most entries legitimately name
+    datasets it does not produce, and "names something not in this run" cannot be told apart
+    from "is a typo" without the module's full dataset list, which this command does not have.
+    Raising on it made every upload from a module-wide registry fail.
+
+    Naming the misses individually was tried and dropped: the one that looked like a sound
+    discriminator -- an entry naming this run's leaf under another namespace, e.g.
+    `kommune/emissionsfaktoren_erzeugung` on a run writing `de/` -- is also exactly what a
+    correct registry looks like, because the local copy of a factor table is a real dataset
+    with the same leaf name. It fired on every `de/` factor upload. A count is what this
+    command can say honestly; the question it cannot answer, "which datasets have no
+    provenance", is answered by a dry run of the restamp tool, which enumerates the module.
+
+    ``namespace`` is the run's ``--output-dvc``. With it, a restriction written as a full
+    identifier (``de/emissionsfaktoren_endenergie``) is matched against the identifier the run
+    would actually write, so the two spellings agree -- and a ``de/``-restricted source is
+    correctly seen as not applying to a ``kommune/`` run of the same leaf name. Without it
+    (the ``--output-csv``-only dry run, which writes nothing) the comparison falls back to
+    leaf names, giving up only a distinction the run has not been told enough to draw.
     """
     if not registry:
         return
-    known = set(dataset_names)
-    for name, entry in registry.items():
-        unknown = sorted((entry.datasets or frozenset()) - known)
-        if unknown:
-            raise ValueError(
-                f"Source '{name}' is restricted to dataset(s) {', '.join(unknown)}, which this run does not "
-                f'produce. Datasets found: {", ".join(sorted(known)) or "(none)"}.'
-            )
+    leaves = set(dataset_names)
+    known = leaves | ({f'{namespace}/{leaf}' for leaf in leaves} if namespace else set())
+    inert = 0
+    for entry in registry.values():
+        declared = entry.datasets or frozenset()
+        if not declared:
+            continue
+        if namespace is None:
+            matched = bool({d.rsplit('/', maxsplit=1)[-1] for d in declared} & leaves)
+        else:
+            matched = bool(declared & known)
+        inert += not matched
+    if inert:
+        print(
+            f'{inert} of {len(registry)} registry source(s) name no dataset in this run, which is normal for a '
+            'module-wide registry. To see what provenance each dataset actually carries, dry-run '
+            'tools.restamp_dataset_sources, which enumerates the whole module.'
+        )
 
 
 def build_sources_metadata(
     df: pl.DataFrame,
     registry: dict[str, SourceRegistryEntry] | None,
     dataset_name: str | None = None,
+    dvc_path: str | None = None,
 ) -> list[dict[str, str | None]] | None:
     """
     Build the DVC metadata['sources'] entry for one dataset.
@@ -480,7 +530,7 @@ def build_sources_metadata(
                 f'{SOURCE_TARGET_DATA_POINT}.'
             )
 
-    dataset_level = {n for n, e in registry.items() if e.target == SOURCE_TARGET_DATASET and e.applies_to(dataset_name)}
+    dataset_level = {n for n, e in registry.items() if e.target == SOURCE_TARGET_DATASET and e.applies_to(dataset_name, dvc_path)}
     names = sorted(cited | dataset_level)
     if not names:
         return None
@@ -950,7 +1000,7 @@ def process_dataset(
         # NOTE! Subfolder identifiers will break here, so be careful with them.
         identifier = to_snake_case(dataset_name.rsplit('/', maxsplit=1)[-1])
         dataset_dvc_path = f'{outdvcpath}/{identifier}'
-        sources = build_sources_metadata(df, sources_registry, dataset_name)
+        sources = build_sources_metadata(df, sources_registry, dataset_name, dataset_dvc_path)
         attributes = load_dataset_attributes(dataset_attributes_csv, dataset_name) if dataset_attributes_csv else None
         push_to_dvc(
             df,
@@ -1040,7 +1090,7 @@ def process_datasets(
         print(f'Found {len(dataset_dfs)} datasets to process')
         # Only here is the full set of names known, so only here can a 'Datasets'
         # restriction naming a dataset that doesn't exist be caught.
-        check_registry_dataset_names(sources_registry, dataset_dfs.keys())
+        check_registry_dataset_names(sources_registry, dataset_dfs.keys(), outdvcpath or None)
 
         for ds_name, dataset_df in dataset_dfs.items():
             process_dataset(
