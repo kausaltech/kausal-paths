@@ -203,7 +203,7 @@ prod = [
 ]
 
 [tool.uv]
-sources.django-modeltrans = { url = "https://github.com/kausaltech/django-modeltrans/archive/a734040c3f38c2e404a61dc0be2c017874a9ea45.zip" }
+sources.django-modeltrans = { git = "https://github.com/kausaltech/django-modeltrans", rev = "37ed924498fa0e6a431e0b6fc1e6982a3f3b3a84" }
 environments = [
   "python_full_version >= '3.14' and sys_platform == 'darwin' and platform_machine == 'arm64'",
   "python_full_version >= '3.14' and sys_platform == 'linux' and platform_machine == 'x86_64'",
