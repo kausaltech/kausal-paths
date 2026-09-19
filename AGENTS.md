@@ -1,1 +1,329 @@
-CLAUDE.md
+# AGENTS.md
+
+## What Is Kausal Paths?
+
+Kausal Paths is a computational modeling platform for urban climate action
+planning. Cities and regions use it to build quantitative emissions models:
+directed acyclic graphs (DAGs) of calculation nodes that take historical
+data (energy consumption, vehicle mileage, building stock) and project
+future emissions under different policy scenarios.
+
+The core question Paths answers: "If we implement these climate actions,
+what happens to our emissions by 2030?"
+
+Each city gets a model instance — a self-contained DAG with its own data,
+parameters, and scenarios. The models are multilingual (Finnish, German,
+English, etc.), unit-aware (pint handles dimensional analysis), and
+scenario-driven (toggle actions on/off, adjust parameters, compare outcomes).
+
+The platform serves two audiences:
+- **Climate coordinators** in city governments, who use the public UI
+  to explore scenarios and communicate with decision-makers
+- **Model builders** (currently Kausal staff, soon the coordinators
+  themselves via "Trailhead"), who define the computation graphs
+
+The backend is Django + Wagtail, the computation engine uses Polars,
+and the API is GraphQL (migrating from Graphene to Strawberry).
+
+## Development Commands
+
+### Python environment
+
+Run Python commands directly with `python`, which should resolve to `.venv/bin/python`.
+If it does not, use `uv run python` instead. If that also fails, see
+[`kausal_common/docs/development-environment.md`](kausal_common/docs/development-environment.md).
+
+### Core Django Commands
+- `python manage.py runserver` - Start development server
+- `python manage.py migrate` - Run database migrations
+- `python manage.py shell_plus` - Enhanced Django shell (from django-extensions)
+- `python manage.py shell_plus --quiet-load -c "print(Plan.objects.last())"` - Run one-off Python with all models auto-imported; useful for quick DB lookups
+
+### Testing and Quality
+```bash
+# Run tests (--reuse-db avoids recreating the test database each run)
+python -m pytest --reuse-db
+
+# Only if the tests are complaining about missing static files:
+python manage.py collectstatic
+
+# Run specific test file
+python -m pytest --reuse-db path/to/test_file.py
+
+# Run mypy type checking
+mypy .
+
+# Run ruff linting
+ruff check .
+
+# Run ruff formatting
+ruff format .
+
+# Auto-fix import ordering & other safe fixes
+ruff check --fix file.py
+```
+
+### Interactive Debugger (`/debugging-code` skill)
+
+When a bug involves **control flow through code you didn't write** — library
+internals, metaclass machinery, framework callbacks — use the `debugging-code`
+skill instead of writing throwaway Python snippets. The skill uses `dap`, a
+CLI DAP debugger.
+
+**When to reach for it:**
+- You need the **call stack** across library boundaries ("who called this?",
+  "how did execution reach here?")
+- You need to **inspect locals in upper frames** (e.g. what did the caller
+  pass? what does the framework's internal state look like at this point?)
+- You've written 3+ exploratory snippets without converging — a single
+  conditional breakpoint in the right place will likely answer it faster
+
+**When snippets are better:** testing a hypothesis about a single value or
+return type, quick attribute checks, anything where the question is about
+*what* not *how we got here*.
+
+### GraphQL API
+- GraphQL endpoint: `http://127.0.0.1:8000/v1/graphql/`
+
+```bash
+# Export schema and diff against production
+python manage.py export_schema paths.schema > schema.graphql
+pnpx @graphql-inspector/cli diff https://api.paths.kausal.dev/v1/graphql/ schema.graphql
+```
+
+## Architecture Overview
+
+### Core Components
+
+#### Repository Layout
+The application packages live under `src/` (a src layout, since commit
+`382b1a99`). `uv sync` installs the project editably, which puts `src/` on
+`sys.path`, so they import as top-level modules — `nodes`, `paths`, `pages` —
+never `src.nodes`. The packaged module list is
+`[tool.uv.build-backend] module-name` in `pyproject.toml`; add new top-level
+packages there.
+
+Everything that is not an application package stays at the repository root:
+`kausal_common/` and `private/extensions/` (submodules), `configs/`, `docs/`,
+`tools/`, `locale/`, `templates/`, `notebooks/`, `manage.py`.
+
+#### Node-Based Calculation System
+- **Nodes**: Core calculation units organized in a directed acyclic graph
+- **Actions**: Special nodes representing climate actions with configurable parameters
+- **Datasets**: Data sources (JSON, Parquet files) feeding into nodes
+- **Dimensions**: Multi-dimensional data handling (time, geography, sectors)
+- **Instances**: Complete calculation setups for specific cities/regions
+
+#### Key Django Apps
+All of these live under `src/`:
+1. **`src/nodes/`** - Core calculation engine, node graph system, emissions calculations
+2. **`src/frameworks/`** - Framework configuration management (GPC, NZC, etc.)
+3. **`src/pages/`** - Wagtail CMS integration for content management
+4. **`src/admin_site/`** - Custom admin interface with authentication
+5. **`src/users/`** - User management with framework-specific roles
+6. **`src/params/`** - Parameter management for nodes and actions
+7. **`src/paths/`** - Django project itself: settings, URLs, GraphQL schema entry point
+
+`kausal_common/` sits at the repository root instead (a git submodule shared
+between Kausal Paths and Kausal Watch), and is on `sys.path` from there.
+
+
+#### Data Flow
+1. **Configuration**: YAML files in `/configs/` define instance configurations for YAML-sourced instances; there is a migration underway to deprecate them, and switch to Pydantic-based configs persisted in the DB.
+2. **Data Processing**: Polars/Pandas for data manipulation with Pint for units
+3. **Calculations**: Node graph executes calculations with real-time updates
+4. **API**: GraphQL provides unified access to results and configurations
+
+#### Internationalization (i18n)
+Three co-existing translation mechanisms (django-modeltrans, Wagtail locales,
+`TranslatedString`), each with its own language code format. See
+[`docs/architecture/i18n.md`](docs/architecture/i18n.md) for the full picture.
+
+#### Scenarios
+Activating a scenario resets the parameters it names; what it *omits* matters as much.
+The custom scenario is a diff plus a base, and the base is whichever scenario the user
+branched from. A non-customizable parameter is not folded into the default scenario by
+the loader, so a scenario can only set what it names. See
+[`docs/architecture/scenarios.md`](docs/architecture/scenarios.md).
+
+#### Permission Policies
+Every model requiring access control inherits from `PermissionedModel` and
+implements `permission_policy()`. Policies extend `ModelPermissionPolicy` and
+express access rules as ORM Q objects (for list filtering) and per-instance
+booleans (for object-level checks). See
+[`docs/architecture/permissions.md`](docs/architecture/permissions.md) for
+the full architecture, usage patterns across GraphQL/DRF/admin, and how to
+implement a new policy.
+
+### Important Patterns
+
+#### Multi-Instance Architecture
+- Each city/region has its own `Instance` with specific configuration
+- Instance configurations stored in database as `InstanceConfig`
+- Context objects provide runtime parameters and scenarios
+
+#### Framework System
+- **Framework**: Calculation methodologies (GPC, NZC, etc.)
+- **Measures**: Templates for actions within frameworks
+- **Sections**: Organizational units within frameworks
+
+#### Real-Time Features
+- Django Channels for WebSocket connections
+- Async calculation engine with live progress updates
+- Caching system for performance optimization
+
+### Design Principles
+
+See [`docs/architecture/principles.md`](docs/architecture/principles.md) for
+full rationale. In brief:
+
+1. **Design for where things are going.** Every fix reshapes the codebase.
+   Move toward the long-term shape, not just past the immediate breakage.
+2. **Root-cause before fix.** Understand *why* before deciding *what*. A
+   workaround that suppresses the symptom is debt with interest.
+3. **Type system carries the contract.** Required fields stay required.
+   Abstract classes use `@abstractmethod`. Prefer construction-time errors.
+4. **Don't confabulate mechanisms.** Distinguish known from inferred from
+   guessed. "I don't know yet" beats a plausible-sounding wrong answer.
+5. **Migration paths: explicit and contained.** Backward compat goes behind
+   explicit entry points (e.g. `from_yaml_config`), not in the common path.
+6. **Behavior owns its semantic dependencies.** Consumers may compose an
+   object's declared identity or dependencies, but must not reconstruct its
+   behavior with concrete-type switches. If changing a class requires a
+   coordinated change in a remote consumer, the responsibility is misplaced.
+
+### Code Conventions
+
+#### Python
+- Type hints required (mypy checking enabled)
+- **Do not add `from __future__ import annotations`** to new files. Python
+  3.14 evaluates annotations lazily by default (PEP 649), so the future
+  import is redundant — and it actively breaks Strawberry types that rely
+  on runtime annotation evaluation (`sb.Private[...]`, lazy refs). Forward
+  references should be quoted on the spot (`x: 'SomeType'`) only where
+  needed.
+- Follow Django model patterns with proper managers and querysets
+- Use Pydantic for data validation where appropriate
+- Do your best not to use `Any` as a shortcut. Use `TypedDict` instead of
+  `dict[str, Any]` unless that leads to too much repetition or the dict shape
+  is defined in a third-party package.
+
+#### Ruff & TYPE_CHECKING imports
+- Ruff config lives in `kausal_common/configs/ruff.toml`
+- When a base class or decorator causes ruff's `TC004` rule to incorrectly
+  demand moving imports out of `TYPE_CHECKING` (which would cause circular
+  imports), add the decorator/base class to `runtime-evaluated-decorators`
+  or `runtime-evaluated-base-classes` in the `[lint.flake8-type-checking]`
+  section of that file. This tells ruff that the listed classes/decorators
+  evaluate type annotations at runtime (via Pydantic), so imports used only
+  in annotations of those classes are allowed to stay behind `TYPE_CHECKING`.
+
+#### Actions
+- Deciding what an action emits and which node it feeds follows six rules: an
+  absolute change in the target's units; a relative factor with the
+  differentiating dimension in the action's dataset; **data at the granularity
+  the source has, with `split_dims` doing any disaggregation in the model rather
+  than a producer script inventing it**; a target value via
+  `DatasetReduceAction`; a node class chosen for the actions it will attract,
+  not for today (`generic.GenericNode` with
+  `operations: add_datasets,add,multiply`, not `MultiplicativeNode2`, which
+  needs two factors); and always the node where the effect causally happens.
+  See
+  [`docs/architecture/action-design.md`](docs/architecture/action-design.md).
+- **`historical_values` / `forecast_values` in YAML are deprecated.** Fine as a
+  first draft while a model is being built; the numbers belong in a dataset,
+  where a city user can see and change them.
+
+#### Models
+- All models inherit from appropriate base classes (`UUIDIdentifiedModel`, `PathsModel`)
+- Use proper type annotations for fields and relationships
+- Implement permission policies for access control
+- **Reverse FK managers must be explicitly annotated** on the model class using
+  the helpers in `kausal_common/models/types.py` (e.g. `RevMany[ChildModel]`).
+  Django auto-generates these managers at runtime, but the type checker cannot
+  see them. Never use `getattr()` or `# type: ignore` to work around missing
+  reverse managers — add the annotation instead.
+
+#### GraphQL
+- Uses both Graphene and Strawberry (migration in progress; see `docs/graphene-to-strawberry-migration.md`)
+- The interop layer (`kausal_common.graphene.strawberry_schema.CombinedSchema`)
+  allows Strawberry types to refer to Graphene types during the migration.
+- When adding new Strawberry types, follow
+  [`kausal_common/docs/graphql-types.md`](kausal_common/docs/graphql-types.md):
+  prefer `@strawberry_django.type` for ORM-backed types, use `auto` + lazy
+  `Annotated[..., sb.lazy(...)]` for FK fields, never expose Django pks
+  (resolve `id` from `uuid`), and consider migrating `CharField(choices=)`
+  to `TextChoicesField` rather than hand-rolling enum mapping resolvers
+- See also `docs/architecture/graphql-mutations.md` for mutation patterns
+- Maintain schema consistency across different apps
+- Include proper error handling and validation
+
+### Extensions System
+- Optional, closed-source `kausal_paths_extensions` package for SaaS-enabling features
+- Lives in the `private/extensions` git submodule (the `kausal-extensions` repo). The submodule has `update = none`, so a plain recursive update skips it; check it out with `git submodule update --init --checkout private/extensions`
+- Made importable through the committed `src/kausal_paths_extensions` symlink; when the submodule is absent the symlink dangles and the extension is simply off
+- Automatically included in tests and URL routing when available
+- Client bundles and translations are gitignored build outputs, built by `mise deps` (provider config in `private/extensions/mise/paths.toml`, loaded via `mise/conf.d/`)
+
+### Development Notes
+
+#### Database
+- PostgreSQL required for production
+- Uses Django migrations for schema changes
+- Atomic transactions enabled by default
+
+#### Dependencies
+- Python 3.14+ required
+- Heavy use of scientific computing libraries (Polars, Pandas, NumPy)
+- Wagtail CMS for content management
+- Django Channels for WebSocket support
+
+#### Testing
+- Factory Boy for test data generation
+- **Always call `Factory.create()`** (not bare `Factory()`), so the return type
+  is the model class, not the factory class. This matters for mypy and attribute access.
+  Include type annotations for fixtures in test function args.
+- Use `PathsTestClient` from `paths/tests/graphql.py` for new GraphQL tests
+  (replaces the old `graphql_client_query_data` fixture). Key methods:
+  `query_data()` (asserts no errors, returns `dict`), `query_errors()` (asserts
+  errors present, returns the error list).
+- Test files should be in respective app directories
+
+#### Performance
+- Use Polars for DataFrame processing (preferred over Pandas)
+- Implement proper caching strategies
+- Monitor memory usage in calculation-heavy operations
+
+#### Other conventions
+- Use descriptive bodies in commit messages (even if the recent commits only have subject lines). Explain the why and the how, if not obvious. Remember: This is a FOSS project, so do not refer to individual customers or Sentry issue identifiers.
+
+### Common Tasks
+
+#### Debugging Calculations
+
+```bash
+# Compute & show model outputs for a node
+python load_nodes.py -i <instance-id> --node <node-id>
+```
+
+#### Building or reconciling a city model
+
+Three documents, split by which artifact you start from — read the matching one
+rather than reconstructing the method:
+
+- **City workbooks, no model yet** →
+  [`docs/building-a-model-from-city-workbooks.md`](docs/building-a-model-from-city-workbooks.md).
+  Also the single home for *reading a consultant workbook* (§3) and the
+  extractor validations (§6.1), which the other two delegate to.
+- **A model that must reproduce a city inventory** →
+  [`docs/matching-a-model-to-an-inventory.md`](docs/matching-a-model-to-an-inventory.md).
+- **A diagnosed gap in an NZP model, needing a mechanism** →
+  [`docs/nzp-city-inventory-compliance-pattern.md`](docs/nzp-city-inventory-compliance-pattern.md).
+
+The first is written against a real build, anonymised as "Test City" — a public
+repo is not the place to publish the list of problems found in a named city's
+inventory. Keep it that way when adding examples.
+
+### Trailhead Migration
+
+@docs/trailhead/tools.md
