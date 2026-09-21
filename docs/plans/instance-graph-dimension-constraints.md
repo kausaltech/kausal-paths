@@ -1,8 +1,13 @@
 # InstanceGraph and dimensional constraints
 
-*Status: proposed. This plan depends on the stable-port work described in
-[`loader-spec-inversion.md`](loader-spec-inversion.md), but the metadata graph
-and solver can be introduced before the runtime loader inversion is complete.*
+*Status: steps 1–10 are DONE; step 11 is mostly done. `InstanceGraph`, the
+constraint solver, the persisted binding convergence and the native loader
+have all landed, and the loader inversion this plan depended on closed on
+2026-08-16. Remaining: the two step-10 bullets that did not land
+(`InstanceGraph.create_context()`, and constructing runtime nodes/edges from
+the graph rather than alongside it), plus step 11's legacy role inference,
+snapshot upgraders, strict-context hook and perf baseline. Per-step
+implementation notes are inline below. Last reviewed 2026-09-21.*
 
 Coordination with the other tracks, so no session re-derives the ordering:
 
@@ -1149,13 +1154,26 @@ executes the transform pipeline directly). Decisions and mechanics:
 ### 10. Make InstanceGraph the Context factory input
 
 - Add `InstanceGraph.create_context(options, payload_store)` as a thin delegate
-  to the native snapshot/runtime builder.
+  to the native snapshot/runtime builder. **Not landed.**
 - Change `InstanceLoader.from_snapshot()` to build or receive an
   `InstanceGraph` and construct runtime nodes/ports/bindings from it.
+  **Partly landed:** the loader builds the graph
+  (`_stash_snapshot_bindings` → `build_instance_graph`) and constructs
+  runtime *bindings* from it (`_setup_runtime_inputs`), but `Instance`,
+  `Context`, nodes and edges are still built from the snapshot objects
+  directly. The loader cross-checks graph and snapshot binding counts and
+  raises on disagreement, so the two cannot silently diverge.
 - Move structural helpers out of `Context`; keep scenario state, caches,
   tracing, payload stores, dataframe operations, and runtime node instances in
-  `Context`.
+  `Context`. **Not landed.**
 - Route YAML through snapshot then graph as the loader-inversion plan lands.
+  **Landed** (stage 4, 2026-08-16).
+
+The config-dict elimination that made up the bulk of this step is complete;
+what is left is the narrower question of whether the graph, rather than the
+snapshot, is the loader's input. Doing it would remove the count cross-check
+and the parallel snapshot traversal in `_setup_nodes_from_snapshot` /
+`_setup_edges_from_snapshot`.
 
 Staging decision (2026-08-13, with Juha): step 10 lands **before** the
 step-9 authority flip — killing the config-dict path first means the flip

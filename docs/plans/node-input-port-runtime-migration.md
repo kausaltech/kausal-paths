@@ -1,6 +1,13 @@
 # Node input port runtime migration
 
-Status: planned; implementation has not started.
+Status: in progress. The runtime foundation, the pilot conversions and the
+first bulk wave landed 2026-08-27 — see the three checkpoints under
+[Implementation sequence](#implementation-sequence). Steps 0–4 are done,
+step 5 is done, step 6 is partway through its residual inventory, and step 7
+(removing the legacy `Edge` grouping and `input_dataset_instances`) has not
+started. Roughly 24 `get_input()` call sites exist against 57
+`get_input_dataset*` and 95 `get_output_pl()` as of 2026-09-21, so the class
+migration is early. Last reviewed 2026-09-21.
 
 ## Goal
 
