@@ -99,8 +99,8 @@ def test_no_selected_customers_is_successful() -> None:
 
 
 @pytest.mark.parametrize('cached', [set(), {'first'}, {'first', 'second'}])
-def test_warm_dvc_downloads_only_missing_files(cached: set[str]) -> None:
-    context = Context.__new__(Context)
+def test_warm_dvc_downloads_only_missing_files(context: Context, cached: set[str]) -> None:
+    context.dvc_source_manifest = None
     repo = MagicMock()
     context.dataset_repo = repo
     repo.is_dataset_cached.side_effect = lambda identifier: identifier in cached
