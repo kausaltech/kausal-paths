@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 from pydantic import ValidationError
 
 from dvc_pandas import DatasetManifest, RepositoryManifest
+from loguru import logger
 
 from datasets.models import DVCSourceManifest
 
@@ -53,7 +54,15 @@ def persisted_manifest(
     if missing and resolve_missing:
         if repository is None:
             raise ValueError('A repository factory is required to resolve missing manifests')
-        resolved = repository().get_manifest(sorted(missing))
+        repo = repository()
+        try:
+            resolved = repo.get_manifest(sorted(missing))
+        except ValueError as error:
+            # Manifest support is narrower than DVC's transport support (e.g.
+            # HTTPS remotes). Metadata acceleration must not prevent loading
+            # datasets through the repository's ordinary DVC path.
+            logger.warning('Unable to resolve DVC manifests for {}; using repository loading: {}', spec.url, error)
+            return None
         if resolved.repository_url != spec.url or resolved.revision != spec.commit:
             raise ValueError('Resolved DVC manifest does not match the pinned repository revision')
         if not missing <= resolved.datasets.keys():

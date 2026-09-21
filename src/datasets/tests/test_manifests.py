@@ -108,6 +108,31 @@ def test_new_subset_only_resolves_missing_entries() -> None:
     assert set(result.datasets) == {'activity', 'other'}
 
 
+def test_unsupported_manifest_uses_repository_for_warmup_and_loading(context: Context) -> None:
+    context.dataset_repo_spec = SPEC
+    repository = MagicMock()
+    repository.get_manifest.side_effect = ValueError('Manifests do not yet support remote protocol https')
+    repository.is_dataset_cached.return_value = False
+    context.dataset_repo = repository
+    with patch.object(Context, 'get_all_dvc_dataset_ids', return_value={'activity'}):
+        context.warm_dvc_cache()
+        repository.load_datasets.assert_called_once_with(['activity'])
+        repository.is_dataset_cached.return_value = True
+        loaded = context.load_dvc_dataset('activity')
+    assert loaded is repository.load_dataset.return_value
+    repository.load_dataset.assert_called_once_with('activity')
+    repository.get_manifest.assert_called_once_with(['activity'])
+    assert context.dvc_source_manifest is None
+    assert not DVCSourceManifest.objects.exists()
+
+
+def test_manifest_transport_errors_are_not_suppressed() -> None:
+    repository = MagicMock()
+    repository.return_value.get_manifest.side_effect = OSError('Connection failed')
+    with pytest.raises(OSError, match='Connection failed'):
+        persisted_manifest(SPEC, {'activity'}, repository)
+
+
 @pytest.mark.parametrize('commit', [None, 'main', 'abc123'])
 def test_moving_or_abbreviated_revision_uses_git(commit: str | None, django_assert_num_queries: DjangoAssertNumQueries) -> None:
     repository = MagicMock()
