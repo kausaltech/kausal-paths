@@ -314,9 +314,17 @@ class DilutionNode(SimpleNode):
 
         df = dfs['existing']
         max_year = cast('int', df[YEAR_COLUMN].max())
-        for year in range(max_year, self.get_end_year()):
-            ydf = df.filter(pl.col(YEAR_COLUMN).eq(year))
-            ydf = ydf.with_columns(pl.lit(year + 1).alias(YEAR_COLUMN))
+        end_year = self.get_end_year()
+        if max_year >= end_year:
+            return df
+
+        # Only the latest year participates in the recurrence. Keep historical
+        # rows out of the loop and validate the combined index once at the end.
+        ydf = df.filter(pl.col(YEAR_COLUMN).eq(max_year))
+        forecasts: list[ppl.PathsDataFrame] = []
+        schema = df.schema
+        for year in range(max_year, end_year):
+            ydf = ydf.with_columns(pl.lit(year + 1, dtype=schema[YEAR_COLUMN]).alias(YEAR_COLUMN))
 
             ydf = ydf.paths.join_over_index(jdf)
             ydf = ydf.with_columns(
@@ -325,9 +333,17 @@ class DilutionNode(SimpleNode):
                 )
             )
 
-            df = df.paths.concat_vertical(ydf.drop('incoming', 'removing', 'inserting'))
+            ydf = ydf.drop('incoming', 'removing', 'inserting')
+            # Preserve the original per-step coercion (notably for integer
+            # metrics), rather than changing the recurrence through promotion.
+            if ydf.schema != schema:
+                ydf = ydf.with_columns([
+                    pl.col(column).cast(dtype, strict=True) for column, dtype in schema.items() if ydf.schema[column] != dtype
+                ])
+            forecasts.append(ydf)
 
-        return df
+        forecast = ppl.to_ppdf(pl.concat(forecasts), meta=ydf.get_meta())
+        return df.paths.concat_vertical(forecast)
 
 
 class IterativeNode(AdditiveNode):  # , DatasetNode):
