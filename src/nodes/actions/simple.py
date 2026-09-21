@@ -502,11 +502,14 @@ class ParameterAction(ActionNode):
     allowed_parameters = [
         *ActionNode.allowed_parameters,
         NumberParameter(local_id='from_value', description=_('Starting parameter value'), is_customizable=True),
+        NumberParameter(local_id='from_year', description=_('Starting year (inclusive)'), is_customizable=True),
+        NumberParameter(local_id='to_value', description=_('Ending parameter value'), is_customizable=True),
+        NumberParameter(local_id='to_year', description=_('Ending year (inclusive)'), is_customizable=True),
+        NumberParameter(local_id='constant', description=_('Constant to apply to parameter value'), is_customizable=False),
+        NumberParameter(local_id='default_value', description=_('Default parameter value'), is_customizable=False),
         NumberParameter(
             local_id='percent_change', description=_('Annual percent change in parameter value'), is_customizable=True
         ),
-        NumberParameter(local_id='from_year', description=_('Starting year'), is_customizable=True),
-        NumberParameter(local_id='default_value', description=_('Default parameter value'), is_customizable=False),
         NumberParameter(
             local_id='default_change', description=_('Default annual percent change in parameter value'), is_customizable=False
         ),
@@ -514,28 +517,44 @@ class ParameterAction(ActionNode):
 
     def compute_effect(self):
         fromyear = self.get_parameter_value_int('from_year', required=False)
-        if not fromyear:
+        if fromyear is None:
             fromyear = self.context.instance.maximum_historical_year + 1  # type: ignore
-        toyear = self.context.instance.target_year + 1
+        toyear = self.get_parameter_value_int('to_year', required=False)
+        if toyear is None:
+            toyear = self.context.instance.target_year
 
-        if self.is_enabled():
-            fromvalue = self.get_parameter_value('from_value', required=True)
-            percentchange = self.get_parameter_value('percent_change', required=False)
+        df = pl.DataFrame({YEAR_COLUMN: range(fromyear, toyear + 1)})
+
+        constant = self.get_parameter_value('constant', required=False)
+        if constant is None:
+            constant = 0.0
+
+        fromvalue = self.get_parameter_value('from_value', required=False)
+        if fromvalue is None:
+            if self.is_enabled():
+                tovalue = self.get_parameter_value('to_value', required=True) + constant  # type: ignore
+            else:
+                tovalue = self.get_parameter_value('default_value', required=True)
+
+            df = df.with_columns((pl.lit(tovalue) * (pl.col(YEAR_COLUMN) - fromyear) / (toyear - fromyear)).alias(VALUE_COLUMN))
+
         else:
-            fromvalue = self.get_parameter_value('default_value', required=True)
-            percentchange = self.get_parameter_value('default_change', required=False)
+            if self.is_enabled():
+                fromvalue = fromvalue + constant  # type: ignore
+                rate = self.get_parameter_value('percent_change', required=False)
+            else:
+                fromvalue = self.get_parameter_value('default_value', required=True)
+                rate = self.get_parameter_value('default_change', required=False)
 
-        if percentchange:
-            percentchange = 1.0 + (percentchange / 100.0)  # type: ignore
-        else:
-            percentchange = 1.0
+            if rate is None:
+                rate = 1.0
+            else:
+                rate = 1.0 + (rate / 100.0)  # type: ignore
 
-        df = pl.DataFrame({'Year': range(fromyear, toyear)}).with_columns(
-            (pl.lit(fromvalue) * pl.lit(percentchange) ** (pl.col('Year') - fromyear)).alias('Value'),
-            pl.lit(value=True).alias('Forecast'),
-        )
+            df = df.with_columns((pl.lit(fromvalue) * pl.lit(rate) ** (pl.col(YEAR_COLUMN) - fromyear)).alias(VALUE_COLUMN))
 
-        meta = ppl.DataFrameMeta(units={'Value': self.unit}, primary_keys=['Year'])  # type: ignore
+        df = df.with_columns(pl.lit(value=True).alias(FORECAST_COLUMN))
+        meta = ppl.DataFrameMeta(units={VALUE_COLUMN: self.unit}, primary_keys=[YEAR_COLUMN])  # type: ignore
         df = ppl.to_ppdf(df, meta=meta)
 
         return df
