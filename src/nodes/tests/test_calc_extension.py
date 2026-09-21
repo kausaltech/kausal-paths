@@ -65,3 +65,35 @@ def test_no_history_is_unchanged(empty: bool) -> None:
         frame = frame.clear()
     df = to_ppdf(frame, meta=DataFrameMeta(units={'Value': unit_registry.kg}, primary_keys=['Year']))
     assert extend_last_historical_value_pl(df, 2025) is df
+
+
+@pytest.mark.parametrize('zero_fill_missing', [True, False])
+@pytest.mark.parametrize('dimensioned', [True, False])
+@pytest.mark.parametrize('end_year', [2019, 2023])
+def test_extend_single_observation(zero_fill_missing: bool, dimensioned: bool, end_year: int) -> None:
+    frame = pl.DataFrame({
+        'Year': [2020],
+        'Value': [2.0],
+        'Other': pl.Series([None], dtype=pl.Float64),
+        'unused': [None],
+        'note': ['source metadata'],
+    })
+    keys = ['Year', 'unused']
+    if dimensioned:
+        frame = frame.with_columns(pl.lit('buildings').alias('sector'))
+        keys.append('sector')
+    units = dict.fromkeys(['Value', 'Other'], unit_registry.kg)
+    df = to_ppdf(frame, meta=DataFrameMeta(units=units, primary_keys=keys))
+    result = extend_last_historical_value_pl(df, end_year, zero_fill_missing=zero_fill_missing)
+    years = list(range(2020, max(2020, end_year) + 1))
+    expected = pl.DataFrame({
+        'Year': years,
+        'Value': [2.0] * len(years),
+        'Other': pl.Series([None] + [0.0 if zero_fill_missing else None] * (len(years) - 1), dtype=pl.Float64),
+        'Forecast': [year > 2020 for year in years],
+    })
+    if dimensioned:
+        expected = expected.with_columns(pl.lit('buildings').cast(pl.Categorical).alias('sector'))
+        expected = expected.select('sector', 'Year', 'Value', 'Other', 'Forecast')
+    assert_frame_equal(result, expected)
+    assert result.get_meta().is_equal(DataFrameMeta(units=units, primary_keys=[key for key in keys if key != 'unused']))

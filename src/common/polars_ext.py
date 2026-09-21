@@ -1173,17 +1173,25 @@ class PathsExt:
         yearrange = range(df[YEAR_COLUMN].min(), (df[YEAR_COLUMN].max() + 1))  # type: ignore
         nullcount = df.null_count().sum_horizontal()[0]
 
-        if (len(df[YEAR_COLUMN].unique()) < len(yearrange)) | (nullcount > 0):
+        unique_years = df[YEAR_COLUMN].n_unique()
+        missing_years = unique_years < len(yearrange)
+        # The legacy join can reorder noncanonical input before interpolation.
+        # Only elide it for an already sorted, unique year index.
+        canonical_years = df[YEAR_COLUMN].is_sorted() and unique_years == len(df)
+        if missing_years or (nullcount > 0 and not canonical_years):
             yeardf = ppl.PathsDataFrame({YEAR_COLUMN: yearrange})
             yeardf._units = {}
             yeardf._primary_keys = [YEAR_COLUMN]
 
             df = df.paths.join_over_index(yeardf, how='outer')
-            for col in list(set(df.columns) - {YEAR_COLUMN, FORECAST_COLUMN}):
-                df = df.with_columns(pl.col(col).interpolate())
-                df = df.with_columns(pl.col(col).fill_null(strategy='backward'))
-
-            df = df.with_columns(pl.col(FORECAST_COLUMN).fill_null(strategy='backward'))
+        if missing_years or nullcount > 0:
+            # Each series is independent. Evaluate all fills together, and avoid
+            # rebuilding the year index when only values are missing.
+            value_cols = [col for col in df.columns if col not in (YEAR_COLUMN, FORECAST_COLUMN)]
+            df = df.with_columns(
+                *[pl.col(col).interpolate().fill_null(strategy='backward') for col in value_cols],
+                pl.col(FORECAST_COLUMN).fill_null(strategy='backward'),
+            )
 
         df = df.paths.to_narrow()
         return df

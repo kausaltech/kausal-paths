@@ -76,8 +76,13 @@ def extend_last_historical_value_pl(  # noqa: C901, PLR0912
         fill_exprs = [pl.col(col).fill_null(strategy='forward').alias(col) for col in metric_cols]
         sort_cols = [YEAR_COLUMN]
 
-    value_df = source.select([*dim_ids, YEAR_COLUMN, *metric_cols]).sort(sort_cols)
-    jdf = base_df.join(value_df, on=sort_cols, how='left').sort(sort_cols).with_columns(fill_exprs)
+    if len(df) == 1:
+        # A single historical observation is constant throughout the extension.
+        # Broadcast it over the years instead of joining and forward-filling a grid.
+        jdf = source.select([*dim_ids, *metric_cols]).join(years_df, how='cross').select([*dim_ids, YEAR_COLUMN, *metric_cols])
+    else:
+        value_df = source.select([*dim_ids, YEAR_COLUMN, *metric_cols]).sort(sort_cols)
+        jdf = base_df.join(value_df, on=sort_cols, how='left').sort(sort_cols).with_columns(fill_exprs)
 
     if last_hist_year is not None:
         fc_cond = pl.col(YEAR_COLUMN) > last_hist_year
