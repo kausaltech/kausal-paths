@@ -1234,6 +1234,27 @@ class InstanceLoader:
                 raise
             role = target_meta.role_for_input_port(target_port)
             if role is None:
+                # The class declares ports but nothing could say what this
+                # binding is for. Dropping it silently computes the node with
+                # one input missing and no complaint, so fail instead: hard in
+                # strict mode, node marked FAILED under fault tolerance.
+                #
+                # A `unused_port_role` diagnostic is the class stating it does
+                # not consume this binding — a metric it did not select, or a
+                # configured-but-dormant input. That is a decision, not a
+                # fault, so it stays a diagnostic and the binding is skipped.
+                diagnostics = [
+                    diagnostic for diagnostic in target_meta.port_role_diagnostics if diagnostic.port_id == target_port.id
+                ]
+                if any(diagnostic.code == 'unused_port_role' for diagnostic in diagnostics):
+                    continue
+                reasons = [diagnostic.message for diagnostic in diagnostics]
+                detail = f': {reasons[0]}' if reasons else ''
+                self._init_failure(
+                    target,
+                    f'Input binding {definition.id} on port {target_port.identifier or target_port.id} '
+                    f'has no semantic role{detail}',
+                )
                 continue
 
             if isinstance(definition, EdgeBindingDef):
