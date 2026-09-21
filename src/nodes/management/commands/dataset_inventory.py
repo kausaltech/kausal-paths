@@ -49,7 +49,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from django.core.management.base import BaseCommand, CommandError
-from django.db.models import Count, Max
+from django.db.models import Count, Max, Q
 
 from rich.console import Console
 from rich.table import Table
@@ -60,6 +60,7 @@ from common import polars as ppl
 from nodes.management.commands.dataset_status import candidate_dataset_ids
 from nodes.management.commands.load_dvc_dataset import (
     apply_repo_provenance,
+    count_incoming_cells,
     resolve_repo_provenance,
 )
 from nodes.models import InstanceConfig
@@ -87,9 +88,11 @@ class Row:
 
     identifier: str
     db_points: int | None = None
+    db_valued: int | None = None
     db_written: datetime | None = None
     db_stamp: str | None = None
     dvc_points: int | None = None
+    dvc_valued: int | None = None
     dvc_commit: str | None = None
     dvc_committed: str | None = None
     note: str = ''
@@ -128,6 +131,19 @@ class Row:
             return None
         return self.dvc_points - self.db_points
 
+    @property
+    def is_template(self) -> bool:
+        """
+        The DVC copy carries the shape and no values, and this database holds the values.
+
+        Both sides then have the same point count and `where` says 'both', which is true
+        and useless: re-importing would replace every value with an empty cell. It is the
+        normal state of a dataset a municipality fills in through the admin, so it is a
+        note rather than a warning -- but it has to be visible, because the counts alone
+        make the row look like any other.
+        """
+        return bool(self.dvc_valued == 0 and self.db_valued)
+
 
 def db_rows(ic: InstanceConfig) -> dict[str, Row]:
     """One pass over the DB for counts, write times and provenance stamps."""
@@ -135,7 +151,11 @@ def db_rows(ic: InstanceConfig) -> dict[str, Row]:
         Dataset.objects
         .get_queryset()
         .for_instance_config(ic)
-        .annotate(n_points=Count('data_points', distinct=True), written=Max('data_points__last_modified_at'))
+        .annotate(
+            n_points=Count('data_points', distinct=True),
+            n_valued=Count('data_points', distinct=True, filter=Q(data_points__value__isnull=False)),
+            written=Max('data_points__last_modified_at'),
+        )
     )
     out: dict[str, Row] = {}
     for ds in qs:
@@ -144,6 +164,7 @@ def db_rows(ic: InstanceConfig) -> dict[str, Row]:
         out[ds.identifier] = Row(
             identifier=ds.identifier,
             db_points=ds.n_points,  # type: ignore[attr-defined]
+            db_valued=ds.n_valued,  # type: ignore[attr-defined]
             db_written=ds.written or ds.last_modified_at,  # type: ignore[attr-defined]
             db_stamp=(ds.external_ref or {}).get('commit'),
         )
@@ -214,10 +235,15 @@ def add_dvc_side(ctx: Context, rows: dict[str, Row], ds_ids: list[str], dates: D
                 row.note = 'no DVC source' if not row.db_stamp else f'unreadable: {type(exc).__name__}'
             continue
         meta = df.get_meta()
-        row.dvc_points = sum(df[col].drop_nulls().len() for col in meta.metric_cols)
+        # Cells, matching `Dataset.data_points.count()` on the other side: the import
+        # creates a point per (row, metric) cell, empty ones included. Counting values
+        # here reported drift on every dataset with a gap in it, which is most of them.
+        row.dvc_points, row.dvc_valued = count_incoming_cells(df, list(meta.metric_cols))
         found = dates.for_dataset(ds_id)
         if found is not None:
             row.dvc_commit, row.dvc_committed = found
+        if row.is_template and not row.note:
+            row.note = 'template: DVC has no values'
 
 
 def sort_key(row: Row, order: str) -> Any:

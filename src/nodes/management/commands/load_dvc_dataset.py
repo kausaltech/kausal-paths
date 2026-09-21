@@ -44,6 +44,7 @@ from nodes.datasets import JSONDataset
 from nodes.models import InstanceConfig
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
     from pathlib import Path
 
     from nodes.context import Context
@@ -155,6 +156,25 @@ def apply_repo_provenance(ctx: Context, provenance: RepoProvenance) -> None:
     ctx.__dict__.pop('dataset_repo', None)
 
 
+def count_incoming_cells(df: ppl.PathsDataFrame, metric_cols: Sequence[str]) -> tuple[int, int]:
+    """
+    Count what an import of ``df`` would create: (data points, of which carry a value).
+
+    The first number is every (row, metric) cell, because that is what
+    ``create_data_points`` creates -- a cell with no value becomes a ``DataPoint`` with a
+    null ``value``, deliberately, so the city can see it and fill it in. It is therefore
+    the only number comparable with ``Dataset.data_points.count()``.
+
+    Counting only non-null cells here made every dataset with an empty cell report a
+    spurious point-count change that a re-import could never resolve, and made a template
+    -- a DVC copy whose cells are all empty -- look like zero incoming data points against
+    a populated row, which reads as "this import would delete everything" when it would in
+    fact recreate the same grid. Both numbers are kept because the second is what
+    distinguishes a template from real data.
+    """
+    return df.height * len(metric_cols), sum(df[col].drop_nulls().len() for col in metric_cols)
+
+
 @dataclass
 class DatasetPlan:
     """What a sync would do to one dataset, computed before anything is written."""
@@ -166,6 +186,12 @@ class DatasetPlan:
     current_commit: str | None = None
     current_data_points: int = 0
     incoming_data_points: int = 0
+    current_valued_points: int = 0
+    """How many of the stored data points carry a value; the rest are empty cells awaiting one."""
+
+    incoming_valued_cells: int = 0
+    """How many of the incoming cells carry a value. Zero against a populated row means a template."""
+
     kept_metrics: list[str] = field(default_factory=list)
     added_metrics: list[str] = field(default_factory=list)
     dropped_metrics: list[tuple[str, int]] = field(default_factory=list)
@@ -202,6 +228,18 @@ class DatasetPlan:
             f'metric {name!r} would be dropped but {n} model binding(s) still bind it' for name, n in self.dropped_metrics if n
         ]
 
+    @property
+    def would_blank_values(self) -> bool:
+        """
+        True when the incoming data is a template and the stored row is filled in.
+
+        The DVC copy carries the right shape and no values, so the import would recreate
+        every cell empty and the values entered here would be gone. Nothing else in the
+        plan says so: the commit matches, the metrics are all kept, and the point count is
+        unchanged -- only the valued count collapses.
+        """
+        return not self.is_new and self.incoming_valued_cells == 0 and self.current_valued_points > 0
+
 
 def build_dataset_plan(
     ds_id: str,
@@ -210,14 +248,22 @@ def build_dataset_plan(
     incoming_data_points: int,
     incoming_commit: str | None,
     incoming_dataset_sources: list[str] | None = None,
+    incoming_valued_cells: int | None = None,
 ) -> DatasetPlan:
-    """Diff the DB state of one dataset against the DVC data about to be imported."""
+    """
+    Diff the DB state of one dataset against the DVC data about to be imported.
+
+    ``incoming_valued_cells`` defaults to ``incoming_data_points``, i.e. to data with no
+    empty cells; pass both (``count_incoming_cells`` returns the pair) to have the plan
+    recognise a template.
+    """
     from nodes.models import NodeInputPortBinding
 
     plan = DatasetPlan(
         ds_id=ds_id,
         incoming_commit=incoming_commit,
         incoming_data_points=incoming_data_points,
+        incoming_valued_cells=incoming_data_points if incoming_valued_cells is None else incoming_valued_cells,
         added_metrics=list(incoming_metric_cols),
         incoming_dataset_sources=list(incoming_dataset_sources or []),
     )
@@ -228,6 +274,7 @@ def build_dataset_plan(
     plan.existing_uuid = str(dataset.uuid)
     plan.current_commit = (dataset.external_ref or {}).get('commit')
     plan.current_data_points = dataset.data_points.count()
+    plan.current_valued_points = dataset.data_points.filter(value__isnull=False).count()
     plan.is_placeholder = dataset.is_external_placeholder
     plan.current_dataset_sources = sorted(
         ref.data_source.name for ref in DatasetSourceReference.objects.filter(dataset=dataset).select_related('data_source')
@@ -289,6 +336,13 @@ def print_dataset_plan(plan: DatasetPlan) -> None:
     else:
         print(f'  commit       {commit_from} [yellow]->[/yellow] {plan.incoming_commit}')
     print(f'  data points  {plan.current_data_points} -> {plan.incoming_data_points}')
+    if plan.current_valued_points != plan.current_data_points or plan.incoming_valued_cells != plan.incoming_data_points:
+        print(f'  with values  {plan.current_valued_points} -> {plan.incoming_valued_cells}')
+    if plan.would_blank_values:
+        print(
+            f'  [red]WARNING[/red]      the incoming data is a template: every cell is empty, so this import would '
+            f'blank the {plan.current_valued_points} value(s) stored here'
+        )
     if plan.kept_metrics:
         print(f'  metrics kept {", ".join(plan.kept_metrics)}')
     if plan.added_metrics:
@@ -444,11 +498,13 @@ class Command(BaseCommand):
         if datasets:
             dataset = datasets[0]
 
+        incoming_cells, incoming_valued = count_incoming_cells(df, list(df_metadata.metric_cols))
         plan = build_dataset_plan(
             ds_id=ds_id,
             dataset=dataset,
             incoming_metric_cols=list(df_metadata.metric_cols),
-            incoming_data_points=sum(df[col].drop_nulls().len() for col in df_metadata.metric_cols),
+            incoming_data_points=incoming_cells,
+            incoming_valued_cells=incoming_valued,
             incoming_commit=(make_external_dataset_ref(ctx, ds_id) or {}).get('commit'),
             incoming_dataset_sources=dataset_level_source_names(dvc_metadata.get('sources')),
         )

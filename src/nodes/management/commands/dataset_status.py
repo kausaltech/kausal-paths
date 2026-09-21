@@ -17,11 +17,13 @@ reports a verdict:
     new           the model declares it but there is no DB row yet
     unreadable    the row claims a DVC source that will not read at the pinned commit
     db only       no DVC source: authored in the admin, so nothing to import
+    template      the DVC copy carries the shape and no values, and this row is filled in;
+                  importing would blank it, so it is left out of the commands below
     dvc only      indexed by columns this instance has no dimension for, so it cannot be
                   imported at all; the runtime reads it from DVC and the nodes slice it
 
 and then prints the commands to run, in the order they have to happen. Verdicts that are not
-work to do — ``current``, ``db only``, ``dvc only`` — are left out of that list.
+work to do — ``current``, ``db only``, ``dvc only``, ``template`` — are left out of that list.
 
     python manage.py dataset_status mainz-bisko
     python manage.py dataset_status bisko mainz-bisko augsburg-bisko --stale-only
@@ -40,8 +42,10 @@ from kausal_common.datasets.models import Dataset
 
 from common import polars as ppl
 from nodes.management.commands.load_dvc_dataset import (
+    DatasetPlan,
     apply_repo_provenance,
     build_dataset_plan,
+    count_incoming_cells,
     resolve_repo_provenance,
 )
 from nodes.models import InstanceConfig
@@ -59,6 +63,7 @@ VERDICT_STYLE = {
     'unreadable': 'red',
     'db only': 'dim',
     'dvc only': 'dim',
+    'template': 'dim',
 }
 
 
@@ -70,7 +75,7 @@ class DatasetStatus:
 
     @property
     def is_stale(self) -> bool:
-        return self.verdict not in ('current', 'db only', 'dvc only')
+        return self.verdict not in ('current', 'db only', 'dvc only', 'template')
 
 
 def candidate_dataset_ids(ic: InstanceConfig, ctx: Context) -> list[str]:
@@ -88,6 +93,20 @@ def candidate_dataset_ids(ic: InstanceConfig, ctx: Context) -> list[str]:
     # from the stamp. Rows that turn out to be admin-authored are reported as "db only".
     stored = {ds.identifier for ds in Dataset.objects.get_queryset().for_instance_config(ic) if ds.identifier}
     return sorted(declared | stored)
+
+
+def pending_changes(plan: DatasetPlan, dataset: Dataset, ctx: Context) -> list[str]:
+    """List what an import would actually change about this row; empty means it is current."""
+    current_commit = (dataset.external_ref or {}).get('commit')
+    pinned = ctx.dataset_repo_spec.commit if ctx.dataset_repo_spec else None
+    changes = []
+    if pinned and current_commit != pinned:
+        changes.append(f'commit {current_commit or "unrecorded"} -> {pinned}')
+    if plan.current_data_points != plan.incoming_data_points:
+        changes.append(f'{plan.current_data_points} -> {plan.incoming_data_points} data points')
+    if plan.added_metrics:
+        changes.append(f'metrics add {", ".join(plan.added_metrics)}')
+    return changes
 
 
 def status_for(ic: InstanceConfig, ctx: Context, ds_id: str) -> DatasetStatus:
@@ -120,28 +139,34 @@ def status_for(ic: InstanceConfig, ctx: Context, ds_id: str) -> DatasetStatus:
             'indexed by ' + ', '.join(sorted(unknown_index)) + ' — not dimensions of this instance',
         )
 
+    incoming_cells, incoming_valued = count_incoming_cells(df, list(meta.metric_cols))
     plan = build_dataset_plan(
         ds_id=ds_id,
         dataset=dataset,
         incoming_metric_cols=list(meta.metric_cols),
-        incoming_data_points=sum(df[col].drop_nulls().len() for col in meta.metric_cols),
+        incoming_data_points=incoming_cells,
         incoming_commit=None,
+        incoming_valued_cells=incoming_valued,
     )
     if plan.is_new:
         return DatasetStatus(ds_id, 'new', f'{plan.incoming_data_points} data point(s) waiting')
     if plan.blockers:
         return DatasetStatus(ds_id, 'rename first', plan.blockers[0])
 
+    # A template is not work to do, and proposing it as work is actively dangerous: the
+    # generated command line would blank values that exist in no other copy. It happens
+    # where a dataset ships the shape a municipality is to fill in -- the BISKO template
+    # datasets -- and the city then enters its figures in the admin. The DVC side stays
+    # empty by design, so this is the finished state, not a stale one.
+    if plan.would_blank_values:
+        return DatasetStatus(
+            ds_id,
+            'template',
+            f'DVC copy has no values; {plan.current_valued_points} entered here — importing would blank them',
+        )
+
     assert dataset is not None
-    current_commit = (dataset.external_ref or {}).get('commit')
-    pinned = ctx.dataset_repo_spec.commit if ctx.dataset_repo_spec else None
-    changes = []
-    if pinned and current_commit != pinned:
-        changes.append(f'commit {current_commit or "unrecorded"} -> {pinned}')
-    if plan.current_data_points != plan.incoming_data_points:
-        changes.append(f'{plan.current_data_points} -> {plan.incoming_data_points} data points')
-    if plan.added_metrics:
-        changes.append(f'metrics add {", ".join(plan.added_metrics)}')
+    changes = pending_changes(plan, dataset, ctx)
     if not changes:
         return DatasetStatus(ds_id, 'current')
     return DatasetStatus(ds_id, 'import', '; '.join(changes))

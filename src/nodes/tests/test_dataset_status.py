@@ -180,3 +180,59 @@ def test_the_same_dataset_is_ordinary_work_once_the_instance_has_the_dimension()
     ctx.dimensions = {'district': object()}
 
     assert status_for(ic, ctx, DS_ID).verdict != 'dvc only'
+
+
+def _template_ctx(rows: int = 2, commit: str | None = COMMIT) -> Any:
+    """Build a DVC copy carrying the right shape and no values at all -- what a fill-in template is."""
+    df = pl.DataFrame({
+        'Year': list(range(2020, 2020 + rows)),
+        'Value': pl.Series([None] * rows, dtype=pl.Float64),
+    })
+    return make_context(df, {'Value': 'kt'}, commit=commit)
+
+
+def test_a_template_against_a_filled_in_row_is_not_reported_as_work():
+    """
+    The verdict that stops the report from proposing to destroy data.
+
+    Where a dataset ships the shape a municipality is to fill in, the DVC copy stays empty
+    by design and the values are entered in the admin. Graded as `import`, the generated
+    command line runs `load_dvc_dataset --force` and blanks every one of them -- 660 values
+    across five `kommune/*` rows in the reviewer sandbox, in the run that prompted this.
+    """
+    ic = InstanceConfigFactory.create(name='status-template', config_source='database')
+    _import(ic, _ctx({'Value': [1.0]}, {'Value': 'kt'}))
+
+    status = status_for(ic, _template_ctx(rows=1), DS_ID)
+
+    assert status.verdict == 'template', f'got {status.verdict}: {status.detail}'
+    assert not status.is_stale, 'a template must not reach the generated command line'
+
+
+def test_an_empty_row_takes_the_template_as_ordinary_work():
+    """Nothing to lose means nothing to protect: importing the empty grid is the intended first step."""
+    ic = InstanceConfigFactory.create(name='status-template-empty', config_source='database')
+    _import(ic, _template_ctx(rows=1))
+
+    status = status_for(ic, _template_ctx(rows=2), DS_ID)
+
+    assert status.verdict != 'template'
+
+
+def test_empty_cells_do_not_make_a_current_dataset_look_stale():
+    """
+    The counting bug behind the wrong verdict.
+
+    An empty cell is imported as a DataPoint with a null value, on purpose, so the city can
+    see it and fill it in. Counting only non-null cells on the incoming side then reported a
+    point-count change on every partly-empty dataset -- `8262 -> 2822` on one Mainz row --
+    that no re-import could ever settle, because the import recreates the same 8262.
+    """
+    ic = InstanceConfigFactory.create(name='status-partly-empty', config_source='database')
+    df = pl.DataFrame({'Year': [2020, 2021], 'Value': pl.Series([1.0, None], dtype=pl.Float64)})
+    ctx = make_context(df, {'Value': 'kt'}, commit=COMMIT)
+    LoadCommand().sync_dataset(ic, ctx, DS_ID)
+
+    status = status_for(ic, ctx, DS_ID)
+
+    assert status.verdict == 'current', f'got {status.verdict}: {status.detail}'

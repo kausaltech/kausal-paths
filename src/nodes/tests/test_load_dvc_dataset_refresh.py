@@ -11,7 +11,8 @@ import pytest
 
 from kausal_common.datasets.models import DataPoint, Dataset, DatasetMetric
 
-from nodes.management.commands.load_dvc_dataset import Command, build_dataset_plan
+from common import polars as ppl
+from nodes.management.commands.load_dvc_dataset import Command, build_dataset_plan, count_incoming_cells
 from nodes.models import NodeConfig, NodeInputPortBinding
 from nodes.tests.factories import InstanceConfigFactory, NodeConfigFactory
 
@@ -244,3 +245,51 @@ def test_a_valueless_cell_becomes_a_null_data_point_rather_than_being_skipped():
     assert points[2021] is None, 'the empty cell must be null, not absent and not zero'
     assert float(cast('Any', points[2020])) == 1.0
     assert float(cast('Any', points[2022])) == 3.0
+
+
+def test_the_plan_counts_empty_cells_the_way_the_import_creates_them():
+    """
+    The plan's two sides have to be counted alike, or every partly-empty dataset looks stale.
+
+    `create_data_points` writes a DataPoint per (row, metric) cell, null value included, so
+    `Dataset.data_points.count()` counts empty cells. The incoming side must too; the valued
+    count is carried separately rather than substituted for it.
+    """
+    df = ppl.to_ppdf(pl.DataFrame({'Year': [2020, 2021], 'a': pl.Series([1.0, None], dtype=pl.Float64), 'b': [1.0, 2.0]}))
+
+    assert count_incoming_cells(df, ['a', 'b']) == (4, 3)
+
+
+def test_a_template_import_over_a_filled_in_row_is_flagged_as_blanking_it():
+    """
+    The one hazard the rest of the plan cannot show.
+
+    Commit unchanged, metrics all kept, point count identical -- every line reads like a
+    no-op while the import would replace real values with empty cells.
+    """
+    ic = InstanceConfigFactory.create(name='refresh-template', config_source='database')
+    filled = make_context(pl.DataFrame({'Year': [2020], 'value': [1.0]}), {'value': 'kt'}, commit='aaa111')
+    Command().sync_dataset(ic, filled, DS_ID)
+
+    dataset = Dataset.objects.get(identifier=DS_ID)
+    plan = build_dataset_plan(
+        ds_id=DS_ID,
+        dataset=dataset,
+        incoming_metric_cols=['value'],
+        incoming_data_points=1,
+        incoming_commit='aaa111',
+        incoming_valued_cells=0,
+    )
+
+    assert plan.current_data_points == plan.incoming_data_points, 'the grid is unchanged, which is what hides it'
+    assert plan.would_blank_values
+
+    unchanged = build_dataset_plan(
+        ds_id=DS_ID,
+        dataset=dataset,
+        incoming_metric_cols=['value'],
+        incoming_data_points=1,
+        incoming_commit='aaa111',
+        incoming_valued_cells=1,
+    )
+    assert not unchanged.would_blank_values

@@ -152,14 +152,40 @@ python manage.py dataset_status bisko mainz-bisko augsburg-bisko --stale-only
 
 Each dataset gets a verdict: `current`, `import`, `rename first` (a metric was
 renamed upstream and bindings still hold the old name), `new` (declared but
-never imported), `unreadable` (claims a DVC source that will not read) or
-`db only` (authored in the admin, so nothing to import). It then prints the
-commands to run in the order they have to happen — rename, import, sync.
+never imported), `unreadable` (claims a DVC source that will not read),
+`db only` (authored in the admin, so nothing to import) or `template` (see
+below). It then prints the commands to run in the order they have to happen —
+rename, import, sync.
 
 It deliberately lists rows that carry no `external_ref`. Those were imported
 before provenance stamping existed, and they are the ones most likely to be
 silently stale: 15 of `mainz-bisko`'s 32 rows are in that state, including the
 one that was blocking its update.
+
+### `template` — the verdict that exists to not propose a command
+
+Where a dataset ships the shape a municipality is to fill in, the DVC copy stays
+empty by design and the values are entered in the admin. A row like that is
+finished, not stale, and the command leaves it out of the generated command line:
+running `load_dvc_dataset --force` on it would recreate every cell empty and
+delete values that exist in no other copy. Five `kommune/*` rows in
+`pruefstadt-bisko` — 660 values — were one `--force` away from exactly that.
+
+The test is the **valued** cell count, not the point count: `template` means the
+DVC side has no values at all while this row has some. A dataset that is empty on
+both sides is ordinary work (`import`), because importing the empty grid is the
+intended first step.
+
+This is also why a point count alone cannot be trusted to mean drift. An empty
+cell is imported as a `DataPoint` with a null value, deliberately — so the city
+can see it, comment on it and fill it in, rather than the cell vanishing with its
+dimensions, source link and comment. `Dataset.data_points.count()` therefore
+counts empty cells, and the DVC side must be counted the same way
+(`count_incoming_cells` in `load_dvc_dataset.py` is the one definition, used by
+all three commands). Counting only non-null cells on one side reported
+`8262 -> 2822` on `de/energiefaktoren_verkehr` — a change no re-import could ever
+settle, because the import recreates the same 8262 — and made a template look
+like a row about to be emptied.
 
 
 ## dataset_inventory
@@ -183,8 +209,16 @@ missing from it. This command enumerates from the DB rows and the declared set,
 so nothing is invisible.
 
 The two point counts are comparable: a `DataPoint` is one (metric, year,
-dimension) cell, and the DVC count is non-null metric cells. `--order drift` puts
-the mismatches first.
+dimension) cell, and the DVC count is every (row, metric) cell — empty ones
+included, because an import creates a null-valued `DataPoint` for each. So drift
+is a real difference in shape, not an artefact of how full the data is.
+`--order drift` puts the mismatches first.
+
+A dataset whose DVC copy carries the shape and no values, against a row that has
+been filled in through the admin, reads `both` with zero drift and is called out
+in the `note` column as `template: DVC has no values`. Nothing else distinguishes
+it, and re-importing it would blank the row — `dataset_status` grades the same
+case `template` and keeps it out of the commands it prints.
 
 Three verdicts in the `where` column, and the distinction that matters:
 
