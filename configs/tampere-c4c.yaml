@@ -2123,26 +2123,6 @@ nodes:
     - column: cost_type
     - column: sector
 
-- id: car_propulsion_mix_action_impact
-  name: Passenger car propulsion mix action impact
-  type: simple.AdditiveNode
-  quantity: fraction
-  unit: '%'
-  input_dimensions: []
-  output_dimensions: []
-  forecast_values: [[2024, 2.33999730], [2025, 4.67999460], [2026, 7.01999190], [2027, 9.35998921], [2028, 11.69998651], [2029, 14.03998381], [2030, 16.37998111]]
-  output_nodes:
-  - id: car_propulsion_percentage_electric
-    to_dimensions:
-    - id: energy_carrier
-      categories: [electricity]
-    - id: scope
-      categories: [scope2]
-    - id: vehicle_type
-      categories: [passenger_cars]
-  - id: car_propulsion_percentage_non_electric
-    tags: [arithmetic_inverse]
-
 - id: car_propulsion_percentage_electric
   name: 'Passenger car propulsion percentage: electric'
   name_en: 'Passenger car propulsion percentage: electric'
@@ -4598,6 +4578,42 @@ actions:
       categories: [scope1]
     - id: vehicle_type
       categories: [buses]
+
+- id: electrification_of_private_cars
+  name: Henkilöautojen sähköistyminen
+  name_en: Electrification of private cars
+  type: simple.ParameterAction
+  group: transportation
+  unit: '%'
+  quantity: mix
+  input_dimensions: []
+  output_dimensions: []
+  params:
+  - id: to_value
+    value: 37.0
+    min_value: 15.0
+    max_value: 80.0
+    step: 1.0
+    unit: '%'
+    description: Sähkökäyttö
+    description_en: Electric propulsion
+  - id: constant
+    value: -30.8
+    unit: '%'
+  - id: default_value
+    value: 0.0
+    unit: '%'
+  output_nodes:
+  - id: car_propulsion_percentage_electric
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+    - id: scope
+      categories: [scope2]
+    - id: vehicle_type
+      categories: [passenger_cars]
+  - id: car_propulsion_percentage_non_electric
+    tags: [arithmetic_inverse]
 
 - id: change_in_vehicle_propulsion_of_private_cars
   name: Henkilöautoliikenteen käyttövoimamuutos
