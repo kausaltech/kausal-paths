@@ -1001,6 +1001,10 @@ action_groups:
 
 actions:
 
+# Arqum's measure sheet B1 states the potential as "over 1/3 of the emissions of the heat
+# sector"
+# against 2019; the 35 % modelled here is that figure, and both variants carry it because the
+# report draws no scenario distinction for renovation.
 - id: knsv_energetische_sanierung_waerme
   name_de: Energetische Sanierung im Bestand (Wärme)
   name_en: Energetic renovation of existing buildings (heat)
@@ -1010,21 +1014,36 @@ actions:
   no_effect_value: 1.0
   group: gebaeude_energie
   description_de: |
-    Die Baustandards der Stadtverwaltung geben für Sanierungen einen Zielwert von 25 kWh je m²
-    und Jahr vor; Ziel ist, dass alle Bestandsgebäude ihn erreichen. Maßnahmensteckbrief B1
-    beziffert das Potenzial: bei Erreichen des Zielwerts könnten „über 1/3 der Emissionen des
-    Wärmebereichs" gegenüber 2019 eingespart werden. Im Modell 35 % Minderung des Wärmebedarfs
-    bis 2035, in beiden Szenarien gleich -- der Bericht unterscheidet für die Sanierung nicht.<br/>
-    Erfolgsindikator laut Steckbrief ist die Sanierungsquote von 3 % nach dem
-    Energieeffizienzgesetz.
+    Die Stadtverwaltung saniert ihre eigenen Bestandsgebäude energetisch, damit sie deutlich
+    weniger Heizwärme brauchen. Zweck ist, den größten Einzelposten der Verwaltungsbilanz
+    dauerhaft zu senken, und zwar dort, wo die Stadt selbst Bauherrin ist.<br/>
+    Die Maßnahme stammt aus dem Konzept Klimaneutrale Stadtverwaltung (KNSV), mit dem die Stadt
+    den Weg ihres eigenen Betriebs zur Klimaneutralität beschreibt; dort ist sie als
+    Maßnahmensteckbrief B1 hinterlegt. Zu ihr gehören die Dämmung von Dach, Fassade und
+    Kellerdecke, der Austausch von Fenstern und die Erneuerung der Heizungs- und Lüftungstechnik.
+    Maßstab sind die Baustandards der Stadtverwaltung mit einem Zielwert von 25 Kilowattstunden je
+    Quadratmeter und Jahr, den auf Dauer alle Bestandsgebäude erreichen sollen. Als
+    Erfolgsindikator nennt der Steckbrief eine Sanierungsquote von 3 % pro Jahr.<br/>
+    Im Modell senkt die Maßnahme den Wärmebedarf der städtischen Liegenschaften bis 2035 um 35 %.
+    Sie wirkt damit unmittelbar auf die Endenergie der Liegenschaften der Stadtverwaltung und über
+    deren Emissionsfaktoren auf die Emissionen der Verwaltung. Beide Szenarien des Konzepts
+    rechnen mit demselben Wert, weil das Konzept bei der Sanierung keinen Unterschied zwischen
+    ihnen macht.
   description_en: |
-    The city's building standards set a renovation target of 25 kWh per m² and year, and the
-    stated aim is for every existing building to reach it. Measure sheet B1 quantifies it:
-    reaching the target would save "more than 1/3 of the emissions of the heat sector" against
-    2019. Modelled as a 35 % cut in building heat demand by 2035, the same in both scenarios --
-    the report draws no distinction for renovation.<br/>
-    The success indicator in the measure sheet is the 3 % renovation rate of the German Energy
-    Efficiency Act.
+    The city administration renovates its own existing buildings so that they need substantially
+    less heat. The purpose is to bring down the largest single item in the administration's
+    emissions balance, in the one place where the city itself is the building owner.<br/>
+    The measure comes from the city's Climate-Neutral Administration concept (Klimaneutrale
+    Stadtverwaltung, KNSV), which sets out how the city's own operations reach climate neutrality;
+    there it is measure sheet B1. It covers insulation of roofs, façades and basement ceilings,
+    the replacement of windows, and the renewal of heating and ventilation systems. The yardstick
+    is the city's own building standard of 25 kilowatt-hours per square metre and year, which
+    every existing building is eventually to meet. The measure sheet names a renovation rate of 3
+    % a year as the indicator of success.<br/>
+    In the model the measure cuts the heat demand of the city's properties by 35 % by 2035. It
+    therefore acts directly on the city administration's building energy use, and through the
+    associated emission factors on the administration's emissions. Both scenarios of the concept
+    use the same figure, because the concept draws no distinction between them for renovation.
   input_dimensions: [ghg_category, measure_scenario]
   output_dimensions: [ghg_category, measure_scenario]
   input_datasets:
@@ -1060,6 +1079,9 @@ actions:
     - id: measure_scenario
       flatten: true
 
+# Measure sheet B4 puts the potential of user behaviour overall at "10 % energy savings on
+# average". The report's own scenario calculation (5 % / 2 %) stays below that and is what the
+# dataset carries.
 - id: knsv_nutzendenverhalten_waerme
   name_de: Wärmeeinsparung durch Sensibilisierung der Nutzenden
   name_en: Heat savings through user awareness
@@ -1069,16 +1091,33 @@ actions:
   no_effect_value: 1.0
   group: gebaeude_energie
   description_de: |
-    Sensibilisierung der Nutzenden der städtischen Liegenschaften. Szenario 1 rechnet mit 5 %,
-    Szenario 2 mit 2 % Minderung des Wärmeverbrauchs durch Verhaltensänderung bis 2030.<br/>
-    Maßnahmensteckbrief B4 nennt für das Nutzendenverhalten insgesamt „durchschnittlich 10 %
-    Energieeinsparungen"; die Szenariorechnung des Berichts bleibt darunter und ist hier
-    maßgeblich.
+    Die Nutzerinnen und Nutzer städtischer Gebäude werden dafür sensibilisiert, sparsam zu heizen
+    und richtig zu lüften. Zweck ist, Wärme ohne bauliche Investitionen einzusparen:
+    Verhaltensänderung ist der schnellste und günstigste Hebel und wirkt schon in Gebäuden, deren
+    Sanierung noch Jahre entfernt ist.<br/>
+    Die Maßnahme gehört zum Konzept Klimaneutrale Stadtverwaltung (Maßnahmensteckbrief B4). Sie
+    umfasst Informations- und Schulungsangebote für Beschäftigte und Hausmeisterdienste,
+    Rückmeldungen zum Verbrauch der einzelnen Liegenschaft und feste Ansprechpersonen in den
+    Gebäuden. Sie richtet sich an alle Liegenschaften der Stadt und wirkt unabhängig davon, in
+    welchem baulichen Zustand ein Gebäude ist.<br/>
+    Im Modell senkt sie den Wärmeverbrauch der städtischen Liegenschaften bis 2030 und wirkt damit
+    auf die Endenergie der Liegenschaften der Stadtverwaltung: im ambitionierten Szenario 1 um 5
+    %, im konservativen Szenario 2 um 2 %. Der Steckbrief selbst hält für das Nutzendenverhalten
+    insgesamt durchschnittlich 10 % Energieeinsparung für erreichbar; das Modell folgt der
+    vorsichtigeren Szenariorechnung des Konzepts.
   description_en: |
-    Awareness-raising among the users of city properties. Scenario 1 assumes a 5 % cut in heat
-    consumption from behavioural change by 2030, scenario 2 a 2 % cut.<br/>
-    Measure sheet B4 puts the potential of user behaviour overall at "10 % energy savings on
-    average"; the report's own scenario calculation stays below that and is what is used here.
+    The people who use the city's buildings are encouraged to heat sparingly and ventilate
+    properly. The purpose is to save heat without any building work: behaviour is the fastest and
+    cheapest lever, and it works in buildings whose renovation is still years away.<br/>
+    The measure belongs to the Climate-Neutral Administration concept (measure sheet B4). It
+    covers information and training for staff and caretakers, feedback on each property's own
+    consumption, and a named contact person in each building. It addresses every property the city
+    owns and works whatever structural condition a building is in.<br/>
+    In the model it reduces the heat consumption of the city's properties by 2030, and so acts on
+    the city administration's building energy use: by 5 % in the ambitious scenario 1 and by 2 %
+    in the conservative scenario 2. The measure sheet itself considers savings of 10 % on average
+    attainable from user behaviour overall; the model follows the concept's own, more cautious
+    scenario calculation.
   input_dimensions: [ghg_category, measure_scenario]
   output_dimensions: [ghg_category, measure_scenario]
   input_datasets:
@@ -1114,6 +1153,10 @@ actions:
     - id: measure_scenario
       flatten: true
 
+# The 20 % is an assumption of this model, not a figure from the report: Arqum computes the
+# electricity side from Bundesanzeiger floor-area benchmarks this model does not hold, and
+# quantifies only the heat side. The value is recorded under its own source in the dataset and
+# should be checked against the building management office's floor areas.
 - id: knsv_energieeffizienz_gebaeude_strom
   name_de: Energieeffizienter Gebäudestandard und LED-Umrüstung (Strom)
   name_en: Energy-efficient building standard and LED conversion (electricity)
@@ -1123,21 +1166,34 @@ actions:
   no_effect_value: 1.0
   group: gebaeude_energie
   description_de: |
-    Dieselbe Sanierung wie bei der Wärme, hier auf der Stromseite: der Baustandard von 25 kWh je
-    m² und Jahr gilt für Wärme- <i>und</i> Stromverbrauch, und die Sanierung schließt die
-    Umrüstung der Beleuchtung aller Gebäude auf LED ein.<br/>
-    <b>Die 20 % sind eine Annahme dieses Modells, keine Angabe des Berichts.</b> Arqum rechnet die
-    Stromseite aus Flächenkennwerten des Bundesanzeigers, die hier nicht vorliegen, und beziffert
-    nur die Wärmeseite. Der Wert steht als eigene Quelle im Datensatz und ist gegen die
-    Flächendaten der Gebäudewirtschaft zu prüfen.
+    Dieselbe Sanierung der städtischen Bestandsgebäude wie bei der Wärme, hier auf der Stromseite.
+    Zweck ist, den Strombedarf der Liegenschaften zu senken – ein Posten, der anders als die Wärme
+    nicht vom Wetter abhängt und deshalb dauerhaft wirkt.<br/>
+    Die Maßnahme stammt aus dem Konzept Klimaneutrale Stadtverwaltung. Der Zielwert der
+    städtischen Baustandards von 25 Kilowattstunden je Quadratmeter und Jahr gilt für den Wärme-
+    <i>und</i> den Stromverbrauch. Enthalten sind die Umrüstung der Beleuchtung aller städtischen
+    Gebäude auf LED, effizientere Lüftungs- und Kältetechnik und der Austausch veralteter Geräte
+    im Rahmen der ohnehin anstehenden Sanierungen.<br/>
+    Im Modell senkt sie den Stromverbrauch der städtischen Liegenschaften bis 2035 um 20 %, in
+    beiden Szenarien gleich, und wirkt damit auf die Endenergie der Liegenschaften der
+    Stadtverwaltung.<br/>
+    Ein Hinweis zur Einordnung: Die 20 % sind eine Annahme dieses Modells. Das Konzept beziffert
+    nur die Wärmeseite, sodass der Wert noch anhand der Flächendaten der Gebäudewirtschaft zu
+    überprüfen ist.
   description_en: |
-    The same renovation as on the heat side, here on electricity: the 25 kWh per m² and year
-    standard covers heat <i>and</i> electricity, and the renovation includes converting the
-    lighting of every building to LED.<br/>
-    <b>The 20 % is an assumption of this model, not a figure from the report.</b> Arqum computes
-    the electricity side from Bundesanzeiger floor-area benchmarks this model does not hold, and
-    quantifies only the heat side. The value is recorded under its own source in the dataset and
-    should be checked against the building management office's floor areas.
+    The same renovation of the city's existing buildings as on the heat side, here on electricity.
+    The purpose is to bring down the properties' electricity demand — an item that, unlike heat,
+    does not depend on the weather and therefore saves reliably year after year.<br/>
+    The measure comes from the Climate-Neutral Administration concept. The city's building
+    standard of 25 kilowatt-hours per square metre and year covers heat <i>and</i> electricity. It
+    includes converting the lighting of every city building to LED, more efficient ventilation and
+    cooling systems, and replacing outdated equipment as part of renovations that are due
+    anyway.<br/>
+    In the model it cuts the electricity consumption of the city's properties by 20 % by 2035, the
+    same in both scenarios, and so acts on the city administration's building energy use.<br/>
+    One caveat for reading the figure: the 20 % is an assumption of this model. The concept
+    quantifies only the heat side, so the value still needs checking against the floor-area data
+    held by the city's building management office.
   input_dimensions: [ghg_category, measure_scenario]
   output_dimensions: [ghg_category, measure_scenario]
   input_datasets:
@@ -1182,15 +1238,33 @@ actions:
   no_effect_value: 1.0
   group: gebaeude_energie
   description_de: |
-    Überarbeitung und Ausweitung von KESch und KLiK (Klimaschutz durch Energiesparen an Schulen
-    bzw. an Kindertagesstätten) zur Schulung von Hausmeistern, Lehrkräften und Schüler:innen,
-    zusammen mit erwarteten Einsparungen in den Verwaltungsgebäuden. Szenario 1 rechnet mit 5 %,
-    Szenario 2 mit 2 % Minderung des Stromverbrauchs bis 2030.
+    Beschäftigte, Lehrkräfte, Kinder und Jugendliche werden dafür gewonnen, in den Gebäuden der
+    Stadt Strom zu sparen. Zweck ist, Einsparungen zu erschließen, die keine Investition brauchen,
+    und das Energiesparen zugleich in Schulen und Kitas zum Thema zu machen.<br/>
+    Die Maßnahme gehört zum Konzept Klimaneutrale Stadtverwaltung und baut auf zwei bestehenden
+    Programmen der Stadt auf, die überarbeitet und ausgeweitet werden: KESch (Klimaschutz durch
+    Energiesparen an Schulen) und KLiK (dasselbe an Kindertagesstätten). Dazu gehören Schulungen
+    für Hausmeisterdienste, Lehrkräfte und Schülerinnen und Schüler, Rückmeldungen zum Verbrauch
+    und Anreize für die beteiligten Einrichtungen. Hinzu kommen die erwarteten Einsparungen in den
+    Verwaltungsgebäuden. Beide Programme laufen bereits; die Maßnahme besteht darin, sie auf
+    weitere Einrichtungen auszuweiten und ihre Inhalte zu aktualisieren.<br/>
+    Im Modell senkt die Maßnahme den Stromverbrauch der städtischen Liegenschaften bis 2030 – im
+    ambitionierten Szenario 1 um 5 %, im konservativen Szenario 2 um 2 % – und wirkt damit auf die
+    Endenergie der Liegenschaften der Stadtverwaltung.
   description_en: |
-    Revising and extending KESch and KLiK (energy-saving programmes in schools and day-care
-    centres) to train caretakers, teachers and pupils, together with expected savings in the
-    administrative buildings. Scenario 1 assumes 5 % and scenario 2 assumes 2 % lower electricity
-    consumption by 2030.
+    Staff, teachers and children are enlisted to save electricity in the city's buildings. The
+    purpose is to capture savings that need no investment, and at the same time to make energy
+    saving a subject in schools and day-care centres.<br/>
+    The measure belongs to the Climate-Neutral Administration concept and builds on two existing
+    city programmes that are to be revised and extended: KESch (energy saving in schools) and KLiK
+    (the same in day-care centres). It covers training for caretakers, teachers and pupils,
+    feedback on consumption, and incentives for the participating institutions. Expected savings
+    in the administrative buildings are counted alongside them. Both programmes already run; the
+    measure consists in extending them to further institutions and bringing their content up to
+    date.<br/>
+    In the model the measure reduces the electricity consumption of the city's properties by 2030
+    — by 5 % in the ambitious scenario 1 and by 2 % in the conservative scenario 2 — and so acts
+    on the city administration's building energy use.
   input_dimensions: [ghg_category, measure_scenario]
   output_dimensions: [ghg_category, measure_scenario]
   input_datasets:
@@ -1226,6 +1300,8 @@ actions:
     - id: measure_scenario
       flatten: true
 
+# The conversion into a share is done here, not in the report: the extra yield of 1,275 / 638
+# MWh/a against the properties' 15,102 MWh of electricity in 2024 is 8.4 % / 4.2 %.
 - id: knsv_photovoltaik_eigenerzeugung
   name_de: Ausbau der städtischen Photovoltaik
   name_en: Expansion of municipal photovoltaics
@@ -1235,24 +1311,35 @@ actions:
   no_effect_value: 1.0
   group: gebaeude_energie
   description_de: |
-    Stand 2024 sind auf städtischen Liegenschaften 1.275,36 kWp installiert; der Bericht rechnet
-    mit 1.000 kWh Ertrag je kWp und Jahr, also rund 1.275 MWh/a. Szenario 1 verdoppelt die
-    Leistung gegenüber 2024, Szenario 2 baut bis 2030 50 % zu.<br/>
-    <b>Die Umrechnung in einen Anteil ist hier gerechnet, nicht im Bericht.</b> Der zusätzliche
-    Ertrag von 1.275 bzw. 638 MWh/a ersetzt Netzbezug und ist bezogen auf die 15.102 MWh
-    Stromverbrauch der Liegenschaften 2024 ein Anteil von 8,4 % bzw. 4,2 %.<br/>
-    Die Maßnahme mindert den <i>bezogenen</i> Strom. Sie ist nicht dasselbe wie der
-    nachrichtliche Posten „Vermiedene Emissionen durch Eigenerzeugung", der die bereits
-    bestehende Eigenerzeugung ausweist.
+    Die Stadt baut Photovoltaikanlagen auf den Dächern ihrer eigenen Liegenschaften aus. Zweck
+    ist, einen Teil des Stroms selbst zu erzeugen und damit Strombezug aus dem Netz zu ersetzen;
+    die Stadt tritt dabei als Vorbild für private Dachflächen auf.<br/>
+    Die Maßnahme gehört zum Konzept Klimaneutrale Stadtverwaltung. Stand 2024 sind auf städtischen
+    Liegenschaften 1.275 Kilowatt Leistung installiert, die bei einem üblichen Ertrag von 1.000
+    Kilowattstunden je Kilowatt und Jahr rund 1.275 Megawattstunden liefern. Das ambitionierte
+    Szenario 1 verdoppelt diese Leistung gegenüber 2024, das konservative Szenario 2 baut bis 2030
+    die Hälfte davon zu.<br/>
+    Der zusätzliche Ertrag von 1.275 beziehungsweise 638 Megawattstunden im Jahr ersetzt
+    Netzbezug. Gemessen an den 15.102 Megawattstunden Stromverbrauch der Liegenschaften im Jahr
+    2024 sind das 8,4 % beziehungsweise 4,2 % weniger bezogener Strom; die Maßnahme wirkt damit
+    auf die Endenergie der Liegenschaften der Stadtverwaltung.<br/>
+    Nicht zu verwechseln ist sie mit dem nachrichtlichen Posten „Vermiedene Emissionen durch
+    Eigenerzeugung“ in der Bilanz, der die bereits bestehende Eigenerzeugung ausweist.
   description_en: |
-    As of 2024 the city's properties carry 1,275.36 kWp of installed capacity; the report assumes
-    1,000 kWh per kWp and year, so about 1,275 MWh/a. Scenario 1 doubles the capacity against
-    2024, scenario 2 adds half as much again by 2030.<br/>
-    <b>The conversion into a share is done here, not in the report.</b> The extra yield of 1,275
-    or 638 MWh/a displaces purchased electricity, which against the properties' 15,102 MWh in
-    2024 is 8.4 % and 4.2 % respectively.<br/>
-    The measure reduces <i>purchased</i> electricity. It is not the same thing as the memo item
-    "avoided emissions from self-generation", which reports the self-generation already in place.
+    The city installs more solar panels on the roofs of its own properties. The purpose is to
+    generate part of its electricity itself and so displace electricity bought from the grid, with
+    the city setting an example for private roofs.<br/>
+    The measure belongs to the Climate-Neutral Administration concept. As of 2024 the city's
+    properties carry 1,275 kilowatts of installed capacity, which at the usual yield of 1,000
+    kilowatt-hours per kilowatt and year delivers about 1,275 megawatt-hours. The ambitious
+    scenario 1 doubles that capacity against 2024; the conservative scenario 2 adds half as much
+    again by 2030.<br/>
+    The extra yield of 1,275 or 638 megawatt-hours a year displaces purchased electricity. Against
+    the properties' 15,102 megawatt-hours of consumption in 2024 that is 8.4 % or 4.2 % less
+    electricity bought in, so the measure acts on the city administration's building energy
+    use.<br/>
+    It should not be confused with the memo item "avoided emissions from own generation" in the
+    balance, which reports the self-generation already in place.
   input_dimensions: [ghg_category, measure_scenario]
   output_dimensions: [ghg_category, measure_scenario]
   input_datasets:
@@ -1288,6 +1375,11 @@ actions:
     - id: measure_scenario
       flatten: true
 
+# Cross-check against measure sheet B3, which gives about 5,000 t CO2e a year at 70 %: this
+# model
+# computes 7,678 t of Scope 2 district heating emissions for 2019, and 70 % of that is 5,375 t
+# --
+# the magnitudes agree.
 - id: knsv_dekarbonisierung_fernwaerme
   name_de: Umstellung auf erneuerbare Fernwärme
   name_en: Conversion to renewable district heating
@@ -1297,25 +1389,34 @@ actions:
   no_effect_value: 1.0
   group: gebaeude_energie
   description_de: |
-    Der Bericht nimmt an, dass der Anteil klimaneutraler Wärmequellen in der Fernwärme bis 2050
-    auf durchschnittlich 92 % steigt, und leitet daraus für 2035 einen erneuerbaren Anteil von
-    70 % (Szenario 1) bzw. 60 % (Szenario 2) ab. „Klimaneutral" heißt hier emissionsfrei, der
-    Emissionsfaktor der Fernwärme sinkt also im gleichen Verhältnis.<br/>
-    Maßnahmensteckbrief B3 nennt als Größenordnung rund 5.000 t CO2e jährlich bei 70 %. Das
-    Modell rechnet für 2019 mit 7.678 t Scope-2-Emissionen aus Fernwärme, 70 % davon sind
-    5.375 t -- die Größenordnungen stimmen überein.<br/>
-    Das Potenzial hängt vollständig vom Transformationsplan der Mainzer Stadtwerke ab, der hier
-    nicht vorliegt.
+    Die Fernwärme, mit der ein Teil der städtischen Gebäude beheizt wird, wird zunehmend aus
+    klimaneutralen Quellen erzeugt. Zweck ist, die Wärmeversorgung sauberer zu machen, ohne dass
+    in den einzelnen Gebäuden etwas geschehen muss – jede angeschlossene Liegenschaft profitiert
+    automatisch.<br/>
+    Die Maßnahme gehört zum Konzept Klimaneutrale Stadtverwaltung (Maßnahmensteckbrief B3).
+    Umgesetzt wird sie nicht von der Verwaltung selbst, sondern von den Mainzer Stadtwerken, die
+    die Erzeugung des Fernwärmenetzes umbauen. Das Konzept geht davon aus, dass der Anteil
+    klimaneutraler Quellen bis 2050 auf durchschnittlich 92 % steigt.<br/>
+    Für 2035 rechnet das ambitionierte Szenario 1 mit einem erneuerbaren Anteil von 70 %, das
+    konservative Szenario 2 mit 60 %. Der Emissionsfaktor der Fernwärme sinkt im gleichen
+    Verhältnis; die Maßnahme wirkt damit auf die Emissionsfaktoren der Gebäudeenergie der
+    Stadtverwaltung. Die Größenordnung liegt bei rund 5.000 Tonnen CO2-Äquivalent im Jahr.<br/>
+    Zu beachten: Wie schnell dieser Anteil tatsächlich steigt, hängt vollständig vom
+    Transformationsplan der Mainzer Stadtwerke ab, der noch nicht vorliegt.
   description_en: |
-    The report assumes the share of climate-neutral sources in district heating rises to 92 % on
-    average by 2050, and derives a renewable share in 2035 of 70 % (scenario 1) or 60 %
-    (scenario 2). "Climate-neutral" means emission-free here, so the district heating emission
-    factor falls in the same proportion.<br/>
-    Measure sheet B3 gives the order of magnitude as about 5,000 t CO2e a year at 70 %. This
-    model computes 7,678 t of Scope 2 district heating emissions for 2019, and 70 % of that is
-    5,375 t -- the magnitudes agree.<br/>
-    The potential depends entirely on the Mainzer Stadtwerke transformation plan, which is not
-    available here.
+    The district heating that warms part of the city's buildings is increasingly generated from
+    climate-neutral sources. The purpose is to clean up the heat supply without anything having to
+    change in the individual building: every connected property benefits automatically.<br/>
+    The measure belongs to the Climate-Neutral Administration concept (measure sheet B3). It is
+    carried out not by the administration but by the municipal utility, Mainzer Stadtwerke, which
+    rebuilds the generation behind the district heating network. The concept assumes the share of
+    climate-neutral sources rises to 92 % on average by 2050.<br/>
+    For 2035 the ambitious scenario 1 assumes a renewable share of 70 % and the conservative
+    scenario 2 a share of 60 %. The emission factor of district heating falls in the same
+    proportion, so the measure acts on the emission factors of the administration's building
+    energy. The order of magnitude is about 5,000 tonnes of CO2 equivalent a year.<br/>
+    Worth noting: how fast that share actually rises depends entirely on the utility's
+    transformation plan, which is not yet available.
   input_dimensions: [energy_carrier, measure_scenario]
   output_dimensions: [energy_carrier, measure_scenario]
   input_datasets:
@@ -1362,6 +1463,12 @@ actions:
 # allocation rather than a statement about which buildings were connected. Nothing downstream
 # depends on the choice: `municipal_building_energy_ef` is not keyed by property group, so the
 # emissions are the same whichever group the converted kilowatt-hours are booked in.
+# The carrier "not defined" (rented properties, 2,287 MWh/a) is deliberately left out of the
+# shift:
+# its carrier is unknown and its emission factor, at 258 kg/MWh, is close to district heating
+# anyway, so moving it would gain almost nothing and would assert knowledge we do not have.
+# The four carrier rows are what the source supports; `split_dims` does the allocation, as
+# above.
 - id: knsv_fernwaerme_anschluss
   name_de: Anschluss weiterer Liegenschaften an das Fernwärmenetz
   name_en: Connecting further properties to the district heating network
@@ -1370,37 +1477,35 @@ actions:
   unit: MWh/a
   group: gebaeude_energie
   description_de: |
-    Maßnahmensteckbrief §4.1.1: Anschluss zusätzlicher oder neuer Gebäude an das
-    Fernwärmenetz, in Szenario 1 40 % der Gebäude bis 2032, in Szenario 2 25 %.<br/>
-    Der Anteil ist auf den fossil beheizten Endenergieverbrauch der Liegenschaften im
-    Basisjahr 2024 bezogen (Erdgas 10.463,6, Heizöl 560,4, Flüssiggas 430,2 MWh/a) und
-    proportional auf die drei Energieträger verteilt. Die Summe wandert auf Fernwärme, die
-    Verlagerung ist also energieerhaltend -- der Wärmebedarf sinkt nicht, er wird anders
-    gedeckt.<br/>
-    Nicht enthalten ist der Träger „nicht definiert" (Mietliegenschaften, 2.287 MWh/a): sein
-    Energieträger ist unbekannt und sein Emissionsfaktor mit 258 kg/MWh ohnehin nahe dem der
-    Fernwärme. Eine Verlagerung brächte dort kaum etwas und würde eine Kenntnis behaupten,
-    die fehlt.<br/>
-    Welche Gebäude angeschlossen werden, sagt der Bericht nicht. Die Verlagerung wird deshalb
-    je Energieträger anteilig auf die Liegenschaftsgruppen verteilt, entsprechend deren
-    heutigem Verbrauch dieses Trägers. Das ist eine Annahme und keine Planung; auf die
-    Emissionen wirkt sie nicht, weil der Emissionsfaktor nicht nach Liegenschaftsgruppe
-    unterscheidet. Sind die Gebäude bekannt, gehören sie in den Datensatz.
+    Weitere Liegenschaften der Stadt werden an das Fernwärmenetz angeschlossen und geben dafür
+    ihre fossile Heizung auf. Zweck ist, Erdgas-, Heizöl- und Flüssiggasheizungen in städtischen
+    Gebäuden durch eine Versorgung zu ersetzen, die schon heute weniger Emissionen verursacht und
+    künftig klimaneutral werden soll.<br/>
+    Die Maßnahme gehört zum Konzept Klimaneutrale Stadtverwaltung (§ 4.1.1). Das ambitionierte
+    Szenario 1 sieht vor, bis 2032 40 % der betroffenen Gebäude anzuschließen, das konservative
+    Szenario 2 25 %. Bezugsgröße ist der fossil beheizte Energieverbrauch der Liegenschaften im
+    Basisjahr 2024: 10.464 Megawattstunden Erdgas, 560 Heizöl und 430 Flüssiggas.<br/>
+    Im Modell verschiebt die Maßnahme diese Energiemenge in der Endenergie der Liegenschaften der
+    Stadtverwaltung von den drei fossilen Trägern auf Fernwärme. Der Wärmebedarf sinkt dadurch
+    nicht – er wird anders gedeckt. Die Emissionen sinken, weil die Fernwärme einen niedrigeren
+    Emissionsfaktor hat als die ersetzten Brennstoffe.<br/>
+    Welche Gebäude angeschlossen werden, ist noch nicht festgelegt; sobald die Liste vorliegt,
+    kann sie das Modell genauer abbilden.
   description_en: |
-    Measure sheet §4.1.1: connecting additional or new buildings to the district heating
-    network -- 40 % of buildings by 2032 in scenario 1, 25 % in scenario 2.<br/>
-    The share applies to the fossil-heated final energy of the properties in the 2024 base
-    year (natural gas 10,463.6, heating oil 560.4, LPG 430.2 MWh/a) and is distributed across
-    the three carriers in proportion. The total moves to district heating, so the shift
-    conserves energy: heat demand does not fall, it is met differently.<br/>
-    The carrier "not defined" (rented properties, 2,287 MWh/a) is left out: its carrier is
-    unknown and its emission factor, at 258 kg/MWh, is close to that of district heating
-    anyway. Shifting it would gain almost nothing and would assert knowledge we do not have.<br/>
-    The report does not say which buildings are connected. The shift is therefore distributed
-    across the property groups per carrier, in proportion to their current use of that
-    carrier. That is an assumption and not a plan; it moves no emissions, because the emission
-    factor does not distinguish by property group. Once the buildings are known, they belong
-    in the dataset.
+    More of the city's properties are connected to the district heating network and give up their
+    fossil heating in exchange. The purpose is to replace gas, oil and LPG boilers in city
+    buildings with a supply that already causes fewer emissions today and is to become
+    climate-neutral.<br/>
+    The measure belongs to the Climate-Neutral Administration concept (§ 4.1.1). The ambitious
+    scenario 1 connects 40 % of the buildings concerned by 2032, the conservative scenario 2 25 %.
+    The reference quantity is the properties' fossil-heated energy use in the 2024 base year:
+    10,464 megawatt-hours of natural gas, 560 of heating oil and 430 of LPG.<br/>
+    In the model the measure moves that energy within the city administration's building energy
+    use from the three fossil carriers to district heating. Heat demand does not fall as a result
+    — it is met differently. Emissions fall because district heating has a lower emission factor
+    than the fuels it replaces.<br/>
+    Which buildings will be connected has not yet been decided; once the list exists, the model
+    can represent it more precisely.
   input_dimensions: [ghg_category, energy_carrier, measure_scenario]
   output_dimensions: [ghg_category, energy_carrier, measure_scenario]
   input_datasets:
@@ -1439,6 +1544,16 @@ actions:
     - id: measure_scenario
       flatten: true
 
+# The conversion into a factor reduction is done here: the 2019 renewable share was about 42 %,
+# leaving 58 % fossil; a rise to 70 % cuts that to 30 %, so the factor falls to 30/58 = 51.7 %,
+# and
+# at 60 % to 40/58 = 69.0 %.
+# Measure sheet B5 puts the effect at "over 6,000 t CO2e", where this model yields about 760 t.
+# The
+# gap is an accounting question, not a rounding error: the model works from the administration's
+# own
+# 73 kg CO2e/MWh (market-based Scope 2, i.e. an already largely green supply contract), while
+# Arqum's 6,000 t presuppose the location-based national mix. See open question 14 to the city.
 - id: knsv_dekarbonisierung_strommix
   name_de: Dekarbonisierung des Bundesstrommixes
   name_en: Decarbonisation of the German electricity mix
@@ -1448,30 +1563,41 @@ actions:
   no_effect_value: 1.0
   group: gebaeude_energie
   description_de: |
-    Der Bericht nimmt an, dass bis 2030 70 % (Szenario 1) bzw. 60 % (Szenario 2) des in
-    Deutschland erzeugten Stroms aus erneuerbaren Energien stammt.<br/>
-    <b>Die Umrechnung in eine Faktorminderung ist hier gerechnet.</b> 2019 lag der Anteil bei rund
-    42 %, der fossile Rest bei 58 %. Ein Anstieg auf 70 % senkt den Rest auf 30 %, den Faktor also
-    auf 30/58 = 51,7 %; bei 60 % entsprechend auf 40/58 = 69,0 %.<br/>
-    <b>Vorsicht bei der Auslegung.</b> Maßnahmensteckbrief B5 beziffert die Wirkung mit „über
-    6.000 t CO2e". Dieses Modell rechnet mit dem Emissionsfaktor der Stadtverwaltung von
-    73 kg CO2e/MWh, der auf einen bereits weitgehend grünen Liefervertrag hindeutet
-    (marktbasiertes Scope 2); darauf angewandt ergibt die Annahme nur rund 760 t. Die Differenz
-    ist keine Rechenungenauigkeit, sondern eine Bilanzierungsfrage -- Arqums 6.000 t setzen den
-    <i>standortbasierten</i> Bundesmix voraus. Siehe offene Frage 14 an die Stadt.
+    Der bundesweite Strommix wird sauberer. Das ist keine Maßnahme der Stadt, sondern eine
+    Rahmenannahme über die Entwicklung der deutschen Stromerzeugung; sie steht hier als eigene
+    Maßnahme, damit sichtbar wird, welcher Teil der Minderung der Verwaltung ohne eigenes Zutun
+    zufällt und welcher aus ihren eigenen Entscheidungen stammt.<br/>
+    Die Annahme stammt aus dem Konzept Klimaneutrale Stadtverwaltung (Maßnahmensteckbrief B5).
+    Danach kommen bis 2030 70 % des in Deutschland erzeugten Stroms aus erneuerbaren Energien
+    (ambitioniertes Szenario 1) beziehungsweise 60 % (konservatives Szenario 2); 2019 waren es
+    rund 42 %.<br/>
+    Im Modell sinkt dadurch der Emissionsfaktor des bezogenen Stroms auf 51,7 % beziehungsweise
+    69,0 % seines heutigen Wertes. Die Maßnahme wirkt auf die Emissionsfaktoren der Gebäudeenergie
+    der Stadtverwaltung; die verbrauchte Strommenge ändert sie nicht.<br/>
+    Ein Hinweis zur Einordnung: Die Wirkung fällt hier deutlich kleiner aus als im Konzept – rund
+    760 statt über 6.000 Tonnen CO2-Äquivalent –, weil die Stadtverwaltung bereits einen
+    weitgehend grünen Liefervertrag hat und ihr eigener Emissionsfaktor entsprechend niedrig ist.
+    Welcher der beiden Betrachtungsweisen die Bilanz folgen soll, ist mit der Stadt noch zu
+    klären.
   description_en: |
-    The report assumes that by 2030, 70 % (scenario 1) or 60 % (scenario 2) of electricity
-    generated in Germany comes from renewables.<br/>
-    <b>The conversion into a factor reduction is done here.</b> In 2019 the renewable share was
-    about 42 %, leaving a fossil remainder of 58 %. A rise to 70 % cuts that to 30 %, so the
-    factor falls to 30/58 = 51.7 %; at 60 %, to 40/58 = 69.0 %.<br/>
-    <b>Read the result with care.</b> Measure sheet B5 puts the effect at "over 6,000 t CO2e".
-    This model works from the administration's own factor of 73 kg CO2e/MWh, which points at an
-    already largely green supply contract (market-based Scope 2); applied to that, the assumption
-    yields about 760 t. The gap is not a rounding error but an accounting question -- Arqum's
-    6,000 t presuppose the <i>location-based</i> national mix. See open question 14 to the city.
+    The national electricity mix becomes cleaner. This is not a measure the city takes but an
+    assumption about how German electricity generation develops; it is shown as a separate measure
+    so that it is visible which part of the reduction accrues to the administration without any
+    action of its own, and which part comes from its own decisions.<br/>
+    The assumption comes from the Climate-Neutral Administration concept (measure sheet B5). Under
+    it, 70 % of the electricity generated in Germany comes from renewables by 2030 in the
+    ambitious scenario 1, or 60 % in the conservative scenario 2; in 2019 the share was about 42
+    %.<br/>
+    In the model this lowers the emission factor of purchased electricity to 51.7 % or 69.0 % of
+    its present value. The measure acts on the emission factors of the administration's building
+    energy; it does not change the amount of electricity used.<br/>
+    One caveat for reading the figure: the effect here is much smaller than in the concept — about
+    760 rather than over 6,000 tonnes of CO2 equivalent — because the administration already holds
+    a largely green supply contract and its own emission factor is correspondingly low. Which of
+    the two ways of accounting the balance should follow is still to be settled with the city.
   input_dimensions: [energy_carrier, measure_scenario]
   output_dimensions: [energy_carrier, measure_scenario]
+  decision_level: nation
   input_datasets:
   - id: mainz/knsv_massnahmen_energietraeger
     forecast_from: 2025
@@ -1505,6 +1631,8 @@ actions:
     - id: measure_scenario
       flatten: true
 
+# The 30 % is an assumption of this model. Measure sheet B6 does not quantify the potential and
+# rates it "medium".
 - id: knsv_led_strassenbeleuchtung
   name_de: Umrüstung der Straßenbeleuchtung auf LED
   name_en: Conversion of street lighting to LED
@@ -1514,17 +1642,35 @@ actions:
   no_effect_value: 1.0
   group: gebaeude_energie
   description_de: |
-    Maßnahmensteckbrief B6 setzt als Ziel bis 2035 die „Umrüstung aller Straßenleuchten auf
-    LED-Technik", bis 2030 einen stark gestiegenen Anteil an Solarlampen.<br/>
-    <b>Die 30 % sind eine Annahme dieses Modells.</b> Der Steckbrief quantifiziert das
-    Minderungspotenzial nicht und stuft es als „mittel" ein. Der gemessene Verbrauch ist zwischen
-    2019 und 2024 bereits von 7,5 auf 6,6 GWh gesunken, die Umrüstung läuft also.
+    Die Straßenbeleuchtung der Stadt wird auf LED-Technik umgerüstet. Zweck ist, einen
+    Stromverbrauch zu senken, der rund um die Uhr anfällt und den die Stadt vollständig selbst in
+    der Hand hat: Die Straßenbeleuchtung ist ein eigener Posten der Verwaltungsbilanz und lag 2024
+    bei 6,6 Gigawattstunden.<br/>
+    Die Maßnahme gehört zum Konzept Klimaneutrale Stadtverwaltung (Maßnahmensteckbrief B6). Sie
+    sieht bis 2035 die Umrüstung aller Straßenleuchten auf LED vor und bis 2030 einen stark
+    gestiegenen Anteil an Solarlampen. Die Straßenbeleuchtung zählt nicht zu den Liegenschaften
+    der Stadt und wird in der Bilanz deshalb getrennt von den Gebäuden ausgewiesen.<br/>
+    Im Modell senkt sie den Stromverbrauch der Straßenbeleuchtung bis 2035 um 30 % und wirkt damit
+    auf den Energieverbrauch der Straßenbeleuchtung.<br/>
+    Ein Hinweis zur Einordnung: Die 30 % sind eine Annahme dieses Modells; der Steckbrief stuft
+    das Minderungspotenzial als „mittel“ ein, ohne es zu beziffern. Dass die Umrüstung bereits
+    läuft, zeigt der gemessene Verbrauch – er ist zwischen 2019 und 2024 von 7,5 auf 6,6
+    Gigawattstunden gesunken.
   description_en: |
-    Measure sheet B6 sets the 2035 target as "converting all street lamps to LED technology", and
-    for 2030 a strongly increased share of solar lamps.<br/>
-    <b>The 30 % is an assumption of this model.</b> The measure sheet does not quantify the
-    potential and rates it "medium". Measured consumption already fell from 7.5 to 6.6 GWh between
-    2019 and 2024, so the conversion is under way.
+    The city's street lighting is converted to LED technology. The purpose is to reduce an
+    electricity consumption that runs around the clock and is entirely within the city's own
+    control: street lighting is a separate item in the administration's balance and stood at 6.6
+    gigawatt-hours in 2024.<br/>
+    The measure belongs to the Climate-Neutral Administration concept (measure sheet B6). It calls
+    for converting all street lamps to LED by 2035 and for a strongly increased share of solar
+    lamps by 2030. Street lighting is not one of the city's properties and is therefore reported
+    separately from the buildings in the balance.<br/>
+    In the model it reduces the electricity used for street lighting by 30 % by 2035, and so acts
+    on street lighting energy use.<br/>
+    One caveat for reading the figure: the 30 % is an assumption of this model; the measure sheet
+    rates the potential "medium" without quantifying it. That the conversion is already under way
+    is visible in the metered consumption, which fell from 7.5 to 6.6 gigawatt-hours between 2019
+    and 2024.
   input_dimensions: [measure_scenario]
   output_dimensions: [measure_scenario]
   input_datasets:
@@ -1560,6 +1706,13 @@ actions:
     - id: measure_scenario
       flatten: true
 
+# The fleet is recorded in litres of fuel only, and the data delivery has no category for
+# charging
+# electricity for service vehicles -- an open item in the setup README. The measure therefore
+# cuts
+# fuel without booking the electricity that replaces it, and overstates the saving by its
+# emissions.
+# Arqum counts the charging electricity.
 - id: knsv_elektrifizierung_pkw_flotte
   name_de: Umstellung der PKW-Flotte auf Elektroantrieb
   name_en: Conversion of the passenger car fleet to electric drive
@@ -1569,22 +1722,36 @@ actions:
   no_effect_value: 1.0
   group: mobilitaet
   description_de: |
-    Beide Szenarien gehen von einer vollständigen Umstellung der PKW-Flotte auf alternative
-    Antriebe aus; Szenario 1 erreicht bis 2035 100 % Elektroantrieb, Szenario 2 erreicht diesen
-    Zielwert zu 80 %.<br/>
-    <b>Bilanzielle Einschränkung.</b> Der Fuhrpark ist im Modell nur in Litern Kraftstoff erfasst;
-    für Ladestrom der Dienstfahrzeuge gibt es in der Datenlieferung keine Kategorie (offener Punkt
-    in <code>data/mainz/README.md</code>). Die Maßnahme senkt hier den Kraftstoff, ohne den an
-    seine Stelle tretenden Stromverbrauch zu bilanzieren, und überschätzt die Einsparung um dessen
-    Emissionen. Arqum rechnet den Ladestrom mit.
+    Die Personenwagen im Fuhrpark der Stadtverwaltung werden auf Elektroantrieb umgestellt. Zweck
+    ist, den Dieselverbrauch der Dienstfahrzeuge zu beenden und die Elektromobilität im eigenen
+    Betrieb sichtbar voranzubringen.<br/>
+    Die Maßnahme gehört zum Konzept Klimaneutrale Stadtverwaltung. Sie umfasst die Beschaffung von
+    Elektrofahrzeugen beim turnusmäßigen Ersatz, den Aufbau der nötigen Ladeinfrastruktur an den
+    Dienststellen und die entsprechenden Vorgaben in der Beschaffung. Beide Szenarien gehen von
+    einer vollständigen Umstellung auf alternative Antriebe aus: Das ambitionierte Szenario 1
+    erreicht bis 2035 100 % Elektroantrieb, das konservative Szenario 2 erreicht 80 % dieses
+    Zielwerts. Betroffen sind ausschließlich die Personenwagen – Lastwagen und Arbeitsmaschinen
+    behandelt eine eigene Maßnahme.<br/>
+    Im Modell senkt die Maßnahme den Kraftstoffverbrauch des Fuhrparks der Stadtverwaltung
+    entsprechend.<br/>
+    Ein Hinweis zur Einordnung: Der Ladestrom der Dienstfahrzeuge ist in der Datenlieferung der
+    Stadt bisher keine eigene Kategorie. Die ausgewiesene Einsparung ist deshalb etwas zu hoch,
+    weil der eingesparte Kraftstoff zählt, der an seine Stelle tretende Strom aber noch nicht.
   description_en: |
-    Both scenarios assume the passenger car fleet converts fully to alternative drives; scenario 1
-    reaches 100 % electric by 2035, scenario 2 reaches 80 % of that target.<br/>
-    <b>An accounting caveat.</b> The fleet is recorded in litres of fuel only, and the data
-    delivery has no category for charging electricity for service vehicles (an open item in
-    <code>data/mainz/README.md</code>). The measure cuts fuel here without booking the electricity
-    that replaces it, and overstates the saving by its emissions. Arqum counts the charging
-    electricity.
+    The passenger cars in the city administration's vehicle fleet are converted to electric drive.
+    The purpose is to end the diesel and petrol use of the service vehicles and to advance
+    electric mobility visibly within the city's own operations.<br/>
+    The measure belongs to the Climate-Neutral Administration concept. It covers buying electric
+    vehicles as cars come up for replacement, building the necessary charging infrastructure at
+    the city's sites, and the corresponding procurement rules. Both scenarios assume a full
+    conversion to alternative drives: the ambitious scenario 1 reaches 100 % electric by 2035, the
+    conservative scenario 2 reaches 80 % of that target. Only passenger cars are covered here —
+    trucks and working machines are the subject of a measure of their own.<br/>
+    In the model the measure reduces the fuel use of the city administration's vehicle fleet
+    accordingly.<br/>
+    One caveat for reading the figure: charging electricity for service vehicles is not yet a
+    separate category in the data the city supplies. The saving shown is therefore somewhat too
+    large, because the fuel saved is counted while the electricity that replaces it is not.
   input_dimensions: [vehicle_type, measure_scenario]
   output_dimensions: [vehicle_type, measure_scenario]
   input_datasets:
@@ -1620,6 +1787,7 @@ actions:
     - id: measure_scenario
       flatten: true
 
+# Same accounting caveat as the passenger car fleet: no category for charging electricity.
 - id: knsv_alternative_antriebe_nutzfahrzeuge
   name_de: Umstellung der Nutzfahrzeuge auf alternative Antriebe
   name_en: Conversion of utility vehicles to alternative drives
@@ -1629,19 +1797,38 @@ actions:
   no_effect_value: 1.0
   group: mobilitaet
   description_de: |
-    Nach der Clean-Vehicles-Directive müssen 15 % der Neuanschaffungen bis 2030 über alternative
-    Antriebe verfügen. Der Bericht rechnet bis 2035 mit einer Umstellung von 25 % (Szenario 1)
-    bzw. 10 % (Szenario 2) der Nutzfahrzeugflotte auf E- oder Wasserstoffantrieb.<br/>
-    Betrifft LKW und Arbeitsmaschinen, also den weitaus größten Teil des Kraftstoffverbrauchs des
-    Fuhrparks -- 1,25 Mio. Liter Diesel 2019 gegenüber 33.000 Litern bei den PKW. Dieselbe
-    bilanzielle Einschränkung wie bei der PKW-Flotte.
+    Die Nutzfahrzeuge der Stadt – Lastwagen und Arbeitsmaschinen – werden auf Elektro- oder
+    Wasserstoffantrieb umgestellt. Zweck ist, den mit Abstand größten Teil des Kraftstoffs im
+    städtischen Fuhrpark zu ersetzen: 2019 waren es 1,25 Millionen Liter Diesel gegenüber 33.000
+    Litern bei den Personenwagen.<br/>
+    Die Maßnahme gehört zum Konzept Klimaneutrale Stadtverwaltung und setzt zugleich eine
+    europäische Vorgabe um: Nach der Clean-Vehicles-Richtlinie müssen bis 2030 15 % der
+    Neuanschaffungen über alternative Antriebe verfügen. Sie umfasst die entsprechende Beschaffung
+    beim Ersatz von Fahrzeugen sowie die dafür nötige Lade- und Tankinfrastruktur. Erfasst sind
+    dabei sehr unterschiedliche Fahrzeuge, vom Müllfahrzeug bis zum Kommunaltraktor, für die ein
+    serienreifer elektrischer Ersatz noch nicht durchweg verfügbar ist.<br/>
+    Bis 2035 stellt das ambitionierte Szenario 1 25 % der Nutzfahrzeugflotte um, das konservative
+    Szenario 2 10 %. Im Modell senkt die Maßnahme den Kraftstoffverbrauch des Fuhrparks der
+    Stadtverwaltung.<br/>
+    Ein Hinweis zur Einordnung: Wie bei den Personenwagen ist der Ladestrom der Fahrzeuge noch
+    keine eigene Kategorie in den Daten, sodass die ausgewiesene Einsparung etwas zu hoch
+    ausfällt.
   description_en: |
-    Under the Clean Vehicles Directive, 15 % of new acquisitions must have alternative drives by
-    2030. The report assumes 25 % (scenario 1) or 10 % (scenario 2) of the utility fleet converts
-    to electric or hydrogen drive by 2035.<br/>
-    This covers trucks and working machines, by far the larger part of fleet fuel use -- 1.25
-    million litres of diesel in 2019 against 33,000 litres for passenger cars. Same accounting
-    caveat as the passenger car fleet.
+    The city's utility vehicles — trucks and working machines — are converted to electric or
+    hydrogen drive. The purpose is to replace by far the largest part of the fuel used by the
+    municipal fleet: 1.25 million litres of diesel in 2019, against 33,000 litres for passenger
+    cars.<br/>
+    The measure belongs to the Climate-Neutral Administration concept and at the same time
+    implements a European requirement: under the Clean Vehicles Directive, 15 % of new
+    acquisitions must have alternative drives by 2030. It covers procurement as vehicles are
+    replaced, together with the charging and refuelling infrastructure this needs. The vehicles
+    concerned differ widely, from refuse collection trucks to municipal tractors, and a
+    series-production electric replacement is not yet available for all of them.<br/>
+    By 2035 the ambitious scenario 1 converts 25 % of the utility fleet and the conservative
+    scenario 2 converts 10 %. In the model the measure reduces the fuel use of the city
+    administration's vehicle fleet.<br/>
+    One caveat for reading the figure: as with the passenger cars, charging electricity is not yet
+    a separate category in the data, so the saving shown is somewhat too large.
   input_dimensions: [vehicle_type, measure_scenario]
   output_dimensions: [vehicle_type, measure_scenario]
   input_datasets:
@@ -1677,6 +1864,13 @@ actions:
     - id: measure_scenario
       flatten: true
 
+# Two of the report's assumptions combined, because they act on the same branch, and the branch
+# is
+# small enough that combining them costs no explanatory power: 54 t CO2e in 2019, 18 t of it
+# flights.
+# The rental-car conversion (scenario 1: 100 %, scenario 2: 75 %) is not represented -- rental
+# cars
+# are not a separate category in the data delivery.
 - id: knsv_dienstreisen_vermeiden
   name_de: Vermeidung von Dienstreisen und Verzicht auf Flugreisen
   name_en: Avoiding business trips and giving up air travel
@@ -1686,23 +1880,35 @@ actions:
   no_effect_value: 1.0
   group: mobilitaet
   description_de: |
-    Zwei Annahmen des Berichts, hier zusammengefasst, weil sie auf denselben Zweig wirken:
-    Termine, die nicht persönlich stattfinden müssen, werden online abgehalten (Szenario 1: 20 %
-    der Fahrten vermieden, Szenario 2: 10 %), und Flüge werden durch Bahn ersetzt -- die
-    Stadtverwaltung verzichtet bereits auf nationale Flüge.<br/>
-    Der Zweig ist klein: Dienstreisen verursachen 2019 insgesamt 54 t CO2e, davon 18 t aus Flügen.
-    Die Zusammenfassung kostet daher nichts an Aussagekraft.<br/>
-    Nicht abgebildet: die Umstellung der Mietwagen auf Elektrofahrzeuge (Szenario 1: 100 %,
-    Szenario 2: 75 %). Mietwagen sind in der Datenlieferung keine eigene Kategorie.
+    Dienstreisen werden vermieden, und auf Flugreisen wird verzichtet. Zweck ist, Fahrten und
+    Flüge einzusparen, die durch eine Online-Teilnahme oder eine Bahnfahrt ersetzt werden können –
+    die Maßnahme kostet nichts und wirkt sofort.<br/>
+    Sie gehört zum Konzept Klimaneutrale Stadtverwaltung und fasst zwei Annahmen des Konzepts
+    zusammen, weil beide denselben Bilanzposten betreffen: Termine, die nicht persönlich
+    stattfinden müssen, werden online abgehalten, und Flüge werden durch die Bahn ersetzt. Auf
+    nationale Flüge verzichtet die Stadtverwaltung bereits heute. Dazu gehören eine entsprechende
+    Dienstreiseregelung, die technische Ausstattung für Videokonferenzen und die Buchung der Bahn
+    als Regelfall.<br/>
+    Das ambitionierte Szenario 1 vermeidet 20 % der Fahrten, das konservative Szenario 2 10 %. Im
+    Modell wirkt die Maßnahme auf die Dienstreisen und Arbeitswege der Stadtverwaltung.<br/>
+    Zur Größenordnung: Dienstreisen verursachten 2019 insgesamt 54 Tonnen CO2-Äquivalent, davon 18
+    Tonnen aus Flügen. Die Umstellung der Mietwagen auf Elektrofahrzeuge, die das Konzept
+    ebenfalls vorsieht, ist noch nicht abgebildet, weil Mietwagen in den Daten keine eigene
+    Kategorie sind.
   description_en: |
-    Two assumptions from the report, combined here because they act on the same branch: meetings
-    that need not be held in person move online (scenario 1 avoids 20 % of trips, scenario 2
-    10 %), and flights are replaced by rail -- the administration already forgoes domestic
-    flights.<br/>
-    The branch is small: business travel caused 54 t CO2e in 2019, 18 t of it from flights, so
-    combining the two costs nothing in explanatory power.<br/>
-    Not represented: switching rental cars to electric (scenario 1: 100 %, scenario 2: 75 %).
-    Rental cars are not a separate category in the data delivery.
+    Business trips are avoided and air travel is given up. The purpose is to save journeys and
+    flights that an online meeting or a train ride can replace — the measure costs nothing and
+    takes effect immediately.<br/>
+    It belongs to the Climate-Neutral Administration concept and combines two of the concept's
+    assumptions, because both bear on the same item of the balance: meetings that need not be held
+    in person move online, and flights are replaced by rail. The administration already forgoes
+    domestic flights. In practice this means a travel policy that says so, the equipment for video
+    conferencing, and rail booked as the default.<br/>
+    The ambitious scenario 1 avoids 20 % of trips, the conservative scenario 2 avoids 10 %. In the
+    model the measure acts on the city administration's business travel and commuting.<br/>
+    For scale: business travel caused 54 tonnes of CO2 equivalent in 2019, 18 tonnes of it from
+    flights. Switching rental cars to electric vehicles, which the concept also calls for, is not
+    yet represented, because rental cars are not a separate category in the data.
   input_dimensions: [ghg_category, measure_scenario]
   output_dimensions: [ghg_category, measure_scenario]
   input_datasets:
@@ -1738,6 +1944,13 @@ actions:
     - id: measure_scenario
       flatten: true
 
+# Commuting was surveyed for 2019 only and the model carries zeros forward from 2020, so this
+# measure currently scales a branch that is already zero. See *Commuting reads zero from 2020*
+# in
+# the setup README. The second half of the commuting assumption -- the modal shift to rail and
+# public transport with rising private electric car ownership, measure sheet C4, "just under
+# 2,000 t CO2e" a year -- is a shift between modes rather than a reduction in volume and is not
+# built.
 - id: knsv_homeoffice
   name_de: Ausweitung der Homeoffice-Option
   name_en: Extending the home working option
@@ -1747,27 +1960,35 @@ actions:
   no_effect_value: 1.0
   group: mobilitaet
   description_de: |
-    Durch die Ausweitung der Homeoffice-Option entfallen An- und Abreisewege zum Arbeitsplatz.
-    Szenario 1 rechnet mit 2 %, Szenario 2 mit 1 % weniger Arbeitsweg-Kilometern.<br/>
-    <b>Der zweite Teil der Arbeitswege-Annahme fehlt noch:</b> die Veränderung des Modal Split hin
-    zu Bahn und ÖPNV sowie die Zunahme privater Elektroautos, die Maßnahmensteckbrief C4 mit
-    „knapp 2.000 t CO2e" jährlich beziffert. Das ist eine Verlagerung zwischen Verkehrsmitteln und
-    keine Mengenminderung.<br/>
-    <b>Und die Datenlage trägt sie ohnehin nicht:</b> Arbeitswege wurden nur für 2019 erhoben, und
-    das Modell führt ab 2020 Nullen fort. Die Maßnahme wirkt deshalb derzeit auf einen Zweig, der
-    schon null ist. Siehe <i>Commuting reads zero from 2020</i> in
-    <code>data/mainz/README.md</code>.
+    Die Möglichkeit, von zu Hause zu arbeiten, wird ausgeweitet. Zweck ist, Arbeitswege
+    einzusparen: Wer nicht ins Büro fährt, verursacht auf diesem Weg keine Emissionen.<br/>
+    Die Maßnahme gehört zum Konzept Klimaneutrale Stadtverwaltung. Sie umfasst die
+    Dienstvereinbarungen zum mobilen Arbeiten, die technische Ausstattung der Arbeitsplätze und
+    die Anpassung der Büroflächen. Das ambitionierte Szenario 1 rechnet mit 2 % weniger
+    Arbeitsweg-Kilometern, das konservative Szenario 2 mit 1 %. Die Arbeitswege zählen zu den
+    indirekten Emissionen der Verwaltung: Die Stadt verursacht sie nicht selbst, beeinflusst mit
+    ihren Arbeitsbedingungen aber, wie sie zurückgelegt werden.<br/>
+    Im Modell wirkt die Maßnahme auf die Dienstreisen und Arbeitswege der Stadtverwaltung.<br/>
+    Ein Hinweis zur Einordnung: Die Arbeitswege der Beschäftigten wurden bisher nur für 2019
+    erhoben, für die Jahre danach liegen keine Zahlen vor. Solange das so bleibt, zeigt die
+    Maßnahme im Modell keine Wirkung. Auch der zweite Teil der Annahme des Konzepts fehlt noch –
+    die Verlagerung der Arbeitswege auf Bahn und öffentlichen Nahverkehr und die Zunahme privater
+    Elektroautos, die das Konzept mit knapp 2.000 Tonnen CO2-Äquivalent im Jahr beziffert.
   description_en: |
-    Extending home working removes journeys to and from the workplace. Scenario 1 assumes 2 %
-    fewer commuting kilometres, scenario 2 assumes 1 %.<br/>
-    <b>The second half of the commuting assumption is still missing:</b> the modal shift towards
-    rail and public transport with rising private electric car ownership, which measure sheet C4
-    puts at "just under 2,000 t CO2e" a year. That is a shift between modes, not a reduction in
-    volume.<br/>
-    <b>And the data would not carry it anyway:</b> commuting was surveyed for 2019 only and the
-    model carries zeros forward from 2020, so this measure currently scales a branch that is
-    already zero. See <i>Commuting reads zero from 2020</i> in
-    <code>data/mainz/README.md</code>.
+    The option of working from home is extended. The purpose is to save commuting journeys:
+    someone who does not travel to the office causes no emissions on that trip.<br/>
+    The measure belongs to the Climate-Neutral Administration concept. It covers the staff
+    agreements on mobile working, the equipment of the workplaces, and the adaptation of office
+    space. The ambitious scenario 1 assumes 2 % fewer commuting kilometres, the conservative
+    scenario 2 assumes 1 %. Commuting counts among the administration's indirect emissions: the
+    city does not cause these journeys itself, but its working arrangements shape how they are
+    made.<br/>
+    In the model the measure acts on the city administration's business travel and commuting.<br/>
+    One caveat for reading the figure: staff commuting was surveyed for 2019 only, and no figures
+    exist for the years since. While that remains so, the measure shows no effect in the model.
+    The second half of the concept's commuting assumption is also still missing — the shift of
+    commuting to rail and public transport and the rise in privately owned electric cars, which
+    the concept puts at just under 2,000 tonnes of CO2 equivalent a year.
   input_dimensions: [ghg_category, measure_scenario]
   output_dimensions: [ghg_category, measure_scenario]
   input_datasets:
@@ -1803,6 +2024,11 @@ actions:
     - id: measure_scenario
       flatten: true
 
+# Two target nodes rather than two measures: it is the same paper, counted as sheets in
+# procurement
+# and as tonnage in the material flows. The switch to 100 % recycled paper (scenario 2: 75 %) is
+# a
+# shift from virgin to recycled fibre and is not represented.
 - id: knsv_papierloses_buero
   name_de: Wandel hin zum papierlosen Büro
   name_en: Shift towards the paperless office
@@ -1812,23 +2038,33 @@ actions:
   no_effect_value: 1.0
   group: beschaffung
   description_de: |
-    Durch Digitalisierung sinkt der Gesamtpapierverbrauch bis 2035 deutlich. Szenario 1 rechnet
-    mit 50 %, Szenario 2 mit 30 % weniger Papier gegenüber 2019.<br/>
-    Wirkt auf beide Papier-Zweige der Bilanz: die gezählten Blätter in der Beschaffung und die
-    Papiermenge in den Stoffströmen. Es ist dasselbe Papier, zweimal gemessen, deshalb eine
-    Maßnahme mit zwei Zielknoten und nicht zwei Maßnahmen.<br/>
-    Die Wirkung ist klein -- Papier verursacht 2019 rund 142 t CO2e in der Beschaffung. Nicht
-    abgebildet ist die Umstellung auf 100 % Recyclingpapier (Szenario 2: 75 %), eine Verlagerung
-    von Frischfaser zu Recycling.
+    Die Verwaltung stellt ihre Vorgänge auf digitale Bearbeitung um und verbraucht dadurch weniger
+    Papier. Zweck ist, den Papierverbrauch als eigenständigen Posten der Bilanz zu senken; die
+    Digitalisierung der Verwaltung ist ohnehin im Gange, und der Klimaeffekt ist ihre
+    Nebenwirkung.<br/>
+    Die Maßnahme gehört zum Konzept Klimaneutrale Stadtverwaltung. Sie umfasst die elektronische
+    Akte, digitale Antrags- und Genehmigungsverfahren und den Verzicht auf Ausdrucke im internen
+    Schriftverkehr. Das ambitionierte Szenario 1 rechnet bis 2035 mit 50 % weniger Papier als
+    2019, das konservative Szenario 2 mit 30 %.<br/>
+    Im Modell wirkt die Maßnahme auf beide Stellen, an denen Papier in der Bilanz auftaucht: auf
+    die beschafften Mengen der Stadtverwaltung und auf die Stoffströme der Stadtverwaltung. Es ist
+    dasselbe Papier, zweimal gemessen, deshalb eine Maßnahme mit zwei Wirkungsorten.<br/>
+    Zur Größenordnung: Papier verursachte 2019 rund 142 Tonnen CO2-Äquivalent in der Beschaffung.
+    Die Umstellung auf Recyclingpapier, die das Konzept ebenfalls vorsieht, ist noch nicht
+    abgebildet.
   description_en: |
-    Digitalisation cuts total paper consumption substantially by 2035. Scenario 1 assumes 50 %
-    less paper than in 2019, scenario 2 assumes 30 %.<br/>
-    It acts on both paper branches of the balance: the counted sheets in procurement and the
-    paper tonnage in the material flows. That is the same paper measured twice, hence one measure
-    with two target nodes rather than two measures.<br/>
-    The effect is small -- paper caused about 142 t CO2e in procurement in 2019. Not represented
-    is the switch to 100 % recycled paper (scenario 2: 75 %), a shift from virgin to recycled
-    fibre.
+    The administration moves its processes to digital handling and so uses less paper. The purpose
+    is to reduce paper as an item of the balance in its own right; the digitalisation of the
+    administration is under way regardless, and the climate effect is its by-product.<br/>
+    The measure belongs to the Climate-Neutral Administration concept. It covers the electronic
+    file, digital application and approval procedures, and doing without printouts in internal
+    correspondence. The ambitious scenario 1 assumes 50 % less paper by 2035 than in 2019, the
+    conservative scenario 2 assumes 30 %.<br/>
+    In the model the measure acts on both places where paper appears in the balance: the items
+    purchased by the city administration and the administration's material flows. It is the same
+    paper measured twice, which is why this is one measure with two points of effect.<br/>
+    For scale: paper caused about 142 tonnes of CO2 equivalent in procurement in 2019. The switch
+    to recycled paper, which the concept also calls for, is not yet represented.
   input_dimensions: [emission_source, measure_scenario]
   output_dimensions: [emission_source, measure_scenario]
   input_datasets:
@@ -1878,16 +2114,33 @@ actions:
   no_effect_value: 1.0
   group: beschaffung
   description_de: |
-    Steigende Recyclingquote und sinkende Emissionsintensität der Entsorgungsbetriebe. Der Bericht
-    orientiert sich an den Zielen des Bundes-Klimaschutzgesetzes für den Abfallsektor und rechnet
-    bis 2045 mit einer Halbierung der Emissionen gegenüber dem Basisjahr (Szenario 1) bzw. einer
-    Minderung um 30 % (Szenario 2).<br/>
-    Zieljahr ist 2045 und nicht 2035, weil der Bericht den Pfad ausdrücklich auf 2045 bezieht.
+    Die Emissionen aus der Abfallentsorgung sinken, weil mehr Abfall recycelt wird und die
+    Entsorgung selbst emissionsärmer wird. Zweck ist, den Abfall der städtischen Einrichtungen als
+    Emissionsquelle zurückzudrängen und Material im Kreislauf zu halten.<br/>
+    Die Maßnahme gehört zum Konzept Klimaneutrale Stadtverwaltung und orientiert sich an den
+    Zielen des Bundes-Klimaschutzgesetzes für den Abfallsektor; die Stadt folgt hier also einem
+    bundesweit vorgegebenen Pfad. Zu ihr gehören eine steigende Recyclingquote, die getrennte
+    Sammlung in den Einrichtungen der Stadt und die sinkende Emissionsintensität der
+    Entsorgungsbetriebe. Bilanziert wird dabei der Abfall, der in den Einrichtungen der
+    Stadtverwaltung anfällt, nicht der Abfall des gesamten Stadtgebiets.<br/>
+    Das ambitionierte Szenario 1 halbiert die Abfallemissionen bis 2045 gegenüber dem Basisjahr,
+    das konservative Szenario 2 senkt sie um 30 %. Zieljahr ist hier 2045 und nicht 2035, weil das
+    Konzept den Pfad ausdrücklich auf 2045 bezieht. Im Modell wirkt die Maßnahme auf die
+    Stoffströme der Stadtverwaltung.
   description_en: |
-    A rising recycling rate and falling emission intensity in waste management. The report follows
-    the German Climate Protection Act's targets for the waste sector and assumes emissions halve
-    against the base year by 2045 (scenario 1) or fall by 30 % (scenario 2).<br/>
-    The target year is 2045 rather than 2035 because the report ties the path explicitly to 2045.
+    Emissions from waste disposal fall, because more waste is recycled and disposal itself becomes
+    less emission-intensive. The purpose is to push back the waste of the city's institutions as a
+    source of emissions and to keep material in circulation.<br/>
+    The measure belongs to the Climate-Neutral Administration concept and follows the targets of
+    the German Climate Protection Act for the waste sector, so the city is following a path set
+    nationally. It covers a rising recycling rate, separate collection in the city's institutions,
+    and the falling emission intensity of the waste management companies. What is accounted here
+    is the waste arising in the city administration's own institutions, not the waste of the whole
+    city area.<br/>
+    The ambitious scenario 1 halves waste emissions against the base year by 2045; the
+    conservative scenario 2 reduces them by 30 %. The target year here is 2045 rather than 2035
+    because the concept ties this path explicitly to 2045. In the model the measure acts on the
+    city administration's material flows.
   input_dimensions: [emission_source, measure_scenario]
   output_dimensions: [emission_source, measure_scenario]
   input_datasets:
@@ -1923,6 +2176,11 @@ actions:
     - id: measure_scenario
       flatten: true
 
+# The target node holds a finished emissions figure. It is material for 2019 only, at 976 t
+# CO2e;
+# the events did not take place in 2020 or 2021 and the series ends in 2022, so the measure can
+# show
+# no effect at present.
 - id: knsv_klimafreundliche_veranstaltungen
   name_de: Klimafreundliche Großveranstaltungen
   name_en: Climate-friendly major events
@@ -1932,20 +2190,35 @@ actions:
   no_effect_value: 1.0
   group: beschaffung
   description_de: |
-    Umstieg auf vegetarische und vegane Gerichte, weniger Abfall und klimafreundlichere An- und
-    Abreise der Besuchenden. Der Bericht hält die Einzeleffekte für schwer bezifferbar und setzt
-    pauschal 40 % (Szenario 1) bzw. 20 % (Szenario 2) Minderung an.<br/>
-    Betrifft die Zeile Großveranstaltungen, die im Modell bereits als fertige Emissionsmenge
-    vorliegt. Material ist sie nur für 2019 mit 976 t CO2e; 2020 und 2021 fielen die
-    Veranstaltungen pandemiebedingt aus und ab 2022 endet die Reihe, sodass die Maßnahme derzeit
-    keine Wirkung zeigen kann.
+    Die Großveranstaltungen der Stadt werden klimafreundlicher ausgerichtet. Zweck ist, einen
+    Bereich zu erfassen, in dem die Stadt zwar nicht selbst Energie verbraucht, aber als
+    Veranstalterin die Bedingungen setzt – und der zugleich sehr sichtbar ist.<br/>
+    Die Maßnahme gehört zum Konzept Klimaneutrale Stadtverwaltung. Zu ihr gehören der Umstieg auf
+    vegetarische und vegane Gerichte, Abfallvermeidung und Mehrwegsysteme sowie eine
+    klimafreundlichere An- und Abreise der Besucherinnen und Besucher, etwa durch Kombitickets für
+    den Nahverkehr.<br/>
+    Die Einzeleffekte hält das Konzept für schwer bezifferbar und setzt deshalb pauschal an: 40 %
+    Minderung im ambitionierten Szenario 1, 20 % im konservativen Szenario 2. Im Modell wirkt die
+    Maßnahme auf die Emissionen aus Großveranstaltungen der Stadtverwaltung.<br/>
+    Ein Hinweis zur Einordnung: Bilanziert sind die Großveranstaltungen bisher nur für 2019, mit
+    976 Tonnen CO2-Äquivalent; 2020 und 2021 fielen sie pandemiebedingt aus, und für die Jahre
+    danach liegen keine Zahlen vor. Solange das so bleibt, zeigt die Maßnahme im Modell keine
+    Wirkung.
   description_en: |
-    A move to vegetarian and vegan dishes, less waste, and lower-carbon travel by attendees. The
-    report considers the individual effects hard to quantify and applies a blanket 40 %
-    (scenario 1) or 20 % (scenario 2) reduction.<br/>
-    It applies to the major events row, which the model holds as a finished emissions figure. That
-    is material for 2019 only, at 976 t CO2e; the events did not take place in 2020 or 2021 and
-    the series ends in 2022, so the measure can show no effect at present.
+    The city's major events are organised along climate-friendly lines. The purpose is to cover an
+    area where the city consumes no energy itself but, as the organiser, sets the terms — and
+    which is highly visible at the same time.<br/>
+    The measure belongs to the Climate-Neutral Administration concept. It covers a move to
+    vegetarian and vegan dishes, waste avoidance and reusable systems, and lower-carbon travel by
+    visitors, for instance through combined tickets for public transport.<br/>
+    The concept considers the individual effects hard to quantify and therefore applies a blanket
+    figure: a 40 % reduction in the ambitious scenario 1 and 20 % in the conservative scenario 2.
+    In the model the measure acts on the emissions from the city administration's major
+    events.<br/>
+    One caveat for reading the figure: major events have so far been accounted for 2019 only, at
+    976 tonnes of CO2 equivalent; the events did not take place in 2020 and 2021 because of the
+    pandemic, and no figures exist for the years since. While that remains so, the measure shows
+    no effect in the model.
   input_dimensions: [measure_scenario]
   output_dimensions: [measure_scenario]
   input_datasets:
@@ -1995,20 +2268,36 @@ actions:
   unit: pcs/a
   group: beschaffung
   description_de: |
-    Maßnahmensteckbrief §4.1.7: Szenario 1 geht davon aus, dass 80 % der angebotenen
-    Verpflegung vegetarisch ist, Szenario 2 65 %.<br/>
-    Bezugsgröße sind die warmen Mahlzeiten -- im Basisjahr 2024 23.778 mit Fleisch oder Fisch,
-    665.555 gemischt und 721.536 vegetarisch, zusammen 1.410.869 --, weil nur für sie die
-    Unterscheidung erhoben wird. Kalte Mahlzeiten bleiben unberührt. Der Zuwachs vegetarischer
-    Mahlzeiten wird den beiden anderen Kategorien proportional entnommen; die Gesamtzahl der
-    Mahlzeiten bleibt gleich.
+    In den Kantinen der Stadt und bei ihren Veranstaltungen wird überwiegend vegetarisch
+    verpflegt. Zweck ist, die Emissionen aus dem Essen zu senken, das die Stadt einkauft; zwischen
+    einem Fleischgericht und einem vegetarischen Gericht liegt ein Vielfaches an Treibhausgasen,
+    während die Zahl der Mahlzeiten gleich bleibt.<br/>
+    Die Maßnahme gehört zum Konzept Klimaneutrale Stadtverwaltung (§ 4.1.7). Sie umfasst die
+    Gestaltung der Speisepläne, entsprechende Vorgaben in den Cateringverträgen und das Angebot
+    bei städtischen Veranstaltungen. Das ambitionierte Szenario 1 geht davon aus, dass 80 % der
+    angebotenen Verpflegung vegetarisch ist, das konservative Szenario 2 von 65 %.<br/>
+    Bezugsgröße sind die warmen Mahlzeiten, weil nur für sie erfasst wird, was auf dem Teller
+    liegt: im Basisjahr 2024 insgesamt 1.410.869, davon 23.778 mit Fleisch oder Fisch, 665.555
+    gemischt und 721.536 vegetarisch. Kalte Mahlzeiten bleiben unberührt.<br/>
+    Im Modell verschiebt die Maßnahme die beschafften Mengen der Stadtverwaltung zwischen diesen
+    Kategorien: Die Gesamtzahl der Mahlzeiten bleibt gleich, der Zuwachs der vegetarischen
+    Mahlzeiten wird den beiden anderen Kategorien anteilig entnommen, und die Emissionen sinken
+    über die zugehörigen Emissionsfaktoren.
   description_en: |
-    Measure sheet §4.1.7: scenario 1 assumes 80 % of the catering offered is vegetarian,
-    scenario 2 65 %.<br/>
-    The reference quantity is hot meals -- in the 2024 base year 23,778 with meat or fish,
-    665,555 mixed and 721,536 vegetarian, 1,410,869 together -- because the distinction is
-    only recorded for those. Cold meals are untouched. The increase in vegetarian meals is
-    taken from the other two categories in proportion; the total number of meals is unchanged.
+    The city's canteens and events serve predominantly vegetarian food. The purpose is to reduce
+    the emissions of the food the city buys: a meat dish and a vegetarian dish differ by a
+    multiple in greenhouse gases, while the number of meals stays the same.<br/>
+    The measure belongs to the Climate-Neutral Administration concept (§ 4.1.7). It covers how
+    menus are composed, the corresponding requirements in catering contracts, and what is offered
+    at city events. The ambitious scenario 1 assumes 80 % of the catering offered is vegetarian,
+    the conservative scenario 2 assumes 65 %.<br/>
+    The reference quantity is hot meals, because only for those is it recorded what is on the
+    plate: 1,410,869 in the 2024 base year, of which 23,778 with meat or fish, 665,555 mixed and
+    721,536 vegetarian. Cold meals are untouched.<br/>
+    In the model the measure shifts the items purchased by the city administration between these
+    categories: the total number of meals stays the same, the increase in vegetarian meals is
+    taken from the other two categories in proportion, and emissions fall through the emission
+    factors attached to them.
   input_dimensions: [ghg_category, municipal_facility_type, emission_source, measure_scenario]
   output_dimensions: [ghg_category, municipal_facility_type, emission_source, measure_scenario]
   input_datasets:
@@ -2057,6 +2346,23 @@ actions:
 # node's own unit is rule 1, and the dataset carries all three of its dimensions. Nothing
 # in the shared BISKO module changes for the other seven cities.
 
+# How it is computed. The heat plan is a building-typology model, not a measurement, and its
+# 2024
+# column differs from the balance -- its heating gas alone exceeds the city's entire metered gas
+# consumption. So its *relative* path is applied to each carrier's 2024 value in the balance
+# rather
+# than its levels. Heat pumps are the exception: the size of that fleet is a planning quantity
+# and is
+# taken from the plan in absolute terms.
+# What it cannot do. The heat plan has no sectors, so each carrier's change is distributed
+# across the
+# four stationary sectors in proportion -- industry included, part of whose gas is process heat
+# that
+# no heat plan retires. The path therefore overstates what is reachable there.
+# The emission factors. The heat plan values district heat at about 4 g CO2e/kWh
+# (Stromgutschriftmethode under the GEG); the model uses the BISKO default of 260 g/kWh, because
+# the
+# generation fuel input is still missing. That is the factor of sixty the description refers to.
 - id: kwp_waermewende
   name_de: Wärmewende nach der Kommunalen Wärmeplanung (Zielszenario 2040)
   name_en: Heat transition per the municipal heat plan (target scenario 2040)
@@ -2065,53 +2371,43 @@ actions:
   unit: MWh/a
   group: gebaeude_energie
   description_de: |
-    Der Wärmeplan der Stadt Mainz (Kommunale Wärmeplanung, KWP) nach dem
-    Wärmeplanungsgesetz (WPG), Auswertung vom 16.06.2026, Zielszenario 2040. Er ist der
-    einzige beschlussreife Pfad für die Wärmeversorgung und beschreibt vier Stützjahre:
-    <b>2024, 2030, 2035 und 2040</b>.<br/>
-    Bis 2040 gehen Erdgas- und Ölheizungen auf null (34.054 bzw. 3.478 Gebäude heute),
-    das Wärmenetz wächst von 5.021 auf 18.392 Gebäude, Wärmepumpen von keiner auf 24.165,
-    und der Wärmebedarf sinkt um rund 13 %.<br/>
-    <b>Wie die Maßnahme gerechnet wird.</b> Der Wärmeplan ist ein Gebäudetypen-Modell und
-    keine Messung; sein Wert für 2024 weicht von der Bilanz ab -- allein sein Heizgas
-    übersteigt den gesamten gemessenen Erdgasabsatz der Stadt. Übernommen wird deshalb
-    nicht sein Niveau, sondern sein <i>relativer Pfad</i>, angewandt auf den Bilanzwert
-    2024 jedes Energieträgers. Die Wärmepumpen sind die Ausnahme: ihre Flottengröße ist
-    eine Planungsgröße und wird als absolute Zunahme des Wärmeplans übernommen.<br/>
-    <b>Was sie nicht kann.</b> Der Wärmeplan kennt keine Sektoren. Die Änderung je
-    Energieträger wird deshalb anteilig auf die vier stationären Sektoren verteilt, auch
-    auf die Industrie -- deren Erdgas zum Teil Prozesswärme ist, die kein Wärmeplan
-    stilllegt. Der Pfad überzeichnet dort also, was erreichbar ist.<br/>
-    <b>Zur Einordnung der Emissionen.</b> Der Wärmeplan rechnet die Fernwärme mit rund
-    4 g CO₂e/kWh (Stromgutschriftmethode nach GEG), das Modell mit dem
-    BISKO-Standardfaktor von 260 g/kWh, weil die Brennstoffeinsatzdaten der Erzeugung
-    fehlen. Der Faktor unterscheidet sich also um das Sechzigfache, und genau auf dieses
-    Netz verlagert die Maßnahme die Wärme. Die <i>Energie</i>-Wirkung dieser Maßnahme ist
-    belastbar, ihre <i>Emissions</i>-Wirkung erst, wenn der Fernwärmefaktor geklärt ist.
+    Die Wärmeversorgung des gesamten Stadtgebiets wird umgebaut: weg von Erdgas und Heizöl, hin zu
+    Fernwärme und Wärmepumpen, bei zugleich sinkendem Wärmebedarf. Zweck ist, den größten
+    Einzelblock der Mainzer Emissionen anzugehen – das Heizen von Gebäuden.<br/>
+    Grundlage ist die Kommunale Wärmeplanung der Stadt Mainz, die nach dem Wärmeplanungsgesetz
+    gesetzlich vorgeschrieben ist; abgebildet wird ihr Zielszenario 2040 in der Auswertung vom
+    16.06.2026. Sie ist der einzige beschlussreife Gesamtpfad für die Wärmeversorgung und benennt
+    vier Stützjahre: <b>2024, 2030, 2035 und 2040</b>.<br/>
+    Bis 2040 gehen Erdgas- und Ölheizungen auf null zurück – heute sind es 34.054 beziehungsweise
+    3.478 Gebäude. Das Wärmenetz wächst von 5.021 auf 18.392 angeschlossene Gebäude, die Zahl der
+    Wärmepumpen steigt von praktisch keiner auf 24.165, und der Wärmebedarf sinkt durch Sanierung
+    um rund 13 %.<br/>
+    Im Modell wirkt die Maßnahme auf den Endenergieverbrauch der stationären Sektoren – Haushalte,
+    Gewerbe, Industrie und kommunale Einrichtungen –, indem sie Energie von den fossilen Trägern
+    auf Fernwärme und Strom verschiebt und die Gesamtmenge senkt.<br/>
+    Ein Hinweis zur Einordnung: Die Energiewirkung dieser Maßnahme ist belastbar, ihre
+    Emissionswirkung noch nicht. Wärmeplan und Treibhausgasbilanz bewerten dieselbe Kilowattstunde
+    Fernwärme derzeit um das Sechzigfache unterschiedlich, und genau auf dieses Netz verlagert die
+    Maßnahme die Wärme. Solange offen ist, mit welchem Emissionsfaktor die Mainzer Fernwärme zu
+    rechnen ist, ist das Ergebnis mit Vorbehalt zu lesen.
   description_en: |
-    The city's statutory municipal heat plan (Kommunale Wärmeplanung under the
-    Wärmeplanungsgesetz), evaluation of 16.06.2026, target scenario 2040 — the only
-    decision-ready path for heat supply, stated for four years: <b>2024, 2030, 2035,
-    2040</b>.<br/>
-    By 2040 gas and oil heating go to zero (34,054 and 3,478 buildings today), the heat
-    network grows from 5,021 to 18,392 buildings, heat pumps from none to 24,165, and heat
-    demand falls by about 13 %.<br/>
-    <b>How it is computed.</b> The heat plan is a building-typology model, not a
-    measurement, and its 2024 column differs from the balance — its heating gas alone
-    exceeds the city's entire metered gas consumption. So its <i>relative</i> path is
-    applied to each carrier's 2024 value in the balance rather than its levels. Heat pumps
-    are the exception: the size of that fleet is a planning quantity and is taken from the
-    plan in absolute terms.<br/>
-    <b>What it cannot do.</b> The heat plan has no sectors, so each carrier's change is
-    distributed across the four stationary sectors in proportion — industry included, part
-    of whose gas is process heat that no heat plan retires. The path therefore overstates
-    what is reachable there.<br/>
-    <b>Reading the emissions.</b> The heat plan values district heat at about
-    4 g CO₂e/kWh (Stromgutschriftmethode under the GEG); the model uses the BISKO default
-    of 260 g/kWh, because the generation fuel input is still missing. That is a factor of
-    sixty, on exactly the network this measure moves heat onto. The <i>energy</i> effect of
-    this action is sound; its <i>emissions</i> effect is not, until the district heating
-    factor is settled.
+    The heat supply of the whole city is rebuilt: away from natural gas and heating oil, towards
+    district heating and heat pumps, with heat demand falling at the same time. The purpose is to
+    tackle the largest single block of Mainz's emissions — heating.<br/>
+    The basis is the city's municipal heat plan (Kommunale Wärmeplanung), required by German law
+    under the Heat Planning Act; represented here is its target scenario for 2040, in the
+    evaluation of 16 June 2026. It is the only decision-ready whole-city path for heat supply, and
+    it states four milestone years: <b>2024, 2030, 2035 and 2040</b>.<br/>
+    By 2040 gas and oil heating go to zero — today 34,054 and 3,478 buildings respectively. The
+    heat network grows from 5,021 to 18,392 connected buildings, the number of heat pumps rises
+    from virtually none to 24,165, and renovation cuts heat demand by about 13 %.<br/>
+    In the model the measure acts on the final energy use of the stationary sectors — households,
+    commerce, industry and municipal facilities — moving energy from the fossil carriers to
+    district heating and electricity and reducing the total.<br/>
+    One caveat for reading the figure: the energy effect is sound, the emissions effect not yet.
+    The heat plan and the greenhouse gas balance value the same kilowatt-hour of district heating
+    sixty times differently, and district heating is precisely where this measure moves the heat.
+    Until that factor is settled, read the emissions result with that reservation.
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
@@ -2159,6 +2455,18 @@ actions:
 # recompute. Background: paths-data `models/mainz/README.md`, *The IE Leipzig scenarios are
 # built, and wait only on the upload*.
 
+# How it is computed. Not the study's levels but its *relative* path, applied to each carrier's
+# 2024
+# value in the balance -- the two sides' sector levels differ by up to 22 %, in both directions.
+# Because the 2024 carrier mixes differ too, each sector is additionally brought back onto the
+# study's own total path by one correction factor per support year, recorded in every data row.
+# The
+# base year is 2024 and not 2018: the 2018 -> 2020 step is -8.9 % and that is the pandemic, not
+# a
+# measure.
+# Provenance of the numbers. The bar totals are printed in the figures; the carrier shares are
+# not,
+# and were measured by hand in millimetres from the printed chart on 17-18 September 2026.
 - id: ie_mp2050_stationaer
   name_de: 'IE-Leipzig-Szenario MP-2050: stationäre Sektoren'
   name_en: 'IE Leipzig scenario MP-2050: stationary sectors'
@@ -2167,52 +2475,45 @@ actions:
   unit: MWh/a
   group: gebaeude_energie
   description_de: |
-    Der IE-Leipzig-Szenarienvergleich 2021 („Klimaneutralität 2035 – Erste Einschätzung der
-    Machbarkeit") ist neben dem Wärmeplan der einzige quantifizierte Gesamtpfad, den Mainz
-    besitzt. Er beziffert den Endenergieverbrauch je Sektor und Energieträger für 2020, 2030,
-    2035 und – nur im Szenario MP-2050 – 2050, in zwei Ambitionsstufen:<br/>
-    &bull; <b>MP-2050</b>: das Maßnahmenpaket des Masterplans unverändert fortgeführt,
-    Klimaneutralität 2050.<br/>
-    &bull; <b>KN-2035</b>: verstärkte und zusätzliche Maßnahmen, Klimaneutralität 2035.<br/>
-    Diese Maßnahme bildet den Pfad der stationären Sektoren (Haushalte, Industrie, GHD) des Szenarios <b>MP-2050</b> ab.<br/>
-    <b>Wie sie gerechnet wird.</b> Übernommen wird nicht das Niveau der Studie, sondern ihr
-    <i>relativer Pfad</i>, angewandt auf den Bilanzwert 2024 jedes Energieträgers – die
-    Sektorniveaus beider Seiten weichen um bis zu 22 % voneinander ab, und zwar in beide
-    Richtungen. Weil sich auch der Energieträgermix 2024 unterscheidet, wird der Sektor
-    zusätzlich mit einem Korrekturfaktor je Stützjahr auf den Gesamtpfad der Studie
-    zurückgeführt; er steht in jeder Datenzeile. Basisjahr ist 2024 und nicht 2018: der Schritt
-    2018 → 2020 beträgt −8,9 % und ist die Pandemie, keine Maßnahme.<br/>
-    <b>Die Zahlen sind Messwerte.</b> Die Balkensummen der Abbildungen sind beziffert, die
-    Anteile der Energieträger nicht; sie wurden am 17./18.09.2026 von Hand am gedruckten
-    Diagramm in Millimetern gemessen.<br/>
-    <b>Was sie nicht kann.</b> Der Pfad ist das aggregierte Ergebnis des Masterplanpakets und
-    darf deshalb nicht zusammen mit den einzelnen MP100-Maßnahmen laufen, die Teil desselben
-    Pakets sind. Die Emissionswirkung ist zudem schwächer belegt als die Energiewirkung: der
-    Fernwärmefaktor steht mangels Brennstoffeinsatzdaten auf dem BISKO-Standard von 260 g/kWh,
-    und der Strommix wird bis 2050 konstant gehalten, obwohl jedes Szenario von seiner
-    Dekarbonisierung ausgeht.
+    Der Szenarienvergleich des IE Leipzig von 2021 („Klimaneutralität 2035 – Erste Einschätzung
+    der Machbarkeit“) ist neben dem Wärmeplan der einzige quantifizierte Gesamtpfad, den Mainz
+    besitzt. Die Stadt hat ihn in Auftrag gegeben, um zu klären, was mit dem bestehenden
+    Maßnahmenpaket erreichbar ist und was darüber hinaus nötig wäre. Er beziffert den
+    Endenergieverbrauch je Sektor und Energieträger für 2020, 2030 und 2035 in zwei
+    Ambitionsstufen:<br/>
+    &bull; <b>MP-2050</b>: das Maßnahmenpaket des Masterplans 100 % Klimaschutz unverändert
+    fortgeführt, Klimaneutralität 2050.<br/>&bull; <b>KN-2035</b>: verstärkte und zusätzliche
+    Maßnahmen, Klimaneutralität 2035.<br/>
+    Diese Maßnahme bildet den Pfad der stationären Sektoren – Haushalte, Industrie sowie Gewerbe,
+    Handel und Dienstleistungen – im Szenario <b>MP-2050</b> ab und wirkt im Modell auf den
+    Endenergieverbrauch der stationären Sektoren.<br/>
+    Übernommen wird nicht das Niveau der Studie, sondern ihr relativer Pfad, angewandt auf den
+    Bilanzwert des Jahres 2024. Studie und Bilanz sind unterschiedlich aufgebaut und unterscheiden
+    sich je Sektor um bis zu 22 % in beide Richtungen; die Entwicklung, die die Studie beschreibt,
+    lässt sich davon unabhängig übernehmen.<br/>
+    Zu beachten: Dieser Pfad ist das Gesamtergebnis eines Maßnahmenpakets. Er darf deshalb nicht
+    gemeinsam mit den Einzelmaßnahmen desselben Pakets aktiviert werden, sonst wird dieselbe
+    Wirkung zweimal gezählt. Die Emissionswirkung ist zudem schwächer belegt als die
+    Energiewirkung, weil der Emissionsfaktor der Fernwärme noch nicht geklärt ist und der Strommix
+    im Modell konstant gehalten wird, obwohl jedes Szenario von seiner Dekarbonisierung ausgeht.
   description_en: |
     The IE Leipzig scenario comparison of 2021 is, beside the municipal heat plan, the only
-    quantified whole-city path Mainz has. It states final energy by sector and energy carrier
-    for 2020, 2030, 2035 and — in MP-2050 only — 2050, in two ambition levels:<br/>
-    &bull; <b>MP-2050</b>: the Masterplan's measure package carried forward unchanged, climate
-    neutrality in 2050.<br/>
-    &bull; <b>KN-2035</b>: strengthened and additional measures, climate neutrality in 2035.<br/>
-    This action carries the stationary-sector path (households, industry, commerce) of the <b>MP-2050</b> scenario.<br/>
-    <b>How it is computed.</b> Not the study's levels but its <i>relative</i> path, applied to
-    each carrier's 2024 value in the balance — the two sides' sector levels differ by up to
-    22 %, in both directions. Because the 2024 carrier mixes differ too, each sector is
-    additionally brought back onto the study's own total path by one correction factor per
-    support year, which is recorded in every data row. The base year is 2024 and not 2018: the
-    2018 → 2020 step is −8.9 % and that is the pandemic, not a measure.<br/>
-    <b>These are measurements.</b> The bar totals are printed in the figures; the carrier shares
-    are not, and were measured by hand in millimetres from the printed chart on 17–18 September
-    2026.<br/>
-    <b>What it cannot do.</b> The path is the aggregate outcome of the Masterplan package and
-    must therefore not run beside the individual MP100 measures, which are members of that
-    same package. Its emissions effect is also weaker evidence than its energy effect: the
-    district heating factor sits at the BISKO default of 260 g/kWh for want of generation fuel
-    data, and the grid factor is held flat to 2050 although every scenario assumes it falls.
+    quantified whole-city path Mainz has. The city commissioned it to establish what its existing
+    measures can achieve and what more would be needed. It states final energy use by sector and
+    carrier for 2020, 2030 and 2035, at two levels of ambition:<br/>
+    &bull; <b>MP-2050</b>: the measure package of the Masterplan 100 % Climate Protection carried
+    forward unchanged, climate neutrality in 2050.<br/>&bull; <b>KN-2035</b>: strengthened and
+    additional measures, climate neutrality in 2035.<br/>
+    This action carries the <b>MP-2050</b> path for the stationary sectors — households, industry,
+    and commerce and services — and acts in the model on their final energy use.<br/>
+    The model takes over not the study's levels but its relative path, applied to the 2024 value
+    in the emissions balance: the two are built differently and differ by up to 22 % per
+    sector.<br/>
+    Worth noting: this path is the aggregate outcome of a package of measures, and must not be
+    switched on together with the individual measures of that same package, or the same effect is
+    counted twice. The emissions effect is also less well founded than the energy effect, because
+    the emission factor of district heating is not yet settled and the electricity mix is held
+    constant in the model, although every scenario assumes it decarbonises.
   input_dimensions: [sector, energy_carrier, ie_szenario]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
@@ -2234,6 +2535,18 @@ actions:
   # its inputs, so this needs no copy of the shared module's node into this file.
   - id: final_energy_use
 
+# How it is computed. Not the study's levels but its *relative* path, applied to each carrier's
+# 2024
+# value in the balance -- the two sides' sector levels differ by up to 22 %, in both directions.
+# Because the 2024 carrier mixes differ too, each sector is additionally brought back onto the
+# study's own total path by one correction factor per support year, recorded in every data row.
+# The
+# base year is 2024 and not 2018: the 2018 -> 2020 step is -8.9 % and that is the pandemic, not
+# a
+# measure.
+# Provenance of the numbers. The bar totals are printed in the figures; the carrier shares are
+# not,
+# and were measured by hand in millimetres from the printed chart on 17-18 September 2026.
 - id: ie_mp2050_verkehr
   name_de: 'IE-Leipzig-Szenario MP-2050: Verkehr'
   name_en: 'IE Leipzig scenario MP-2050: transport'
@@ -2242,53 +2555,45 @@ actions:
   unit: MWh/a
   group: mobilitaet
   description_de: |
-    Der IE-Leipzig-Szenarienvergleich 2021 („Klimaneutralität 2035 – Erste Einschätzung der
-    Machbarkeit") ist neben dem Wärmeplan der einzige quantifizierte Gesamtpfad, den Mainz
-    besitzt. Er beziffert den Endenergieverbrauch je Sektor und Energieträger für 2020, 2030,
-    2035 und – nur im Szenario MP-2050 – 2050, in zwei Ambitionsstufen:<br/>
-    &bull; <b>MP-2050</b>: das Maßnahmenpaket des Masterplans unverändert fortgeführt,
-    Klimaneutralität 2050.<br/>
-    &bull; <b>KN-2035</b>: verstärkte und zusätzliche Maßnahmen, Klimaneutralität 2035.<br/>
-    Diese Maßnahme bildet den Verkehrspfad des Szenarios <b>MP-2050</b> ab.<br/>
-    <b>Wie sie gerechnet wird.</b> Übernommen wird nicht das Niveau der Studie, sondern ihr
-    <i>relativer Pfad</i>, angewandt auf den Bilanzwert 2024 jedes Energieträgers – die
-    Sektorniveaus beider Seiten weichen um bis zu 22 % voneinander ab, und zwar in beide
-    Richtungen. Weil sich auch der Energieträgermix 2024 unterscheidet, wird der Sektor
-    zusätzlich mit einem Korrekturfaktor je Stützjahr auf den Gesamtpfad der Studie
-    zurückgeführt; er steht in jeder Datenzeile. Basisjahr ist 2024 und nicht 2018: der Schritt
-    2018 → 2020 beträgt −8,9 % und ist die Pandemie, keine Maßnahme.<br/>
-    <b>Die Zahlen sind Messwerte.</b> Die Balkensummen der Abbildungen sind beziffert, die
-    Anteile der Energieträger nicht; sie wurden am 17./18.09.2026 von Hand am gedruckten
-    Diagramm in Millimetern gemessen.<br/>
-    <b>Was sie nicht kann.</b> Der Pfad ist das aggregierte Ergebnis des Masterplanpakets und
-    darf deshalb nicht zusammen mit den einzelnen MP100-Maßnahmen laufen, die Teil desselben
-    Pakets sind – für den Verkehr betrifft das C 6.1 (Elektrifizierung der Pkw-Fahrleistung),
-    C 3.1 (Busflotte) und C 4.1 (Radverkehr). Die Emissionswirkung ist zudem schwächer belegt
-    als die Energiewirkung: der Strommix wird bis 2050 konstant gehalten, obwohl jedes Szenario
-    von seiner Dekarbonisierung ausgeht, und genau darauf verlagert dieser Pfad den Verkehr.
+    Der Szenarienvergleich des IE Leipzig von 2021 („Klimaneutralität 2035 – Erste Einschätzung
+    der Machbarkeit“) ist neben dem Wärmeplan der einzige quantifizierte Gesamtpfad, den Mainz
+    besitzt. Die Stadt hat ihn in Auftrag gegeben, um zu klären, was mit dem bestehenden
+    Maßnahmenpaket erreichbar ist und was darüber hinaus nötig wäre. Er beziffert den
+    Endenergieverbrauch je Sektor und Energieträger für 2020, 2030 und 2035 in zwei
+    Ambitionsstufen:<br/>
+    &bull; <b>MP-2050</b>: das Maßnahmenpaket des Masterplans 100 % Klimaschutz unverändert
+    fortgeführt, Klimaneutralität 2050.<br/>&bull; <b>KN-2035</b>: verstärkte und zusätzliche
+    Maßnahmen, Klimaneutralität 2035.<br/>
+    Diese Maßnahme bildet den Verkehrspfad des Szenarios <b>MP-2050</b> ab und wirkt im Modell auf
+    den Endenergieverbrauch des Verkehrs.<br/>
+    Übernommen wird nicht das Niveau der Studie, sondern ihr relativer Pfad, angewandt auf den
+    Bilanzwert des Jahres 2024. Studie und Bilanz sind unterschiedlich aufgebaut und unterscheiden
+    sich je Sektor um bis zu 22 % in beide Richtungen; die Entwicklung, die die Studie beschreibt,
+    lässt sich davon unabhängig übernehmen.<br/>
+    Zu beachten: Dieser Pfad ist das Gesamtergebnis eines Maßnahmenpakets. Er darf deshalb nicht
+    gemeinsam mit den Einzelmaßnahmen desselben Pakets aktiviert werden, sonst wird dieselbe
+    Wirkung zweimal gezählt. Für den Verkehr betrifft das die Einzelmaßnahmen C 6.1
+    (Elektrifizierung der Pkw-Fahrleistung), C 3.1 (Busflotte) und C 4.1 (Radverkehr). Die
+    Emissionswirkung ist zudem schwächer belegt als die Energiewirkung, weil der Strommix im
+    Modell konstant gehalten wird und dieser Pfad den Verkehr gerade auf den Strom verlagert.
   description_en: |
     The IE Leipzig scenario comparison of 2021 is, beside the municipal heat plan, the only
-    quantified whole-city path Mainz has. It states final energy by sector and energy carrier
-    for 2020, 2030, 2035 and — in MP-2050 only — 2050, in two ambition levels:<br/>
-    &bull; <b>MP-2050</b>: the Masterplan's measure package carried forward unchanged, climate
-    neutrality in 2050.<br/>
-    &bull; <b>KN-2035</b>: strengthened and additional measures, climate neutrality in 2035.<br/>
-    This action carries the transport path of the <b>MP-2050</b> scenario.<br/>
-    <b>How it is computed.</b> Not the study's levels but its <i>relative</i> path, applied to
-    each carrier's 2024 value in the balance — the two sides' sector levels differ by up to
-    22 %, in both directions. Because the 2024 carrier mixes differ too, each sector is
-    additionally brought back onto the study's own total path by one correction factor per
-    support year, which is recorded in every data row. The base year is 2024 and not 2018: the
-    2018 → 2020 step is −8.9 % and that is the pandemic, not a measure.<br/>
-    <b>These are measurements.</b> The bar totals are printed in the figures; the carrier shares
-    are not, and were measured by hand in millimetres from the printed chart on 17–18 September
-    2026.<br/>
-    <b>What it cannot do.</b> The path is the aggregate outcome of the Masterplan package and
-    must therefore not run beside the individual MP100 measures, which are members of that
-    same package — for transport that is C 6.1 (car electrification), C 3.1 (the bus fleet) and
-    C 4.1 (cycling). Its emissions effect is also weaker evidence than its energy effect: the
-    grid factor is held flat to 2050 although every scenario assumes it falls, and this path
-    moves transport onto exactly that grid.
+    quantified whole-city path Mainz has. The city commissioned it to establish what its existing
+    measures can achieve and what more would be needed. It states final energy use by sector and
+    carrier for 2020, 2030 and 2035, at two levels of ambition:<br/>
+    &bull; <b>MP-2050</b>: the measure package of the Masterplan 100 % Climate Protection carried
+    forward unchanged, climate neutrality in 2050.<br/>&bull; <b>KN-2035</b>: strengthened and
+    additional measures, climate neutrality in 2035.<br/>
+    This action carries the transport path of the <b>MP-2050</b> scenario, and acts in the model
+    on transport final energy use.<br/>
+    The model takes over not the study's levels but its relative path, applied to the 2024 value
+    in the emissions balance: the two are built differently and differ by up to 22 % per
+    sector.<br/>
+    Worth noting: this path is the aggregate outcome of a package of measures, and must not be
+    switched on together with the individual measures of that same package, or the same effect is
+    counted twice. For transport those are C 6.1 (car electrification), C 3.1 (the bus fleet) and
+    C 4.1 (cycling). Its emissions effect is also less well founded than its energy effect: the
+    electricity mix is held constant, and this path moves transport onto exactly that electricity.
   input_dimensions: [vehicle_type, energy_carrier, ie_szenario]
   output_dimensions: [vehicle_type, energy_carrier]
   input_datasets:
@@ -2310,6 +2615,18 @@ actions:
   # its inputs, so this needs no copy of the shared module's node into this file.
   - id: transport_energy
 
+# How it is computed. Not the study's levels but its *relative* path, applied to each carrier's
+# 2024
+# value in the balance -- the two sides' sector levels differ by up to 22 %, in both directions.
+# Because the 2024 carrier mixes differ too, each sector is additionally brought back onto the
+# study's own total path by one correction factor per support year, recorded in every data row.
+# The
+# base year is 2024 and not 2018: the 2018 -> 2020 step is -8.9 % and that is the pandemic, not
+# a
+# measure.
+# Provenance of the numbers. The bar totals are printed in the figures; the carrier shares are
+# not,
+# and were measured by hand in millimetres from the printed chart on 17-18 September 2026.
 - id: ie_kn2035_stationaer
   name_de: 'IE-Leipzig-Szenario KN-2035: stationäre Sektoren'
   name_en: 'IE Leipzig scenario KN-2035: stationary sectors'
@@ -2318,52 +2635,46 @@ actions:
   unit: MWh/a
   group: gebaeude_energie
   description_de: |
-    Der IE-Leipzig-Szenarienvergleich 2021 („Klimaneutralität 2035 – Erste Einschätzung der
-    Machbarkeit") ist neben dem Wärmeplan der einzige quantifizierte Gesamtpfad, den Mainz
-    besitzt. Er beziffert den Endenergieverbrauch je Sektor und Energieträger für 2020, 2030,
-    2035 und – nur im Szenario MP-2050 – 2050, in zwei Ambitionsstufen:<br/>
-    &bull; <b>MP-2050</b>: das Maßnahmenpaket des Masterplans unverändert fortgeführt,
-    Klimaneutralität 2050.<br/>
-    &bull; <b>KN-2035</b>: verstärkte und zusätzliche Maßnahmen, Klimaneutralität 2035.<br/>
-    Diese Maßnahme bildet den Pfad der stationären Sektoren (Haushalte, Industrie, GHD) des Szenarios <b>KN-2035</b> ab.<br/>
-    <b>Wie sie gerechnet wird.</b> Übernommen wird nicht das Niveau der Studie, sondern ihr
-    <i>relativer Pfad</i>, angewandt auf den Bilanzwert 2024 jedes Energieträgers – die
-    Sektorniveaus beider Seiten weichen um bis zu 22 % voneinander ab, und zwar in beide
-    Richtungen. Weil sich auch der Energieträgermix 2024 unterscheidet, wird der Sektor
-    zusätzlich mit einem Korrekturfaktor je Stützjahr auf den Gesamtpfad der Studie
-    zurückgeführt; er steht in jeder Datenzeile. Basisjahr ist 2024 und nicht 2018: der Schritt
-    2018 → 2020 beträgt −8,9 % und ist die Pandemie, keine Maßnahme.<br/>
-    <b>Die Zahlen sind Messwerte.</b> Die Balkensummen der Abbildungen sind beziffert, die
-    Anteile der Energieträger nicht; sie wurden am 17./18.09.2026 von Hand am gedruckten
-    Diagramm in Millimetern gemessen.<br/>
-    <b>Was sie nicht kann.</b> Der Pfad ist das aggregierte Ergebnis des Masterplanpakets und
-    darf deshalb nicht zusammen mit den einzelnen MP100-Maßnahmen laufen, die Teil desselben
-    Pakets sind. Die Emissionswirkung ist zudem schwächer belegt als die Energiewirkung: der
-    Fernwärmefaktor steht mangels Brennstoffeinsatzdaten auf dem BISKO-Standard von 260 g/kWh,
-    und der Strommix wird bis 2050 konstant gehalten, obwohl jedes Szenario von seiner
-    Dekarbonisierung ausgeht.
+    Der Szenarienvergleich des IE Leipzig von 2021 („Klimaneutralität 2035 – Erste Einschätzung
+    der Machbarkeit“) ist neben dem Wärmeplan der einzige quantifizierte Gesamtpfad, den Mainz
+    besitzt. Die Stadt hat ihn in Auftrag gegeben, um zu klären, was mit dem bestehenden
+    Maßnahmenpaket erreichbar ist und was darüber hinaus nötig wäre. Er beziffert den
+    Endenergieverbrauch je Sektor und Energieträger für 2020, 2030 und 2035 in zwei
+    Ambitionsstufen:<br/>
+    &bull; <b>MP-2050</b>: das Maßnahmenpaket des Masterplans 100 % Klimaschutz unverändert
+    fortgeführt, Klimaneutralität 2050.<br/>&bull; <b>KN-2035</b>: verstärkte und zusätzliche
+    Maßnahmen, Klimaneutralität 2035.<br/>
+    Diese Maßnahme bildet den Pfad der stationären Sektoren – Haushalte, Industrie sowie Gewerbe,
+    Handel und Dienstleistungen – im ambitionierteren Szenario <b>KN-2035</b> ab und wirkt im
+    Modell auf den Endenergieverbrauch der stationären Sektoren.<br/>
+    Übernommen wird nicht das Niveau der Studie, sondern ihr relativer Pfad, angewandt auf den
+    Bilanzwert des Jahres 2024. Studie und Bilanz sind unterschiedlich aufgebaut und unterscheiden
+    sich je Sektor um bis zu 22 % in beide Richtungen; die Entwicklung, die die Studie beschreibt,
+    lässt sich davon unabhängig übernehmen.<br/>
+    Zu beachten: Dieser Pfad ist das Gesamtergebnis eines Maßnahmenpakets. Er darf deshalb nicht
+    gemeinsam mit den Einzelmaßnahmen desselben Pakets aktiviert werden, sonst wird dieselbe
+    Wirkung zweimal gezählt. Die Emissionswirkung ist zudem schwächer belegt als die
+    Energiewirkung, weil der Emissionsfaktor der Fernwärme noch nicht geklärt ist und der Strommix
+    im Modell konstant gehalten wird, obwohl jedes Szenario von seiner Dekarbonisierung ausgeht.
   description_en: |
     The IE Leipzig scenario comparison of 2021 is, beside the municipal heat plan, the only
-    quantified whole-city path Mainz has. It states final energy by sector and energy carrier
-    for 2020, 2030, 2035 and — in MP-2050 only — 2050, in two ambition levels:<br/>
-    &bull; <b>MP-2050</b>: the Masterplan's measure package carried forward unchanged, climate
-    neutrality in 2050.<br/>
-    &bull; <b>KN-2035</b>: strengthened and additional measures, climate neutrality in 2035.<br/>
-    This action carries the stationary-sector path (households, industry, commerce) of the <b>KN-2035</b> scenario.<br/>
-    <b>How it is computed.</b> Not the study's levels but its <i>relative</i> path, applied to
-    each carrier's 2024 value in the balance — the two sides' sector levels differ by up to
-    22 %, in both directions. Because the 2024 carrier mixes differ too, each sector is
-    additionally brought back onto the study's own total path by one correction factor per
-    support year, which is recorded in every data row. The base year is 2024 and not 2018: the
-    2018 → 2020 step is −8.9 % and that is the pandemic, not a measure.<br/>
-    <b>These are measurements.</b> The bar totals are printed in the figures; the carrier shares
-    are not, and were measured by hand in millimetres from the printed chart on 17–18 September
-    2026.<br/>
-    <b>What it cannot do.</b> The path is the aggregate outcome of the Masterplan package and
-    must therefore not run beside the individual MP100 measures, which are members of that
-    same package. Its emissions effect is also weaker evidence than its energy effect: the
-    district heating factor sits at the BISKO default of 260 g/kWh for want of generation fuel
-    data, and the grid factor is held flat to 2050 although every scenario assumes it falls.
+    quantified whole-city path Mainz has. The city commissioned it to establish what its existing
+    measures can achieve and what more would be needed. It states final energy use by sector and
+    carrier for 2020, 2030 and 2035, at two levels of ambition:<br/>
+    &bull; <b>MP-2050</b>: the measure package of the Masterplan 100 % Climate Protection carried
+    forward unchanged, climate neutrality in 2050.<br/>&bull; <b>KN-2035</b>: strengthened and
+    additional measures, climate neutrality in 2035.<br/>
+    This action carries the more ambitious <b>KN-2035</b> path for the stationary sectors —
+    households, industry, and commerce and services — and acts in the model on their final energy
+    use.<br/>
+    The model takes over not the study's levels but its relative path, applied to the 2024 value
+    in the emissions balance: the two are built differently and differ by up to 22 % per
+    sector.<br/>
+    Worth noting: this path is the aggregate outcome of a package of measures, and must not be
+    switched on together with the individual measures of that same package, or the same effect is
+    counted twice. The emissions effect is also less well founded than the energy effect, because
+    the emission factor of district heating is not yet settled and the electricity mix is held
+    constant in the model, although every scenario assumes it decarbonises.
   input_dimensions: [sector, energy_carrier, ie_szenario]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
@@ -2385,6 +2696,18 @@ actions:
   # its inputs, so this needs no copy of the shared module's node into this file.
   - id: final_energy_use
 
+# How it is computed. Not the study's levels but its *relative* path, applied to each carrier's
+# 2024
+# value in the balance -- the two sides' sector levels differ by up to 22 %, in both directions.
+# Because the 2024 carrier mixes differ too, each sector is additionally brought back onto the
+# study's own total path by one correction factor per support year, recorded in every data row.
+# The
+# base year is 2024 and not 2018: the 2018 -> 2020 step is -8.9 % and that is the pandemic, not
+# a
+# measure.
+# Provenance of the numbers. The bar totals are printed in the figures; the carrier shares are
+# not,
+# and were measured by hand in millimetres from the printed chart on 17-18 September 2026.
 - id: ie_kn2035_verkehr
   name_de: 'IE-Leipzig-Szenario KN-2035: Verkehr'
   name_en: 'IE Leipzig scenario KN-2035: transport'
@@ -2393,53 +2716,45 @@ actions:
   unit: MWh/a
   group: mobilitaet
   description_de: |
-    Der IE-Leipzig-Szenarienvergleich 2021 („Klimaneutralität 2035 – Erste Einschätzung der
-    Machbarkeit") ist neben dem Wärmeplan der einzige quantifizierte Gesamtpfad, den Mainz
-    besitzt. Er beziffert den Endenergieverbrauch je Sektor und Energieträger für 2020, 2030,
-    2035 und – nur im Szenario MP-2050 – 2050, in zwei Ambitionsstufen:<br/>
-    &bull; <b>MP-2050</b>: das Maßnahmenpaket des Masterplans unverändert fortgeführt,
-    Klimaneutralität 2050.<br/>
-    &bull; <b>KN-2035</b>: verstärkte und zusätzliche Maßnahmen, Klimaneutralität 2035.<br/>
-    Diese Maßnahme bildet den Verkehrspfad des Szenarios <b>KN-2035</b> ab.<br/>
-    <b>Wie sie gerechnet wird.</b> Übernommen wird nicht das Niveau der Studie, sondern ihr
-    <i>relativer Pfad</i>, angewandt auf den Bilanzwert 2024 jedes Energieträgers – die
-    Sektorniveaus beider Seiten weichen um bis zu 22 % voneinander ab, und zwar in beide
-    Richtungen. Weil sich auch der Energieträgermix 2024 unterscheidet, wird der Sektor
-    zusätzlich mit einem Korrekturfaktor je Stützjahr auf den Gesamtpfad der Studie
-    zurückgeführt; er steht in jeder Datenzeile. Basisjahr ist 2024 und nicht 2018: der Schritt
-    2018 → 2020 beträgt −8,9 % und ist die Pandemie, keine Maßnahme.<br/>
-    <b>Die Zahlen sind Messwerte.</b> Die Balkensummen der Abbildungen sind beziffert, die
-    Anteile der Energieträger nicht; sie wurden am 17./18.09.2026 von Hand am gedruckten
-    Diagramm in Millimetern gemessen.<br/>
-    <b>Was sie nicht kann.</b> Der Pfad ist das aggregierte Ergebnis des Masterplanpakets und
-    darf deshalb nicht zusammen mit den einzelnen MP100-Maßnahmen laufen, die Teil desselben
-    Pakets sind – für den Verkehr betrifft das C 6.1 (Elektrifizierung der Pkw-Fahrleistung),
-    C 3.1 (Busflotte) und C 4.1 (Radverkehr). Die Emissionswirkung ist zudem schwächer belegt
-    als die Energiewirkung: der Strommix wird bis 2050 konstant gehalten, obwohl jedes Szenario
-    von seiner Dekarbonisierung ausgeht, und genau darauf verlagert dieser Pfad den Verkehr.
+    Der Szenarienvergleich des IE Leipzig von 2021 („Klimaneutralität 2035 – Erste Einschätzung
+    der Machbarkeit“) ist neben dem Wärmeplan der einzige quantifizierte Gesamtpfad, den Mainz
+    besitzt. Die Stadt hat ihn in Auftrag gegeben, um zu klären, was mit dem bestehenden
+    Maßnahmenpaket erreichbar ist und was darüber hinaus nötig wäre. Er beziffert den
+    Endenergieverbrauch je Sektor und Energieträger für 2020, 2030 und 2035 in zwei
+    Ambitionsstufen:<br/>
+    &bull; <b>MP-2050</b>: das Maßnahmenpaket des Masterplans 100 % Klimaschutz unverändert
+    fortgeführt, Klimaneutralität 2050.<br/>&bull; <b>KN-2035</b>: verstärkte und zusätzliche
+    Maßnahmen, Klimaneutralität 2035.<br/>
+    Diese Maßnahme bildet den Verkehrspfad des ambitionierteren Szenarios <b>KN-2035</b> ab und
+    wirkt im Modell auf den Endenergieverbrauch des Verkehrs.<br/>
+    Übernommen wird nicht das Niveau der Studie, sondern ihr relativer Pfad, angewandt auf den
+    Bilanzwert des Jahres 2024. Studie und Bilanz sind unterschiedlich aufgebaut und unterscheiden
+    sich je Sektor um bis zu 22 % in beide Richtungen; die Entwicklung, die die Studie beschreibt,
+    lässt sich davon unabhängig übernehmen.<br/>
+    Zu beachten: Dieser Pfad ist das Gesamtergebnis eines Maßnahmenpakets. Er darf deshalb nicht
+    gemeinsam mit den Einzelmaßnahmen desselben Pakets aktiviert werden, sonst wird dieselbe
+    Wirkung zweimal gezählt. Für den Verkehr betrifft das die Einzelmaßnahmen C 6.1
+    (Elektrifizierung der Pkw-Fahrleistung), C 3.1 (Busflotte) und C 4.1 (Radverkehr). Die
+    Emissionswirkung ist zudem schwächer belegt als die Energiewirkung, weil der Strommix im
+    Modell konstant gehalten wird und dieser Pfad den Verkehr gerade auf den Strom verlagert.
   description_en: |
     The IE Leipzig scenario comparison of 2021 is, beside the municipal heat plan, the only
-    quantified whole-city path Mainz has. It states final energy by sector and energy carrier
-    for 2020, 2030, 2035 and — in MP-2050 only — 2050, in two ambition levels:<br/>
-    &bull; <b>MP-2050</b>: the Masterplan's measure package carried forward unchanged, climate
-    neutrality in 2050.<br/>
-    &bull; <b>KN-2035</b>: strengthened and additional measures, climate neutrality in 2035.<br/>
-    This action carries the transport path of the <b>KN-2035</b> scenario.<br/>
-    <b>How it is computed.</b> Not the study's levels but its <i>relative</i> path, applied to
-    each carrier's 2024 value in the balance — the two sides' sector levels differ by up to
-    22 %, in both directions. Because the 2024 carrier mixes differ too, each sector is
-    additionally brought back onto the study's own total path by one correction factor per
-    support year, which is recorded in every data row. The base year is 2024 and not 2018: the
-    2018 → 2020 step is −8.9 % and that is the pandemic, not a measure.<br/>
-    <b>These are measurements.</b> The bar totals are printed in the figures; the carrier shares
-    are not, and were measured by hand in millimetres from the printed chart on 17–18 September
-    2026.<br/>
-    <b>What it cannot do.</b> The path is the aggregate outcome of the Masterplan package and
-    must therefore not run beside the individual MP100 measures, which are members of that
-    same package — for transport that is C 6.1 (car electrification), C 3.1 (the bus fleet) and
-    C 4.1 (cycling). Its emissions effect is also weaker evidence than its energy effect: the
-    grid factor is held flat to 2050 although every scenario assumes it falls, and this path
-    moves transport onto exactly that grid.
+    quantified whole-city path Mainz has. The city commissioned it to establish what its existing
+    measures can achieve and what more would be needed. It states final energy use by sector and
+    carrier for 2020, 2030 and 2035, at two levels of ambition:<br/>
+    &bull; <b>MP-2050</b>: the measure package of the Masterplan 100 % Climate Protection carried
+    forward unchanged, climate neutrality in 2050.<br/>&bull; <b>KN-2035</b>: strengthened and
+    additional measures, climate neutrality in 2035.<br/>
+    This action carries the transport path of the more ambitious <b>KN-2035</b> scenario, and acts
+    in the model on transport final energy use.<br/>
+    The model takes over not the study's levels but its relative path, applied to the 2024 value
+    in the emissions balance: the two are built differently and differ by up to 22 % per
+    sector.<br/>
+    Worth noting: this path is the aggregate outcome of a package of measures, and must not be
+    switched on together with the individual measures of that same package, or the same effect is
+    counted twice. For transport those are C 6.1 (car electrification), C 3.1 (the bus fleet) and
+    C 4.1 (cycling). Its emissions effect is also less well founded than its energy effect: the
+    electricity mix is held constant, and this path moves transport onto exactly that electricity.
   input_dimensions: [vehicle_type, energy_carrier, ie_szenario]
   output_dimensions: [vehicle_type, energy_carrier]
   input_datasets:
@@ -2462,6 +2777,13 @@ actions:
   - id: transport_energy
 # ///// end of the commented-out IE Leipzig block /////
 
+# The source says "share of electric cars", i.e. a fleet share; it is read here as a share of
+# mileage, and the two coincide only if electric and combustion cars drive the same distance a
+# year.
+# The displaced share is taken from the remaining carriers in proportion to their base-year
+# shares,
+# since the scenario bans new combustion registrations from 2025 and so privileges no one
+# carrier.
 - id: mp100_elektrifizierung_pkw
   name_de: Elektrifizierung der Pkw-Fahrleistung (C 6.1)
   name_en: Electrification of car mileage (C 6.1)
@@ -2470,29 +2792,37 @@ actions:
   unit: '%'
   group: mobilitaet
   description_de: |
-    Der IE-Leipzig-Szenarienvergleich 2021 setzt im Szenario KN-2035 einen Anteil von
-    90 % Elektro-Pkw bis 2035 an, flankiert vom Ausbau der Ladeinfrastruktur und einem
-    Zulassungsstopp für Verbrennungsmotoren ab 2025 (Tabelle 3). Die Maßnahme entspricht
-    dem Steckbrief C 6.1 „Förderung der E-Mobilität" des Maßnahmenkatalogs; die Zahl
-    stammt aus dem Szenarienvergleich, weil der Katalog für diese Maßnahme keine nennt.<br/>
-    Im Modell als Anteil an der <b>Fahrleistung</b> gelesen, nicht am Fahrzeugbestand:
-    die Quelle sagt „Anteil Elektro-Pkw", also Bestand, und beides fiele nur zusammen,
-    wenn Elektro- und Verbrenner-Pkw gleich viele Kilometer im Jahr fahren.<br/>
-    Der verdrängte Anteil wird den übrigen Energieträgern proportional zu ihren
-    Basisjahresanteilen entnommen. Das Szenario untersagt ab 2025 die Zulassung von
-    Verbrennungsmotoren und bevorzugt damit keinen Träger gegenüber einem anderen.
+    Die Personenwagen im Stadtgebiet fahren zunehmend elektrisch. Zweck ist, den Kraftstoff im
+    größten Verkehrsträger zu ersetzen: Der Pkw-Verkehr erbringt rund 70 % der Verkehrsleistung in
+    Mainz.<br/>
+    Die Maßnahme entspricht dem Steckbrief C 6.1 „Förderung der E-Mobilität“ aus dem
+    Maßnahmenkatalog des Masterplans 100 % Klimaschutz der Stadt Mainz. Zu ihr gehören der Ausbau
+    der öffentlichen und privaten Ladeinfrastruktur, Beratung und Förderung sowie – als Annahme
+    des Szenarios – ein Zulassungsstopp für Verbrennungsmotoren ab 2025.<br/>
+    Der Zielwert stammt aus dem Szenarienvergleich des IE Leipzig, Szenario KN-2035, weil der
+    Maßnahmenkatalog für diese Maßnahme keinen nennt: 90 % Elektro-Pkw bis 2035.<br/>
+    Im Modell steigt dadurch der Anteil des Stroms an den Verkehrsenergieanteilen der
+    Personenwagen, und die verdrängten Kraftstoffe gehen anteilig zu ihren heutigen Anteilen
+    zurück. Die gefahrenen Kilometer ändern sich nicht, nur womit sie gefahren werden.<br/>
+    Ein Hinweis zur Einordnung: Der Zielwert wird hier als Anteil an der Fahrleistung gelesen,
+    nicht am Fahrzeugbestand. Beides fällt nur dann zusammen, wenn Elektro- und Verbrenner-Pkw im
+    Jahr gleich viele Kilometer zurücklegen.
   description_en: |
-    In its KN-2035 scenario the IE Leipzig scenario comparison of 2021 assumes a 90 %
-    share of electric cars by 2035, alongside charging infrastructure and a stop on new
-    combustion-engine registrations from 2025 (Tabelle 3). The measure corresponds to
-    sheet C 6.1 "Promotion of e-mobility" of the measure catalogue; the number comes from
-    the scenario comparison, because the catalogue states none for this measure.<br/>
-    Modelled as a share of <b>mileage</b> rather than of the fleet: the source says
-    "share of electric cars", which is a fleet share, and the two coincide only if
-    electric and combustion cars drive the same number of kilometres a year.<br/>
-    The displaced share is taken from the remaining carriers in proportion to their
-    base-year shares, since the scenario bans new combustion registrations from 2025 and
-    so privileges no one carrier over another.
+    Passenger cars in the city increasingly run on electricity. The purpose is to replace the fuel
+    used by the largest transport mode: cars account for about 70 % of the passenger kilometres
+    travelled in Mainz.<br/>
+    The measure corresponds to sheet C 6.1 "Promotion of e-mobility" in the catalogue of measures
+    of the city's Masterplan 100 % Climate Protection. It covers the build-out of public and
+    private charging infrastructure, advice and subsidy, and — as an assumption of the scenario —
+    a stop on new combustion-engine registrations from 2025.<br/>
+    The target figure comes from the IE Leipzig scenario comparison, scenario KN-2035, because the
+    catalogue states none for this measure: 90 % electric cars by 2035.<br/>
+    In the model this raises the share of electricity in the transport energy shares of passenger
+    cars, and the displaced fuels fall back in proportion to their present shares. The kilometres
+    driven do not change, only what they are driven on.<br/>
+    One caveat for reading the figure: the target is read here as a share of mileage rather than
+    of the vehicle fleet. The two coincide only if electric and combustion cars cover the same
+    number of kilometres a year.
   input_dimensions: [vehicle_type, road_type, energy_carrier, mp100_measure]
   output_dimensions: [vehicle_type, road_type, energy_carrier]
   input_datasets:
@@ -2509,6 +2839,17 @@ actions:
   - id: transport_energy_shares
     tags: [additive]
 
+# "Decarbonised" is not defined in the catalogue and is read as electric. That is not only a
+# matter
+# of making the three milestone years describe one quantity: decarbonising 80 % of a bus fleet
+# on
+# biofuel fails on feedstock availability, and where biofuel is used it belongs in the
+# applications
+# that are hard to electrify -- bio-kerosene in aviation above all. Biodiesel, biogas and
+# natural gas
+# are therefore treated as displaced carriers, even though 7.1 % of the 2024 bus fleet already
+# runs
+# on biodiesel and biogas.
 - id: mp100_elektrifizierung_busse
   name_de: Elektrifizierung der Busflotte (C 3.1)
   name_en: Electrification of the bus fleet (C 3.1)
@@ -2517,30 +2858,41 @@ actions:
   unit: '%'
   group: mobilitaet
   description_de: |
-    Szenario KN-2035 des IE-Leipzig-Szenarienvergleichs 2021: 80 % der gefahrenen
-    Bus-Kilometer elektrisch bis 2035, „fast ausschließlich Elektrobusse" (Tabelle 3).
-    Die Stützjahre 2025 und 2030 stammen aus dem Steckbrief C 3.1 „Leistungsfähiger und
-    zukunftsorientierter ÖPNV", der 25 % bzw. 60 % „dekarbonisierte Busflotte"
-    vorsieht.<br/>
-    „Dekarbonisiert" ist im Katalog nicht definiert und wird als elektrisch gelesen. Das
-    ist nicht nur eine Frage der Einheitlichkeit der drei Stützjahre: eine Dekarbonisierung
-    von 80 % der Busflotte über Biokraftstoffe scheitert an der Rohstoffverfügbarkeit. Wo
-    Biokraftstoffe eingesetzt werden, gehören sie in die schwer elektrifizierbaren
-    Anwendungen -- vor allem Bio-Kerosin im Luftverkehr --, während der Linienbus der
-    leichte Fall ist. Biodiesel, Biogas und Erdgas zählen hier daher zu den verdrängten
-    Trägern, obwohl die Busflotte 2024 bereits zu 7,1 % mit Biodiesel und Biogas fährt.
+    Die Busse des öffentlichen Nahverkehrs in Mainz werden auf Elektroantrieb umgestellt. Zweck
+    ist, den Nahverkehr emissionsfrei zu machen – die Voraussetzung dafür, dass eine Verlagerung
+    vom Auto auf den Bus überhaupt Emissionen spart.<br/>
+    Die Maßnahme entspricht dem Steckbrief C 3.1 „Leistungsfähiger und zukunftsorientierter ÖPNV“
+    aus dem Maßnahmenkatalog des Masterplans 100 % Klimaschutz. Sie umfasst die Beschaffung von
+    Elektrobussen beim Flottenersatz und den Aufbau der Ladeinfrastruktur in den
+    Betriebshöfen.<br/>
+    Der Steckbrief sieht bis 2025 eine zu 25 % und bis 2030 eine zu 60 % dekarbonisierte Busflotte
+    vor; für 2035 nennt der Szenarienvergleich des IE Leipzig im Szenario KN-2035 80 % elektrisch
+    gefahrene Bus-Kilometer.<br/>
+    Im Modell steigt dadurch der Anteil des Stroms an den Verkehrsenergieanteilen der Busse,
+    während Diesel, Erdgas, Biodiesel und Biogas entsprechend zurückgehen. Das Fahrtenangebot
+    ändert sich dadurch nicht.<br/>
+    Ein Hinweis zur Einordnung: „Dekarbonisiert“ ist im Maßnahmenkatalog nicht näher bestimmt und
+    wird hier als elektrisch gelesen. Biokraftstoffe werden also zu den verdrängten Trägern
+    gezählt, obwohl die Busflotte 2024 bereits zu 7,1 % mit Biodiesel und Biogas fährt – die
+    verfügbaren Mengen werden dort gebraucht, wo sich ein Antrieb schwerer elektrifizieren lässt
+    als beim Linienbus.
   description_en: |
-    The KN-2035 scenario of the 2021 IE Leipzig scenario comparison: 80 % of bus
-    kilometres electric by 2035, "almost exclusively electric buses" (Tabelle 3). The
-    interim years 2025 and 2030 come from measure sheet C 3.1 "Forward-looking public
-    transport", which sets 25 % and 60 % "decarbonised bus fleet".<br/>
-    "Decarbonised" is not defined in the catalogue and is read as electric. That is not
-    only a matter of making the three milestone years describe one quantity: decarbonising
-    80 % of a bus fleet on biofuel fails on feedstock availability. Where biofuel is used
-    it belongs in the applications that are hard to electrify -- bio-kerosene in aviation
-    above all -- while a line bus is the easy case. Biodiesel, biogas and natural gas are
-    therefore treated here as displaced carriers, even though 7.1 % of the 2024 bus fleet
-    already runs on biodiesel and biogas.
+    The buses of Mainz's public transport are converted to electric drive. The purpose is to make
+    public transport emission-free — the precondition for a shift from the car to the bus saving
+    any emissions at all.<br/>
+    The measure corresponds to sheet C 3.1 "Capable and forward-looking public transport" in the
+    catalogue of measures of the Masterplan 100 % Climate Protection. It covers buying electric
+    buses as the fleet is replaced and building the charging infrastructure at the depots.<br/>
+    The measure sheet calls for a bus fleet 25 % decarbonised by 2025 and 60 % by 2030; for 2035
+    the IE Leipzig scenario comparison states, in its KN-2035 scenario, that 80 % of bus
+    kilometres are driven electrically.<br/>
+    In the model this raises the share of electricity in the transport energy shares of buses,
+    while diesel, natural gas, biodiesel and biogas fall correspondingly. The service offered does
+    not change.<br/>
+    One caveat for reading the figure: "decarbonised" is not defined further in the catalogue and
+    is read here as electric. Biofuels are therefore counted among the displaced carriers, even
+    though 7.1 % of the 2024 bus fleet already runs on biodiesel and biogas — the volumes
+    available are needed where a drive is harder to electrify than a city bus.
   input_dimensions: [vehicle_type, road_type, energy_carrier, mp100_measure]
   output_dimensions: [vehicle_type, road_type, energy_carrier]
   input_datasets:
@@ -2566,6 +2918,11 @@ actions:
 # does not name is added to the result after the formula is evaluated, so no change to the
 # shared BISKO module is needed and the other seven cities see nothing.
 
+# Total transport performance is held constant. The IE Leipzig scenario comparison also calls
+# for a
+# "significant reduction in mileage" under KN-2035 but does not quantify it; if the total falls,
+# the
+# car reduction shown here is an upper bound.
 - id: mp100_radverkehr
   name_de: Verlagerung vom Pkw auf das Fahrrad (C 4.1)
   name_en: Shift from the car to the bicycle (C 4.1)
@@ -2574,39 +2931,43 @@ actions:
   unit: Mvkm/a
   group: mobilitaet
   description_de: |
-    Maßnahmensteckbrief C 4.1 „Fahrradfreundliches Mainz", Ziel bis 2035: „Anteil Radverkehr
-    an Verkehrsleistung min. 20 %". Es ist das einzige der quantifizierten Verkehrsziele des
-    Katalogs, das in Personenkilometern und nicht in Wegen formuliert ist, und damit das
-    einzige, das ohne Annahmen zur mittleren Wegelänge abgebildet werden kann.<br/>
-    Basis 2024: 1.901 Mio. Personenkilometer insgesamt, davon 88 Mio. Fahrrad (4,63 %) und
-    1.326 Mio. Pkw (69,75 %). Für einen Radanteil von 20 % sind 292 Mio. Pkm zusätzlich
-    erforderlich; sie werden vollständig dem Pkw entnommen und mit dem Besetzungsgrad von
-    1,4 Personen je Pkw in Fahrleistung umgerechnet: <b>−209 Mio. Fahrzeugkilometer im
-    Jahr</b>.<br/>
-    Die Minderung fällt Außerorts und Innerorts an, nicht auf der Autobahn, und dort anteilig
-    zur heutigen Fahrleistung. Gemessen an der Nicht-Autobahn-Fahrleistung sind das 40 %. Das
-    Ziel ist ambitioniert formuliert, und diese Größenordnung ist seine Folge, nicht eine
-    Zutat des Modells.<br/>
-    Die gesamte Verkehrsleistung bleibt dabei konstant. Der IE-Leipzig-Szenarienvergleich
-    nennt für KN-2035 zusätzlich eine „deutliche Senkung der Fahrleistungen", beziffert sie
-    aber nicht; fällt die Gesamtleistung, ist die hier ausgewiesene Pkw-Minderung eine
-    Obergrenze.
+    Ein wachsender Teil der Wege in Mainz wird mit dem Fahrrad statt mit dem Auto zurückgelegt.
+    Zweck ist, Verkehrsleistung dorthin zu verlagern, wo sie gar keine Emissionen verursacht, und
+    zugleich Straßenraum, Lärm und Luftqualität in der Stadt zu verbessern.<br/>
+    Die Maßnahme entspricht dem Steckbrief C 4.1 „Fahrradfreundliches Mainz“ aus dem
+    Maßnahmenkatalog des Masterplans 100 % Klimaschutz. Sein Ziel für 2035: ein Anteil des
+    Radverkehrs an der Verkehrsleistung von mindestens 20 %. Es ist das einzige quantifizierte
+    Verkehrsziel des Katalogs, das in Personenkilometern formuliert ist, und deshalb das einzige,
+    das sich ohne zusätzliche Annahmen über mittlere Weglängen abbilden lässt.<br/>
+    Ausgangspunkt 2024 sind 1.901 Millionen Personenkilometer insgesamt, davon 88 Millionen mit
+    dem Fahrrad (4,63 %) und 1.326 Millionen mit dem Pkw (69,75 %). Für einen Radanteil von 20 %
+    sind 292 Millionen Personenkilometer zusätzlich erforderlich; sie werden vollständig dem Pkw
+    entnommen und mit einem Besetzungsgrad von 1,4 Personen je Pkw in Fahrleistung
+    umgerechnet.<br/>
+    Im Modell senkt die Maßnahme die Fahrleistung um <b>209 Millionen Fahrzeugkilometer im
+    Jahr</b>, und zwar innerorts und außerorts anteilig zur heutigen Fahrleistung, nicht auf der
+    Autobahn. Die gesamte Verkehrsleistung bleibt dabei gleich.<br/>
+    Ein Hinweis zur Einordnung: Gemessen an der Fahrleistung außerhalb der Autobahn sind das 40 %.
+    Das Ziel ist ambitioniert formuliert, und diese Größenordnung ist seine Folge und keine Zutat
+    des Modells.
   description_en: |
-    Measure sheet C 4.1 "Cycling-friendly Mainz", target for 2035: "cycling share of
-    transport performance at least 20 %". It is the only one of the catalogue's quantified
-    transport targets stated in passenger kilometres rather than in trips, and therefore the
-    only one that can be modelled without assuming a mean trip length.<br/>
-    2024 base: 1,901 M passenger kilometres in total, of which 88 M by bicycle (4.63 %) and
-    1,326 M by car (69.75 %). Reaching a 20 % cycling share needs 292 M pkm more; they are
-    taken entirely from the car and converted to mileage at 1.4 passengers per car:
-    <b>−209 M vehicle kilometres a year</b>.<br/>
-    The reduction falls on rural and urban roads, not the motorway, and there in proportion
-    to today's mileage. Measured against non-motorway mileage that is 40 %. The target is
-    ambitiously formulated, and this magnitude is its consequence rather than something the
-    model adds.<br/>
-    Total transport performance is held constant. The IE Leipzig scenario comparison also
-    calls for a "significant reduction in mileage" under KN-2035 but does not quantify it; if
-    the total falls, the car reduction shown here is an upper bound.
+    A growing share of journeys in Mainz is made by bicycle instead of by car. The purpose is to
+    shift travel to a mode that causes no emissions at all, and at the same time to improve street
+    space, noise and air quality in the city.<br/>
+    The measure corresponds to sheet C 4.1 "Cycling-friendly Mainz" in the catalogue of measures
+    of the Masterplan 100 % Climate Protection. Its target for 2035: a cycling share of at least
+    20 % of passenger kilometres. It is the only quantified transport target in the catalogue
+    stated in passenger kilometres, and so the only one representable without further assumptions
+    about trip lengths.<br/>
+    The 2024 starting point is 1,901 million passenger kilometres, of which 88 million by bicycle
+    (4.63 %) and 1,326 million by car (69.75 %). A 20 % cycling share needs 292 million more; they
+    are taken entirely from the car and converted to mileage at 1.4 people per car.<br/>
+    In the model the measure reduces vehicle kilometres by <b>209 million a year</b>, on urban and
+    rural roads in proportion to today's mileage and not on the motorway. Total passenger
+    kilometres stay the same.<br/>
+    One caveat for reading the figure: measured against non-motorway mileage this is 40 %. The
+    target is ambitiously formulated, and this magnitude is its consequence rather than something
+    the model adds.
   input_dimensions: [vehicle_type, road_type, mp100_measure]
   output_dimensions: [vehicle_type, road_type]
   input_datasets:
