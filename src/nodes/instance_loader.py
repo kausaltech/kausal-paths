@@ -1684,6 +1684,11 @@ class InstanceLoader:
             )
 
         self._stash_snapshot_bindings(snapshot)
+        # The YAML and framework paths reach this graph nowhere else: their
+        # snapshots have no dataset catalog, so `get_instance_graph()` cannot
+        # rebuild it without the placeholder synthesis `_stash_snapshot_bindings`
+        # does.
+        self.context.instance_graph = self._instance_graph
         self._finish_init()
 
     def _stash_snapshot_bindings(self, snapshot: InstanceSnapshot) -> None:
