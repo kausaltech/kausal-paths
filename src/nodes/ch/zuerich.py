@@ -127,6 +127,7 @@ class BuildingHeatHistorical(Node):
     cop_port = InputPort.one('heat_pump_cop', label=_('Heat pump COP'))
     consumption_port = InputPort.one('consumption', label=_('Energy consumption'))
     input_port_declarations = (cop_port, consumption_port)
+    consumes_all_inputs_through_ports = True
 
     @classmethod
     def infer_legacy_port_roles(cls, meta: NodeMeta, candidates: Sequence[InputPortDef]) -> PortRoleInferenceResult:
@@ -166,6 +167,7 @@ class BuildingUsefulHeat(Node):
     energy_port = InputPort.one('energy', label=_('Energy'))
     cop_port = InputPort.one('cop', label=_('Coefficient of performance'))
     input_port_declarations = (energy_port, cop_port)
+    consumes_all_inputs_through_ports = True
     legacy_input_port_roles_by_tag = {'energy': 'energy', 'cop': 'cop'}
 
     def compute(self) -> ppl.PathsDataFrame:
@@ -186,6 +188,7 @@ class BuildingHeatPerArea(Node):
     floor_area_port = InputPort.one('floor_area', label=_('Floor area'))
     additive_port = InputPort.multi('additive', required=False, aggregation='sum', label=_('Additive inputs'))
     input_port_declarations = (consumption_port, floor_area_port, additive_port)
+    consumes_all_inputs_through_ports = True
     legacy_input_port_roles_by_tag = {'consumption': 'consumption', 'floor_area': 'floor_area'}
     legacy_untagged_input_role = 'additive'
 
@@ -246,6 +249,7 @@ class BuildingGeneralElectricityEfficiency(AdditiveNode):
         floor_area_port,
         additive_port,
     )
+    consumes_all_inputs_through_ports = True
     legacy_input_port_roles_by_tag = {
         'consumption': 'consumption',
         'heat_consumption': 'heat_consumption',
@@ -289,6 +293,7 @@ class BuildingHeatUseMix(MixNode):
     consumption_port = InputPort.one('consumption', label=_('Energy consumption'))
     additive_port = InputPort.multi('additive', required=False, aggregation='sum', label=_('Additive inputs'))
     input_port_declarations = (consumption_port, additive_port)
+    consumes_all_inputs_through_ports = True
     legacy_input_port_roles_by_tag = {'consumption': 'consumption'}
     legacy_untagged_input_role = 'additive'
 
@@ -331,6 +336,7 @@ class BuildingHeatByCarrier(Node):
     consumption_port = InputPort.one('consumption', label=_('Energy consumption'))
     biogas_share_port = InputPort.one('biogas_share', label=_('Biogas share'))
     input_port_declarations = (heat_pump_cop_port, consumption_port, biogas_share_port)
+    consumes_all_inputs_through_ports = True
     legacy_input_port_roles_by_tag = {
         'heat_pump_cop': 'heat_pump_cop',
         'consumption': 'consumption',
@@ -380,6 +386,7 @@ class ElectricityProductionMix(MixNode):
         subsidized_mix_port,
         external_mix_port,
     )
+    consumes_all_inputs_through_ports = True
     legacy_input_port_roles_by_tag = {
         'external_supply': 'external_supply',
         'consumption': 'consumption',
@@ -456,6 +463,7 @@ class ElectricityProductionMixLegacy(MixNode):
         consumption_port,
         additive_port,
     )
+    consumes_all_inputs_through_ports = True
 
     @classmethod
     def infer_legacy_port_roles(cls, meta: NodeMeta, candidates: Sequence[InputPortDef]) -> PortRoleInferenceResult:
@@ -683,6 +691,7 @@ class EnergyProductionEmissionFactor(AdditiveNode):
     dataset_port = InputPort.one('dataset', label=_('Emission factor dataset'))
     emission_factor_port = InputPort.multi('emission_factor', required=False, label=_('Emission factor overrides'))
     input_port_declarations = (mix_port, ccs_port, dataset_port, emission_factor_port)
+    consumes_all_inputs_through_ports = True
     legacy_input_port_roles_by_tag = {
         'mix': 'mix',
         'ccs': 'ccs',
@@ -750,6 +759,7 @@ class EmissionFactor(Node):
     dataset_port = InputPort.one('dataset', label=_('Emission factor dataset'))
     additive_port = InputPort.multi('additive', required=False, aggregation='sum', label=_('Additive inputs'))
     input_port_declarations = (dataset_port, additive_port)
+    consumes_all_inputs_through_ports = True
     legacy_untagged_dataset_input_role = 'dataset'
     legacy_untagged_input_role = 'additive'
     input_dimension_ids = ['energy_carrier', 'emission_scope']
@@ -799,6 +809,7 @@ class EmissionFactorActivity(Node):
     energy_port = InputPort.one('energy', label=_('Energy'))
     emission_factor_port = InputPort.one('emission_factor', label=_('Emission factor'))
     input_port_declarations = (energy_port, emission_factor_port)
+    consumes_all_inputs_through_ports = True
     legacy_input_port_roles_by_quantity = {
         ENERGY_QUANTITY: 'energy',
         EMISSION_FACTOR_QUANTITY: 'emission_factor',
@@ -914,6 +925,7 @@ class VehicleDatasetNode(AdditiveNode):  # Based on BuildingEnergy.
 class VehicleMileageHistorical(Node):
     input_port = InputPort.one('input', label=_('Mileage dataset'))
     input_port_declarations = (input_port,)
+    consumes_all_inputs_through_ports = True
     legacy_untagged_dataset_input_role = 'input'
     output_dimension_ids = [
         'vehicle_type',
@@ -938,6 +950,7 @@ class PassengerKilometers(Node):
     vehicle_mileage_port = InputPort.one('vehicle_mileage', label=_('Vehicle mileage'))
     occupancy_factor_port = InputPort.one('occupancy_factor', label=_('Occupancy factor'))
     input_port_declarations = (vehicle_mileage_port, occupancy_factor_port)
+    consumes_all_inputs_through_ports = True
     legacy_input_port_roles_by_tag = {
         'vehicle_mileage': 'vehicle_mileage',
         'occupancy_factor': 'occupancy_factor',
@@ -985,6 +998,7 @@ class VehicleKilometersPerInhabitant(Node):
         population_port,
         additive_port,
     )
+    consumes_all_inputs_through_ports = True
     legacy_input_port_roles_by_tag = {
         'passenger_kilometers': 'passenger_kilometers',
         'occupancy_factor': 'occupancy_factor',
@@ -1034,6 +1048,7 @@ class VehicleEngineTypeSplit(MixNode):
     mileage_port = InputPort.one('mileage')
     additive_port = InputPort.multi('additive', required=False, aggregation='sum')
     input_port_declarations = (mileage_port, additive_port)
+    consumes_all_inputs_through_ports = True
     legacy_input_port_roles_by_tag = {'mileage': 'mileage'}
     legacy_untagged_input_role = 'additive'
 
@@ -1064,6 +1079,7 @@ class VehicleMileage(Node):
     engine_type_split_port = InputPort.one('engine_type_split')
     mileage_per_inhabitant_port = InputPort.one('mileage_per_inhabitant')
     input_port_declarations = (population_port, engine_type_split_port, mileage_per_inhabitant_port)
+    consumes_all_inputs_through_ports = True
     legacy_input_port_roles_by_tag = {
         'population': 'population',
         'engine_type_split': 'engine_type_split',
@@ -1099,6 +1115,7 @@ class VehicleMileage(Node):
 class TransportFuelFactor(AdditiveNode):
     input_port = InputPort.repeatable('input', min_count=2, default_count=2, label=_('Fuel factor metric'))
     input_port_declarations = (input_port,)
+    consumes_all_inputs_through_ports = True
     legacy_untagged_dataset_input_role = 'input'
     output_metrics = {
         'Fuel': NodeMetric(unit='kg/vkm', quantity=CONSUMPTION_FACTOR_QUANTITY),
@@ -1157,6 +1174,7 @@ class TransportEmissionFactor(Node):
         electricity_consumption_factor_port,
         fuel_emission_factor_port,
     )
+    consumes_all_inputs_through_ports = True
     legacy_input_port_roles_by_tag = {
         'general_electricity_ef': 'general_electricity_ef',
         'electricity_consumption_factor': 'electricity_consumption_factor',
@@ -1205,6 +1223,7 @@ class TransportEmissionsForFuel(AdditiveNode):
     tank_respiration_port = InputPort.optional('tank_respiration')
     additive_port = InputPort.multi('additive', required=False, aggregation='sum')
     input_port_declarations = (fuel_factor_port, emission_factor_port, tank_respiration_port, additive_port)
+    consumes_all_inputs_through_ports = True
     legacy_input_port_roles_by_tag = {
         'fuel_factor': 'fuel_factor',
         'emission_factor': 'emission_factor',
@@ -1258,6 +1277,7 @@ class TransportElectricity(AdditiveNode):
     dataset_port = InputPort.one('dataset')
     additive_port = InputPort.multi('additive', required=False, aggregation='sum')
     input_port_declarations = (dataset_port, additive_port)
+    consumes_all_inputs_through_ports = True
     legacy_untagged_dataset_input_role = 'dataset'
     legacy_untagged_input_role = 'additive'
 
@@ -1304,6 +1324,7 @@ class TransportEmissions2kW(Node):
     consumption_port = InputPort.one('consumption')
     emission_factors_port = InputPort.one('emission_factors')
     input_port_declarations = (emissions_port, consumption_port, emission_factors_port)
+    consumes_all_inputs_through_ports = True
     legacy_input_port_roles_by_tag = {
         'emissions': 'emissions',
         'consumption': 'consumption',
@@ -1360,6 +1381,7 @@ class NonroadMachineryEmissions(Node):
     fuel_port = InputPort.one('fuel')
     additive_port = InputPort.multi('additive', required=False, aggregation='sum')
     input_port_declarations = (emission_factor_port, fuel_port, additive_port)
+    consumes_all_inputs_through_ports = True
     legacy_input_port_roles_by_tag = {'emission_factor': 'emission_factor', 'fuel': 'fuel'}
     legacy_untagged_input_role = 'additive'
     quantity = 'emissions'
@@ -1387,6 +1409,7 @@ class WasteIncinerationEmissions(SimpleNode):
     emission_factor_port = InputPort.one('emission_factor')
     amount_port = InputPort.one('amount')
     input_port_declarations = (fossil_share_port, emission_factor_port, amount_port)
+    consumes_all_inputs_through_ports = True
     legacy_input_port_roles_by_tag = {
         'emission_factor': 'emission_factor',
         'amount': 'amount',
@@ -1458,6 +1481,7 @@ class SewageSludgeProcessingEmissions(SimpleNode):
     dataset_port = InputPort.one('dataset')
     ccs_share_port = InputPort.one('ccs_share')
     input_port_declarations = (dataset_port, ccs_share_port)
+    consumes_all_inputs_through_ports = True
     legacy_input_port_roles_by_tag = {'ccs_share': 'ccs_share'}
     legacy_untagged_dataset_input_role = 'dataset'
 
@@ -1494,6 +1518,7 @@ class WastewaterTreatmentEmissions(Node):
     catchment_population_port = InputPort.one('catchment_population')
     emission_factor_port = InputPort.one('emission_factor')
     input_port_declarations = (population_port, catchment_population_port, emission_factor_port)
+    consumes_all_inputs_through_ports = True
     legacy_input_port_roles_by_tag = {'emission_factor': 'emission_factor'}
 
     @classmethod
