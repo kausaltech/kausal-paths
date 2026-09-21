@@ -80,7 +80,7 @@ class Organization(PermissionedModel, BaseOrganization, Node[OrganizationQuerySe
 
     VIEWSET_CLASS = 'orgs.wagtail_hooks.OrganizationViewSet'
 
-    class Meta:
+    class Meta(BaseOrganization.Meta):
         verbose_name = _('Organization')
         verbose_name_plural = _('Organizations')
         ordering = ['path']

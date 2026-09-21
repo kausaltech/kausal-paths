@@ -13,10 +13,8 @@ from wagtail.admin.panels import FieldPanel, InlinePanel, ObjectList, TabbedInte
 from wagtail.admin.widgets.button import ListingButton
 from wagtail.snippets.models import register_snippet
 
-from wagtailgeowidget import __version__ as wagtailgeowidget_version
-
 from kausal_common.i18n.panels import TranslatedFieldPanel
-from kausal_common.organizations.forms import NodeForm
+from kausal_common.organizations.forms import NodeForm, OrganizationLocationField, OrganizationLocationFormMixin
 from kausal_common.organizations.views import (
     OrganizationDeleteView,
     OrganizationEditView,
@@ -47,17 +45,13 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-if int(wagtailgeowidget_version.split('.')[0]) >= 7:
-    from wagtailgeowidget.panels import GoogleMapsPanel
-else:
-    from wagtailgeowidget.edit_handlers import GoogleMapsPanel
-
 
 class CondensedInlinePanel[M: Model, RelatedM: Model](InlinePanel[M, RelatedM]):
     pass
 
 
-class OrganizationForm(NodeForm[Organization]):
+class OrganizationForm(OrganizationLocationFormMixin, NodeForm[Organization]):
+    coordinate_location = OrganizationLocationField()
     user: User
 
     set_as_instance_organization = forms.BooleanField(
@@ -144,7 +138,7 @@ class OrganizationViewSet(PathsViewSet[Organization]):
         FieldPanel('url'),
         FieldPanel('email'),
         FieldPanel('primary_language', read_only=True),  # read-only for now because changes could cause trouble
-        GoogleMapsPanel('location', permission='superuser'),
+        FieldPanel('coordinate_location', permission='superuser'),
     ]
 
     superuser_panels = [FieldPanel('set_as_instance_organization')]

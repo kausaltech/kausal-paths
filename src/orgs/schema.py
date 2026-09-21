@@ -24,9 +24,6 @@ class OrganizationNode(BaseOrganizationNode, AdminButtonsMixin):
             'email',
             'classification',
             'distinct_name',
-            # 'location',  # commented out as this causes an exception:
-            # Don't know how to convert the Django field orgs.Organization.location (<class
-            # 'django.contrib.gis.db.models.fields.PointField'>)
         ]
 
 

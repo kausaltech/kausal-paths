@@ -1,6 +1,8 @@
-from django.contrib.gis.geos import Point
+from django.db import IntegrityError, transaction
 
 import pytest
+
+from kausal_common.organizations.forms import OrganizationLocationField, OrganizationLocationFormMixin
 
 from orgs.models import Organization
 from orgs.tests.factories import OrganizationFactory
@@ -8,25 +10,50 @@ from orgs.tests.factories import OrganizationFactory
 pytestmark = pytest.mark.django_db
 
 
-def test_organization_coordinates_follow_location():
-    organization = OrganizationFactory.create(location=Point(24.9384, 60.1699, srid=4326))
+class OrganizationLocationForm(OrganizationLocationFormMixin):
+    coordinate_location = OrganizationLocationField()
 
+    class Meta:
+        model = Organization
+        fields = ('coordinate_location',)
+
+
+def test_organization_location_form_maps_widget_value_to_coordinates():
+    organization = OrganizationFactory.create()
+    form = OrganizationLocationForm(
+        data={'coordinate_location': 'SRID=4326;POINT(24.9384 60.1699)'},
+        instance=organization,
+    )
+
+    assert form.is_valid(), form.errors
+    organization = form.save()
     assert organization.latitude == 60.1699
     assert organization.longitude == 24.9384
 
-    organization.location = Point(25.0, 61.0, srid=4326)
-    organization.save(update_fields={'location'})
+    initial_form = OrganizationLocationForm(instance=organization)
+    assert initial_form.initial['coordinate_location'] == 'SRID=4326;POINT(24.9384 60.1699)'
+
+
+def test_organization_coordinates_are_stored_as_a_pair():
+    organization = OrganizationFactory.create(latitude=60.1699, longitude=24.9384)
+
+    organization.refresh_from_db()
+    assert organization.latitude == 60.1699
+    assert organization.longitude == 24.9384
+    assert organization.location is not None
+    assert organization.location.x == 24.9384
+    assert organization.location.y == 60.1699
+
+    organization.latitude = 61.0
+    organization.save(update_fields={'latitude'})
     organization.refresh_from_db()
 
-    assert organization.latitude == 61.0
-    assert organization.longitude == 25.0
+    assert organization.location is not None
+    assert organization.location.x == 24.9384
+    assert organization.location.y == 61.0
 
-    organization.location = None
-    organization.save(update_fields={'location'})
-    organization.refresh_from_db()
-
-    assert organization.latitude is None
-    assert organization.longitude is None
+    with pytest.raises(IntegrityError), transaction.atomic():
+        Organization.objects.filter(pk=organization.pk).update(latitude=None)
 
 
 def test_organization_queryset_available_for_instance(instance_config):
