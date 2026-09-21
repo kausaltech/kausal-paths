@@ -1,12 +1,13 @@
-id: pruefstadt-bisko # defines which instance is updated
+id: testcity-bisko # defines which instance is updated
 # German only, like `bisko`: the Prüfprotokoll is German and the reviewer reads German.
-default_language: de
-supported_languages: []
+default_language: en
+supported_languages: [de]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: 448feb5143f8b5074df92536bcf3b2e0f70cecb7
   dvc_remote: kausal-s3
 name_de: Prüfstadt Treibhausgasmonitor
+name_en: Testcity Greenhouse Gas Monitor
 # A review copy of `schwerin-bisko`, made 2026-09-06 so the BISKO certifier can exercise the tool
 # -- enter values, blank cells, change a Datengüte -- without editing a real city's balance. The
 # data is Schwerin's as it stood on that date; the city name is deliberately not in the identifier
