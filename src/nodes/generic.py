@@ -179,13 +179,16 @@ class GenericNode(SimpleNode):
         """
         exclude_ids: set[str] = getattr(self, '_weighted_node_ids', set())
         operands = resolve_input_nodes(self, exclude_ids=exclude_ids)
+        self._partial_factor_ids = operands.partial_factor_ids
         return operands.additive, operands.factors
 
     def _operation_multiply(self, df: PathsDataFrame | None) -> OperationReturn:
         """Multiply all nodes tagged 'non_additive' or (untagged and unit-incompatible)."""
         _add, multiply_nodes = self._get_add_multiply_nodes()
         if multiply_nodes:
-            df = self.multiply_nodes_pl(df=df, nodes=multiply_nodes)
+            df = self.multiply_nodes_pl(
+                df=df, nodes=multiply_nodes, partial_ids=getattr(self, '_partial_factor_ids', frozenset())
+            )
         return df
 
     def _operation_add(self, df: PathsDataFrame | None) -> OperationReturn:

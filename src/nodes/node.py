@@ -45,7 +45,7 @@ from .exceptions import NodeComputationError, NodeError, NodeMissingDefaultUnitE
 from .units import Quantity, Unit, unit_registry
 
 if typing.TYPE_CHECKING:
-    from collections.abc import Callable, Collection, Iterator, Sequence
+    from collections.abc import Callable, Collection, Container, Iterator, Sequence
     from contextlib import AbstractContextManager
     from uuid import UUID
 
@@ -2071,8 +2071,18 @@ class Node:
         metric: str | None = None,
         unit: Unit | None = None,
         start_from_year: int | None = None,
+        partial_ids: Container[str] = frozenset(),
     ) -> ppl.PathsDataFrame | None:
-        """Multiply outputs from the given nodes using inner join and union of dimensions."""
+        """
+        Multiply outputs from the given nodes using inner join and union of dimensions.
+
+        A node named in ``partial_ids`` (tagged ``partial_factor``) is complemented with unity
+        over the categories it does not carry first, so it scales part of the table instead of
+        deleting the rest of it.
+        """
+        # Imported here, not at module scope: `nodes.operands` reaches back into this module.
+        from .operands import Operand, complement_partial_factor
+
         if len(nodes) == 0:
             if df is None:
                 return None
@@ -2095,6 +2105,10 @@ class Node:
             if result_df is None:
                 result_df = node_df
             else:
+                if node.id in partial_ids:
+                    node_df = complement_partial_factor(
+                        self, result_df, Operand(df=node_df, role='factor', source_id=node.id, kind='node', partial=True)
+                    )
                 result_df = result_df.paths.multiply_with_dims(node_df)
 
         if unit is not None and result_df is not None:

@@ -55,6 +55,7 @@ TAG_TO_BASKET = {
     # inventory_only, other, select_variant
     'non_additive': 'multiply',
     'other_node': 'other',
+    'partial_factor': 'multiply',
     'primary': 'coalesce',
     'rate': 'other',
     'secondary': 'coalesce',
@@ -145,6 +146,9 @@ TAG_DESCRIPTIONS = {
     'max': _('Element-wise maximum of two values; max(a, b). For 0/1 inputs this is logical OR.'),
     'min': _('Element-wise minimum of two values; min(a, b). For 0/1 inputs this is logical AND.'),
     'non_additive': _('Input node values are not added but operated despite matching units.'),
+    'partial_factor': _(
+        'The factor covers only some of the categories of the node; the rest are left unchanged rather than dropped.'
+    ),
     'observed_only_extend_all': _('Extend the observed data only based on the observed data points.'),
     'or': _('Logical OR: max(a, b). Warns if inputs deviate from 0 or 1 (see node explanation).'),
     'other_node': _('Auxiliary input used in a non-standard role not covered by other tags.'),

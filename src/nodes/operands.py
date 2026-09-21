@@ -46,6 +46,12 @@ ADDITIVE_TAG = 'additive'
 FACTOR_TAG = 'non_additive'
 IMPUTE_TAG = 'impute'
 IGNORE_TAG = 'ignore_content'
+PARTIAL_FACTOR_TAG = 'partial_factor'
+
+#: Tags that change *how* a role is applied without naming a role of their own. They have
+#: to be exempt from :func:`claimed_by_other_operation`, which would otherwise read them as
+#: handing the input to some other operation and drop it from the arithmetic entirely.
+MODIFIER_TAGS = frozenset({PARTIAL_FACTOR_TAG})
 
 #: Tags that name a role outright, in the order they are checked. The arithmetic tags come
 #: first because that is the precedence ``GenericNode`` has always applied; an input tagged
@@ -76,7 +82,7 @@ def claimed_by_other_operation(tags: Collection[str]) -> bool:
     ``split_dims``, ``skip_dim_test`` and friends — belongs to an operation that resolves
     its own inputs, so the input must not also be swept into a sum or a product.
     """
-    return any(tag in TAG_TO_BASKET and tag not in ROLE_TAGS for tag in tags)
+    return any(tag in TAG_TO_BASKET and tag not in ROLE_TAGS and tag not in MODIFIER_TAGS for tag in tags)
 
 
 @dataclass
@@ -89,6 +95,9 @@ class NodeOperands:
     claimed_elsewhere: list[Node] = field(default_factory=list)
     """Inputs a tag handed to another operation. Listed so a caller can refuse them
     rather than drop them silently."""
+    partial_factor_ids: set[str] = field(default_factory=set)
+    """Ids of the factors tagged ``partial_factor``: they cover only part of the target's
+    categories and must be complemented with unity rather than joined inner."""
 
 
 def output_unit_of(target: Node, source: Node) -> Unit | None:
@@ -138,6 +147,14 @@ def resolve_input_nodes(
 
         bucket = {'additive': operands.additive, 'factor': operands.factors, 'impute': operands.impute}[role]
         bucket.append(source)
+        if PARTIAL_FACTOR_TAG in tags:
+            if role != 'factor':
+                raise NodeError(
+                    node,
+                    "Input '%s' is tagged '%s' but resolves as %s; the tag only means anything for a factor."
+                    % (source.id, PARTIAL_FACTOR_TAG, role),
+                )
+            operands.partial_factor_ids.add(source.id)
     return operands
 
 
@@ -174,6 +191,8 @@ class Operand:
     role: OperandRole
     source_id: str
     kind: Literal['node', 'dataset']
+    partial: bool = False
+    """A factor that covers only part of the target's categories; see ``PARTIAL_FACTOR_TAG``."""
 
     def __str__(self) -> str:
         return f'{self.kind} {self.source_id}'
@@ -274,7 +293,7 @@ def resolve_operands(
     )
     for role, sources in roles:
         for source in sources:
-            _add_node_operand(node, operands, source, role)
+            _add_node_operand(node, operands, source, role, partial=source.id in node_roles.partial_factor_ids)
 
     for dataset in node.input_dataset_instances:
         _add_dataset_operand(node, operands, dataset, metric=metric, default_role=default_role)
@@ -282,7 +301,7 @@ def resolve_operands(
     return operands
 
 
-def _add_node_operand(node: Node, operands: OperandSet, source: Node, role: OperandRole) -> None:
+def _add_node_operand(node: Node, operands: OperandSet, source: Node, role: OperandRole, *, partial: bool = False) -> None:
     from nodes.node import NodeStatus
 
     tolerant = node.context.tolerate_node_failures
@@ -297,7 +316,7 @@ def _add_node_operand(node: Node, operands: OperandSet, source: Node, role: Oper
         # An INCOMPLETE upstream produces an empty self-report only; treat it as absent.
         operands.unavailable.append(source.id)
         return
-    _bucket(operands, role).append(Operand(df=df, role=role, source_id=source.id, kind='node'))
+    _bucket(operands, role).append(Operand(df=df, role=role, source_id=source.id, kind='node', partial=partial))
 
 
 def _add_dataset_operand(
@@ -322,7 +341,14 @@ def _add_dataset_operand(
         role = default_role
     else:
         raise NodeError(node, "Cannot classify dataset '%s': this node has no unit" % dataset.id)
-    _bucket(operands, role).append(Operand(df=df, role=role, source_id=dataset.id, kind='dataset'))
+    partial = PARTIAL_FACTOR_TAG in dataset.tags
+    if partial and role != 'factor':
+        raise NodeError(
+            node,
+            "Dataset '%s' is tagged '%s' but resolves as %s; the tag only means anything for a factor."
+            % (dataset.id, PARTIAL_FACTOR_TAG, role),
+        )
+    _bucket(operands, role).append(Operand(df=df, role=role, source_id=dataset.id, kind='dataset', partial=partial))
 
 
 def _bucket(operands: OperandSet, role: OperandRole) -> list[Operand]:
@@ -365,6 +391,10 @@ def multiply_operands(node: Node, operands: list[Operand], unit: Unit) -> PathsD
     A row absent from any factor cannot yield a product and is absent from the result. A
     row whose factor value is *null* keeps its place and stays null — the value is unknown,
     which is not the same as the row not existing.
+
+    An operand marked ``partial`` is exempt from the first of those: it is complemented with
+    unity over the categories it does not name, so it scales the part of the table it speaks
+    about and leaves the rest standing. See :func:`complement_partial_factor`.
     """
     if len(operands) < 2:
         raise NodeError(
@@ -373,8 +403,45 @@ def multiply_operands(node: Node, operands: list[Operand], unit: Unit) -> PathsD
         )
     result = operands[0].df
     for operand in operands[1:]:
-        result = result.paths.multiply_with_dims(operand.df, how='inner')
+        odf = complement_partial_factor(node, result, operand) if operand.partial else operand.df
+        result = result.paths.multiply_with_dims(odf, how='inner')
     return result.ensure_unit(VALUE_COLUMN, unit)
+
+
+def complement_partial_factor(node: Node, target: PathsDataFrame, operand: Operand) -> PathsDataFrame:
+    """
+    Fill a partial factor out to unity over the categories of ``target`` it does not name.
+
+    Two guards, because the tag trades a loud failure for a quiet one. The factor has to be
+    dimensionless — "unity" is only meaningful for a pure ratio — and it has to overlap the
+    target somewhere. Without the second guard a mistyped category would stop being an error
+    and become a measure that silently does nothing at all, which is the failure this tag
+    would otherwise introduce.
+    """
+    df = operand.df
+    unit = df.get_unit(VALUE_COLUMN)
+    if not unit.dimensionless:
+        raise NodeError(
+            node,
+            "Factor %s is tagged '%s' but its unit is %s; only a dimensionless factor can be filled out with unity."
+            % (operand, PARTIAL_FACTOR_TAG, unit),
+        )
+    shared = [col for col in df.primary_keys if col in target.primary_keys]
+    if not shared:
+        raise NodeError(
+            node,
+            'Factor %s shares no index column with the target: %s vs %s'
+            % (operand, sorted(df.primary_keys), sorted(target.primary_keys)),
+        )
+    overlap = df.select(shared).unique().join(target.select(shared).unique(), on=shared, how='semi')
+    if overlap.height == 0:
+        raise NodeError(
+            node,
+            "Factor %s is tagged '%s' but matches nothing in the target over %s — "
+            'a partial factor that overlaps nowhere scales nothing, which is never what was meant.'
+            % (operand, PARTIAL_FACTOR_TAG, shared),
+        )
+    return df.paths.complement_index_from(target, fill_value=1.0)
 
 
 def impute_operands(node: Node, df: PathsDataFrame, operands: list[Operand]) -> PathsDataFrame:

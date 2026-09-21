@@ -881,6 +881,50 @@ class PathsExt:
 
         return out
 
+    def complement_index_from(self, odf: ppl.PathsDataFrame, fill_value: float = 1.0) -> ppl.PathsDataFrame:
+        """
+        Add rows for index combinations ``odf`` has and this frame lacks, valued ``fill_value``.
+
+        This is what makes a *partial* factor safe to multiply with. ``multiply_with_dims``
+        joins inner, so a factor that names only some of the target's categories deletes the
+        rest; complementing it with unity first turns "category not named" from *deleted* into
+        *untouched*, which is what a factor covering part of a table means.
+
+        Only whole rows are added. A row that exists here with a null value is left alone: a
+        null factor is an unknown value, which is not the same as a category the factor does
+        not speak about, and only the second is filled.
+
+        The complement runs over the index columns the two frames share. Index columns unique
+        to this frame are carried onto the new rows by cross product, so a factor keyed by
+        (carrier, scenario) complemented from a target keyed by carrier gains the missing
+        carriers under every scenario it already has.
+        """
+        df = self._df
+        shared = [col for col in df.primary_keys if col in odf.primary_keys]
+        if not shared:
+            raise Exception('Cannot complement over a shared index: %s vs %s' % (df.primary_keys, odf.primary_keys))
+
+        val_col = df.metric_cols[0]
+        missing = odf.select(shared).unique().join(df.select(shared).unique(), on=shared, how='anti')
+        if missing.height == 0:
+            return df
+
+        extra = [col for col in df.primary_keys if col not in shared]
+        if extra:
+            missing = missing.join(df.select(extra).unique(), how='cross')
+
+        if FORECAST_COLUMN in odf.columns:
+            flags = odf.group_by(shared).agg(pl.col(FORECAST_COLUMN).max())
+            missing = missing.join(flags, on=shared, how='left')
+        if FORECAST_COLUMN in df.columns and FORECAST_COLUMN not in missing.columns:
+            missing = missing.with_columns(pl.lit(value=False).alias(FORECAST_COLUMN))
+        if FORECAST_COLUMN in missing.columns:
+            missing = missing.with_columns(pl.col(FORECAST_COLUMN).fill_null(value=False))
+
+        missing = missing.with_columns(pl.lit(fill_value).cast(df.schema[val_col]).alias(val_col))
+        out = pl.concat([pl.DataFrame(df), missing.select(df.columns)], how='vertical')
+        return ppl.to_ppdf(out, meta=df.get_meta())
+
     def add_df(self, odf: ppl.PathsDataFrame, how: Literal['left', 'outer'] = 'left') -> ppl.PathsDataFrame:
         df = self._df
         if len(self._df.metric_cols) != 1 or len(odf.metric_cols) != 1:

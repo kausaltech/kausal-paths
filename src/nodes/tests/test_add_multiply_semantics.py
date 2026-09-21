@@ -1101,3 +1101,105 @@ def test_split_by_existing_shares_adds_the_base_not_the_splittee():
     _connect(_source(ctx, 'shift', [(2020, -20.0)]), node, tags=['split_by_existing_shares'])
 
     assert _values(node.compute(), dim='sector') == {(2020, 'x'): 60.0, (2020, 'y'): 20.0}
+
+
+# --- partial factors -------------------------------------------------------------
+#
+# A factor covering only some of the target's categories. Without the `partial_factor`
+# tag the inner join deletes the rest, which is silent and can be very large: attaching a
+# six-carrier measure to Mainz's nineteen-carrier ifeu emission-factor table dropped
+# fourteen carriers, biomass and hard coal among them.
+
+
+def test_partial_factor_scales_its_own_categories_and_leaves_the_rest():
+    """The tagged factor is filled out with unity, so unnamed categories pass through."""
+    ctx = _make_context('partial-factor-passthrough')
+    node = _generic(ctx, 'n', 'add,multiply', dims=['fuel'])
+    _connect(_source(ctx, 'base', [(2020, 'gas', 100.0), (2020, 'oil', 50.0)], dim='fuel'), node)
+    _connect(
+        _source(ctx, 'factor', [(2020, 'gas', 0.5)], unit='dimensionless', dim='fuel', quantity='fraction'),
+        node,
+        tags=['non_additive', 'partial_factor'],
+    )
+
+    assert _values(node.compute(), dim='fuel') == {(2020, 'gas'): 50.0, (2020, 'oil'): 50.0}
+
+
+def test_without_the_tag_a_partial_factor_deletes_the_categories_it_omits():
+    """The behaviour the tag exists to opt out of; pinned so the default cannot drift."""
+    ctx = _make_context('partial-factor-default-drops')
+    node = _generic(ctx, 'n', 'add,multiply', dims=['fuel'])
+    _connect(_source(ctx, 'base', [(2020, 'gas', 100.0), (2020, 'oil', 50.0)], dim='fuel'), node)
+    _connect(
+        _source(ctx, 'factor', [(2020, 'gas', 0.5)], unit='dimensionless', dim='fuel', quantity='fraction'),
+        node,
+        tags=['non_additive'],
+    )
+
+    assert _values(node.compute(), dim='fuel') == {(2020, 'gas'): 50.0}
+
+
+def test_partial_factor_keeps_a_null_null_rather_than_filling_it():
+    """Only absent rows are filled. A null factor is an unknown value and stays unknown."""
+    ctx = _make_context('partial-factor-null')
+    node = _generic(ctx, 'n', 'add,multiply', dims=['fuel'])
+    _connect(_source(ctx, 'base', [(2020, 'gas', 100.0), (2020, 'oil', 50.0)], dim='fuel'), node)
+    _connect(
+        _source(ctx, 'factor', [(2020, 'gas', None)], unit='dimensionless', dim='fuel', quantity='fraction'),
+        node,
+        tags=['non_additive', 'partial_factor'],
+    )
+
+    out = _values(node.compute(), dim='fuel')
+    assert out[(2020, 'oil')] == 50.0
+    assert out[(2020, 'gas')] is None
+
+
+def test_partial_factor_that_matches_nothing_is_an_error():
+    """
+    The guard that keeps the tag from turning a typo into a silent no-op.
+
+    Without it, a mistyped category stops being a dimension error and becomes a measure
+    that quietly does nothing -- the one failure mode this tag would otherwise introduce.
+    """
+    ctx = _make_context('partial-factor-no-overlap')
+    node = _generic(ctx, 'n', 'add,multiply', dims=['fuel'])
+    _connect(_source(ctx, 'base', [(2020, 'gas', 100.0)], dim='fuel'), node)
+    _connect(
+        _source(ctx, 'factor', [(2020, 'oil', 0.5)], unit='dimensionless', dim='fuel', quantity='fraction'),
+        node,
+        tags=['non_additive', 'partial_factor'],
+    )
+
+    with pytest.raises(NodeError, match='matches nothing in the target'):
+        node.compute()
+
+
+def test_partial_factor_must_be_dimensionless():
+    """'Unity' only means something for a pure ratio, so a dimensioned factor is refused."""
+    ctx = _make_context('partial-factor-dimensioned')
+    node = _generic(ctx, 'n', 'add,multiply', dims=['fuel'])
+    _connect(_source(ctx, 'base', [(2020, 'gas', 100.0), (2020, 'oil', 50.0)], dim='fuel'), node)
+    _connect(
+        _source(ctx, 'factor', [(2020, 'gas', 2.0)], unit='m**2', dim='fuel', quantity='area'),
+        node,
+        tags=['non_additive', 'partial_factor'],
+    )
+
+    with pytest.raises(NodeError, match='only a dimensionless factor'):
+        node.compute()
+
+
+def test_partial_factor_tag_on_an_additive_input_is_refused():
+    """The tag modifies a factor; on anything else it is a mistake, not a no-op."""
+    ctx = _make_context('partial-factor-on-additive')
+    node = _generic(ctx, 'n', 'add,multiply', dims=['fuel'])
+    _connect(_source(ctx, 'base', [(2020, 'gas', 100.0)], dim='fuel'), node)
+    _connect(
+        _source(ctx, 'other', [(2020, 'gas', 5.0)], dim='fuel'),
+        node,
+        tags=['additive', 'partial_factor'],
+    )
+
+    with pytest.raises(NodeError, match='only means anything for a factor'):
+        node.compute()

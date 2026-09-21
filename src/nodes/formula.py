@@ -20,7 +20,7 @@ from params.param import BoolParameter, NumberParameter, StringParameter
 from .node import Node
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Collection, Iterable, Iterator
 
 PDF = ppl.PathsDataFrame
 type EvalConst = float
@@ -605,6 +605,13 @@ class FormulaNode(Node):
 
         return EvalVars(nodes, datasets, parameters)
 
+    def _tags_towards(self, node: Node) -> Iterator[Collection[str]]:
+        """Yield the tag sets that speak for ``node`` as an input of this one: each edge's, then its own."""
+        for edge in self.edges:
+            if edge.output_node is self and edge.input_node is node:
+                yield edge.tags
+        yield node.tags
+
     def compute(self) -> PDF:
         varss = self._collect_eval_vars()
         formula = self.get_parameter_value_str('formula')
@@ -638,12 +645,33 @@ class FormulaNode(Node):
             ):
                 unused_nodes.remove(node)
 
+        # Imported here, not at module scope: `nodes.operands` reaches back into this module
+        # via `nodes.explanations`.
+        from .operands import FACTOR_TAG, PARTIAL_FACTOR_TAG
+
+        # An input the formula does not name is added -- unless it says outright that it is a
+        # factor. Only an explicit `non_additive` diverts here: the untagged case keeps being
+        # added exactly as before, so no existing config changes meaning. Without this, a factor
+        # wired onto a formula node was added to it, which for a dimensionless ratio against a
+        # dimensioned node is not a wrong answer but an incompatible-unit crash.
+        unused_factors = [node for node in unused_nodes if any(FACTOR_TAG in tags for tags in self._tags_towards(node))]
+        unused_nodes = [node for node in unused_nodes if node not in unused_factors]
+
         if unused_nodes:
             try:
                 df = self.add_nodes_pl(df, unused_nodes)
             except NodeError as e:
                 err = _('Input nodes that are not used in the formula are used for addition in the end. Error:')
                 raise NodeError(self, f'{err} {e}') from e
+
+        if unused_factors:
+            partial_ids = {
+                node.id for node in unused_factors if any(PARTIAL_FACTOR_TAG in tags for tags in self._tags_towards(node))
+            }
+            multiplied = self.multiply_nodes_pl(df, unused_factors, partial_ids=partial_ids)
+            # `multiply_nodes_pl` returns None only for an empty node list, which this is not.
+            assert multiplied is not None
+            df = multiplied
 
         # Implicit impute: inputs tagged impute replace/fill values in the result, applied last
         impute_nodes = self.get_input_nodes(tag='impute')
