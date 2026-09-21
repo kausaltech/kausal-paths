@@ -1739,6 +1739,24 @@ nodes:
     - column: cost_type
     - column: sector
 
+- id: onroad_transportation_fuel_factors
+  name: On-road transport fuel consumption per kilometer
+  name_en: On-road transport fuel consumption per kilometer
+  type: simple.AdditiveNode
+  quantity: fuel_factor
+  unit: l/vkm
+  input_dimensions: [vehicle_type, energy_carrier, scope]
+  output_dimensions: [vehicle_type, energy_carrier, scope]
+  input_datasets:
+  - id: tampere/onroad_transportation
+    column: fuel_factor
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - column: ghg
+    - column: cost_type
+    - column: sector
+
 # ----- Buses
 
 - id: bus_kilometers
@@ -1851,6 +1869,18 @@ nodes:
   input_nodes:
   - id: bus_kilometers_by_propulsion
   - id: onroad_transportation_electricity_factors
+
+- id: bus_fuel_consumption
+  name: Bus fuel consumption
+  name_en: Bus fuel consumption
+  type: simple.MultiplicativeNode
+  quantity: fuel_consumption
+  unit: l/a
+  input_dimensions: [energy_carrier, scope, vehicle_type]
+  output_dimensions: [energy_carrier, scope, vehicle_type]
+  input_nodes:
+  - id: bus_kilometers_by_propulsion
+  - id: onroad_transportation_fuel_factors
 
 - id: bus_fuel_emission_factors
   name: Bus fuel emission factors
@@ -3029,6 +3059,15 @@ nodes:
     - id: energy_carrier
     - id: owner
     - id: cost_type
+
+- id: fuel_unit_prices
+  name: Fuel unit prices
+  name_en: Fuel unit prices
+  type: simple.AdditiveNode
+  quantity: unit_price
+  unit: EUR/l
+  input_dimensions: [energy_carrier, cost_type]
+  output_dimensions: [energy_carrier, cost_type]
 
 - id: carbon_unit_price
   name: Hiilen varjohinta
@@ -4427,6 +4466,7 @@ actions:
     - column: sector
     - dimension: action
       categories: [change_in_the_propulsion_of_bus_fleet]
+    - column: energy_carrier
   output_metrics:
   - id: emissions
     unit: t_co2e/a
@@ -4546,6 +4586,8 @@ actions:
   input_dimensions: []
   output_dimensions: []
   params:
+  - id: from_year
+    value: 2026
   - id: to_value
     value: 30.0
     min_value: 28.0
@@ -4631,6 +4673,7 @@ actions:
     - column: sector
     - dimension: action
       categories: [change_in_vehicle_propulsion]
+    - column: energy_carrier
   output_metrics:
   - id: emissions
     unit: t_co2e/a
@@ -4782,6 +4825,7 @@ actions:
     - column: ghg
     - column: cost_type
     - column: scope
+    - column: energy_carrier
   output_nodes:
   - id: car_kilometers
     from_dimensions:
@@ -4812,6 +4856,7 @@ actions:
       categories: [promoting_walking_and_cycling]
     - column: ghg
     - column: scope
+    - column: energy_carrier
   output_metrics:
   - id: mileage
     unit: Mvkm/a
@@ -4932,6 +4977,7 @@ actions:
     - column: ghg
     - column: cost_type
     - column: scope
+    - column: energy_carrier
   output_nodes:
   - id: car_kilometers
     from_dimensions:
@@ -4961,6 +5007,7 @@ actions:
     - dimension: action
       categories: [tramline_3_construction]
     - column: ghg
+    - column: energy_carrier
   output_metrics:
   - id: mileage
     unit: Mvkm/a
@@ -6682,15 +6729,13 @@ actions:
   - id: default_change
     value: 0.0
     unit: '%/a'
-  # output_nodes:
-  # - id: fuel_unit_prices
-  #   to_dimensions:
-  #   - id: energy_carrier
-  #     categories: [diesel]
-  #   - id: owner
-  #     categories: [private]
-  #   - id: cost_type
-  #     categories: [energy]
+  output_nodes:
+  - id: fuel_unit_prices
+    to_dimensions:
+    - id: energy_carrier
+      categories: [diesel]
+    - id: cost_type
+      categories: [energy]
 
 - id: parameter_district_heating_price
   name: Kaukolämmön hinta
@@ -6850,15 +6895,13 @@ actions:
   - id: default_change
     value: 0.0
     unit: '%/a'
-  # output_nodes:
-  # - id: fuel_unit_prices
-  #   to_dimensions:
-  #   - id: energy_carrier
-  #     categories: [gasoline]
-  #   - id: owner
-  #     categories: [private]
-  #   - id: cost_type
-  #     categories: [energy]
+  output_nodes:
+  - id: fuel_unit_prices
+    to_dimensions:
+    - id: energy_carrier
+      categories: [gasoline]
+    - id: cost_type
+      categories: [energy]
 
 # - id: streetlight_replacement_action
 #   name: Streetlight Replacement Detailed Action
