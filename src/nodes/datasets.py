@@ -51,6 +51,7 @@ if TYPE_CHECKING:
     from kausal_common.datasets.models import Dataset as DBDatasetModel
     from kausal_common.perf.perf_context import PerfAttrs, PerfSpanEntry
 
+    from datasets.prepared import PreparedRecipe
     from nodes.defs.node_defs import InputDatasetDef
 
     from .context import Context
@@ -202,6 +203,14 @@ class Dataset(ABC):
         event.set_attr(f'dataset.{midfix}columns', len(df.columns))
         event.set_attr(f'dataset.{midfix}in_memory.bytes', estimate_size_bytes(df))
 
+    def dvc_source_id(self) -> str | None:
+        """Identify an external DVC source, if this binding uses one."""
+        return None
+
+    def prepared_recipe(self) -> PreparedRecipe | None:
+        """Describe the shareable source prefix, if this source supports one."""
+        return None
+
     def post_process(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
         """Compatibility entry point for datasets whose whole recipe runs after loading."""
         return self.after_transformations(self.apply_transformations(df))
@@ -304,10 +313,10 @@ class DatasetWithFilters(Dataset, ABC):
         }
 
     @measure_dataset_call('dataset.filter', capture_df_result=True, capture_df_arg=True)
-    def _filter_and_process_df(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+    def _filter_and_process_df(self, df: ppl.PathsDataFrame, *, prepared_prefix_length: int = 0) -> ppl.PathsDataFrame:
         """Run the binding's transform pipeline over a freshly loaded frame."""
         before_temporal, from_temporal = self.transformation_groups_at_temporal_fill()
-        df = self.apply_transformations(df, before_temporal, metric_column=self.column)
+        df = self.apply_transformations(df, before_temporal[prepared_prefix_length:], metric_column=self.column)
         df = self.before_temporal_fill(df)
         df = self.apply_transformations(df, from_temporal, metric_column=self.column)
         ppl.validate_ppdf(df)
@@ -561,21 +570,71 @@ class DVCDataset(DatasetWithFilters):
             return df
         return df.drop(droppable)
 
+    def dvc_source_id(self) -> str | None:
+        return self.input_dataset or self.id
+
+    def prepared_prefix_length(self) -> int:
+        before_temporal, _ = self.transformation_groups_at_temporal_fill()
+        return next(
+            (index for index, op in enumerate(before_temporal) if not op.persistent_cache_safe),
+            len(before_temporal),
+        )
+
+    def prepared_recipe(self) -> PreparedRecipe | None:
+        from datasets.prepared import PREPARATION_VERSION, PreparedRecipe
+
+        if self.context.skip_cache or not self.context.use_prepared_dataset_cache:
+            return None
+        source_id = self.dvc_source_id()
+        if source_id is None:
+            return None
+        manifest = self.context.dvc_source_manifest
+        source = manifest.datasets.get(source_id) if manifest is not None else None
+        if source is None:
+            return None
+        return PreparedRecipe({
+            'version': PREPARATION_VERSION,
+            'source': source.model_dump(
+                mode='json',
+                include={'hash_algorithm', 'content_hash', 'units', 'index_columns', 'metadata'},
+            ),
+            'column': self.column,
+            'empty_to_zero': 'empty_to_zero' in self.tags,
+            'operations': [op.cache_hash_data(self.context) for op in self.transformations[: self.prepared_prefix_length()]],
+        })
+
+    @measure_dataset_call('dataset.prepare', capture_df_result=False)
+    def _load_prepared_prefix(self) -> tuple[ppl.PathsDataFrame, int]:
+        recipe = self.prepared_recipe()
+        length = self.prepared_prefix_length()
+        if recipe is not None:
+            store = self.context.prepared_dataset_store
+            if not store.prefetched:
+                store.prefetch(
+                    candidate
+                    for node in self.context.nodes.values()
+                    for dataset in node.input_dataset_instances
+                    if (candidate := dataset.prepared_recipe()) is not None
+                )
+                store.prefetched = True
+            frame = store.get(recipe)
+            if frame is not None:
+                return frame, length
+        source = self.context.load_dvc_dataset(self.input_dataset or self.id)
+        frame = self._convert_dvc_dataset(source)
+        frame = self.apply_transformations(frame, self.transformations[:length], metric_column=self.column)
+        if recipe is not None:
+            self.context.prepared_dataset_store.put(recipe, frame)
+        return frame, length
+
     @override
     def load_internal(self) -> ppl.PathsDataFrame:
         obj = self.cache_get()
         if obj is not None:
             return obj
 
-        if self.input_dataset:
-            ds_id = self.input_dataset
-        else:
-            ds_id = self.id
-
-        dvc_ds = self.context.load_dvc_dataset(ds_id)
-        assert dvc_ds.df is not None
-        df = self._convert_dvc_dataset(dvc_ds)
-        df = self._filter_and_process_df(df)
+        df, prefix_length = self._load_prepared_prefix()
+        df = self._filter_and_process_df(df, prepared_prefix_length=prefix_length)
         df = self.after_transformations(df)
         if self.context.sample_size > 0:
             df = self.sampler.interpret(self, df)
@@ -609,6 +668,11 @@ class DVCDataset(DatasetWithFilters):
 @dataclass
 class GenericDataset(DVCDataset):
     """Dataset that already filters for relevant columns."""
+
+    def prepared_recipe(self) -> PreparedRecipe | None:
+        # This subclass has its own preparation pipeline. Opt in only once that
+        # pipeline declares the dependencies of its custom conversion stages.
+        return None
 
     # Supported languages: Czech, Danish, English, Finnish, German, Latvian, Polish, Swedish
     characterlookup = str.maketrans(

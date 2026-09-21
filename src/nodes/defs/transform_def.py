@@ -42,6 +42,9 @@ class PortTransformOpBase(BaseModel):
 
     model_config = ConfigDict(extra='forbid')
 
+    persistent_cache_safe: ClassVar[bool] = False
+    """Whether cache_hash_data declares every runtime dependency for durable reuse."""
+
     cache_version: ClassVar[int] = 1
     """Bump when this operation's implementation changes its materialized output."""
 
@@ -77,6 +80,8 @@ class FilterDimensionOp(PortTransformOpBase):
     dimensions — ensemble and decomposition axes need explicit reducers.
     """
 
+    persistent_cache_safe = True
+
     kind: Literal['filter_dimension'] = 'filter_dimension'
     dimension: DimensionRef
     groups: list[str] = Field(default_factory=list)
@@ -95,6 +100,8 @@ class FilterDimensionOp(PortTransformOpBase):
 class AssignDimensionOp(PortTransformOpBase):
     """Tag every row with a fixed category in a dimension the input doesn't have."""
 
+    persistent_cache_safe = True
+
     kind: Literal['assign_dimension'] = 'assign_dimension'
     dimension: DimensionRef
     category: DimensionCategoryRef
@@ -109,6 +116,8 @@ class AssignDimensionOp(PortTransformOpBase):
 class DropNullsOp(PortTransformOpBase):
     """Drop rows with null values."""
 
+    persistent_cache_safe = True
+
     kind: Literal['drop_nulls'] = 'drop_nulls'
 
 
@@ -119,6 +128,8 @@ class FilterTemporalOp(PortTransformOpBase):
     ``min_year`` / ``max_year`` are the yearly specialization; a resolution
     field is added when sub-yearly data appears.
     """
+
+    persistent_cache_safe = True
 
     kind: Literal['filter_temporal'] = 'filter_temporal'
     min_year: int | None = None
@@ -134,6 +145,8 @@ class FilterColumnOp(PortTransformOpBase):
     """
 
     applies_to = DATASET_ONLY
+
+    persistent_cache_safe = True
 
     kind: Literal['filter_column'] = 'filter_column'
     column: str
@@ -157,6 +170,8 @@ class RenameColumnOp(PortTransformOpBase):
 
     applies_to = DATASET_ONLY
 
+    persistent_cache_safe = True
+
     kind: Literal['rename_column'] = 'rename_column'
     column: str
     new_name: str | None = None
@@ -166,6 +181,8 @@ class RenameItemOp(PortTransformOpBase):
     """Rename a category value within a column. Legacy."""
 
     applies_to = DATASET_ONLY
+
+    persistent_cache_safe = True
 
     kind: Literal['rename_item'] = 'rename_item'
     column: str
@@ -183,6 +200,8 @@ class SetForecastFromOp(PortTransformOpBase):
 
     applies_to = DATASET_ONLY
 
+    persistent_cache_safe = True
+
     kind: Literal['set_forecast_from'] = 'set_forecast_from'
     year: int
 
@@ -196,6 +215,8 @@ class EnsureUnitOp(PortTransformOpBase):
     that don't — a distinction that disappears once a port carries exactly
     one metric and the frame states its unit.
     """
+
+    persistent_cache_safe = True
 
     kind: Literal['ensure_unit'] = 'ensure_unit'
     unit: Unit
@@ -253,6 +274,8 @@ class SelectMetricOp(PortTransformOpBase):
 
     applies_to = DATASET_ONLY
 
+    persistent_cache_safe = True
+
     kind: Literal['select_metric'] = 'select_metric'
 
 
@@ -260,6 +283,8 @@ class IndexTemporalOp(PortTransformOpBase):
     """Marker for adding the temporal column to the frame's index."""
 
     applies_to = DATASET_ONLY
+
+    persistent_cache_safe = True
 
     kind: Literal['index_temporal'] = 'index_temporal'
 
@@ -273,6 +298,8 @@ class RemapLegacyYearsOp(PortTransformOpBase):
     """
 
     applies_to = DATASET_ONLY
+
+    persistent_cache_safe = True
 
     kind: Literal['remap_legacy_years'] = 'remap_legacy_years'
 

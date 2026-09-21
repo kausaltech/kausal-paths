@@ -95,6 +95,7 @@ parser.add_argument(
 )
 parser.add_argument('--show-perf', action='store_true', help='show performance info')
 parser.add_argument('--profile', action='store_true', help='profile computation performance')
+parser.add_argument('--disable-prepared-cache', action='store_true', help='disable persistent prepared dataset cache')
 parser.add_argument('--disable-ext-cache', action='store_true', help='disable external cache')
 parser.add_argument('--cache-benchmark', action='store_true', help='Perform cache benchmarks')
 parser.add_argument('--generate-result-excel', type=str, metavar='FILENAME', help='Create an Excel file from model outputs')
@@ -202,8 +203,8 @@ def print_db_datasets():
             elif isinstance(ds, DVCDataset):
                 dvc_datasets.setdefault(ds.id, (ds, []))[1].append(node)
     print('Datasets in use:')
-    if context.dataset_repo is not None:
-        commit = context.dataset_repo.target_commit_id
+    if context.dataset_repo_spec is not None:
+        commit = context.dataset_repo_spec.commit
         print(f'Commit: {commit}')
     table = Table()
     table.add_column('Source')
@@ -472,6 +473,8 @@ if args.print_visualizations_data:
 
     if total == 0:
         print('No nodes have visualizations configured.')
+
+context.use_prepared_dataset_cache = not args.disable_prepared_cache
 
 if args.skip_cache:
     context.skip_cache = True

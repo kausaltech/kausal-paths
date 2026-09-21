@@ -42,6 +42,7 @@ if TYPE_CHECKING:
     from kausal_common.perf.perf_context import PerfAttrs, PerfRunContext, PerfSpanEntry
 
     from common import polars as ppl
+    from datasets.prepared import PreparedDatasetStore
     from nodes.defs.instance_defs import DatasetRepoSpec
     from nodes.explanations import NodeExplanationSystem
     from params import Parameter
@@ -150,6 +151,9 @@ class Context:
 
     skip_cache: bool = False
     """Can be set to disable caching for the context. Commonly used for debugging."""
+
+    use_prepared_dataset_cache: bool = True
+    """Disable independently to measure preparation costs while keeping normal run caching."""
 
     check_mode: bool = False
     """If set, extra checks will be performed during computation runs."""
@@ -392,6 +396,29 @@ class Context:
             dataset_repo.set_target_commit(self.dataset_repo_spec.commit)
         return dataset_repo
 
+    @cached_property
+    def dvc_source_manifest(self) -> dvc_pandas.RepositoryManifest | None:
+        from datasets.manifests import persisted_manifest
+
+        if self.dataset_repo_spec is None:
+            return None
+        return persisted_manifest(self.dataset_repo_spec, self.get_all_dvc_dataset_ids(), lambda: self.dataset_repo)
+
+    @cached_property
+    def dvc_manifest_loader(self) -> dvc_pandas.DatasetLoader:
+        from pathlib import Path
+
+        from dvc_pandas import DatasetLoader
+
+        root = os.getenv('DVC_CACHE_DIR')
+        return DatasetLoader(cache_root=Path(root) / 'files' / 'md5' if root else None)
+
+    @cached_property
+    def prepared_dataset_store(self) -> PreparedDatasetStore:
+        from datasets.prepared import PreparedDatasetStore
+
+        return PreparedDatasetStore()
+
     def load_dvc_dataset(self, ds_id: str) -> dvc_pandas.Dataset:
         """
         Load a DVC dataset into the context.
@@ -419,6 +446,18 @@ class Context:
         if self.dataset_repo_spec is None:
             raise RuntimeError('Dataset repository not set')
 
+        manifest = self.dvc_source_manifest
+        if manifest is not None and ds_id in manifest.datasets:
+            with self.start_perf_span(
+                'load dataset: %s' % ds_id,
+                kind=PerfKind.DATASET,
+                id=ds_id,
+                op='dvc.load',
+            ):
+                ds = self.dvc_manifest_loader.load(manifest.datasets[ds_id])
+            self.dvc_datasets[ds_id] = ds
+            return ds
+
         if not self.dataset_repo.has_dataset(ds_id):
             raise Exception('Dataset %s not found in DVC repo' % ds_id)
         if not self.dataset_repo.is_dataset_cached(ds_id):
@@ -445,15 +484,18 @@ class Context:
         all_datasets = set()
         for node in self.nodes.values():
             for ds in node.input_dataset_instances:
-                if not isinstance(ds, DVCDataset):
-                    continue
-                all_datasets.add(ds.id)
+                if (source_id := ds.dvc_source_id()) is not None:
+                    all_datasets.add(source_id)
         return all_datasets
 
     def warm_dvc_cache(self) -> None:
         """Ensure model DVC inputs are on disk, independently of computation cache hits."""
         identifiers = self.get_all_dvc_dataset_ids()
         if not identifiers:
+            return
+        manifest = self.dvc_source_manifest
+        if manifest is not None:
+            self.dvc_manifest_loader.prefetch(list(manifest.datasets.values()))
             return
         repo = self.dataset_repo
         missing = sorted(identifier for identifier in identifiers if not repo.is_dataset_cached(identifier))
@@ -480,7 +522,11 @@ class Context:
             op='load_all',
         ):
             try:
-                self.dataset_repo.load_datasets(list(all_datasets))
+                manifest = self.dvc_source_manifest
+                if manifest is not None:
+                    self.dvc_manifest_loader.prefetch(list(manifest.datasets.values()))
+                else:
+                    self.dataset_repo.load_datasets(list(all_datasets))
             except Exception:
                 self.log.error('Unable to load DVC datasets: %s' % ', '.join(all_datasets))
                 raise
@@ -757,6 +803,10 @@ class Context:
         commit_id = self.dataset_repo.commit_id
         self.dataset_repo.set_target_commit(commit_id)
         self.instance.update_dataset_repo_commit(commit_id)
+        self.dataset_repo_spec = self.dataset_repo_spec.model_copy(update={'commit': commit_id})
+        self.__dict__.pop('dvc_source_manifest', None)
+        self.__dict__.pop('prepared_dataset_store', None)
+        self.dvc_datasets.clear()
 
     def print_graph(self, include_datasets: bool = False) -> None:  # noqa: C901, PLR0915
         import inspect
@@ -945,4 +995,6 @@ class Context:
         self.scenarios = {}
         self.datasets = {}
         self.dvc_datasets = {}
+        self.__dict__.pop('prepared_dataset_store', None)
+        self.__dict__.pop('dvc_source_manifest', None)
         self.instance = None  # type: ignore

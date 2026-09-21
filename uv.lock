@@ -1449,24 +1449,26 @@ wheels = [
 
 [[package]]
 name = "dvc-pandas"
-version = "0.3.3"
+version = "0.4.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "appdirs" },
     { name = "dvc" },
     { name = "dvc-s3" },
     { name = "filelock" },
+    { name = "fsspec" },
     { name = "pandas" },
     { name = "pint-pandas" },
     { name = "polars" },
     { name = "pyarrow" },
+    { name = "pydantic" },
     { name = "pygit2" },
     { name = "python-snappy" },
     { name = "ruamel-yaml" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/f6/50/5a9d6ce785edc96e858c34e3fb2d2761a1d4aeb147d185d856d7dda3ab1e/dvc_pandas-0.3.3.tar.gz", hash = "sha256:d2f9b714bb218bf1c0aae267046a5a8d1e85a7a46b9a1776c647e8f4c7c36eff", size = 93186, upload-time = "2024-11-12T07:26:44.486Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/24/3c/fef668df7e6c3a9b8264181f314991e572e8bd0eaf22b390ad2ea53b16b5/dvc_pandas-0.4.0.tar.gz", hash = "sha256:1929cd61e9130bc59d2654f026895c9efcd2684df6d36bc2fcd3ae5badc6681f", size = 191636, upload-time = "2026-09-18T15:15:52.796Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ae/13/c811fbafdf51ae5b7211271b56c662b25c01f299db5ac4a4b48a04e20a5d/dvc_pandas-0.3.3-py3-none-any.whl", hash = "sha256:fc4eb9cde6426245814ba0bd2120188c27b2fd4b54eef816770e0597941a5cee", size = 11024, upload-time = "2024-11-12T07:26:42.499Z" },
+    { url = "https://files.pythonhosted.org/packages/f3/51/63d5ce84316e2d0bd23aa7f5163ac9b249dc509b8e84e9bac6a1981051f9/dvc_pandas-0.4.0-py3-none-any.whl", hash = "sha256:2044800fafca39dbcdb3a1ac3c97b121d2f0f78e4a36d3784ea606423e6f6c41", size = 15710, upload-time = "2026-09-18T15:15:51.388Z" },
 ]
 
 [[package]]
@@ -2787,7 +2789,7 @@ requires-dist = [
     { name = "djangorestframework" },
     { name = "drf-nested-routers" },
     { name = "drf-spectacular" },
-    { name = "dvc-pandas" },
+    { name = "dvc-pandas", specifier = ">=0.4.0" },
     { name = "easy-thumbnails", specifier = ">=2.10" },
     { name = "factory-boy" },
     { name = "gql", extras = ["requests"] },

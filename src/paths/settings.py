@@ -188,6 +188,7 @@ INSTALLED_APPS = [
     'pages',
     'nodes',
     'kausal_common.datasets',
+    'datasets.apps.PathsDatasetsConfig',
     'frameworks',
     'request_log',
     # 'easy_thumbnails',

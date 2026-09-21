@@ -57,7 +57,7 @@ dependencies = [
   "djangorestframework",
   "drf-nested-routers",
   "drf-spectacular",
-  "dvc-pandas",
+  "dvc-pandas>=0.4.0",
   "easy-thumbnails>=2.10",
   "factory-boy",
   "gql[requests]",

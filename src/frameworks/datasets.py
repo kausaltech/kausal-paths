@@ -216,6 +216,11 @@ class FrameworkMeasureDVCDataset2(DVCDataset):
         obj.payload_store = payload_store
         return obj
 
+    def dvc_source_id(self) -> str | None:
+        if self.payload_ref is not None or self.db_dataset_obj is not None:
+            return None
+        return super().dvc_source_id()
+
     @override
     def load_internal(self) -> ppl.PathsDataFrame:
         if self.payload_ref is None and self.db_dataset_obj is None:

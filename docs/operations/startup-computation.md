@@ -28,8 +28,9 @@ The command uses the normal runtime loader, preferring published data when
 available, and computes outcome nodes in the default and baseline scenarios.
 With `--warm-dvc-cache`, the command first ensures all declared DVC inputs are
 on disk, even when computation results are already in the external cache. Instances
-without DVC inputs skip this step. Already-cached files are not loaded again;
-the current dvc-pandas API also deserializes newly downloaded files.
+without DVC inputs skip this step. Already-cached files are not downloaded again. Persisted source manifests allow
+prefetching Parquet objects without decoding them or initializing Git. See
+[Persistent dataset caches](dataset-caches.md) for metadata preparation and backups.
 
 It leaves normal external caching enabled. Each instance is cleaned up before
 moving on; failures are logged and remaining instances are attempted. The
@@ -46,8 +47,8 @@ small selection of instances and compare deployment readiness time with the
 first uncached request latency. Concurrent replicas can duplicate computation;
 this initial implementation does not coordinate warm-up across pods.
 
-Only on-disk DVC/Git/Parquet data and external computation results survive the
-warm-up process. In-memory caches do not transfer to server workers. Cache reuse
+On-disk DVC/Git/Parquet data, persisted prepared datasets and external computation
+results survive the warm-up process. In-memory caches do not transfer to server workers. Cache reuse
 requires the same source revision, model configuration, build and scenario inputs
 as the subsequent request. The command does not warm custom user scenarios or
 all disconnected nodes.
