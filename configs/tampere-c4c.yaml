@@ -4553,6 +4553,49 @@ actions:
     - id: scope
       flatten: true
 
+- id: electrification_of_bus_traffic
+  name: Bussiliikenteen sähköistyminen
+  name_en: Electrification of bus traffic
+  type: simple.ParameterAction
+  group: transportation
+  unit: '%'
+  quantity: mix
+  input_dimensions: []
+  output_dimensions: []
+  params:
+  - id: to_value
+    value: 30.0
+    min_value: 28.0
+    max_value: 50.0
+    step: 1.0
+    unit: '%'
+    description: Sähkökäyttö
+    description_en: Electric propulsion
+  - id: constant
+    value: -28.0
+    unit: '%'
+  - id: default_value
+    value: 0.0
+    unit: '%'
+  output_nodes:
+  - id: bus_propulsion_percentage_electric
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+    - id: scope
+      categories: [scope2]
+    - id: vehicle_type
+      categories: [buses]
+  - id: bus_propulsion_percentage_non_electric
+    tags: [arithmetic_inverse]
+    to_dimensions:
+    - id: energy_carrier
+      categories: [diesel]
+    - id: scope
+      categories: [scope1]
+    - id: vehicle_type
+      categories: [buses]
+
 - id: change_in_vehicle_propulsion_of_private_cars
   name: Henkilöautoliikenteen käyttövoimamuutos
   name_en: Change in vehicle propulsion of private cars
