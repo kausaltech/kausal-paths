@@ -286,7 +286,13 @@ afterwards instead, replacing it wherever the tagged node has a value and leavin
                 elif selected_metric in edge_metrics:
                     result.refuse(port, f'port combines selected metric {selected_metric!r} with other edge metrics')
                 else:
-                    result.refuse(port, f'the legacy metric parameter selects {selected_metric!r}, not this edge metric')
+                    # The node selected a different metric of a multi-metric
+                    # source; this port is knowingly unused, not unclassifiable.
+                    result.refuse(
+                        port,
+                        f'the legacy metric parameter selects {selected_metric!r}, not this edge metric',
+                        deliberate=True,
+                    )
             else:
                 basis = (
                     f'unit {port.unit} being compatible with output {output_unit}'
@@ -1105,6 +1111,8 @@ class MultiplicativeNode(SimpleNode, PipelineCompatibleNode):
             tags = {tag for binding in bindings for tag in binding.tags}
             if 'impute' in tags:
                 result.classify(port, 'impute', "binding tag 'impute'")
+            elif 'additive' in tags:
+                result.classify(port, 'additive', "binding tag 'additive'")
             elif 'non_additive' in tags:
                 result.classify(port, 'factors', "binding tag 'non_additive'")
             elif any(isinstance(binding, DatasetBindingDef) for binding in bindings):
@@ -1112,7 +1120,14 @@ class MultiplicativeNode(SimpleNode, PipelineCompatibleNode):
             elif port.unit is None or output_unit is None:
                 result.refuse(port, 'cannot classify without both port and output units')
             elif port.unit.is_compatible_with(output_unit):
-                result.classify(port, 'additive', f'unit {port.unit} being compatible with output {output_unit}')
+                # A unit compatible with the output means this input could just as
+                # well be an addend as a factor, and guessing "additive" here was
+                # the old heuristic. Refuse instead: the author has to say which.
+                result.refuse(
+                    port,
+                    f'unit {port.unit} is compatible with the output {output_unit}, so this input could be either '
+                    "an addend or a factor; tag the binding 'additive' or 'non_additive' to say which",
+                )
             else:
                 result.classify(port, 'factors', f'unit {port.unit} being incompatible with output {output_unit}')
         return result
@@ -1382,12 +1397,20 @@ afterwards, replacing it wherever the tagged input has a value.""")
             tags = {tag for binding in meta.bindings_for_port(port.id) for tag in binding.tags}
             if 'impute' in tags:
                 result.classify(port, 'impute', "binding tag 'impute'")
+            elif 'additive' in tags:
+                result.classify(port, 'additive', "binding tag 'additive'")
             elif 'non_additive' in tags:
                 result.classify(port, 'factors', "binding tag 'non_additive'")
             elif port.unit is None or output_unit is None:
                 result.refuse(port, 'cannot classify without both port and output units')
             elif port.unit.is_compatible_with(output_unit):
-                result.classify(port, 'additive', f'unit {port.unit} being compatible with output {output_unit}')
+                # See MultiplicativeNode: a compatible unit is not evidence of
+                # addition, so the author says which rather than the heuristic.
+                result.refuse(
+                    port,
+                    f'unit {port.unit} is compatible with the output {output_unit}, so this input could be either '
+                    "an addend or a factor; tag the binding 'additive' or 'non_additive' to say which",
+                )
             else:
                 result.classify(port, 'factors', f'unit {port.unit} being incompatible with output {output_unit}')
         return result

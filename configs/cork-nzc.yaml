@@ -1928,6 +1928,7 @@ nodes:
     - id: pollutant
     - id: energy_carrier
   - id: transport_emissions
+    tags: [additive]
     from_dimensions:
     - id: sector
       categories: [transport]

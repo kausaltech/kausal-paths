@@ -1237,7 +1237,8 @@ nodes:
   quantity: energy
   type: simple.FixedMultiplierNode
   output_nodes:
-  - other_electricity_consumption
+  - id: other_electricity_consumption
+    tags: [additive]
   params:
     multiplier: -1
   unit: GWh/a
@@ -1367,6 +1368,7 @@ actions:
       categories: [district_heating]
       flatten: true
   - id: other_electricity_consumption
+    tags: [additive]
     from_dimensions:
     - id: energy_consumption
       categories: [other_electricity]
@@ -1526,7 +1528,8 @@ actions:
   group: energy
   forecast_values: [[2021, 0], [2025, -4.2]]   # 7000 light bulbs * (250 W - 50 W)/bulb * 3000 h/a # Tampereen taustamuistio, https://www.quora.com/How-much-power-does-a-regular-street-light-consume?share=1
   output_nodes:
-  - other_electricity_consumption
+  - id: other_electricity_consumption
+    tags: [additive]
 
 - id: tram_phase_1
   name_fi: Ratikan rakennusvaihe 1 (2019-2022)

@@ -2023,6 +2023,7 @@ nodes:
     - id: ghg
   output_nodes:
   - id: electricity_consumption_emissions
+    tags: [additive]
 
 #
 # NEW TRANSPORTATION
