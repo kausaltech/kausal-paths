@@ -65,7 +65,13 @@ class BuildingEnergy(AdditiveNode):
             elif 'other_fuel_use' in tags:
                 result.classify(port, 'other_fuel_use', "binding tag 'other_fuel_use'")
             else:
-                result.refuse(port, 'not one of the two dataset inputs consumed by BuildingEnergy')
+                # Configured but dormant (the transport-electricity edge):
+                # BuildingEnergy consumes exactly two inputs by design.
+                result.refuse(
+                    port,
+                    'not one of the two dataset inputs consumed by BuildingEnergy',
+                    deliberate=True,
+                )
         return result
 
     def compute(self) -> ppl.PathsDataFrame:
