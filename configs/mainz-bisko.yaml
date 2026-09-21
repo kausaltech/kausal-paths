@@ -1564,37 +1564,43 @@ actions:
   group: gebaeude_energie
   description_de: |
     Der bundesweite Strommix wird sauberer. Das ist keine Maßnahme der Stadt, sondern eine
-    Rahmenannahme über die Entwicklung der deutschen Stromerzeugung; sie steht hier als eigene
-    Maßnahme, damit sichtbar wird, welcher Teil der Minderung der Verwaltung ohne eigenes Zutun
-    zufällt und welcher aus ihren eigenen Entscheidungen stammt.<br/>
-    Die Annahme stammt aus dem Konzept Klimaneutrale Stadtverwaltung (Maßnahmensteckbrief B5).
-    Danach kommen bis 2030 70 % des in Deutschland erzeugten Stroms aus erneuerbaren Energien
-    (ambitioniertes Szenario 1) beziehungsweise 60 % (konservatives Szenario 2); 2019 waren es
-    rund 42 %.<br/>
-    Im Modell sinkt dadurch der Emissionsfaktor des bezogenen Stroms auf 51,7 % beziehungsweise
-    69,0 % seines heutigen Wertes. Die Maßnahme wirkt auf die Emissionsfaktoren der Gebäudeenergie
-    der Stadtverwaltung; die verbrauchte Strommenge ändert sie nicht.<br/>
-    Ein Hinweis zur Einordnung: Die Wirkung fällt hier deutlich kleiner aus als im Konzept – rund
-    760 statt über 6.000 Tonnen CO2-Äquivalent –, weil die Stadtverwaltung bereits einen
-    weitgehend grünen Liefervertrag hat und ihr eigener Emissionsfaktor entsprechend niedrig ist.
-    Welcher der beiden Betrachtungsweisen die Bilanz folgen soll, ist mit der Stadt noch zu
-    klären.
+    Rahmenannahme über die deutsche Stromerzeugung; sie steht hier als eigene Maßnahme, damit
+    sichtbar wird, welcher Teil der Minderung ohne eigenes Zutun zufällt und welcher aus den
+    Entscheidungen der Stadt stammt.<br/>
+    Die Annahme stammt aus dem Konzept Klimaneutrale Stadtverwaltung (Maßnahmensteckbrief B5): Bis
+    2030 kommen 70 % des in Deutschland erzeugten Stroms aus erneuerbaren Energien (ambitioniertes
+    Szenario 1) beziehungsweise 60 % (konservatives Szenario 2); 2019 waren es rund 42 %. Der
+    Emissionsfaktor des Stroms sinkt dadurch auf 51,7 % beziehungsweise 69,0 % seines heutigen
+    Wertes; die verbrauchte Strommenge ändert sich nicht.<br/>
+    Die Maßnahme wirkt an zwei Stellen: auf die Emissionsfaktoren der Gebäudeenergie der
+    Stadtverwaltung und auf die Endenergie-Emissionsfaktoren des gesamten Stadtgebiets. Dort ist
+    sie am wichtigsten, denn jede Maßnahme, die Wärme oder Verkehr auf Strom umstellt, hängt in
+    ihrer Emissionswirkung an ihr. Sie ist deshalb als einzige in jedem Szenario eingeschaltet,
+    auch im Business as Usual: Der Bund baut die Erneuerbaren aus, ob Mainz etwas tut oder
+    nicht.<br/>
+    Ein Hinweis zur Einordnung: Für die Verwaltung selbst fällt die Wirkung viel kleiner aus als
+    im Konzept – rund 760 statt über 6.000 Tonnen CO2-Äquivalent –, weil sie bereits einen
+    weitgehend grünen Liefervertrag hat. Das ist mit der Stadt noch zu klären; für das Stadtgebiet
+    stellt sich die Frage nicht.
   description_en: |
     The national electricity mix becomes cleaner. This is not a measure the city takes but an
-    assumption about how German electricity generation develops; it is shown as a separate measure
-    so that it is visible which part of the reduction accrues to the administration without any
-    action of its own, and which part comes from its own decisions.<br/>
-    The assumption comes from the Climate-Neutral Administration concept (measure sheet B5). Under
-    it, 70 % of the electricity generated in Germany comes from renewables by 2030 in the
-    ambitious scenario 1, or 60 % in the conservative scenario 2; in 2019 the share was about 42
-    %.<br/>
-    In the model this lowers the emission factor of purchased electricity to 51.7 % or 69.0 % of
-    its present value. The measure acts on the emission factors of the administration's building
-    energy; it does not change the amount of electricity used.<br/>
-    One caveat for reading the figure: the effect here is much smaller than in the concept — about
-    760 rather than over 6,000 tonnes of CO2 equivalent — because the administration already holds
-    a largely green supply contract and its own emission factor is correspondingly low. Which of
-    the two ways of accounting the balance should follow is still to be settled with the city.
+    assumption about German electricity generation; it is shown as a separate measure so that it
+    is visible which part of the reduction accrues without any action of the city's own, and which
+    part comes from its own decisions.<br/>
+    The assumption comes from the Climate-Neutral Administration concept (measure sheet B5): by
+    2030, 70 % of the electricity generated in Germany comes from renewables in the ambitious
+    scenario 1, or 60 % in the conservative scenario 2; in 2019 the share was about 42 %. The
+    emission factor of electricity falls to 51.7 % or 69.0 % of its present value; the amount of
+    electricity used does not change.<br/>
+    The measure acts in two places: on the emission factors of the administration's building
+    energy, and on the end-energy emission factors of the whole city. The second is where it
+    matters most, because every measure that moves heat or transport onto electricity depends on
+    it for its emissions effect. It is therefore the only measure switched on in every scenario,
+    Business as Usual included: Germany builds out renewables whether or not Mainz acts.<br/>
+    One caveat for reading the figure: for the administration itself the effect is far smaller
+    than in the concept — about 760 rather than over 6,000 tonnes of CO2 equivalent — because it
+    already holds a largely green supply contract. That remains to be settled with the city; for
+    the city-wide balance the question does not arise.
   input_dimensions: [energy_carrier, measure_scenario]
   output_dimensions: [energy_carrier, measure_scenario]
   decision_level: nation
@@ -1627,6 +1633,22 @@ actions:
   output_nodes:
   - id: municipal_building_energy_ef
     tags: [non_additive]
+    from_dimensions:
+    - id: measure_scenario
+      flatten: true
+  # The territorial grid factor, and the factor's own home: 51.7 % is 30/58, a ratio of the
+  # *national* fossil remainder, so it belongs on the national mix. The administration node
+  # above carries the city's 73 g/kWh green-contract factor, where the same ratio is the
+  # doubtful one (open question 14) -- the attachment order here is not the confidence order.
+  #
+  # `partial_factor`, because this is someone else's table: `end_energy_emission_factors`
+  # carries ifeu's 19 carriers and this dataset names 6. An ordinary factor joins inner, which
+  # would delete the other 14 -- biomass, hard coal, environmental heat and, worst of all,
+  # `heating_electricity`, the carrier `kwp_waermewende` grows hardest. Padding the dataset to
+  # 19 rows of 1.0 would work today and break silently the next time ifeu adds a carrier, since
+  # `de/emissionsfaktoren_endenergie` is updated annually and is not ours.
+  - id: end_energy_emission_factors
+    tags: [non_additive, partial_factor]
     from_dimensions:
     - id: measure_scenario
       flatten: true
@@ -2468,8 +2490,8 @@ actions:
 # not,
 # and were measured by hand in millimetres from the printed chart on 17-18 September 2026.
 - id: ie_mp2050_stationaer
-  name_de: 'IE-Leipzig-Szenario MP-2050: stationäre Sektoren'
-  name_en: 'IE Leipzig scenario MP-2050: stationary sectors'
+  name_de: 'Masterplan-Szenario MP-2050: stationäre Sektoren'
+  name_en: 'Master plan scenario MP-2050: stationary sectors'
   type: simple.GenericAction
   quantity: energy
   unit: MWh/a
@@ -2482,8 +2504,8 @@ actions:
     Endenergieverbrauch je Sektor und Energieträger für 2020, 2030 und 2035 in zwei
     Ambitionsstufen:<br/>
     &bull; <b>MP-2050</b>: das Maßnahmenpaket des Masterplans 100 % Klimaschutz unverändert
-    fortgeführt, Klimaneutralität 2050.<br/>&bull; <b>KN-2035</b>: verstärkte und zusätzliche
-    Maßnahmen, Klimaneutralität 2035.<br/>
+    fortgeführt, Klimaneutralität 2050.<br/>
+    &bull; <b>KN-2035</b>: verstärkte und zusätzliche Maßnahmen, Klimaneutralität 2035.<br/>
     Diese Maßnahme bildet den Pfad der stationären Sektoren – Haushalte, Industrie sowie Gewerbe,
     Handel und Dienstleistungen – im Szenario <b>MP-2050</b> ab und wirkt im Modell auf den
     Endenergieverbrauch der stationären Sektoren.<br/>
@@ -2493,17 +2515,17 @@ actions:
     lässt sich davon unabhängig übernehmen.<br/>
     Zu beachten: Dieser Pfad ist das Gesamtergebnis eines Maßnahmenpakets. Er darf deshalb nicht
     gemeinsam mit den Einzelmaßnahmen desselben Pakets aktiviert werden, sonst wird dieselbe
-    Wirkung zweimal gezählt. Die Emissionswirkung ist zudem schwächer belegt als die
-    Energiewirkung, weil der Emissionsfaktor der Fernwärme noch nicht geklärt ist und der Strommix
-    im Modell konstant gehalten wird, obwohl jedes Szenario von seiner Dekarbonisierung ausgeht.
+    Wirkung zweimal gezählt. Bei der Emissionswirkung bleibt eine Einschränkung: Der
+    Emissionsfaktor der Fernwärme ist noch nicht geklärt. Die Dekarbonisierung des
+    Bundesstrommixes ist dagegen abgebildet – sie läuft als eigene Maßnahme in jedem Szenario mit.
   description_en: |
     The IE Leipzig scenario comparison of 2021 is, beside the municipal heat plan, the only
     quantified whole-city path Mainz has. The city commissioned it to establish what its existing
     measures can achieve and what more would be needed. It states final energy use by sector and
     carrier for 2020, 2030 and 2035, at two levels of ambition:<br/>
     &bull; <b>MP-2050</b>: the measure package of the Masterplan 100 % Climate Protection carried
-    forward unchanged, climate neutrality in 2050.<br/>&bull; <b>KN-2035</b>: strengthened and
-    additional measures, climate neutrality in 2035.<br/>
+    forward unchanged, climate neutrality in 2050.<br/>
+    &bull; <b>KN-2035</b>: strengthened and additional measures, climate neutrality in 2035.<br/>
     This action carries the <b>MP-2050</b> path for the stationary sectors — households, industry,
     and commerce and services — and acts in the model on their final energy use.<br/>
     The model takes over not the study's levels but its relative path, applied to the 2024 value
@@ -2511,9 +2533,9 @@ actions:
     sector.<br/>
     Worth noting: this path is the aggregate outcome of a package of measures, and must not be
     switched on together with the individual measures of that same package, or the same effect is
-    counted twice. The emissions effect is also less well founded than the energy effect, because
-    the emission factor of district heating is not yet settled and the electricity mix is held
-    constant in the model, although every scenario assumes it decarbonises.
+    counted twice. One reservation remains on the emissions side: the district heating emission
+    factor is unsettled. The decarbonisation of the national electricity mix, by contrast, is
+    represented — it runs as a measure of its own in every scenario.
   input_dimensions: [sector, energy_carrier, ie_szenario]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
@@ -2548,8 +2570,8 @@ actions:
 # not,
 # and were measured by hand in millimetres from the printed chart on 17-18 September 2026.
 - id: ie_mp2050_verkehr
-  name_de: 'IE-Leipzig-Szenario MP-2050: Verkehr'
-  name_en: 'IE Leipzig scenario MP-2050: transport'
+  name_de: 'Masterplan-Szenario MP-2050: Verkehr'
+  name_en: 'Master plan scenario MP-2050: transport'
   type: simple.GenericAction
   quantity: energy
   unit: MWh/a
@@ -2562,8 +2584,8 @@ actions:
     Endenergieverbrauch je Sektor und Energieträger für 2020, 2030 und 2035 in zwei
     Ambitionsstufen:<br/>
     &bull; <b>MP-2050</b>: das Maßnahmenpaket des Masterplans 100 % Klimaschutz unverändert
-    fortgeführt, Klimaneutralität 2050.<br/>&bull; <b>KN-2035</b>: verstärkte und zusätzliche
-    Maßnahmen, Klimaneutralität 2035.<br/>
+    fortgeführt, Klimaneutralität 2050.<br/>
+    &bull; <b>KN-2035</b>: verstärkte und zusätzliche Maßnahmen, Klimaneutralität 2035.<br/>
     Diese Maßnahme bildet den Verkehrspfad des Szenarios <b>MP-2050</b> ab und wirkt im Modell auf
     den Endenergieverbrauch des Verkehrs.<br/>
     Übernommen wird nicht das Niveau der Studie, sondern ihr relativer Pfad, angewandt auf den
@@ -2573,17 +2595,18 @@ actions:
     Zu beachten: Dieser Pfad ist das Gesamtergebnis eines Maßnahmenpakets. Er darf deshalb nicht
     gemeinsam mit den Einzelmaßnahmen desselben Pakets aktiviert werden, sonst wird dieselbe
     Wirkung zweimal gezählt. Für den Verkehr betrifft das die Einzelmaßnahmen C 6.1
-    (Elektrifizierung der Pkw-Fahrleistung), C 3.1 (Busflotte) und C 4.1 (Radverkehr). Die
-    Emissionswirkung ist zudem schwächer belegt als die Energiewirkung, weil der Strommix im
-    Modell konstant gehalten wird und dieser Pfad den Verkehr gerade auf den Strom verlagert.
+    (Elektrifizierung der Pkw-Fahrleistung), C 3.1 (Busflotte) und C 4.1 (Radverkehr). Dass dieser
+    Pfad den Verkehr gerade auf den Strom verlagert, schlägt dabei voll durch: Die
+    Dekarbonisierung des Bundesstrommixes ist als eigene Maßnahme abgebildet und läuft in jedem
+    Szenario mit.
   description_en: |
     The IE Leipzig scenario comparison of 2021 is, beside the municipal heat plan, the only
     quantified whole-city path Mainz has. The city commissioned it to establish what its existing
     measures can achieve and what more would be needed. It states final energy use by sector and
     carrier for 2020, 2030 and 2035, at two levels of ambition:<br/>
     &bull; <b>MP-2050</b>: the measure package of the Masterplan 100 % Climate Protection carried
-    forward unchanged, climate neutrality in 2050.<br/>&bull; <b>KN-2035</b>: strengthened and
-    additional measures, climate neutrality in 2035.<br/>
+    forward unchanged, climate neutrality in 2050.<br/>
+    &bull; <b>KN-2035</b>: strengthened and additional measures, climate neutrality in 2035.<br/>
     This action carries the transport path of the <b>MP-2050</b> scenario, and acts in the model
     on transport final energy use.<br/>
     The model takes over not the study's levels but its relative path, applied to the 2024 value
@@ -2592,8 +2615,9 @@ actions:
     Worth noting: this path is the aggregate outcome of a package of measures, and must not be
     switched on together with the individual measures of that same package, or the same effect is
     counted twice. For transport those are C 6.1 (car electrification), C 3.1 (the bus fleet) and
-    C 4.1 (cycling). Its emissions effect is also less well founded than its energy effect: the
-    electricity mix is held constant, and this path moves transport onto exactly that electricity.
+    C 4.1 (cycling). That this path moves transport onto electricity now tells in full: the
+    decarbonisation of the national electricity mix is represented as a measure of its own and
+    runs in every scenario.
   input_dimensions: [vehicle_type, energy_carrier, ie_szenario]
   output_dimensions: [vehicle_type, energy_carrier]
   input_datasets:
@@ -2628,8 +2652,8 @@ actions:
 # not,
 # and were measured by hand in millimetres from the printed chart on 17-18 September 2026.
 - id: ie_kn2035_stationaer
-  name_de: 'IE-Leipzig-Szenario KN-2035: stationäre Sektoren'
-  name_en: 'IE Leipzig scenario KN-2035: stationary sectors'
+  name_de: 'Klimaneutralität-Szenario KN-2035: stationäre Sektoren'
+  name_en: 'Climate neutrality scenario KN-2035: stationary sectors'
   type: simple.GenericAction
   quantity: energy
   unit: MWh/a
@@ -2642,39 +2666,48 @@ actions:
     Endenergieverbrauch je Sektor und Energieträger für 2020, 2030 und 2035 in zwei
     Ambitionsstufen:<br/>
     &bull; <b>MP-2050</b>: das Maßnahmenpaket des Masterplans 100 % Klimaschutz unverändert
-    fortgeführt, Klimaneutralität 2050.<br/>&bull; <b>KN-2035</b>: verstärkte und zusätzliche
-    Maßnahmen, Klimaneutralität 2035.<br/>
+    fortgeführt, Klimaneutralität 2050.<br/>
+    &bull; <b>KN-2035</b>: verstärkte und zusätzliche Maßnahmen, Klimaneutralität 2035.<br/>
     Diese Maßnahme bildet den Pfad der stationären Sektoren – Haushalte, Industrie sowie Gewerbe,
     Handel und Dienstleistungen – im ambitionierteren Szenario <b>KN-2035</b> ab und wirkt im
     Modell auf den Endenergieverbrauch der stationären Sektoren.<br/>
+    Zum Vergleich der beiden Szenarien: KN-2035 ist nur bis 2035 beziffert und wird danach auf
+    diesem Wert gehalten, während MP-2050 bis 2050 weiterläuft. Im Jahr 2050 kann das
+    ambitioniertere Szenario deshalb über dem weniger ambitionierten liegen. Dort endet die
+    Datenreihe der Studie – es ist keine Aussage darüber, dass KN-2035 langfristig weniger
+    erreicht.<br/>
     Übernommen wird nicht das Niveau der Studie, sondern ihr relativer Pfad, angewandt auf den
     Bilanzwert des Jahres 2024. Studie und Bilanz sind unterschiedlich aufgebaut und unterscheiden
     sich je Sektor um bis zu 22 % in beide Richtungen; die Entwicklung, die die Studie beschreibt,
     lässt sich davon unabhängig übernehmen.<br/>
     Zu beachten: Dieser Pfad ist das Gesamtergebnis eines Maßnahmenpakets. Er darf deshalb nicht
     gemeinsam mit den Einzelmaßnahmen desselben Pakets aktiviert werden, sonst wird dieselbe
-    Wirkung zweimal gezählt. Die Emissionswirkung ist zudem schwächer belegt als die
-    Energiewirkung, weil der Emissionsfaktor der Fernwärme noch nicht geklärt ist und der Strommix
-    im Modell konstant gehalten wird, obwohl jedes Szenario von seiner Dekarbonisierung ausgeht.
+    Wirkung zweimal gezählt. Bei der Emissionswirkung bleibt eine Einschränkung: Der
+    Emissionsfaktor der Fernwärme ist noch nicht geklärt. Die Dekarbonisierung des
+    Bundesstrommixes ist dagegen abgebildet – sie läuft als eigene Maßnahme in jedem Szenario mit.
   description_en: |
     The IE Leipzig scenario comparison of 2021 is, beside the municipal heat plan, the only
     quantified whole-city path Mainz has. The city commissioned it to establish what its existing
     measures can achieve and what more would be needed. It states final energy use by sector and
     carrier for 2020, 2030 and 2035, at two levels of ambition:<br/>
     &bull; <b>MP-2050</b>: the measure package of the Masterplan 100 % Climate Protection carried
-    forward unchanged, climate neutrality in 2050.<br/>&bull; <b>KN-2035</b>: strengthened and
-    additional measures, climate neutrality in 2035.<br/>
+    forward unchanged, climate neutrality in 2050.<br/>
+    &bull; <b>KN-2035</b>: strengthened and additional measures, climate neutrality in 2035.<br/>
     This action carries the more ambitious <b>KN-2035</b> path for the stationary sectors —
     households, industry, and commerce and services — and acts in the model on their final energy
     use.<br/>
+    Comparing the two scenarios: KN-2035 is stated only to 2035 and is then held at that value,
+    while MP-2050 continues to 2050. In 2050 the more ambitious scenario can therefore read higher
+    than the less ambitious one. That is where the study's data series ends — it is not a
+    statement that KN-2035 achieves less in the long run.<br/>
     The model takes over not the study's levels but its relative path, applied to the 2024 value
     in the emissions balance: the two are built differently and differ by up to 22 % per
     sector.<br/>
     Worth noting: this path is the aggregate outcome of a package of measures, and must not be
     switched on together with the individual measures of that same package, or the same effect is
-    counted twice. The emissions effect is also less well founded than the energy effect, because
-    the emission factor of district heating is not yet settled and the electricity mix is held
-    constant in the model, although every scenario assumes it decarbonises.
+    counted twice. One reservation remains on the emissions side: the district heating emission
+    factor is unsettled. The decarbonisation of the national electricity mix, by contrast, is
+    represented — it runs as a measure of its own in every scenario.
   input_dimensions: [sector, energy_carrier, ie_szenario]
   output_dimensions: [sector, energy_carrier]
   input_datasets:
@@ -2709,8 +2742,8 @@ actions:
 # not,
 # and were measured by hand in millimetres from the printed chart on 17-18 September 2026.
 - id: ie_kn2035_verkehr
-  name_de: 'IE-Leipzig-Szenario KN-2035: Verkehr'
-  name_en: 'IE Leipzig scenario KN-2035: transport'
+  name_de: 'Klimaneutralität-Szenario KN-2035: Verkehr'
+  name_en: 'Climate neutrality scenario KN-2035: transport'
   type: simple.GenericAction
   quantity: energy
   unit: MWh/a
@@ -2723,10 +2756,15 @@ actions:
     Endenergieverbrauch je Sektor und Energieträger für 2020, 2030 und 2035 in zwei
     Ambitionsstufen:<br/>
     &bull; <b>MP-2050</b>: das Maßnahmenpaket des Masterplans 100 % Klimaschutz unverändert
-    fortgeführt, Klimaneutralität 2050.<br/>&bull; <b>KN-2035</b>: verstärkte und zusätzliche
-    Maßnahmen, Klimaneutralität 2035.<br/>
+    fortgeführt, Klimaneutralität 2050.<br/>
+    &bull; <b>KN-2035</b>: verstärkte und zusätzliche Maßnahmen, Klimaneutralität 2035.<br/>
     Diese Maßnahme bildet den Verkehrspfad des ambitionierteren Szenarios <b>KN-2035</b> ab und
     wirkt im Modell auf den Endenergieverbrauch des Verkehrs.<br/>
+    Zum Vergleich der beiden Szenarien: KN-2035 ist nur bis 2035 beziffert und wird danach auf
+    diesem Wert gehalten, während MP-2050 bis 2050 weiterläuft. Im Jahr 2050 kann das
+    ambitioniertere Szenario deshalb über dem weniger ambitionierten liegen. Dort endet die
+    Datenreihe der Studie – es ist keine Aussage darüber, dass KN-2035 langfristig weniger
+    erreicht.<br/>
     Übernommen wird nicht das Niveau der Studie, sondern ihr relativer Pfad, angewandt auf den
     Bilanzwert des Jahres 2024. Studie und Bilanz sind unterschiedlich aufgebaut und unterscheiden
     sich je Sektor um bis zu 22 % in beide Richtungen; die Entwicklung, die die Studie beschreibt,
@@ -2734,27 +2772,33 @@ actions:
     Zu beachten: Dieser Pfad ist das Gesamtergebnis eines Maßnahmenpakets. Er darf deshalb nicht
     gemeinsam mit den Einzelmaßnahmen desselben Pakets aktiviert werden, sonst wird dieselbe
     Wirkung zweimal gezählt. Für den Verkehr betrifft das die Einzelmaßnahmen C 6.1
-    (Elektrifizierung der Pkw-Fahrleistung), C 3.1 (Busflotte) und C 4.1 (Radverkehr). Die
-    Emissionswirkung ist zudem schwächer belegt als die Energiewirkung, weil der Strommix im
-    Modell konstant gehalten wird und dieser Pfad den Verkehr gerade auf den Strom verlagert.
+    (Elektrifizierung der Pkw-Fahrleistung), C 3.1 (Busflotte) und C 4.1 (Radverkehr). Dass dieser
+    Pfad den Verkehr gerade auf den Strom verlagert, schlägt dabei voll durch: Die
+    Dekarbonisierung des Bundesstrommixes ist als eigene Maßnahme abgebildet und läuft in jedem
+    Szenario mit.
   description_en: |
     The IE Leipzig scenario comparison of 2021 is, beside the municipal heat plan, the only
     quantified whole-city path Mainz has. The city commissioned it to establish what its existing
     measures can achieve and what more would be needed. It states final energy use by sector and
     carrier for 2020, 2030 and 2035, at two levels of ambition:<br/>
     &bull; <b>MP-2050</b>: the measure package of the Masterplan 100 % Climate Protection carried
-    forward unchanged, climate neutrality in 2050.<br/>&bull; <b>KN-2035</b>: strengthened and
-    additional measures, climate neutrality in 2035.<br/>
+    forward unchanged, climate neutrality in 2050.<br/>
+    &bull; <b>KN-2035</b>: strengthened and additional measures, climate neutrality in 2035.<br/>
     This action carries the transport path of the more ambitious <b>KN-2035</b> scenario, and acts
     in the model on transport final energy use.<br/>
+    Comparing the two scenarios: KN-2035 is stated only to 2035 and is then held at that value,
+    while MP-2050 continues to 2050. In 2050 the more ambitious scenario can therefore read higher
+    than the less ambitious one. That is where the study's data series ends — it is not a
+    statement that KN-2035 achieves less in the long run.<br/>
     The model takes over not the study's levels but its relative path, applied to the 2024 value
     in the emissions balance: the two are built differently and differ by up to 22 % per
     sector.<br/>
     Worth noting: this path is the aggregate outcome of a package of measures, and must not be
     switched on together with the individual measures of that same package, or the same effect is
     counted twice. For transport those are C 6.1 (car electrification), C 3.1 (the bus fleet) and
-    C 4.1 (cycling). Its emissions effect is also less well founded than its energy effect: the
-    electricity mix is held constant, and this path moves transport onto exactly that electricity.
+    C 4.1 (cycling). That this path moves transport onto electricity now tells in full: the
+    decarbonisation of the national electricity mix is represented as a measure of its own and
+    runs in every scenario.
   input_dimensions: [vehicle_type, energy_carrier, ie_szenario]
   output_dimensions: [vehicle_type, energy_carrier]
   input_datasets:
@@ -3206,6 +3250,14 @@ scenarios:
   # the loader does not fold it into any scenario by itself, and a parameter absent from a
   # scenario keeps whatever the previously activated one left behind.
   params:
+  # The national grid mix decarbonises whether or not Mainz does anything, so this one action
+  # is on in every scenario -- including Business as Usual. Leaving it off here would assert
+  # that the German grid never cleans up, and, now that it also drives
+  # `end_energy_emission_factors`, would electrify a whole city onto a grid frozen at its 2024
+  # factor. It is the only action that is enabled everywhere, and that is the point: what it
+  # contributes is the part of the reduction the city does not earn.
+  - id: knsv_dekarbonisierung_strommix.enabled
+    value: true
   # The IE Leipzig paths are deliberately OFF here, exactly as `kwp_waermewende` is, and
   # `all_actions_enabled: true` is why they have to be named: it switches on every action,
   # which would turn both variants on at once and stack them on the `mp100_*` measures whose
@@ -3401,6 +3453,14 @@ scenarios:
   name_de: Kommunale Wärmeplanung (Zielszenario 2040)
   name_en: Municipal heat plan (target scenario 2040)
   params:
+  # The national grid mix decarbonises whether or not Mainz does anything, so this one action
+  # is on in every scenario -- including Business as Usual. Leaving it off here would assert
+  # that the German grid never cleans up, and, now that it also drives
+  # `end_energy_emission_factors`, would electrify a whole city onto a grid frozen at its 2024
+  # factor. It is the only action that is enabled everywhere, and that is the point: what it
+  # contributes is the part of the reduction the city does not earn.
+  - id: knsv_dekarbonisierung_strommix.enabled
+    value: true
   # The IE Leipzig paths are deliberately OFF here, exactly as `kwp_waermewende` is, and
   # `all_actions_enabled: true` is why they have to be named: it switches on every action,
   # which would turn both variants on at once and stack them on the `mp100_*` measures whose
@@ -3552,9 +3612,17 @@ scenarios:
 # `kwp` and `mp100_kwp` are where the heat plan lives.
 - id: ie_mp2050
   all_actions_enabled: false
-  name_de: 'IE-Leipzig-Szenario MP-2050 (Klimaneutralität 2050)'
-  name_en: 'IE Leipzig scenario MP-2050 (climate neutrality 2050)'
+  name_de: 'Masterplan-Szenario MP-2050 (Klimaneutralität 2050)'
+  name_en: 'Master plan scenario MP-2050 (climate neutrality 2050)'
   params:
+  # The national grid mix decarbonises whether or not Mainz does anything, so this one action
+  # is on in every scenario -- including Business as Usual. Leaving it off here would assert
+  # that the German grid never cleans up, and, now that it also drives
+  # `end_energy_emission_factors`, would electrify a whole city onto a grid frozen at its 2024
+  # factor. It is the only action that is enabled everywhere, and that is the point: what it
+  # contributes is the part of the reduction the city does not earn.
+  - id: knsv_dekarbonisierung_strommix.enabled
+    value: true
   # The IE Leipzig paths are deliberately OFF here, exactly as `kwp_waermewende` is, and
   # `all_actions_enabled: true` is why they have to be named: it switches on every action,
   # which would turn both variants on at once and stack them on the `mp100_*` measures whose
@@ -3618,9 +3686,17 @@ scenarios:
 # `kwp` and `mp100_kwp` are where the heat plan lives.
 - id: ie_kn2035
   all_actions_enabled: false
-  name_de: 'IE-Leipzig-Szenario KN-2035 (Klimaneutralität 2035)'
-  name_en: 'IE Leipzig scenario KN-2035 (climate neutrality 2035)'
+  name_de: 'Klimaneutralität-Szenario KN-2035 (Klimaneutralität 2035)'
+  name_en: 'Climate neutrality scenario KN-2035 (climate neutrality 2035)'
   params:
+  # The national grid mix decarbonises whether or not Mainz does anything, so this one action
+  # is on in every scenario -- including Business as Usual. Leaving it off here would assert
+  # that the German grid never cleans up, and, now that it also drives
+  # `end_energy_emission_factors`, would electrify a whole city onto a grid frozen at its 2024
+  # factor. It is the only action that is enabled everywhere, and that is the point: what it
+  # contributes is the part of the reduction the city does not earn.
+  - id: knsv_dekarbonisierung_strommix.enabled
+    value: true
   # The IE Leipzig paths are deliberately OFF here, exactly as `kwp_waermewende` is, and
   # `all_actions_enabled: true` is why they have to be named: it switches on every action,
   # which would turn both variants on at once and stack them on the `mp100_*` measures whose
