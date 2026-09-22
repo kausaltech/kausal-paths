@@ -255,12 +255,7 @@ afterwards instead, replacing it wherever the tagged node has a value and leavin
     def infer_legacy_port_roles(cls, meta: NodeMeta, candidates: Sequence[InputPortDef]) -> PortRoleInferenceResult:
         from nodes.defs.binding_def import EdgeBindingDef
 
-        if cls is not AdditiveNode and (
-            cls.legacy_input_port_roles_by_tag
-            or cls.legacy_input_port_roles_by_quantity
-            or cls.legacy_untagged_dataset_input_role is not None
-            or cls.legacy_untagged_input_role is not None
-        ):
+        if cls is not AdditiveNode and cls.declares_legacy_role_map():
             return super().infer_legacy_port_roles(meta, candidates)
 
         result = PortRoleInferenceResult()
@@ -1101,6 +1096,11 @@ class MultiplicativeNode(SimpleNode, PipelineCompatibleNode):
     def infer_legacy_port_roles(cls, meta: NodeMeta, candidates: Sequence[InputPortDef]) -> PortRoleInferenceResult:
         from nodes.defs.binding_def import DatasetBindingDef
 
+        # A subclass whose inputs are named operands rather than factors and addends says
+        # so with a legacy role map; the additive/factor algebra below is not its contract.
+        if cls is not MultiplicativeNode and cls.declares_legacy_role_map():
+            return super().infer_legacy_port_roles(meta, candidates)
+
         result = PortRoleInferenceResult()
         try:
             output_unit = meta.require_output_port('output').unit
@@ -1874,12 +1874,50 @@ class RelativeYearScaledNode(AdditiveNode):
 
 
 class AnnuityNode(AdditiveNode):
+    discount_rate_port = InputPort.one('discount_rate', label=_('Discount rate'))
+    currency_port = InputPort.multi('currency', label=_('Investment cost per source'))
+    term_port = InputPort.multi('term', label=_('Investment lifetime per source'))
+    input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = (
+        discount_rate_port,
+        currency_port,
+        term_port,
+    )
+    legacy_input_port_roles_by_tag = {'discount_rate': 'discount_rate'}
+    # Each cost source reaches this node as one port per metric, so the two columns the
+    # old computation read off a single frame are the roles.
+    legacy_input_port_roles_by_source_metric: ClassVar[dict[str, str]] = {
+        'currency': 'currency',
+        'term': 'term',
+    }
+    consumes_all_inputs_through_ports = True
+
+    def _cost_frames(self) -> dict[str, ppl.PathsDataFrame]:
+        """Rejoin each source's currency and term, which used to arrive as one frame."""
+        currency = {
+            binding.source_id or str(binding.id): self.resolve_input_binding(binding)
+            for binding in self.iter_input_bindings(self.currency_port)
+        }
+        term = {
+            binding.source_id or str(binding.id): self.resolve_input_binding(binding)
+            for binding in self.iter_input_bindings(self.term_port)
+        }
+        if set(currency) != set(term):
+            raise NodeError(
+                self,
+                'Every cost source must supply both a currency and a term; got %s against %s.' % (sorted(currency), sorted(term)),
+            )
+        return {
+            source_id: df.rename({df.metric_cols[0]: 'currency'}).paths.join_over_index(
+                term[source_id].rename({term[source_id].metric_cols[0]: 'term'})
+            )
+            for source_id, df in currency.items()
+        }
+
     def compute(self) -> ppl.PathsDataFrame:
         targetyear = self.get_target_year()
         outputdf = ppl.PathsDataFrame()
 
-        discountnode = self.get_input_node(tag='discount_rate')
-        discountdf = discountnode.get_output_pl(target_node=self)
+        discountdf = self.require_input(self.discount_rate_port)
         discountdf = (
             discountdf
             .drop(FORECAST_COLUMN)
@@ -1887,12 +1925,10 @@ class AnnuityNode(AdditiveNode):
             .with_columns(pl.col('discount_rate') / pl.lit(100.0))
         )
 
-        inputnodes = self.get_input_nodes()
-        inputnodes.remove(discountnode)
-        inputdf = inputnodes[0].get_output_pl(target_node=self)
+        costs = list(self._cost_frames().values())
+        inputdf = costs[0]
         meta = inputdf.get_meta()
-        for node in inputnodes[1:]:
-            nodedf = node.get_output_pl(target_node=self)
+        for nodedf in costs[1:]:
             inputdf.extend(nodedf.select(inputdf.columns))
 
         dimensions = list(self.input_dimensions.keys())

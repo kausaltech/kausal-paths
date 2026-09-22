@@ -9,9 +9,11 @@ import pytest
 from common.polars import DataFrameMeta, PathsDataFrame, to_ppdf
 from nodes.buildings import CfNode, FloorAreaNode
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
+from nodes.exceptions import NodeError
 from nodes.instance_loader import InstanceLoader, InstanceYAMLConfig
 from nodes.instance_parser import parse_instance_snapshot
 from nodes.node import Node
+from nodes.simple import AnnuityNode
 from nodes.tests.node_input_harness import bind, binding
 from nodes.units import unit_registry
 
@@ -41,15 +43,21 @@ def test_floor_area_node_declares_one_role_per_source_metric() -> None:
     assert FloorAreaNode.compliant_port.multi is True
     # Aggregation stays absent: the shares of different actions are never summed.
     assert FloorAreaNode.triggered_port.aggregation is None
-    assert FloorAreaNode.metric_roles == {'triggered': 'triggered', 'compliant': 'compliant'}
+    assert FloorAreaNode.legacy_input_port_roles_by_source_metric == {
+        'triggered': 'triggered',
+        'compliant': 'compliant',
+        VALUE_COLUMN: 'floor_area',
+    }
 
 
 def test_cf_node_reads_a_different_metric_of_the_same_actions() -> None:
     assert CfNode.improvement_port.role == 'improvement'
     assert CfNode.baseline_port.role == 'baseline'
     assert CfNode.baseline_port.required is False
-    assert CfNode.metric_roles == {'improvement': 'improvement'}
-    assert CfNode.base_role == 'baseline'
+    assert CfNode.legacy_input_port_roles_by_source_metric == {
+        'improvement': 'improvement',
+        VALUE_COLUMN: 'baseline',
+    }
 
 
 def test_metric_roles_are_paired_back_up_by_source_node() -> None:
@@ -76,6 +84,27 @@ def test_metric_roles_are_paired_back_up_by_source_node() -> None:
     # Pairing is by source, not by position: compliant arrived in the opposite order.
     assert compliant['action_one']['compliant'].to_list() == [0.4]
     assert compliant['action_two']['compliant'].to_list() == [0.2]
+
+
+def test_annuity_node_pairs_cost_and_lifetime_by_source() -> None:
+    """Currency and term reach the node as separate bindings and must rejoin per source."""
+    assert AnnuityNode.currency_port.role == 'currency'
+    assert AnnuityNode.term_port.role == 'term'
+    assert AnnuityNode.discount_rate_port.role == 'discount_rate'
+    assert AnnuityNode.legacy_input_port_roles_by_tag == {'discount_rate': 'discount_rate'}
+    assert AnnuityNode.legacy_input_port_roles_by_source_metric == {'currency': 'currency', 'term': 'term'}
+
+
+def test_annuity_node_rejects_a_source_missing_one_of_its_two_metrics() -> None:
+    node: AnnuityNode = object.__new__(AnnuityNode)
+    node.id = 'annuitized_costs'
+    source = _source('an_action')
+    bind(
+        node,
+        [binding('currency', _share(1000.0), position=0, source_kind='node', source=source, source_id=source.id)],
+    )
+    with pytest.raises(NodeError, match='must supply both a currency and a term'):
+        node._cost_frames()
 
 
 def test_longmont_yaml_splits_multi_metric_actions_into_per_metric_roles() -> None:
