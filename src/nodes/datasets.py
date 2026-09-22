@@ -1327,6 +1327,10 @@ class DBDataset(DatasetWithFilters):
         mdf = pl.DataFrame(ds.metrics)  # type: ignore
         df = df.join(mdf.select(pl.col('uuid').alias('metric'), pl.col('name').alias('metric_name')), on='metric', how='left')
 
+        from frameworks.evidence import project_quality_columns
+
+        df = project_quality_columns(ds_in, df)
+
         dim_ids = [str(dim[1]) for dim in dims]
 
         id_map = None

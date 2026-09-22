@@ -46,7 +46,7 @@ deployed or enabled for every existing instance.
 | Shared schemas and dimensions | Implemented: Framework or InstanceConfig scopes, separate schema/data permissions, and one dataset per schema per scope. |
 | Editor permissions | Implemented: backend-computed node/port editability, separate binding editability, and editable local nodes in inheriting instances. |
 | Dataset validation | Existing backend support includes typed metric rules, category domains, structured violations, and edit/publication enforcement. |
-| Data-point quality and evidence | Planned: catalogue grades exist, but data-point grade assignment, evidence resolution, and derived quality columns are not implemented. |
+| Data-point quality and evidence | Minimal slice implemented: `DataPointEvidence` (kind + grade per data point), GraphQL read/write, snapshot round trip, derived quality columns, and legacy import. Dataset-level defaults, supersession, and source roles remain planned. |
 | Certification criteria and assessment | Planned: no profile/requirement models, compiler, evaluator, or persisted assessment yet. |
 | Data-editing UI | Can consume existing dataset validation and permission fields; quality/evidence and certification flows still need backend APIs and UI integration. |
 
@@ -995,9 +995,29 @@ dimension definitions while independently editing their own datasets.
 
 ### Phase 3 — DataEvidence and quality
 
-**Status:** Quality scheme/level catalogue implemented. All evidence, assignment, API, and
-materialization work listed below remains planned; this is the next UI-facing
-backend priority.
+**Status:** Minimal data-point slice implemented (23 September 2026). It deviates from the
+design above in shape, not intent:
+
+- `frameworks.DataPointEvidence` is one row per data point with `kind`
+  (`observed | estimated | explicit_zero | provider_default`, null = unknown) and
+  `quality_level -> DataQualityLevel` (null = ungraded); at least one is set. It lives
+  on the Paths side because `DataPoint` is shared with Watch and the grade vocabulary
+  is framework-owned. There is no dataset-level evidence, supersession, or
+  `EvidenceSourceReference` yet.
+- Applicable grades come from the dataset's scope: framework, member instance, or
+  template instance (`frameworks.evidence.quality_schemes_for_dataset`).
+- GraphQL: `Dataset.qualitySchemes`, `DataPoint.evidence`, and `evidenceKind` /
+  `qualityLevelId` on `createDataPoints` / `updateDataPoints`. A confirmed zero requires
+  a zero value and must be cleared or changed in the same write that changes the value.
+- A metric whose `spec.quality_of` names another metric is a projection: its column is
+  derived from evidence scores in `DBDataset.deserialize_df` (ungraded → null), its
+  stored points are ignored, and direct writes are rejected. `DatasetMetric.qualityOf`
+  exposes the marker.
+- Evidence rides in `DatasetSnapshot` (revisions and instance export/import); grades
+  resolve by UUID, else by scheme/version/level identifiers in the target framework.
+- `manage.py import_quality_evidence` converts legacy quality columns. A dataset whose
+  values fall between grades is not projected unless `--snap-down` is given; Mainz has
+  17 such averaged cells out of 1,879.
 
 1. Add `DataEvidence`, typed quality, evidence kind, and supersession.
 2. Replace or migrate `DatasetSourceReference` into
