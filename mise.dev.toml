@@ -7,4 +7,7 @@ portless_backend_port = "8041"
 graphql_schema = "paths.schema"
 
 [env]
-_.file = [{ path = ".secrets/env", required = false }]
+_.file = [
+  { path = ".secrets/env", required = false },
+  { path = ".env.db", required = false },
+]
