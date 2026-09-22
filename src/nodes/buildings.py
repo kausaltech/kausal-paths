@@ -8,22 +8,93 @@ import polars as pl
 
 from common import polars as ppl
 from nodes.calc import convert_to_co2e
-from nodes.defs.port_def import InputPortDeclaration
+from nodes.constraints.port_roles import PortRoleInferenceResult
+from nodes.defs.port_def import InputPort, InputPortDeclaration
+from nodes.operands import Operand, sum_operands
 from nodes.simple import AdditiveNode, MultiplicativeNode, SimpleNode
 from params.param import NumberParameter, StringParameter
 
 from .constants import FORECAST_COLUMN, TIME_INTERVAL, VALUE_COLUMN, YEAR_COLUMN
 from .exceptions import NodeError
+from .node import Node
 from .units import unit_registry
 
 if TYPE_CHECKING:
-    from .node import Node
+    from collections.abc import Sequence
+
+    from nodes.defs.port_def import InputPortDef
+    from nodes.instance_graph import NodeMeta
 
 
 class FloorAreaNode(MultiplicativeNode):  # FIXME Rebuild this with modern tools
     explanation = _('Floor area node takes in actions and calculates the floor area impacted.')
     output_dimension_ids = ['action', 'building_energy_class', 'emission_sectors']  # FIXME Generalise and remove emission_sectors
     input_dimension_ids = ['building_energy_class', 'emission_sectors']
+
+    floor_area_port = InputPort.one('floor_area', label=_('Floor area'))
+    triggered_port = InputPort.multi('triggered', label=_('Share of floor area an action triggers'))
+    compliant_port = InputPort.multi('compliant', label=_('Share of triggered area that complies'))
+    input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = (
+        floor_area_port,
+        triggered_port,
+        compliant_port,
+    )
+    consumes_all_inputs_through_ports = True
+
+    metric_roles: ClassVar[dict[str, str]] = {'triggered': 'triggered', 'compliant': 'compliant'}
+    """Source metric column -> this class's role for it. CfNode reads a different metric."""
+
+    base_role: ClassVar[str] = 'floor_area'
+    """Role for the single-metric operand the class multiplies the action shares against."""
+
+    @classmethod
+    def infer_legacy_port_roles(cls, meta: NodeMeta, candidates: Sequence[InputPortDef]) -> PortRoleInferenceResult:
+        """
+        Classify by the source metric each port already selects.
+
+        The parser expands one legacy ``input_nodes`` entry against a multi-metric action
+        into one port per metric, each bound to that metric's output port, so the split
+        this class used to do with ``isinstance(node, CfFloorAreaAction)`` and column
+        names is already present in the graph. Reading ``source_port.column_id`` recovers
+        it without the class having to know which node classes are actions.
+        """
+        from nodes.defs.binding_def import EdgeBindingDef
+
+        result = PortRoleInferenceResult()
+        for port in candidates:
+            edges = [binding for binding in meta.bindings_for_port(port.id) if isinstance(binding, EdgeBindingDef)]
+            if not edges:
+                result.refuse(port, 'only a node input can be an operand of this class')
+                continue
+            columns = {str(edge.source_port.column_id) for edge in edges}
+            if len(columns) != 1:
+                result.refuse(port, f'port mixes source metrics {sorted(columns)}')
+                continue
+            column = columns.pop()
+            if column in cls.metric_roles:
+                result.classify(port, cls.metric_roles[column], f'source metric {column!r}')
+            elif column == VALUE_COLUMN:
+                result.classify(port, cls.base_role, 'a single-metric source')
+            else:
+                result.refuse(port, f'source metric {column!r} is not an operand of this class')
+        return result
+
+    def _metric_by_source(self, port: InputPortDeclaration, column: str) -> dict[str, ppl.PathsDataFrame]:
+        """
+        Resolve a per-action metric role, keyed by the source node that supplied it.
+
+        Each action reaches this node as one binding per metric, so the metrics that used
+        to arrive together in one frame have to be paired back up by source. Insertion
+        order follows binding position, which is the order the old single pass over
+        ``input_nodes`` used.
+        """
+        frames: dict[str, ppl.PathsDataFrame] = {}
+        for binding in self.iter_input_bindings(port):
+            source = binding.source
+            assert isinstance(source, Node)
+            frame = self.resolve_input_binding(binding)
+            frames[source.id] = frame.rename({frame.metric_cols[0]: column})
+        return frames
 
     def include_custom_dimension(self, df: ppl.PathsDataFrame):  # Dimension must be explained in column name in the right syntax
         df = df.paths.to_wide()  # Make column names consistent
@@ -37,19 +108,7 @@ class FloorAreaNode(MultiplicativeNode):  # FIXME Rebuild this with modern tools
         return df
 
     def compute(self):
-        from nodes.actions.energy_saving import CfFloorAreaAction
-
-        nodes: list[Node] = []
-        actions: list[CfFloorAreaAction] = []
-        for node in self.get_input_nodes():
-            if isinstance(node, CfFloorAreaAction):
-                actions += [node]
-            else:
-                nodes += [node]
-        if len(nodes) == 1:
-            df: ppl.PathsDataFrame = nodes.pop(0).get_output_pl(target_node=self)
-        else:
-            raise NodeError(self, 'Must have exactly one upstream node for floor area')
+        df: ppl.PathsDataFrame = self.require_input(self.floor_area_port)
 
         # Existing (old) and new floor area in baseline
         flhv = df.get_last_historical_values()
@@ -80,9 +139,20 @@ class FloorAreaNode(MultiplicativeNode):  # FIXME Rebuild this with modern tools
             df_bau = df_bau.rename({'floor_old': col + 'existing', 'floor_new': col + 'new'})
             df_bau = self.include_custom_dimension(df_bau)
 
+        triggered = self._metric_by_source(self.triggered_port, 'triggered')
+        compliant = self._metric_by_source(self.compliant_port, 'compliant')
+        if set(triggered) != set(compliant):
+            raise NodeError(
+                self,
+                'Every action must supply both a triggered and a compliant share; got %s against %s.'
+                % (sorted(triggered), sorted(compliant)),
+            )
+
         df_out = None
-        for action in actions:
-            df = action.get_output_pl(target_node=self)
+        for action_id, triggered_df in triggered.items():
+            # The two shares arrive as separate single-metric bindings; rejoining them
+            # reconstructs the frame the action's multi-metric output used to deliver.
+            df = triggered_df.paths.join_over_index(compliant[action_id])
             df = df.ensure_unit('triggered', 'dimensionless')
             df = df.ensure_unit('compliant', 'dimensionless')
 
@@ -97,7 +167,7 @@ class FloorAreaNode(MultiplicativeNode):  # FIXME Rebuild this with modern tools
 
             df = df.multiply_cols(['floor_area', 'triggered', 'compliant'], 'floor_area')
 
-            df = df.rename({'floor_area': 'floor_area@action:' + action.id})
+            df = df.rename({'floor_area': 'floor_area@action:' + action_id})
             df = df.drop(['triggered', 'compliant'])
             df = self.include_custom_dimension(df)
 
@@ -127,30 +197,28 @@ class CfNode(FloorAreaNode):
     output_dimension_ids = ['action', 'building_energy_class', 'emission_sectors']
     input_dimension_ids = ['building_energy_class', 'emission_sectors']
 
+    # A CfNode reads the actions' improvement metric, and unlike FloorAreaNode it may take
+    # any number of baseline inputs — or none — and adds them together.
+    baseline_port = InputPort.multi('baseline', required=False, aggregation='sum', label=_('Baseline inputs'))
+    improvement_port = InputPort.multi('improvement', label=_('Consumption factor improvement per action'))
+    input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = (baseline_port, improvement_port)
+
+    metric_roles: ClassVar[dict[str, str]] = {'improvement': 'improvement'}
+    base_role: ClassVar[str] = 'baseline'
+
     def compute(self):
-        from nodes.actions.energy_saving import CfFloorAreaAction
-
-        nodes: list[Node] = []
-        actions: list[CfFloorAreaAction] = []
-        for node in self.get_input_nodes():
-            if isinstance(node, CfFloorAreaAction):
-                actions += [node]
-            else:
-                nodes += [node]
-
-        assert len(actions) > 0
+        improvements = self._metric_by_source(self.improvement_port, VALUE_COLUMN)
+        assert len(improvements) > 0
 
         df = None
-        for action in actions:
-            df_a = action.get_output_pl(target_node=self)
-
+        for action_id, df_a in improvements.items():
             if df is None:
                 df = df_a
             else:
                 df = df_a.paths.join_over_index(df, index_from='union')
                 df = df.with_columns(pl.col(VALUE_COLUMN).fill_null(pl.lit(0)))
 
-            col = VALUE_COLUMN + '@action:' + action.id
+            col = VALUE_COLUMN + '@action:' + action_id
             df = df.with_columns(pl.col(VALUE_COLUMN).alias(col))
             df = df.drop(VALUE_COLUMN)
 
@@ -159,8 +227,18 @@ class CfNode(FloorAreaNode):
 
         # Inputs nodes are baseline but not required.
         # If actions are not in the same units as the baseline, they are assumed to be relative values.
-        if len(nodes) > 0:
-            df_bau = self.add_nodes_pl(None, nodes=nodes)
+        baseline = [
+            Operand(
+                df=self.resolve_input_binding(binding),
+                role='additive',
+                source_id=binding.source_id or str(binding.id),
+                kind=binding.source_kind,
+            )
+            for binding in self.iter_input_bindings(self.baseline_port)
+        ]
+        if baseline:
+            assert self.unit is not None
+            df_bau = sum_operands(self, baseline, self.unit)
             df = df.paths.join_over_index(df_bau)
             sub = self.is_compatible_unit(df.get_unit(VALUE_COLUMN), df.get_unit(VALUE_COLUMN + '_right'))
             if sub:
