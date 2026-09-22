@@ -723,8 +723,9 @@ mechanical tail:
 
 Second bulk wave: `DatasetDifferenceAction` (`baseline`/`goal`),
 `SelectiveNode` (three conditional cost roles), `DataAvailabilityNode`
-(`data` plus an optional `template`) and `FloorAreaNode`/`CfNode`
-(one role per source metric) converted, each verified by
+(`data` plus an optional `template`), `FloorAreaNode`/`CfNode`/`AnnuityNode`
+(one role per source metric) and `DilutionNode` (a fanned-out edge) converted,
+each verified by
 `test_instance --compare` on every config that uses it. `SelectiveNode`
 established that a legacy tag may live on the *source node* rather than the
 binding, reachable through `EdgeBindingDef.source_node.spec.extra.tags`; the
@@ -767,25 +768,45 @@ class was making by hand.
    - re-pairing by `binding.source_id` when metrics that used to arrive in one
      frame have to be used together.
 
-   `FloorAreaNode` and `CfNode` are converted on exactly this basis, verified
-   against longmont-old. `AnnuityNode` has the identical shape and follows
-   directly — but tampere-c4c is in the pre-existing failed set, so no
-   `--compare` baseline covers it; record that before changing it.
+   `FloorAreaNode`, `CfNode` and `AnnuityNode` are converted on exactly this
+   basis. The rule they share now lives in
+   `Node.legacy_input_port_roles_by_source_metric`, consulted between the tag
+   and quantity maps, rather than in three bespoke hooks. Note that
+   `MultiplicativeNode` had no delegation guard, so a subclass declaring a
+   legacy map silently inherited the additive/factor algebra instead; both it
+   and `AdditiveNode` now gate on `Node.declares_legacy_role_map()`.
 
-   The `DatasetReduceAction` family is the same story with one extra step. Its
+   longmont-old covers the buildings classes. tampere-c4c, the only config
+   with an `AnnuityNode`, was already in the failed set, so no `--compare`
+   baseline covers that class.
+
+   The `DatasetReduceAction` family is the remaining one, with one extra step. Its
    bindings are already one per (role × the *consumer's* output metric), and
    the legacy tags already name both (`tags: [historical, renovation_rate]`).
    Expressing that needs `repeatable` roles with one port instance per output
    metric, paired through `InputPortDef.paired_output_port_id` and read with
    `iter_input_ports()` — all of which exist, because `AdditiveAction` already
    uses them. It is role vocabulary and legacy inference, not a new capability.
-2. **One binding serving two roles** — the one genuine structural gap found.
-   Every `DilutionNode` config binds one source under `tags: [removing,
-   inserting]`, so two required ports would have to share a single binding.
-   Unlike group 1 there is no second port to recover: one binding, one port,
-   one role. The options are a config change splitting the edge in two
-   (untested: duplicate edges between one node pair may not be representable)
-   or a deliberate semantic decision that `inserting` defaults to `removing`.
+2. **One binding serving two roles** — resolved by expanding the binding, not
+   by collapsing the roles. Every `DilutionNode` config supplies both stock
+   rates from one source as `tags: [removing, inserting]`. Collapsing them
+   would have been convenient and wrong: the recurrence is `existing x (1 -
+   removing) + incoming x inserting`, and the stock only keeps its size when
+   the two agree, so one role makes a growing or shrinking fleet
+   inexpressible.
+
+   `Node.legacy_edge_role_fanout` lets a class name roles that one legacy edge
+   may fill at once. The parser then emits a port per role and writes the role
+   onto each, turning what the tag list meant into explicit configuration —
+   which is the point, since the tags are going away. The first role keeps the
+   edge's existing port id so no stored binding moves.
+
+   **The expansion runs in the YAML parser**, so a database-sourced draft
+   keeps its old single port until re-synced. `cork-nzc` proved this: the
+   loader refused the unclassifiable binding rather than dropping it, and a
+   re-sync fixed it. Budget a re-sync for every DB instance using a class that
+   adopts a fanout, and run the whole sweep rather than the instance's own
+   configs — the YAML checks pass while the stored draft still fails.
 3. **`GenericNode` descendants** (~17 classes) — blocked on the typed
    `PipelineNode` operation contract, as step 6 already says. The tag lookup
    is inside the operation registry (`_preprocess_for_one` takes a tag
@@ -807,7 +828,7 @@ class was making by hand.
    in zero configs, so no `--compare` baseline can cover a change to them.
    Migrate only alongside a DB instance that exercises them.
 
-Ordinary work still available without settling anything: `AnnuityNode` and the
+Ordinary work still available without settling anything: the
 `DatasetReduceAction` family per group 1, `VehicleDatasetNode`, and
 `MultiplicativeNode`'s last `get_input_nodes` call. `SimpleNode`'s two
 `get_input_dataset_pl()` calls are in framework helpers
