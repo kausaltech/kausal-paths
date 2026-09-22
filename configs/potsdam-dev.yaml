@@ -1173,6 +1173,7 @@ actions:
   forecast_values: [[2024, 0], [2050, 0]]
   output_nodes:
   - id: pro_potsdam_cold_rent
+    tags: [additive]
     to_dimensions:
     - id: cost_type
       categories: [rent]

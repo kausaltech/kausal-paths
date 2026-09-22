@@ -1265,6 +1265,7 @@ nodes:
   input_datasets: [gpc/athens_nzc]
   output_nodes:
   - id: vehicle_mileage
+    tags: [additive]
     to_dimensions:
     - id: transport_mode
     - id: energy_carrier

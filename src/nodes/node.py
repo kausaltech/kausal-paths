@@ -367,6 +367,23 @@ class Node:
     output_port_declarations: ClassVar[tuple[OutputPortDeclaration, ...]] = ()
     """Semantic role declarations shared by future get_input() and shape_rules()."""
 
+    consumes_all_inputs_through_ports: ClassVar[bool] = False
+    """
+    Whether every input this class reads arrives through a declared port.
+
+    Declaring ports is not the same claim. A part-migrated class can read some
+    roles through ports while other inputs still reach it through
+    ``input_dataset_instances``, ``get_input_node()`` or a parameter path such
+    as ``replace_output_using_input_dataset`` — for those, a binding with no
+    resolved port role is still consumed and nothing is lost.
+
+    Set this only once the class's compute reads *nothing* the legacy way. The
+    loader then treats an unresolved binding on this class as a fault rather
+    than silently dropping it, because for such a class the drop is real. It is
+    the per-class completion marker for the input-port migration; see
+    docs/plans/node-input-port-runtime-migration.md.
+    """
+
     legacy_fixed_dataset_input_role: ClassVar[str | None] = None
     """Temporary role for inline historical/forecast values absent from InstanceGraph."""
 

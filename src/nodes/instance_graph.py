@@ -132,7 +132,10 @@ class NodeMeta(InstanceGraphBoundModel):
             )
         diagnostics.extend(
             InstanceGraphDiagnostic(
-                code='unclassified_port_role',
+                # A deliberate refusal is the class saying it does not consume
+                # this binding; an unclassified one is the class unable to say
+                # what the binding is for, which the runtime treats as a fault.
+                code='unused_port_role' if refusal.deliberate else 'unclassified_port_role',
                 message=f'Input port {refusal.port_id}: {refusal.reason}',
                 node_id=self.id,
                 port_id=refusal.port_id,

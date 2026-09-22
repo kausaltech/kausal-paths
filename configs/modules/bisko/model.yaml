@@ -1358,7 +1358,7 @@ nodes:
   - id: weather_correction
     tags: [correction]
   - id: municipal_facilities_energy_in_commerce
-    tags: [municipal]
+    tags: [municipal, additive]
     to_dimensions:
     - id: energy_carrier
     - id: sector
@@ -1933,6 +1933,7 @@ nodes:
       categories: [district_heating]
       flatten: true
   - id: emission_factors_without_fuel_data
+    tags: [additive]
     from_dimensions:
     - id: per_what_energy
       categories: [heat_output]

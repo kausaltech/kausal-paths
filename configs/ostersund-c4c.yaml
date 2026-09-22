@@ -2487,6 +2487,7 @@ actions:
       value: zeroemission_factor_for_district_heating
   output_nodes:
   - id: i42_energy_grid_energy_consumption_emissions
+    tags: [additive]
 
 
 - id: bicycle_and_pedestrian_infrastructure_measures

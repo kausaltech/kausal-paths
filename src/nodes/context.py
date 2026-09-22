@@ -53,6 +53,7 @@ if TYPE_CHECKING:
     from .dimensions import Dimension
     from .graph_layout import NodeGraphClassifier, NodeGraphClusterer
     from .instance import Instance
+    from .instance_graph import InstanceGraph
     from .node import Node
     from .normalization import Normalization
     from .scenario import CustomScenario, Scenario
@@ -103,6 +104,16 @@ class Context:
 
     _nes_factory: Callable[[Context], NodeExplanationSystem] | None
     """Deferred builder for the explanation system, installed by the loader."""
+
+    instance_graph: InstanceGraph | None = None
+    """
+    The structural graph this context was built from, kept by the loader.
+
+    The loader already builds it for every source kind, including the YAML and
+    framework paths that ``get_instance_graph`` cannot serve on its own (they
+    need the loader's placeholder dataset catalog). Holding it here is the only
+    way to reach that graph after construction.
+    """
 
     scenarios: dict[str, Scenario]
     """All scenarios in the context keyed by the scenario identifier."""

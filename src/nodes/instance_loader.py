@@ -41,7 +41,7 @@ if TYPE_CHECKING:
     from nodes.edges import Edge
     from nodes.explanations import NodeExplanationSystem
     from nodes.instance import Instance
-    from nodes.instance_graph import InstanceGraph
+    from nodes.instance_graph import InstanceGraph, NodeMeta
     from nodes.instance_serialization import InputBindingSnapshot, InstanceSnapshot, NodeSnapshot
     from nodes.models import InstanceConfig
     from nodes.node import Node, NodeMetric
@@ -1234,6 +1234,7 @@ class InstanceLoader:
                 raise
             role = target_meta.role_for_input_port(target_port)
             if role is None:
+                self._report_unresolved_binding(definition, target=target, target_meta=target_meta, target_port=target_port)
                 continue
 
             if isinstance(definition, EdgeBindingDef):
@@ -1268,6 +1269,38 @@ class InstanceLoader:
                     if isinstance(dataset, FixedDataset)
                 )
             node.bind_runtime_inputs(bindings, node_meta=self._instance_graph.node_by_id[node_id])
+
+    def _report_unresolved_binding(
+        self,
+        definition: Any,
+        *,
+        target: Node,
+        target_meta: NodeMeta,
+        target_port: Any,
+    ) -> None:
+        """
+        Handle a binding whose input port resolved to no semantic role.
+
+        For a class that reads every input through ports, the binding is simply
+        gone from the computation and the node returns a plausible wrong
+        number, so this is a fault. Two cases are not:
+
+        - an ``unused_port_role`` diagnostic, where the class states it does not
+          consume this binding (a metric it did not select, a dormant input);
+        - a class that has not finished migrating, which still reaches some
+          inputs through ``input_dataset_instances``, ``get_input_node()`` or a
+          parameter path, and for which nothing has been dropped.
+        """
+        diagnostics = [diagnostic for diagnostic in target_meta.port_role_diagnostics if diagnostic.port_id == target_port.id]
+        if any(diagnostic.code == 'unused_port_role' for diagnostic in diagnostics):
+            return
+        if not type(target).consumes_all_inputs_through_ports:
+            return
+        detail = f': {diagnostics[0].message}' if diagnostics else ''
+        self._init_failure(
+            target,
+            f'Input binding {definition.id} on port {target_port.identifier or target_port.id} has no semantic role{detail}',
+        )
 
     def _setup_subactions(self) -> None:
         from nodes.actions.action import ActionNode
@@ -1684,6 +1717,11 @@ class InstanceLoader:
             )
 
         self._stash_snapshot_bindings(snapshot)
+        # The YAML and framework paths reach this graph nowhere else: their
+        # snapshots have no dataset catalog, so `get_instance_graph()` cannot
+        # rebuild it without the placeholder synthesis `_stash_snapshot_bindings`
+        # does.
+        self.context.instance_graph = self._instance_graph
         self._finish_init()
 
     def _stash_snapshot_bindings(self, snapshot: InstanceSnapshot) -> None:

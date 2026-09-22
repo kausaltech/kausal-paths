@@ -35,6 +35,16 @@ class InferredPortRole:
 class UnclassifiedPort:
     port_id: UUID
     reason: str
+    deliberate: bool = False
+    """
+    Whether the class *knows* this binding is not consumed, rather than failing to tell.
+
+    A node that selects one metric of a multi-metric source, or that carries a
+    configured-but-dormant input, is making a decision; nothing is lost and the
+    runtime must not treat it as an error. An unclassified port with no such
+    claim means the class could not say what the binding is for, and the
+    binding then silently disappears from the computation — that one is a fault.
+    """
 
 
 @dataclass
@@ -45,5 +55,5 @@ class PortRoleInferenceResult:
     def classify(self, port: InputPortDef, role: str, basis: str) -> None:
         self.inferred.append(InferredPortRole(port_id=port.id, role=role, basis=basis))
 
-    def refuse(self, port: InputPortDef, reason: str) -> None:
-        self.unclassified.append(UnclassifiedPort(port_id=port.id, reason=reason))
+    def refuse(self, port: InputPortDef, reason: str, *, deliberate: bool = False) -> None:
+        self.unclassified.append(UnclassifiedPort(port_id=port.id, reason=reason, deliberate=deliberate))

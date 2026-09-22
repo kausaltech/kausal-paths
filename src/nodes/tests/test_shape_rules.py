@@ -99,7 +99,9 @@ def test_legacy_multiplicative_ports_classify_and_compile_to_uuid_rules() -> Non
     sources = [_source_node(f'source_{index}', unit) for index, unit in enumerate(('kg/vkm', 't/a', 't/a', 't/a'))]
     edges = [
         _edge(sources[0][0], sources[0][1], target, factor_port.id),
-        _edge(sources[1][0], sources[1][1], target, additive_port.id),
+        # A multiplicative node no longer infers 'additive' from a compatible
+        # unit; the addend says so outright.
+        _edge(sources[1][0], sources[1][1], target, additive_port.id, tags=['additive']),
         _edge(sources[2][0], sources[2][1], target, impute_port.id, tags=['impute']),
         _edge(sources[3][0], sources[3][1], target, tagged_factor_port.id, tags=['non_additive']),
     ]
@@ -123,6 +125,39 @@ def test_legacy_multiplicative_ports_classify_and_compile_to_uuid_rules() -> Non
     for rule in rules:
         for value in (*rule.inputs, rule.output):
             assert isinstance(value, UUID)
+
+
+def test_multiplicative_port_matching_the_output_unit_is_refused_not_guessed() -> None:
+    """A unit equal to the output could mean addend or factor, so the class refuses to pick."""
+    ambiguous_port = InputPortDef(id=uuid4(), unit=_unit('t/a'))
+    factor_port = InputPortDef(id=uuid4(), unit=_unit('kg/vkm'))
+    target, _output_id = _multiplicative_target([ambiguous_port, factor_port])
+
+    sources = [_source_node(f'source_{index}', unit) for index, unit in enumerate(('t/a', 'kg/vkm'))]
+    edges = [
+        _edge(sources[0][0], sources[0][1], target, ambiguous_port.id),
+        _edge(sources[1][0], sources[1][1], target, factor_port.id),
+    ]
+    graph = _build([snapshot for snapshot, _ in sources] + [target], edges)
+
+    meta = graph.node_by_id[target.uuid]
+    assert meta.inferred_port_roles == {factor_port.id: 'factors'}
+    refusals = [d for d in graph.diagnostics if d.port_id == ambiguous_port.id]
+    assert [d.code for d in refusals] == ['unclassified_port_role']
+    assert 'additive' in refusals[0].message
+    assert 'non_additive' in refusals[0].message
+
+
+def test_deliberately_unused_ports_are_reported_apart_from_unclassifiable_ones() -> None:
+    """A metric the node did not select is knowingly unused, not a classification failure."""
+    from nodes.constraints.port_roles import PortRoleInferenceResult
+
+    port = InputPortDef(id=uuid4(), unit=_unit('t/a'))
+    result = PortRoleInferenceResult()
+    result.refuse(port, 'the node selected another metric', deliberate=True)
+    result.refuse(port, 'no mapping matched')
+
+    assert [item.deliberate for item in result.unclassified] == [True, False]
 
 
 @pytest.mark.parametrize('node_class', ['simple.ImprovementNode', 'simple.ImprovementNode2'])

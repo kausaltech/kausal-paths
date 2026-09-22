@@ -357,6 +357,9 @@ class Command(BaseCommand):
             help='After each instance, force GC and log surviving Instance/Context/Node/Dataset/PathsDataFrame objects',
         )
         parser.add_argument(
+            '--include-impacts', action='store_true', default=False, help='Include computing individual action impacts'
+        )
+        parser.add_argument(
             '--trace-object-limit',
             type=int,
             default=8,
@@ -1139,7 +1142,8 @@ class Command(BaseCommand):
         baseline_scenario = ctx.scenarios.get('baseline', None)
         with ctx.run():
             succeeded = self.run_nodes(logger, ctx)
-            succeeded = self.run_action_impacts(logger, ctx) and succeeded
+            if self.store or self.include_impacts:
+                succeeded = self.run_action_impacts(logger, ctx) and succeeded
             self.dump_scenario_manifest(instance)
             if baseline_scenario:
                 logger.info('Checking baseline scenario')
@@ -1201,6 +1205,7 @@ class Command(BaseCommand):
             self.compare = bool(options['compare'])
         self.spec_only = bool(options['spec_only'])
         self.dry_run = bool(options['dry_run'])
+        self.include_impacts = bool(options['include_impacts'])
         smoke_test = bool(options['smoke_test'])
         if smoke_test:
             if instance_ids or options['only']:
@@ -1252,7 +1257,7 @@ class Command(BaseCommand):
         elif not instance_ids:
             self.logger.info('No instances provided, checking all instances')
             if self.compare:
-                instance_ids = self.state.checked_instances
+                instance_ids = sorted(self.state.checked_instances)
             else:
                 qs = InstanceConfig.objects.all().order_by('identifier').values_list('identifier', flat=True)
                 if options['framework']:

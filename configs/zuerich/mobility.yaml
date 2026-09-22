@@ -549,10 +549,6 @@ nodes:
     tags: [general_electricity_ef]
     to_dimensions:
     - id: emission_scope
-  - id: public_transport_electricity_emission_factor
-    tags: [public_transport]
-    to_dimensions:
-    - id: emission_scope
   - id: transport_electricity_consumption_factor
     tags: [electricity_consumption_factor]
     to_dimensions:

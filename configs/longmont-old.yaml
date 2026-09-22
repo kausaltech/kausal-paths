@@ -1226,6 +1226,7 @@ nodes:
   unit: ft^2
   input_nodes:
   - id: building_square_footage
+    tags: [additive]
     to_dimensions:
     - id: emission_sectors
   - id: updated_building_code
@@ -1256,6 +1257,7 @@ nodes:
   unit: therm/ft**2/a
   input_nodes:
   - id: building_natural_gas_eui
+    tags: [additive]
     to_dimensions:
     - id: emission_sectors
   - id: updated_building_code
@@ -1307,6 +1309,7 @@ nodes:
   unit: kWh/ft**2/a
   input_nodes:
   - id: building_electricity_eui
+    tags: [additive]
     to_dimensions:
     - id: emission_sectors
   - id: updated_building_code

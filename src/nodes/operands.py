@@ -158,6 +158,35 @@ def resolve_input_nodes(
     return operands
 
 
+def role_from_unit_comparison(
+    node: Node,
+    *,
+    source_unit: Unit | None,
+    source_id: str,
+    source_kind: Literal['node', 'dataset'],
+    default_role: OperandRole | None,
+) -> OperandRole:
+    """
+    Apply the unit heuristic: compatible with the node's own unit means additive, else a factor.
+
+    This is the implicit half of the rule — the half an explicit ``additive`` /
+    ``non_additive`` tag makes unnecessary. It is a single function so that
+    ``classify_operand_roles`` can record every decision it makes, which is how
+    the authored tags that will replace it are derived.
+    """
+    if source_unit is None or node.unit is None:
+        if default_role is not None:
+            return default_role
+        noun = 'input' if source_kind == 'node' else 'dataset'
+        culprit = 'it' if source_unit is None else 'this node'
+        raise NodeError(
+            node,
+            "Cannot tell whether %s '%s' is additive or a factor: %s has no unit. Tag it 'additive' or 'non_additive'."
+            % (noun, source_id, culprit),
+        )
+    return 'additive' if node.is_compatible_unit(node.unit, source_unit) else 'factor'
+
+
 def _role_from_unit(
     node: Node,
     source: Node,
@@ -165,17 +194,13 @@ def _role_from_unit(
     unit_of: Callable[[Node, Node], Unit | None],
     default_role: OperandRole | None,
 ) -> OperandRole:
-    source_unit = unit_of(node, source)
-    if source_unit is None or node.unit is None:
-        if default_role is not None:
-            return default_role
-        raise NodeError(
-            node,
-            "Cannot tell whether input '%s' is additive or a factor: %s has no unit. "
-            "Tag the input 'additive' or 'non_additive' to say which it is."
-            % (source.id, 'it' if source_unit is None else 'this node'),
-        )
-    return 'additive' if node.is_compatible_unit(node.unit, source_unit) else 'factor'
+    return role_from_unit_comparison(
+        node,
+        source_unit=unit_of(node, source),
+        source_id=source.id,
+        source_kind='node',
+        default_role=default_role,
+    )
 
 
 # =================================================================================
@@ -335,12 +360,14 @@ def _add_dataset_operand(
     role: OperandRole
     if tagged_role is not None:
         role = tagged_role
-    elif node.unit is not None:
-        role = 'additive' if node.is_compatible_unit(node.unit, df.get_unit(VALUE_COLUMN)) else 'factor'
-    elif default_role is not None:
-        role = default_role
     else:
-        raise NodeError(node, "Cannot classify dataset '%s': this node has no unit" % dataset.id)
+        role = role_from_unit_comparison(
+            node,
+            source_unit=df.get_unit(VALUE_COLUMN),
+            source_id=dataset.id,
+            source_kind='dataset',
+            default_role=default_role,
+        )
     partial = PARTIAL_FACTOR_TAG in dataset.tags
     if partial and role != 'factor':
         raise NodeError(

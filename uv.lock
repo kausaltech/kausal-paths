@@ -1449,7 +1449,7 @@ wheels = [
 
 [[package]]
 name = "dvc-pandas"
-version = "0.4.0"
+version = "0.4.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "appdirs" },
@@ -1466,9 +1466,9 @@ dependencies = [
     { name = "python-snappy" },
     { name = "ruamel-yaml" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/24/3c/fef668df7e6c3a9b8264181f314991e572e8bd0eaf22b390ad2ea53b16b5/dvc_pandas-0.4.0.tar.gz", hash = "sha256:1929cd61e9130bc59d2654f026895c9efcd2684df6d36bc2fcd3ae5badc6681f", size = 191636, upload-time = "2026-09-18T15:15:52.796Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/81/98/728dee14f5f082ab8a665a73a1d04f2fec6bd845c8a129394b234b4c7e88/dvc_pandas-0.4.1.tar.gz", hash = "sha256:d75d1193b693136933a40174a5d08be32c0a8188584e930e73ca53711b6daf1c", size = 191967, upload-time = "2026-09-22T06:20:12.334Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/f3/51/63d5ce84316e2d0bd23aa7f5163ac9b249dc509b8e84e9bac6a1981051f9/dvc_pandas-0.4.0-py3-none-any.whl", hash = "sha256:2044800fafca39dbcdb3a1ac3c97b121d2f0f78e4a36d3784ea606423e6f6c41", size = 15710, upload-time = "2026-09-18T15:15:51.388Z" },
+    { url = "https://files.pythonhosted.org/packages/80/9d/f8dff87ffe4321b73ae9e714b696c29968a2256518e657a9046d93513be4/dvc_pandas-0.4.1-py3-none-any.whl", hash = "sha256:4bf580aff545ee438d0f81c823b19d60cf0487f51cdd4d03155c901ad0a964d0", size = 15872, upload-time = "2026-09-22T06:20:10.62Z" },
 ]
 
 [[package]]
