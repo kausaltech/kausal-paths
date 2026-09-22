@@ -27,6 +27,7 @@ from django.db import transaction
 from modeltrans.translator import get_i18n_field
 from pydantic import BaseModel, Field, field_validator
 
+from loguru import logger
 from markdown_it import MarkdownIt
 
 from kausal_common.datasets.category_domain import DatasetCategoryDomain
@@ -246,6 +247,30 @@ class DataPointCommentSnapshot(BaseModel):
     resolved_by: str | None = None  # user uuid
 
 
+class QualityLevelRef(BaseModel):
+    """
+    A framework quality grade, by UUID and by authored identity.
+
+    The UUID is exact within one deployment; the identifiers let a snapshot
+    resolve against a framework provisioned elsewhere.
+    """
+
+    uuid: str
+    scheme: str
+    scheme_version: str
+    level: str
+
+
+class DataPointEvidenceSnapshot(BaseModel):
+    """What is asserted about one data point's value. Users are referenced by uuid."""
+
+    point: DataPointKey
+    kind: str | None = None
+    quality_level: QualityLevelRef | None = None
+    created_by: str | None = None  # user uuid
+    last_modified_by: str | None = None  # user uuid
+
+
 class DatasetSnapshot(ModelSnapshot):
     """
     Pydantic representation of a ``Dataset`` ORM row.
@@ -271,6 +296,7 @@ class DatasetSnapshot(ModelSnapshot):
     data_sources: list[DataSourceSnapshot] = Field(default_factory=list)
     source_references: list[SourceReferenceSnapshot] = Field(default_factory=list)
     comments: list[DataPointCommentSnapshot] = Field(default_factory=list)
+    evidence: list[DataPointEvidenceSnapshot] = Field(default_factory=list)
 
     @classmethod
     def from_model(cls, obj: Any) -> Self:
@@ -322,9 +348,11 @@ class DatasetSnapshot(ModelSnapshot):
         data_sources: list[DataSourceSnapshot] = []
         source_references: list[SourceReferenceSnapshot] = []
         comments: list[DataPointCommentSnapshot] = []
+        evidence: list[DataPointEvidenceSnapshot] = []
         if not obj.is_external_placeholder:
             data = _export_dataset_data_safe(obj)
             data_sources, source_references, comments = _export_dataset_provenance(obj)
+            evidence = _export_dataset_evidence(obj)
 
         return cls(
             identifier=obj.identifier,
@@ -342,6 +370,7 @@ class DatasetSnapshot(ModelSnapshot):
             data_sources=data_sources,
             source_references=source_references,
             comments=comments,
+            evidence=evidence,
         )
 
 
@@ -1255,6 +1284,102 @@ def _export_dataset_provenance(
     return list(sources.values()), references, comments
 
 
+def _export_dataset_evidence(ds: DatasetModel) -> list[DataPointEvidenceSnapshot]:
+    from frameworks.models import DataPointEvidence
+
+    evidence_qs = (
+        DataPointEvidence.objects
+        .filter(data_point__dataset=ds)
+        .select_related('data_point__metric', 'quality_level__scheme', 'created_by', 'last_modified_by')
+        .prefetch_related('data_point__dimension_categories')
+        .order_by('data_point_id')
+    )
+    result = []
+    for ev in evidence_qs:
+        level = ev.quality_level
+        result.append(
+            DataPointEvidenceSnapshot(
+                point=_data_point_key(ev.data_point),
+                kind=ev.kind,
+                quality_level=QualityLevelRef(
+                    uuid=str(level.uuid),
+                    scheme=level.scheme.identifier,
+                    scheme_version=level.scheme.version,
+                    level=level.identifier,
+                )
+                if level is not None
+                else None,
+                created_by=str(ev.created_by.uuid) if ev.created_by else None,
+                last_modified_by=str(ev.last_modified_by.uuid) if ev.last_modified_by else None,
+            )
+        )
+    return result
+
+
+def _import_dataset_evidence(
+    ds_snapshot: DatasetSnapshot,
+    dataset: DatasetModel,
+    dp_map: dict[tuple[int, str, tuple[str, ...]], Any],
+) -> None:
+    """
+    Recreate data-point evidence.
+
+    A grade resolves by UUID, else by authored identity within the schemes that
+    apply to the target dataset. An unresolvable grade is dropped with a warning
+    rather than failing the import; the evidence kind is kept.
+    """
+    if not ds_snapshot.evidence:
+        return
+
+    from django.contrib.auth import get_user_model
+
+    from frameworks.evidence import quality_schemes_for_dataset
+    from frameworks.models import DataEvidenceKind, DataPointEvidence, DataQualityLevel
+
+    levels = list(DataQualityLevel.objects.filter(scheme__in=quality_schemes_for_dataset(dataset)).select_related('scheme'))
+    by_uuid = {str(level.uuid): level for level in levels}
+    by_identity = {(level.scheme.identifier, level.scheme.version, level.identifier): level for level in levels}
+    users = {
+        str(u.uuid): u
+        for u in get_user_model().objects.filter(
+            uuid__in={uid for ev in ds_snapshot.evidence for uid in (ev.created_by, ev.last_modified_by) if uid}
+        )
+    }
+
+    rows = []
+    for ev in ds_snapshot.evidence:
+        dp = dp_map.get(_data_point_key_tuple(ev.point))
+        if dp is None:
+            continue
+        level = None
+        ref = ev.quality_level
+        if ref is not None:
+            level = by_uuid.get(ref.uuid) or by_identity.get((ref.scheme, ref.scheme_version, ref.level))
+            if level is None:
+                logger.warning(
+                    'Dropping unresolvable quality level %s/%s/%s on dataset %s'
+                    % (
+                        ref.scheme,
+                        ref.scheme_version,
+                        ref.level,
+                        dataset.identifier,
+                    )
+                )
+        kind = DataEvidenceKind(ev.kind) if ev.kind else None
+        if kind is None and level is None:
+            continue
+        rows.append(
+            DataPointEvidence(
+                data_point=dp,
+                kind=kind,
+                quality_level=level,
+                created_by=users.get(ev.created_by or ''),
+                last_modified_by=users.get(ev.last_modified_by or ''),
+            )
+        )
+    DataPointEvidence.objects.bulk_create(rows)
+
+
 def _export_dataset_data(ds: DatasetModel) -> dict[str, Any]:
     """Serialize dataset DataPoints into JSON Table Schema format."""
     from nodes.datasets import DBDataset, JSONDataset
@@ -1750,6 +1875,7 @@ def _import_dataset(
 
     # Recreate source references and comments (data points must exist first).
     _import_dataset_provenance(ic, ic_ct, ds_snapshot, dataset, dp_map)
+    _import_dataset_evidence(ds_snapshot, dataset, dp_map)
 
     if not dataset.is_external_placeholder:
         from nodes.dataset_materialization import refresh_dataset_materialization
