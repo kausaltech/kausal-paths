@@ -18,6 +18,8 @@ from typing import TYPE_CHECKING
 
 from django.contrib.contenttypes.models import ContentType
 
+from loguru import logger
+
 from kausal_common.datasets.models import (
     Dataset,
     DatasetMetric,
@@ -317,6 +319,10 @@ def _sync_dataset_placeholder(  # noqa: C901
     try:
         dvc_ds = env.load_dvc_dataset(ds_id)
     except Exception as e:
+        # Logged as well as reported: the sync entry points call this without a reporter, and a
+        # swallowed load failure resurfaces much later as `No dataset object for <id>` from
+        # `resolve_dataset_port_snapshots`, with the actual reason gone.
+        logger.warning("Error loading DVC dataset '{}': {}", ds_id, e)
         _report(reporter, f"Error loading DVC dataset '{ds_id}': {e}")
         return None, False
 
