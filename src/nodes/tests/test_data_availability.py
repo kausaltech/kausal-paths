@@ -12,6 +12,7 @@ from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from nodes.datasets import Dataset
 from nodes.defs.transform_def import InterpolateOp
 from nodes.exceptions import NodeError
+from nodes.runtime_input import RuntimeInputBinding
 from nodes.simple import DataAvailabilityNode
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory
 from nodes.units import unit_registry
@@ -44,7 +45,7 @@ def _make_context(identifier: str) -> Context:
 
 
 def _make_node(context: Context, datasets: list[Dataset]) -> DataAvailabilityNode:
-    return DataAvailabilityNode(
+    node = DataAvailabilityNode(
         id='availability',
         context=context,
         name=TranslatedString('availability', default_language='en'),
@@ -52,6 +53,28 @@ def _make_node(context: Context, datasets: list[Dataset]) -> DataAvailabilityNod
         quantity='fraction',
         input_datasets=datasets,
     )
+    return _bind_datasets(node)
+
+
+def _bind_datasets(node: DataAvailabilityNode) -> DataAvailabilityNode:
+    """
+    Bind the node's datasets to its declared ports the way the loader does.
+
+    The node reads its inputs through ports now, so populating ``input_datasets`` alone
+    leaves it with nothing to compute from.
+    """
+    node.bind_runtime_inputs(
+        tuple(
+            RuntimeInputBinding.from_legacy_fixed_dataset(
+                ds,
+                target=node,
+                port_role='template' if DataAvailabilityNode.TEMPLATE_TAG in ds.tags else 'data',
+                position=position,
+            )
+            for position, ds in enumerate(node.input_dataset_instances)
+        )
+    )
+    return node
 
 
 def _make_dataset(context: Context, df: PathsDataFrame, *, interpolate: bool = False) -> _FixedRawDataset:
@@ -209,6 +232,7 @@ def test_each_metric_column_gets_its_own_flag_column():
         },
         input_datasets=[_make_dataset(context, to_ppdf(df, meta))],
     )
+    _bind_datasets(node)
 
     out = node.compute()
     by_year = {row[YEAR_COLUMN]: row for row in out.to_dicts()}
@@ -245,6 +269,7 @@ def test_metric_columns_and_dimensions_together():
         },
         input_datasets=[_make_dataset(context, to_ppdf(df, meta))],
     )
+    _bind_datasets(node)
 
     out = node.compute()
     by_cell = {(row[YEAR_COLUMN], row['carrier']): row for row in out.to_dicts()}
@@ -401,7 +426,7 @@ def test_a_template_alone_is_not_a_dataset_to_check():
     context = _make_context('availability-template-only')
     node = _make_node(context, [_template_dataset(context, [('electricity',)], ['carrier'])])
 
-    with pytest.raises(NodeError, match='Expecting one dataset to check'):
+    with pytest.raises(NodeError, match="Required input role 'data' has no bindings"):
         node.compute()
 
 
@@ -435,6 +460,7 @@ def test_required_combinations_survive_multiple_metric_columns():
             _template_dataset(context, [('electricity',), ('natural_gas',)], ['carrier']),
         ],
     )
+    _bind_datasets(node)
 
     by_cell = {(row[YEAR_COLUMN], row['carrier']): row for row in node.compute().to_dicts()}
 

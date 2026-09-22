@@ -765,6 +765,12 @@ so that a combination missing from the data altogether is reported as missing ra
 
     TEMPLATE_TAG = 'template'
 
+    data_port = InputPort.one('data', label=_('Dataset to check'))
+    template_port = InputPort.optional('template', label=_('Required category combinations'))
+    input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = (data_port, template_port)
+    legacy_input_port_roles_by_tag = {TEMPLATE_TAG: 'template'}
+    legacy_untagged_dataset_input_role = 'data'
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # The node reports what the source data covers, so gap-filling must not run before
@@ -784,29 +790,23 @@ so that a combination missing from the data altogether is reported as missing ra
                 'DataAvailabilityNode only inspects its input dataset; it has %d input nodes. Combine '
                 'availability flags in a downstream node instead (e.g. with the min/max edge tags).' % len(self.input_nodes),
             )
-        for ds in self.input_dataset_instances:
+        # Source inspection, not value access: a dataset that interpolates as it is built
+        # has already lost the gaps this node exists to report, whichever port it fills.
+        for binding in self.runtime_input_bindings:
+            ds = binding.source
             if isinstance(ds, FixedDataset) and ds.use_interpolation:
                 raise NodeError(
                     self,
                     "Dataset '%s' is interpolated already when it is built, so the gaps of the original data "
                     'cannot be seen any more. Remove the LinearInterpolation dataset processor.' % ds.id,
                 )
-        dfs = self.get_input_datasets_pl(exclude_tags=[self.TEMPLATE_TAG])
-        if len(dfs) != 1:
-            raise NodeError(
-                self,
-                'Expecting one dataset to check the availability of, besides any tagged %r; got %d.'
-                % (self.TEMPLATE_TAG, len(dfs)),
-            )
-        return self.check_availability(dfs[0])
+        return self.check_availability(self.require_input(self.data_port))
 
     def _get_template(self) -> ppl.PathsDataFrame | None:
-        templates = self.get_input_datasets_pl(tag=self.TEMPLATE_TAG)
-        if not templates:
+        template = self.get_input(self.template_port)
+        if template is None:
             return None
-        if len(templates) > 1:
-            raise NodeError(self, 'Expecting at most one dataset tagged %r; got %d.' % (self.TEMPLATE_TAG, len(templates)))
-        return templates[0].paths.cast_index_to_str()
+        return template.paths.cast_index_to_str()
 
     def _get_required_combinations(self, dim_ids: list[str]) -> pl.DataFrame | None:
         """Return one row per combination the template requires, or None when there is no template."""
