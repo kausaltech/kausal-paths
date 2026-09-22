@@ -722,8 +722,9 @@ mechanical tail:
 ### Residual inventory (2026-09-22)
 
 Second bulk wave: `DatasetDifferenceAction` (`baseline`/`goal`),
-`SelectiveNode` (three conditional cost roles) and `DataAvailabilityNode`
-(`data` plus an optional `template`) converted, each verified by
+`SelectiveNode` (three conditional cost roles), `DataAvailabilityNode`
+(`data` plus an optional `template`) and `FloorAreaNode`/`CfNode`
+(one role per source metric) converted, each verified by
 `test_instance --compare` on every config that uses it. `SelectiveNode`
 established that a legacy tag may live on the *source node* rather than the
 binding, reachable through `EdgeBindingDef.source_node.spec.extra.tags`; the
@@ -738,27 +739,53 @@ a multi-metric dataset, so the node's documented per-metric flag columns still
 work; a dataset binding built by the graph would select one metric, which is
 worth re-checking when `dataset_index` retires.
 
-The 55 remaining classes divide as follows. The dividing line is not the file
-or the tag pattern — it is whether the class can express its inputs within the
-one-metric port boundary.
+The remaining classes divide as follows. The dividing line is not the file or
+the tag pattern: it is what the class needs *beyond* a value on a declared
+port. Before assuming a class is blocked, load its config through
+`InstanceLoader._stash_snapshot_bindings()` and print its ports with their
+bound source metric. The graph usually already carries the distinction the
+class was making by hand.
 
-1. **Multi-metric source consumed as a unit** — blocked, and the largest
-   surprise of this wave. `FloorAreaNode` and `CfNode` read `triggered` *and*
-   `compliant` from one `CfFloorAreaAction` edge; `AnnuityNode` reads
-   `currency` and `term` from one edge; `DatasetReduceAction`,
-   `DatasetReduceAction2` and `StockReplacementAction` want one source per
-   output metric. A port delivers exactly one metric per binding, and the
-   legacy configs carry one edge per source, so there is no second binding to
-   carry the other metric. These need either the paired-port arrangement
-   `AdditiveAction` received, or a graph/parser change that expands one
-   multi-metric edge into one binding per selected metric. **Do not attempt
-   these class-by-class; settle the capability first.**
-2. **One binding serving two roles** — blocked on the same kind of gap.
+1. **Several metrics of one source** — *not blocked*. An earlier revision of
+   this section claimed a port could not deliver these and that a parser
+   change was needed. That was wrong, and it is worth stating plainly because
+   it would have cost a capability nobody needs.
+
+   `_build_input_ports()` already loops over an edge's metrics and emits one
+   `InputPortDef` per metric, each bound to that metric's output port, named
+   `{source}_{metric}`; `_build_output_ports()` already gives every source one
+   output port per `NodeMetric`. So a legacy `input_nodes` entry against a
+   multi-metric source **is already several ports**. Confirmed by loading
+   longmont-old (`affected_square_footage`: 7 ports, not 3), tampere-c4c
+   (`annuitized_costs`: `currency` and `term` per action), zuerich-2025, nzc,
+   cork-nzc and dut-transport-nzc.
+
+   What a migrating class needs is therefore only:
+   - one declared role per source metric it consumes;
+   - a legacy hook classifying by `EdgeBindingDef.source_port.column_id`
+     (or `DatasetBindingDef`'s metric) rather than by source node class;
+   - re-pairing by `binding.source_id` when metrics that used to arrive in one
+     frame have to be used together.
+
+   `FloorAreaNode` and `CfNode` are converted on exactly this basis, verified
+   against longmont-old. `AnnuityNode` has the identical shape and follows
+   directly — but tampere-c4c is in the pre-existing failed set, so no
+   `--compare` baseline covers it; record that before changing it.
+
+   The `DatasetReduceAction` family is the same story with one extra step. Its
+   bindings are already one per (role × the *consumer's* output metric), and
+   the legacy tags already name both (`tags: [historical, renovation_rate]`).
+   Expressing that needs `repeatable` roles with one port instance per output
+   metric, paired through `InputPortDef.paired_output_port_id` and read with
+   `iter_input_ports()` — all of which exist, because `AdditiveAction` already
+   uses them. It is role vocabulary and legacy inference, not a new capability.
+2. **One binding serving two roles** — the one genuine structural gap found.
    Every `DilutionNode` config binds one source under `tags: [removing,
-   inserting]`, so two required ports would have to share a binding. The
-   options are a config change splitting the edge in two (untested: duplicate
-   edges between one node pair may not be representable) or a deliberate
-   semantic decision that `inserting` defaults to `removing`.
+   inserting]`, so two required ports would have to share a single binding.
+   Unlike group 1 there is no second port to recover: one binding, one port,
+   one role. The options are a config change splitting the edge in two
+   (untested: duplicate edges between one node pair may not be representable)
+   or a deliberate semantic decision that `inserting` defaults to `removing`.
 3. **`GenericNode` descendants** (~17 classes) — blocked on the typed
    `PipelineNode` operation contract, as step 6 already says. The tag lookup
    is inside the operation registry (`_preprocess_for_one` takes a tag
@@ -780,7 +807,8 @@ one-metric port boundary.
    in zero configs, so no `--compare` baseline can cover a change to them.
    Migrate only alongside a DB instance that exercises them.
 
-What is genuinely left as ordinary work is small: `VehicleDatasetNode`, and
+Ordinary work still available without settling anything: `AnnuityNode` and the
+`DatasetReduceAction` family per group 1, `VehicleDatasetNode`, and
 `MultiplicativeNode`'s last `get_input_nodes` call. `SimpleNode`'s two
 `get_input_dataset_pl()` calls are in framework helpers
 (`fill_gaps_using_input_dataset_pl`) shared by many subclasses, so they belong
