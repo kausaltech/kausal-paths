@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, ClassVar
+from typing import ClassVar
 
 from django.utils.translation import gettext_lazy as _
 
@@ -8,7 +8,6 @@ import polars as pl
 
 from common import polars as ppl
 from nodes.calc import convert_to_co2e
-from nodes.constraints.port_roles import PortRoleInferenceResult
 from nodes.defs.port_def import InputPort, InputPortDeclaration
 from nodes.operands import Operand, sum_operands
 from nodes.simple import AdditiveNode, MultiplicativeNode, SimpleNode
@@ -18,12 +17,6 @@ from .constants import FORECAST_COLUMN, TIME_INTERVAL, VALUE_COLUMN, YEAR_COLUMN
 from .exceptions import NodeError
 from .node import Node
 from .units import unit_registry
-
-if TYPE_CHECKING:
-    from collections.abc import Sequence
-
-    from nodes.defs.port_def import InputPortDef
-    from nodes.instance_graph import NodeMeta
 
 
 class FloorAreaNode(MultiplicativeNode):  # FIXME Rebuild this with modern tools
@@ -41,43 +34,14 @@ class FloorAreaNode(MultiplicativeNode):  # FIXME Rebuild this with modern tools
     )
     consumes_all_inputs_through_ports = True
 
-    metric_roles: ClassVar[dict[str, str]] = {'triggered': 'triggered', 'compliant': 'compliant'}
-    """Source metric column -> this class's role for it. CfNode reads a different metric."""
-
-    base_role: ClassVar[str] = 'floor_area'
-    """Role for the single-metric operand the class multiplies the action shares against."""
-
-    @classmethod
-    def infer_legacy_port_roles(cls, meta: NodeMeta, candidates: Sequence[InputPortDef]) -> PortRoleInferenceResult:
-        """
-        Classify by the source metric each port already selects.
-
-        The parser expands one legacy ``input_nodes`` entry against a multi-metric action
-        into one port per metric, each bound to that metric's output port, so the split
-        this class used to do with ``isinstance(node, CfFloorAreaAction)`` and column
-        names is already present in the graph. Reading ``source_port.column_id`` recovers
-        it without the class having to know which node classes are actions.
-        """
-        from nodes.defs.binding_def import EdgeBindingDef
-
-        result = PortRoleInferenceResult()
-        for port in candidates:
-            edges = [binding for binding in meta.bindings_for_port(port.id) if isinstance(binding, EdgeBindingDef)]
-            if not edges:
-                result.refuse(port, 'only a node input can be an operand of this class')
-                continue
-            columns = {str(edge.source_port.column_id) for edge in edges}
-            if len(columns) != 1:
-                result.refuse(port, f'port mixes source metrics {sorted(columns)}')
-                continue
-            column = columns.pop()
-            if column in cls.metric_roles:
-                result.classify(port, cls.metric_roles[column], f'source metric {column!r}')
-            elif column == VALUE_COLUMN:
-                result.classify(port, cls.base_role, 'a single-metric source')
-            else:
-                result.refuse(port, f'source metric {column!r} is not an operand of this class')
-        return result
+    # The parser already expands one legacy input_nodes entry against a multi-metric
+    # action into a port per metric, so the split this class used to make with
+    # isinstance(node, CfFloorAreaAction) and column names is the source metric itself.
+    legacy_input_port_roles_by_source_metric: ClassVar[dict[str, str]] = {
+        'triggered': 'triggered',
+        'compliant': 'compliant',
+        VALUE_COLUMN: 'floor_area',
+    }
 
     def _metric_by_source(self, port: InputPortDeclaration, column: str) -> dict[str, ppl.PathsDataFrame]:
         """
@@ -203,8 +167,10 @@ class CfNode(FloorAreaNode):
     improvement_port = InputPort.multi('improvement', label=_('Consumption factor improvement per action'))
     input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = (baseline_port, improvement_port)
 
-    metric_roles: ClassVar[dict[str, str]] = {'improvement': 'improvement'}
-    base_role: ClassVar[str] = 'baseline'
+    legacy_input_port_roles_by_source_metric: ClassVar[dict[str, str]] = {
+        'improvement': 'improvement',
+        VALUE_COLUMN: 'baseline',
+    }
 
     def compute(self):
         improvements = self._metric_by_source(self.improvement_port, VALUE_COLUMN)
