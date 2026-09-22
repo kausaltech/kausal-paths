@@ -83,13 +83,16 @@ from paths.utils import (
     get_supported_languages,
 )
 
+from frameworks.models import Framework
 from nodes.defs import DatasetBindingDef, EdgeBindingDef, InstanceModelSpec, NodeSpec, YearsSpec
 from nodes.defs.instance_defs import ActionGroup, InstanceFeatures, InstanceMetadata
 from nodes.defs.transform_def import StoredPortTransformOp
+from nodes.instance_graph import NodeEditContext, NodeMeta
 from nodes.instance_serialization import (
     InputBindingSnapshot,
     NodeSnapshot,
 )
+from nodes.template_settings import InheritedNodeSettings
 from orgs.models import Organization
 from pages.blocks import CardListBlock
 
@@ -98,6 +101,7 @@ if TYPE_CHECKING:
     from datetime import datetime
 
     from django.db.models import CharField
+    from wagtail.models import Revision
 
     from loguru import Logger
 
@@ -618,6 +622,17 @@ class InstanceConfig(
     # a post-publish edit see the current DB state.
     _nodes_for_serialization: list[NodeConfig] | None
     _annotated_dataset_ports: list[NodeInputPortBinding]
+    template_revision: FK[Revision | None] = models.ForeignKey(
+        'wagtailcore.Revision',
+        on_delete=models.PROTECT,
+        related_name='+',
+        null=True,
+        blank=True,
+    )
+    template_revision_id: int | None
+    node_settings = SchemaField(schema=list[InheritedNodeSettings], default=list, blank=True)
+    binding_overrides: RevMany[InputPortBindingSet]
+
     _publication_dataset_revision_pins: dict[int, Any] | None = None
     # Avoid revalidating the same YAML materialization for every field resolved
     # from one model object. A newly loaded row validates against disk again.
@@ -970,20 +985,40 @@ class InstanceConfig(
         graph = get_instance_graph(self, PreferredInstanceSource.DRAFT, resolved_source=source)
         require_valid_instance_constraints(self, graph, source)
 
+    @cached_property
+    def is_template(self) -> bool:
+
+        return (
+            Framework.objects.filter(template_instance=self).exists()
+            or InstanceConfig.objects.filter(
+                template_revision__content_type=ContentType.objects.get_for_model(InstanceConfig),
+                template_revision__object_id=str(self.pk),
+            ).exists()
+        )
+
     def publish_instance(self, user: User | None = None) -> None:
         """Atomically publish the model and immutable revisions of its DB datasets."""
         from wagtail.models import Revision
 
-        from nodes.instance_serialization import DatasetRevisionPinSnapshot
+        from nodes.instance_serialization import DatasetRevisionPinSnapshot, build_instance_snapshot
+        from nodes.template_graph import lock_template_for_publication, publish_template_instance
 
+        if self.is_template:
+            publish_template_instance(self, user=user)
+            self.refresh_from_db()
+            return
         with transaction.atomic():
+            lock_template_for_publication(self.pk)
             locked = InstanceConfig.objects.select_for_update().get(pk=self.pk)
+            effective_snapshot = build_instance_snapshot(locked)
+            inherited_ids = {pin.dataset_uuid for pin in effective_snapshot.dataset_revisions}
             dataset_ids = list(
-                NodeInputPortBinding.objects
-                .filter(instance=locked, dataset__isnull=False)
-                .order_by()
-                .values_list('dataset_id', flat=True)
-                .distinct()
+                DatasetModel.objects
+                .exclude(uuid__in=inherited_ids)
+                .filter(
+                    uuid__in=[dataset.id for dataset in effective_snapshot.datasets],
+                )
+                .values_list('pk', flat=True)
             )
             datasets = list(
                 DatasetModel.objects
@@ -1072,9 +1107,28 @@ class InstanceConfig(
                 )
                 for dataset in datasets
             ])
+            if inherited_ids:
+                inherited_pins = InstanceRevisionDatasetPin.objects.filter(
+                    instance_revision_id=locked.template_revision_id,
+                    dataset_uuid__in=inherited_ids,
+                )
+                InstanceRevisionDatasetPin.objects.bulk_create([
+                    InstanceRevisionDatasetPin(
+                        instance_config=locked,
+                        instance_revision=revision,
+                        dataset_id=pin.dataset_id,
+                        dataset_revision_id=pin.dataset_revision_id,
+                        dataset_uuid=pin.dataset_uuid,
+                        identifier=pin.identifier,
+                        forecast_from=pin.forecast_from,
+                        shape_profiles=pin.shape_profiles,
+                    )
+                    for pin in inherited_pins
+                ])
             locked.publish(revision, user=user)
             locked.invalidate_cache()
 
+            locked.refresh_from_db(fields=['latest_revision', 'live_revision', 'cache_invalidated_at'])
             self.latest_revision_id = locked.latest_revision_id
             self.live_revision_id = locked.live_revision_id
             self.cache_invalidated_at = locked.cache_invalidated_at
@@ -1348,11 +1402,9 @@ class InstanceConfig(
             raise AssertionError(f'Dimension ORM missing entries for instance {self.identifier!r}: {missing}')
 
     def _orm_category_ids_by_dim(self) -> dict[str, set[str]]:
-        from kausal_common.datasets.models import DimensionScope
+        from frameworks.catalogue import dimension_scopes
 
-        scopes = (
-            DimensionScope.objects.for_instance_config(self).select_related('dimension').prefetch_related('dimension__categories')
-        )
+        scopes = dimension_scopes(self).select_related('dimension').prefetch_related('dimension__categories')
         result: dict[str, set[str]] = {}
         for scope in scopes:
             assert scope.identifier is not None
@@ -2111,12 +2163,38 @@ class NodeConfigPermissionPolicy(
         q = super().construct_perm_q(user, action)
         if q is None or action not in ('change', 'delete'):
             return q
-        return q & Q(is_editable=True)
+        if user.is_superuser:
+            return q
+
+        template_ids = Framework.objects.exclude(template_instance=None).values('template_instance_id')
+        inherited_template_ids = InstanceConfig.objects.filter(
+            template_revision__content_type=ContentType.objects.get_for_model(InstanceConfig),
+        ).values('template_revision__object_id')
+        from django.db.models.functions import Cast
+
+        return q & (
+            Q(is_editable=True)
+            | Q(instance_id__in=template_ids)
+            | Q(
+                instance_id__in=InstanceConfig.objects
+                .annotate(template_object_id=Cast('pk', models.CharField()))
+                .filter(template_object_id__in=inherited_template_ids)
+                .values('pk')
+            )
+        )
 
     def user_has_perm(self, user: User, action: ObjectSpecificAction, obj: NodeConfig) -> bool:
-        if action in ('change', 'delete') and not obj.is_editable and not user.is_superuser:
-            return False
-        return super().user_has_perm(user, action, obj)
+        allowed = super().user_has_perm(user, action, obj)
+        if action not in ('change', 'delete'):
+            return allowed
+
+        return NodeMeta.can_edit(
+            NodeEditContext(
+                can_change_instance=allowed, is_draft=True, is_template=obj.instance.is_template, is_superuser=user.is_superuser
+            ),
+            inherited=False,
+            node_is_editable=obj.is_editable,
+        )
 
 
 class NodeConfig(PathsModel[InstanceConfig], EditableInstanceChild, index.Indexed):
@@ -2876,3 +2954,111 @@ class InstanceInvitation(UserModifiableModel, PermissionedModel):
         self.accepted_at = timezone.now()
         self.accepted_by = user
         self.save(update_fields=['accepted_at', 'accepted_by', 'last_modified_at', 'last_modified_by'])
+
+
+class InputPortBindingSet(UUIDIdentifiedModel):
+    """Complete replacement of one effective input port's bindings; an empty list disconnects it."""
+
+    instance: FK[InstanceConfig] = models.ForeignKey(
+        'nodes.InstanceConfig',
+        on_delete=models.CASCADE,
+        related_name='binding_overrides',
+    )
+    node_uuid = models.UUIDField()
+    port_uuid = models.UUIDField()
+    bindings = SchemaField(schema=list[InputBindingSnapshot], default=list, blank=True)
+
+    instance_id: int
+    references: RevMany[InputPortBindingReference]
+
+    @copy_signature(models.Model.save)
+    def save(self, *args, **kwargs):
+        from kausal_common.datasets.models import Dataset
+
+        from nodes.instance_serialization import DatasetMetricSource, NodePortSource
+        from nodes.models import NodeConfig
+
+        with transaction.atomic():
+            result = super().save(*args, **kwargs)
+            self.references.all().delete()
+            dataset_ids = {
+                b.source.dataset_uuid
+                for b in self.bindings
+                if isinstance(b.source, DatasetMetricSource) and b.source.dataset_uuid is not None
+            }
+            metric_ids = {
+                b.source.metric_uuid
+                for b in self.bindings
+                if isinstance(b.source, DatasetMetricSource) and b.source.metric_uuid is not None
+            }
+            node_ids = {b.source.node_id for b in self.bindings if isinstance(b.source, NodePortSource)} | {self.node_uuid}
+            InputPortBindingReference.objects.bulk_create(
+                [
+                    InputPortBindingReference(override=self, dataset=dataset)
+                    for dataset in Dataset.objects.filter(uuid__in=dataset_ids)
+                ]
+                + [
+                    InputPortBindingReference(override=self, metric=metric)
+                    for metric in DatasetMetric.objects.filter(uuid__in=metric_ids)
+                ]
+                + [
+                    InputPortBindingReference(override=self, node=node)
+                    for node in NodeConfig.objects.filter(instance_id=self.instance_id, uuid__in=node_ids)
+                ]
+            )
+            return result
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['instance', 'node_uuid', 'port_uuid'], name='unique_instance_port_override')
+        ]
+
+    def __str__(self) -> str:
+        return f'{self.instance_id}: {self.node_uuid}/{self.port_uuid}'
+
+
+class InputPortBindingReference(models.Model):
+    """Retain local nodes and datasets referenced by a serialized binding override."""
+
+    override: FK[InputPortBindingSet] = models.ForeignKey(
+        InputPortBindingSet,
+        on_delete=models.CASCADE,
+        related_name='references',
+    )
+    dataset: FK[DatasetModel | None] = models.ForeignKey(
+        'datasets.Dataset',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='+',
+    )
+    node: FK[NodeConfig | None] = models.ForeignKey(
+        'nodes.NodeConfig',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='+',
+    )
+
+    metric: FK[DatasetMetric | None] = models.ForeignKey(
+        DatasetMetric,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='+',
+    )
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(dataset__isnull=False, node__isnull=True, metric__isnull=True)
+                    | models.Q(dataset__isnull=True, node__isnull=False, metric__isnull=True)
+                    | models.Q(dataset__isnull=True, node__isnull=True, metric__isnull=False)
+                ),
+                name='input_binding_reference_one_source',
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f'Binding reference {self.pk}'

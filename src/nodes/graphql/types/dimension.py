@@ -5,8 +5,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import strawberry as sb
+from django.contrib.contenttypes.models import ContentType
 
 from kausal_common.strawberry.ordering import with_sibling_ids
+
+from nodes.models import InstanceConfig
 
 if TYPE_CHECKING:
     from kausal_common.datasets.models import (
@@ -52,6 +55,7 @@ class DimensionType:
     identifier: str
     name: str
     categories: list[DimensionCategoryType]
+    is_editable: bool = True
 
     @classmethod
     def from_scope(cls, scope: DimensionScope) -> DimensionType:
@@ -70,4 +74,5 @@ class DimensionType:
             identifier=scope.identifier or '',
             name=dim.name_i18n or str(dim.uuid),
             categories=cats,
+            is_editable=scope.scope_content_type_id == ContentType.objects.get_for_model(InstanceConfig).pk,
         )

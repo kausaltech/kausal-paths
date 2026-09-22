@@ -1,4 +1,4 @@
-# BISKO certification architecture — implementation plan
+# BISKO certification architecture — status and implementation plan
 
 ## Purpose
 
@@ -23,36 +23,52 @@ themselves establish:
 The intended end state is:
 
 ```text
-published framework model release
+published template instance revision
     + versioned certification profile
     + versioned reference and provider data
-    + city-owned data and evidence
-    + city-owned presentation overlay
-    -> effective city graph
+    + instance-owned data and evidence
+    + instance-owned bindings, settings, and presentation
+    -> effective instance graph
     -> revision-scoped certification assessment
 ```
 
 ## Status
 
-Planning document, 18 August 2026. No implementation described here should be
-treated as landed merely because adjacent validation, revision, or model-editor
-infrastructure already exists.
+Updated 22 September 2026. This document started as the 18 August plan;
+the statuses below distinguish implemented backend foundations from planned
+certification and UI work. Implemented means present in the codebase, not
+deployed or enabled for every existing instance.
 
-The current relevant building blocks are:
+| Area | Current status |
+| --- | --- |
+| Framework and quality catalogue | Implemented: semantic model modules, `DataQualityScheme`, `DataQualityLevel`, and idempotent BISKO provisioning. |
+| Template inheritance | Implemented: published template revision selection, effective graph composition, local binding overrides, and atomic template publication. |
+| Shared schemas and dimensions | Implemented: Framework or InstanceConfig scopes, separate schema/data permissions, and one dataset per schema per scope. |
+| Editor permissions | Implemented: backend-computed node/port editability, separate binding editability, and editable local nodes in inheriting instances. |
+| Dataset validation | Existing backend support includes typed metric rules, category domains, structured violations, and edit/publication enforcement. |
+| Data-point quality and evidence | Planned: catalogue grades exist, but data-point grade assignment, evidence resolution, and derived quality columns are not implemented. |
+| Certification criteria and assessment | Planned: no profile/requirement models, compiler, evaluator, or persisted assessment yet. |
+| Data-editing UI | Can consume existing dataset validation and permission fields; quality/evidence and certification flows still need backend APIs and UI integration. |
 
-- `Framework.template_instance`, which currently acts as a source to clone when
-  creating a framework instance;
-- immutable `InstanceGraph` value objects and revision-backed instance
-  snapshots;
-- dataset and instance publication with pinned dataset revisions;
-- UUID-identified nodes, ports, dimensions, categories, schemas, metrics, and
-  data points;
-- generic `DimensionScope` and `DatasetSchemaScope`, currently restricted to
-  `InstanceConfig` in Paths;
-- typed dataset metric validation rules with edit-time and publication-time
-  enforcement; and
-- `DataSource` and `DatasetSourceReference`, which retain bibliographic sources
-  but not a complete evidence assessment.
+Implementation details live in
+[framework quality](../architecture/framework-quality.md) and
+[template inheritance](../architecture/template-inheritance.md).
+Framework models now live under `src/frameworks/models/`:
+`framework.py`, `config.py`, `measures.py`, and `quality.py`, with public
+imports preserved by `__init__.py`.
+
+The latest full backend run passed 3,106 tests, with four skipped and three
+expected failures. Ruff, targeted mypy, and migration consistency checks passed.
+Local conversion experiments compared 504 node outputs across two existing
+BISKO models and their default/baseline scenarios against stored reference
+outputs. Those comparisons established numerical migration parity, not
+certification. Different historical national reference-data editions must
+remain pinned to reproduce those baselines.
+
+The next backend slice for the data-editing UI is quality assignment and its
+evidence/validation contract. Provisioning grades alone does not make quality
+editable on `DataPoint`, and existing validation violations are not certification
+findings. The detailed evidence design below remains a proposal for that slice.
 
 ## Load-bearing decisions
 
@@ -84,68 +100,108 @@ The BISKO framework owns:
 - intrinsic validation rules; and
 - compatible certification profiles.
 
-City instances own observations, declarations, overrides, explicit source
-selections, local extensions, and presentation. A framework-owned object is
-effectively read-only when viewed through a city instance even if the city user
-can edit the city-owned data connected to it.
+Dependent instances own observations, declarations, overrides, explicit source
+selections, local extensions, and presentation. Framework definitions are
+read-only through the dependent instance even when its editor can modify the
+local data connected to them.
 
 The existing `FrameworkDimension` remains separate. It classifies
 `FrameworkConfig` objects for such purposes as selecting defaults. Calculation
-dimensions continue to use `kausal_common.datasets.Dimension` and gain a
-`Framework` scope.
+dimensions use `kausal_common.datasets.Dimension` with `Framework` or
+`InstanceConfig` scope.
 
-### Shared nodes are consumed through a versioned base graph
+### Shared nodes are consumed through a published template revision
 
-The current `bisko` instance becomes the initial authoring surface for the
-shared BISKO model, referenced by `Framework.template_instance`. City instances
-must not execute the mutable draft of that instance directly.
+The `bisko` instance is the authoring surface referenced by
+`Framework.template_instance`. A dependent instance selects its base through
+`InstanceConfig.template_revision -> wagtailcore.Revision`. There is no separate
+`FrameworkModelRelease` or `InstanceGraphImport` model, and no release FK on
+individual bindings. One selected revision governs the dependent draft.
 
-Publishing the template produces an immutable framework model release. The
-effective graph for a city is composed from a pinned release and a city-owned
-overlay:
+Throughout this document, a model release means a published template instance
+revision. The generic terms are **framework instance**, **dependent instance**,
+and **local**; framework membership does not imply a municipality.
 
 ```text
-Framework.template_instance draft
+Framework.template_instance live draft
         |
-        | publish
+        | publish: freeze reference data and validate all dependent drafts
         v
-FrameworkModelRelease ------------------------------+
-  - template instance revision                      |
-  - framework catalogue snapshot                    |
-  - compatible reference-data declarations          |
-                                                     v
-                                      effective city InstanceGraph
-                                                     ^
-City overlay ----------------------------------------+
-  - municipal datasets and evidence
-  - explicit provider/default selections
-  - bindings at declared extension points
-  - permitted city parameters
-  - node layouts
-  - optional local nodes
+published Wagtail Revision <--- dependent InstanceConfig.template_revision
+        |                                      |
+        +------------------+-------------------+
+                           v
+                 effective InstanceGraph
+                 + local nodes and datasets
+                 + input binding replacements
+                 + permitted settings and layouts
+                           |
+                           | publish dependent instance
+                           v
+                 self-contained instance snapshot
 ```
 
-Changing the template creates a new release. Framework administrators may
-advance many city drafts to it in one controlled operation, but published city
-revisions stay pinned to their original release.
+Individual template edits affect only the template draft. Publishing locks the
+template and its dependent instances, validates their composed drafts, and
+advances the template publication and all dependent draft pointers atomically.
+A newly introduced structural conflict, missing target, or cycle aborts the
+whole operation. Existing draft conflicts do not by themselves prevent an
+otherwise compatible template update.
 
-### City overlays cannot mutate the certified base
+Published dependent instances retain their complete effective snapshots and
+dataset pins; neither template edits nor template publication rewrites them.
+Public views can therefore use published snapshots while model editors work on
+drafts. Selectively advancing individual dependents is not the current
+publication workflow.
 
-The base release owns node specs, ports, internal edges, and locked method
-parameters. A city overlay may only change explicitly exposed extension
-points. In particular:
+### Ownership and editability are relative to the active instance
 
-- framework node calculation metadata is protected;
-- framework internal ports and edges are protected;
-- municipal datasets remain city-editable;
-- selection of an accepted provider or municipal source is city-owned;
-- node layout is city-owned presentation state; and
-- local analysis nodes may be allowed without becoming part of the certified
-  result.
+Inherited node definitions, port definitions, and template-owned bindings are
+read-only in the dependent instance. The same nodes and ports are editable in
+the template's own draft, subject to permissions. Local nodes remain editable
+in an inheriting instance; framework membership is not a blanket edit lock.
 
-Effective GraphQL permissions derive from origin (`framework` or `instance`)
-and the requested operation. They do not rely solely on a copied
-`is_editable=false` flag.
+`NodeMeta.can_edit()` centralizes the decision using a `NodeEditContext`.
+GraphQL flags and mutation guards use the same policy. The effective
+`Node.isEditable`, `InputPortType.isEditable`, and
+`OutputPortType.isEditable` values account for permissions, draft/published
+source, and ownership. The legacy node `is_editable` flag is retained for
+ordinary protected local nodes; it is not the inheritance mechanism.
+
+Port definition edits and binding edits are separate operations:
+`InputPortType.bindingsEditable` reports whether sources may be replaced.
+An inherited input with `binding_owner == 'instance'` accepts local sources;
+other inherited inputs retain the template bindings.
+
+Local inputs may be supplied either by a dataset or by a local node output.
+District-heating emission factors are the motivating BISKO case: an instance
+may compute its local factor in Paths. The same rule applies to other declared
+local-input ports. Inherited outputs may also feed local nodes. These
+connections must satisfy port contracts and preserve an acyclic graph.
+
+Local layouts, goals, and permitted parameter values are instance settings.
+Allowing a local calculation is implemented; deciding whether its evidence and
+method satisfy a certification profile remains future assessment work.
+
+### A shared schema still permits only one dataset per scope
+
+`DatasetSchema` and calculation `Dimension` may be scoped to a `Framework`
+or an `InstanceConfig`. A shared schema can serve datasets in many instances,
+but the database uniqueness constraint on
+`(schema, scope_content_type, scope_id)` is retained. Sharing across instances
+does not require multiple datasets under the same schema in one instance.
+
+The proposed constraint-removal migration was removed before pushing.
+Alternative datasets within one scope need separate schemas under this model;
+historical versions use revisions. Schema adoption during conversion retains
+an existing local schema if another dataset in the same scope already uses the
+target shared schema. The editor rejects a second dataset for that schema and
+scope with a validation error.
+
+Shared-definition visibility never grants access to another instance's values.
+Schema-definition permissions are separate from dataset/data-point permissions,
+so a protected framework schema can still receive locally editable data.
+Legacy protected local datasets retain their previous edit restrictions.
 
 ### Schema validity and certification requiredness are different
 
@@ -188,68 +244,70 @@ authoritative editable quality record.
 
 ## Domain model
 
-### FrameworkModelRelease
+### Template revision and binding storage — implemented
 
-Introduce an immutable published model release:
+`Framework.template_instance` identifies the authoring instance.
+`InstanceConfig.template_revision` selects the published base for a dependent
+draft. Framework members must select a revision of their own framework's
+template; nested template inheritance is rejected.
 
-```text
-FrameworkModelRelease
-  uuid
-  framework -> Framework
-  version
-  template_revision -> wagtailcore.Revision
-  state: draft | published | retired
-  created_at / created_by
-  published_at / published_by
-  supersedes -> FrameworkModelRelease | null
-  catalogue_snapshot
-```
+The generic `InputPortBindingSet` identifies
+`(instance, node_uuid, port_uuid)` and stores a complete ordered replacement:
 
-`catalogue_snapshot` records the exact dimensions, categories, schemas,
-category domains, metrics, and intrinsic validation rules used by the release.
-It may initially be a typed `SchemaField`; normalised retention tables can be
-added if later cleanup requirements demand them.
+- no row: inherit the default binding;
+- an empty binding list: explicitly disconnect;
+- a populated list: replace the default with those dataset-metric or node-output
+  sources.
 
-`Framework` gains an active/default model release. `FrameworkConfig` records
-the release used by its current draft. Every published `InstanceConfig`
-revision records the effective model release UUID.
+Targets and sources use stable snapshot UUIDs, not a foreign key to a mutable
+template `NodeConfig`. `InputPortBindingReference` supplies protective foreign
+keys for referenced local datasets, metrics, and nodes.
+`NodeInputPortBinding` remains ordinary local binding storage.
+`InstanceConfig.node_settings` stores permitted local settings without copying
+shared definitions.
 
-The template instance remains an authoring workspace, not a live dependency of
-published city calculations.
+This is generic graph composition, not a family of `FrameworkBinding*` models.
+Binding validity is checked against the selected revision. Template publication
+validates all affected composed drafts before advancing them.
 
-### Framework and instance catalogue scopes
+### Framework and instance catalogue scopes — implemented
 
-Extend the Paths type and service boundaries to support:
+Paths supports:
 
 ```python
 DimensionScopeType = Framework | InstanceConfig
 DatasetSchemaScopeType = Framework | InstanceConfig
 ```
 
-Do not scatter `framework OR instance` queries throughout loaders and GraphQL.
-Add an effective-catalogue service with explicit methods such as:
+`frameworks.catalogue.dimension_scopes()` and `schema_scopes()` provide the
+effective catalogue queries. `DatasetSchema.objects.for_scope_type(Framework)`
+encapsulates content-type filtering, using Django's ContentType cache.
 
-```python
-effective_dimensions(instance_config)
-effective_dataset_schemas(instance_config)
-resolve_dimension(instance_config, identifier)
-resolve_dataset_schema(instance_config, identifier)
-```
+List queries annotate dataset schema editability with `Exists`, and graph
+dataset/schema details are bulk-loaded and prefetched. Query-count tests cover
+dataset lists and inherited ports with default or local dataset bindings.
+The UI can consume `schemaIsEditable` separately from value-edit permissions.
 
-Resolution returns the union of framework-scoped resources and instance-local
-additions. Duplicate identifiers across the effective catalogue are errors
-unless an explicit replacement mechanism is introduced later.
+### Quality schemes and levels — catalogue implemented
 
-Framework administrators control framework-scoped definitions. Instance
-editors may use those definitions and edit their city-owned datasets, but may
-not mutate the definitions. This requires separating schema-definition
-permissions from dataset/data-point permissions; a framework-owned immutable
-schema must not accidentally make all municipal data using it immutable.
+`DataQualityScheme` belongs to a framework and is unique by
+`(framework, identifier, version)`. `DataQualityLevel` supplies a stable UUID,
+identifier, label, description, order, and score in the inclusive range 0–1.
 
-### DatasetSchema category domain
+Provisioning seeds `bisko` scheme version `1` with A=1, B=0.5, C=0.25, D=0.
+The version identifies the catalogue definition, not a certification protocol
+edition. Model saves protect scheme identity and grade identity/score; changes
+to scoring require a new version. Ungraded is absence of an assessment, not D.
 
-Add a dedicated typed field to `DatasetSchema`, rather than using a parallel
-template dataset:
+These models store vocabulary only. The proposed evidence and certification
+models below must reference the versioned catalogue rather than own duplicate
+grade definitions. Quality assignment, its editing API, and the projection back
+into numeric calculation columns are still to be implemented.
+
+### DatasetSchema category domain — backend foundation implemented
+
+The existing typed field on `DatasetSchema` represents valid combinations
+without a parallel template dataset:
 
 ```python
 from pydantic import Field
@@ -257,6 +315,7 @@ from pydantic import Field
 
 class DatasetCategoryCombination(BaseModel):
     id: UUID
+    identifier: str
     categories: dict[UUID, UUID]  # dimension UUID -> category UUID
 
 
@@ -265,12 +324,12 @@ class DatasetCategoryDomain(BaseModel):
     combinations: list[DatasetCategoryCombination] = Field(default_factory=list)
 ```
 
-Suggested model field:
+The model field is:
 
 ```python
 category_domain = SchemaField(
     schema=DatasetCategoryDomain,
-    default=DatasetCategoryDomain,
+    default=empty_category_domain,
     blank=True,
 )
 ```
@@ -283,8 +342,8 @@ Semantics:
 - each combination UUID is stable and may be referenced by findings and UI
   state.
 
-Pydantic validation checks syntactic invariants and duplicate tuples. A
-catalogue-aware validator checks that:
+Pydantic validation checks duplicate IDs, identifiers, and tuples. The intended
+catalogue-aware write contract also requires that:
 
 - every referenced dimension belongs to the schema;
 - every category belongs to its stated dimension;
@@ -292,25 +351,36 @@ catalogue-aware validator checks that:
 - closed-domain tuples contain the required schema dimensions; and
 - all references are available in the effective framework catalogue.
 
-All schema write entry points call the same validator. Dataset edits and
-publication validate populated data against closed domains.
+Completing and auditing this contract across schema write paths and shared
+framework scopes remains part of Phase 1. Dataset rule evaluation already
+supports allowed/required combination checks against category domains.
 
-The domain is serialized into framework releases, instance snapshots, dataset
-schema GraphQL, and published assessments. A later relational representation
-is justified only if category-level querying, independent combination edits,
+The domain is serialized into dataset/instance snapshots and exposed through
+GraphQL. Published certification assessments must retain it when implemented.
+Importing all BISKO requirement-template semantics into domains remains migration
+work; valid combinations must not be confused with certification requiredness.
+A later relational representation is justified only if category-level querying, independent combination edits,
 or database deletion protection becomes important enough to outweigh the
 simpler source-neutral JSON representation.
 
-### Generic value validation
+### Generic value validation — dataset rules implemented; node rules planned
 
-Generalise the existing dataset metric rule vocabulary into rules over a
+Dataset metric rules and structured validation violations already exist, with
+`block_edit` and `block_publish` enforcement. `Dataset.validationViolations`
+reads current violations from materialization; data-point batch mutations also
+return violations. The data-editing UI can consume this contract now.
+Violations identify the rule, metric, years, and category coordinates, with
+combination IDs and requirement-group identifiers where applicable. They
+describe dataset validity, not quality grades or certification decisions.
+
+The planned extension makes the existing rule vocabulary apply to a generic
 tabular value subject. A rule subject may be:
 
 - a dataset metric; or
 - a node output port.
 
-Dataset metric rules remain attached to `DatasetMetric`. Node output rules are
-attached to `OutputPortDef`, which is the canonical persisted 1:1 description
+Dataset metric rules remain attached to `DatasetMetric`. Planned node output
+rules will attach to `OutputPortDef`, which is the canonical persisted 1:1 description
 of a runtime node metric.
 
 Initial reusable rule kinds include:
@@ -331,7 +401,7 @@ The evaluator returns structured violations/findings rather than only booleans.
 Node computation failure produces an incomplete finding and cannot satisfy a
 requirement vacuously.
 
-### CertificationProfile
+### CertificationProfile — planned
 
 Add a profile owned by a framework:
 
@@ -343,7 +413,7 @@ CertificationProfile
   version
   name
   state: draft | published | retired
-  compatible_model_release -> FrameworkModelRelease
+  compatible_template_revision -> wagtailcore.Revision
   supersedes -> CertificationProfile | null
   specification
 ```
@@ -351,12 +421,12 @@ CertificationProfile
 Each published row is an immutable version. A BISKO method update creates a new
 profile rather than rewriting an older one.
 
-`specification` is a typed, source-neutral representation containing quality
-schemes and certification requirements. If profile reuse across several
+`specification` is a planned typed, source-neutral representation containing
+references to versioned quality schemes and certification requirements. If profile reuse across several
 frameworks becomes real, replace the direct framework FK with an explicit
 through model; do not add that indirection pre-emptively.
 
-### CertificationRequirement
+### CertificationRequirement — planned
 
 A requirement contains:
 
@@ -379,7 +449,7 @@ findings are displayed and exported but do not prevent conformity. This is how
 municipal-fleet data remains visibly recommended without becoming a false
 certification precondition.
 
-### DataEvidence
+### DataEvidence — planned
 
 Promote provenance from individual source links to an evidence assertion:
 
@@ -422,8 +492,8 @@ class DataQualityAssessment(BaseModel):
     level: str
 ```
 
-The profile defines the available levels, their labels, and any numeric score
-used for calculation projections. Evidence retains the scheme version so a
+The framework quality catalogue defines levels, labels, and numeric scores.
+The profile selects a compatible scheme version and accepted grades. Evidence retains the scheme version so a
 later profile does not reinterpret an old assessment silently.
 
 Source links become:
@@ -462,10 +532,10 @@ available to published revisions.
 Evidence is included in dataset revisions, instance exports, change history,
 GraphQL, and certification findings.
 
-### Derived quality calculation data
+### Derived quality calculation data — planned
 
 The materialization layer projects effective categorical quality into numeric
-columns when a calculation node needs weighted quality. The profile's quality
+columns when a calculation node needs weighted quality. The selected framework quality
 scheme owns the categorical-to-numeric mapping.
 
 During migration, the existing BISKO `quality` metric remains readable but is
@@ -474,7 +544,7 @@ not treated as a second authority. Existing values are imported into
 references, and then regenerated from evidence. Any mismatch becomes a
 migration report item rather than being silently resolved.
 
-### CertificationAssessment and findings
+### CertificationAssessment and findings — planned
 
 Persist assessments against immutable inputs:
 
@@ -483,7 +553,7 @@ CertificationAssessment
   uuid
   instance_config -> InstanceConfig
   instance_revision -> wagtailcore.Revision
-  framework_model_release -> FrameworkModelRelease
+  template_revision -> wagtailcore.Revision
   certification_profile -> CertificationProfile
   assessed_year
   status: conformant | non_conformant | incomplete
@@ -511,6 +581,10 @@ An assessment is recomputed for drafts when relevant graph, dataset, evidence,
 selection, or profile state changes. Published assessments are immutable.
 
 ## YAML authoring
+
+Certification YAML and its compiler below are proposed syntax, not an
+implemented API. Quality schemes are provisioned independently; profiles select
+their versions.
 
 ### Framework-scoped schema domain
 
@@ -570,12 +644,7 @@ certification_profiles:
 
   quality_schemes:
   - id: bisko
-    version: 2024
-    levels:
-    - {id: A, score: 1.0}
-    - {id: B, score: 0.75}
-    - {id: C, score: 0.5}
-    - {id: D, score: 0.25}
+    version: "1"
 
   requirements:
   - id: grid-bound-local-primary-data
@@ -721,7 +790,7 @@ route is selected but only mileage availability is considered.
 Missing data creates a visible recommendation finding but does not change an
 otherwise conformant result.
 
-## Evaluation semantics
+## Evaluation semantics — planned
 
 ### Dataset requirement evaluation
 
@@ -777,54 +846,51 @@ renders both as blocking.
 
 ## Graph composition and model-editor behavior
 
-### Base graph
+### Base graph and local bindings — implemented
 
-The framework model release contains framework-origin nodes, internal edges,
-ports, method parameters, and declared input slots. Base node and port UUIDs
-remain stable across compatible releases. A new release may add objects while
-retaining the UUIDs of unchanged semantic objects.
+The selected template revision supplies shared node specs, ports, internal
+bindings, and pinned reference data. Composition with local nodes, data, binding
+sets, and settings happens before constraint solving and hydration.
 
-### City overlay
+For inheriting instances,
+`instanceEditor.setInputPortBindings(nodeId, portId, bindings)` writes a full
+replacement. `bindings: null` restores the default; `bindings: []` disconnects.
+Each source identifies either a node/output port or a dataset/metric, with
+optional transformations. New structural conflicts return
+`ConstraintViolations` without saving.
 
-The city overlay refers to base nodes and ports by UUID and contains only
-city-owned differences. It must not use cross-instance ORM foreign keys as an
-implicit inheritance system. Introduce explicit overlay snapshots or models
-and compose them into `InstanceGraph` before constraint solving and hydration.
+The ordinary `bindDataset` and per-edge mutation APIs continue to work for local
+nodes, including local targets fed by inherited outputs. They update effective
+local overrides where needed rather than writing template rows.
 
-Municipal input slots should refer to framework-scoped dataset schema roles,
-not to an editable empty dataset owned by the template instance. Reference and
-provider datasets may be shared read-only releases; municipal datasets are
-instantiated in the city scope.
+A default dataset connection is a convenience, not a restriction that excludes
+a local calculation edge. Nor does connecting a default constitute an explicit
+provider-evidence declaration; that future evidence action remains separate.
 
-### Layouts
+### Layouts and local extensions — implemented foundation
 
-Move effective layout ownership to `(city instance, node origin UUID)`. A new
-base node initially uses the framework release's default layout. Moving it in a
-city writes only the city overlay. Layout changes do not alter certification
-semantics or the shared base graph.
+`InstanceConfig.node_settings` retains local layouts, goals, and allowed
+parameter selections keyed by node UUID. Inherited node definitions remain
+unchanged. Local nodes may consume inherited outputs and supply declared local
+inputs; UUID collisions, invalid bindings, and cycles are rejected.
 
-### Local extensions
-
-The first implementation may disallow local nodes in certified framework
-instances. If they are later allowed:
-
-- local UUIDs cannot collide with base UUIDs;
-- they may connect only through declared extension ports;
-- they cannot replace or remove base nodes or edges;
-- certified outputs are evaluated from the protected base path; and
-- any option that changes a certified result through an unapproved path makes
-  that result non-conformant or supplementary.
+Certification rules for local calculations and their evidence remain planned.
+The ability to connect a local district-heating emission factor does not itself
+assert that the resulting inventory meets BISKO certification requirements.
 
 ## API and UI surface
 
 ### GraphQL
 
-Expose at least:
+Already available are effective node/port edit permissions and binding
+editability, shared schema discovery and reuse, schema category domains,
+typed dataset metric rules, structured dataset violations, and graph
+`ConstraintViolations`.
 
-- effective object origin and effective edit permissions;
-- framework model release and certification profile versions;
-- schema category domains and stable combination IDs;
-- intrinsic dataset and node validation violations;
+The remaining certification/evidence surface should expose:
+
+- selected template revision and certification profile versions;
+- generic node-output validation violations;
 - evidence kind, quality, sources, and supersession;
 - draft certification assessment and findings;
 - published assessment history; and
@@ -845,9 +911,9 @@ Evidence mutations should make semantically meaningful actions explicit:
 
 Do not infer explicit-zero confirmation merely from writing numeric `0`.
 
-### Model editor
+### Model editor — remaining certification UI
 
-The editor renders requirement metadata supplied by the backend:
+The editor should render requirement metadata supplied by the backend:
 
 - `Required`, `Recommended`, and `Conditional` markers;
 - a filter for missing required evidence;
@@ -864,11 +930,16 @@ node identifiers.
 
 ## Implementation phases
 
-Each phase ends at a review gate. Do not combine all migrations into one large
-change: the shared graph, evidence, validation, and assessment boundaries can
-be reviewed and tested independently.
+The numbering below preserves the original plan; implementation order changed.
+Framework provisioning, quality vocabulary, and template inheritance were taken
+first. The status notes override the original future-tense task lists.
+Evidence, generic node validation, and certification remain separate reviewable
+slices. The next priority is data-point quality and the data-editing UI contract.
 
 ### Phase 0 — Resolve normative ambiguities and capture regression fixtures
+
+**Status:** Open normative decisions. Numerical graph-conversion fixtures have been checked,
+but they do not establish the certification decision table below.
 
 1. Record the exact review instance, assessed year, dataset revisions, settings,
    and operations used for findings 1.1, 1.2, and 1.5.
@@ -885,6 +956,10 @@ blocking, recommended, conditional, or non-applicable requirement with a
 source citation.
 
 ### Phase 1 — Typed schema category domains
+
+**Status:** Backend foundation implemented. Catalogue-aware write validation,
+shared-scope coverage, BISKO domain population, and comparison with legacy
+requirement datasets remain to be completed.
 
 1. Add `DatasetCategoryDomain` and stable combination IDs.
 2. Add the `DatasetSchema.category_domain` `SchemaField`.
@@ -903,6 +978,10 @@ a Cartesian product.
 
 ### Phase 2 — Framework-scoped catalogue
 
+**Status:** Implemented for template inheritance, the editor, and explicit BISKO conversion.
+One dataset per schema per scope remains enforced; rollout to all instances is
+not implied.
+
 1. Permit calculation `Dimension` and `DatasetSchema` scope to `Framework`.
 2. Implement the effective-catalogue service.
 3. Split schema-definition permissions from dataset/data-point permissions.
@@ -915,6 +994,10 @@ a Cartesian product.
 dimension definitions while independently editing their own datasets.
 
 ### Phase 3 — DataEvidence and quality
+
+**Status:** Quality scheme/level catalogue implemented. All evidence, assignment, API, and
+materialization work listed below remains planned; this is the next UI-facing
+backend priority.
 
 1. Add `DataEvidence`, typed quality, evidence kind, and supersession.
 2. Replace or migrate `DatasetSourceReference` into
@@ -934,6 +1017,9 @@ storage, API, revision round trips, and calculation materialization.
 
 ### Phase 4 — Generic node-output validation
 
+**Status:** Planned. Dataset metric validation is available; generic node-output rule
+attachment and evaluation are not yet implemented.
+
 1. Extract the existing metric rule vocabulary into a subject-neutral module.
 2. Add validation rules to `OutputPortDef`.
 3. Evaluate only requested output subjects through the effective graph.
@@ -947,6 +1033,8 @@ storage, API, revision round trips, and calculation materialization.
 node output port, and node computation failure blocks a positive assessment.
 
 ### Phase 5 — Certification profile compiler and evaluator
+
+**Status:** Planned; no certification criteria models or evaluator have been added.
 
 1. Add typed profile and requirement specifications.
 2. Parse the concise identifier-based YAML.
@@ -963,24 +1051,26 @@ node output port, and node computation failure blocks a positive assessment.
 test and explained by a structured requirement finding, without reading the
 legacy `is_bisko_compliant` output.
 
-### Phase 6 — Framework model releases and effective graph overlays
+### Phase 6 — Published template inheritance and effective graph overlays
 
-1. Add `FrameworkModelRelease` and publish the `bisko` template instance into
-   its first release.
-2. Give base nodes and ports stable release identity.
-3. Define municipal dataset slots and permitted overlay operations.
-4. Introduce city-owned bindings, settings, and layouts keyed to base UUIDs.
-5. Compose release plus overlay into `InstanceGraph`.
-6. Make GraphQL queries and mutations origin-aware.
-7. Pin model releases in city revisions.
-8. Add an upgrade operation that validates and advances selected city drafts.
-9. Retain old releases while published revisions reference them.
+**Status:** Implemented with existing Wagtail revisions instead of a separate
+release model.
 
-**Review gate:** adding a protected node to a new BISKO release makes it
-available in upgraded city drafts without copying or mutating city node rows,
-while a previously published city revision computes against the old release.
+1. Publish the `bisko` template through `publish_template_instance()`.
+2. Select the base with `InstanceConfig.template_revision`.
+3. Keep stable node/port UUIDs and compose generic local binding sets and settings.
+4. Permit local nodes and both dataset and edge sources at local-input ports.
+5. Compute editability centrally in `NodeMeta` for the active graph and user.
+6. Validate and advance all dependent drafts atomically on template publication.
+7. Store self-contained published instance snapshots and pinned reference data.
+
+**Verified behavior:** template draft edits do not affect dependent drafts;
+compatible publication advances dependents; incompatible publication rolls back
+the entire update; existing dependent publications remain unchanged.
 
 ### Phase 7 — Persisted assessments and publication integration
+
+**Status:** Planned. Existing instance publication is not a certification assessment.
 
 1. Add `CertificationAssessment` and `CertificationFinding`.
 2. Evaluate against revision-pinned model and dataset inputs.
@@ -995,6 +1085,9 @@ while a previously published city revision computes against the old release.
 the framework, profile, provider data, and city draft have all advanced.
 
 ### Phase 8 — UI completion and legacy removal
+
+**Status:** Planned for evidence and certification. Backend editability and dataset
+validation fields are already available for UI integration.
 
 1. Render backend-provided requiredness and findings in the dataset editor.
 2. Add source, evidence, quality, zero-confirmation, and provider-selection
@@ -1015,18 +1108,23 @@ visible before attempting certification.
 
 ### Existing BISKO instances
 
+Provisioning and graph conversion are implemented; evidence import and
+side-by-side certification evaluation in the final steps remain planned.
+
 1. Create the BISKO `Framework` if it does not already exist in the target
    environment and point `template_instance` at the current canonical `bisko`
    instance.
-2. Publish a baseline `FrameworkModelRelease` matching current production
-   behavior before changing semantics.
-3. Link city `FrameworkConfig` rows to that release.
+2. Publish a baseline template revision matching the intended reference-data
+   edition before changing semantics.
+3. Attach `FrameworkConfig` membership and select that revision through the
+   dependent `InstanceConfig.template_revision`.
 4. Match existing city nodes to template origins by verified semantic identity
    and record a migration report. Do not guess when identifiers or structures
    diverge.
 5. Preserve city-specific nodes and bindings as overlay candidates.
 6. Move common dimensions and schemas to framework scope only after comparing
-   UUIDs, identifiers, categories, and metric semantics.
+   UUIDs, identifiers, categories, and metric semantics. Retain separate local
+   schemas where adoption would violate dataset uniqueness within a scope.
 7. Import data evidence and quality without deleting legacy columns or source
    links.
 8. Run old and new conformity evaluation side by side for at least one release.
@@ -1058,6 +1156,10 @@ For each legacy quality value:
 - do not infer provider selection solely from the presence of provider data.
 
 ## Acceptance and regression tests
+
+Certification review and evidence cases below are acceptance targets, not
+passing tests for an implemented evaluator. Template inheritance, ownership,
+binding, publication rollback, and query-count regressions are covered today.
 
 ### Certification review cases
 
@@ -1106,10 +1208,13 @@ Tests use the exact assessed year and settings of the recorded review fixture.
 ### Framework release invariants
 
 - a city cannot mutate a base node, port, or internal edge;
-- a city can edit municipal data connected to an exposed base input slot;
+- an instance can edit local data or connect a local calculation to an exposed input;
+- the template author can edit its own draft nodes and ports;
+- one schema can serve different scopes, but only one dataset in each scope;
 - a city can move a base node without changing the framework layout;
-- upgrading one city draft does not upgrade another implicitly;
-- bulk upgrade is atomic per city and reports incompatible overlays;
+- template draft edits do not alter dependent drafts;
+- template publication advances all dependent drafts in one transaction;
+- an incompatible dependent draft rolls back the whole publication;
 - old published revisions retain their original model release; and
 - stable base UUIDs survive compatible releases.
 
@@ -1125,25 +1230,38 @@ Tests use the exact assessed year and settings of the recorded review fixture.
 
 ## Operational tooling
 
-Add read-only reporting before mutation commands:
+### Implemented provisioning and conversion
 
-- `framework_model_release_status <framework>`: template draft versus active
-  release and linked city versions;
-- `compile_certification_profile <framework> <profile>`: resolved references,
-  errors, and canonical output;
-- `certification_status <instance> --year <year>`: structured findings without
-  persisting an assessment;
-- `compare_certification <instance> --year <year>`: legacy node result versus
-  the new evaluator;
-- `evidence_status <instance> [dataset]`: missing evidence, unconfirmed zeros,
-  quality conflicts, and provider selections; and
-- `upgrade_framework_instances <framework> <release> --dry-run`: per-city
-  compatibility and findings before applying an upgrade.
+`python -m tools.setup_bisko` supports:
 
-Every mutating command supports `--dry-run`, reports exact target UUIDs and
-revisions, and operates transactionally per instance. Bulk operations continue
-past independently failing cities only when explicitly requested and produce a
-machine-readable failure report.
+- `--template IDENTIFIER`: select the existing template (default `bisko`);
+- `--instance IDENTIFIER`: attach a database-backed instance without conversion;
+- `--prepare-from IDENTIFIER`: reconcile template input declarations and category
+  vocabulary against explicit migration examples;
+- `--publish`: publish the template and atomically advance existing dependents;
+- `--convert IDENTIFIER`: replace copied shared nodes with inheritance;
+- `--reference-instance IDENTIFIER`: use a historical national reference-data
+  edition for publication; requires `--publish`;
+- `--dry-run`: run the operation and roll back database changes.
+
+Instance flags can be repeated; `--instance` and `--convert` are alternative
+attachment modes. The command is transactional as a whole. Provisioning is
+idempotent, preserves existing UUIDs/settings, and rejects conflicting grades or
+template identity. It does not create pages, organizations, users, or grants.
+YAML-backed membership is rejected until the instance has been migrated to a
+verified database-backed model.
+
+Reference-edition selection is not an independent release channel for each
+instance: publication still advances existing dependent drafts. Historical
+output comparisons must use the intended pinned edition.
+
+### Planned certification tooling
+
+Read-only profile compilation, certification status/comparison, evidence
+coverage reports, and assessment history remain to be implemented. Commands
+must identify their assessed revision and inputs explicitly. A separate
+per-instance or bulk release-upgrade command is not part of the implemented
+lifecycle; publication is currently the atomic rollout boundary.
 
 ## Observability and audit
 
@@ -1173,10 +1291,11 @@ These decisions are deliberately not hidden inside implementation defaults:
    inland-navigation, tram/metro, or another conditional mode is not
    applicable, and who may approve that declaration.
 4. **Quality schemes:** whether BISKO quality is entered directly as a grade or
-   derived from more objective provenance attributes. The initial model stores
-   the assessed grade and scheme version without preventing later derivation.
-5. **Local nodes:** whether certified framework instances initially permit
-   local calculation extensions at all.
+   derived from more objective provenance attributes. The proposed evidence model
+   stores an assessed grade and scheme version; only the catalogue exists today.
+5. **Local calculation acceptance:** local nodes and local input edges are
+   supported. What evidence or method constraints a certification profile places
+   on those calculations remains to be specified.
 6. **Evidence slices:** whether dataset-level default plus data-point override
    is sufficient before introducing evidence selectors for a dataset slice.
 7. **Cross-framework profiles:** whether a certification profile ever needs to

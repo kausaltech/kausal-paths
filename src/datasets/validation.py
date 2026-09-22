@@ -206,8 +206,8 @@ def _evaluate_rule(
     def violation(**kwargs) -> RuleViolation:
         return RuleViolation(
             rule_uuid=rule_uuid,
-            kind=rule.kind,
-            enforcement=rule.enforcement,
+            kind=kwargs.pop('kind', rule.kind),
+            enforcement=kwargs.pop('enforcement', rule.enforcement),
             metric_uuid=metric_uuid,
             metric=column,
             **kwargs,
