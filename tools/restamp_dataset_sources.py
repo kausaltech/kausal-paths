@@ -73,6 +73,8 @@ from nodes.constants import SOURCE_TARGET_DATASET  # noqa: E402
 from tools.upload_new_dataset import load_sources_registry  # noqa: E402
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from tools.upload_new_dataset import SourceRegistryEntry
 
 REPO_URL = 'https://github.com/kausaltech/dvctest.git'
@@ -169,6 +171,29 @@ def requested_identifiers(
     return [i for i in chosen if i not in skip_set]
 
 
+def index_column_names(index_columns: list[Any] | None, columns: Sequence[str]) -> list[str]:
+    """
+    Reduce what a dataset reports as its index to the column names it actually names.
+
+    pandas metadata describes an index either by column name or by a descriptor dict. A
+    descriptor for a stored column carries its ``name``; the one for a frame with no index of
+    its own (``{'kind': 'range', 'name': None, ...}``) names nothing, and there is then nothing
+    to record -- omitting the key leaves the reader to derive the index from the parquet, which
+    is what it did before this tool ever ran.
+
+    Names the frame does not carry are dropped as well: an index column that is not a column of
+    the written parquet cannot be set on read.
+    """
+    if not index_columns:
+        return []
+    names: list[str] = []
+    for entry in index_columns:
+        name: Any = entry if isinstance(entry, str) else entry.get('name') if isinstance(entry, dict) else None
+        if isinstance(name, str) and name in columns and name not in names:
+            names.append(name)
+    return names
+
+
 def restamp(
     repo: Repository,
     identifier: str,
@@ -208,8 +233,15 @@ def restamp(
     # the parquet's pandas metadata here, it is the same list; written into the .dvc metadata it
     # stops the reading path having to re-derive it, which is what fails on datasets whose Year
     # values would become a virtual RangeIndex.
-    if ds.meta.index_columns:
-        metadata['index_columns'] = list(ds.meta.index_columns)
+    #
+    # Only column *names* may be written. What is read back can also be a pandas index
+    # descriptor -- `{'kind': 'range', 'name': None, ...}` for a frame with no index of its own
+    # -- and writing that into the .dvc metadata poisons the dataset for every reader: it names
+    # no column, and dvc-pandas >= 0.4.0 rejects the manifest outright. That is what happened to
+    # `de/biodieselanteil` on 2026-09-19; see docs/operations/dvc-metadata-index-columns.md.
+    index_columns = index_column_names(ds.meta.index_columns, df.columns)
+    if index_columns:
+        metadata['index_columns'] = index_columns
 
     # index_columns=None on the meta so `to_parquet` does not call set_index(); every column
     # stays physical, exactly as an upload writes it.
