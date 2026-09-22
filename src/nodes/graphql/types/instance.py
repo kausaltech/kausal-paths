@@ -67,6 +67,7 @@ if TYPE_CHECKING:
 
     from datasets.graphql.types import DataSourceType  # used in lazy strawberry annotation
     from frameworks.schema import FrameworkConfigType  # used in lazy strawberry annotation
+    from frameworks.submission_schema import SubmissionType
     from nodes.context import Context
     from nodes.graphql.types.change_history import InstanceChangeOperationType
     from nodes.graphql.types.node import NodeInterface, NodeType
@@ -749,6 +750,18 @@ class InstanceType:
             identifier=ic.identifier,
             is_locked=ic.is_locked,
         )
+
+    @sb.field(
+        graphql_type=list[Annotated['SubmissionType', sb.lazy('frameworks.submission_schema')]],
+        description=(
+            'Submitted balances of this instance, newest period first. Open (draft or in-review) submissions '
+            'are included only for users who may edit the instance.'
+        ),
+    )
+    def submissions(self, info: gql.Info) -> list[Any]:
+        from frameworks.submission_schema import submissions_for
+
+        return submissions_for(self._config, info)
 
     @cached_property
     def spec(self) -> InstanceModelSpec:
