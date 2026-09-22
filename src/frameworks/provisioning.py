@@ -4,6 +4,7 @@ from decimal import Decimal
 
 from django.db import transaction
 
+from frameworks.identity import ensure_municipal_organization
 from frameworks.models import DataQualityLevel, DataQualityScheme, Framework, FrameworkConfig
 from nodes.models import InstanceConfig
 
@@ -21,6 +22,9 @@ BISKO_QUALITY_LEVELS = (
 def setup_bisko(*, template_identifier: str = 'bisko', instance_identifiers: tuple[str, ...] = ()) -> Framework:
     """
     Register BISKO and its quality scale without cloning graphs or creating pages.
+
+    Attached instances are moved to the organization identified by their AGS
+    (see `ensure_municipal_organization`).
 
     Only explicitly named database-backed framework instances are attached. Framework
     membership changes authorization, and YAML membership also changes the model
@@ -76,5 +80,7 @@ def setup_bisko(*, template_identifier: str = 'bisko', instance_identifiers: tup
         )
         if config.framework_id != framework.pk:
             raise ValueError(f'{instance.identifier} already belongs to another framework.')
+        instance.refresh_from_db()
+        ensure_municipal_organization(instance)
 
     return framework
