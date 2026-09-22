@@ -33,7 +33,15 @@ from kausal_common.users import user_or_bust
 from paths import gql
 
 from datasets.validation_rules import ValidationRule, ValidationRuleSpecInput
-from frameworks.models import Framework
+from frameworks.evidence import (
+    UNCHANGED,
+    evidence_snapshot,
+    is_projected_metric,
+    resolve_quality_level,
+    set_evidence,
+    validate_evidence,
+)
+from frameworks.models import DataEvidenceKind, Framework
 from nodes.change_ops import gql_change_operation, record_change
 from nodes.dataset_materialization import refresh_dataset_materialization
 from nodes.graphql.types.problems import DatasetValidationViolationType
@@ -80,6 +88,8 @@ class CreateDataPointInput:
     value: float | None
     metric_id: UUID
     dimension_category_ids: list[UUID] | None = None
+    evidence_kind: DataEvidenceKind | None = sb.field(default=None, description='How the value was obtained.')
+    quality_level_id: UUID | None = sb.field(default=None, description="Grade from one of the dataset's quality schemes.")
 
 
 @sb.input
@@ -88,6 +98,16 @@ class UpdateDataPointInput:
     value: Maybe[float | None]
     metric_id: Maybe[UUID]
     dimension_category_ids: Maybe[list[UUID]]
+    evidence_kind: Maybe[DataEvidenceKind | None] = sb.field(
+        default=None,
+        description=(
+            'How the value was obtained; null clears it. A confirmed zero (EXPLICIT_ZERO) requires the value '
+            'to be zero, and must be cleared or changed in the same write that changes the value.'
+        ),
+    )
+    quality_level_id: Maybe[UUID | None] = sb.field(
+        default=None, description="Grade from one of the dataset's quality schemes; null clears it."
+    )
 
 
 @sb.input
@@ -322,6 +342,31 @@ class DatasetEditorMutation:
         ]
 
     @staticmethod
+    def _apply_evidence(
+        dataset: Dataset, data_point: DataPoint, input: CreateDataPointInput | UpdateDataPointInput, user: User
+    ) -> None:
+        if is_projected_metric(data_point.metric):
+            raise ValidationError(
+                f'Metric {data_point.metric.uuid} is derived from data-point evidence and cannot be written directly'
+            )
+        kind: Any = UNCHANGED
+        level: Any = UNCHANGED
+        if isinstance(input, UpdateDataPointInput):
+            if _is_maybe_set(input.evidence_kind):
+                kind = input.evidence_kind.value
+            if _is_maybe_set(input.quality_level_id):
+                level_id = input.quality_level_id.value
+                level = resolve_quality_level(dataset, level_id) if level_id is not None else None
+        else:
+            if input.evidence_kind is not None:
+                kind = input.evidence_kind
+            if input.quality_level_id is not None:
+                level = resolve_quality_level(dataset, input.quality_level_id)
+        if kind is not UNCHANGED or level is not UNCHANGED:
+            set_evidence(data_point, kind=kind, quality_level=level, user=user)
+        validate_evidence(data_point)
+
+    @staticmethod
     def _data_point_snapshot(dp: DataPoint) -> dict[str, Any]:
         """Lightweight snapshot for change tracking."""
         # Decimal → float: JSONField can't serialize Decimal natively and
@@ -333,6 +378,7 @@ class DatasetEditorMutation:
             'value': float(dp.value) if dp.value is not None else None,
             'metric_uuid': str(dp.metric.uuid) if dp.metric else None,
             'dimension_category_uuids': [str(cat.uuid) for cat in dp.dimension_categories.all()],
+            'evidence': evidence_snapshot(dp),
         }
 
     @staticmethod
@@ -367,6 +413,7 @@ class DatasetEditorMutation:
                         _raise_serializer_errors(serializer)
 
                     data_point = serializer.save(dataset=dataset, last_modified_by=user)
+                    DatasetEditorMutation._apply_evidence(dataset, data_point, item, user)
                     record_change(
                         data_point,
                         action='dataset.datapoint.create',
@@ -428,6 +475,7 @@ class DatasetEditorMutation:
 
                     before = DatasetEditorMutation._data_point_snapshot(data_point)
                     updated = serializer.save(last_modified_by=user)
+                    DatasetEditorMutation._apply_evidence(dataset, updated, item.input, user)
                     record_change(
                         updated,
                         action='dataset.datapoint.update',
