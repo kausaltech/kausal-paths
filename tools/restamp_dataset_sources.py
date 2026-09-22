@@ -238,7 +238,8 @@ def restamp(
     # descriptor -- `{'kind': 'range', 'name': None, ...}` for a frame with no index of its own
     # -- and writing that into the .dvc metadata poisons the dataset for every reader: it names
     # no column, and dvc-pandas >= 0.4.0 rejects the manifest outright. That is what happened to
-    # `de/biodieselanteil` on 2026-09-19; see docs/operations/dvc-metadata-index-columns.md.
+    # `de/biodieselanteil` on 2026-09-19; see
+    # `$PATHS_DATA/docs/operations/dvc-metadata-index-columns.md`.
     index_columns = index_column_names(ds.meta.index_columns, df.columns)
     if index_columns:
         metadata['index_columns'] = index_columns
