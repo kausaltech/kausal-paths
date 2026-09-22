@@ -14,7 +14,14 @@ from pydantic import ValidationError as PydanticValidationError
 import pytest
 
 from kausal_common.datasets.category_domain import DatasetCategoryCombination, DatasetCategoryDomain
-from kausal_common.datasets.models import DataPoint, DatasetMetricValidationRule, DimensionScope
+from kausal_common.datasets.models import (
+    DataPoint,
+    Dataset,
+    DatasetMetric,
+    DatasetMetricValidationRule,
+    DimensionCategory,
+    DimensionScope,
+)
 from kausal_common.datasets.tests.factories import (
     DataPointFactory,
     DatasetFactory,
@@ -660,3 +667,24 @@ def test_messages_use_labels_in_the_instance_language(rig):
     assert 'Gebiet A' in violation.message
     assert 'region=a' not in violation.message
     assert 'Datengüte' in violation.message
+
+
+def test_required_combination_outside_domain_is_a_reportable_problem(
+    rig: tuple[Dataset, DatasetMetric, DimensionCategory, DimensionCategory],
+) -> None:
+    dataset, metric, cat_a, _cat_b = rig
+    combination = uuid4()
+    set_rule(
+        metric,
+        {
+            'kind': 'required_combinations',
+            'enforcement': 'block_edit',
+            'groups': [{'id': 'missing', 'combinations': [str(combination)]}],
+        },
+    )
+    add_point(dataset, metric, 2020, 1, cat_a)
+    violations = evaluate_dataset_rules(dataset)
+    assert len(violations) == 1
+    assert violations[0].kind == 'invalid_rule'
+    assert violations[0].enforcement == 'block_publish'
+    assert violations[0].combination_ids == [combination]

@@ -178,16 +178,12 @@ def collect_instance_dataset_violations(instance_config: InstanceConfig) -> list
     first — the same dataset scope the publication gate enforces.
     """
     from datasets.validation import load_violations
-    from nodes.models import NodeInputPortBinding
+    from nodes.instance_serialization import build_instance_snapshot
 
-    dataset_ids = list(
-        NodeInputPortBinding.objects
-        .filter(instance=instance_config, dataset__isnull=False)
-        .order_by()
-        .values_list('dataset_id', flat=True)
-        .distinct(),
+    snapshot = build_instance_snapshot(instance_config)
+    datasets = Dataset.objects.filter(uuid__in=[dataset.id for dataset in snapshot.datasets]).exclude(
+        uuid__in=[pin.dataset_uuid for pin in snapshot.dataset_revisions],
     )
-    datasets = Dataset.objects.filter(pk__in=dataset_ids)
     materializations = ensure_dataset_materializations(datasets)
     return [
         violation

@@ -382,6 +382,7 @@ class NodeSnapshot(ModelSnapshot):
     order: int | None = None
     is_visible: bool = True
     is_editable: bool | None = None
+    template_revision_id: int | None = None
     indicator_node: UUID | None = None
     copy_of: UUID | None = None
     body: list[Any] | None = None
@@ -1071,6 +1072,7 @@ class InstanceSnapshot(BaseModel):
     dataset_revisions: list[DatasetRevisionPinSnapshot] = Field(default_factory=list)
     dimensions: list[DimensionMeta] = Field(default_factory=list)
     datasets: list[DatasetMeta] = Field(default_factory=list)
+    template_revision_id: int | None = None
 
     model_config = {'arbitrary_types_allowed': True}
 
@@ -1377,7 +1379,7 @@ def build_instance_snapshot(
         dataset_revision_pins=dataset_revision_pins,
     )
 
-    return InstanceSnapshot(
+    snapshot = InstanceSnapshot(
         metadata=InstanceMetadata.from_model(ic),
         spec=ic.spec,
         copy_of=str(ic.copy_of.uuid) if ic.copy_of else None,
@@ -1388,17 +1390,17 @@ def build_instance_snapshot(
         datasets=datasets,
     )
 
+    if ic.template_revision_id is not None:
+        from nodes.template_graph import compose_template_snapshot
+
+        return compose_template_snapshot(ic, snapshot, dataset_revision_pins=dataset_revision_pins)
+    return snapshot
+
 
 def _dimension_catalog_for(ic: InstanceConfig) -> list[DimensionMeta]:
-    from kausal_common.datasets.models import DimensionScope
+    from frameworks.catalogue import dimension_scopes
 
-    scopes = (
-        DimensionScope.objects
-        .for_instance_config(ic)
-        .select_related('dimension')
-        .prefetch_related('dimension__categories')
-        .order_by('order')
-    )
+    scopes = dimension_scopes(ic).select_related('dimension').prefetch_related('dimension__categories').order_by('order')
     dimensions: list[DimensionMeta] = []
     for scope in scopes:
         dimension = scope.dimension
