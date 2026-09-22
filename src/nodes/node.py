@@ -393,11 +393,37 @@ class Node:
     legacy_input_port_roles_by_quantity: ClassVar[dict[str, str]] = {}
     """Migration-only mapping from a legacy port quantity to a declared role."""
 
+    legacy_input_port_roles_by_source_metric: ClassVar[dict[str, str]] = {}
+    """
+    Migration-only mapping from the bound source metric column to a declared role.
+
+    For a class that used to read several named columns of one source output
+    (``triggered`` and ``compliant`` of an action, ``currency`` and ``term`` of a cost),
+    the graph already carries one port per source metric, so the column name the old
+    computation indexed by is the role selector. Consulted after tags and before
+    quantity, and only where every binding on the port agrees on the column.
+    """
+
     legacy_untagged_dataset_input_role: ClassVar[str | None] = None
     """Migration-only role for otherwise unclassified dataset bindings."""
 
     legacy_untagged_input_role: ClassVar[str | None] = None
     """Migration-only final fallback role for an anonymous legacy port."""
+
+    legacy_edge_role_fanout: ClassVar[tuple[str, ...]] = ()
+    """
+    Roles one legacy edge may fill at once, each of which needs its own port.
+
+    A legacy edge tagged with several of these (``tags: [removing, inserting]``) is one
+    binding where the contract wants one per role. The parser expands it into a port per
+    matching role and writes the role onto each, so what the tags used to mean becomes
+    explicit configuration. Declaring a role here is a statement that the two quantities
+    are genuinely distinct and merely happen to share a source in existing models; roles
+    that are always the same thing belong in one port instead.
+
+    Migration-only, like the other ``legacy_`` hooks: it exists to give old configurations
+    the shape a new one would be authored with, and goes away with the tags.
+    """
 
     supports_authored_ports: ClassVar[bool] = False
     """
@@ -1612,6 +1638,24 @@ class Node:
         return ()
 
     @classmethod
+    def declares_legacy_role_map(cls) -> bool:
+        """
+        Whether this class has told the declarative hook how to classify its legacy ports.
+
+        Subclasses that override ``infer_legacy_port_roles`` with an algebra of their own
+        consult this to decide whether to defer to the declarative base instead. Keeping
+        it in one place means adding a new ``legacy_`` map does not silently skip those
+        overrides.
+        """
+        return bool(
+            cls.legacy_input_port_roles_by_tag
+            or cls.legacy_input_port_roles_by_quantity
+            or cls.legacy_input_port_roles_by_source_metric
+            or cls.legacy_untagged_dataset_input_role is not None
+            or cls.legacy_untagged_input_role is not None
+        )
+
+    @classmethod
     def infer_legacy_port_roles(
         cls,
         meta: NodeMeta,
@@ -1649,6 +1693,21 @@ class Node:
             if len(tagged_roles) > 1:
                 result.refuse(port, f'binding tags select several roles: {sorted(tagged_roles)}')
                 continue
+
+            if cls.legacy_input_port_roles_by_source_metric:
+                from nodes.defs.binding_def import EdgeBindingDef
+
+                edges = [binding for binding in bindings if isinstance(binding, EdgeBindingDef)]
+                columns = {str(edge.source_port.column_id) for edge in edges}
+                if len(columns) == 1:
+                    column = columns.pop()
+                    metric_role = cls.legacy_input_port_roles_by_source_metric.get(column)
+                    if metric_role is not None:
+                        result.classify(port, metric_role, f'source metric {column!r}')
+                        continue
+                elif len(columns) > 1:
+                    result.refuse(port, f'port mixes source metrics {sorted(columns)}')
+                    continue
 
             quantity = str(port.quantity) if port.quantity is not None else None
             if quantity is not None and quantity in cls.legacy_input_port_roles_by_quantity:

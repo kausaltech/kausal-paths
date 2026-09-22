@@ -1179,6 +1179,35 @@ class InstanceConfigParser:
                 candidate.edge.replace_to_port_id(candidate.old_port_id, group_port_id)
             ports[:] = [port for port in ports if port is first.port or port.id not in ports_to_remove]
 
+    def _edge_port_fanout(
+        self,
+        parsed: _ParsedNode,
+        edge: _ParsedEdge,
+        from_metric: NodeMetric,
+        port_id: UUID,
+    ) -> list[tuple[UUID, str | None]]:
+        """
+        Return the (port id, role) pairs one edge metric should produce.
+
+        Normally one, with no role, left for ``infer_legacy_port_roles`` to classify. A
+        class that declares ``legacy_edge_role_fanout`` and an edge whose tags name
+        several of those roles gets one port per role instead, each carrying its role
+        explicitly, because the two quantities are distinct operands that happen to share
+        a source in the legacy configuration.
+
+        The first role keeps the edge's existing port id so no stored binding moves; the
+        rest derive theirs from the role, which is new identity for a port that did not
+        previously exist.
+        """
+        roles = [role for role in parsed.node_class.legacy_edge_role_fanout if role in edge.tags]
+        if len(roles) < 2:
+            return [(port_id, None)]
+        fanout: list[tuple[UUID, str | None]] = [(port_id, roles[0])]
+        for role in roles[1:]:
+            role_id = self._uuid_from_identifiers([edge.from_node, parsed.identifier, 'edge', from_metric.id, role])
+            fanout.append((role_id, role))
+        return fanout
+
     def _build_input_ports(self, parsed: _ParsedNode) -> list[InputPortDef]:  # noqa: C901
         """Derive the input ports from incoming edges and dataset bindings."""
         from collections import Counter
@@ -1212,31 +1241,34 @@ class InstanceConfigParser:
                     from_port.id,
                     fallback_id,
                 )
-                edge.port_pairs.append((from_metric.id, port_id))
                 if len(from_parsed.output_metrics) > 1:
                     port_identifier = identifier_or_none(f'{from_parsed.identifier}_{from_metric.id}')
                 else:
                     port_identifier = identifier_or_none(from_parsed.identifier)
-                port = InputPortDef(
-                    id=port_id,
-                    identifier=port_identifier,
-                    quantity=from_metric.quantity,
-                    unit=from_metric.unit,
-                    required_dimensions=[
-                        dim_id for dim_id, dimension in (edge.to_dimensions or {}).items() if not dimension.categories
-                    ],
-                )
-                hint = self._multiplicity_hint(parsed, edge)
-                if hint is not None:
-                    group, role = hint
-                    multi_candidates.append(
-                        _InputPortMultiCandidate(
-                            port=port, old_port_id=port_id, edge=edge, metric=from_metric, group=group, role=role
-                        )
+                for target_id, role in self._edge_port_fanout(parsed, edge, from_metric, port_id):
+                    edge.port_pairs.append((from_metric.id, target_id))
+                    port = InputPortDef(
+                        id=target_id,
+                        identifier=identifier_or_none(f'{port_identifier}_{role}') if role else port_identifier,
+                        role=identifier_or_none(role) if role else None,
+                        quantity=from_metric.quantity,
+                        unit=from_metric.unit,
+                        required_dimensions=[
+                            dim_id for dim_id, dimension in (edge.to_dimensions or {}).items() if not dimension.categories
+                        ],
                     )
-                port._from_node = edge.from_node
-                port._edge_metric_id = from_metric.id
-                ports.append(port)
+                    # A fanned-out port already names its role, so it is not a multiport candidate.
+                    hint = None if role else self._multiplicity_hint(parsed, edge)
+                    if hint is not None:
+                        group, hint_role = hint
+                        multi_candidates.append(
+                            _InputPortMultiCandidate(
+                                port=port, old_port_id=target_id, edge=edge, metric=from_metric, group=group, role=hint_role
+                            )
+                        )
+                    port._from_node = edge.from_node
+                    port._edge_metric_id = from_metric.id
+                    ports.append(port)
         self._apply_multi_hints(parsed, ports, multi_candidates)
 
         counts = Counter(port.identifier for port in ports if port.identifier is not None)
