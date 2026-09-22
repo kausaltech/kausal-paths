@@ -28,7 +28,12 @@ def frame(years: list[int], values: Sequence[float | int | None], unit: str, *, 
 def node(existing: ppl.PathsDataFrame, incoming: ppl.PathsDataFrame, rates: ppl.PathsDataFrame, end_year: int) -> DilutionNode:
     result = Mock(spec=DilutionNode)
     inputs = {'existing': existing, 'incoming': incoming, 'removing': rates, 'inserting': rates}
-    result.get_input_node.side_effect = lambda *, tag: Mock(get_output_pl=Mock(return_value=inputs[tag]))
+    # The real declarations have to be on the mock: compute() passes them to require_input(),
+    # which resolves them by role. Removing and inserting share one frame here, the way every
+    # existing config binds them to one source, without the class assuming they must agree.
+    for declaration in DilutionNode.input_port_declarations:
+        setattr(result, f'{declaration.role}_port', declaration)
+    result.require_input.side_effect = lambda port: inputs[str(port.role)]
     result.get_end_year.return_value = end_year
     return result
 

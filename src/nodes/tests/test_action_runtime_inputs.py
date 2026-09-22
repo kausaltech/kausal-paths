@@ -10,7 +10,7 @@ import pytest
 from common.polars import DataFrameMeta, PathsDataFrame, to_ppdf
 from nodes.actions.linear import DatasetDifferenceAction
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
-from nodes.costs import SelectiveNode
+from nodes.costs import DilutionNode, SelectiveNode
 from nodes.exceptions import NodeError
 from nodes.instance_loader import InstanceLoader, InstanceYAMLConfig
 from nodes.instance_parser import parse_instance_snapshot
@@ -128,6 +128,36 @@ def test_gronlogik_yaml_projects_source_node_tags_to_cost_roles() -> None:
         'capacity_cost',
         'health_cost',
     }
+
+
+def test_dilution_node_keeps_the_two_stock_rates_apart() -> None:
+    """The stock only stays the same size when removing and inserting agree; they are distinct roles."""
+    roles = [str(port.role) for port in DilutionNode.input_port_declarations]
+    assert roles == ['existing', 'incoming', 'removing', 'inserting']
+    assert all(port.required for port in DilutionNode.input_port_declarations)
+    assert DilutionNode.legacy_edge_role_fanout == ('removing', 'inserting')
+
+
+def test_nzc_yaml_fans_a_shared_rate_edge_into_one_port_per_role() -> None:
+    """`tags: [removing, inserting]` is one legacy edge that the contract wants as two ports."""
+    data = InstanceYAMLConfig.load_for_entrypoint(Path('configs/nzc.yaml').resolve()).data
+    assert data is not None
+    snapshot = parse_instance_snapshot(data, instance_uuid=uuid3(NAMESPACE_URL, 'paths:nzc-dilution-input-test'))
+    loader = object.__new__(InstanceLoader)
+    loader.instance_config = None
+    loader._stash_snapshot_bindings(snapshot)
+
+    node = next(n for n in loader._instance_graph.nodes if n.identifier == 'fleet_emission_factor')
+    roles = [node.role_for_input_port(port) for port in node.spec.input_ports]
+    assert roles == ['existing', 'incoming', 'removing', 'inserting']
+
+    # Both rate ports read the same source node; they are separate ports, not one shared binding.
+    by_role = {node.role_for_input_port(port): port for port in node.spec.input_ports}
+    rate_sources = {
+        role: [b.source_node.identifier for b in node.bindings_for_port(by_role[role].id)] for role in ('removing', 'inserting')
+    }
+    assert rate_sources['removing'] == rate_sources['inserting'] == ['old_fleet_removal']
+    assert by_role['removing'].id != by_role['inserting'].id
 
 
 def test_nzc_yaml_projects_legacy_difference_tags_to_semantic_roles() -> None:
