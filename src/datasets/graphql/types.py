@@ -8,11 +8,13 @@ from uuid import UUID
 
 import strawberry as sb
 import strawberry_django
+from django.db.models import prefetch_related_objects
 from strawberry import auto
 
 from kausal_common.datasets.models import (
     DataPointComment as DataPointCommentModel,
     Dataset as DatasetModel,
+    DatasetSchema as DatasetSchemaModel,
     DatasetSourceReference as DatasetSourceReferenceModel,
     DataSource as DataSourceModel,
 )
@@ -30,6 +32,7 @@ from datasets.validation_rules import (
     rule_to_gql,
     validation_rule_adapter,
 )
+from frameworks.models import Framework
 from users.models import User
 from users.schema import UserType
 
@@ -369,6 +372,33 @@ class DataPointType:
         return obj
 
 
+@strawberry_django.type(DatasetSchemaModel, name='DatasetSchema')
+class DatasetSchemaType:
+    description: auto
+
+    @strawberry_django.field
+    @staticmethod
+    def id(root: sb.Parent[DatasetSchemaModel]) -> sb.ID:
+        return sb.ID(str(root.uuid))
+
+    @strawberry_django.field
+    @staticmethod
+    def name(root: sb.Parent[DatasetSchemaModel]) -> str:
+        return root.name_i18n
+
+    @strawberry_django.field
+    @staticmethod
+    def metrics(root: sb.Parent[DatasetSchemaModel]) -> list[DatasetMetricType]:
+        prefetch_related_objects([root], 'metrics__validation_rules')
+        return [DatasetMetricType.from_model(metric) for metric in root.metrics.all()]
+
+    @strawberry_django.field
+    @staticmethod
+    def dimensions(root: sb.Parent[DatasetSchemaModel]) -> list[DatasetDimensionType]:
+        prefetch_related_objects([root], 'dimensions__dimension__categories')
+        return [DatasetDimensionType.from_schema_dimension(item) for item in root.dimensions.all()]
+
+
 @register_strawberry_type
 @sb.type(name='Dataset')
 class DatasetType(UserPermissionsMixin):
@@ -396,6 +426,29 @@ class DatasetType(UserPermissionsMixin):
     _model: sb.Private['DatasetModel | None'] = None
     _forecast_from: sb.Private[int | None] = None
 
+    @sb.field(graphql_type=DatasetSchemaType | None)
+    @staticmethod
+    def schema(root: 'DatasetType') -> DatasetSchemaModel | None:
+        return root._model.schema if root._model is not None else None
+
+    @sb.field(description='Whether this dataset owns an editable schema definition.')
+    @staticmethod
+    def schema_is_editable(root: 'DatasetType') -> bool:
+        if root._model is None or root._model.schema is None:
+            return False
+        root._load_schema_editability()
+        return root._model.schema.is_editable and not root._model._schema_is_shared and not root._model._schema_has_other_datasets
+
+    def _load_schema_editability(self) -> None:
+        """Single-object mutations may return a model without list-query annotations."""
+        model = self._model
+        assert model is not None
+        if hasattr(model, '_schema_is_shared'):
+            return
+        annotated = DatasetModel.objects.with_schema_editability(Framework).get(pk=model.pk)
+        model._schema_is_shared = annotated._schema_is_shared
+        model._schema_has_other_datasets = annotated._schema_has_other_datasets
+
     @sb.field
     @staticmethod
     def name(root: 'DatasetType') -> str:
@@ -408,7 +461,8 @@ class DatasetType(UserPermissionsMixin):
     def is_editable(root: 'DatasetType') -> bool:
         if root._model is None or root._model.schema is None:
             return False
-        return root._model.schema.is_editable
+        root._load_schema_editability()
+        return root._model.schema.is_editable or root._model._schema_is_shared
 
     @sb.field(description='Default or effective first forecast year for this dataset.')
     @staticmethod
@@ -424,10 +478,8 @@ class DatasetType(UserPermissionsMixin):
     def dimensions(root: 'DatasetType') -> list[DatasetDimensionType]:
         if root._model is None or root._model.schema is None:
             return []
-        return [
-            DatasetDimensionType.from_schema_dimension(sd)
-            for sd in root._model.schema.dimensions.select_related('dimension').prefetch_related('dimension__categories')
-        ]
+        prefetch_related_objects([root._model.schema], 'dimensions__dimension__categories')
+        return [DatasetDimensionType.from_schema_dimension(sd) for sd in root._model.schema.dimensions.all()]
 
     @sb.field(description='Meaningful category combinations declared by this dataset schema.')
     @staticmethod
@@ -455,7 +507,8 @@ class DatasetType(UserPermissionsMixin):
     def metrics(root: 'DatasetType') -> list[DatasetMetricType]:
         if root._model is None or root._model.schema is None:
             return []
-        metrics = list(root._model.schema.metrics.prefetch_related('validation_rules'))
+        prefetch_related_objects([root._model.schema], 'metrics__validation_rules')
+        metrics = list(root._model.schema.metrics.all())
         return [
             DatasetMetricType.from_model(metric, previous_sibling=prev_id, next_sibling=next_id)
             for metric, prev_id, next_id in with_sibling_ids(metrics, lambda metric: sb.ID(str(metric.uuid)))
@@ -613,6 +666,7 @@ class DatasetType(UserPermissionsMixin):
         if dataset_models_by_uuid is None:
             model = (
                 DatasetModel.objects
+                .with_schema_editability(Framework)
                 .filter(uuid=binding.dataset_uuid)
                 .select_related('schema', 'created_by', 'last_modified_by')
                 .first()

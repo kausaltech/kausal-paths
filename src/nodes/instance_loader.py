@@ -1669,7 +1669,23 @@ class InstanceLoader:
             )
             refs.append(ref)
             self.db_dataset_refs[dataset.identifier] = ref
-        self.dataset_payload_store = CurrentDatasetPayloadStore(refs)
+        if self.snapshot.template_revision_id is not None:
+            from nodes.datasets import MixedDatasetPayloadStore
+
+            for pin in self.snapshot.dataset_revisions:
+                ref = DatasetPayloadRef(
+                    payload_id=pin.revision_id,
+                    dataset_pk=0,
+                    dataset_uuid=str(pin.dataset_uuid),
+                    identifier=pin.identifier or str(pin.dataset_uuid),
+                    content_hash=pin.content_hash,
+                    generation=None,
+                    forecast_from=pin.forecast_from,
+                )
+                self.db_dataset_refs[ref.identifier] = ref
+            self.dataset_payload_store = MixedDatasetPayloadStore(list(self.db_dataset_refs.values()))
+        else:
+            self.dataset_payload_store = CurrentDatasetPayloadStore(refs)
 
     def _finish_init(self) -> None:
         """Run the setup sequence for the natively built instance."""
