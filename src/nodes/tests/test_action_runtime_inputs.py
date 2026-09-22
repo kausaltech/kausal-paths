@@ -1,7 +1,7 @@
 """Focused regression tests for the action-class port migrations."""
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Literal, cast
 from uuid import NAMESPACE_URL, uuid3
 
 import polars as pl
@@ -18,6 +18,7 @@ from nodes.tests.node_input_harness import bind, binding, node_case
 from nodes.units import unit_registry
 
 if TYPE_CHECKING:
+    from nodes.defs.binding_def import EdgeBindingDef
     from nodes.runtime_input import RuntimeInputBinding
 
 pytestmark = pytest.mark.django_db
@@ -154,7 +155,8 @@ def test_nzc_yaml_fans_a_shared_rate_edge_into_one_port_per_role() -> None:
     # Both rate ports read the same source node; they are separate ports, not one shared binding.
     by_role = {node.role_for_input_port(port): port for port in node.spec.input_ports}
     rate_sources = {
-        role: [b.source_node.identifier for b in node.bindings_for_port(by_role[role].id)] for role in ('removing', 'inserting')
+        role: [cast('EdgeBindingDef', b).source_node.identifier for b in node.bindings_for_port(by_role[role].id)]
+        for role in ('removing', 'inserting')
     }
     assert rate_sources['removing'] == rate_sources['inserting'] == ['old_fleet_removal']
     assert by_role['removing'].id != by_role['inserting'].id
