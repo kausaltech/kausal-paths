@@ -1,13 +1,14 @@
 # Node input port runtime migration
 
 Status: in progress. The runtime foundation, the pilot conversions and the
-first bulk wave landed 2026-08-27 — see the three checkpoints under
+first bulk wave landed 2026-08-27 — see the checkpoints under
 [Implementation sequence](#implementation-sequence). Steps 0–4 are done,
 step 5 is done, step 6 is partway through its residual inventory, and step 7
 (removing the legacy `Edge` grouping and `input_dataset_instances`) has not
-started. Roughly 24 `get_input()` call sites exist against 57
-`get_input_dataset*` and 95 `get_output_pl()` as of 2026-09-21, so the class
-migration is early. Last reviewed 2026-09-21.
+started. As of 2026-09-22, 48 classes still reach for a legacy accessor
+across 123 call sites. Most of them are *not* a mechanical tail: see
+[Residual inventory](#residual-inventory-2026-09-22) for what actually blocks
+each group. Last reviewed 2026-09-22.
 
 ## Goal
 
@@ -718,6 +719,131 @@ mechanical tail:
 **Gate:** no migrated compute method calls `get_input_dataset*()`,
 `get_input_node(s)()`, or `source.get_output_pl(target_node=self)`.
 
+### Residual inventory (2026-09-22)
+
+Second bulk wave: `DatasetDifferenceAction` (`baseline`/`goal`),
+`SelectiveNode` (three conditional cost roles), `DataAvailabilityNode`
+(`data` plus an optional `template`), `FloorAreaNode`/`CfNode`/`AnnuityNode`
+(one role per source metric) and `DilutionNode` (a fanned-out edge) converted,
+each verified by
+`test_instance --compare` on every config that uses it. `SelectiveNode`
+established that a legacy tag may live on the *source node* rather than the
+binding, reachable through `EdgeBindingDef.source_node.spec.extra.tags`; the
+declarative `legacy_input_port_roles_by_tag` map cannot see those.
+
+`DataAvailabilityNode` showed the second recurring cost: a class whose tests
+construct nodes with `input_datasets=[...]` has no runtime bindings, so
+migrating the class breaks every one of its tests until the helper binds
+through `RuntimeInputBinding.from_legacy_fixed_dataset()`. Budget for that
+whenever a class has its own focused test module. That adapter does not narrow
+a multi-metric dataset, so the node's documented per-metric flag columns still
+work; a dataset binding built by the graph would select one metric, which is
+worth re-checking when `dataset_index` retires.
+
+The remaining classes divide as follows. The dividing line is not the file or
+the tag pattern: it is what the class needs *beyond* a value on a declared
+port. Before assuming a class is blocked, load its config through
+`InstanceLoader._stash_snapshot_bindings()` and print its ports with their
+bound source metric. The graph usually already carries the distinction the
+class was making by hand.
+
+1. **Several metrics of one source** — *not blocked*. An earlier revision of
+   this section claimed a port could not deliver these and that a parser
+   change was needed. That was wrong, and it is worth stating plainly because
+   it would have cost a capability nobody needs.
+
+   `_build_input_ports()` already loops over an edge's metrics and emits one
+   `InputPortDef` per metric, each bound to that metric's output port, named
+   `{source}_{metric}`; `_build_output_ports()` already gives every source one
+   output port per `NodeMetric`. So a legacy `input_nodes` entry against a
+   multi-metric source **is already several ports**. Confirmed by loading
+   longmont-old (`affected_square_footage`: 7 ports, not 3), tampere-c4c
+   (`annuitized_costs`: `currency` and `term` per action), zuerich-2025, nzc,
+   cork-nzc and dut-transport-nzc.
+
+   What a migrating class needs is therefore only:
+   - one declared role per source metric it consumes;
+   - a legacy hook classifying by `EdgeBindingDef.source_port.column_id`
+     (or `DatasetBindingDef`'s metric) rather than by source node class;
+   - re-pairing by `binding.source_id` when metrics that used to arrive in one
+     frame have to be used together.
+
+   `FloorAreaNode`, `CfNode` and `AnnuityNode` are converted on exactly this
+   basis. The rule they share now lives in
+   `Node.legacy_input_port_roles_by_source_metric`, consulted between the tag
+   and quantity maps, rather than in three bespoke hooks. Note that
+   `MultiplicativeNode` had no delegation guard, so a subclass declaring a
+   legacy map silently inherited the additive/factor algebra instead; both it
+   and `AdditiveNode` now gate on `Node.declares_legacy_role_map()`.
+
+   longmont-old covers the buildings classes. tampere-c4c, the only config
+   with an `AnnuityNode`, was already in the failed set, so no `--compare`
+   baseline covers that class.
+
+   The `DatasetReduceAction` family is the remaining one, with one extra step. Its
+   bindings are already one per (role × the *consumer's* output metric), and
+   the legacy tags already name both (`tags: [historical, renovation_rate]`).
+   Expressing that needs `repeatable` roles with one port instance per output
+   metric, paired through `InputPortDef.paired_output_port_id` and read with
+   `iter_input_ports()` — all of which exist, because `AdditiveAction` already
+   uses them. It is role vocabulary and legacy inference, not a new capability.
+2. **One binding serving two roles** — resolved by expanding the binding, not
+   by collapsing the roles. Every `DilutionNode` config supplies both stock
+   rates from one source as `tags: [removing, inserting]`. Collapsing them
+   would have been convenient and wrong: the recurrence is `existing x (1 -
+   removing) + incoming x inserting`, and the stock only keeps its size when
+   the two agree, so one role makes a growing or shrinking fleet
+   inexpressible.
+
+   `Node.legacy_edge_role_fanout` lets a class name roles that one legacy edge
+   may fill at once. The parser then emits a port per role and writes the role
+   onto each, turning what the tag list meant into explicit configuration —
+   which is the point, since the tags are going away. The first role keeps the
+   edge's existing port id so no stored binding moves.
+
+   **The expansion runs in the YAML parser**, so a database-sourced draft
+   keeps its old single port until re-synced. `cork-nzc` proved this: the
+   loader refused the unclassifiable binding rather than dropping it, and a
+   re-sync fixed it. Budget a re-sync for every DB instance using a class that
+   adopts a fanout, and run the whole sweep rather than the instance's own
+   configs — the YAML checks pass while the stored draft still fails.
+3. **`GenericNode` descendants** (~17 classes) — blocked on the typed
+   `PipelineNode` operation contract, as step 6 already says. The tag lookup
+   is inside the operation registry (`_preprocess_for_one` takes a tag
+   argument; `_operation_split_dims` picks `splitter`/`splittee` by tag), not
+   in a compute method that can be rewritten independently.
+4. **`DatasetNode` family** (6 classes) — must move with their inherited
+   framework/dataset contract, not by declaring only their extra edge inputs.
+5. **pandas computations** (~7 classes: kpr, syke, aluesarjat,
+   energy_saving, `actions/simple.py`, `ToPerCapita`) — blocked on the
+   dataframe migration. `get_input_dataset()` without `_pl` is the marker.
+6. **Runtime/source-capability consumers** — `Node`, `ActionNode`,
+   `FormulaNode`, `PipelineExecutor` need source-level APIs; `Node` and
+   `ActionNode` belong to step 7 rather than step 6.
+7. **Parameter-driven selection** — `ChooseInputNode` picks its input by a
+   scenario parameter naming a tag. The input set is static but which one is
+   *read* varies, and no declared role can express that. It needs a
+   per-binding label the computation may match against, or it stays as is.
+8. **Unverifiable** — `costs.IterativeNode` and `InternalGrowthNode` appear
+   in zero configs, so no `--compare` baseline can cover a change to them.
+   Migrate only alongside a DB instance that exercises them.
+
+Ordinary work still available without settling anything: the
+`DatasetReduceAction` family per group 1, `VehicleDatasetNode`, and
+`MultiplicativeNode`'s last `get_input_nodes` call. `SimpleNode`'s two
+`get_input_dataset_pl()` calls are in framework helpers
+(`fill_gaps_using_input_dataset_pl`) shared by many subclasses, so they belong
+to step 7. `simple.SectorEmissions` looks easy but is not: it reads its
+dataset as a *base* frame when the `category` parameter is set and lets
+`AdditiveNode` treat the same binding as an additive operand otherwise, so the
+binding's role depends on a parameter. Everything else waits on one of the
+capabilities above.
+
+A class touching named non-`Value` columns is a cheap screen for group 1, but
+it over-reports: unit strings and internally constructed temporaries
+(`DilutionNode`'s `incoming`/`removing`, `IterativeNode`'s `changes`/`rate`)
+trip it. Confirm by reading before classifying.
+
 ### 7. Remove compatibility runtime state
 
 - Remove target-aware transformation behavior from `Node.get_output_pl()`.
@@ -763,8 +889,9 @@ Repository-level gates:
 - focused node and binding unit tests;
 - full pytest suite;
 - mypy and ruff on changed code;
-- parse-oracle parity;
-- recorded `test_instance --compare` outputs for every available baseline;
+- recorded `test_instance --compare` outputs for every available baseline
+  (`model-outputs/state.json` lists which instances have one, and which were
+  already failing before the change);
 - explicit before/after comparison for every production instance containing a
   migrated class.
 
