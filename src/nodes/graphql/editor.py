@@ -7,7 +7,7 @@ model instances (NodeConfig, NodeInputPortBinding, ActionGroup, Scenario).
 
 import math
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Annotated, Any, TypeGuard, cast
+from typing import TYPE_CHECKING, Annotated, Any, cast
 from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 
 import strawberry as sb
@@ -50,14 +50,25 @@ from kausal_common.users import user_or_bust, user_or_none
 from paths import gql
 from paths.identifiers import identifier_or_none
 
+from frameworks.catalogue import dimension_scopes, schema_scopes
+from frameworks.models import Framework
 from nodes.change_ops import gql_change_operation, record_change
+from nodes.constraints.validation import BindingChange, InstanceConstraintError
 from nodes.dataset_materialization import refresh_dataset_materialization
 from nodes.defs import ActionGroup, FormulaConfig, SimpleConfig
+from nodes.defs.binding_def import EdgeBindingDef
 from nodes.defs.node_defs import ActionConfig, NodeKind, NodeSpec, PipelineConfig, TypeConfig
 from nodes.defs.port_def import InputPortDef, OutputPortDef
-from nodes.instance_graph import InstanceGraph, NodeMeta
-from nodes.models import InstanceConfig, NodeConfig, NodeInputPortBinding, NodeLayout, NodeLayoutSource
+from nodes.graphql.binding_storage import LocalBindingEditor
+from nodes.graphql.bindings import _port_occupants, bind_dataset, binding_editor
+from nodes.graphql.constraint_checks import check_binding_change, edge_candidate, require_draft_graph
+from nodes.graphql.inputs import _get_input_port, _get_output_port, is_maybe_set
+from nodes.input_bindings import compact_port_positions, next_port_position
+from nodes.instance_graph import InstanceGraph, NodeEditContext, NodeMeta
+from nodes.instance_serialization import InputBindingSnapshot, NodePortSource
+from nodes.models import InstanceConfig, NodeConfig, NodeInputPortBinding, NodeLayout, NodeLayoutSource, PreferredInstanceSource
 from nodes.node import Node
+from nodes.template_graph import replace_input_port_bindings
 from nodes.units import unit_registry
 from params.param import BoolParameter, NumberParameter, StringParameter
 
@@ -75,8 +86,6 @@ from .types.transformations import EdgeTransformationInput, edge_transformations
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from strawberry import Some
-
     from kausal_common.i18n.pydantic import I18nString
     from kausal_common.models.ordered import OrderedModel
 
@@ -84,6 +93,7 @@ if TYPE_CHECKING:
     from datasets.graphql.types import DatasetType, DataSourceType  # used in lazy strawberry annotations
     from nodes.defs.transform_def import PortTransformOp
     from nodes.graphql.bindings import BindDatasetInput, PortBindingEditorMutation
+    from nodes.graphql.template_bindings import InputPortBindingInput
     from nodes.graphql.types.graph import DatasetPortType  # used in lazy strawberry annotations
     from users.models import User
 
@@ -143,22 +153,6 @@ def _parse_port_id(info: gql.Info, raw_port_id: str, *, field_name: str) -> UUID
         return UUID(raw_port_id)
     except ValueError as exc:
         raise GraphQLValidationError(info, f'"{field_name}" must be a UUID, got "{raw_port_id}"') from exc
-
-
-def _get_output_port(nc: NodeConfig, port_id: UUID) -> OutputPortDef | None:
-    assert nc.spec is not None
-    for port in nc.spec.output_ports:
-        if port.id == port_id:
-            return port
-    return None
-
-
-def _get_input_port(nc: NodeConfig, port_id: UUID) -> InputPortDef | None:
-    assert nc.spec is not None
-    for port in nc.spec.input_ports:
-        if port.id == port_id:
-            return port
-    return None
 
 
 def _node_class_for(nc: NodeConfig) -> type[Node]:
@@ -260,7 +254,9 @@ def _plan_declared_input_port(to_node: NodeConfig) -> InputPortDef | None:
     return None
 
 
-def _select_existing_target_port(to_node: NodeConfig, source_port: OutputPortDef) -> UUID | None:
+def _select_existing_target_port(
+    to_node: NodeConfig, source_port: OutputPortDef, occupied_port_ids: set[UUID] | None = None
+) -> UUID | None:
     """Pick an existing input port with capacity for a new connection, if any fits."""
 
     assert to_node.spec is not None
@@ -269,6 +265,8 @@ def _select_existing_target_port(to_node: NodeConfig, source_port: OutputPortDef
     def has_capacity(port: InputPortDef) -> bool:
         if port.multi:
             return True
+        if occupied_port_ids is not None:
+            return port.id not in occupied_port_ids
         return not NodeInputPortBinding.objects.filter(node=to_node, port_id=port.id).exists()
 
     # Preserve single-port convenience: if the target has exactly one input
@@ -294,6 +292,7 @@ def _plan_target_port(
     to_node: NodeConfig,
     to_port: UUID | None,
     source_port: OutputPortDef,
+    occupied_port_ids: set[UUID] | None = None,
 ) -> tuple[UUID, InputPortDef | None]:
     """
     Resolve the target input port, planning a new one on demand.
@@ -309,7 +308,7 @@ def _plan_target_port(
             return to_port, None
         raise GraphQLValidationError(info, f'Input port "{to_port}" does not exist on node "{to_node.identifier}"')
 
-    existing = _select_existing_target_port(to_node, source_port)
+    existing = _select_existing_target_port(to_node, source_port, occupied_port_ids)
     if existing is not None:
         return existing, None
 
@@ -346,7 +345,7 @@ def _append_input_port(to_node: NodeConfig, port: InputPortDef) -> None:
     record_change(to_node, action='node.update', before=before, after=to_node.serializable_data())
 
 
-def _resolve_source_port(info: gql.Info, from_node: NodeConfig, from_port: UUID | None) -> UUID:
+def _resolve_source_port(info: gql.Info, from_node: NodeConfig | NodeMeta, from_port: UUID | None) -> UUID:
     assert from_node.spec is not None
     output_ports = from_node.spec.output_ports
     if from_port is None:
@@ -729,8 +728,10 @@ class CreateDimensionInput:
 @sb.input
 class CreateDatasetInput:
     name: str
+    schema_id: UUID | None = None
     metrics: list[Annotated['CreateDatasetMetricInput', sb.lazy('datasets.graphql.editor')]] = sb.field(
-        description='Metrics (value columns) of the dataset; at least one is required.',
+        description='Metrics for a new schema. Omit when using schemaId.',
+        default_factory=list,
     )
     identifier: str | None = sb.field(
         default=None,
@@ -741,6 +742,24 @@ class CreateDatasetInput:
         default_factory=list,
         description='UUIDs of instance dimensions the data points are categorized by, in column order.',
     )
+
+
+def _select_dataset_schema(info: gql.Info, ic: InstanceConfig, input: CreateDatasetInput) -> DatasetSchema | None:
+    selected_schema = None
+    if input.schema_id is not None:
+        selected_schema = DatasetSchema.objects.filter(
+            pk__in=schema_scopes(ic).values('schema_id'),
+            uuid=input.schema_id,
+        ).first()
+        if selected_schema is None:
+            raise NotFoundError(info, 'Schema is not available to this instance')
+        if input.metrics or input.dimensions:
+            raise GraphQLValidationError(info, 'An existing schema already defines metrics and dimensions')
+        if Dataset.objects.filter(schema=selected_schema, scope_content_type=_instance_ct(ic), scope_id=ic.pk).exists():
+            raise GraphQLValidationError(info, 'A dataset for this schema already exists in this instance')
+    elif not input.metrics:
+        raise GraphQLValidationError(info, 'At least one metric is required')
+    return selected_schema
 
 
 @sb.input
@@ -798,10 +817,6 @@ class ModelEditorQuery:
     def model_instance(info: gql.Info, instance_id: sb.ID) -> InstanceType:
         ic = _get_instance_config(info, instance_id)
         return _resolve_model_instance(info, ic, refresh=True)
-
-
-def is_maybe_set[T](maybe: Some[T] | None) -> TypeGuard[Some[T]]:
-    return maybe is not None and maybe is not sb.UNSET
 
 
 def _action_group_snapshot(group: ActionGroup) -> dict[str, Any]:
@@ -1426,7 +1441,7 @@ class NodeEditorMutation:
 
     @gql.mutation(description='Append a new input port to this node', graphql_type=InputPortType)
     @staticmethod
-    def add_input_port(info: gql.Info, root: sb.Parent[Me], input: InputPortInput) -> InputPortDef:
+    def add_input_port(info: gql.Info, root: sb.Parent[Me], input: InputPortInput) -> InputPortType:
         meta = root._current_node_meta(info)
         nc = root.node
         new_port = _input_port_to_def(nc.identifier, len(meta.spec.input_ports), input, {}, root.instance.primary_language)
@@ -1445,7 +1460,20 @@ class NodeEditorMutation:
             nc.refresh_from_db()
             record_change(nc, action='node.input_ports.create', before=before, after=nc.serializable_data())
 
-        return spec.input_port_by_id[new_port.id]
+        new_port = spec.input_port_by_id[new_port.id]
+        port_type = InputPortType.from_def(new_port, bindings=[], node_uuid=nc.uuid)
+        port_type._mutation_editable = NodeMeta.can_edit(
+            NodeEditContext(
+                can_change_instance=True,
+                is_draft=True,
+                is_template=root.instance.is_template,
+                is_superuser=info.context.user.is_superuser,
+            ),
+            inherited=False,
+            node_is_editable=nc.is_editable,
+            definition_is_editable=new_port.is_editable,
+        )
+        return port_type
 
     @gql.mutation(
         description='Bind a dataset metric to an existing input port on this node',
@@ -1457,14 +1485,12 @@ class NodeEditorMutation:
         root: sb.Parent[Me],
         input: Annotated['BindDatasetInput', sb.lazy('nodes.graphql.bindings')],
     ) -> Any:
-        from nodes.graphql.bindings import bind_dataset
-
         root._current_node_meta(info)
         return bind_dataset(info, root.instance, root.node, input)
 
     @gql.mutation(description='Append a new output port to this node', graphql_type=OutputPortType)
     @staticmethod
-    def add_output_port(info: gql.Info, root: sb.Parent[Me], input: OutputPortInput) -> OutputPortDef:
+    def add_output_port(info: gql.Info, root: sb.Parent[Me], input: OutputPortInput) -> OutputPortType:
         meta = root._current_node_meta(info)
         nc = root.node
         new_port = _output_port_to_def(nc.identifier, len(meta.spec.output_ports), input, {}, root.instance.primary_language)
@@ -1483,7 +1509,20 @@ class NodeEditorMutation:
             nc.refresh_from_db()
             record_change(nc, action='node.output_ports.create', before=before, after=nc.serializable_data())
 
-        return spec.output_port_by_id[new_port.id]
+        new_port = spec.output_port_by_id[new_port.id]
+        port_type = OutputPortType.from_def(new_port, edges=[], node=None, node_uuid=nc.uuid)
+        port_type._mutation_editable = NodeMeta.can_edit(
+            NodeEditContext(
+                can_change_instance=True,
+                is_draft=True,
+                is_template=root.instance.is_template,
+                is_superuser=info.context.user.is_superuser,
+            ),
+            inherited=False,
+            node_is_editable=nc.is_editable,
+            definition_is_editable=new_port.is_editable,
+        )
+        return port_type
 
     @staticmethod
     def _port_bindings(ic: InstanceConfig, nc: NodeConfig, port_id: UUID, direction: str) -> list[Any]:
@@ -1532,7 +1571,18 @@ class NodeEditorMutation:
         port = spec.input_port_by_id.get(pid)
         if port is None:
             raise NotFoundError(info, f'Input port "{port_id}" not found on node "{nc.identifier}"')
-        if not port.is_editable and port.paired_output_port_id is None:
+        resources = info.context.instance_resources
+        assert resources is not None
+        if not NodeMeta.can_edit(
+            resources.node_edit_context(info, root.instance, PreferredInstanceSource.DRAFT),
+            inherited=nc.instance_id != root.instance.pk,
+            node_is_editable=nc.is_editable,
+            definition_is_editable=(
+                spec.output_port_by_id[port.paired_output_port_id].is_editable
+                if port.paired_output_port_id is not None
+                else port.is_editable
+            ),
+        ):
             raise GraphQLValidationError(info, f'Input port "{port_id}" is not editable')
 
         new_port = _updated_input_port_def(info, port, input, ic.primary_language)
@@ -1552,6 +1602,14 @@ class NodeEditorMutation:
             new_port,
             bindings=NodeEditorMutation._port_bindings(ic, nc, pid, 'input'),
             node_uuid=nc.uuid,
+        )
+        port_type._mutation_editable = NodeMeta.can_edit(
+            NodeEditContext(
+                can_change_instance=True, is_draft=True, is_template=ic.is_template, is_superuser=info.context.user.is_superuser
+            ),
+            inherited=False,
+            node_is_editable=nc.is_editable,
+            definition_is_editable=new_port.is_editable,
         )
         return UpdateInputPortResult(port=port_type, conflicts=_node_conflicts(info, ic, nc))
 
@@ -1577,7 +1635,14 @@ class NodeEditorMutation:
         port = spec.output_port_by_id.get(pid)
         if port is None:
             raise NotFoundError(info, f'Output port "{port_id}" not found on node "{nc.identifier}"')
-        if not port.is_editable:
+        resources = info.context.instance_resources
+        assert resources is not None
+        if not NodeMeta.can_edit(
+            resources.node_edit_context(info, root.instance, PreferredInstanceSource.DRAFT),
+            inherited=nc.instance_id != root.instance.pk,
+            node_is_editable=nc.is_editable,
+            definition_is_editable=port.is_editable,
+        ):
             raise GraphQLValidationError(info, f'Output port "{port_id}" is not editable')
 
         new_port = _updated_output_port_def(info, port, input, ic.primary_language)
@@ -1598,6 +1663,14 @@ class NodeEditorMutation:
             node=None,
             node_uuid=nc.uuid,
         )
+        port_type._mutation_editable = NodeMeta.can_edit(
+            NodeEditContext(
+                can_change_instance=True, is_draft=True, is_template=ic.is_template, is_superuser=info.context.user.is_superuser
+            ),
+            inherited=False,
+            node_is_editable=nc.is_editable,
+            definition_is_editable=new_port.is_editable,
+        )
         return UpdateOutputPortResult(port=port_type, conflicts=_node_conflicts(info, ic, nc))
 
 
@@ -1605,6 +1678,60 @@ class NodeEditorMutation:
 class InstanceEditorMutation:
     instance: sb.Private[InstanceConfig]
     type Me = InstanceEditorMutation
+
+    @gql.mutation(description='Replace the local bindings of an effective input port; null restores its default.')
+    @staticmethod
+    def set_input_port_bindings(
+        info: gql.Info,
+        root: sb.Parent[Me],
+        node_id: UUID,
+        port_id: UUID,
+        bindings: list[Annotated['InputPortBindingInput', sb.lazy('nodes.graphql.template_bindings')]] | None,
+    ) -> DeletePayload | ConstraintViolationsType:
+        ic = root.instance
+        ic.ensure_gql_action_allowed(info, 'change')
+        if ic.template_revision_id is None:
+            raise GraphQLValidationError(info, 'Instance does not use a framework release')
+        resources = info.context.instance_resources
+        assert resources is not None
+        snapshot = info.context.require_instance_snapshot(ic, source=PreferredInstanceSource.DRAFT)
+        node = next((node for node in snapshot.nodes if node.uuid == node_id), None)
+        port = node.spec.input_port_by_id.get(port_id) if node is not None and node.spec is not None else None
+        if (
+            node is None
+            or port is None
+            or not NodeMeta.can_edit(
+                resources.node_edit_context(info, ic, PreferredInstanceSource.DRAFT),
+                inherited=node.template_revision_id is not None,
+                node_is_editable=node.is_editable is not False,
+                binding_owner=port.binding_owner,
+            )
+        ):
+            raise GraphQLValidationError(info, 'Input bindings are not editable in this instance')
+        snapshots = (
+            None
+            if bindings is None
+            else [binding.to_snapshot(ic, node_id, port_id, position) for position, binding in enumerate(bindings)]
+        )
+        try:
+            with gql_change_operation(info, ic, action='framework.input_bindings.set'):
+                config = ic
+                previous = config.binding_overrides.filter(node_uuid=node_id, port_uuid=port_id).first()
+                before = None if previous is None else [binding.model_dump(mode='json') for binding in previous.bindings]
+                replace_input_port_bindings(ic, node_id, port_id, snapshots)
+                record_change(
+                    ic,
+                    action='framework.input_bindings.set',
+                    before={'node': str(node_id), 'port': str(port_id), 'bindings': before},
+                    after={
+                        'node': str(node_id),
+                        'port': str(port_id),
+                        'bindings': None if snapshots is None else [b.model_dump(mode='json') for b in snapshots],
+                    },
+                )
+        except InstanceConstraintError as exc:
+            return ConstraintViolationsType.from_conflicts(exc.conflicts)
+        return DeletePayload(ok=True)
 
     @gql.mutation(description='Create a new node in the model', graphql_type=AnyNodeType)
     @staticmethod
@@ -1768,8 +1895,6 @@ class InstanceEditorMutation:
     def binding_editor(
         info: gql.Info, root: sb.Parent[Me], binding_id: sb.ID
     ) -> Annotated['PortBindingEditorMutation', sb.lazy('nodes.graphql.bindings')]:
-        from nodes.graphql.bindings import binding_editor
-
         return binding_editor(info, root.instance, binding_id)
 
     @gql.mutation(
@@ -1778,16 +1903,16 @@ class InstanceEditorMutation:
     )
     @staticmethod
     def create_edge(info: gql.Info, input: CreateEdgeInput) -> NodeEdgeType | ConstraintViolationsType:
-        from nodes.constraints.validation import BindingChange
-        from nodes.graphql.constraint_checks import check_binding_change, edge_candidate, require_draft_graph
-        from nodes.input_bindings import next_port_position
-
         ic = _get_instance_config(info, input.instance_id)
         if ic.config_source != 'database':
             raise GraphQLError('Cannot edit YAML-sourced instances')
 
+        if ic.template_revision_id is not None:
+            return InstanceEditorMutation._create_effective_edge(info, ic, input)
+
         from_node, to_node = _resolve_create_edge_nodes(ic, input)
         to_node.ensure_gql_action_allowed(info, 'change')
+        LocalBindingEditor.require_node(info, ic, to_node)
 
         requested_to_port = input.port_ref.port_id
         from_port = _resolve_source_port(info, from_node, input.from_ref.port_id)
@@ -1798,8 +1923,6 @@ class InstanceEditorMutation:
 
         displaced: list[NodeInputPortBinding] = []
         if input.replace:
-            from nodes.graphql.bindings import _port_occupants
-
             if requested_to_port is None:
                 raise GraphQLValidationError(
                     info,
@@ -1854,12 +1977,53 @@ class InstanceEditorMutation:
 
         return NodeEdgeType.from_input_binding(edge)
 
+    @staticmethod
+    def _create_effective_edge(
+        info: gql.Info, ic: InstanceConfig, input: CreateEdgeInput
+    ) -> NodeEdgeType | ConstraintViolationsType:
+        graph = require_draft_graph(info, ic)
+        from_node = graph.node_by_id.get(input.from_ref.node_uuid)
+        to_node = ic.nodes.filter(uuid=input.port_ref.node_uuid).first()
+        if from_node is None or to_node is None:
+            raise GraphQLError('Source or local target node not found')
+        to_node.ensure_gql_action_allowed(info, 'change')
+        LocalBindingEditor.require_node(info, ic, to_node)
+        from_port = _resolve_source_port(info, from_node, input.from_ref.port_id)
+        source_port = from_node.spec.output_port_by_id[from_port]
+        occupied = {b.port_ref.port_id for b in graph.bindings_for_node(to_node.uuid)}
+        to_port, planned_port = _plan_target_port(info, to_node, input.port_ref.port_id, source_port, occupied)
+        binding = InputBindingSnapshot(
+            uuid=uuid4(),
+            node_id=to_node.uuid,
+            port_id=to_port,
+            position=0,
+            source=NodePortSource(node_id=from_node.id, port_id=from_port),
+            transformations=_resolve_edge_transformations(info, input.transformations),
+        )
+        if input.replace and input.port_ref.port_id is None:
+            raise GraphQLValidationError(info, 'replace requires an explicit input port')
+        with transaction.atomic(), gql_change_operation(info, ic, action='edge.create'):
+            if planned_port is not None:
+                _append_input_port(to_node, planned_port)
+            violations = LocalBindingEditor.add(info, ic, to_node, binding, replace=input.replace)
+            if violations is not None:
+                transaction.set_rollback(True)
+                return violations
+        assert binding.uuid is not None
+        current = require_draft_graph(info, ic).binding_by_id[binding.uuid]
+        assert isinstance(current, EdgeBindingDef)
+        return NodeEdgeType.from_binding(current)
+
     @gql.mutation(description='Delete an edge')
     @staticmethod
     def delete_edge(root: sb.Parent[Me], info: gql.Info, edge_id: sb.ID) -> None:
-        from nodes.input_bindings import compact_port_positions
-
         ic = root.instance
+        if ic.template_revision_id is not None:
+            node, binding = LocalBindingEditor.find(info, ic, str(edge_id))
+            if not isinstance(binding.source, NodePortSource):
+                raise GraphQLError('Edge not found')
+            LocalBindingEditor.delete(info, ic, node, binding)
+            return
         try:
             edge = NodeInputPortBinding.objects.select_related('node', 'source_node').get(
                 instance=ic, uuid=edge_id, source_node__isnull=False
@@ -2456,7 +2620,6 @@ class InstanceEditorMutation:
         instance_id: sb.ID,
     ) -> InstanceType | ConstraintViolationsType | DatasetValidationViolationsType:
         from datasets.validation import InstanceDatasetValidationError
-        from nodes.constraints.validation import InstanceConstraintError
 
         ic = _get_instance_config(info, instance_id)
         if ic.config_source != 'database':
@@ -2682,8 +2845,7 @@ class InstanceEditorMutation:
             raise PermissionDeniedError(info, 'Permission denied for create')
         user = _require_user(info)
 
-        if not input.metrics:
-            raise GraphQLValidationError(info, 'At least one metric is required')
+        selected_schema = _select_dataset_schema(info, ic, input)
 
         ct = _instance_ct(ic)
         if input.identifier:
@@ -2691,28 +2853,24 @@ class InstanceEditorMutation:
 
         dim_scopes: list[DimensionScope] = []
         for dim_uuid in input.dimensions:
-            scope = (
-                DimensionScope.objects
-                .for_instance_config(ic)
-                .filter(dimension__uuid=dim_uuid)
-                .select_related('dimension')
-                .first()
-            )
+            scope = dimension_scopes(ic).filter(dimension__uuid=dim_uuid).select_related('dimension').first()
             if scope is None:
                 raise NotFoundError(info, f'Dimension "{dim_uuid}" not found in instance "{ic.identifier}"')
             dim_scopes.append(scope)
 
         with gql_change_operation(info, ic, action='dataset.create'):
             name, name_i18n = get_modeltrans_attrs_from_str(input.name, 'name', ic.primary_language)
-            schema = DatasetSchema.objects.create(name=name, i18n=name_i18n)
-            DatasetSchemaScope.objects.create(schema=schema, scope_content_type=ct, scope_id=ic.pk)
-            try:
-                for metric_input in input.metrics:
-                    create_metric_row(schema, metric_input, ic.primary_language)
-            except ValidationError as exc:
-                raise GraphQLValidationError(info, '; '.join(exc.messages)) from exc
-            for idx, dim_scope in enumerate(dim_scopes):
-                DatasetSchemaDimension.objects.create(schema=schema, dimension=dim_scope.dimension, order=idx)
+            schema = selected_schema
+            if schema is None:
+                schema = DatasetSchema.objects.create(name=name, i18n=name_i18n)
+                DatasetSchemaScope.objects.create(schema=schema, scope_content_type=ct, scope_id=ic.pk)
+                try:
+                    for metric_input in input.metrics:
+                        create_metric_row(schema, metric_input, ic.primary_language)
+                except ValidationError as exc:
+                    raise GraphQLValidationError(info, '; '.join(exc.messages)) from exc
+                for idx, dim_scope in enumerate(dim_scopes):
+                    DatasetSchemaDimension.objects.create(schema=schema, dimension=dim_scope.dimension, order=idx)
             dataset = Dataset.objects.create(
                 schema=schema,
                 uuid=input.id or uuid4(),
@@ -2764,6 +2922,13 @@ class InstanceEditorMutation:
                 dataset.identifier = input.identifier.value
                 dataset.save(update_fields=['identifier'])
             if is_maybe_set(input.name) and schema is not None:
+                if (
+                    schema.datasets.exclude(pk=dataset.pk).exists()
+                    or schema.scopes.filter(
+                        scope_content_type=ContentType.objects.get_for_model(Framework),
+                    ).exists()
+                ):
+                    raise GraphQLValidationError(info, 'Renaming a shared schema through a dataset is not allowed')
                 # queryset.update() rather than save(): DatasetSchema is a
                 # ClusterableModel, whose save() can revert i18n edits.
                 DatasetSchema.objects.filter(pk=schema.pk).update(name=input.name.value)
@@ -2794,7 +2959,13 @@ class InstanceEditorMutation:
         ic = root.instance
         dataset = InstanceEditorMutation._get_dataset(info, ic, dataset_id, for_action='delete')
 
-        if dataset.node_input_bindings.exists() or dataset.nodes_edges.exists():
+        from nodes.models import InputPortBindingReference
+
+        if (
+            dataset.node_input_bindings.exists()
+            or dataset.nodes_edges.exists()
+            or InputPortBindingReference.objects.filter(dataset=dataset).exists()
+        ):
             raise GraphQLValidationError(
                 info,
                 'The dataset is bound to a node input port; remove the binding first',
@@ -2820,7 +2991,14 @@ class InstanceEditorMutation:
             before['data_point_count'] = data_point_count
             record_change(dataset, action='dataset.delete', before=before, after=None)
             dataset.delete()
-            if schema is not None and not schema.datasets.exists():
+
+            if (
+                schema is not None
+                and not schema.datasets.exists()
+                and not schema.scopes.filter(
+                    scope_content_type=ContentType.objects.get_for_model(Framework),
+                ).exists()
+            ):
                 schema.delete()
         return DeletePayload(ok=True)
 

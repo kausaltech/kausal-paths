@@ -28,6 +28,8 @@ from kausal_common.people.models import ObjectRole
 
 from paths.context import realm_context
 
+from frameworks.models import Framework
+from frameworks.roles import framework_admin_role
 from nodes.models import InstanceConfig, InstanceConfigPermissionPolicy
 from nodes.roles import (
     InstanceGroupMembershipRole,
@@ -38,6 +40,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
 
     from django.contrib.auth.models import AnonymousUser
+    from django.db.models import QuerySet
 
     from kausal_common.models.permission_policy import (
         BaseObjectAction,
@@ -49,6 +52,16 @@ if TYPE_CHECKING:
     from paths.const import InstanceRoleIdentifier
 
     from users.models import User
+
+
+def _instance_role_ids(user: User, action: BaseObjectAction) -> QuerySet[InstanceConfig]:
+    roles = ['instance-admin', 'instance-super-admin']
+    if action == 'view':
+        roles.extend(['instance-viewer', 'instance-reviewer'])
+    query = Q(pk__in=[])
+    for role_id in roles:
+        query |= Q(pk__in=role_registry.get_role(role_id).get_instances_for_user(user).values('pk'))
+    return InstanceConfig.objects.filter(query)
 
 
 class InstanceConfigScopedPermissionPolicy[
@@ -179,8 +192,6 @@ class DatasetSchemaPermissionPolicy(InstanceConfigScopedPermissionPolicy[Dataset
     """Permission policy for DatasetSchema, based on its scope (InstanceConfig)."""
 
     def __init__(self):
-        from kausal_common.datasets.models import DatasetSchema  # TODO why import here?
-
         super().__init__(DatasetSchema)
 
     def is_create_context_valid(self, context: Any) -> TypeGuard[None]:
@@ -190,12 +201,16 @@ class DatasetSchemaPermissionPolicy(InstanceConfigScopedPermissionPolicy[Dataset
     def get_instance_configs_for_obj(self, obj: DatasetSchema) -> list[int]:
         """Get IDs of all InstanceConfigs this schema is scoped for."""
         ic_content_type = ContentType.objects.get_for_model(InstanceConfig)
-        return list(obj.scopes.filter(scope_content_type=ic_content_type).values_list('scope_id', flat=True))
+        local = obj.scopes.filter(scope_content_type=ic_content_type).values_list('scope_id', flat=True)
+        framework_ids = obj.scopes.filter(scope_content_type=ContentType.objects.get_for_model(Framework)).values('scope_id')
+        return list(
+            InstanceConfig.objects.filter(Q(pk__in=local) | Q(framework_config__framework_id__in=framework_ids)).values_list(
+                'pk', flat=True
+            )
+        )
 
     @override
     def construct_perm_q(self, user: User, action: BaseObjectAction) -> Q | None:
-        from nodes.models import InstanceConfig
-
         ic_content_type = ContentType.objects.get_for_model(InstanceConfig)
 
         def make_q(role: InstanceRoleIdentifier) -> Q:
@@ -222,7 +237,21 @@ class DatasetSchemaPermissionPolicy(InstanceConfigScopedPermissionPolicy[Dataset
             q |= viewer_q | reviewer_q
 
         def apply_editable_filter(value: Q) -> Q:
-            return value if action == 'view' else value & Q(is_editable=True)
+            framework_ct = ContentType.objects.get_for_model(Framework)
+            if action == 'view':
+                value |= Q(
+                    scopes__scope_content_type=framework_ct,
+                    scopes__scope_id__in=InstanceConfig.objects.filter(pk__in=_instance_role_ids(user, action)).values(
+                        'framework_config__framework_id'
+                    ),
+                )
+                return value
+            shared_ids = DatasetSchema.objects.filter(scopes__scope_content_type=framework_ct).values('pk')
+            administered = Framework.objects.filter(framework_admin_role.role_q(user)).values('pk')
+            return (value & ~Q(pk__in=shared_ids) & Q(is_editable=True)) | Q(
+                scopes__scope_content_type=framework_ct,
+                scopes__scope_id__in=administered,
+            )
 
         if getattr(user, 'person', None) is None:
             return apply_editable_filter(q)
@@ -246,7 +275,10 @@ class DatasetSchemaPermissionPolicy(InstanceConfigScopedPermissionPolicy[Dataset
             return Q()
         ic_content_type = ContentType.objects.get_for_model(InstanceConfig)
         unlocked_instances = InstanceConfig.objects.filter(is_locked=False).values_list('pk', flat=True)
-        return Q(scopes__scope_content_type=ic_content_type, scopes__scope_id__in=unlocked_instances)
+
+        return Q(scopes__scope_content_type=ic_content_type, scopes__scope_id__in=unlocked_instances) | Q(
+            scopes__scope_content_type=ContentType.objects.get_for_model(Framework),
+        )
 
     @override
     def user_can_create(self, user: User, context: None) -> bool:
@@ -254,6 +286,14 @@ class DatasetSchemaPermissionPolicy(InstanceConfigScopedPermissionPolicy[Dataset
 
     @override
     def user_has_perm(self, user: User, action: ObjectSpecificAction, obj: DatasetSchema) -> bool:
+        framework_ids = obj.scopes.filter(scope_content_type=ContentType.objects.get_for_model(Framework)).values('scope_id')
+        if framework_ids.exists():
+            if user.is_superuser:
+                return True
+            if Framework.objects.filter(framework_admin_role.role_q(user), pk__in=framework_ids).exists():
+                return True
+            if action != 'view':
+                return False
         if self.get_permission_block(action, obj=obj) is not None:
             return False
         if action in ('change', 'delete') and not obj.is_editable and not user.is_superuser:
@@ -299,17 +339,47 @@ class DatasetSchemaPermissionPolicy(InstanceConfigScopedPermissionPolicy[Dataset
 
 
 class DatasetPermissionPolicy(ParentInheritedPolicy[Dataset, DatasetSchema, DatasetQuerySet, DatasetSchema]):
-    """Permission policy for Dataset, inheriting from its schema."""
+    """Instance data has its own owner; shared schema visibility never grants access to other instances' data."""
 
     def __init__(self):
-        from kausal_common.datasets.models import Dataset, DatasetSchema
-
         super().__init__(Dataset, DatasetSchema, 'schema', create_context_type=DatasetSchema)
 
     @override
     def user_has_perm(self, user: User, action: ObjectSpecificAction, obj: Dataset) -> bool:
+        if obj.scope_content_type_id == ContentType.objects.get_for_model(InstanceConfig).pk:
+            query = self.construct_perm_q(user, action)
+            return query is not None and Dataset.objects.filter(query, self.construct_state_perm_q(action), pk=obj.pk).exists()
         parent_obj = self.get_parent_obj(obj)
         return self.parent_policy.user_has_perm(user, action, parent_obj)
+
+    def construct_perm_q(self, user: User, action: BaseObjectAction) -> Q | None:
+        instance_ct = ContentType.objects.get_for_model(InstanceConfig)
+        shared_schemas = DatasetSchema.objects.for_scope_type(Framework).values('pk')
+        own = Q(scope_content_type=instance_ct)
+        if not user.is_superuser:
+            own &= Q(scope_id__in=_instance_role_ids(user, action))
+            if action in ('change', 'delete'):
+                # Shared schemas protect their structure, not the instance's data.
+                # Legacy local schemas also use this flag to protect their data.
+                own &= Q(schema__is_editable=True) | Q(schema_id__in=shared_schemas)
+        inherited = super().construct_perm_q(user, action)
+        if inherited is None:
+            return own
+        # Retain explicit per-schema grants for legacy instance-scoped schemas only.
+        return own | (inherited & ~Q(schema_id__in=shared_schemas))
+
+    def get_permission_block(
+        self,
+        action: BaseObjectAction,
+        *,
+        obj: Dataset | None = None,
+        context: DatasetSchema | None = None,
+    ) -> PermissionBlock | None:
+        if obj is not None and obj.scope_content_type_id == ContentType.objects.get_for_model(InstanceConfig).pk:
+            assert obj.scope_id is not None
+            instance = InstanceConfig.objects.get(pk=obj.scope_id)
+            return InstanceConfig.permission_policy().get_permission_block(action, obj=instance)
+        return super().get_permission_block(action, obj=obj, context=context)
 
     def construct_state_perm_q(self, action: ObjectSpecificAction) -> Q:
         if action not in ('change', 'delete'):
@@ -340,8 +410,6 @@ class DatasetMetricPermissionPolicy(
     """Permission policy for DatasetMetric, inheriting from its schema."""
 
     def __init__(self):
-        from kausal_common.datasets.models import DatasetMetric, DatasetSchema
-
         super().__init__(DatasetMetric, DatasetSchema, 'schema', create_context_type=DatasetSchema)
 
     @override
@@ -362,8 +430,6 @@ class DataPointPermissionPolicy(ParentInheritedPolicy[DataPoint, Dataset, Permis
     """Permission policy for DataPoint, inheriting from Dataset."""
 
     def __init__(self):
-        from kausal_common.datasets.models import DataPoint, Dataset
-
         super().__init__(DataPoint, Dataset, 'dataset', create_context_type=Dataset)
 
     @override
