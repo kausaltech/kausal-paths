@@ -721,12 +721,22 @@ mechanical tail:
 
 ### Residual inventory (2026-09-22)
 
-Second bulk wave: `DatasetDifferenceAction` (`baseline`/`goal`) and
-`SelectiveNode` (three conditional cost roles) converted, each verified by
-`test_instance --compare` on every config that uses it. `SelectiveNode` also
+Second bulk wave: `DatasetDifferenceAction` (`baseline`/`goal`),
+`SelectiveNode` (three conditional cost roles) and `DataAvailabilityNode`
+(`data` plus an optional `template`) converted, each verified by
+`test_instance --compare` on every config that uses it. `SelectiveNode`
 established that a legacy tag may live on the *source node* rather than the
 binding, reachable through `EdgeBindingDef.source_node.spec.extra.tags`; the
 declarative `legacy_input_port_roles_by_tag` map cannot see those.
+
+`DataAvailabilityNode` showed the second recurring cost: a class whose tests
+construct nodes with `input_datasets=[...]` has no runtime bindings, so
+migrating the class breaks every one of its tests until the helper binds
+through `RuntimeInputBinding.from_legacy_fixed_dataset()`. Budget for that
+whenever a class has its own focused test module. That adapter does not narrow
+a multi-metric dataset, so the node's documented per-metric flag columns still
+work; a dataset binding built by the graph would select one metric, which is
+worth re-checking when `dataset_index` retires.
 
 The 55 remaining classes divide as follows. The dividing line is not the file
 or the tag pattern — it is whether the class can express its inputs within the
@@ -770,10 +780,15 @@ one-metric port boundary.
    in zero configs, so no `--compare` baseline can cover a change to them.
    Migrate only alongside a DB instance that exercises them.
 
-What is genuinely left as ordinary work is small: the untagged single-dataset
-classes (`VehicleDatasetNode`, `SimpleNode`, `SectorEmissions`,
-`DataAvailabilityNode`) and `MultiplicativeNode`'s last `get_input_nodes`
-call. Everything else waits on one of the capabilities above.
+What is genuinely left as ordinary work is small: `VehicleDatasetNode`, and
+`MultiplicativeNode`'s last `get_input_nodes` call. `SimpleNode`'s two
+`get_input_dataset_pl()` calls are in framework helpers
+(`fill_gaps_using_input_dataset_pl`) shared by many subclasses, so they belong
+to step 7. `simple.SectorEmissions` looks easy but is not: it reads its
+dataset as a *base* frame when the `category` parameter is set and lets
+`AdditiveNode` treat the same binding as an additive operand otherwise, so the
+binding's role depends on a parameter. Everything else waits on one of the
+capabilities above.
 
 A class touching named non-`Value` columns is a cheap screen for group 1, but
 it over-reports: unit strings and internally constructed temporaries
