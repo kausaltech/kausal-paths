@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Annotated, Any, Protocol, Self, cast
 from uuid import UUID
 
 import strawberry as sb
+from django.db.models import Prefetch
 from django.http import HttpRequest
 from django.utils import timezone
 from graphql import GraphQLError
@@ -15,6 +16,7 @@ from wagtail.blocks.stream_block import StreamValue
 
 from grapple.types.streamfield import StreamFieldInterface
 
+from kausal_common.datasets.models import Dataset, DatasetSchema, DatasetSchemaDimension
 from kausal_common.models.uuid import query_pk_or_uuid_or_identifier
 from kausal_common.strawberry.grapple import grapple_field
 from kausal_common.strawberry.permissions import SuperuserOnly
@@ -25,8 +27,11 @@ from paths.graphql_helpers import pass_context
 from paths.graphql_types import UnitType
 
 from datasets.graphql import DatasetType
-from frameworks.models import FrameworkConfig
+from datasets.graphql.types import DatasetSchemaType
+from frameworks.catalogue import schema_scopes
+from frameworks.models import Framework, FrameworkConfig
 from nodes.defs import InstanceMetadata, InstanceModelSpec
+from nodes.defs.binding_def import DatasetBindingDef, EdgeBindingDef
 from nodes.defs.instance_defs import InstanceFeatures
 from nodes.goals import GoalActualValue, NodeGoalsEntry
 from nodes.graph_layout import GraphLayout
@@ -137,11 +142,17 @@ def _dataset_binding_qs(ic: InstanceConfig) -> QuerySet[NodeInputPortBinding]:
     return (
         NodeInputPortBinding.objects
         .filter(instance=ic, dataset__isnull=False)
+        .prefetch_related(
+            Prefetch(
+                'dataset',
+                queryset=Dataset.objects
+                .get_queryset()
+                .with_schema_editability(Framework)
+                .select_related('created_by', 'last_modified_by'),
+            )
+        )
         .select_related(
             'node',
-            'dataset__schema',
-            'dataset__created_by',
-            'dataset__last_modified_by',
             'metric',
         )
         .order_by('node_id', 'port_id', 'position')
@@ -326,7 +337,13 @@ class InstanceEditorFields:
 
     @sb.field(graphql_type=list[NodeEdgeType])
     @staticmethod
-    def edges(root: 'InstanceEditorFields') -> list[NodeEdgeType]:
+    def edges(root: 'InstanceEditorFields', info: gql.Info) -> list[NodeEdgeType]:
+        if root._config.template_revision_id is not None:
+            return [
+                NodeEdgeType.from_binding(b)
+                for b in info.context.require_instance_graph(root._config, source=root._source).bindings
+                if isinstance(b, EdgeBindingDef)
+            ]
         edges = (
             root._config.input_bindings
             .filter(source_node__isnull=False)
@@ -416,7 +433,16 @@ class InstanceEditorFields:
 
     @sb.field(graphql_type=list[DatasetPortType])
     @staticmethod
-    def dataset_ports(root: 'InstanceEditorFields') -> list[DatasetPortType]:
+    def dataset_ports(root: 'InstanceEditorFields', info: gql.Info) -> list[DatasetPortType]:
+        if root._config.template_revision_id is not None:
+            resources = info.context.instance_resources
+            assert resources is not None
+            models_by_uuid = resources.dataset_models_for_graph(root._config, root._source)
+            return [
+                DatasetPortType.from_binding(b, dataset_models_by_uuid=models_by_uuid)
+                for b in info.context.require_instance_graph(root._config, source=root._source).bindings
+                if isinstance(b, DatasetBindingDef)
+            ]
         dataset_ports = getattr(root._config, '_annotated_dataset_ports', None)
         if dataset_ports is None:
             dataset_ports = list(_dataset_binding_qs(root._config))
@@ -453,8 +479,29 @@ class InstanceEditorFields:
         from kausal_common.datasets.models import Dataset as DatasetModel
 
         ic = root._config
-        qs = DatasetModel.objects.get_queryset().for_instance_config(ic).viewable_by(info.context.user).select_related('schema')
+        qs = (
+            DatasetModel.objects
+            .get_queryset()
+            .with_schema_editability(Framework)
+            .for_instance_config(ic)
+            .viewable_by(info.context.user)
+            .select_related('schema', 'created_by', 'last_modified_by')
+            .prefetch_related('schema__metrics__validation_rules', 'schema__dimensions__dimension__categories')
+        )
         return [DatasetType.from_model(ds) for ds in qs]
+
+    @sb.field(graphql_type=list[DatasetSchemaType])
+    @staticmethod
+    def dataset_schemas(root: 'InstanceEditorFields') -> list[DatasetSchema]:
+        return list(
+            DatasetSchema.objects.filter(pk__in=schema_scopes(root._config).values('schema_id')).prefetch_related(
+                'metrics__validation_rules',
+                Prefetch(
+                    'dimensions',
+                    queryset=DatasetSchemaDimension.objects.select_related('dimension').prefetch_related('dimension__categories'),
+                ),
+            )
+        )
 
     @sb.field(graphql_type=DatasetType | None)
     @staticmethod
@@ -467,7 +514,15 @@ class InstanceEditorFields:
         if not id.strip():
             return None
         ic = root._config
-        qs = DatasetModel.objects.get_queryset().for_instance_config(ic).viewable_by(info.context.user).select_related('schema')
+        qs = (
+            DatasetModel.objects
+            .get_queryset()
+            .with_schema_editability(Framework)
+            .for_instance_config(ic)
+            .viewable_by(info.context.user)
+            .select_related('schema', 'created_by', 'last_modified_by')
+            .prefetch_related('schema__metrics__validation_rules', 'schema__dimensions__dimension__categories')
+        )
         qs = qs.filter(query_pk_or_uuid_or_identifier(id))
         try:
             ds = qs.get()
@@ -498,16 +553,10 @@ class InstanceEditorFields:
     @staticmethod
     def dimensions(root: 'InstanceEditorFields') -> list[DimensionType]:
         """All dimensions scoped to this model instance."""
-        from kausal_common.datasets.models import DimensionScope
+        from frameworks.catalogue import dimension_scopes
 
         ic = root._config
-        scopes = (
-            DimensionScope.objects
-            .for_instance_config(ic)
-            .select_related('dimension')
-            .prefetch_related('dimension__categories')
-            .order_by('order')
-        )
+        scopes = dimension_scopes(ic).select_related('dimension').prefetch_related('dimension__categories').order_by('order')
         return [DimensionType.from_scope(scope) for scope in scopes]
 
     @sb.field(

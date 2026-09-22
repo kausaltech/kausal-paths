@@ -19,39 +19,60 @@ its own binding, addressed by uuid, and the group is derived state.
 """
 
 from typing import TYPE_CHECKING, Annotated
+from uuid import UUID as _UUID, uuid4
 
 import strawberry as sb
+from django.db.models import Q
 from graphql import GraphQLError
 from strawberry import Maybe
 
+from kausal_common.datasets.models import Dataset, DatasetMetric
 from kausal_common.strawberry.errors import GraphQLValidationError
 
 from paths import gql
 
+from datasets.graphql.types import DatasetType
+from nodes.change_ops import gql_change_operation, record_change
+from nodes.constraints.validation import BindingChange
+from nodes.defs.binding_def import DatasetBindingDef, EdgeBindingDef
+from nodes.defs.node_defs import InputDatasetDef
 from nodes.defs.transform_def import (
     PortTransformOp,
     SelectMetricOp,
+    forecast_from_transformations,
     modernized_transformations,
+    preserve_temporal_fill_transformations,
     unsupported_transformations_for_binding,
 )
+from nodes.graphql.binding_storage import LocalBindingEditor
+from nodes.graphql.constraint_checks import check_binding_change, dataset_candidate, edge_candidate, require_draft_graph
+from nodes.graphql.inputs import _get_input_port, is_maybe_set
 from nodes.graphql.types.constraints import ConstraintViolationsType
-from nodes.graphql.types.graph import DatasetPortType, NodeEdgeType
+from nodes.graphql.types.graph import (
+    DatasetMetricRefType,
+    DatasetPortType,
+    NodeEdgeType,
+    NodePortRef,
+    _external_dataset_id_from_dataset,
+)
 from nodes.graphql.types.transformations import (
     DatasetTransformationInput,
     EdgeTransformationInput,
     dataset_transformations_from_input,
     edge_transformations_from_input,
 )
-from nodes.models import NodeInputPortBinding
+from nodes.input_bindings import compact_port_positions, next_port_position
+from nodes.instance_serialization import DatasetMetricSource, InputBindingSnapshot, NodePortSource, group_unified_dataset_bindings
+from nodes.models import NodeConfig, NodeInputPortBinding
+from nodes.template_graph import template_snapshot
 
 if TYPE_CHECKING:
     from uuid import UUID
 
-    from kausal_common.datasets.models import Dataset as DatasetModel, DatasetMetric
+    from kausal_common.datasets.models import Dataset as DatasetModel
 
-    from nodes.defs.binding_def import DatasetBindingDef
     from nodes.defs.graph import DatasetMeta
-    from nodes.models import InstanceConfig, NodeConfig
+    from nodes.models import InstanceConfig
 
 
 @sb.input(description='Bind a dataset metric to an existing input port on a node.')
@@ -143,9 +164,11 @@ def _validate_transformations(
 
 
 def _resolve_dataset(info: gql.Info, ic: InstanceConfig, dataset_id: str) -> DatasetModel:
-    from kausal_common.datasets.models import Dataset
-
-    qs = Dataset.objects.get_queryset().for_instance_config(ic).select_related('schema')
+    qs = Dataset.objects.get_queryset().for_instance_config(ic)
+    if ic.template_revision_id is not None:
+        defaults = [dataset.id for dataset in template_snapshot(ic).datasets]
+        qs = Dataset.objects.filter(Q(pk__in=qs.values('pk')) | Q(uuid__in=defaults))
+    qs = qs.select_related('schema')
     dataset = qs.filter(uuid=dataset_id).first() if _looks_like_uuid(dataset_id) else qs.filter(identifier=dataset_id).first()
     if dataset is None:
         raise GraphQLValidationError(info, f'Dataset "{dataset_id}" not found in this instance')
@@ -155,8 +178,6 @@ def _resolve_dataset(info: gql.Info, ic: InstanceConfig, dataset_id: str) -> Dat
 
 
 def _looks_like_uuid(value: str) -> bool:
-    from uuid import UUID as _UUID
-
     try:
         _UUID(value)
     except ValueError:
@@ -165,8 +186,6 @@ def _looks_like_uuid(value: str) -> bool:
 
 
 def _resolve_metric(info: gql.Info, dataset: DatasetModel, metric_id: str) -> DatasetMetric:
-    from kausal_common.datasets.models import DatasetMetric
-
     assert dataset.schema is not None
     qs = DatasetMetric.objects.filter(schema=dataset.schema)
     metric = qs.filter(uuid=metric_id).first() if _looks_like_uuid(metric_id) else qs.filter(name=metric_id).first()
@@ -176,10 +195,6 @@ def _resolve_metric(info: gql.Info, dataset: DatasetModel, metric_id: str) -> Da
 
 
 def _resolve_port(info: gql.Info, nc: NodeConfig, port_id: str) -> UUID:
-    from uuid import UUID as _UUID
-
-    from nodes.graphql.editor import _get_input_port
-
     try:
         parsed = _UUID(port_id)
     except ValueError:
@@ -196,7 +211,6 @@ def _resolve_port(info: gql.Info, nc: NodeConfig, port_id: str) -> UUID:
 
 def _check_port_has_capacity(info: gql.Info, nc: NodeConfig, port_id: UUID) -> None:
     """Reject the binding if the port is already occupied and not declared ``multi``."""
-    from nodes.graphql.editor import _get_input_port
 
     port = _get_input_port(nc, port_id)
     assert port is not None
@@ -218,7 +232,6 @@ def _port_occupants(info: gql.Info, nc: NodeConfig, port_id: UUID) -> list[NodeI
     a fanned-out column-less binding spans ports, and replacing this port must
     not unbind its siblings.
     """
-    from nodes.graphql.editor import _get_input_port
 
     port = _get_input_port(nc, port_id)
     assert port is not None
@@ -232,7 +245,6 @@ def _port_occupants(info: gql.Info, nc: NodeConfig, port_id: UUID) -> list[NodeI
 
 def _default_transformations(metric_column: str | None) -> list[PortTransformOp]:
     """Build the list a freshly created binding needs to load correctly."""
-    from nodes.defs.node_defs import InputDatasetDef
 
     return InputDatasetDef(id='placeholder', column=metric_column).to_transformations()
 
@@ -245,7 +257,6 @@ def _dataset_binding_rows(ic: InstanceConfig, anchor: NodeInputPortBinding) -> l
     fans out to one row per metric; the fan-out group is recovered from native
     fields by the shared grouping rule.
     """
-    from nodes.instance_serialization import InputBindingSnapshot, group_unified_dataset_bindings
 
     candidates = list(
         NodeInputPortBinding.objects
@@ -278,8 +289,6 @@ def _check_dataset_binding_rewrite(
     tags: list[str],
 ) -> ConstraintViolationsType | None:
     """Validate replacing every row of a dataset binding with its rewritten form."""
-    from nodes.constraints.validation import BindingChange
-    from nodes.graphql.constraint_checks import check_binding_change, dataset_candidate, require_draft_graph
 
     graph = require_draft_graph(info, ic)
     add_bindings: list[DatasetBindingDef] = []
@@ -315,7 +324,67 @@ class PortBindingEditorMutation:
     instance: sb.Private['InstanceConfig']
     rows: sb.Private[list[NodeInputPortBinding]]
     edge: sb.Private['NodeInputPortBinding | None']
+    snapshot: sb.Private[InputBindingSnapshot | None] = None
+    local_node: sb.Private[NodeConfig | None] = None
     type Me = PortBindingEditorMutation
+
+    @staticmethod
+    def _update_effective_dataset(
+        info: gql.Info, root: Me, input: UpdateDatasetBindingInput
+    ) -> DatasetPortType | ConstraintViolationsType:
+        binding = root.snapshot
+        assert binding is not None
+        assert root.local_node is not None
+        source = binding.source
+        if not isinstance(source, DatasetMetricSource):
+            raise GraphQLValidationError(info, 'This binding is an edge; use updateEdgeBinding')
+        dataset = _resolve_dataset(info, root.instance, str(source.dataset_uuid))
+        selects_metric = any(op.kind == 'select_metric' for op in binding.transformations)
+        metric_column = source.metric if selects_metric else None
+        if is_maybe_set(input.metric_id):
+            metric = _resolve_metric(info, dataset, str(input.metric_id.value))
+            source = source.model_copy(update={'metric': metric.name, 'metric_uuid': metric.uuid})
+            metric_column = metric.name
+        transformations = list(binding.transformations)
+        if is_maybe_set(input.transformations):
+            transformations = preserve_temporal_fill_transformations(
+                _dataset_transformations(info, input.transformations.value or []),
+                transformations,
+            )
+        _validate_transformations(info, transformations, metric_column=metric_column)
+        tags = list(input.tags.value or []) if is_maybe_set(input.tags) else binding.tags
+        updated = binding.model_copy(update={'source': source, 'transformations': transformations, 'tags': tags})
+        violations = LocalBindingEditor.update(info, root.instance, root.local_node, updated)
+        if violations is not None:
+            return violations
+        assert binding.uuid is not None
+        current = require_draft_graph(info, root.instance).binding_by_id[binding.uuid]
+        assert isinstance(current, DatasetBindingDef)
+        return DatasetPortType.from_binding(current)
+
+    @staticmethod
+    def _update_effective_edge(
+        info: gql.Info, root: Me, input: UpdateEdgeBindingInput
+    ) -> NodeEdgeType | ConstraintViolationsType:
+        binding = root.snapshot
+        assert binding is not None
+        assert root.local_node is not None
+        if not isinstance(binding.source, NodePortSource):
+            raise GraphQLValidationError(info, 'This binding is a dataset binding; use updateDatasetBinding')
+        transformations = modernized_transformations(list(binding.transformations))
+        if is_maybe_set(input.transformations):
+            transformations = _edge_transformations(info, input.transformations.value or [])
+        if unsupported_transformations_for_binding(transformations, 'edge'):
+            raise GraphQLValidationError(info, 'Transformations not valid for an edge binding')
+        tags = list(input.tags.value or []) if is_maybe_set(input.tags) else binding.tags
+        updated = binding.model_copy(update={'transformations': transformations, 'tags': tags})
+        violations = LocalBindingEditor.update(info, root.instance, root.local_node, updated)
+        if violations is not None:
+            return violations
+        assert binding.uuid is not None
+        current = require_draft_graph(info, root.instance).binding_by_id[binding.uuid]
+        assert isinstance(current, EdgeBindingDef)
+        return NodeEdgeType.from_binding(current)
 
     @gql.mutation(
         description='Change the metric, transformations or tags of this dataset binding.',
@@ -327,9 +396,8 @@ class PortBindingEditorMutation:
         root: sb.Parent[Me],
         input: UpdateDatasetBindingInput,
     ) -> DatasetPortType | ConstraintViolationsType:
-        from nodes.change_ops import gql_change_operation, record_change
-        from nodes.graphql.editor import is_maybe_set
-
+        if root.snapshot is not None:
+            return PortBindingEditorMutation._update_effective_dataset(info, root, input)
         if root.edge is not None:
             raise GraphQLValidationError(info, 'This binding is an edge; use updateEdgeBinding')
 
@@ -358,7 +426,6 @@ class PortBindingEditorMutation:
             # Temporal filling is already authoritative in the stored recipe,
             # but remains hidden from GraphQL until independently deployed old
             # model editors understand the new union members.
-            from nodes.defs.transform_def import preserve_temporal_fill_transformations
 
             transformations = preserve_temporal_fill_transformations(transformations, previous_transformations)
 
@@ -408,12 +475,8 @@ class PortBindingEditorMutation:
         root: sb.Parent[Me],
         input: UpdateEdgeBindingInput,
     ) -> NodeEdgeType | ConstraintViolationsType:
-        from nodes.change_ops import gql_change_operation, record_change
-        from nodes.constraints.validation import BindingChange
-        from nodes.graphql.constraint_checks import check_binding_change, edge_candidate, require_draft_graph
-        from nodes.graphql.editor import is_maybe_set
-        from nodes.graphql.types.graph import NodeEdgeType
-
+        if root.snapshot is not None:
+            return PortBindingEditorMutation._update_effective_edge(info, root, input)
         edge = root.edge
         if edge is None:
             raise GraphQLValidationError(info, 'This binding is a dataset binding; use updateDatasetBinding')
@@ -464,9 +527,10 @@ class PortBindingEditorMutation:
     @gql.mutation(description='Remove this binding, leaving the input port in place.')
     @staticmethod
     def delete_binding(info: gql.Info, root: sb.Parent[Me]) -> None:
-        from nodes.change_ops import gql_change_operation, record_change
-        from nodes.input_bindings import compact_port_positions
-
+        if root.snapshot is not None:
+            assert root.local_node is not None
+            LocalBindingEditor.delete(info, root.instance, root.local_node, root.snapshot)
+            return
         if root.edge is not None:
             with gql_change_operation(info, root.instance, action='edge.delete'):
                 record_change(root.edge, action='edge.delete', before=root.edge.serializable_data(), after=None)
@@ -492,8 +556,6 @@ class PortBindingEditorMutation:
 
 def _to_gql(row: NodeInputPortBinding) -> DatasetPortType:
     """Build the read type for a dataset binding row, matching the instance-level resolver."""
-    from datasets.graphql.types import DatasetType
-    from nodes.graphql.types.graph import DatasetMetricRefType, DatasetPortType, NodePortRef, _external_dataset_id_from_dataset
 
     assert row.dataset is not None
     assert row.metric is not None
@@ -510,7 +572,6 @@ def _to_gql(row: NodeInputPortBinding) -> DatasetPortType:
         external_metric_id=row.metric.name,
         tags=list(row.tags or []),
     )
-    from nodes.defs.transform_def import forecast_from_transformations
 
     port._dataset = DatasetType.from_model(row.dataset)
     port._transformations = list(row.transformations or [])
@@ -526,18 +587,16 @@ def bind_dataset(
     input: BindDatasetInput,
 ) -> DatasetPortType | ConstraintViolationsType:
     """Create a dataset binding on an existing input port."""
-    from nodes.change_ops import gql_change_operation, record_change
-    from nodes.constraints.validation import BindingChange
-    from nodes.graphql.constraint_checks import check_binding_change, dataset_candidate, require_draft_graph
-    from nodes.input_bindings import next_port_position
 
     nc.ensure_gql_action_allowed(info, 'change')
+    LocalBindingEditor.require_node(info, ic, nc)
     port_id = _resolve_port(info, nc, str(input.port_id))
     displaced: list[NodeInputPortBinding] = []
-    if input.replace:
-        displaced = _port_occupants(info, nc, port_id)
-    else:
-        _check_port_has_capacity(info, nc, port_id)
+    if ic.template_revision_id is None:
+        if input.replace:
+            displaced = _port_occupants(info, nc, port_id)
+        else:
+            _check_port_has_capacity(info, nc, port_id)
     dataset = _resolve_dataset(info, ic, str(input.dataset_id))
 
     metric = None
@@ -553,6 +612,28 @@ def bind_dataset(
     else:
         transformations = _default_transformations(metric_column)
     _validate_transformations(info, transformations, metric_column=metric_column)
+
+    if ic.template_revision_id is not None:
+        binding = InputBindingSnapshot(
+            uuid=uuid4(),
+            node_id=nc.uuid,
+            port_id=port_id,
+            position=0,
+            source=DatasetMetricSource(
+                dataset=dataset.identifier or str(dataset.uuid),
+                dataset_uuid=dataset.uuid,
+                metric=metric.name or str(metric.uuid),
+                metric_uuid=metric.uuid,
+            ),
+            transformations=transformations,
+        )
+        violations = LocalBindingEditor.add(info, ic, nc, binding, replace=input.replace)
+        if violations is not None:
+            return violations
+        assert binding.uuid is not None
+        result = require_draft_graph(info, ic).binding_by_id[binding.uuid]
+        assert isinstance(result, DatasetBindingDef)
+        return DatasetPortType.from_binding(result)
 
     graph = require_draft_graph(info, ic)
     candidate, catalog_additions = dataset_candidate(
@@ -600,7 +681,6 @@ def bind_dataset(
 
 def _sole_metric_or_error(info: gql.Info, dataset: DatasetModel) -> DatasetMetric:
     """Return the dataset's only metric, or demand an explicit one: fan-out is not built yet."""
-    from kausal_common.datasets.models import DatasetMetric
 
     assert dataset.schema is not None
     metrics = list(DatasetMetric.objects.filter(schema=dataset.schema).order_by('order'))
@@ -613,6 +693,9 @@ def _sole_metric_or_error(info: gql.Info, dataset: DatasetModel) -> DatasetMetri
 
 
 def binding_editor(info: gql.Info, ic: InstanceConfig, binding_id: sb.ID) -> PortBindingEditorMutation:
+    if ic.template_revision_id is not None:
+        node, snapshot = LocalBindingEditor.find(info, ic, str(binding_id))
+        return PortBindingEditorMutation(instance=ic, rows=[], edge=None, snapshot=snapshot, local_node=node)
     anchor = None
     if _looks_like_uuid(str(binding_id)):
         anchor = (

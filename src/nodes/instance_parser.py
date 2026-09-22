@@ -1208,7 +1208,17 @@ class InstanceConfigParser:
             fanout.append((role_id, role))
         return fanout
 
-    def _build_input_ports(self, parsed: _ParsedNode) -> list[InputPortDef]:  # noqa: C901
+    @staticmethod
+    def _resolve_edge_metric(parsed: _ParsedNode, metric_id: str) -> NodeMetric:
+        metric = parsed.output_metrics.get(metric_id)
+        if metric is None:
+            metrics_by_column_id = {m.column_id: m for m in parsed.output_metrics.values()}
+            metric = metrics_by_column_id.get(metric_id)
+        if metric is None:
+            raise InstanceParseError(f'Metric {metric_id} not found in {parsed.identifier}')
+        return metric
+
+    def _build_input_ports(self, parsed: _ParsedNode) -> list[InputPortDef]:
         """Derive the input ports from incoming edges and dataset bindings."""
         from collections import Counter
 
@@ -1225,12 +1235,7 @@ class InstanceConfigParser:
                 edge_metric_ids = edge.metrics
             seen_metric_ids: set[str] = set()
             for edge_metric_id in edge_metric_ids:
-                metrics_by_column_id = {m.column_id: m for m in from_parsed.output_metrics.values()}
-                from_metric = from_parsed.output_metrics.get(edge_metric_id)
-                if from_metric is None:
-                    from_metric = metrics_by_column_id.get(edge_metric_id)
-                if from_metric is None:
-                    raise InstanceParseError(f'Metric {edge_metric_id} not found in {from_parsed.identifier}')
+                from_metric = self._resolve_edge_metric(from_parsed, edge_metric_id)
                 assert from_metric.id not in seen_metric_ids
                 seen_metric_ids.add(from_metric.id)
                 fallback_id = self._uuid_from_identifiers([from_parsed.identifier, parsed.identifier, 'edge', from_metric.id])

@@ -75,11 +75,10 @@ def resolve_instance_source(
                 revision_id=config.live_revision_id,
             )
 
-    return ResolvedInstanceSource(
-        str(config.uuid),
-        'database-draft',
-        config.cache_invalidated_at.isoformat(),
-    )
+    version = config.cache_invalidated_at.isoformat()
+    if config.template_revision_id is not None:
+        version += f':template:{config.template_revision_id}'
+    return ResolvedInstanceSource(str(config.uuid), 'database-draft', version)
 
 
 def get_instance_graph(

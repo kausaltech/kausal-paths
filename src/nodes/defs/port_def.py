@@ -156,6 +156,8 @@ class InputPortDef(I18nBaseModel):
     is_editable: bool = True
     """Whether the port definition itself may be edited; bindings remain independently editable."""
     required_dimensions: UniqueList[DimensionRef] = Field(default_factory=list)
+    binding_owner: Literal['framework', 'instance'] = 'framework'
+    """In a framework release, who may replace the bindings. Local-node inputs remain instance-owned."""
 
     # These are used only temporarily at export time to store the node reference and metric ID.
     _from_node: NodeRef | None = PrivateAttr(default=None)
