@@ -3,7 +3,7 @@ default_language: de
 supported_languages: [en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 843804814636c80bf50bbaa11f23281a277b5150
+  commit: a05b9cee90a5952ff84d94dee0997f425f5ba6c2
   dvc_remote: kausal-s3
 name_de: Treibhausgas-Monitor Mainz
 name_en: GHG Monitor Mainz
@@ -321,6 +321,68 @@ dimensions:
     label_de: KN-2035 (verstärkte Maßnahmen, Klimaneutralität 2035)
     label_en: KN-2035 (strengthened measures, climate neutrality 2035)
 
+# The measures that close the gap between the strongest modelled package and the council's own
+# 2045 target. Kept apart from `mp100_measure` and from `measure` for the same reason those two
+# are kept apart from each other: each dimension carries one document's measure list, and a city
+# user opening the admin should not have to tell one concept's list from another's. These are
+# not a document's measures at all -- they are what the analysis says is still missing, which is
+# precisely why they need their own list rather than a place in someone else's.
+#
+# Three of the seven move an emission factor and two move fuel; that split is the finding of the
+# Zusammenfassung, not a modelling preference. Two pairs are mutually exclusive and must never
+# run together, because each pair acts twice on one quantity: the two `zp_strommix_*` paths, and
+# the aggregate `zp_fernwaerme_zielpfad` against its decomposition into
+# `zp_fw_erdgas_heizoel_ausstieg` and `zp_fw_mhkw_fossiler_kohlenstoff`. Every scenario below
+# names all of them explicitly, exactly as it does for the `ie_*` pair.
+- id: zielpfad_measure
+  label_de: Zielpfad-Maßnahme
+  label_en: Target path measure
+  help_text: Maßnahmen, die im Modell die Lücke zwischen dem stärksten abgebildeten
+    Maßnahmenpaket und dem Ziel des Stadtratsbeschlusses 0024/2021/1 für 2045 schließen.
+  categories:
+  # One grid measure, not two. Its two statutory readings live in `zielpfad_variante` below and
+  # are selected by `select_variant`, so the action filters its data down to one of them and the
+  # two paths can never both apply.
+  - id: zp_strommix_zielpfad
+    label_de: Dekarbonisierung des Bundesstrommixes über 2030 hinaus
+    label_en: Decarbonisation of the national electricity mix beyond 2030
+  # `zp_fernwaerme_zielpfad` is deliberately absent: it is a parent action with no data of its
+  # own, so it needs no category here. Only its two components carry rows.
+  - id: zp_fw_erdgas_heizoel_ausstieg
+    label_de: Fernwärme – Ausstieg aus Erdgas und Heizöl im Erzeugungspark
+    label_en: District heating – exit from natural gas and heating oil in generation
+  - id: zp_fw_mhkw_fossiler_kohlenstoff
+    label_de: Fernwärme – fossiler Kohlenstoff im Abfalleinsatz des MHKW
+    label_en: District heating – fossil carbon in the waste input of the MHKW
+  - id: zp_wirtschaftsverkehr_elektrisch
+    label_de: Elektrifizierung des Wirtschaftsverkehrs (Lkw, Nutzfahrzeuge, Reisebusse)
+    label_en: Electrification of commercial transport (trucks, vans, coaches)
+  - id: zp_industrie_kohleausstieg
+    label_de: Ausstieg aus der industriellen Prozesskohle
+    label_en: Exit from industrial process coal
+
+# The two statutory readings of how fast the national electricity mix decarbonises, side by side
+# in one dataset -- the same choice, for the same reason, as `measure_scenario`: one quantity,
+# two readings, and a revision of either should be an edit to the data rather than a second
+# action. Which one is in force follows from the scenario, through `selected_number`.
+#
+# This replaced two separate actions on 2026-09-22. They could be switched on together, which
+# would have multiplied two paths for one quantity, and the only thing preventing it was a
+# sentence in the description. `select_variant` filters the data down to one row instead, so the
+# error is no longer reachable.
+- id: zielpfad_variante
+  label_de: Zielpfad des Bundesstrommixes
+  label_en: National electricity mix target path
+  help_text: Welchen gesetzlichen Zielpfad der Dekarbonisierung des Bundesstrommixes das
+    Szenario unterstellt.
+  categories:
+  - id: ksg_2045
+    label_de: Klimaneutral 2045 (§ 3 Abs. 2 Bundes-Klimaschutzgesetz)
+    label_en: Climate-neutral by 2045 (section 3(2) Federal Climate Change Act)
+  - id: eeg_2035
+    label_de: Nahezu treibhausgasneutral 2035 (§ 1 Abs. 2 EEG)
+    label_en: Near greenhouse-gas-neutral by 2035 (section 1(2) Renewable Energy Sources Act)
+
 
 #//////  Nodes  ///////////////////////////////////////////////////////////////////////////////////////////////////
 # Mainz-specific nodes not (yet) part of the shared BISKO module. Kept as standalone
@@ -332,9 +394,12 @@ nodes:
 - id: emission_reductions # Located here to make this the default outcome node.
   name_de: Emissionenreduktionen
   name_en: Emission reductions
-  description: A technical sink node to enable visualizing action impacts on the /massnahmen
+  description_en: A technical sink node to enable visualizing action impacts on the /massnahmen
     page. NOTE! The node contains double counting and its output should not be used for anything.
     Only impacts are meaningful.
+  description_de: Ein technischer Senkenknoten zur Visualisierung der Auswirkungen von Maßnahmen
+    auf der Seite „Maßnahmen“. HINWEIS! Der Knoten beinhaltet Doppelzählungen; seine Ausgabe
+    sollte für keinerlei Zwecke verwendet werden. Aussagekräftig sind lediglich die Auswirkungen.
   type: generic.GenericNode
   quantity: emissions
   unit: t_co2e/a
@@ -363,6 +428,16 @@ nodes:
       flatten: true
     - id: scope
       flatten: true
+  goals:
+  - label_de: 'Ziel: -95 % ggue. 1990 bis 2045 (Beschluss 0024/2021/1)'
+    label_en: 'Goal: -95 % vs 1990 by 2045 (council resolution 0024/2021/1)'
+    default: true
+    is_main_goal: true
+    linear_interpolation: false
+    auto_start: false
+    values:
+    - year: 2045
+      value: 170040.0     # 5 % of the 1990 baseline of 3,400.8 kt_co2e/a -- see the note above
 
 
 # The balance beside the balance: BISKO plus what BISKO leaves out.
@@ -537,7 +612,7 @@ nodes:
   - label_de: 'Ziel: -95 % ggue. 1990 bis 2045 (Beschluss 0024/2021/1)'
     label_en: 'Goal: -95 % vs 1990 by 2045 (council resolution 0024/2021/1)'
     default: true
-    is_main_goal: true
+    is_main_goal: false
     linear_interpolation: true
     auto_start: true
     values:
@@ -586,21 +661,21 @@ nodes:
     Bilanzkategorie, Liegenschaftsgruppe und Scope.<br/>
     <b>Diese Summe umfasst Scope 1 und Scope 2.</b> Scope 3 wird vollständig berechnet und
     ist in den einzelnen Kategorien sowie in der nachrichtlichen Position
-    „Scope-3-Emissionen der Stadtverwaltung" einsehbar, geht hier aber nicht in die
+    „Scope-3-Emissionen der Stadtverwaltung“ einsehbar, geht hier aber nicht in die
     Gesamtsumme ein. Zwei Gründe: Scope 1 und 2 sind die verbindlichen Bestandteile der
     Bilanz, Scope 3 ist optional; und für Scope 3 liegen nach 2021 keine Daten vor, sodass
     eine Gesamtsumme mit Scope 3 ab 2022 sinken würde, weil Daten fehlen, und nicht, weil
     Emissionen vermieden wurden.<br/>
     <b>Diese Bilanz ist nicht Teil der territorialen BISKO-Bilanz und darf nicht zu ihr
     addiert werden.</b> Die Energie der kommunalen Liegenschaften ist dort bereits im
-    Sektor „Kommunale Einrichtungen" enthalten, und die Scope-3-Anteile liegen außerhalb
+    Sektor „Kommunale Einrichtungen“ enthalten, und die Scope-3-Anteile liegen außerhalb
     der territorialen Bilanzgrenze.
   description_en: |
     Balance of the city administration under the GHG Protocol Corporate Standard, broken
     down by inventory category, property group and scope.<br/>
     <b>This total covers Scope 1 and Scope 2.</b> Scope 3 is computed in full and can be
-    inspected in the individual categories and in the memo item "City administration
-    Scope 3 emissions", but it is not summed into the total here. Two reasons: Scope 1 and
+    inspected in the individual categories and in the memo item “City administration
+    Scope 3 emissions”, but it is not summed into the total here. Two reasons: Scope 1 and
     2 are the mandatory parts of the balance and Scope 3 is optional; and no Scope 3 data
     exists after 2021, so a total including it would fall from 2022 onwards because data
     is missing, not because emissions were avoided.<br/>
@@ -774,7 +849,7 @@ nodes:
     bislang die leere Vorlage <code>fernwaerme_energieeinsatz</code>. Sobald diese Daten
     vorliegen, bewegt sich der Indikator -- und erst dann kann er die Dekarbonisierung des
     Netzes abbilden, die der Maßnahmenkatalog mit ihm verfolgen will. Dieselbe Datenlücke
-    blockiert den Indikator „Anteil Erneuerbarer Energien an der Wärmeerzeugung".<br/>
+    blockiert den Indikator „Anteil Erneuerbarer Energien an der Wärmeerzeugung“.<br/>
     Welches Zuteilungsverfahren dahintersteht, entscheidet
     <code>district_heating_method_in_force</code>. Die exergetische Allokation setzt
     ebenfalls Brennstoffeinsatzdaten voraus.
@@ -793,8 +868,8 @@ nodes:
     fuel input data for district heating generation, and Mainz still uses the blank
     <code>fernwaerme_energieeinsatz</code> template. Once that data arrives the indicator
     starts to move -- and only then can it show the network decarbonisation the measure
-    catalogue means it to track. The same gap blocks the indicator "renewable share of heat
-    generation".<br/>
+    catalogue means it to track. The same gap blocks the indicator “renewable share of heat
+    generation”.<br/>
     Which allocation method sits behind it is decided by
     <code>district_heating_method_in_force</code>. The exergetic allocation needs the same
     fuel input data.
@@ -863,12 +938,12 @@ nodes:
   description_de: |
     Aufteilung der ÖPNV-Verkehrsleistung auf Straßenbahn, Linienbus und
     Schienenpersonennahverkehr, als Anteile mit Summe 1. Beantwortet den Indikator „Anteil
-    Straßenbahn am ÖPNV": es ist die Straßenbahn-Zeile dieses Knotens.<br/>
+    Straßenbahn am ÖPNV“: es ist die Straßenbahn-Zeile dieses Knotens.<br/>
     Bezugsgröße ist die Verkehrsleistung in Personenkilometern, nicht die Zahl der
     Fahrgäste. Fahrgastzahlen der MVG sind eine andere Größe und im Modell nicht enthalten.
   description_en: |
     How public transport performance divides between tram, line bus and local rail, as
-    shares summing to 1. This answers the indicator "tram share of public transport": it is
+    shares summing to 1. This answers the indicator “tram share of public transport”: it is
     this node's tram row.<br/>
     The basis is transport performance in passenger kilometres, not passenger counts. MVG
     passenger numbers are a different quantity and are not in the model.
@@ -994,10 +1069,37 @@ action_groups:
   name_en: Mobility
   color: '#1E5AA8'
 
-- id: beschaffung
-  name_de: Beschaffung, Abfall und Veranstaltungen
-  name_en: Procurement, waste and events
+# Every measure of the Klimaneutrale Stadtverwaltung (KNSV) concept, in one group rather than
+# spread across the substance groups above. The reason is not tidiness: these measures act on the
+# *administration* balance, which is reported beside the territorial one and deliberately not
+# summed into `net_emissions` -- so their impact on the city balance is exactly zero, and the
+# action list, which ranks by the main goal, shows all of them as 0. Scattered through Gebäude,
+# Mobilität and Beschaffung that zero looks like a broken measure; gathered under a heading that
+# names the other balance it is simply the correct reading.
+#
+# `knsv_dekarbonisierung_strommix` is deliberately NOT here although it carries the same prefix:
+# it also drives `end_energy_emission_factors` and is therefore the one KNSV measure with a
+# territorial effect -- the 264 kt between "everything frozen" and Business as Usual. Putting it
+# in this group would say the national grid mix is an administration measure.
+#
+# `beschaffung` (Beschaffung, Abfall und Veranstaltungen) is gone with this change: all four of
+# its actions were KNSV ones, so the group would have been left empty.
+- id: verwaltung
+  name_de: Klimaneutrale Stadtverwaltung
+  name_en: Climate-neutral city administration
   color: '#8E24AA'
+
+# The measures that close the remaining gap to the 2045 target. A group of their own because
+# they are not the measures of any one programme: the Masterplan and the heat plan are fully
+# represented in the three groups above, and what is in here is what the balance says is still
+# missing once both have been carried out in full. Three of the seven move an emission factor
+# rather than an energy quantity, which no measure in the other groups does. The group is
+# declared live although its actions are commented out -- a group with no members is inert,
+# and declaring it here keeps the whole change in one marker.
+- id: zielpfad
+  name_de: Zielpfad 2045 – was noch fehlt
+  name_en: Target path 2045 – what is still missing
+  color: '#00796B'
 
 actions:
 
@@ -1012,7 +1114,7 @@ actions:
   quantity: fraction
   unit: dimensionless
   no_effect_value: 1.0
-  group: gebaeude_energie
+  group: verwaltung
   description_de: |
     Die Stadtverwaltung saniert ihre eigenen Bestandsgebäude energetisch, damit sie deutlich
     weniger Heizwärme brauchen. Zweck ist, den größten Einzelposten der Verwaltungsbilanz
@@ -1089,7 +1191,7 @@ actions:
   quantity: fraction
   unit: dimensionless
   no_effect_value: 1.0
-  group: gebaeude_energie
+  group: verwaltung
   description_de: |
     Die Nutzerinnen und Nutzer städtischer Gebäude werden dafür sensibilisiert, sparsam zu heizen
     und richtig zu lüften. Zweck ist, Wärme ohne bauliche Investitionen einzusparen:
@@ -1164,7 +1266,7 @@ actions:
   quantity: fraction
   unit: dimensionless
   no_effect_value: 1.0
-  group: gebaeude_energie
+  group: verwaltung
   description_de: |
     Dieselbe Sanierung der städtischen Bestandsgebäude wie bei der Wärme, hier auf der Stromseite.
     Zweck ist, den Strombedarf der Liegenschaften zu senken – ein Posten, der anders als die Wärme
@@ -1236,7 +1338,7 @@ actions:
   quantity: fraction
   unit: dimensionless
   no_effect_value: 1.0
-  group: gebaeude_energie
+  group: verwaltung
   description_de: |
     Beschäftigte, Lehrkräfte, Kinder und Jugendliche werden dafür gewonnen, in den Gebäuden der
     Stadt Strom zu sparen. Zweck ist, Einsparungen zu erschließen, die keine Investition brauchen,
@@ -1309,7 +1411,7 @@ actions:
   quantity: fraction
   unit: dimensionless
   no_effect_value: 1.0
-  group: gebaeude_energie
+  group: verwaltung
   description_de: |
     Die Stadt baut Photovoltaikanlagen auf den Dächern ihrer eigenen Liegenschaften aus. Zweck
     ist, einen Teil des Stroms selbst zu erzeugen und damit Strombezug aus dem Netz zu ersetzen;
@@ -1338,7 +1440,7 @@ actions:
     the properties' 15,102 megawatt-hours of consumption in 2024 that is 8.4 % or 4.2 % less
     electricity bought in, so the measure acts on the city administration's building energy
     use.<br/>
-    It should not be confused with the memo item "avoided emissions from own generation" in the
+    It should not be confused with the memo item “avoided emissions from own generation” in the
     balance, which reports the self-generation already in place.
   input_dimensions: [ghg_category, measure_scenario]
   output_dimensions: [ghg_category, measure_scenario]
@@ -1387,7 +1489,7 @@ actions:
   quantity: fraction
   unit: dimensionless
   no_effect_value: 1.0
-  group: gebaeude_energie
+  group: verwaltung
   description_de: |
     Die Fernwärme, mit der ein Teil der städtischen Gebäude beheizt wird, wird zunehmend aus
     klimaneutralen Quellen erzeugt. Zweck ist, die Wärmeversorgung sauberer zu machen, ohne dass
@@ -1475,7 +1577,7 @@ actions:
   type: simple.GenericAction
   quantity: energy
   unit: MWh/a
-  group: gebaeude_energie
+  group: verwaltung
   description_de: |
     Weitere Liegenschaften der Stadt werden an das Fernwärmenetz angeschlossen und geben dafür
     ihre fossile Heizung auf. Zweck ist, Erdgas-, Heizöl- und Flüssiggasheizungen in städtischen
@@ -1662,7 +1764,7 @@ actions:
   quantity: fraction
   unit: dimensionless
   no_effect_value: 1.0
-  group: gebaeude_energie
+  group: verwaltung
   description_de: |
     Die Straßenbeleuchtung der Stadt wird auf LED-Technik umgerüstet. Zweck ist, einen
     Stromverbrauch zu senken, der rund um die Uhr anfällt und den die Stadt vollständig selbst in
@@ -1690,7 +1792,7 @@ actions:
     In the model it reduces the electricity used for street lighting by 30 % by 2035, and so acts
     on street lighting energy use.<br/>
     One caveat for reading the figure: the 30 % is an assumption of this model; the measure sheet
-    rates the potential "medium" without quantifying it. That the conversion is already under way
+    rates the potential “medium” without quantifying it. That the conversion is already under way
     is visible in the metered consumption, which fell from 7.5 to 6.6 gigawatt-hours between 2019
     and 2024.
   input_dimensions: [measure_scenario]
@@ -1742,7 +1844,7 @@ actions:
   quantity: fraction
   unit: dimensionless
   no_effect_value: 1.0
-  group: mobilitaet
+  group: verwaltung
   description_de: |
     Die Personenwagen im Fuhrpark der Stadtverwaltung werden auf Elektroantrieb umgestellt. Zweck
     ist, den Dieselverbrauch der Dienstfahrzeuge zu beenden und die Elektromobilität im eigenen
@@ -1817,7 +1919,7 @@ actions:
   quantity: fraction
   unit: dimensionless
   no_effect_value: 1.0
-  group: mobilitaet
+  group: verwaltung
   description_de: |
     Die Nutzfahrzeuge der Stadt – Lastwagen und Arbeitsmaschinen – werden auf Elektro- oder
     Wasserstoffantrieb umgestellt. Zweck ist, den mit Abstand größten Teil des Kraftstoffs im
@@ -1900,7 +2002,7 @@ actions:
   quantity: fraction
   unit: dimensionless
   no_effect_value: 1.0
-  group: mobilitaet
+  group: verwaltung
   description_de: |
     Dienstreisen werden vermieden, und auf Flugreisen wird verzichtet. Zweck ist, Fahrten und
     Flüge einzusparen, die durch eine Online-Teilnahme oder eine Bahnfahrt ersetzt werden können –
@@ -1980,7 +2082,7 @@ actions:
   quantity: fraction
   unit: dimensionless
   no_effect_value: 1.0
-  group: mobilitaet
+  group: verwaltung
   description_de: |
     Die Möglichkeit, von zu Hause zu arbeiten, wird ausgeweitet. Zweck ist, Arbeitswege
     einzusparen: Wer nicht ins Büro fährt, verursacht auf diesem Weg keine Emissionen.<br/>
@@ -2058,7 +2160,7 @@ actions:
   quantity: fraction
   unit: dimensionless
   no_effect_value: 1.0
-  group: beschaffung
+  group: verwaltung
   description_de: |
     Die Verwaltung stellt ihre Vorgänge auf digitale Bearbeitung um und verbraucht dadurch weniger
     Papier. Zweck ist, den Papierverbrauch als eigenständigen Posten der Bilanz zu senken; die
@@ -2134,7 +2236,7 @@ actions:
   quantity: fraction
   unit: dimensionless
   no_effect_value: 1.0
-  group: beschaffung
+  group: verwaltung
   description_de: |
     Die Emissionen aus der Abfallentsorgung sinken, weil mehr Abfall recycelt wird und die
     Entsorgung selbst emissionsärmer wird. Zweck ist, den Abfall der städtischen Einrichtungen als
@@ -2210,7 +2312,7 @@ actions:
   quantity: fraction
   unit: dimensionless
   no_effect_value: 1.0
-  group: beschaffung
+  group: verwaltung
   description_de: |
     Die Großveranstaltungen der Stadt werden klimafreundlicher ausgerichtet. Zweck ist, einen
     Bereich zu erfassen, in dem die Stadt zwar nicht selbst Energie verbraucht, aber als
@@ -2288,7 +2390,7 @@ actions:
   type: simple.GenericAction
   quantity: number
   unit: pcs/a
-  group: beschaffung
+  group: verwaltung
   description_de: |
     In den Kantinen der Stadt und bei ihren Veranstaltungen wird überwiegend vegetarisch
     verpflegt. Zweck ist, die Emissionen aus dem Essen zu senken, das die Stadt einkauft; zwischen
@@ -2855,7 +2957,7 @@ actions:
     Passenger cars in the city increasingly run on electricity. The purpose is to replace the fuel
     used by the largest transport mode: cars account for about 70 % of the passenger kilometres
     travelled in Mainz.<br/>
-    The measure corresponds to sheet C 6.1 "Promotion of e-mobility" in the catalogue of measures
+    The measure corresponds to sheet C 6.1 “Promotion of e-mobility” in the catalogue of measures
     of the city's Masterplan 100 % Climate Protection. It covers the build-out of public and
     private charging infrastructure, advice and subsidy, and — as an assumption of the scenario —
     a stop on new combustion-engine registrations from 2025.<br/>
@@ -2924,7 +3026,7 @@ actions:
     The buses of Mainz's public transport are converted to electric drive. The purpose is to make
     public transport emission-free — the precondition for a shift from the car to the bus saving
     any emissions at all.<br/>
-    The measure corresponds to sheet C 3.1 "Capable and forward-looking public transport" in the
+    The measure corresponds to sheet C 3.1 “Capable and forward-looking public transport” in the
     catalogue of measures of the Masterplan 100 % Climate Protection. It covers buying electric
     buses as the fleet is replaced and building the charging infrastructure at the depots.<br/>
     The measure sheet calls for a bus fleet 25 % decarbonised by 2025 and 60 % by 2030; for 2035
@@ -2933,7 +3035,7 @@ actions:
     In the model this raises the share of electricity in the transport energy shares of buses,
     while diesel, natural gas, biodiesel and biogas fall correspondingly. The service offered does
     not change.<br/>
-    One caveat for reading the figure: "decarbonised" is not defined further in the catalogue and
+    One caveat for reading the figure: “decarbonised” is not defined further in the catalogue and
     is read here as electric. Biofuels are therefore counted among the displaced carriers, even
     though 7.1 % of the 2024 bus fleet already runs on biodiesel and biogas — the volumes
     available are needed where a drive is harder to electrify than a city bus.
@@ -2998,7 +3100,7 @@ actions:
     A growing share of journeys in Mainz is made by bicycle instead of by car. The purpose is to
     shift travel to a mode that causes no emissions at all, and at the same time to improve street
     space, noise and air quality in the city.<br/>
-    The measure corresponds to sheet C 4.1 "Cycling-friendly Mainz" in the catalogue of measures
+    The measure corresponds to sheet C 4.1 “Cycling-friendly Mainz” in the catalogue of measures
     of the Masterplan 100 % Climate Protection. Its target for 2035: a cycling share of at least
     20 % of passenger kilometres. It is the only quantified transport target in the catalogue
     stated in passenger kilometres, and so the only one representable without further assumptions
@@ -3027,6 +3129,431 @@ actions:
   output_nodes:
   - id: vehicle_kilometers
     tags: [additive]
+
+# ///// Zielpfad 2045 /////
+#
+# The six actions and two scenarios below close the gap between the strongest previously
+# modelled package (`mp100_kwp`, 771.6 kt CO2e/a from 2040) and the target of Stadtratsbeschluss
+# 0024/2021/1 (170 kt, -95 % against 1990). Four fifths of that gap is emission factors the model
+# holds constant after 2030, not energy still to be saved -- which is why three of the six move a
+# factor and only two move fuel. How each number was arrived at, and which of them are
+# assumptions of this model rather than readings from a law or a delivery, is in
+# `paths-data/models/mainz/create_zielpfad_measures.py`.
+#
+# Uploaded and live since 22.09.2026; the datasets are `mainz/zielpfad_strommix`,
+# `mainz/zielpfad_fernwaerme`, `mainz/zielpfad_verlagerung_energietraeger_verkehr` and
+# `mainz/zielpfad_stationaer`. `mainz/zielpfad_emissionsfaktoren`, which the first version wrote,
+# is superseded and read by nothing.
+#
+# ## Why no two of these can be counted twice
+#
+# The first version had two places where switching on the wrong pair would have counted one
+# quantity twice, and the only thing standing in the way was a sentence in a description. Both
+# are now structural, because a user who does not read the description is the normal case:
+#
+#   * The two statutory readings of the national electricity path are **variants of one action**,
+#     selected by `select_variant` from `zielpfad_variante`. The action filters its data down to
+#     one row, so the two paths cannot both apply however the scenario or the user sets things.
+#   * `zp_fernwaerme_zielpfad` is a **`parent.ParentActionNode`**. It has no data and no effect of
+#     its own: enabling it enables both component measures, disabling it disables both. The
+#     aggregate and its decomposition are therefore the same switch rather than two factors on
+#     one quantity.
+#
+# What remains documentary is the older `ie_*` pair -- those four actions are whole-sector paths
+# from the IE Leipzig study and are the aggregate outcome of the `mp100_*` measures, so they must
+# not run beside them. That predates this block, and there is no structural fix for it: they are
+# genuinely different objects with different data, not an aggregate of one another.
+
+- id: zp_strommix_zielpfad
+  name_de: Dekarbonisierung des Bundesstrommixes über 2030 hinaus
+  name_en: Decarbonisation of the national electricity mix beyond 2030
+  type: simple.GenericAction
+  quantity: fraction
+  unit: dimensionless
+  no_effect_value: 1.0
+  group: zielpfad
+  decision_level: nation
+  description_de: |
+    Der bundesweite Strommix wird über 2030 hinaus weiter sauberer. Das ist keine Maßnahme der
+    Stadt, sondern eine Rahmenannahme über die deutsche Stromerzeugung — aber sie entscheidet
+    über mehr Emissionen als jede einzelne Maßnahme im Modell, weil jede Umstellung von Wärme
+    oder Verkehr auf Strom in ihrer Wirkung an ihr hängt.<br/>
+    Die bestehende Maßnahme „Dekarbonisierung des Bundesstrommixes“ endet 2030 bei
+    217 g CO2e/kWh und hält diesen Wert bis 2050. Diese Maßnahme führt den Pfad weiter, und zwar
+    in zwei Lesarten, zwischen denen das gewählte Szenario entscheidet:<br/>
+    <b>Klimaneutral 2045</b> — 2040 auf 25 g CO2e/kWh, den Wert, mit dem die Kommunale
+    Wärmeplanung Mainz selbst rechnet, und ab 2045 auf 10 g CO2e/kWh entsprechend der
+    Klimaneutralität nach § 3 Absatz 2 des Bundes-Klimaschutzgesetzes.<br/>
+    <b>Nahezu treibhausgasneutral 2035</b> — derselbe Zielwert ein Jahrzehnt früher. § 1 Absatz 2
+    des Erneuerbare-Energien-Gesetzes beschreibt für den Strom eine „vor dem Jahr 2035 nahezu
+    treibhausgasneutrale“ Erzeugung. Diese Lesart beantwortet die Frage des Stadtratsbeschlusses
+    nach der Klimaneutralität „möglichst schon 2035“.<br/>
+    Die Maßnahme wirkt auf drei Energieträger: Strom, Heizstrom und Umweltwärme. Die Umweltwärme
+    ist im BISKO-System die von Wärmepumpen gelieferte Wärme, und ihr Emissionsfaktor ist der
+    Strommix geteilt durch die Jahresarbeitszahl — sie folgt dem Strom also zwingend.<br/>
+    Ein Hinweis zur Einordnung: Der Restwert von 10 g CO2e/kWh ist eine Annahme dieses Modells.
+    BISKO-Faktoren enthalten die Vorkette, die auch bei treibhausgasneutraler Erzeugung nicht auf
+    null fällt; eine Quelle für genau diesen Wert gibt es nicht.
+  description_en: |
+    The national electricity mix keeps getting cleaner beyond 2030. This is not a measure the
+    city takes but an assumption about German electricity generation — and it decides more
+    emissions than any single measure in the model, because every conversion of heat or transport
+    to electricity depends on it for its effect.<br/>
+    The existing measure “Decarbonisation of the German electricity mix” ends in 2030 at
+    217 g CO2e/kWh and holds that value to 2050. This measure continues the path, in two readings
+    between which the chosen scenario decides:<br/>
+    <b>Climate-neutral by 2045</b> — 25 g CO2e/kWh in 2040, the figure the municipal heat plan
+    for Mainz itself computes with, and 10 g CO2e/kWh from 2045, per the climate neutrality of
+    section 3(2) of the Federal Climate Change Act.<br/>
+    <b>Near greenhouse-gas-neutral by 2035</b> — the same endpoint a decade earlier. Section 1(2)
+    of the Renewable Energy Sources Act describes electricity generation as “almost
+    greenhouse-gas-neutral before the year 2035”. This reading answers the council decision's
+    question about climate neutrality “if possible already by 2035”.<br/>
+    The measure acts on three energy carriers: electricity, heating electricity and environmental
+    heat. Environmental heat is, in the BISKO system, the heat delivered by heat pumps, and its
+    emission factor is the grid mix divided by the annual performance factor — so it necessarily
+    follows electricity.<br/>
+    One caveat for reading the figure: the residual of 10 g CO2e/kWh is an assumption of this
+    model. BISKO factors include the upstream chain, which does not fall to zero even under
+    greenhouse-gas-neutral generation; there is no source for this particular value.
+  input_dimensions: [energy_carrier, zielpfad_variante, zielpfad_measure]
+  output_dimensions: [energy_carrier, zielpfad_variante]
+  input_datasets:
+  - id: mainz/zielpfad_strommix
+    forecast_from: 2025
+    filters:
+    - dimension: zielpfad_measure
+      categories: [zp_strommix_zielpfad]
+      flatten: true
+  params:
+  - id: operations
+    value: get_single_dataset,select_variant
+  - id: categories
+    value: zielpfad_variante:ksg_2045,eeg_2035
+  - id: selected_number
+    value: 0
+    min_value: 0
+    max_value: 1
+    step: 1
+    # Not customizable and not visible, exactly as on the 17 KNSV actions: the path is chosen by
+    # picking a scenario, not by dragging a slider on one action. This is also what makes the two
+    # readings mutually exclusive by construction -- `select_variant` filters the data down to one
+    # of them, so they cannot both apply however the user clicks.
+    #
+    # Because `is_customizable: false` also stops the loader from folding the value into the
+    # default scenario (`instance_loader.py`), every scenario below has to set it explicitly.
+    is_customizable: false
+    is_visible: false
+    label_de: Zielpfad (0 = klimaneutral 2045, 1 = nahezu neutral 2035)
+    label_en: Target path (0 = climate-neutral 2045, 1 = near neutral 2035)
+  output_nodes:
+  # `partial_factor`, because this is someone else's table: `end_energy_emission_factors`
+  # carries ifeu's 19 carriers and this action names 3. An ordinary factor joins inner,
+  # which would delete the other 16 -- including every fuel the balance still burns.
+  - id: end_energy_emission_factors
+    tags: [non_additive, partial_factor]
+    from_dimensions:
+    - id: zielpfad_variante
+      flatten: true
+
+- id: zp_fernwaerme_zielpfad
+  name_de: Klimaneutrale Fernwärme bis 2045
+  name_en: Climate-neutral district heating by 2045
+  # A parent action: it has no effect of its own and no data. Switching it on switches on both
+  # component measures below, switching it off switches both off. That is what makes the
+  # aggregate and its decomposition impossible to double count -- before, they were two
+  # independent factors on the same quantity and only a sentence in the description stood
+  # between a user and counting the heat transition twice.
+  type: parent.ParentActionNode
+  quantity: emissions
+  # t_co2e/a, not the kt of `net_emissions`, and the reason is worth knowing because the
+  # failure is loud but obscure. `ParentActionNode.compute_effect` walks `get_root_nodes()`
+  # and stops at the **first unit-compatible** one -- the FIXME in `nodes/actions/parent.py`
+  # says so -- and here that is `emission_reductions`, the technical sink node this instance
+  # puts first on purpose. It reports in t_CO2e/a, so a parent declaring kt raises
+  # "Expecting unit 'kt_co2e/a' in column 'Value'; got 't_CO2e/a'" and its action page dies
+  # while every other node keeps working, because a parent has no output edge.
+  #
+  # Declaring t here is also the better answer rather than merely the working one: it is the
+  # unit every action impact on this instance is shown in, since `emission_reductions` carries
+  # the main goal.
+  unit: t_co2e/a
+  group: zielpfad
+  decision_level: municipality
+  description_de: |
+    Das Mainzer Wärmenetz wird bis 2045 klimaneutral. Zweck ist der größte Hebel, den die Stadt
+    selbst in der Hand hat: Die Kommunale Wärmeplanung verlegt Wärme in großem Umfang auf das
+    Netz, und mit dem heutigen Emissionsfaktor wächst die Fernwärme in der Bilanz von 52 kt im
+    Jahr 2024 auf 148 kt im Jahr 2045 — sie wird zum zweitgrößten Posten überhaupt.<br/>
+    Grundlage ist § 29 des Wärmeplanungsgesetzes: Ein Wärmenetz muss ab 2030 zu mindestens
+    30 Prozent, ab 2040 zu mindestens 80 Prozent und ab 2045 vollständig aus erneuerbaren
+    Energien oder unvermeidbarer Abwärme gespeist werden. Die 30-Prozent-Quote für 2030 ist für
+    Mainz nicht bindend — das Netz lief 2023 bereits zu 56 Prozent auf Abfall und zu 27 Prozent
+    auf Klärschlamm.<br/>
+    Diese Maßnahme fasst die beiden Schritte zusammen, aus denen der Weg dorthin besteht: den
+    Ausstieg aus Erdgas und Heizöl im Erzeugungspark und die Beseitigung des fossilen
+    Kohlenstoffs im Abfalleinsatz des Müllheizkraftwerks. Sie schaltet beide gemeinsam ein und
+    aus; wer sehen will, was jeder Schritt einzeln beiträgt, schaltet sie einzeln.<br/>
+    Im Modell sinkt der Emissionsfaktor der Fernwärme dadurch von heute 130 g CO2e/kWh auf ein
+    Viertel davon im Jahr 2040 und auf einen Restwert ab 2045.
+  description_en: |
+    The Mainz heat network becomes climate-neutral by 2045. The purpose is the largest lever the
+    city itself holds: the municipal heat plan moves heating onto the network on a large scale,
+    and at today's emission factor district heating grows in the balance from 52 kt in 2024 to
+    148 kt in 2045 — becoming the second largest item of all.<br/>
+    The basis is section 29 of the Heat Planning Act: a heat network must be fed at least
+    30 per cent from renewables or unavoidable waste heat from 2030, at least 80 per cent from
+    2040, and entirely from 2045. The 30 per cent quota for 2030 is not binding for Mainz — the
+    network already ran on 56 per cent waste and 27 per cent sewage sludge in 2023.<br/>
+    This measure combines the two steps the route consists of: the exit from natural gas and
+    heating oil in the generation park, and the removal of the fossil carbon in the waste input
+    of the waste-to-energy plant. It switches both on and off together; to see what each step
+    contributes on its own, switch them individually.<br/>
+    In the model the district heating emission factor falls from today's 130 g CO2e/kWh to a
+    quarter of that in 2040 and to a residual from 2045.
+
+- id: zp_fw_erdgas_heizoel_ausstieg
+  # A child of `zp_fernwaerme_zielpfad`: the parent switches this on and off with its
+  # sibling and carries no effect of its own, so the two can never be counted twice.
+  parent: zp_fernwaerme_zielpfad
+  name_de: Fernwärme – Ausstieg aus Erdgas und Heizöl
+  name_en: District heating – exit from natural gas and heating oil
+  type: simple.GenericAction
+  quantity: fraction
+  unit: dimensionless
+  no_effect_value: 1.0
+  group: zielpfad
+  decision_level: municipality
+  description_de: |
+    Erdgas und Heizöl verlassen den Erzeugungspark des Wärmenetzes. Zweck ist der Teil der
+    Fernwärmeemissionen, der ohne Eingriff in die Abfallwirtschaft zu beseitigen ist — durch
+    eine Großwärmepumpe, durch unvermeidbare Abwärme, durch Biomethan oder durch
+    Wasserstoff. Welche dieser Optionen gewählt wird, macht für den Emissionsfaktor keinen
+    Unterschied, für die Kosten sehr wohl.<br/>
+    Der Umfang ergibt sich aus dem Brennstoffeinsatz des Netzes im Jahr 2023: Erdgas und
+    Heizöl stellen 36,9 Prozent der Emissionen des Einsatzes, der Abfall die übrigen
+    63,1 Prozent. Der Klärschlamm — 27 Prozent der eingesetzten Menge — ist in keiner der
+    beiden Teilmaßnahmen enthalten, weil für ihn kein Emissionsfaktor vorliegt; das ist eine
+    bekannte Lücke und keine Aussage, er sei kohlenstofffrei.<br/>
+    Im Modell sinkt der Emissionsfaktor der Fernwärme bis 2030 um 15 Prozent und bis 2040 um
+    36,9 Prozent.<br/>
+    Ein Hinweis zur Einordnung: Diese Maßnahme und die zusammengefasste Maßnahme
+    „Klimaneutrale Fernwärme bis 2045“ wirken auf dieselbe Größe und dürfen nie gleichzeitig
+    eingeschaltet sein.
+  description_en: |
+    Natural gas and heating oil leave the generation park of the heat network. The purpose is
+    the part of district heating emissions that can be removed without touching waste
+    management — through a large heat pump, unavoidable waste heat, biomethane or hydrogen.
+    Which of those is chosen makes no difference to the emission factor, and a great deal to
+    the cost.<br/>
+    The extent follows from the network's 2023 fuel input: natural gas and heating oil are
+    36.9 per cent of the emissions of that input, the waste the remaining 63.1 per cent.
+    Sewage sludge — 27 per cent of the quantity fed in — is in neither component measure,
+    because no emission factor is available for it; that is a known gap, not a claim that it
+    is carbon-free.<br/>
+    In the model the district heating emission factor falls by 15 per cent to 2030 and by
+    36.9 per cent to 2040.<br/>
+    One caveat for reading the figure: this measure and the aggregate measure
+    “Climate-neutral district heating by 2045” act on the same quantity and must never be
+    switched on together.
+  input_dimensions: [energy_carrier, zielpfad_measure]
+  output_dimensions: [energy_carrier]
+  input_datasets:
+  - id: mainz/zielpfad_fernwaerme
+    forecast_from: 2025
+    filters:
+    - dimension: zielpfad_measure
+      categories: [zp_fw_erdgas_heizoel_ausstieg]
+      flatten: true
+  params:
+  - id: operations
+    value: get_single_dataset
+  output_nodes:
+  - id: district_heating_emissions_predominant_variant
+    tags: [non_additive]
+
+- id: zp_fw_mhkw_fossiler_kohlenstoff
+  # A child of `zp_fernwaerme_zielpfad`: the parent switches this on and off with its
+  # sibling and carries no effect of its own, so the two can never be counted twice.
+  parent: zp_fernwaerme_zielpfad
+  name_de: Fernwärme – fossiler Kohlenstoff im Abfalleinsatz
+  name_en: District heating – fossil carbon in the waste input
+  type: simple.GenericAction
+  quantity: fraction
+  unit: dimensionless
+  no_effect_value: 1.0
+  group: zielpfad
+  decision_level: municipality
+  description_de: |
+    Der fossile Kohlenstoff im Abfalleinsatz des Müllheizkraftwerks fällt weg — entweder
+    durch CO2-Abscheidung an der Anlage oder durch einen Restmüll, aus dem die Kunststoffe
+    aussortiert sind. Zweck ist der größere und der schwierigere Teil der Fernwärmefrage: Er
+    entscheidet darüber, ob die Fernwärme in Mainz klimaneutral werden kann, denn der Abfall
+    stellt 63,1 Prozent der Emissionen des Brennstoffeinsatzes und ist zugleich der Einsatz,
+    den das Netz nicht einfach ersetzen kann.<br/>
+    Im Modell sinkt der Emissionsfaktor der Fernwärme bis 2040 im Umfang der
+    80-Prozent-Quote des § 29 Wärmeplanungsgesetz und bis 2045 vollständig.<br/>
+    Ein Hinweis zur Einordnung: Die Faktoren der beiden Teilmaßnahmen multiplizieren sich.
+    Die ausgewiesene Wirkung dieser Maßnahme gilt deshalb für den Zustand, in dem der
+    Ausstieg aus Erdgas und Heizöl bereits wirkt — so wie das Werkzeug die Wirkung jeder
+    Maßnahme ohnehin als Differenz im jeweiligen Szenarienkontext ausweist. Diese Maßnahme
+    und die zusammengefasste Maßnahme „Klimaneutrale Fernwärme bis 2045“ dürfen nie
+    gleichzeitig eingeschaltet sein.
+  description_en: |
+    The fossil carbon in the waste input of the waste-to-energy plant is removed — either by
+    carbon capture at the plant or by a residual waste stream with the plastics taken out.
+    The purpose is the larger and the harder half of the district heating question: it
+    decides whether district heating in Mainz can become climate-neutral at all, because
+    waste is 63.1 per cent of the emissions of the fuel input and at the same time the input
+    the network cannot simply replace.<br/>
+    In the model the district heating emission factor falls to 2040 by the extent of the
+    80 per cent quota of section 29 of the Heat Planning Act, and entirely by 2045.<br/>
+    One caveat for reading the figure: the factors of the two component measures multiply.
+    The effect shown for this measure therefore applies to the state in which the exit from
+    natural gas and heating oil is already in force — which is how the tool reports every
+    measure's effect anyway, as a difference within its scenario context. This measure and
+    the aggregate measure “Climate-neutral district heating by 2045” must never be switched
+    on together.
+  input_dimensions: [energy_carrier, zielpfad_measure]
+  output_dimensions: [energy_carrier]
+  input_datasets:
+  - id: mainz/zielpfad_fernwaerme
+    forecast_from: 2025
+    filters:
+    - dimension: zielpfad_measure
+      categories: [zp_fw_mhkw_fossiler_kohlenstoff]
+      flatten: true
+  params:
+  - id: operations
+    value: get_single_dataset
+  output_nodes:
+  - id: district_heating_emissions_predominant_variant
+    tags: [non_additive]
+
+- id: zp_wirtschaftsverkehr_elektrisch
+  name_de: Elektrifizierung des Wirtschaftsverkehrs
+  name_en: Electrification of commercial transport
+  type: simple.GenericAction
+  quantity: fraction
+  unit: '%'
+  group: zielpfad
+  decision_level: municipality
+  description_de: |
+    Lastwagen, leichte Nutzfahrzeuge und Reisebusse im Stadtgebiet fahren zunehmend
+    elektrisch. Zweck ist der größte verbleibende Brennstoffposten der Bilanz: Der Verkehr
+    hat sich seit 1990 um weniger als 10 Prozent bewegt, und im stärksten bisher
+    abgebildeten Maßnahmenpaket ist Diesel im Jahr 2045 der größte noch verbrannte
+    Energieträger. 255 der 311 Gigawattstunden Diesel entfallen dabei auf Lastwagen und
+    leichte Nutzfahrzeuge.<br/>
+    Grundlage sind die europäischen Flottengrenzwerte: Verordnung (EU) 2024/1610 für schwere
+    Nutzfahrzeuge und Verordnung (EU) 2023/851 für leichte Nutzfahrzeuge, die ab 2035 nur
+    noch emissionsfreie Neuzulassungen zulässt. Die Stadt trägt dazu bei über
+    Ladeinfrastruktur für den Wirtschaftsverkehr, über Vorgaben in der eigenen Beschaffung
+    und in Konzessionen, und über die Ausgestaltung der Anlieferung in der Innenstadt.<br/>
+    Im Modell steigt der Anteil des Stroms an der Fahrleistung der leichten Nutzfahrzeuge auf
+    90 Prozent bis 2045 und der der Lastwagen und Reisebusse auf 75 Prozent; die verdrängten
+    Kraftstoffe gehen anteilig zu ihren heutigen Anteilen zurück. Die gefahrenen Kilometer
+    ändern sich nicht, nur womit sie gefahren werden.<br/>
+    Ein Hinweis zur Einordnung: Die Verordnungen setzen Ziele für neu zugelassene Fahrzeuge.
+    Der Anteil der elektrisch gefahrenen Kilometer folgt diesen Zielen mit dem zeitlichen
+    Abstand einer Fahrzeuggeneration, und dieser Abstand ist eine Annahme dieses Modells.
+    Personenwagen und Krafträder sind hier nicht enthalten — für die Personenwagen gibt es
+    bereits die Maßnahme „Elektrifizierung der Pkw-Fahrleistung (C 6.1)“.
+  description_en: |
+    Trucks, vans and coaches in the city increasingly run on electricity. The purpose is the
+    largest remaining fuel item in the balance: transport has moved by less than 10 per cent
+    since 1990, and in the strongest package modelled so far diesel is the largest fuel still
+    burned in 2045. Of the 311 gigawatt-hours of diesel, 255 are trucks and vans.<br/>
+    The basis is the European fleet regulations: Regulation (EU) 2024/1610 for heavy-duty
+    vehicles and Regulation (EU) 2023/851 for vans, which permits only zero-emission new
+    registrations from 2035. The city contributes through charging infrastructure for
+    commercial traffic, through requirements in its own procurement and in concessions, and
+    through how deliveries in the city centre are organised.<br/>
+    In the model the share of electricity in van mileage rises to 90 per cent by 2045 and
+    that of trucks and coaches to 75 per cent; the displaced fuels fall back in proportion to
+    their present shares. The kilometres driven do not change, only what they are driven
+    on.<br/>
+    One caveat for reading the figure: the regulations set targets for newly registered
+    vehicles. The share of kilometres actually driven electrically follows those targets with
+    the delay of a vehicle generation, and that delay is an assumption of this model.
+    Passenger cars and motorcycles are not included here — for cars there is already the
+    measure “Electrification of car mileage (C 6.1)”.
+  input_dimensions: [vehicle_type, road_type, energy_carrier, zielpfad_measure]
+  output_dimensions: [vehicle_type, road_type, energy_carrier]
+  input_datasets:
+  - id: mainz/zielpfad_verlagerung_energietraeger_verkehr
+    forecast_from: 2025
+    filters:
+    - dimension: zielpfad_measure
+      categories: [zp_wirtschaftsverkehr_elektrisch]
+      flatten: true
+  params:
+  - id: operations
+    value: get_single_dataset
+  output_nodes:
+  - id: transport_energy_shares
+    tags: [additive]
+
+- id: zp_industrie_kohleausstieg
+  name_de: Ausstieg aus der industriellen Prozesskohle
+  name_en: Exit from industrial process coal
+  type: simple.GenericAction
+  quantity: energy
+  unit: MWh/a
+  group: zielpfad
+  decision_level: municipality
+  description_de: |
+    Die industrielle Prozesskohle wird durch elektrische Prozesswärme ersetzt. Zweck ist ein
+    kleiner, aber vollständig fossiler Posten, der sich seit 2019 nicht bewegt hat: rund
+    55.800 Megawattstunden Steinkohle im Jahr, die im stärksten abgebildeten Paket auch 2045
+    noch 24 Kilotonnen CO2-Äquivalent verursachen — der größte verbleibende Posten der
+    Industrie.<br/>
+    Für die industrielle Prozesswärme gibt es kein gesetzliches Enddatum; der Kohleausstieg
+    des Bundes betrifft die Stromerzeugung. Was hier wirkt, ist der CO2-Preis des
+    europäischen Emissionshandels und die Frage, ob die betroffenen Betriebe bei der
+    Umstellung begleitet werden.<br/>
+    Im Modell verschwindet die Kohle bis 2035 und wird durch Strom ersetzt.<br/>
+    Ein Hinweis zur Einordnung: Der Zeitpfad und das Ersatzverhältnis sind Annahmen dieses
+    Modells. Angenommen ist, dass elektrische Prozesswärme denselben Nutzwärmebedarf mit
+    70 Prozent der Endenergie eines Kohleofens deckt; der Wert ist anlagenspezifisch und hier
+    nicht bekannt. Die übrigen Kohlemengen der Bilanz — zusammen rund 500 Megawattstunden in
+    Haushalten und im Gewerbe — sind nicht enthalten, weil sie keinen benennbaren Adressaten
+    haben.
+  description_en: |
+    Industrial process coal is replaced by electric process heat. The purpose is a small but
+    entirely fossil item that has not moved since 2019: about 55,800 megawatt-hours of hard
+    coal a year, which in the strongest package modelled still causes 24 kilotonnes of CO2
+    equivalent in 2045 — the largest remaining item in industry.<br/>
+    There is no statutory end date for industrial process heat; the federal coal exit
+    concerns electricity generation. What acts here is the carbon price of the European
+    emissions trading system, and whether the businesses concerned are supported through the
+    conversion.<br/>
+    In the model the coal disappears by 2035 and is replaced by electricity.<br/>
+    One caveat for reading the figure: the time path and the replacement ratio are
+    assumptions of this model. It is assumed that electric process heat meets the same useful
+    heat demand with 70 per cent of the final energy a coal furnace needs; the value is
+    plant-specific and not known here. The remaining coal in the balance — about
+    500 megawatt-hours in households and commerce together — is not included, because it has
+    no identifiable addressee.
+  input_dimensions: [sector, energy_carrier, zielpfad_measure]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: mainz/zielpfad_stationaer
+    forecast_from: 2025
+    filters:
+    - dimension: zielpfad_measure
+      categories: [zp_industrie_kohleausstieg]
+      flatten: true
+  params:
+  - id: operations
+    value: get_single_dataset
+  output_nodes:
+  # Untagged, and additive by that fact: `final_energy_use` is a formula.FormulaNode, and a
+  # FormulaNode adds every input its formula does not name -- the same attachment
+  # `kwp_waermewende` uses, and for the same reason.
+  - id: final_energy_use
+
+# ///// end of the commented-out Zielpfad action block /////
 
 #//////  Parameters  ////////////////////////////////////////////////////////////////////////////////////////////////////
 params:
@@ -3272,6 +3799,28 @@ scenarios:
     value: false
   - id: ie_kn2035_verkehr.enabled
     value: false
+  # The Zielpfad measures are OFF here. They are not part of this scenario's programme,
+  # and `all_actions_enabled` would otherwise switch on both members of each mutually
+  # exclusive pair at once. Listed even where `all_actions_enabled` is false, because a
+  # parameter absent from a scenario keeps whatever the previously activated one left
+  # behind.
+  - id: zp_strommix_zielpfad.enabled
+    value: false
+  # Set even where the action is off: the parameter is not customizable, so the loader does not
+  # fold it into any scenario and a scenario that omits it keeps whatever the previously
+  # activated one left behind.
+  - id: zp_strommix_zielpfad.selected_number
+    value: 0
+  - id: zp_fernwaerme_zielpfad.enabled
+    value: false
+  - id: zp_fw_erdgas_heizoel_ausstieg.enabled
+    value: false
+  - id: zp_fw_mhkw_fossiler_kohlenstoff.enabled
+    value: false
+  - id: zp_wirtschaftsverkehr_elektrisch.enabled
+    value: false
+  - id: zp_industrie_kohleausstieg.enabled
+    value: false
   - id: knsv_energetische_sanierung_waerme.selected_number
     value: 0
   - id: knsv_nutzendenverhalten_waerme.selected_number
@@ -3333,6 +3882,28 @@ scenarios:
   - id: ie_kn2035_stationaer.enabled
     value: false
   - id: ie_kn2035_verkehr.enabled
+    value: false
+  # The Zielpfad measures are OFF here. They are not part of this scenario's programme,
+  # and `all_actions_enabled` would otherwise switch on both members of each mutually
+  # exclusive pair at once. Listed even where `all_actions_enabled` is false, because a
+  # parameter absent from a scenario keeps whatever the previously activated one left
+  # behind.
+  - id: zp_strommix_zielpfad.enabled
+    value: false
+  # Set even where the action is off: the parameter is not customizable, so the loader does not
+  # fold it into any scenario and a scenario that omits it keeps whatever the previously
+  # activated one left behind.
+  - id: zp_strommix_zielpfad.selected_number
+    value: 0
+  - id: zp_fernwaerme_zielpfad.enabled
+    value: false
+  - id: zp_fw_erdgas_heizoel_ausstieg.enabled
+    value: false
+  - id: zp_fw_mhkw_fossiler_kohlenstoff.enabled
+    value: false
+  - id: zp_wirtschaftsverkehr_elektrisch.enabled
+    value: false
+  - id: zp_industrie_kohleausstieg.enabled
     value: false
   - id: knsv_energetische_sanierung_waerme.selected_number
     value: 0
@@ -3403,6 +3974,28 @@ scenarios:
   - id: ie_kn2035_stationaer.enabled
     value: false
   - id: ie_kn2035_verkehr.enabled
+    value: false
+  # The Zielpfad measures are OFF here. They are not part of this scenario's programme,
+  # and `all_actions_enabled` would otherwise switch on both members of each mutually
+  # exclusive pair at once. Listed even where `all_actions_enabled` is false, because a
+  # parameter absent from a scenario keeps whatever the previously activated one left
+  # behind.
+  - id: zp_strommix_zielpfad.enabled
+    value: false
+  # Set even where the action is off: the parameter is not customizable, so the loader does not
+  # fold it into any scenario and a scenario that omits it keeps whatever the previously
+  # activated one left behind.
+  - id: zp_strommix_zielpfad.selected_number
+    value: 0
+  - id: zp_fernwaerme_zielpfad.enabled
+    value: false
+  - id: zp_fw_erdgas_heizoel_ausstieg.enabled
+    value: false
+  - id: zp_fw_mhkw_fossiler_kohlenstoff.enabled
+    value: false
+  - id: zp_wirtschaftsverkehr_elektrisch.enabled
+    value: false
+  - id: zp_industrie_kohleausstieg.enabled
     value: false
   - id: knsv_energetische_sanierung_waerme.selected_number
     value: 1
@@ -3475,6 +4068,28 @@ scenarios:
     value: false
   - id: ie_kn2035_verkehr.enabled
     value: false
+  # The Zielpfad measures are OFF here. They are not part of this scenario's programme,
+  # and `all_actions_enabled` would otherwise switch on both members of each mutually
+  # exclusive pair at once. Listed even where `all_actions_enabled` is false, because a
+  # parameter absent from a scenario keeps whatever the previously activated one left
+  # behind.
+  - id: zp_strommix_zielpfad.enabled
+    value: false
+  # Set even where the action is off: the parameter is not customizable, so the loader does not
+  # fold it into any scenario and a scenario that omits it keeps whatever the previously
+  # activated one left behind.
+  - id: zp_strommix_zielpfad.selected_number
+    value: 0
+  - id: zp_fernwaerme_zielpfad.enabled
+    value: false
+  - id: zp_fw_erdgas_heizoel_ausstieg.enabled
+    value: false
+  - id: zp_fw_mhkw_fossiler_kohlenstoff.enabled
+    value: false
+  - id: zp_wirtschaftsverkehr_elektrisch.enabled
+    value: false
+  - id: zp_industrie_kohleausstieg.enabled
+    value: false
   - id: kwp_waermewende.enabled
     value: true
   - id: knsv_energetische_sanierung_waerme.selected_number
@@ -3533,6 +4148,28 @@ scenarios:
   - id: ie_kn2035_stationaer.enabled
     value: false
   - id: ie_kn2035_verkehr.enabled
+    value: false
+  # The Zielpfad measures are OFF here. They are not part of this scenario's programme,
+  # and `all_actions_enabled` would otherwise switch on both members of each mutually
+  # exclusive pair at once. Listed even where `all_actions_enabled` is false, because a
+  # parameter absent from a scenario keeps whatever the previously activated one left
+  # behind.
+  - id: zp_strommix_zielpfad.enabled
+    value: false
+  # Set even where the action is off: the parameter is not customizable, so the loader does not
+  # fold it into any scenario and a scenario that omits it keeps whatever the previously
+  # activated one left behind.
+  - id: zp_strommix_zielpfad.selected_number
+    value: 0
+  - id: zp_fernwaerme_zielpfad.enabled
+    value: false
+  - id: zp_fw_erdgas_heizoel_ausstieg.enabled
+    value: false
+  - id: zp_fw_mhkw_fossiler_kohlenstoff.enabled
+    value: false
+  - id: zp_wirtschaftsverkehr_elektrisch.enabled
+    value: false
+  - id: zp_industrie_kohleausstieg.enabled
     value: false
   - id: kwp_waermewende.enabled
     value: true
@@ -3637,6 +4274,28 @@ scenarios:
     value: false
   - id: ie_kn2035_verkehr.enabled
     value: false
+  # The Zielpfad measures are OFF here. They are not part of this scenario's programme,
+  # and `all_actions_enabled` would otherwise switch on both members of each mutually
+  # exclusive pair at once. Listed even where `all_actions_enabled` is false, because a
+  # parameter absent from a scenario keeps whatever the previously activated one left
+  # behind.
+  - id: zp_strommix_zielpfad.enabled
+    value: false
+  # Set even where the action is off: the parameter is not customizable, so the loader does not
+  # fold it into any scenario and a scenario that omits it keeps whatever the previously
+  # activated one left behind.
+  - id: zp_strommix_zielpfad.selected_number
+    value: 0
+  - id: zp_fernwaerme_zielpfad.enabled
+    value: false
+  - id: zp_fw_erdgas_heizoel_ausstieg.enabled
+    value: false
+  - id: zp_fw_mhkw_fossiler_kohlenstoff.enabled
+    value: false
+  - id: zp_wirtschaftsverkehr_elektrisch.enabled
+    value: false
+  - id: zp_industrie_kohleausstieg.enabled
+    value: false
   - id: kwp_waermewende.enabled
     value: false
   - id: knsv_energetische_sanierung_waerme.selected_number
@@ -3711,8 +4370,204 @@ scenarios:
     value: true
   - id: ie_kn2035_verkehr.enabled
     value: true
+  # The Zielpfad measures are OFF here. They are not part of this scenario's programme,
+  # and `all_actions_enabled` would otherwise switch on both members of each mutually
+  # exclusive pair at once. Listed even where `all_actions_enabled` is false, because a
+  # parameter absent from a scenario keeps whatever the previously activated one left
+  # behind.
+  - id: zp_strommix_zielpfad.enabled
+    value: false
+  # Set even where the action is off: the parameter is not customizable, so the loader does not
+  # fold it into any scenario and a scenario that omits it keeps whatever the previously
+  # activated one left behind.
+  - id: zp_strommix_zielpfad.selected_number
+    value: 0
+  - id: zp_fernwaerme_zielpfad.enabled
+    value: false
+  - id: zp_fw_erdgas_heizoel_ausstieg.enabled
+    value: false
+  - id: zp_fw_mhkw_fossiler_kohlenstoff.enabled
+    value: false
+  - id: zp_wirtschaftsverkehr_elektrisch.enabled
+    value: false
+  - id: zp_industrie_kohleausstieg.enabled
+    value: false
   - id: kwp_waermewende.enabled
     value: false
+  - id: knsv_energetische_sanierung_waerme.selected_number
+    value: 0
+  - id: knsv_nutzendenverhalten_waerme.selected_number
+    value: 0
+  - id: knsv_energieeffizienz_gebaeude_strom.selected_number
+    value: 0
+  - id: knsv_nutzendenverhalten_strom.selected_number
+    value: 0
+  - id: knsv_photovoltaik_eigenerzeugung.selected_number
+    value: 0
+  - id: knsv_dekarbonisierung_fernwaerme.selected_number
+    value: 0
+  - id: knsv_fernwaerme_anschluss.selected_number
+    value: 0
+  - id: knsv_dekarbonisierung_strommix.selected_number
+    value: 0
+  - id: knsv_led_strassenbeleuchtung.selected_number
+    value: 0
+  - id: knsv_elektrifizierung_pkw_flotte.selected_number
+    value: 0
+  - id: knsv_alternative_antriebe_nutzfahrzeuge.selected_number
+    value: 0
+  - id: knsv_dienstreisen_vermeiden.selected_number
+    value: 0
+  - id: knsv_homeoffice.selected_number
+    value: 0
+  - id: knsv_papierloses_buero.selected_number
+    value: 0
+  - id: knsv_abfallreduktion.selected_number
+    value: 0
+  - id: knsv_klimafreundliche_veranstaltungen.selected_number
+    value: 0
+  - id: knsv_vegetarische_verpflegung.selected_number
+    value: 0
+
+# The scenario the whole Zielpfad block exists for: every measure the balance says is needed,
+# switched on together, without any pair that would count the same quantity twice. It is the
+# strongest modelled package (Masterplan 100 % plus the heat plan) plus the four things that
+# package does not contain -- the national grid path beyond 2030, the two halves of the
+# district heating factor, the electrification of commercial transport and the exit from
+# industrial process coal. Read it as an answer to one question: is the 2045 target of
+# Stadtratsbeschluss 0024/2021/1 reachable with measures that can be named? It is not a
+# forecast, and three of its six Zielpfad measures are not the city's to decide alone.
+- id: zielpfad_2045
+  all_actions_enabled: true
+  name_de: Zielpfad Klimaneutralität 2045
+  name_en: Target path climate neutrality 2045
+  params:
+  # The IE Leipzig paths are aggregate outcomes of the Masterplan package and would
+  # stack on the individual measures they already contain, so they stay off here as
+  # they do in every other scenario.
+  - id: ie_mp2050_stationaer.enabled
+    value: false
+  - id: ie_mp2050_verkehr.enabled
+    value: false
+  - id: ie_kn2035_stationaer.enabled
+    value: false
+  - id: ie_kn2035_verkehr.enabled
+    value: false
+  # The heat plan is ON: it owns the demand side of building heat, and without it the
+  # city keeps burning gas. The Zielpfad district heating measures own the supply side,
+  # so the two multiply rather than overwrite each other -- less heat times cleaner heat.
+  - id: kwp_waermewende.enabled
+    value: true
+  - id: zp_strommix_zielpfad.enabled
+    value: true
+  # Variant 0: climate-neutral electricity by 2045, per section 3(2) of the Federal Climate
+  # Change Act. The faster reading is variant 1 and lives in `zielpfad_2035`; they are two rows
+  # of one dataset, so only one of them can ever apply.
+  - id: zp_strommix_zielpfad.selected_number
+    value: 0
+  # The decomposition rather than the aggregate, because a decision needs to be taken per
+  # component: the gas and oil exit is the operator's own to plan, the fossil carbon in
+  # the waste input is a waste-management question and a capture question. The aggregate
+  # `zp_fernwaerme_zielpfad` is the same path in one switch and must stay off here.
+  # The parent switches both components on with it. They are listed after it anyway, so the
+  # scenario states its intent rather than relying on the propagation order.
+  - id: zp_fernwaerme_zielpfad.enabled
+    value: true
+  - id: zp_fw_erdgas_heizoel_ausstieg.enabled
+    value: true
+  - id: zp_fw_mhkw_fossiler_kohlenstoff.enabled
+    value: true
+  - id: zp_wirtschaftsverkehr_elektrisch.enabled
+    value: true
+  - id: zp_industrie_kohleausstieg.enabled
+    value: true
+  # Szenario 1 throughout for the administration measures, as in `default`: the parameter
+  # is not customizable, so a scenario that omits it inherits the last activated one.
+  - id: knsv_energetische_sanierung_waerme.selected_number
+    value: 0
+  - id: knsv_nutzendenverhalten_waerme.selected_number
+    value: 0
+  - id: knsv_energieeffizienz_gebaeude_strom.selected_number
+    value: 0
+  - id: knsv_nutzendenverhalten_strom.selected_number
+    value: 0
+  - id: knsv_photovoltaik_eigenerzeugung.selected_number
+    value: 0
+  - id: knsv_dekarbonisierung_fernwaerme.selected_number
+    value: 0
+  - id: knsv_fernwaerme_anschluss.selected_number
+    value: 0
+  - id: knsv_dekarbonisierung_strommix.selected_number
+    value: 0
+  - id: knsv_led_strassenbeleuchtung.selected_number
+    value: 0
+  - id: knsv_elektrifizierung_pkw_flotte.selected_number
+    value: 0
+  - id: knsv_alternative_antriebe_nutzfahrzeuge.selected_number
+    value: 0
+  - id: knsv_dienstreisen_vermeiden.selected_number
+    value: 0
+  - id: knsv_homeoffice.selected_number
+    value: 0
+  - id: knsv_papierloses_buero.selected_number
+    value: 0
+  - id: knsv_abfallreduktion.selected_number
+    value: 0
+  - id: knsv_klimafreundliche_veranstaltungen.selected_number
+    value: 0
+  - id: knsv_vegetarische_verpflegung.selected_number
+    value: 0
+
+# The same package with the grid on the faster of the two statutory readings -- near
+# greenhouse-gas neutrality for electricity before 2035 rather than for the whole economy by
+# 2045. It exists because Stadtratsbeschluss 0024/2021/1 aims for climate neutrality
+# "möglichst schon 2035", and the honest answer to how much earlier that is reachable turns
+# almost entirely on this one path rather than on anything the city decides.
+- id: zielpfad_2035
+  all_actions_enabled: true
+  name_de: Zielpfad mit beschleunigtem Strommix (2035)
+  name_en: Target path with accelerated electricity mix (2035)
+  params:
+  # The IE Leipzig paths are aggregate outcomes of the Masterplan package and would
+  # stack on the individual measures they already contain, so they stay off here as
+  # they do in every other scenario.
+  - id: ie_mp2050_stationaer.enabled
+    value: false
+  - id: ie_mp2050_verkehr.enabled
+    value: false
+  - id: ie_kn2035_stationaer.enabled
+    value: false
+  - id: ie_kn2035_verkehr.enabled
+    value: false
+  # The heat plan is ON: it owns the demand side of building heat, and without it the
+  # city keeps burning gas. The Zielpfad district heating measures own the supply side,
+  # so the two multiply rather than overwrite each other -- less heat times cleaner heat.
+  - id: kwp_waermewende.enabled
+    value: true
+  - id: zp_strommix_zielpfad.enabled
+    value: true
+  # Variant 1: near greenhouse-gas neutrality for electricity before 2035, per section 1(2) of
+  # the Renewable Energy Sources Act. The only difference from `zielpfad_2045` is this line.
+  - id: zp_strommix_zielpfad.selected_number
+    value: 1
+  # The decomposition rather than the aggregate, because a decision needs to be taken per
+  # component: the gas and oil exit is the operator's own to plan, the fossil carbon in
+  # the waste input is a waste-management question and a capture question. The aggregate
+  # `zp_fernwaerme_zielpfad` is the same path in one switch and must stay off here.
+  # The parent switches both components on with it. They are listed after it anyway, so the
+  # scenario states its intent rather than relying on the propagation order.
+  - id: zp_fernwaerme_zielpfad.enabled
+    value: true
+  - id: zp_fw_erdgas_heizoel_ausstieg.enabled
+    value: true
+  - id: zp_fw_mhkw_fossiler_kohlenstoff.enabled
+    value: true
+  - id: zp_wirtschaftsverkehr_elektrisch.enabled
+    value: true
+  - id: zp_industrie_kohleausstieg.enabled
+    value: true
+  # Szenario 1 throughout for the administration measures, as in `default`: the parameter
+  # is not customizable, so a scenario that omits it inherits the last activated one.
   - id: knsv_energetische_sanierung_waerme.selected_number
     value: 0
   - id: knsv_nutzendenverhalten_waerme.selected_number
