@@ -32,7 +32,14 @@ from datasets.validation_rules import (
     rule_to_gql,
     validation_rule_adapter,
 )
-from frameworks.models import Framework
+from frameworks.evidence import QUALITY_OF_SPEC_KEY, get_evidence, quality_schemes_for_dataset
+from frameworks.models import (
+    DataEvidenceKind,
+    DataPointEvidence as DataPointEvidenceModel,
+    DataQualityLevel as DataQualityLevelModel,
+    DataQualityScheme as DataQualitySchemeModel,
+    Framework,
+)
 from users.models import User
 from users.schema import UserType
 
@@ -149,6 +156,13 @@ class DatasetMetricType:
     validation_rules: list[MetricValidationRuleType] = sb.field(
         description='Validation rules evaluated against this metric, in order.',
     )
+    quality_of: sb.ID | None = sb.field(
+        default=None,
+        description=(
+            'When set, this metric is the numeric projection of the grades of the metric with this id: its values are '
+            'derived from data-point evidence and cannot be written directly.'
+        ),
+    )
     _quantity_id: sb.Private[str | None] = None
 
     @sb.field(
@@ -203,6 +217,7 @@ class DatasetMetricType:
             previous_sibling=previous_sibling,
             next_sibling=next_sibling,
             validation_rules=[MetricValidationRuleType.from_model(rule) for rule in metric.validation_rules.all()],
+            quality_of=sb.ID(quality_of) if (quality_of := (metric.spec or {}).get(QUALITY_OF_SPEC_KEY)) else None,
             _quantity_id=(metric.spec or {}).get('quantity'),
         )
 
@@ -324,6 +339,72 @@ def _comments_queryset_for_dataset(dataset: DatasetModel) -> Any:
     )
 
 
+@sb.type(name='DataQualityLevel')
+class DataQualityLevelType:
+    """One grade of a framework quality scheme."""
+
+    id: sb.ID
+    identifier: str
+    name: str
+    description: str
+    order: int
+    score: float = sb.field(description='Numeric weight of the grade, 0 (worst) to 1 (best).')
+
+    @classmethod
+    def from_model(cls, level: DataQualityLevelModel) -> DataQualityLevelType:
+        return cls(
+            id=sb.ID(str(level.uuid)),
+            identifier=level.identifier,
+            name=level.name,
+            description=level.description,
+            order=level.order,
+            score=float(level.score),
+        )
+
+
+@sb.type(name='DataQualityScheme')
+class DataQualitySchemeType:
+    """A versioned quality scale owned by a framework."""
+
+    id: sb.ID
+    identifier: str
+    version: str
+    name: str
+    description: str
+    levels: list[DataQualityLevelType] = sb.field(description='Grades, best first.')
+
+    @classmethod
+    def from_model(cls, scheme: DataQualitySchemeModel) -> DataQualitySchemeType:
+        return cls(
+            id=sb.ID(str(scheme.uuid)),
+            identifier=scheme.identifier,
+            version=scheme.version,
+            name=scheme.name,
+            description=scheme.description,
+            levels=[DataQualityLevelType.from_model(level) for level in scheme.levels.all()],
+        )
+
+
+@sb.type(name='DataPointEvidence')
+class DataPointEvidenceType:
+    """What is asserted about a data point's value. Absent when nothing has been asserted."""
+
+    kind: DataEvidenceKind | None = sb.field(description='How the value was obtained; null when unknown.')
+    quality_level: DataQualityLevelType | None = sb.field(description='Assessed grade; null when ungraded.')
+    last_modified_at: datetime
+    last_modified_by: User | None = sb.field(graphql_type=UserType | None)
+
+    @classmethod
+    def from_model(cls, evidence: DataPointEvidenceModel) -> DataPointEvidenceType:
+        level = evidence.quality_level
+        return cls(
+            kind=DataEvidenceKind(evidence.kind) if evidence.kind else None,
+            quality_level=DataQualityLevelType.from_model(level) if level is not None else None,
+            last_modified_at=evidence.last_modified_at,
+            last_modified_by=evidence.last_modified_by,
+        )
+
+
 @register_strawberry_type
 @sb.type(name='DataPoint')
 class DataPointType:
@@ -356,6 +437,14 @@ class DataPointType:
         if root._model is None:
             return []
         return list(_source_references_queryset_for_data_point(root._model))
+
+    @sb.field(graphql_type=DataPointEvidenceType | None)
+    @staticmethod
+    def evidence(root: 'DataPointType') -> DataPointEvidenceType | None:
+        if root._model is None:
+            return None
+        evidence = get_evidence(root._model)
+        return DataPointEvidenceType.from_model(evidence) if evidence is not None else None
 
     @classmethod
     def from_model(cls, data_point: DataPointModel) -> DataPointType:
@@ -514,14 +603,24 @@ class DatasetType(UserPermissionsMixin):
             for metric, prev_id, next_id in with_sibling_ids(metrics, lambda metric: sb.ID(str(metric.uuid)))
         ]
 
+    @sb.field(
+        graphql_type=list[DataQualitySchemeType],
+        description="Quality schemes whose grades may be assigned to this dataset's data points.",
+    )
+    @staticmethod
+    def quality_schemes(root: 'DatasetType') -> list[DataQualitySchemeType]:
+        if root._model is None:
+            return []
+        return [DataQualitySchemeType.from_model(scheme) for scheme in quality_schemes_for_dataset(root._model)]
+
     @sb.field(graphql_type=list[DataPointType])
     @staticmethod
     def data_points(root: 'DatasetType') -> list[DataPointType]:
         if root._model is None:
             return []
-        data_points = root._model.data_points.select_related('metric').prefetch_related(
-            'metric__validation_rules', 'dimension_categories__dimension'
-        )
+        data_points = root._model.data_points.select_related(
+            'metric', 'evidence__quality_level', 'evidence__last_modified_by'
+        ).prefetch_related('metric__validation_rules', 'dimension_categories__dimension')
         comments_by_data_point: dict[int, list[DataPointCommentModel]] = defaultdict(list)
         for comment in _comments_queryset_for_dataset(root._model):
             comments_by_data_point[comment.data_point_id].append(comment)
