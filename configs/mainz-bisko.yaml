@@ -3,7 +3,7 @@ default_language: de
 supported_languages: [en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: a05b9cee90a5952ff84d94dee0997f425f5ba6c2
+  commit: d290bef916529ed896149a5422ae767f74b30d94
   dvc_remote: kausal-s3
 name_de: Treibhausgas-Monitor Mainz
 name_en: GHG Monitor Mainz
@@ -1680,6 +1680,12 @@ actions:
     ihrer Emissionswirkung an ihr. Sie ist deshalb als einzige in jedem Szenario eingeschaltet,
     auch im Business as Usual: Der Bund baut die Erneuerbaren aus, ob Mainz etwas tut oder
     nicht.<br/>
+    Im Stadtgebiet betrifft sie drei Energieträger: Strom, Heizstrom und Umweltwärme. Die beiden
+    letzten sind Netzstrom unter anderem Namen — die Umweltwärme ist im BISKO-System die von
+    Wärmepumpen gelieferte Wärme, und ihr Emissionsfaktor ist der Strommix geteilt durch die
+    Jahresarbeitszahl 3,2 — und folgen dem Strommix deshalb zwingend. Bis zum 22.09.2026 taten
+    sie das nicht; die Korrektur senkt die Bilanz 2045 im Szenario „Masterplan 100 % und
+    Kommunale Wärmeplanung“ von 772 auf 699 kt CO2e.<br/>
     Ein Hinweis zur Einordnung: Für die Verwaltung selbst fällt die Wirkung viel kleiner aus als
     im Konzept – rund 760 statt über 6.000 Tonnen CO2-Äquivalent –, weil sie bereits einen
     weitgehend grünen Liefervertrag hat. Das ist mit der Stadt noch zu klären; für das Stadtgebiet
@@ -1699,6 +1705,12 @@ actions:
     matters most, because every measure that moves heat or transport onto electricity depends on
     it for its emissions effect. It is therefore the only measure switched on in every scenario,
     Business as Usual included: Germany builds out renewables whether or not Mainz acts.<br/>
+    City-wide it affects three energy carriers: electricity, heating electricity and
+    environmental heat. The latter two are grid electricity under another name — environmental
+    heat is, in BISKO, the heat delivered by heat pumps, and its emission factor is the grid mix
+    divided by the annual performance factor of 3.2 — so they necessarily follow the grid. Until
+    22 September 2026 they did not; the correction takes the 2045 balance in the scenario
+    “Masterplan 100 % and municipal heat plan” from 772 to 699 kt CO2e.<br/>
     One caveat for reading the figure: for the administration itself the effect is far smaller
     than in the concept — about 760 rather than over 6,000 tonnes of CO2 equivalent — because it
     already holds a largely green supply contract. That remains to be settled with the city; for
