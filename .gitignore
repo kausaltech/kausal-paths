@@ -31,7 +31,7 @@ notebooks/data/**
 /docker-compose.override.yml
 /bin/**
 /query-store/**
-/model-outputs/**
+/model-outputs*/**
 /store/**
 celerybeat-schedule
 .aider*
