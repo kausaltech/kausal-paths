@@ -17,6 +17,7 @@ from nodes.constants import (
     VALUE_COLUMN,
     YEAR_COLUMN,
 )
+from nodes.defs.port_def import InputPort
 from nodes.exceptions import NodeError
 from params.param import BoolParameter, NumberParameter
 
@@ -591,25 +592,27 @@ class DatasetDifferenceAction(ActionNode):  # FIXME Merge with DatasetReduceActi
         BoolParameter(local_id='relative_goal'),
     ]
 
+    baseline_port = InputPort.one('baseline', label=_('Baseline input'))
+    goal_port = InputPort.one('goal', label=_('Goal input'))
+    input_port_declarations = (baseline_port, goal_port)
+    legacy_input_port_roles_by_tag: ClassVar[dict[str, str]] = {'baseline': 'baseline', 'goal': 'goal'}
+    consumes_all_inputs_through_ports = True
+
     def compute_effect(self) -> ppl.PathsDataFrame:
-        n = self.get_input_node(tag='baseline', required=False)
-        if n is None:
-            df = self.get_input_dataset_pl(tag='baseline')
-            if FORECAST_COLUMN not in df.columns:
-                df = df.with_columns(pl.lit(value=False).alias(FORECAST_COLUMN))
+        df = self.require_input(self.baseline_port)
+        # A dataset source arrives without the Forecast column and under its own metric
+        # name; a node output already carries both. Normalize on content rather than on
+        # source kind so either may fill the port.
+        if FORECAST_COLUMN not in df.columns:
+            df = df.with_columns(pl.lit(value=False).alias(FORECAST_COLUMN))
             assert len(df.metric_cols) == 1
-            df = df.rename({df.metric_cols[0]: VALUE_COLUMN})
-        else:
-            df = n.get_output_pl(target_node=self)
-            # df = df.filter(~pl.col(FORECAST_COLUMN))  # FIXME FOR DIFF
+            if df.metric_cols[0] != VALUE_COLUMN:
+                df = df.rename({df.metric_cols[0]: VALUE_COLUMN})
 
         # max_year = df[YEAR_COLUMN].max()
         # df = df.filter(pl.col(YEAR_COLUMN) == max_year)
 
-        gdf = self.get_input_dataset_pl(tag='goal', required=False)
-        if gdf is None:
-            gn = self.get_input_node(tag='goal', required=True)
-            gdf = gn.get_output_pl(target_node=self)
+        gdf = self.require_input(self.goal_port)
 
         if not set(gdf.dim_ids).issubset(set(self.input_dimensions.keys())):
             raise NodeError(self, 'Dimension mismatch to input nodes')
