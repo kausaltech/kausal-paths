@@ -382,6 +382,13 @@ class MeasureType(DjangoNode[Measure]):
         ]
 
 
+class OrganizationIdentifierType(graphene.ObjectType[Any]):
+    namespace = graphene.String(
+        required=True, description='Namespace identifier, e.g. "ags" for the Amtlicher Gemeindeschlüssel.'
+    )
+    identifier = graphene.String(required=True)
+
+
 class FrameworkConfigType(DjangoNode[FrameworkConfig]):
     baseline_year = graphene.Int(required=True)
     target_year = graphene.Int(required=False)
@@ -396,6 +403,16 @@ class FrameworkConfigType(DjangoNode[FrameworkConfig]):
     is_locked = graphene.Boolean(required=True)
     instance_identifier = graphene.String(required=True)
     framework = graphene.Field(FrameworkType, required=True)
+    organization_identifiers = graphene.List(
+        graphene.NonNull(OrganizationIdentifierType),
+        required=True,
+        description="Official identifiers of the instance's organization, such as its AGS.",
+    )
+    submissions = graphene.List(
+        graphene.NonNull('frameworks.submission_schema.SubmissionType'),
+        required=True,
+        description='Submitted balances of the instance; open ones only for users who may edit it.',
+    )
 
     class Meta(DjangoNodeMeta):
         model = FrameworkConfig
@@ -404,6 +421,22 @@ class FrameworkConfigType(DjangoNode[FrameworkConfig]):
     @staticmethod
     def resolve_framework(root: FrameworkConfig, info: GQLInfo) -> Framework:
         return root.cache.fw_cache.framework
+
+    @staticmethod
+    def resolve_organization_identifiers(root: FrameworkConfig, info: GQLInfo) -> list[dict[str, str]]:
+        org = root.instance_config.organization
+        return [
+            {'namespace': namespace, 'identifier': identifier}
+            for namespace, identifier in org.identifiers.order_by('namespace__identifier').values_list(
+                'namespace__identifier', 'identifier'
+            )
+        ]
+
+    @staticmethod
+    def resolve_submissions(root: FrameworkConfig, info: GQLInfo) -> list[Any]:
+        from frameworks.submission_schema import submissions_for
+
+        return submissions_for(root.instance_config, info)
 
     @staticmethod
     def resolve_baseline_year(root: FrameworkConfig, info: GQLInfo) -> int:
