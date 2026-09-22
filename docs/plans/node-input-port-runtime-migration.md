@@ -5,8 +5,8 @@ first bulk wave landed 2026-08-27 — see the checkpoints under
 [Implementation sequence](#implementation-sequence). Steps 0–4 are done,
 step 5 is done, step 6 is partway through its residual inventory, and step 7
 (removing the legacy `Edge` grouping and `input_dataset_instances`) has not
-started. As of 2026-09-22, 55 classes still reach for a legacy accessor
-across roughly 130 call sites. Most of them are *not* a mechanical tail: see
+started. As of 2026-09-22, 48 classes still reach for a legacy accessor
+across 123 call sites. Most of them are *not* a mechanical tail: see
 [Residual inventory](#residual-inventory-2026-09-22) for what actually blocks
 each group. Last reviewed 2026-09-22.
 
