@@ -26,9 +26,11 @@ from nodes import visualizations as viz
 from nodes.actions.action import ActionNode
 from nodes.constants import DecisionLevel
 from nodes.defs import SimpleConfig
+from nodes.defs.binding_def import DatasetBindingDef, EdgeBindingDef
 from nodes.defs.node_defs import ActionConfig, FormulaConfig, NodeKind, NodeSpec, PipelineConfig
 from nodes.exceptions import NodeError
 from nodes.graph_layout import NodeGraphLayoutMeta
+from nodes.graphql.editability import port_editable, runtime_source
 from nodes.graphql.types import DatasetPortType
 from nodes.graphql.types.change_history import EditableEntity
 from nodes.graphql.types.impact import get_impact_metric
@@ -55,7 +57,6 @@ if TYPE_CHECKING:
     from nodes.defs.instance_defs import ActionGroup
     from nodes.graphql.types.change_history import InstanceModelLogEntryType
     from nodes.metric import DimensionalFlow, DimensionalMetric, Metric
-    from nodes.models import NodeConfig
     from nodes.node import Node
     from nodes.quantities import QuantityKind
     from params.schema import ParameterInterface
@@ -115,15 +116,6 @@ class PipelineConfigType:
     operations: sb.scalars.JSON
 
 
-def _require_nc(spec_type: 'NodeSpecType') -> NodeConfig:  # noqa: UP037
-    if spec_type._node is None:
-        raise ValueError('NodeSpecType has no Node instance')
-    nc = spec_type._node.db_obj
-    if nc is None:
-        raise ValueError('NodeSpecType has no NodeConfig instance')
-    return nc
-
-
 @pydantic_type(model=NodeSpec)
 class NodeSpecType(StrawberryPydanticType[NodeSpec]):
     type_config: Annotated[
@@ -135,67 +127,86 @@ class NodeSpecType(StrawberryPydanticType[NodeSpec]):
 
     @sb.field
     @staticmethod
-    def input_ports(root: 'NodeSpecType') -> list[InputPortType]:
-        nc = _require_nc(root)
-        node = root._node
-        spec = root._original_model
-        edge_bindings = nc.port_edge_bindings
-        dataset_bindings = nc.port_dataset_bindings
-        port_objs = []
-        edges_by_id: dict[Any, list[NodeEdgeType | DatasetPortType]] = {}
-        for edge in edge_bindings:
-            if edge.port_ref.node_id != nc.identifier:
-                continue
-            sb_edge = NodeEdgeType.from_binding(edge, node=node)
-            edges_by_id.setdefault(edge.port_ref.port_id, []).append(sb_edge)
-        for dataset in dataset_bindings:
-            sb_dataset = DatasetPortType.from_binding(
-                dataset,
-                node=node,
-                dataset_models_by_uuid=getattr(nc, '_annotated_dataset_models_by_uuid', None),
-            )
-            assert sb_dataset.port_ref.node_id == nc.identifier
-            edges_by_id.setdefault(dataset.port_ref.port_id, []).append(sb_dataset)
-        for port in spec.input_ports:
-            edges = edges_by_id.get(port.id, [])
-            port_obj = InputPortType.from_def(
-                port,
-                bindings=edges,
-                node_uuid=nc.uuid,
-            )
-            port_objs.append(port_obj)
-        return port_objs
+    def input_ports(root: 'NodeSpecType', info: gql.Info) -> list[InputPortType]:
 
-    @sb.field(graphql_type=list[OutputPortType])
+        node = root._node
+        assert node is not None
+        node_uuid = _get_node_uuid_with_fallback(node)
+        config = node.context.instance.config
+        assert config is not None
+        if node.db_obj is not None and config.template_revision_id is None:
+            bindings = [
+                *(b for b in node.db_obj.port_edge_bindings if b.port_ref.node_uuid == node_uuid),
+                *node.db_obj.port_dataset_bindings,
+            ]
+        else:
+            bindings = info.context.require_instance_graph(config, source=runtime_source(info, node)).bindings_for_node(node_uuid)
+        models_by_uuid = getattr(node.db_obj, '_annotated_dataset_models_by_uuid', None)
+        if config.template_revision_id is not None:
+            resources = info.context.instance_resources
+            assert resources is not None
+            models_by_uuid = resources.dataset_models_for_graph(config, runtime_source(info, node))
+        ports = []
+        for port in root._original_model.input_ports:
+            members: list[NodeEdgeType | DatasetPortType] = []
+            for binding in bindings:
+                if binding.port_ref.port_id != port.id:
+                    continue
+                if isinstance(binding, EdgeBindingDef):
+                    members.append(NodeEdgeType.from_binding(binding, node=node))
+                elif isinstance(binding, DatasetBindingDef):
+                    members.append(
+                        DatasetPortType.from_binding(
+                            binding,
+                            node=node,
+                            dataset_models_by_uuid=models_by_uuid,
+                        )
+                    )
+            ports.append(InputPortType.from_def(port, bindings=members, node_uuid=node_uuid, node=node))
+        return ports
+
+    @sb.field
     @staticmethod
-    def output_ports(root: 'NodeSpecType') -> list[OutputPortType]:
-        nc = _require_nc(root)
-        edge_bindings = nc.port_edge_bindings
-        spec = root._original_model
+    def output_ports(root: 'NodeSpecType', info: gql.Info) -> list[OutputPortType]:
+
+        node = root._node
+        assert node is not None
+        node_uuid = _get_node_uuid_with_fallback(node)
+        config = node.context.instance.config
+        assert config is not None
+        bindings = (
+            node.db_obj.port_edge_bindings
+            if node.db_obj is not None and config.template_revision_id is None
+            else info.context.require_instance_graph(config, source=runtime_source(info, node)).bindings
+        )
         return [
             OutputPortType.from_def(
                 port,
+                node=node,
+                node_uuid=node_uuid,
                 edges=[
                     NodeEdgeType.from_binding(binding)
-                    for binding in edge_bindings
-                    if binding.from_ref.port_id == port.id and binding.from_ref.node_id == nc.identifier
+                    for binding in bindings
+                    if isinstance(binding, EdgeBindingDef)
+                    and binding.from_ref.node_uuid == node_uuid
+                    and binding.from_ref.port_id == port.id
                 ],
-                node=root._node,
-                node_uuid=nc.uuid,
             )
-            for port in spec.output_ports
+            for port in root._original_model.output_ports
         ]
 
-    @sb.field(
-        graphql_type=list[ConstraintConflictType],
-        description='Structural constraint conflicts involving this node, its ports, or its bindings.',
-    )
+    @sb.field(graphql_type=list[ConstraintConflictType])
     @staticmethod
     def constraint_conflicts(root: 'NodeSpecType', info: gql.Info) -> list[ConstraintConflictType]:
-        nc = _require_nc(root)
-        graph = info.context.require_instance_graph()
-        result = info.context.require_constraint_solve()
-        return conflicts_for_node(graph, result, nc.uuid)
+
+        assert root._node is not None
+        config = root._node.context.instance.config
+        source = runtime_source(info, root._node)
+        return conflicts_for_node(
+            info.context.require_instance_graph(config, source=source),
+            info.context.require_constraint_solve(config, source=source),
+            _get_node_uuid_with_fallback(root._node),
+        )
 
     @sb.field(
         description=(
@@ -476,13 +487,14 @@ class NodeInterface(UserPermissionsMixin):
 
     @sb.field
     @staticmethod
-    def is_editable(root: 'Node') -> bool:
-        nc = root.db_obj
-        if nc is not None:
-            return nc.is_editable
-        if root.source_snapshot is not None:
-            return root.source_snapshot.is_editable is not False
-        return False
+    def is_inherited(root: 'Node') -> bool:
+        return root.source_snapshot is not None and root.source_snapshot.template_revision_id is not None
+
+    @sb.field
+    @staticmethod
+    def is_editable(root: 'Node', info: gql.Info) -> bool:
+
+        return port_editable(info, root)
 
     @sb.field
     @staticmethod
