@@ -8,6 +8,7 @@ from .config import (
     create_random_token as create_random_token,
     filter_viewable_by as filter_viewable_by,
 )
+from .evidence import DataEvidenceKind as DataEvidenceKind, DataPointEvidence as DataPointEvidence
 from .framework import (
     Framework as Framework,
     FrameworkDefaults as FrameworkDefaults,
