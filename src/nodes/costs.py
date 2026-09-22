@@ -9,8 +9,11 @@ import polars as pl
 
 import common.polars as ppl
 from nodes.calc import extend_last_historical_value_pl
+from nodes.constraints.port_roles import PortRoleInferenceResult
+from nodes.defs.port_def import InputPort, InputPortDeclaration
 from nodes.exceptions import NodeError
 from nodes.node import NodeMetric
+from nodes.operands import Operand, sum_operands
 from nodes.units import unit_registry
 from params.param import BoolParameter, NumberParameter
 from params.utils import sep_unit
@@ -19,7 +22,11 @@ from .constants import DEFAULT_METRIC, FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUM
 from .simple import AdditiveNode, SimpleNode
 
 if TYPE_CHECKING:
-    from nodes.node import Node
+    from collections.abc import Sequence
+
+    from nodes.defs.port_def import InputPortDef
+    from nodes.instance_graph import NodeMeta
+    from nodes.runtime_input import RuntimeInputBinding
     from params import Parameter
 
 
@@ -30,43 +37,71 @@ class SelectiveNode(AdditiveNode):
         'include_el_avoided',
     ]
 
+    co2_cost_port = InputPort.multi('co2_cost', required=False, label=_('CO2 cost inputs'))
+    capacity_cost_port = InputPort.multi('capacity_cost', required=False, label=_('Avoided capacity cost inputs'))
+    health_cost_port = InputPort.multi('health_cost', required=False, label=_('Health cost inputs'))
+    input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = (
+        AdditiveNode.additive_port,
+        co2_cost_port,
+        capacity_cost_port,
+        health_cost_port,
+    )
+    consumes_all_inputs_through_ports = True
+
+    conditional_cost_roles: ClassVar[dict[str, str]] = {
+        'co2_cost': 'include_co2',
+        'capacity_cost': 'include_el_avoided',
+        'health_cost': 'include_health',
+    }
+    """Each optional cost role and the global parameter that switches it on."""
+
+    @classmethod
+    def infer_legacy_port_roles(cls, meta: NodeMeta, candidates: Sequence[InputPortDef]) -> PortRoleInferenceResult:
+        """
+        Classify by the *source node's* own tags, which is where these tags live.
+
+        Unlike the tag maps on other classes, ``tags: co2_cost`` here is a property of
+        the cost node being read, not of the edge reading it, so the binding's own tags
+        are empty and the declarative base hook cannot see them.
+        """
+        from nodes.defs.binding_def import EdgeBindingDef
+
+        result = PortRoleInferenceResult()
+        for port in candidates:
+            edges = [binding for binding in meta.bindings_for_port(port.id) if isinstance(binding, EdgeBindingDef)]
+            source_tags = {tag for edge in edges for tag in edge.source_node.spec.extra.tags}
+            roles = source_tags & set(cls.conditional_cost_roles)
+            if len(roles) > 1:
+                result.refuse(port, f'source node tags select several cost roles: {sorted(roles)}')
+            elif roles:
+                role = roles.pop()
+                result.classify(port, role, f'source node tag {role!r}')
+            else:
+                result.classify(port, 'additive', 'an always-included cost input')
+        return result
+
     def compute(self) -> ppl.PathsDataFrame:
-        # Global parameters
-        include_co2 = self.get_global_parameter_value('include_co2')
-        include_health = self.get_global_parameter_value('include_health')
-        include_el_avoided = self.get_global_parameter_value('include_el_avoided')
+        selected: list[RuntimeInputBinding] = []
+        for port in self.input_port_declarations:
+            parameter = self.conditional_cost_roles.get(str(port.role))
+            if parameter is not None and not self.get_global_parameter_value(parameter):
+                continue
+            selected.extend(self.iter_input_bindings(port))
+        # Bindings are gathered per role but summed in stored position order, so the
+        # floating-point association order matches the old single pass over input_nodes.
+        selected.sort(key=lambda binding: binding.position)
 
-        # Input nodes
-        nodes = self.input_nodes
-        out = None
-        included_nodes: list[Node] = []
-
-        for node in nodes:
-            df = node.get_output_pl(target_node=self)
-            if 'co2_cost' in node.tags:
-                if include_co2:
-                    included_nodes.append(node)
-            elif 'capacity_cost' in node.tags:
-                if include_el_avoided:
-                    included_nodes.append(node)
-            elif 'health_cost' in node.tags:
-                if include_health:
-                    included_nodes.append(node)
-            else:
-                included_nodes.append(node)
-
-        assert len(included_nodes) > 0
-        output_unit = self.output_metrics[DEFAULT_METRIC].unit
-        for node in included_nodes:
-            m = node.get_default_output_metric()
-            df = node.get_output_pl(target_node=self, metric=m.column_id)
-            df = df.ensure_unit(VALUE_COLUMN, output_unit)
-            if out is None:
-                out = df
-            else:
-                out = out.paths.add_with_dims(df, how='outer')
-        assert out is not None
-        return out
+        assert len(selected) > 0
+        operands = [
+            Operand(
+                df=self.resolve_input_binding(binding),
+                role='additive',
+                source_id=binding.source_id or str(binding.id),
+                kind=binding.source_kind,
+            )
+            for binding in selected
+        ]
+        return sum_operands(self, operands, self.output_metrics[DEFAULT_METRIC].unit)
 
 
 class ExponentialNode(AdditiveNode):
@@ -303,16 +338,37 @@ class DilutionNode(SimpleNode):
     This is Dilution Node. It has exactly four input nodes which are marked by tags: 1) existing is the current, non-diluted variable. 2) Incoming is the variable which diluted the existing one with its different values. 3) Removing is the fraction that is removed from the existing stock each year. 4) Incoming is the ratio compared with the existing stock that is inserted into the system. (Often the removed and incoming values are the same, and then the stock size remains constant.)
     """)  # noqa: E501
 
+    existing_port = InputPort.one('existing', label=_('Existing stock'))
+    incoming_port = InputPort.one('incoming', label=_('Incoming stock'))
+    removing_port = InputPort.one('removing', label=_('Share removed each year'))
+    inserting_port = InputPort.one('inserting', label=_('Share inserted each year'))
+    input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = (
+        existing_port,
+        incoming_port,
+        removing_port,
+        inserting_port,
+    )
+    legacy_input_port_roles_by_tag: ClassVar[dict[str, str]] = {
+        'existing': 'existing',
+        'incoming': 'incoming',
+        'removing': 'removing',
+        'inserting': 'inserting',
+    }
+    # The removal and insertion shares are different quantities: the stock only stays the
+    # same size when they happen to be equal, which the docstring calls the common case
+    # rather than the rule. Existing models supply both from one source, so the parser
+    # expands that edge into a port for each instead of the class assuming they agree.
+    legacy_edge_role_fanout: ClassVar[tuple[str, ...]] = ('removing', 'inserting')
+    consumes_all_inputs_through_ports = True
+
     def compute(self) -> ppl.PathsDataFrame:
-        dfs = {}
-        for tag in ['existing', 'incoming', 'removing', 'inserting']:
-            dfs[tag] = self.get_input_node(tag=tag).get_output_pl(target_node=self)
+        rates = {'removing': self.removing_port, 'inserting': self.inserting_port}
 
-        jdf = dfs['incoming'].rename({VALUE_COLUMN: 'incoming'})
-        for tag in ['removing', 'inserting']:
-            jdf = jdf.paths.join_over_index(dfs[tag].ensure_unit(VALUE_COLUMN, '1/a')).rename({VALUE_COLUMN: tag})
+        jdf = self.require_input(self.incoming_port).rename({VALUE_COLUMN: 'incoming'})
+        for tag, port in rates.items():
+            jdf = jdf.paths.join_over_index(self.require_input(port).ensure_unit(VALUE_COLUMN, '1/a')).rename({VALUE_COLUMN: tag})
 
-        df = dfs['existing']
+        df = self.require_input(self.existing_port)
         max_year = cast('int', df[YEAR_COLUMN].max())
         end_year = self.get_end_year()
         if max_year >= end_year:
