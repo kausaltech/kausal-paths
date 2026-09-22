@@ -338,16 +338,37 @@ class DilutionNode(SimpleNode):
     This is Dilution Node. It has exactly four input nodes which are marked by tags: 1) existing is the current, non-diluted variable. 2) Incoming is the variable which diluted the existing one with its different values. 3) Removing is the fraction that is removed from the existing stock each year. 4) Incoming is the ratio compared with the existing stock that is inserted into the system. (Often the removed and incoming values are the same, and then the stock size remains constant.)
     """)  # noqa: E501
 
+    existing_port = InputPort.one('existing', label=_('Existing stock'))
+    incoming_port = InputPort.one('incoming', label=_('Incoming stock'))
+    removing_port = InputPort.one('removing', label=_('Share removed each year'))
+    inserting_port = InputPort.one('inserting', label=_('Share inserted each year'))
+    input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = (
+        existing_port,
+        incoming_port,
+        removing_port,
+        inserting_port,
+    )
+    legacy_input_port_roles_by_tag: ClassVar[dict[str, str]] = {
+        'existing': 'existing',
+        'incoming': 'incoming',
+        'removing': 'removing',
+        'inserting': 'inserting',
+    }
+    # The removal and insertion shares are different quantities: the stock only stays the
+    # same size when they happen to be equal, which the docstring calls the common case
+    # rather than the rule. Existing models supply both from one source, so the parser
+    # expands that edge into a port for each instead of the class assuming they agree.
+    legacy_edge_role_fanout: ClassVar[tuple[str, ...]] = ('removing', 'inserting')
+    consumes_all_inputs_through_ports = True
+
     def compute(self) -> ppl.PathsDataFrame:
-        dfs = {}
-        for tag in ['existing', 'incoming', 'removing', 'inserting']:
-            dfs[tag] = self.get_input_node(tag=tag).get_output_pl(target_node=self)
+        rates = {'removing': self.removing_port, 'inserting': self.inserting_port}
 
-        jdf = dfs['incoming'].rename({VALUE_COLUMN: 'incoming'})
-        for tag in ['removing', 'inserting']:
-            jdf = jdf.paths.join_over_index(dfs[tag].ensure_unit(VALUE_COLUMN, '1/a')).rename({VALUE_COLUMN: tag})
+        jdf = self.require_input(self.incoming_port).rename({VALUE_COLUMN: 'incoming'})
+        for tag, port in rates.items():
+            jdf = jdf.paths.join_over_index(self.require_input(port).ensure_unit(VALUE_COLUMN, '1/a')).rename({VALUE_COLUMN: tag})
 
-        df = dfs['existing']
+        df = self.require_input(self.existing_port)
         max_year = cast('int', df[YEAR_COLUMN].max())
         end_year = self.get_end_year()
         if max_year >= end_year:
