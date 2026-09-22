@@ -1,7 +1,7 @@
 """Focused regression tests for the action-class port migrations."""
 
 from pathlib import Path
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 from uuid import NAMESPACE_URL, uuid3
 
 import polars as pl
@@ -16,6 +16,9 @@ from nodes.instance_loader import InstanceLoader, InstanceYAMLConfig
 from nodes.instance_parser import parse_instance_snapshot
 from nodes.tests.node_input_harness import bind, binding, node_case
 from nodes.units import unit_registry
+
+if TYPE_CHECKING:
+    from nodes.runtime_input import RuntimeInputBinding
 
 pytestmark = pytest.mark.django_db
 
@@ -101,7 +104,7 @@ def test_selective_node_sums_in_stored_position_order_across_roles() -> None:
             binding('health_cost', _series([8.0]), position=3, source_kind='node'),
         ],
     )
-    selected = []
+    selected: list[RuntimeInputBinding] = []
     for port in SelectiveNode.input_port_declarations:
         selected.extend(node.iter_input_bindings(port))
     selected.sort(key=lambda b: b.position)
