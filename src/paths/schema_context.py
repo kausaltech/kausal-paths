@@ -13,12 +13,17 @@ from strawberry.utils.operation import get_first_operation
 import sentry_sdk
 from loguru import logger
 
+from kausal_common.datasets.models import Dataset
 from kausal_common.i18n.pydantic import is_query_with_instance_context, set_i18n_context
 from kausal_common.strawberry.context import GraphQLContext
 from kausal_common.strawberry.extensions import AuthenticationExtension, ExecutionCacheExtension, GraphQLPerfNode, SchemaExtension
 
 from paths.context import PathsObjectCache, paths_object_cache
 
+from frameworks.models import Framework
+from nodes.instance_graph import NodeEditContext
+from nodes.instance_graph_cache import resolve_instance_source
+from nodes.models import PreferredInstanceSource
 from params.storage import SessionStorage
 
 if TYPE_CHECKING:
@@ -27,6 +32,7 @@ if TYPE_CHECKING:
 
     from graphql.language import DirectiveNode, OperationDefinitionNode
 
+    from paths import gql
     from paths.schema import PreviewMode
 
     from nodes.constraints.solver import ConstraintSolveResult
@@ -34,7 +40,7 @@ if TYPE_CHECKING:
     from nodes.instance_graph import InstanceGraph
     from nodes.instance_graph_cache import LoadedInstanceSnapshot, ResolvedInstanceSource
     from nodes.instance_serialization import InstanceSnapshot
-    from nodes.models import InstanceConfig, InstanceConfigQuerySet, PreferredInstanceSource
+    from nodes.models import InstanceConfig, InstanceConfigQuerySet
 
 logger = logger.bind(markup=True)
 
@@ -60,6 +66,40 @@ class InstanceRequestResources:
     instance_refreshes: set[tuple[int, PreferredInstanceSource]] = field(default_factory=set)
     snapshots: dict[ResolvedInstanceSource, LoadedInstanceSnapshot] = field(default_factory=dict)
     constraint_solves: dict[ResolvedInstanceSource, ConstraintSolveResult] = field(default_factory=dict)
+    graph_datasets: dict[ResolvedInstanceSource, dict[UUID, Dataset]] = field(default_factory=dict)
+    node_edit_contexts: dict[tuple[int, PreferredInstanceSource], NodeEditContext] = field(default_factory=dict)
+
+    def node_edit_context(self, info: gql.Info, config: InstanceConfig, source: PreferredInstanceSource) -> NodeEditContext:
+        key = (config.pk, source)
+        if key not in self.node_edit_contexts:
+            self.node_edit_contexts[key] = NodeEditContext(
+                can_change_instance=config.gql_action_allowed(info, 'change', raise_on_denied=False),
+                is_draft=source == PreferredInstanceSource.DRAFT and config.config_source == 'database',
+                is_template=config.is_template,
+                is_superuser=info.context.user.is_superuser,
+            )
+        return self.node_edit_contexts[key]
+
+    def dataset_models_for_graph(
+        self,
+        config: InstanceConfig,
+        source: PreferredInstanceSource | None = None,
+    ) -> dict[UUID, Dataset]:
+        config, source = self.resolve_source(config, source)
+        key = resolve_instance_source(config, source)
+        if key not in self.graph_datasets:
+            graph = self.require_graph(config, source=source)
+            datasets = (
+                Dataset.objects
+                .with_schema_editability(Framework)
+                .filter(
+                    uuid__in=graph.dataset_by_id,
+                )
+                .select_related('created_by', 'last_modified_by')
+                .prefetch_related('schema__metrics__validation_rules', 'schema__dimensions__dimension__categories')
+            )
+            self.graph_datasets[key] = {dataset.uuid: dataset for dataset in datasets}
+        return self.graph_datasets[key]
 
     def resolve_source(
         self,
@@ -146,6 +186,8 @@ class InstanceRequestResources:
     ) -> None:
         """Discard request-local runtimes so the next accessor rebuilds lazily."""
         config, source = self.resolve_source(config, source)
+        self.node_edit_contexts.pop((config.pk, source), None)
+        self.graph_datasets.clear()
         stale_keys = [key for key in self.instances if key.instance_pk == config.pk and key.source == source]
         for key in stale_keys:
             del self.instances[key]
@@ -189,7 +231,6 @@ class InstanceRequestResources:
         resolved version, so a stale result is never served.
         """
         from nodes.constraints.validation import solve_instance_constraints
-        from nodes.instance_graph_cache import resolve_instance_source
 
         config, source = self.resolve_source(config, source)
         resolved_source = resolve_instance_source(config, source)
@@ -223,7 +264,6 @@ class InstanceRequestResources:
         source: PreferredInstanceSource | None = None,
         refresh: bool = False,
     ) -> InstanceSnapshot:
-        from nodes.instance_graph_cache import resolve_instance_source
 
         config, source = self.resolve_source(config, source)
         resolved_source = resolve_instance_source(config, source)
@@ -236,7 +276,6 @@ class InstanceRequestResources:
         source: PreferredInstanceSource | None = None,
     ) -> InstanceSnapshot | None:
         """Return selected revision content when presentation must follow a snapshot."""
-        from nodes.instance_graph_cache import resolve_instance_source
 
         config, source = self.resolve_source(config, source)
         resolved_source = resolve_instance_source(config, source)

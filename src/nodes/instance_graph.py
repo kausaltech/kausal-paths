@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from functools import cached_property
 from typing import TYPE_CHECKING, Annotated, Any
 from uuid import NAMESPACE_URL, UUID, uuid5
@@ -47,6 +48,16 @@ class InstanceGraphDiagnostic(FrozenGraphModel):
     binding_id: UUID | None = None
 
 
+@dataclass(frozen=True)
+class NodeEditContext:
+    """Request-wide editing authority, shared by all nodes in a displayed graph."""
+
+    can_change_instance: bool
+    is_draft: bool
+    is_template: bool
+    is_superuser: bool = False
+
+
 class NodeMeta(InstanceGraphBoundModel):
     id: UUID
     identifier: str | None = None
@@ -60,8 +71,36 @@ class NodeMeta(InstanceGraphBoundModel):
     color: str = ''
     order: int | None = None
     is_visible: bool = True
+    template_revision_id: int | None = None
     indicator_node_id: UUID | None = None
     copy_of_id: UUID | None = None
+
+    @classmethod
+    def can_edit(
+        cls,
+        context: NodeEditContext,
+        *,
+        inherited: bool,
+        node_is_editable: bool = True,
+        definition_is_editable: bool = True,
+        binding_owner: str | None = None,
+    ) -> bool:
+        """
+        One policy for node/port definitions and input selection in the active graph.
+
+        ``inherited`` is relative to the active instance, never to a node's
+        historical origin. Supplying ``binding_owner`` asks about input sources
+        rather than the definition. Framework membership does not lock local nodes.
+        """
+        if not context.is_draft or not context.can_change_instance:
+            return False
+        if inherited:
+            return binding_owner == 'instance'
+        if context.is_template:
+            return True
+        if not node_is_editable and not context.is_superuser:
+            return False
+        return binding_owner is not None or definition_is_editable
 
     @cached_property
     def node_class(self) -> type[Node]:
@@ -608,6 +647,7 @@ def build_instance_graph(
                 color=node.color,
                 order=node.order,
                 is_visible=node.is_visible,
+                template_revision_id=node.template_revision_id,
                 indicator_node_id=node.indicator_node,
                 copy_of_id=node.copy_of,
             )

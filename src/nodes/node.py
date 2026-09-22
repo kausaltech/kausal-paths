@@ -60,6 +60,7 @@ if typing.TYPE_CHECKING:
     from common.cache import CacheResult
     from nodes.constraints.port_roles import PortRoleInferenceResult
     from nodes.constraints.rules import AnyShapeRule
+    from nodes.defs.binding_def import AnyPortBindingDef
     from nodes.defs.node_defs import NodeKind, NodeSpec
     from nodes.defs.port_def import InputPortDeclaration, InputPortDef, OutputPortDeclaration
     from nodes.gpc import DatasetNode
@@ -1694,20 +1695,8 @@ class Node:
                 result.refuse(port, f'binding tags select several roles: {sorted(tagged_roles)}')
                 continue
 
-            if cls.legacy_input_port_roles_by_source_metric:
-                from nodes.defs.binding_def import EdgeBindingDef
-
-                edges = [binding for binding in bindings if isinstance(binding, EdgeBindingDef)]
-                columns = {str(edge.source_port.column_id) for edge in edges}
-                if len(columns) == 1:
-                    column = columns.pop()
-                    metric_role = cls.legacy_input_port_roles_by_source_metric.get(column)
-                    if metric_role is not None:
-                        result.classify(port, metric_role, f'source metric {column!r}')
-                        continue
-                elif len(columns) > 1:
-                    result.refuse(port, f'port mixes source metrics {sorted(columns)}')
-                    continue
+            if cls._infer_legacy_source_metric_role(port, bindings, result):
+                continue
 
             quantity = str(port.quantity) if port.quantity is not None else None
             if quantity is not None and quantity in cls.legacy_input_port_roles_by_quantity:
@@ -1725,6 +1714,30 @@ class Node:
                 continue
             result.refuse(port, 'no class-declared tag, quantity, or fallback mapping matched')
         return result
+
+    @classmethod
+    def _infer_legacy_source_metric_role(
+        cls,
+        port: InputPortDef,
+        bindings: Sequence[AnyPortBindingDef],
+        result: PortRoleInferenceResult,
+    ) -> bool:
+        """Return whether source metrics classified or rejected this legacy port."""
+        from nodes.defs.binding_def import EdgeBindingDef
+
+        if not cls.legacy_input_port_roles_by_source_metric:
+            return False
+        columns = {str(binding.source_port.column_id) for binding in bindings if isinstance(binding, EdgeBindingDef)}
+        if len(columns) > 1:
+            result.refuse(port, f'port mixes source metrics {sorted(columns)}')
+            return True
+        if len(columns) == 1:
+            column = columns.pop()
+            role = cls.legacy_input_port_roles_by_source_metric.get(column)
+            if role is not None:
+                result.classify(port, role, f'source metric {column!r}')
+                return True
+        return False
 
     def is_compatible_unit(self, unit_a: str | Unit | None, unit_b: str | Unit | None):
         assert unit_a is not None, f'Unit is missing in node {self.id}. Is it multimetric?'

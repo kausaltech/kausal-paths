@@ -618,3 +618,43 @@ def test_update_metric_label_goes_to_active_locale(gql_client: PathsTestClient, 
     metric.refresh_from_db()
     assert metric.label == 'GHG emissions'
     assert metric.i18n == {'label_de': 'THG-Emissionen'}
+
+
+def test_create_one_dataset_per_instance_from_framework_schema(
+    gql_client: PathsTestClient, db_instance_config: InstanceConfig
+) -> None:
+    from frameworks.models import FrameworkConfig
+    from frameworks.tests.factories import FrameworkFactory
+
+    framework = FrameworkFactory.create()
+    FrameworkConfig.objects.create(framework=framework, instance_config=db_instance_config)
+    schema = DatasetSchemaFactory.create(name='Shared definition')
+    DatasetSchemaScope.objects.create(schema=schema, scope=framework)
+    metric = DatasetMetricFactory.create(schema=schema, name='Value', unit='t/a', spec={'quantity': 'emissions'})
+    other = InstanceConfigFactory.create(
+        name='Other framework member', config_source='database', spec=db_instance_config.spec, owner='Test Owner'
+    )
+    FrameworkConfig.objects.create(framework=framework, instance_config=other)
+    for instance in [db_instance_config, other]:
+        gql_client.set_instance(instance)
+        data = gql_client.query_data(
+            CREATE_DATASET,
+            variables={
+                'instanceId': str(instance.pk),
+                'input': {'name': 'Shared definition', 'identifier': 'survey', 'schemaId': str(schema.uuid)},
+            },
+        )
+        dataset = Dataset.objects.get(uuid=data['instanceEditor']['createDataset']['id'])
+        assert dataset.schema_id == schema.pk
+        assert dataset.scope_id == instance.pk
+        assert dataset.schema is not None
+        assert dataset.schema.metrics.get() == metric
+        gql_client.query_errors(
+            CREATE_DATASET,
+            variables={
+                'instanceId': str(instance.pk),
+                'input': {'name': 'Alternative', 'identifier': 'estimate', 'schemaId': str(schema.uuid)},
+            },
+            assert_error_message='A dataset for this schema already exists in this instance',
+        )
+    assert schema.datasets.count() == 2

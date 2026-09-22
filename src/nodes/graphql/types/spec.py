@@ -23,6 +23,7 @@ from paths.refs import DimensionRef
 from nodes.defs.instance_defs import DatasetRepoSpec, InstanceModelSpec, YearsSpec
 from nodes.defs.node_defs import OutputMetricDef
 from nodes.defs.port_def import InputPortDef, OutputPortDef
+from nodes.graphql.editability import port_editable, runtime_source
 from nodes.graphql.types.constraints import EffectiveShapeType, effective_port_shape
 from nodes.graphql.types.metric import DimensionalMetricType
 from nodes.metric import DimensionalMetric
@@ -106,11 +107,30 @@ class InputPortType(StrawberryPydanticType[InputPortDef]):
     unit: auto
     multi: auto
     paired_output_port_id: auto
-    is_editable: auto
+    binding_owner: str
+    _definition_editable: sb.Private[bool] = True
+    _mutation_editable: sb.Private[bool | None] = None
     required_dimensions: list[DimensionRef]
     bindings: list[Annotated['InputPortBinding', sb.lazy('nodes.schema')]] = sb.field(default_factory=list)
 
     _node_uuid: sb.Private[UUID | None] = None
+    _node: sb.Private['Node | None'] = None
+
+    @sb.field(description='Whether this port definition is editable in the current instance and selected graph.')
+    @staticmethod
+    def is_editable(root: 'InputPortType', info: gql.Info) -> bool:
+
+        if root._mutation_editable is not None:
+            return root._mutation_editable
+        return port_editable(info, root._node, definition_flag=root._definition_editable)
+
+    @sb.field(description='Whether the current user can replace or disconnect the bindings of this input.')
+    @staticmethod
+    def bindings_editable(root: 'InputPortType', info: gql.Info) -> bool:
+
+        if root._mutation_editable is not None:
+            return True
+        return port_editable(info, root._node, binding_owner=root.binding_owner)
 
     @sb.field(
         graphql_type=EffectiveShapeType | None,
@@ -120,10 +140,17 @@ class InputPortType(StrawberryPydanticType[InputPortDef]):
     def effective_shape(root: 'InputPortType', info: gql.Info) -> EffectiveShapeType | None:
         if root._node_uuid is None:
             return None
-        return effective_port_shape(info.context.require_constraint_solve(), root._node_uuid, root.id, 'input')
+
+        result = info.context.require_constraint_solve(
+            root._node.context.instance.config if root._node else None,
+            source=runtime_source(info, root._node) if root._node else None,
+        )
+        return effective_port_shape(result, root._node_uuid, root.id, 'input')
 
     @classmethod
-    def from_def(cls, spec: InputPortDef, bindings: list[InputPortBinding], node_uuid: UUID | None = None) -> InputPortType:
+    def from_def(
+        cls, spec: InputPortDef, bindings: list[InputPortBinding], node_uuid: UUID | None = None, node: Node | None = None
+    ) -> InputPortType:
         port = InputPortType(
             id=spec.id,
             identifier=spec.identifier,
@@ -133,10 +160,12 @@ class InputPortType(StrawberryPydanticType[InputPortDef]):
             unit=spec.unit,
             multi=spec.multi,
             paired_output_port_id=spec.paired_output_port_id,
-            is_editable=spec.is_editable,
+            binding_owner=spec.binding_owner,
             required_dimensions=spec.required_dimensions,
             bindings=bindings,
         )
+        port._node = node
+        port._definition_editable = spec.is_editable
         port._node_uuid = node_uuid
         return port
 
@@ -150,13 +179,22 @@ class OutputPortType(StrawberryPydanticType[OutputPortDef]):
     quantity: auto
     unit: auto
     column_id: auto
-    is_editable: auto
+    _definition_editable: sb.Private[bool] = True
+    _mutation_editable: sb.Private[bool | None] = None
     dimensions: list[DimensionRef]
     edges: list[Annotated['NodeEdgeType', sb.lazy('nodes.schema')]] = sb.field(default_factory=list)
 
     _node: sb.Private['Node | None'] = None
     _spec: sb.Private['OutputPortDef | None'] = None
     _node_uuid: sb.Private[UUID | None] = None
+
+    @sb.field(description='Whether this port definition is editable in the current instance and selected graph.')
+    @staticmethod
+    def is_editable(root: 'OutputPortType', info: gql.Info) -> bool:
+
+        if root._mutation_editable is not None:
+            return root._mutation_editable
+        return port_editable(info, root._node, definition_flag=root._definition_editable)
 
     @sb.field(
         graphql_type=EffectiveShapeType | None,
@@ -166,7 +204,12 @@ class OutputPortType(StrawberryPydanticType[OutputPortDef]):
     def effective_shape(root: 'OutputPortType', info: gql.Info) -> EffectiveShapeType | None:
         if root._node_uuid is None:
             return None
-        return effective_port_shape(info.context.require_constraint_solve(), root._node_uuid, root.id, 'output')
+
+        result = info.context.require_constraint_solve(
+            root._node.context.instance.config if root._node else None,
+            source=runtime_source(info, root._node) if root._node else None,
+        )
+        return effective_port_shape(result, root._node_uuid, root.id, 'output')
 
     @sb.field(graphql_type=DimensionalMetricType | None)
     @staticmethod
@@ -197,12 +240,12 @@ class OutputPortType(StrawberryPydanticType[OutputPortDef]):
             quantity=spec.quantity,
             unit=spec.unit,
             column_id=spec.column_id,
-            is_editable=spec.is_editable,
             dimensions=spec.dimensions,
             edges=edges,
         )
         port._node = node
         port._spec = spec
+        port._definition_editable = spec.is_editable
         port._node_uuid = node_uuid
         return port
 
