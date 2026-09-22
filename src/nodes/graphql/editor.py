@@ -91,6 +91,7 @@ if TYPE_CHECKING:
 
     from datasets.graphql.editor import CreateDatasetMetricInput, DatasetEditorMutation
     from datasets.graphql.types import DatasetType, DataSourceType  # used in lazy strawberry annotations
+    from frameworks.submission_schema import SubmissionMutations
     from nodes.defs.transform_def import PortTransformOp
     from nodes.graphql.bindings import BindDatasetInput, PortBindingEditorMutation
     from nodes.graphql.template_bindings import InputPortBindingInput
@@ -1814,6 +1815,13 @@ class InstanceEditorMutation:
             for_action='change',
         )
         return DatasetEditorMutation(dataset=dataset, instance=ic)
+
+    @sb.field(description='Manage the submissions (reported balances) of this instance')
+    @staticmethod
+    def submissions(root: sb.Parent[Me]) -> Annotated['SubmissionMutations', sb.lazy('frameworks.submission_schema')]:
+        from frameworks.submission_schema import SubmissionMutations
+
+        return SubmissionMutations(instance=root.instance)
 
     @sb.field(description='Edit an input-port binding (dataset or edge) that belongs to this instance')
     @staticmethod

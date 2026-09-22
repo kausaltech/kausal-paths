@@ -39,3 +39,8 @@ from .measures import (
     SectionQuerySet as SectionQuerySet,
 )
 from .quality import DataQualityLevel as DataQualityLevel, DataQualityScheme as DataQualityScheme
+from .submission import (
+    Submission as Submission,
+    SubmissionKind as SubmissionKind,
+    SubmissionStatus as SubmissionStatus,
+)
