@@ -129,9 +129,11 @@ class NodeConfigFactory(DjangoModelFactory[NodeConfig]):
     name = Sequence(lambda i: f'Test node config {i}')
     short_description = 'short description'
     description = 'description'
-    spec = NodeSpec(
-        type_config=SimpleConfig(node_class='nodes.simple.SimpleNode'),
-        output_ports=[OutputPortDef(id=_port_id('default'), unit=unit_registry.parse_units('kt/a'), quantity='emissions')],
+    spec = LazyFunction(
+        lambda: NodeSpec(
+            type_config=SimpleConfig(node_class='nodes.simple.SimpleNode'),
+            output_ports=[OutputPortDef(id=_port_id('default'), unit=unit_registry.parse_units('kt/a'), quantity='emissions')],
+        )
     )
 
 

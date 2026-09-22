@@ -121,8 +121,36 @@ def load_dataset_shape_profiles(
     if source.kind == 'database-published':
         loaded = _load_published_profiles(config, graph, source, local_pairs)
     else:
-        loaded = _load_current_profiles(graph, local_pairs)
+        inherited = _load_framework_profiles(config, graph, local_pairs)
+        loaded = {**inherited, **_load_current_profiles(graph, local_pairs - inherited.keys())}
     return {**unknown, **loaded}
+
+
+def _load_framework_profiles(
+    config: InstanceConfig,
+    graph: InstanceGraph,
+    requested: frozenset[DatasetMetricPair],
+) -> dict[DatasetMetricPair, DatasetShapeProfile]:
+    from nodes.models import InstanceRevisionDatasetPin
+
+    if not requested or not any(node.template_revision_id is not None for node in graph.nodes):
+        return {}
+    if config.template_revision_id is None:
+        return {}
+    pins = {
+        pin.dataset_uuid: pin
+        for pin in InstanceRevisionDatasetPin.objects.filter(
+            instance_revision_id=config.template_revision_id,
+            dataset_uuid__in={pair[0] for pair in requested},
+        )
+    }
+    return {
+        pair: _profile_from_stored_shape(
+            graph, pair, pins[pair[0]].shape_profiles, f'revision:{pins[pair[0]].dataset_revision_id}'
+        )
+        for pair in requested
+        if pair[0] in pins
+    }
 
 
 def _external_profiles(

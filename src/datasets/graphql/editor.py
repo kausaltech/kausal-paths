@@ -22,6 +22,7 @@ from kausal_common.datasets.models import (
     Dataset,
     DatasetMetric,
     DatasetMetricValidationRule,
+    DatasetSchema,
     DatasetSourceReference,
     DataSource,
 )
@@ -32,6 +33,7 @@ from kausal_common.users import user_or_bust
 from paths import gql
 
 from datasets.validation_rules import ValidationRule, ValidationRuleSpecInput
+from frameworks.models import Framework
 from nodes.change_ops import gql_change_operation, record_change
 from nodes.dataset_materialization import refresh_dataset_materialization
 from nodes.graphql.types.problems import DatasetValidationViolationType
@@ -43,8 +45,6 @@ if TYPE_CHECKING:
     from collections.abc import Generator
 
     from strawberry import Some
-
-    from kausal_common.datasets.models import DatasetSchema
 
     from users.models import User
 
@@ -557,6 +557,7 @@ class DatasetEditorMutation:
         user = _require_user(info)
         with transaction.atomic():
             locked_dataset = Dataset.objects.select_for_update().get(pk=root.dataset.pk)
+            DatasetEditorMutation._require_sole_schema(root)
             with gql_change_operation(info, root.instance, action=action):
                 yield locked_dataset
                 refresh_dataset_materialization(locked_dataset, user=user)
@@ -573,6 +574,8 @@ class DatasetEditorMutation:
         schema = root.dataset.schema
         if schema is None:
             raise ValidationError('Dataset has no schema')
+        if DatasetSchema.objects.for_scope_type(Framework).filter(pk=schema.pk).exists():
+            raise ValidationError('Framework schemas cannot be edited through a local dataset', code='schema_shared')
         if schema.datasets.exclude(pk=root.dataset.pk).exists():
             raise ValidationError(
                 'The schema of this dataset is shared with other datasets and cannot be edited here',

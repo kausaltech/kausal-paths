@@ -46,7 +46,7 @@ def validate_metric_spec(spec: dict[str, typing.Any]) -> None:
 
 
 DATA_SOURCE_DEFAULT_SCOPE_CONTENT_TYPE: tuple[str, str] = ('nodes', 'instanceconfig')
-SCHEMA_HAS_SINGLE_DATASET: bool = True
+SCHEMA_HAS_SINGLE_DATASET: bool = False
 SCHEMA_DEFAULT_SCOPE_FUNCTION: Callable[[], Model] | None = schema_default_scope
 SHOW_DATASETS_IN_MENU: bool = True
 SHOW_SCHEMAS_IN_MENU: bool = False
