@@ -7,6 +7,10 @@ Related plans:
 
 - [Node input-port runtime migration](node-input-port-runtime-migration.md)
 - [Loader/spec inversion](loader-spec-inversion.md)
+- [Formulas as a view of stored pipelines](formula-pipeline-round-trip.md): decided
+  2026-09-23. The typed pipeline is the one stored schema, and a formula is a
+  lossless text view of it. This supersedes the `formula.FormulaNode` row below
+  ("do not presume replacement") and answers backlog item 1.
 
 ## Purpose
 
