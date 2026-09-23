@@ -26,12 +26,15 @@ from .ops.arithmetic import (
 from .ops.base import (
     ComparisonCondition,
     DatasetInputRef,
+    HookBaseInputRef,
     IntermediateInputRef,
     ParameterInputRef,
     PortInputRef,
     ScalarValue,
     TruthyCondition,
+    step_key,
 )
+from .ops.temporal import BackfillOperationSpec, ExtendOperationSpec, InterpolateOperationSpec
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -81,7 +84,7 @@ class PipelineExecutor:
                 continue
 
             result = self._execute_operation(operation)
-            result_key = operation.result_id or f'_step_{idx}'
+            result_key = step_key(operation, idx)
             self._results[result_key] = result
             last_result_key = result_key
 
@@ -106,7 +109,7 @@ class PipelineExecutor:
         metric = self.node.get_default_output_metric()
         return output.ensure_unit(VALUE_COLUMN, metric.unit)
 
-    def _execute_operation(self, operation: Any) -> RuntimeValue:
+    def _execute_operation(self, operation: Any) -> RuntimeValue:  # noqa: C901
         if isinstance(operation, IdentityOperationSpec):
             return self._resolve_input(operation.input)
 
@@ -138,7 +141,26 @@ class PipelineExecutor:
                 self._resolve_input(operation.max_value) if operation.max_value is not None else None,
             )
 
+        if isinstance(operation, InterpolateOperationSpec | ExtendOperationSpec | BackfillOperationSpec):
+            return self._apply_temporal(operation, self._resolve_input(operation.input))
+
         raise NodeError(self.node, f'Unsupported pipeline operation kind: {operation.kind}')
+
+    def _apply_temporal(
+        self, operation: InterpolateOperationSpec | ExtendOperationSpec | BackfillOperationSpec, value: RuntimeValue
+    ) -> PDF:
+        from nodes.transforms import PipelineEnv, backfill_leading_values, extend_to_end_year, interpolate_years
+
+        if not isinstance(value, PDF):
+            raise NodeError(self.node, f'{operation.kind} needs a series over years, got {type(value).__name__}')
+        env = PipelineEnv(context=self.node.context, node=self.node)
+        match operation:
+            case InterpolateOperationSpec():
+                return interpolate_years(value, env)
+            case ExtendOperationSpec():
+                return extend_to_end_year(value, env)
+            case BackfillOperationSpec():
+                return backfill_leading_values(value)
 
     def _evaluate_condition(self, condition: OperationCondition) -> bool:
         if isinstance(condition, TruthyCondition):
@@ -193,9 +215,18 @@ class PipelineExecutor:
             return self._resolve_dataset_ref(value.dataset)
         if isinstance(value, ParameterInputRef):
             return self._resolve_parameter(value.parameter)
+        if isinstance(value, HookBaseInputRef):
+            return self._resolve_hook_base(value.hook_base)
         if isinstance(value, ScalarValue):
             return Quantity(value.value, value.unit)
         raise NodeError(self.node, f'Unsupported pipeline input type: {type(value).__name__}')
+
+    def _resolve_hook_base(self, node_id: str) -> PDF:
+        for hook in self.node.hook_targets:
+            if hook.target.id == node_id:
+                base = hook.target.get_base_output_pl()
+                return base.select_metrics(hook.target_metric.column_id, rename=VALUE_COLUMN)
+        raise NodeError(self.node, f"Node {self.node.id} does not act on '{node_id}'")
 
     def _resolve_port(self, port_id: NodePortIdentifier) -> RuntimeValue:
         binding = self.port_bindings.get(port_id)
