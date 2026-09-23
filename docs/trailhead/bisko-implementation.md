@@ -878,6 +878,25 @@ Certification rules for local calculations and their evidence remain planned.
 The ability to connect a local district-heating emission factor does not itself
 assert that the resulting inventory meets BISKO certification requirements.
 
+### Local actions acting on framework nodes — engine implemented
+
+A municipality's own measures (Mainz's heat plan, target paths, Masterplan
+measures) attach to framework nodes as hooks rather than as new inputs: the
+framework node's calculation is unchanged, the hook belongs to the local
+action, and contributions only enter years after the last historical year, so
+the certified balance cannot move. See
+[action hooks](../architecture/action-hooks.md). Two kinds of local
+customisation are therefore distinct:
+
+- **replacing a framework input's bindings** (`binding_owner: instance`): data
+  slots (`kommune/*`) and the method routes BISKO permits. These can move the
+  balance and need citing against the Methodenpapier;
+- **acting on a framework node** (hook): forecast-only, no ownership needed.
+
+Until ownership is declared in the YAML, `declare_local_data_slots()` marks
+every template input bound only to `kommune/*` datasets as instance-owned when
+the template is published.
+
 ## API and UI surface
 
 ### GraphQL

@@ -44,7 +44,13 @@ def main() -> None:
 def _setup_graphs(framework: Framework, args: argparse.Namespace) -> None:
     from kausal_common.datasets.models import Dataset
 
-    from frameworks.conversion import convert_to_framework, prepare_template_inputs, share_template_catalogue
+    from frameworks.conversion import (
+        convert_to_framework,
+        declare_local_data_slots,
+        prepare_template_inputs,
+        share_template_catalogue,
+    )
+    from frameworks.identity import ensure_municipal_organization
     from nodes.models import InstanceConfig
     from nodes.template_graph import publish_template_instance
 
@@ -57,6 +63,9 @@ def _setup_graphs(framework: Framework, args: argparse.Namespace) -> None:
         share_template_catalogue(framework)
     revision = template.live_revision
     if args.publish:
+        for change in declare_local_data_slots(framework):
+            print(change)
+        share_template_catalogue(framework)
         reference_data = {}
         if args.reference_instance:
             source = InstanceConfig.objects.get(identifier=args.reference_instance)
@@ -73,6 +82,9 @@ def _setup_graphs(framework: Framework, args: argparse.Namespace) -> None:
         assert revision is not None
         instance = InstanceConfig.objects.get(identifier=identifier)
         print(f'{identifier}: {convert_to_framework(instance, framework, revision)}')
+        instance.refresh_from_db()
+        org = ensure_municipal_organization(instance)
+        print(f'{identifier}: organization {org.name if org else "unchanged (no AGS)"}')
 
 
 if __name__ == '__main__':
