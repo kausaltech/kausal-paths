@@ -50,6 +50,9 @@ if TYPE_CHECKING:
     from params import Parameter
 
 
+CATEGORY_LABEL_FIELD = re.compile(r'label(_[a-z]{2}(-[A-Za-z]{2,4})?)?')
+
+
 class ConfigLocation(TypedDict):
     file_path: str
     line: int
@@ -229,6 +232,60 @@ class InstanceYAMLConfig:
     ) -> None:
         data.update(nodes=nodes, actions=actions, dimensions=dimensions, datasets=datasets)
 
+    @classmethod
+    def _apply_category_overrides(cls, overrides: Any, dimensions: list[CommentedMap], config_path: Path) -> None:
+        """
+        Apply the instance's `category_overrides` to the merged dimensions.
+
+        Lets a city restyle the categories of a dimension it includes from a shared
+        module without copying the whole dimension: a copy replaces the module's
+        definition wholesale, and then drifts from it as the module gains categories
+        and aliases. Only presentational fields may be overridden -- never ids or
+        aliases, which decide how data is matched. A null value removes the field.
+
+        The block is resolved here, after the merge, because YAML anchors are local to
+        the file they are defined in, so a module cannot refer to a city's palette.
+        """
+        if overrides is None:
+            return
+        if not isinstance(overrides, dict):
+            msg = f'{config_path}: category_overrides must be a mapping of dimension ids'
+            raise TypeError(msg)
+        dims_by_id = {d['id']: d for d in dimensions}
+        for dim_id, cat_overrides in overrides.items():
+            dim = dims_by_id.get(dim_id)
+            if dim is None:
+                msg = f"{config_path}: category_overrides: dimension '{dim_id}' is not defined"
+                raise KeyError(msg)
+            if not isinstance(cat_overrides, dict):
+                msg = f'{config_path}: category_overrides.{dim_id} must be a mapping of category ids'
+                raise TypeError(msg)
+            cats_by_id = {c['id']: c for c in dim.get('categories', [])}
+            for cat_id, fields in cat_overrides.items():
+                cat = cats_by_id.get(cat_id)
+                if cat is None:
+                    msg = f"{config_path}: category_overrides: dimension '{dim_id}' has no category '{cat_id}'"
+                    raise KeyError(msg)
+                cls._apply_category_field_overrides(cat, fields, f'{config_path}: category_overrides.{dim_id}.{cat_id}')
+
+    @staticmethod
+    def _apply_category_field_overrides(cat: CommentedMap, fields: Any, where: str) -> None:
+        if not isinstance(fields, dict):
+            msg = f'{where} must be a mapping of fields'
+            raise TypeError(msg)
+        for field, value in fields.items():
+            if field not in ('color', 'order') and not CATEGORY_LABEL_FIELD.fullmatch(field):
+                msg = f"{where}: field '{field}' cannot be overridden (allowed: color, order, label, label_<lang>)"
+                raise ValueError(msg)
+            expected_type = int if field == 'order' else str
+            if value is None:
+                cat.pop(field, None)
+            elif isinstance(value, expected_type) and not isinstance(value, bool):
+                cat[field] = value
+            else:
+                msg = f'{where}.{field} must be {expected_type.__name__} or null, got {type(value).__name__}'
+                raise TypeError(msg)
+
     @staticmethod
     def _get_include_nodes_editable(include: CommentedMap) -> bool | None:
         value = include.get('nodes_editable')
@@ -325,12 +382,13 @@ class InstanceYAMLConfig:
                 is_editable=nodes_editable,
             )
 
+        self._apply_category_overrides(data.pop('category_overrides', None), dimensions, entrypoint.path)
+
         # Make sure that assignment works even if they are originally empty.
         self._set_merged_collections(data, nodes=nodes, actions=actions, dimensions=dimensions, datasets=datasets)
 
         # Serialize and deserialize to get rid of Ruamel extras
-        ser_data = json.dumps(data)
-        data = json.loads(ser_data)
+        data = json.loads(json.dumps(data))
 
         self.data = data
 

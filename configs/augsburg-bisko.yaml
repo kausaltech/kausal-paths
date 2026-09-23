@@ -153,531 +153,153 @@ params:
 
 
 #//////  Dimensions  ///////////////////////////////////////////////////////////////////////////////////////////////////
-# copied here from bisko --> model.yaml  to chnage colors
 
-dimensions:
-- id: sector
-  label_en: Sector
-  label_de: Sektoren
-  help_text: Sectors as categorised in the Mission City Climate City Contracts 
-    (CCC) and BISKO.
-  categories:
-  - id: transport
-    label_en: Transport
-    label_de: Verkehr
-    aliases: [verkehr, Verkehr, VL_, VL, Mobilität, Mobilitat]
-    color: *lilac
-    order: 19
-  - id: buildings
-    label_en: Buildings & Heating
-    label_de: Gebäude & Heizung
-    order: 5
-  - id: private_households
-    label_en: Private Households
-    label_de: Private Haushalte
-    aliases: [private_haushalte, Private_Haushalte, HE_, HE, HTHG_, HTHG]
-    color: '#203abf'
-    order: 13
-  - id: municipal_facilities
-    label_en: Municipal Facilities
-    label_de: Kommunale Einrichtungen
-    aliases: [kommunale_einrichtungen, Kommunale_Einrichtungen, 
-        stadtische_gebaude, KE_, KE, KTHG_, KTHG]
-    color: *lime
-    order: 10
-  - id: commerce_trade_services
-    label_en: Commerce, Trade & Services
-    label_de: Gewerbe, Handel, Dienstleistungen
-    aliases: [gewerbe_handel_dienstleistungen, Gewerbe_Handel_Dienstleistungen, 
-        gewerbe_sonstiges, GE_, GE, GTHG_, GTHG]
-    color: *blue
-    order: 7
-  - id: industry
-    label_en: Industry
-    label_de: Industrie
-    aliases: [industrie, Industrie, IE_, IE, ITHG_, ITHG]
-    color: *grey
-    order: 8
-  - id: industry_commerce
-    label_en: Industry & Commerce
-    label_de: Industrie & Gewerbe
-    color: *grey
-    order: 9
-  - id: electricity
-    label_en: Electricity
-    label_de: Strom
-    aliases: [strom, Strom]
-    order: 16
-  - id: energy_industry
-    label_en: Energy industry
-    label_de: Energiewirtschaft
-    aliases: [energiewirtschaft, Energiewirtschaft]
-    order: 3
-  - id: waste
-    label_en: Waste
-    label_de: Abfall
-    order: 1
-  - id: other
-    label_en: Other (incl. IPPU & AFOLU)
-    label_de: Sonstige (inkl. IPPU & AFOLU)
-    order: 15
-  - id: total
-    label_en: Total
-    label_de: Gesamt
-    order: 6
-  - id: heating
-    label_en: Heating
-    label_de: Wärme
-    aliases: [warme, Warme]
-    order: 20
-  - id: sinks
-    label_en: Sinks
-    label_de: Senken
-    color: *green
-    order: 14
-  - id: not_defined
-    label_en: Not defined
-    label_de: Nicht definiert
-    order: 12
-  - id: ghg_neutral_administration
-    label_en: GHG-Neutral Administration
-    label_de: THG-neutrale Verwaltung
-    color: *lime
-    order: 17
-  - id: food_and_land_use
-    label_en: Food & Land Use
-    label_de: Ernährung & Landnutzung
-    color: *green
-    order: 4
-  - id: consumption
-    label_en: Consumption
-    label_de: Konsum
-    color: '#9B59B6'
-    order: 11
-  - id: waste_and_wastewater
-    label_en: Waste & Wastewater
-    label_de: Abfall & (Ab-)Wasser
-    color: '#27AE60'
-    order: 2
-  - id: cross_cutting
-    label_en: Cross-cutting Climate Protection
-    label_de: Übergreifende Klimaschutzaspekte
-    color: '#1ABC9C'
-    order: 18
-
-- id: energy_carrier
-  label_en: Energy carrier
-  label_de: Energieträger
-  categories:
-  # --- Coal (order 1-2): darkest fossil, brown-to-black ---
-  - id: hard_coal
-    label_en: Hard coal
-    label_de: Steinkohle
-    aliases: [kohle, steinkohle, Kohle]
-    color: *black
-    order: 46
-  - id: coal_chp
-    label_en: Coal for CHP
-    label_de: Kohle KWK
-    aliases: [Kohle KWK]
-    color: *black
-    order: 33
-  - id: brown_coal
-    label_en: Brown coal / Lignite
-    label_de: Braunkohle
-    aliases: [braunkohle]
-    color: '#5D3A1A'
-    order: 10
-  # --- Liquid fossil fuels (order 3-9): red-to-orange spectrum ---
-  - id: heating_oil
-    label_en: Heating oil
-    label_de: Heizöl
-    aliases: [heizol, Heizoel]
-    color: *g_grey1
-    order: 29
-  - id: petrol
-    label_en: Petrol
-    label_de: Benzin
-    aliases: [benzin_fossil, benzin, Benzin fossil, Bfoss]
-    color: *g_grey2
-    order: 3
-  - id: diesel
-    label_en: Diesel
-    label_de: Diesel
-    aliases: [diesel_fossil, Diesel fossil, Dfoss]
-    color: *g_grey3
-    order: 13
-  - id: kerosene
-    label_en: Kerosene
-    label_de: Kerosin
-    aliases: [kerosin, Kerosin fossil]
-    color: '#C0392B'
-    order: 31
-  - id: lpg
-    label_en: LPG (Liquefied petroleum gas)
-    label_de: LPG
-    color: *grey
-    order: 37
-  - id: propane
-    label_en: Propane/butane
-    label_de: Flüssiggas
-    aliases: [flüssiggas, flssiggas, Fluessiggas]
-    color: '#A04000'
-    order: 24
-  - id: fuels
-    label_en: Fuels
-    label_de: Kraftstoffe
-    aliases: [kraftstoffe, kraftstoff, Kraftstoff, Kraftstoffe]
-    color: '#880000'
-    order: 36
-  # --- Fossil gas (order 10-13): dark blue spectrum ---
-  - id: natural_gas
-    label_en: Natural gas
-    label_de: Erdgas
-    aliases: [gas, erdgas]
-    color: *grey
-    order: 15
-  - id: cng_fossil
-    label_en: CNG fossil
-    label_de: CNG fossil
-    aliases: [CNG_fossil, CNGfoss]
-    color: '#154360'
-    order: 12
-  - id: natural_gas_turbine
-    label_en: Natural gas for steam turbines
-    label_de: Erdgas GuD
-    color: '#0B2F50'
-    order: 17
-  - id: natural_gas_small_chp
-    label_en: Natural gas with small-scale CHP
-    label_de: Erdgas BHKW
-    color: '#0D3B5A'
-    order: 16
-  # --- Bio transport fuels (order 14-16): olive-green ---
-  - id: bio_petrol
-    label_en: Bio petrol
-    label_de: Biobenzin
-    aliases: [benzin_biogen, biobenzin, Benzin Bio, Bbio]
-    color: *blue
-    order: 4
-  - id: biodiesel
-    label_en: Biodiesel
-    label_de: Diesel biogen
-    aliases: [diesel_biogen, Diesel Bio, Diesel_biogen, Diesel_Biogen, Dbio]
-    color: *g_blue2
-    order: 14
-  - id: cng_bio
-    label_en: CNG bio
-    label_de: CNG bio
-    aliases: [CNG_bio, CNGbio]
-    color: '#2D5C12'
-    order: 11
-  # --- Biomass (order 17-21): green spectrum ---
-  - id: liquid_biomass
-    label_en: Liquid biomass
-    label_de: flüssige Biomasse
-    color: '#5E6B1A'
-    order: 23
-  - id: biomass
-    label_en: Biomass
-    label_de: Biomasse
-    aliases: [biomasse]
-    color: *green
-    order: 7
-  - id: solid_biomass
-    label_en: Solid biomass
-    label_de: feste Biomasse
-    color: *green
-    order: 22
-  - id: biomass_boiler
-    label_en: Biomass for heat-only boiler
-    label_de: Biomasse Heizwerk
-    color: *green
-    order: 8
-  - id: biomass_chp
-    label_en: Biomass for CHP
-    label_de: Biomasse KWK
-    color: *green
-    order: 9
-  # --- Biogas (order 22-24): teal-green ---
-  - id: biogas
-    label_en: Biogas
-    label_de: Biogas
-    aliases: [biogas]
-    color: *g_lime2
-    order: 5
-  - id: biogas_chp
-    label_en: Biogas for CHP
-    label_de: Biogas KWK
-    color: '#0A5C3E'
-    order: 6
-  - id: sewage_landfill_mine_gas
-    label_en: Sewage, landfill, or mine gas
-    label_de: Klär- Deponie- Grubengas
-    color: '#07452E'
-    order: 32
-  # --- Waste & waste heat (order 25-29) ---
-  - id: waste
-    label_en: Waste
-    label_de: Abfall
-    color: '#4A3728'
-    order: 1
-  - id: waste_chp
-    label_en: Waste for CHP
-    label_de: Abfall KWK
-    aliases: [Abfall KWK]
-    color: '#35271C'
-    order: 2
-  - id: conventional_waste_heat_gt_90
-    label_en: Conventional waste heat > 90 C
-    label_de: Konventioneller Abwärme >90 C
-    color: '#484848'
-    order: 35
-  - id: conventional_waste_heat_lt_90
-    label_en: Conventional waste heat < 90 C
-    label_de: Konventioneller Abwärme <90 C
-    color: '#5C5C5C'
-    order: 34
-  - id: renewable_waste_heat_gt_90
-    label_en: Renewable waste heat > 90 C
-    label_de: Erneuerbarer Abwärme >90 C
-    color: '#3D5A55'
-    order: 19
-  - id: renewable_waste_heat_lt_90
-    label_en: Renewable waste heat < 90 C
-    label_de: Erneuerbarer Abwärme <90 C
-    color: '#4A6B66'
-    order: 18
-  # --- Renewable thermal (order 30-33): amber and teal ---
-  - id: solar_thermal
-    label_en: Solar thermal
-    label_de: Solarthermie
-    aliases: [solarthermie, Solarthermie]
-    color: *lime
-    order: 40
-  - id: environmental_heat
-    label_en: Environmental heat / Heat pump
-    label_de: Umweltwärme
-    aliases: [umweltwarme, Umweltwarme, Umweltwaerme]
-    color: *g_green2
-    order: 48
-  - id: geothermatl # FIXME typo
-    label_en: Geothermatl
-    label_de: Geothermite
-    color: '#005757'
-    order: 28
-  - id: geothermal
-    label_en: Geothermal
-    label_de: Geothermie
-    color: '#005757'
-    order: 27
-  # --- District / local heating networks (order 34-36): dark orange-brown ---
-  - id: district_heating
-    label_en: District heating
-    label_de: Fernwärme
-    aliases: [fernwarme, Fernwaerme]
-    color: *lilac
-    order: 21
-  - id: local_heating
-    label_en: Local heating
-    label_de: Nahwärme
-    aliases: [nahwarme, Nahwarme, Nahwaerme]
-    color: *g_lilac2
-    order: 38
-  - id: district_and_local_heating
-    label_en: District and local heating
-    label_de: Fern- und Nahwärme
-    aliases: [fern_und_nahwarme]
-    color: '#7D2500'
-    order: 20
-  # --- Electricity carriers (order 37-39): blue / purple ---
-  - id: electricity
-    label_en: Electricity
-    label_de: Strom
-    # 'Fahrstrom' used to map to a separate driving_electricity category, which meant the own-data
-    # transport branch lost its electricity in the multiply against the BISKO fuel factors
-    # (those label it 'Strom'). BISKO applies the Bundesstrommix to all electricity, so one
-    # carrier is correct and the Fahrstrom labels resolve here.
-    aliases: [strom, fahrstrom, strom_fahrstrom, St]
-    color: *darkblue
-    order: 47
-  - id: heating_electricity
-    label_en: Heating electricity
-    label_de: Heizstrom
-    aliases: [heizstrom]
-    color: *g_darkblue2
-    order: 30
-  # --- Electricity generation (order 40-42): amber / blue-teal ---
-  - id: photovoltaic
-    label_en: Photovoltaic
-    label_de: Fotovoltaik
-    color: *lime
-    order: 25
-  - id: hydropower
-    label_en: Hydropower
-    label_de: Wasser
-    color: *darkblue
-    order: 49
-  - id: wind
-    label_en: Wind
-    label_de: Wind
-    color: *blue
-    order: 51
-  # --- Clean fuel (order 43) ---
-  - id: hydrogen
-    label_en: Hydrogen
-    label_de: Wasserstoff
-    aliases: [wasserstoff, Wasserstoff]
-    color: *grey
-    order: 50
-  # --- Aggregate / other (order 44-50) ---
-  - id: other_renewables
-    label_en: Other renewables
-    label_de: Sonstige Erneuerbare
-    aliases: [sonstige_erneuerbare, Sonstige_Erneuerbare, SonstigeEE]
-    color: '#276B27'
-    order: 41
-  - id: other_renewable_energy_carriers
-    label_en: Other renewable energy carriers
-    label_de: Sonstige Erneuerbare Energieträger
-    color: '#1E5E1E'
-    order: 42
-  - id: other_conventional
-    label_en: Other conventional
-    label_de: Sonstige Konventionelle
-    aliases: [sonstige_konventionelle, Sonstige_Konventionelle, SonstigeKo]
-    color: '#5A3A2A'
-    order: 43
-  - id: other_conventional_energy_carriers
-    label_en: Other conventional energy carriers
-    label_de: Sonstige konventionelle Energieträger
-    color: '#4A2D1A'
-    order: 44
-  - id: other
-    label_en: Other
-    label_de: Sonstiges
-    aliases: [sonstiges]
-    color: '#616161'
-    order: 45
-  - id: not_defined
-    label_en: Not defined
-    label_de: Nicht definiert
-    aliases: [nicht_definiert, Unzugeordnet]
-    color: '#4D4D4D'
-    order: 39
-  - id: total
-    label_en: Total
-    label_de: Gesamt
-    color: '#303030'
-    order: 26
-
-
-- id: vehicle_type
-  label_en: Vehicle type
-  label_de: Fahrzeugtyp
-  categories:
-  - id: total
-    label_en: Total
-    label_de: Gesamt
-    color: '#424562'  # darkest — 50% toward black
-  - id: passenger_cars
-    label_en: Passenger cars
-    label_de: Personenkraftwagen (PKW)
-    aliases: [Pkw, VL_Pkw, PKW, car]
-    color: '#494c6c'
-  - id: walking
-    label_en: Walking
-    label_de: Fußgänger
-    aliases: [Fuss, VL_Fuss]
-    color: '#4f5375'
-  - id: trucks
-    label_en: Trucks
-    label_de: Lastkraftwagen (LKW)
-    aliases: [Lkw, VL_Lkw, LKW, truck]
-    color: '#565a7f'
-  - id: vans
-    label_en: Light commercial vehicles
-    label_de: Leichte Nutzfahrzeuge
-    aliases: [LNF, VL_LNF]
-    color: '#5c6189'
-  - id: heavy_commercial
-    label_en: Heavy commercial vehicles
-    label_de: Schwere Nutzfahrzeuge
-    color: '#636893'
-  - id: buses
-    label_en: Buses
-    label_de: Busse
-    aliases: [Bus, bus]
-    color: '#696e9c'
-  - id: coach_buses
-    label_en: Coach buses
-    label_de: Reise-/Fernbusse
-    aliases: [Reisebus, long_distance_buses]
-    color: '#7075a6'
-  - id: local_buses
-    label_en: Local buses
-    label_de: LinienBus
-    aliases: [Lbus, VL_Lbus]
-    color: '#767cb0'
-  - id: motorcycles
-    label_en: Motorcycles
-    label_de: Motorisierte Zweiräder
-    aliases: [MZR, VL_MRZ, motorcycle]
-    color: '#7d83b9'
-  - id: cars_and_motorcycles
-    label_en: Cars and motorcycles
-    label_de: Personenkraftwagen und Motorisierte Zweiräder
-    color: '#838ac3'  # base lilac — midpoint
-  - id: bicycles
-    label_en: Bicycles
-    label_de: Fahrräder
-    aliases: [VL_Rad, Rad]
-    color: '#8b92c7'
-  - id: trains
-    label_en: Trains
-    label_de: Züge
-    color: '#949acb'
-  # BISKO's 'Straßen-, Stadt- und U-Bahnen' (SSU in the mileage sheet, Tram in the
-  # consumption factor sheet) is one mode; it used to resolve to two categories, so the
-  # mileage and the factors never met and tram/metro dropped out of road transport.
-  - id: tram
-    label_en: Tram and metro
-    label_de: Straßen-, Stadt- und U-Bahn
-    aliases: [Tram, SSU, 'Stadt- , Straßen- und U-Bahn', VL_SSU]
-    color: '#a5aad3'
-  - id: local_trains
-    label_en: Local trains
-    label_de: Schienenpersonennahverkehr
-    aliases: [SPNV, VL_SPNV]
-    color: '#adb2d7'
-  - id: long_distance_trains
-    label_en: Long-distance trains
-    label_de: Schienenpersonenfernverkehr
-    aliases: [SPFV]
-    color: '#b6badc'
-  - id: cargo_trains
-    label_en: Cargo trains
-    label_de: Schienengüterverkehr
-    aliases: [SGV]
-    color: '#bec2e0'
-  - id: inland_waterway_shipping
-    label_en: Inland waterway shipping
-    label_de: Binnenschifffahrt
-    aliases: [BiSchi, Binnenschiffahrt]
-    color: '#c7cae4'
-  - id: air_transport
-    label_en: Air transport (LTO)
-    label_de: Flugverkehr
-    aliases: [LTO, Flug]
-    color: '#cfd2e8'
-  - id: undefined
-    label_en: Undefined
-    label_de: Unzugeordnet
-    color: '#d8daec'
-  - id: none
-    label_en: None (stationary energy, no vehicle)
-    label_de: Kein Fahrzeug (stationäre Energie)
-    color: '#e0e2f0'  # lightest — 75% toward white
+# Restyles categories of the dimensions defined in modules/bisko/model.yaml; ids and
+# aliases come from the module. Only color, order and labels can be overridden.
+category_overrides:
+  sector:
+    transport:
+      color: *lilac
+    private_households:
+      color: '#203abf'
+    municipal_facilities:
+      color: *lime
+    commerce_trade_services:
+      color: *blue
+    industry:
+      color: *grey
+    industry_commerce:
+      color: *grey
+    sinks:
+      color: *green
+    ghg_neutral_administration:
+      color: *lime
+      label_de: "THG-neutrale Verwaltung"
+    food_and_land_use:
+      color: *green
+  energy_carrier:
+    hard_coal:
+      color: *black
+    coal_chp:
+      color: *black
+    heating_oil:
+      color: *g_grey1
+    petrol:
+      color: *g_grey2
+    diesel:
+      color: *g_grey3
+    lpg:
+      color: *grey
+    natural_gas:
+      color: *grey
+    bio_petrol:
+      color: *blue
+    biodiesel:
+      color: *g_blue2
+    biomass:
+      color: *green
+    solid_biomass:
+      color: *green
+    biomass_boiler:
+      color: *green
+    biomass_chp:
+      color: *green
+    biogas:
+      color: *g_lime2
+    solar_thermal:
+      color: *lime
+    environmental_heat:
+      color: *g_green2
+    district_heating:
+      color: *lilac
+    local_heating:
+      color: *g_lilac2
+    electricity:
+      color: *darkblue
+    heating_electricity:
+      color: *g_darkblue2
+    photovoltaic:
+      color: *lime
+    hydropower:
+      color: *darkblue
+    wind:
+      color: *blue
+    hydrogen:
+      color: *grey
+  vehicle_type:
+    total:
+      color: '#424562'  # darkest — 50% toward black
+      order: 1
+    passenger_cars:
+      color: '#494c6c'
+      order: 2
+    walking:
+      color: '#4f5375'
+      order: 3
+    trucks:
+      color: '#565a7f'
+      order: 4
+    vans:
+      color: '#5c6189'
+      order: 5
+    heavy_commercial:
+      color: '#636893'
+      order: 6
+    buses:
+      color: '#696e9c'
+      order: 7
+      label_de: "Busse"
+      label_en: "Buses"
+    coach_buses:
+      color: '#7075a6'
+      order: 8
+      label_en: "Coach buses"
+    local_buses:
+      color: '#767cb0'
+      order: 9
+      label_de: "LinienBus"
+    motorcycles:
+      color: '#7d83b9'
+      order: 10
+    cars_and_motorcycles:
+      color: '#838ac3'  # base lilac — midpoint
+      order: 11
+    bicycles:
+      color: '#8b92c7'
+      order: 12
+    trains:
+      color: '#949acb'
+      order: 13
+      label_de: "Züge"
+      label_en: "Trains"
+    tram:
+      color: '#a5aad3'
+      order: 14
+    local_trains:
+      color: '#adb2d7'
+      order: 15
+    long_distance_trains:
+      color: '#b6badc'
+      order: 16
+    cargo_trains:
+      color: '#bec2e0'
+      order: 17
+    inland_waterway_shipping:
+      color: '#c7cae4'
+      order: 18
+      label_de: "Binnenschifffahrt"
+      label_en: "Inland waterway shipping"
+    air_transport:
+      color: '#cfd2e8'
+      order: 19
+      label_de: "Flugverkehr"
+      label_en: "Air transport (LTO)"
+    undefined:
+      color: '#d8daec'
+      order: 20
+    none:
+      color: '#e0e2f0'  # lightest — 75% toward white
+      order: 21
 
 
 #//////  Result Excels  ///////////////////////////////////////////////////////////////////////////////////////////////////

@@ -359,3 +359,95 @@ include:
 
     with pytest.raises(TypeError, match='nodes_editable must be a boolean'):
         InstanceYAMLConfig.load_for_entrypoint(yaml_path)
+
+
+_CATEGORY_MODULE = """
+dimensions:
+- id: fuel
+  label: Fuel
+  categories:
+  - id: petrol
+    label_en: Petrol
+    label_de: Benzin
+    aliases: [benzin]
+    color: '#111111'
+    order: 1
+  - id: diesel
+    label_en: Diesel
+    color: '#222222'
+""".lstrip()
+
+
+def _write_category_override_instance(tmp_path, overrides: str) -> Any:
+    (tmp_path / 'module.yaml').write_text(_CATEGORY_MODULE)
+    yaml_path = tmp_path / 'test.yaml'
+    yaml_path.write_text(
+        f"""
+id: test
+default_language: en
+supported_languages: [de]
+name: Test
+owner: Owner
+target_year: 2030
+reference_year: 2020
+minimum_historical_year: 2010
+_palette:
+  petrol: &petrol '#abcdef'
+include:
+- file: module.yaml
+{overrides}""".lstrip()
+    )
+    return yaml_path
+
+
+def test_category_overrides_restyle_included_dimension(tmp_path):
+    yaml_path = _write_category_override_instance(
+        tmp_path,
+        """
+category_overrides:
+  fuel:
+    petrol:
+      color: *petrol
+      label_de: Ottokraftstoff
+      order: 5
+    diesel:
+      color: null
+""",
+    )
+
+    yaml_config = InstanceYAMLConfig.load_for_entrypoint(yaml_path)
+    assert yaml_config.data is not None
+    assert 'category_overrides' not in yaml_config.data
+    petrol, diesel = yaml_config.data['dimensions'][0]['categories']
+    # Overridden fields change; ids, aliases and untouched labels stay the module's.
+    assert petrol == {
+        'id': 'petrol',
+        'label_en': 'Petrol',
+        'label_de': 'Ottokraftstoff',
+        'aliases': ['benzin'],
+        'color': '#abcdef',
+        'order': 5,
+    }
+    assert diesel == {'id': 'diesel', 'label_en': 'Diesel'}
+
+    parser = InstanceConfigParser(yaml_config.data, instance_uuid=uuid4())
+    parser._parse_dimensions()
+    assert parser.dimensions['fuel'].get('petrol').color == '#abcdef'
+
+
+@pytest.mark.parametrize(
+    ('overrides', 'error', 'match'),
+    [
+        ('  road:\n    petrol:\n      color: red\n', KeyError, "dimension 'road' is not defined"),
+        ('  fuel:\n    lpg:\n      color: red\n', KeyError, "has no category 'lpg'"),
+        ('  fuel:\n    petrol:\n      aliases: [x]\n', ValueError, "field 'aliases' cannot be overridden"),
+        ('  fuel:\n    petrol:\n      id: gasoline\n', ValueError, "field 'id' cannot be overridden"),
+        ('  fuel:\n    petrol:\n      order: first\n', TypeError, 'order must be int or null'),
+        ('  fuel:\n    petrol:\n      color: 3\n', TypeError, 'color must be str or null'),
+    ],
+)
+def test_category_overrides_refuse_what_they_cannot_apply(tmp_path, overrides: str, error: type[Exception], match: str):
+    yaml_path = _write_category_override_instance(tmp_path, 'category_overrides:\n' + overrides)
+
+    with pytest.raises(error, match=match):
+        InstanceYAMLConfig.load_for_entrypoint(yaml_path)

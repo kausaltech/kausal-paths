@@ -438,6 +438,10 @@ datasets:
 
 dimensions:
 
+  # To give a city its own colours, order or labels, use `category_overrides` in the
+  # city's config (see configs/bayreuth-bisko.yaml) rather than copying a dimension:
+  # a copy replaces this one wholesale and stops receiving new categories and aliases.
+
   # ┌────────────────────────┬───────┬───────────────────────────────────────┬───────────────────────────────────┐
   # │         Group          │ Order │              Color tone               │             Rationale             │
   # ├────────────────────────┼───────┼───────────────────────────────────────┼───────────────────────────────────┤

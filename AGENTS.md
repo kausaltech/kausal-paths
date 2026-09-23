@@ -161,6 +161,13 @@ implement a new policy.
 - Each city/region has its own `Instance` with specific configuration
 - Instance configurations stored in database as `InstanceConfig`
 - Context objects provide runtime parameters and scenarios
+- A city that includes a shared module restyles the module's dimensions with a
+  top-level `category_overrides: {<dimension>: {<category>: {color, order, label_<lang>}}}`
+  block, resolved after the includes are merged (`InstanceYAMLConfig._apply_category_overrides`).
+  Don't copy the dimension into the city config to change its colours: an override
+  replaces the whole entity, so the copy stops receiving the module's new categories
+  and aliases. YAML anchors do not cross files, so a module cannot refer to a
+  city's `_palette`, but the city's own anchors work inside the block.
 
 #### Framework System
 - **Framework**: Calculation methodologies (GPC, NZC, etc.)
