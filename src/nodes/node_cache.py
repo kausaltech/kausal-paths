@@ -91,6 +91,11 @@ class NodeHasher:
     last_hash_time: int | None = field(init=False, default=None)
     """Timestamp (in nanoseconds) when the last hash was calculated."""
 
+    last_base_hash: bytes | None = field(init=False, default=None)
+    """The most recent hash of the node's own (un-hooked) output; equals `last_hash` without hooks."""
+
+    last_base_hash_time: int | None = field(init=False, default=None)
+
     param_hash: bytes | None = field(init=False, default=None)
     """Cached hash of the node's parameters."""
 
@@ -114,10 +119,13 @@ class NodeHasher:
             The cached hash bytes if valid, None if the hash needs recalculation
 
         """
-        if self.last_hash is None or self.last_hash_time is None:
+        return self._valid(self.last_hash, self.last_hash_time)
+
+    def _valid(self, value: bytes | None, calculated_at: int | None) -> bytes | None:
+        if value is None or calculated_at is None:
             return None
-        if self.modified_at is None or self.modified_at <= self.last_hash_time:
-            return self.last_hash
+        if self.modified_at is None or self.modified_at <= calculated_at:
+            return value
         return None
 
     @classmethod
@@ -234,7 +242,29 @@ class NodeHasher:
         # FIXME
         return self.is_run_cached()
 
-    def _calculate_hash(self, state: HashingState) -> bytes:  # noqa: C901, PLR0912, PLR0915
+    def _calculate_hash(self, state: HashingState) -> bytes:
+        """
+        Calculate the hash of the node's effective output: its own output plus the actions acting on it.
+
+        Without hooks this is the base hash. Actions that read the node's own
+        output hash against its base hash, so the two never recurse into each other.
+        """
+        cached_hash = self._get_cached_hash()
+        if cached_hash is not None:
+            return cached_hash
+        ret = self.calculate_base_hash(state)
+        if self.node.hooks:
+            h = xxhash.xxh64(ret)
+            for hook in self.node.hooks:
+                h.update(hook.action.id.encode('utf-8'))
+                h.update(hook.action.hasher.calculate_hash(state=state))
+                h.update(hook.hash_part())
+            ret = h.digest()
+        self.last_hash = ret
+        self.last_hash_time = time_ns()
+        return ret
+
+    def calculate_base_hash(self, state: HashingState) -> bytes:  # noqa: C901, PLR0912, PLR0915
         """
         Calculate the complete hash for this node.
 
@@ -257,7 +287,7 @@ class NodeHasher:
             Exception: If any part of the hashing process fails
 
         """
-        cached_hash = self._get_cached_hash()
+        cached_hash = self._valid(self.last_base_hash, self.last_base_hash_time)
         if cached_hash is not None:
             return cached_hash
 
@@ -301,6 +331,11 @@ class NodeHasher:
         for node in self.node.input_nodes:
             hash_part('input node', node.id, node.hasher.calculate_hash(state=state))
 
+        # An action reading the own output of a node it acts on depends on that output.
+        for hook in self.node.hook_targets:
+            if hook.reads_base:
+                hash_part('hook base', hook.target.id, hook.target.hasher.calculate_base_hash(state=state))
+
         for binding in self.node.runtime_input_bindings:
             if binding.definition is None:
                 continue
@@ -333,8 +368,8 @@ class NodeHasher:
         hash_part('mtime', '', self.mtime_hash)
 
         ret = h.digest()
-        self.last_hash = ret
-        self.last_hash_time = time_ns()
+        self.last_base_hash = ret
+        self.last_base_hash_time = time_ns()
         self.prev_hash_parts = getattr(self, 'last_hash_parts', None)
         self.last_hash_parts = cache_parts
         return ret
@@ -353,6 +388,11 @@ class NodeHasher:
         self.param_hash = None
         for node in self.node.output_nodes:
             node.hasher.mark_modified()
+        for hook in self.node.hook_targets:
+            hook.target.hasher.mark_modified()
+        for hook in self.node.hooks:
+            if hook.reads_base:
+                hook.action.hasher.mark_modified()
 
     @staticmethod
     def _get_cache_key(node: Node, node_hash: bytes) -> str:
@@ -456,6 +496,14 @@ class NodeHasher:
                     continue
                 if old != new:
                     pprint('\told: %s\n\tnew: %s' % (old, new))
+        return cast('CacheResult[PathsDataFrame]', cache_res)
+
+    def get_cached_base_output(self) -> CacheResult[PathsDataFrame]:
+        """Retrieve the cached un-hooked output of a node that actions act on."""
+        node_hash = self.calculate_base_hash(state=HashingState())
+        cache_res = self.node.context.cache.get('node:%s:base:%s' % (self.node.id, node_hash.hex()))
+        if cache_res.obj is not None and not isinstance(cache_res.obj, PathsDataFrame):
+            cache_res.obj = None
         return cast('CacheResult[PathsDataFrame]', cache_res)
 
     def cache_output(self, res: CacheResult[PathsDataFrame], df: PathsDataFrame):
