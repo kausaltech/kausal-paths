@@ -3,7 +3,7 @@
 import re
 from collections import defaultdict
 from typing import TYPE_CHECKING
-from uuid import uuid4, uuid5
+from uuid import UUID, uuid4, uuid5
 
 from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
@@ -36,6 +36,8 @@ if TYPE_CHECKING:
     from pydantic import JsonValue
 
     from frameworks.models import Framework
+    from nodes.defs.graph import DatasetMeta
+    from nodes.defs.instance_defs import DatasetRepoSpec
     from nodes.defs.port_def import OutputPortDef
     from nodes.instance_serialization import NodeSnapshot
     from nodes.models import InstanceConfig
@@ -180,6 +182,49 @@ def _expose_changed_inputs(
             port.binding_owner = 'instance'
             report.append(f'Exposed local input {shared.identifier}/{port.identifier or port.id}')
             NodeConfig.objects.filter(instance=template, uuid=node_id).update(spec=shared.spec)
+
+
+LOCAL_DATA_SLOT_PREFIX = 'kommune/'
+
+
+@transaction.atomic
+def declare_local_data_slots(framework: Framework) -> list[str]:
+    """
+    Give the municipality the inputs the template reads from its `kommune/*` data slots.
+
+    A `kommune/` dataset is, by the template's convention, the placeholder for
+    data the municipality supplies itself; cities replace it via
+    `dataset_replacements`. Every template input bound only to such datasets is
+    therefore instance-owned. This is a rule over the template, not an inference
+    from example instances, and stands in until the YAML declares ownership on
+    the port itself.
+    """
+    template = framework.template_instance
+    if template is None:
+        raise ValueError('Framework has no template')
+    normalize_legacy_dataset_ports(template)
+    snapshot = build_instance_snapshot(template)
+    sources = defaultdict(list)
+    for binding in snapshot.bindings:
+        sources[(binding.node_id, binding.port_id)].append(binding.dataset_source)
+    report: list[str] = []
+    for node in snapshot.nodes:
+        if node.spec is None:
+            continue
+        changed = False
+        for port in node.spec.input_ports:
+            bound = sources.get((node.uuid, port.id), [])
+            is_slot = bool(bound) and all(
+                source is not None and source.dataset.startswith(LOCAL_DATA_SLOT_PREFIX) for source in bound
+            )
+            if is_slot and port.binding_owner != 'instance':
+                port.binding_owner = 'instance'
+                changed = True
+                report.append(f'Local data slot {node.identifier}/{port.identifier or port.id}')
+        if changed:
+            NodeConfig.objects.filter(instance=template, uuid=node.uuid).update(spec=node.spec)
+    template.invalidate_cache()
+    return report
 
 
 @transaction.atomic
@@ -331,18 +376,48 @@ def _node_settings(original: NodeSnapshot, shared: NodeSnapshot) -> InheritedNod
     return settings
 
 
-def _shared_dataset_identities(instance: InstanceConfig, base: InstanceSnapshot) -> dict[str, str]:
-    """Reuse defaults only when their actual input payloads agree; otherwise retain local data."""
+def _same_dataset_repo(left: DatasetRepoSpec | None, right: DatasetRepoSpec | None) -> bool:
+    if left is None or right is None:
+        return left is right
+    return (left.url, left.commit) == (right.url, right.commit)
 
+
+def _same_external_dataset(left: dict[str, str | None] | None, right: dict[str, str | None] | None) -> bool:
+    """
+    Whether two placeholders name the same external dataset.
+
+    A placeholder is read at its instance's dataset-repo pin, so its own
+    ``commit`` is only the provenance stamp of when the row was created and
+    must not decide equality; the caller compares the pins instead.
+    """
+    if left is None or right is None:
+        return False
+    return (left.get('repo_url'), left.get('dataset_id')) == (right.get('repo_url'), right.get('dataset_id'))
+
+
+def _superseded_datasets(instance: InstanceConfig, base: InstanceSnapshot) -> list[tuple[Dataset, DatasetMeta]]:
+    """
+    Return the instance's datasets that the template supplies identically, each with its template dataset.
+
+    Defaults are reused only when their actual input payloads agree; otherwise the local data is retained.
+    """
     defaults = {dataset.identifier: dataset for dataset in base.datasets}
     revisions = {pin.dataset_uuid: pin.revision_id for pin in base.dataset_revisions}
-    identities: dict[str, str] = {}
+    same_pin = _same_dataset_repo(instance.ensure_spec().dataset_repo, base.spec.dataset_repo)
+    superseded: list[tuple[Dataset, DatasetMeta]] = []
     for dataset in Dataset.objects.for_instance_config(instance).select_related('schema'):
         target = defaults.get(dataset.identifier)
         if target is None or dataset.schema is None:
             continue
+        if dataset.identifier and dataset.identifier.startswith(LOCAL_DATA_SLOT_PREFIX):
+            # The municipality's own data, even while it still equals the template's
+            # placeholder values: it must stay the dataset its inputs read, or edits
+            # to it would have no effect.
+            continue
         if dataset.is_external_placeholder:
-            equal = target.is_external_placeholder and dataset.external_ref == target.external_ref
+            equal = (
+                target.is_external_placeholder and same_pin and _same_external_dataset(dataset.external_ref, target.external_ref)
+            )
         elif target.id in revisions:
             materialization = ensure_dataset_materializations([dataset])[dataset.pk]
             equal = materialization.content.get('data') == Revision.objects.get(pk=revisions[target.id]).content.get('data')
@@ -350,13 +425,107 @@ def _shared_dataset_identities(instance: InstanceConfig, base: InstanceSnapshot)
             equal = False
         if not equal:
             continue
-        target_metrics = {metric.identifier: metric for metric in target.metrics}
-        if set(dataset.schema.metrics.values_list('name', flat=True)) != set(target_metrics):
+        target_metrics = {metric.identifier for metric in target.metrics}
+        if set(dataset.schema.metrics.values_list('name', flat=True)) != target_metrics:
             continue
+        superseded.append((dataset, target))
+    return superseded
+
+
+def _dataset_identities(superseded: list[tuple[Dataset, DatasetMeta]]) -> dict[str, str]:
+    identities: dict[str, str] = {}
+    for dataset, target in superseded:
+        assert dataset.schema is not None
+        target_metrics = {metric.identifier: metric for metric in target.metrics}
         identities[str(dataset.uuid)] = str(target.id)
         for metric in dataset.schema.metrics.all():
             identities[str(metric.uuid)] = str(target_metrics[metric.name].id)
     return identities
+
+
+def _delete_datasets(instance: InstanceConfig, datasets: list[Dataset]) -> list[str]:
+    """
+    Delete local copies the instance no longer reads, with schemas nothing else uses.
+
+    Refuses a dataset any effective binding still references, so only true
+    leftovers go: after conversion the instance reads the template's copy.
+    """
+    import json
+
+    referenced = json.dumps([b.model_dump(mode='json') for b in build_instance_snapshot(instance).bindings])
+    removed: list[str] = []
+    for dataset in datasets:
+        if str(dataset.uuid) in referenced:
+            continue
+        schema = dataset.schema
+        identifier = dataset.identifier or str(dataset.uuid)
+        dataset.delete()
+        if (
+            schema is not None
+            and not schema.datasets.exists()
+            and not DatasetSchemaScope.objects
+            .filter(schema=schema)
+            .exclude(scope_content_type=ContentType.objects.get_for_model(instance), scope_id=instance.pk)
+            .exists()
+        ):
+            schema.delete()
+        removed.append(identifier)
+    return removed
+
+
+def _bind_local_data_slots(instance: InstanceConfig) -> int:
+    """
+    Make every input that reads a `kommune/*` slot read the instance's own copy of it, where it has one.
+
+    The template may read a slot from more ports than the instance's copied
+    graph did (availability and data-quality siblings); those would otherwise
+    fall back to the template's placeholder copy, so one slot would be read
+    from two datasets. Returns the number of ports redirected.
+    """
+    own = {
+        dataset.identifier: dataset
+        for dataset in Dataset.objects.for_instance_config(instance).select_related('schema')
+        if dataset.identifier and dataset.identifier.startswith(LOCAL_DATA_SLOT_PREFIX)
+    }
+
+    def is_foreign_copy(binding: InputBindingSnapshot) -> bool:
+        source = binding.dataset_source
+        return source is not None and source.dataset in own and source.dataset_uuid != own[source.dataset].uuid
+
+    by_port: dict[tuple[UUID, UUID], list[InputBindingSnapshot]] = defaultdict(list)
+    for binding in build_instance_snapshot(instance).bindings:
+        by_port[(binding.node_id, binding.port_id)].append(binding)
+    redirected = 0
+    for (node_uuid, port_uuid), bindings in by_port.items():
+        if not any(is_foreign_copy(binding) for binding in bindings):
+            continue
+        replacement = []
+        for binding in bindings:
+            source = binding.dataset_source
+            if source is None or not is_foreign_copy(binding):
+                replacement.append(binding)
+                continue
+            local = own[source.dataset]
+            assert local.schema is not None
+            metric = local.schema.metrics.get(name=source.metric)
+            update = {'dataset_uuid': local.uuid, 'metric_uuid': metric.uuid, 'dataset_revision': None}
+            replacement.append(binding.model_copy(update={'source': source.model_copy(update=update)}))
+        InputPortBindingSet.objects.update_or_create(
+            instance=instance, node_uuid=node_uuid, port_uuid=port_uuid, defaults={'bindings': replacement}
+        )
+        redirected += 1
+    return redirected
+
+
+@transaction.atomic
+def remove_superseded_datasets(instance: InstanceConfig) -> list[str]:
+    """Delete a framework instance's leftover copies of datasets it now reads from its template revision."""
+    if instance.template_revision is None:
+        raise ValueError('%s does not inherit from a template' % instance.identifier)
+    base = InstanceSnapshot.from_serialized_data(instance.template_revision.content['model_snapshot']['structured'])
+    removed = _delete_datasets(instance, [dataset for dataset, _target in _superseded_datasets(instance, base)])
+    instance.invalidate_cache()
+    return removed
 
 
 def _conversion_node_settings(before: InstanceSnapshot, shared: dict[str | None, NodeSnapshot]) -> list[InheritedNodeSettings]:
@@ -413,6 +582,7 @@ def convert_to_framework(instance: InstanceConfig, framework: Framework, revisio
         raise ValueError('Instance already has framework membership; use an explicit release upgrade instead')
 
     base = InstanceSnapshot.from_serialized_data(revision.content['model_snapshot']['structured'])
+    normalize_legacy_dataset_ports(instance)
     with set_i18n_context(instance.primary_language, instance.other_languages):
         before = build_instance_snapshot(instance)
         identities = _node_identities(base, before)
@@ -420,7 +590,8 @@ def convert_to_framework(instance: InstanceConfig, framework: Framework, revisio
         settings = _conversion_node_settings(before, shared)
         identities.update(_adopt_dimensions(instance, framework))
         _adopt_schemas(instance, framework, identities)
-        identities.update(_shared_dataset_identities(instance, base))
+        superseded = _superseded_datasets(instance, base)
+        identities.update(_dataset_identities(superseded))
         FrameworkConfig.objects.create(
             framework=framework,
             instance_config=instance,
@@ -447,6 +618,10 @@ def convert_to_framework(instance: InstanceConfig, framework: Framework, revisio
         for node in instance.nodes.all():
             if node.spec is not None:
                 type(node).objects.filter(pk=node.pk).update(spec=remap_json(node.spec.model_dump(mode='json'), identities))
+        # The instance now reads these from the template; its identical copies would only
+        # show up as editable datasets that feed nothing.
+        removed_datasets = _delete_datasets(instance, [dataset for dataset, _target in superseded])
+        _bind_local_data_slots(instance)
 
         for dataset in Dataset.objects.for_instance_config(instance).filter(is_external_placeholder=False):
             refresh_dataset_materialization(dataset, touch=False)
@@ -459,4 +634,5 @@ def convert_to_framework(instance: InstanceConfig, framework: Framework, revisio
             'shared_nodes': count,
             'local_nodes': instance.nodes.count(),
             'binding_overrides': instance.binding_overrides.count(),
+            'removed_datasets': len(removed_datasets),
         }
