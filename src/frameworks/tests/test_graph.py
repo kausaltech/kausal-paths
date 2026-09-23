@@ -712,3 +712,92 @@ def test_inherited_binding_query_count_does_not_grow(
     add_nodes(12)
     count_queries()
     assert count_queries() <= small_count
+
+
+def test_local_action_acts_on_an_inherited_node(release: TemplateEdition, dependent_instance: InstanceConfig) -> None:
+    """A hook belongs to the action, so acting on a template node needs no ownership of it."""
+    from nodes.defs.node_defs import ActionConfig, ActionHookDef, NodeSpec
+    from nodes.defs.port_def import OutputPortDef
+    from nodes.instance_loader import InstanceLoader
+
+    NodeConfigFactory.create(
+        instance=dependent_instance,
+        identifier='measure',
+        spec=NodeSpec(
+            type_config=ActionConfig(node_class='nodes.actions.simple.AdditiveAction', hooks=[ActionHookDef(node='shared')]),
+            output_ports=[OutputPortDef(id=uuid4(), unit=unit_registry.parse_units('kt/a'), quantity='emissions')],
+        ),
+    )
+    context = InstanceLoader(snapshot=build_instance_snapshot(dependent_instance)).context
+    shared, measure = context.get_node('shared'), context.get_action('measure')
+    assert [hook.action for hook in shared.hooks] == [measure]
+    assert measure.is_connected_to(shared)
+    template = release.framework.template_instance
+    assert template is not None
+    assert not template.nodes.get(identifier='shared').input_bindings.exists()
+
+
+@pytest.mark.parametrize(('local_value', 'removed'), [(42, True), (43, False)])
+def test_identical_local_copies_of_template_datasets_are_removed(
+    release: TemplateEdition,
+    dependent_instance: InstanceConfig,
+    local_value: float,
+    removed: bool,
+) -> None:
+    """A copy the template supplies identically feeds nothing after conversion; a differing one is kept."""
+    from datetime import date
+
+    from kausal_common.datasets.models import Dataset
+    from kausal_common.datasets.tests.factories import DataPointFactory, DatasetMetricFactory
+
+    from frameworks.conversion import remove_superseded_datasets
+    from nodes.models import NodeInputPortBinding
+
+    template = release.framework.template_instance
+    assert template is not None
+    node = template.nodes.get()
+    assert node.spec is not None
+    for instance, value in ((template, 42), (dependent_instance, local_value)):
+        dataset = DatasetFactory.create(
+            identifier='reference', scope_content_type=ContentType.objects.get_for_model(instance), scope_id=instance.pk
+        )
+        metric = DatasetMetricFactory.create(schema=dataset.schema, name='Value', unit='kt/a')
+        DataPointFactory.create(dataset=dataset, metric=metric, date=date(2020, 1, 1), value=value)
+        if instance == template:
+            NodeInputPortBinding.objects.create(
+                instance=template, node=node, port_id=node.spec.input_ports[1].id, position=0, dataset=dataset, metric=metric
+            )
+    template.invalidate_cache()
+    publish_edition(release.framework)
+    dependent_instance.refresh_from_db()
+
+    assert remove_superseded_datasets(dependent_instance) == (['reference'] if removed else [])
+    assert Dataset.objects.for_instance_config(dependent_instance).filter(identifier='reference').exists() is not removed
+
+
+def test_local_data_slot_copy_is_kept_even_when_identical(release: TemplateEdition, dependent_instance: InstanceConfig) -> None:
+    from datetime import date
+
+    from kausal_common.datasets.tests.factories import DataPointFactory, DatasetMetricFactory
+
+    from frameworks.conversion import remove_superseded_datasets
+    from nodes.models import NodeInputPortBinding
+
+    template = release.framework.template_instance
+    assert template is not None
+    node = template.nodes.get()
+    assert node.spec is not None
+    for instance in (template, dependent_instance):
+        dataset = DatasetFactory.create(
+            identifier='kommune/slot', scope_content_type=ContentType.objects.get_for_model(instance), scope_id=instance.pk
+        )
+        metric = DatasetMetricFactory.create(schema=dataset.schema, name='Value', unit='kt/a')
+        DataPointFactory.create(dataset=dataset, metric=metric, date=date(2020, 1, 1), value=1)
+        if instance == template:
+            NodeInputPortBinding.objects.create(
+                instance=template, node=node, port_id=node.spec.input_ports[0].id, position=0, dataset=dataset, metric=metric
+            )
+    template.invalidate_cache()
+    publish_edition(release.framework)
+    dependent_instance.refresh_from_db()
+    assert remove_superseded_datasets(dependent_instance) == []
