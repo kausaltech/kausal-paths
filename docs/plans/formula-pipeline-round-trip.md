@@ -1,6 +1,7 @@
 # Formulas as a view of stored pipelines
 
-Status: agreed with Juha 2026-09-23; not started.
+Status: agreed with Juha 2026-09-23. First step implemented 2026-09-23 (see
+[Built](#built)); the node kinds do not store pipelines yet.
 
 Related plans and docs:
 
@@ -99,6 +100,63 @@ step. Moving it onto the pipeline executor comes later, gated by the existing
 parity harness (`nodes/pipeline/compare.py`). Formulas using functions without
 a canonical op yet (about 60 `PathsExt` and custom functions) keep evaluating
 as today and are reported as not representable until their ops exist.
+
+## Built
+
+- `PipelineConfig` is `PipelineSpec` plus the `kind` discriminator. The
+  placeholder `PipelineOperation` is gone; GraphQL reads and writes
+  `operations` as JSON in the stored form, plus `outputRef` and `description`.
+- `PipelineSpec` validates that every pipeline has a formula form: step names
+  are unique, references point to earlier steps, and an **anonymous step is an
+  inline sub-expression**. It is used exactly once and has no description, and
+  only the output may be anonymous and unused. Later steps refer to an
+  anonymous step as `_step_<index>`; user names may not use that prefix. The
+  executor and the shape compiler share that key (`ops.base.step_key`).
+- `interpolate`, `extend` and `backfill` are operations (`ops/temporal.py`).
+  They run the same functions as the binding transformations of the same name
+  (`nodes.transforms.interpolate_years`, `extend_to_end_year`,
+  `backfill_leading_values`), in the executor and in `FormulaNode`. The
+  formula function `linear_interpolate` is an alias.
+- `HookBaseInputRef` is the un-hooked value of a node an action acts on.
+- `nodes/pipeline/formula.py` has `compile_formula(text, scope)`,
+  `render_pipeline(pipeline, scope)` and `FormulaScope`, which maps names to
+  inputs (`FormulaScope.for_node_spec`: port identifiers, parameter ids, hook
+  targets). Errors are `FormulaError` with line and column.
+- Tests in `nodes/tests/test_pipeline_formula.py` cover the round trip,
+  normalisation and errors. `test_action_hooks.py` checks that the compiled
+  pipeline and the formula evaluator give the same `FormulaAction` effect,
+  and that `interpolate` agrees across formula, alias and pipeline.
+
+Decisions made while building it:
+
+- A last line that is only the name of an earlier step makes that step the
+  output (`output_ref`). A last line that assigns makes the assigned step the
+  output (`output_ref` unset). `x = y` is an `identity` step.
+- Chains of one operator are one step (`a + b + c`), because `ast` does not
+  keep parentheses. Two steps are written `add(a + b, c)`.
+- Keyword arguments are compiled in canonical order (`min`, `max`, `only_if`,
+  `skip_if`) whatever order they are written in, so anonymous steps are
+  numbered the same after a round trip.
+- Plain numbers are dimensionless. A scalar with a unit is
+  `quantity(2.5, 'kg/a')`, a form that only the pipeline side understands
+  for now.
+- Comments around an `output_ref` line have no step, so they go to the
+  pipeline's description.
+- Unary minus is only allowed on a literal. `-a` is an error, not
+  `multiply(a, -1)`.
+
+Not done yet:
+
+- `FormulaConfig` and `FormulaAction` still store the formula text as a
+  parameter and evaluate it with `FormulaNode`. The next step is storing
+  their pipeline and running it through the executor, with the parity harness
+  as the gate. Nodes whose formulas use a function without an op keep today's
+  path.
+- An editor mutation that takes formula text and reports `FormulaError`
+  positions, and a rendered `formula` field next to `operations`.
+- `NodeSpec.pipeline` (`list[dict] | None`) is still there, unused.
+- Shape rules for dataset and hook-base inputs (`pipeline_compile` notes
+  them as not compilable).
 
 ## Open questions
 

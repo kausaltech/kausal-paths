@@ -517,14 +517,11 @@ class UpdateOutputPortResult:
     )
 
 
-@sb.input
-class PipelineOperationInput:
-    operation: str
-
-
 @pydantic_input(model=PipelineConfig)
 class PipelineConfigInput(StrawberryPydanticType[PipelineConfig]):
-    operations: list[PipelineOperationInput]
+    operations: sb.scalars.JSON = sb.field(description='The steps, in their stored form.')
+    output_ref: sb.auto
+    description: sb.auto
 
 
 @sb.input(one_of=True)
