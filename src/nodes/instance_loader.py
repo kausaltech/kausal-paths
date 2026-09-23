@@ -560,6 +560,22 @@ def make_trans_string(  # noqa: C901, PLR0912
     return TranslatedString(**langs, default_language=default_language)
 
 
+def _hook_metric(node: Node, spec: NodeSpec, port_id: UUID | None) -> NodeMetric:
+    """Return the runtime metric behind an output port, or the node's only metric when no port is given."""
+    metrics = list(node.output_metrics.values())
+    if port_id is None:
+        if len(metrics) != 1:
+            raise ValueError('%s has several outputs; the hook must name one' % node.id)
+        return metrics[0]
+    port = spec.output_port_by_id.get(port_id)
+    if port is None:
+        raise ValueError('%s has no output port %s' % (node.id, port_id))
+    for metric in metrics:
+        if port.column_id is None or metric.column_id == port.column_id:
+            return metric
+    raise ValueError('%s has no metric for output port %s' % (node.id, port_id))
+
+
 def _param_config(param: Parameter) -> dict[str, Any]:
     """Convert a spec parameter into the overrides the parameter builder merges over the class default."""
     from params.param import ReferenceParameter
@@ -1257,6 +1273,53 @@ class InstanceLoader:
     def _setup_edges(self) -> None:
         self._setup_edges_from_snapshot()
 
+    def _setup_hooks_from_snapshot(self) -> None:
+        """Attach each action's hooks to the nodes it acts on (see `nodes.hooks`)."""
+        from nodes.defs.node_defs import ActionConfig
+        from nodes.defs.transform_def import modernized_transformations
+        from nodes.edges import Edge
+        from nodes.hooks import ActionHook
+
+        specs = {n.identifier: n.spec for n in self.snapshot.nodes if n.spec is not None and n.identifier is not None}
+        ctx = self.context
+        for identifier, spec in specs.items():
+            type_config = spec.type_config
+            if not isinstance(type_config, ActionConfig) or not type_config.hooks:
+                continue
+            action = ctx.nodes.get(identifier)
+            if not isinstance(action, ActionNode):
+                continue
+            for definition in type_config.hooks:
+                try:
+                    target = ctx.get_node(definition.node)
+                    target_spec = specs[definition.node]
+                    from_dims, to_dims = self._edge_dimensions_from_transforms(
+                        list(definition.transformations), list(target.output_dimensions), target
+                    )
+                    edge = Edge(
+                        input_node=action,
+                        output_node=target,
+                        from_dimensions=from_dims,
+                        to_dimensions=to_dims or None,
+                        source_transforms=cast(
+                            'list[EdgeTransformOp]', modernized_transformations(list(definition.transformations))
+                        ),
+                    )
+                    hook = ActionHook(
+                        action=action,
+                        target=target,
+                        edge=edge,
+                        target_metric=_hook_metric(target, target_spec, definition.port),
+                        action_metric=_hook_metric(action, spec, definition.from_port),
+                        definition=definition,
+                        reads_base=action.reads_hook_base(target),
+                    )
+                except Exception as e:
+                    self._init_failure(action, 'Invalid hook on %s: %s' % (definition.node, e), cause=e)
+                    continue
+                target.hooks.append(hook)
+                action.hook_targets.append(hook)
+
     def _setup_runtime_inputs(self) -> None:  # noqa: C901, PLR0912
         """Attach graph bindings to runtime sources without mutating the cached graph models."""
         from collections import defaultdict
@@ -1387,6 +1450,7 @@ class InstanceLoader:
     def setup_edges(self) -> None:
         # Setup edges
         self._setup_edges()
+        self._setup_hooks_from_snapshot()
         self._setup_subactions()
         self.context.finalize_nodes()
 
