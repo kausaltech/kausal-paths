@@ -3,7 +3,7 @@ default_language: en
 supported_languages: []
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 8633346287e090f780fa75625942cd0e8174ca38
+  commit: e362fec87965319fcc09f751730012721a8f9eb2
   dvc_remote: kausal-s3
 name: Halton Region Greenhouse Gas Inventory
 owner: Halton Region
@@ -1123,6 +1123,16 @@ dimensions:
     label: HCHC System 2 (Air Distribution System)
   - id: hchc_system_3
     label: HCHC System 3 (Domestic Hot Water Heaters)
+  - id: pathway_assumption_1
+    label: Pathway Assumption 1
+  - id: pathway_assumption_2
+    label: Pathway Assumption 2
+  - id: pathway_assumption_3
+    label: Pathway Assumption 3
+  - id: pathway_assumption_4
+    label: Pathway Assumption 4
+  - id: pathway_assumption_5
+    label: Pathway Assumption 5
 
 - id: system_retrofit
   label: System Retrofit
@@ -4091,8 +4101,13 @@ actions:
   quantity: fraction
   input_dimensions: []
   output_dimensions: []
-  historical_values: [[2023, 0.00], [2024, 0.00]]
-  forecast_values: [[2025, 0.00000000], [2026, 4.85000000], [2027, 9.46477500], [2028, 13.85573341], [2029, 18.03373034], [2030, 22.00909442], [2031, 25.79165334], [2032, 29.39075815], [2033, 32.81530638], [2034, 36.07376402], [2035, 39.17418647], [2036, 42.12423843], [2037, 44.93121286], [2038, 47.60204904], [2039, 50.14334966], [2040, 52.56139720], [2041, 54.86216944], [2042, 57.05135422], [2043, 59.13436354], [2044, 61.11634691], [2045, 63.00220408]]
+  input_datasets:
+  - id: halton/pathway_assumption_actions
+    column: fraction
+    forecast_from: 2026
+    filters:
+    - column: action
+      value: pathway_assumption_1
 
 - id: pathway_assumption_2
   name: 'Pathway Assumption 2: Renewable Energy Generation'
@@ -4102,8 +4117,13 @@ actions:
   quantity: fraction
   input_dimensions: []
   output_dimensions: []
-  historical_values: [[2023, 0.0], [2024, 0.0]]
-  forecast_values: [[2025, 0.0], [2026, 5.0], [2027, 10.0], [2028, 15.0], [2029, 20.0], [2030, 25.0], [2031, 30.0], [2032, 35.0], [2033, 40.0], [2034, 45.0], [2035, 50.0], [2036, 55.0], [2037, 60.0], [2038, 65.0], [2039, 70.0], [2040, 75.0], [2041, 80.0], [2042, 85.0], [2043, 90.0], [2044, 95.0], [2045, 99.999999]]
+  input_datasets:
+  - id: halton/pathway_assumption_actions
+    column: fraction
+    forecast_from: 2026
+    filters:
+    - column: action
+      value: pathway_assumption_2
 
 - id: pathway_assumption_3
   name: 'Pathway Assumption 3: Building Envelopes & Other Building Efficiencies'
@@ -4113,8 +4133,13 @@ actions:
   quantity: fraction
   input_dimensions: []
   output_dimensions: []
-  historical_values: [[2023, 0.00], [2024, 0.00]]
-  forecast_values: [[2025, 0.00000000], [2026, 4.85000000], [2027, 9.46477500], [2028, 13.85573341], [2029, 18.03373034], [2030, 22.00909442], [2031, 25.79165334], [2032, 29.39075815], [2033, 32.81530638], [2034, 36.07376402], [2035, 39.17418647], [2036, 42.12423843], [2037, 44.93121286], [2038, 47.60204904], [2039, 50.14334966], [2040, 52.56139720], [2041, 54.86216944], [2042, 57.05135422], [2043, 59.13436354], [2044, 61.11634691], [2045, 63.00220408]]
+  input_datasets:
+  - id: halton/pathway_assumption_actions
+    column: fraction
+    forecast_from: 2026
+    filters:
+    - column: action
+      value: pathway_assumption_3
 
 - id: pathway_assumption_4
   name: 'Pathway Assumption 4: Corporate Waste Initiatives'
@@ -4124,7 +4149,13 @@ actions:
   quantity: emissions
   input_dimensions: []
   output_dimensions: []
-  forecast_values: [[2026, -33.34368593], [2027, -66.68737186], [2028, -100.03105779], [2029, -133.37474372], [2030, -166.71842965], [2031, -200.06211558], [2032, -233.40580151], [2033, -266.74948745], [2034, -300.09317338], [2035, -333.43685931], [2036, -366.78054524], [2037, -400.12423117], [2038, -433.46791710], [2039, -466.81160303], [2040, -500.15528896], [2041, -544.15528896], [2042, -588.15528896], [2043, -632.15528896], [2044, -676.15528896], [2045, -720.15528896]]
+  input_datasets:
+  - id: halton/pathway_assumption_actions
+    column: emissions
+    forecast_from: 2026
+    filters:
+    - column: action
+      value: pathway_assumption_4
 
 - id: pathway_assumption_5
   name: 'Pathway Assumption 5: Offset Credits'
@@ -4134,8 +4165,13 @@ actions:
   quantity: emissions
   input_dimensions: []
   output_dimensions: []
-  historical_values: [[2023, 0.0], [2024, 0.0]]
-  forecast_values: [[2025, 0.0], [2026, 0.0], [2027, 0.0], [2028, 0.0], [2029, 0.0], [2030, 0.0], [2031, 0.0], [2032, 0.0], [2033, 0.0], [2034, 0.0], [2035, 0.0], [2036, 0.0], [2037, 0.0], [2038, 0.0], [2039, 0.0], [2040, 0.0], [2041, 0.0], [2042, 0.0], [2043, 0.0], [2044, 0.0], [2045, -3000.0]]
+  input_datasets:
+  - id: halton/pathway_assumption_actions
+    column: emissions
+    forecast_from: 2026
+    filters:
+    - column: action
+      value: pathway_assumption_5
 
 pages:
 - id: home
