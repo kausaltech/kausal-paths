@@ -347,6 +347,9 @@ class Context:
         for node in self.nodes.values():
             for output in node.output_nodes:
                 g.add_edge(node.id, output.id)
+            # An action acting on a node is upstream of that node's (effective) output.
+            for hook in node.hook_targets:
+                g.add_edge(node.id, hook.target.id)
 
         if not nx.is_directed_acyclic_graph(g):
             raise Exception('Node graph is not directed (there are loops between nodes)')
