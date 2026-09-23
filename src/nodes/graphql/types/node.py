@@ -1,7 +1,7 @@
 import contextlib
 import re
 from datetime import datetime
-from typing import TYPE_CHECKING, Annotated, Any, Optional  # pyright: ignore[reportDeprecated]
+from typing import TYPE_CHECKING, Annotated, Any, Optional, cast  # pyright: ignore[reportDeprecated]
 from uuid import NAMESPACE_URL, UUID, uuid5
 
 import strawberry as sb
@@ -113,7 +113,14 @@ class FormulaConfigType:
 
 @pydantic_type(model=PipelineConfig)
 class PipelineConfigType:
-    operations: sb.scalars.JSON
+    output_ref: sb.auto
+    description: sb.auto
+
+    @sb.field(graphql_type=sb.scalars.JSON, description='The steps, in their stored form.')
+    @staticmethod
+    def operations(root: 'PipelineConfigType') -> list[dict[str, Any]]:
+        model = cast('PipelineConfig', root._original_model)  # type: ignore[attr-defined]
+        return model.model_dump(mode='json', by_alias=True, exclude_none=True)['operations']
 
 
 @pydantic_type(model=NodeSpec)

@@ -5,7 +5,14 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
-from paths.identifiers import DatasetIdentifier, Identifier, NodePortIdentifier, ParameterGlobalId, ParameterLocalId
+from paths.identifiers import (
+    DatasetIdentifier,
+    Identifier,
+    NodeIdentifier,
+    NodePortIdentifier,
+    ParameterGlobalId,
+    ParameterLocalId,
+)
 
 from nodes.units import Unit
 
@@ -39,6 +46,17 @@ class ParameterInputRef(BaseModel):
     parameter: ParameterLocalId | ParameterGlobalId
 
 
+class HookBaseInputRef(BaseModel):
+    """
+    The un-hooked value of a node an action acts on (see ``nodes.hooks``).
+
+    Only meaningful in an action's pipeline: it reads the target's own output,
+    before any action's contribution is added.
+    """
+
+    hook_base: NodeIdentifier
+
+
 class ScalarValue(BaseModel):
     """
     Constant scalar input.
@@ -60,7 +78,7 @@ class ScalarValue(BaseModel):
         return self
 
 
-OperationInput = PortInputRef | IntermediateInputRef | DatasetInputRef | ParameterInputRef | ScalarValue
+OperationInput = PortInputRef | IntermediateInputRef | DatasetInputRef | ParameterInputRef | HookBaseInputRef | ScalarValue
 
 
 class ComparisonOperator(StrEnum):
@@ -91,6 +109,14 @@ class ComparisonCondition(BaseModel):
 OperationCondition = Annotated[TruthyCondition | ComparisonCondition, Field(discriminator='kind')]
 
 
+ANONYMOUS_STEP_PREFIX = '_step_'
+
+
+def step_key(operation: OperationSpec, index: int) -> str:
+    """Return the key later steps use to refer to the result of ``operation``, the ``index``-th step."""
+    return operation.result_id or f'{ANONYMOUS_STEP_PREFIX}{index}'
+
+
 class OperationSpec(BaseModel):
     """
     Base schema for a pipeline operation.
@@ -101,7 +127,12 @@ class OperationSpec(BaseModel):
 
     kind: str
     result_id: Identifier | None = None
+    """
+    The step's name. A step without one is anonymous: later steps refer to it
+    as ``_step_<index>``, and a formula writes it inline.
+    """
     description: str | None = None
+    """The modeller's explanation of the step; a formula writes it as a comment."""
     only_if: OperationCondition | None = None
     skip_if: OperationCondition | None = None
 

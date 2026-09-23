@@ -1,5 +1,6 @@
 """Step-6 gate tests: shape-rule declaration, compilation, and legacy role classification."""
 
+from typing import TYPE_CHECKING
 from uuid import UUID, uuid4, uuid5
 
 import pytest
@@ -19,11 +20,14 @@ from nodes.instance_graph import InstanceGraph, NodeMeta, build_instance_graph
 from nodes.instance_graph_cache import _dump_graph, _load_graph
 from nodes.instance_serialization import EdgeSnapshot, InstanceSnapshot, NodeSnapshot, unified_binding_snapshots
 from nodes.node import Node
-from nodes.pipeline.ops.arithmetic import AddOperationSpec, AnyOperationSpec, MultiplyOperationSpec
+from nodes.pipeline.ops.arithmetic import AddOperationSpec, MultiplyOperationSpec
 from nodes.pipeline.ops.base import DatasetInputRef, IntermediateInputRef, PortInputRef, ScalarValue
 from nodes.simple import AdditiveNode, MultiplicativeNode
 from nodes.units import unit_registry
 from params.param import StringParameter
+
+if TYPE_CHECKING:
+    from nodes.pipeline.ops.union import AnyOperationSpec
 
 pytestmark = pytest.mark.django_db
 

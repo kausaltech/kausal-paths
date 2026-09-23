@@ -1395,25 +1395,11 @@ class PathsExt:
         return df.filter(~pl.col(FORECAST_COLUMN))
 
     # Copied from nodes.datasets.py
-    def _linear_interpolate(self, df: ppl.PathsDataFrame, _context: Context) -> ppl.PathsDataFrame:
-        if YEAR_COLUMN not in df.columns:
-            raise ValueError(f"'{YEAR_COLUMN}' does not exist in this dataset. Available columns: {', '.join(df.columns)}.")
-        years = df[YEAR_COLUMN].unique().sort()
-        min_year = years.min()
-        assert isinstance(min_year, int)
-        max_year = years.max()
-        assert isinstance(max_year, int)
-        df = df.paths.to_wide()
-        years_df = pl.DataFrame(data=range(min_year, max_year + 1), schema=[YEAR_COLUMN])
-        meta = df.get_meta()
-        zdf = years_df.join(df, on=YEAR_COLUMN, how='left').sort(YEAR_COLUMN)
-        df = ppl.to_ppdf(zdf, meta=meta)
-        cols = [pl.col(col).interpolate() for col in df.metric_cols]
-        if FORECAST_COLUMN in df.columns:
-            cols.append(pl.col(FORECAST_COLUMN).fill_null(strategy='forward'))
-        df = df.with_columns(cols)
-        df = df.paths.to_narrow()
-        return df
+    def _linear_interpolate(self, df: ppl.PathsDataFrame, context: Context) -> ppl.PathsDataFrame:
+        """Alias of the canonical ``interpolate`` operation; deprecated."""
+        from nodes.transforms import PipelineEnv, interpolate_years
+
+        return interpolate_years(df, PipelineEnv(context=context))
 
     def _logarithmic(self, df: ppl.PathsDataFrame, _context: Context) -> ppl.PathsDataFrame:
         df = df.ensure_unit(VALUE_COLUMN, 'dimensionless')

@@ -81,10 +81,9 @@ options are those of an ordinary edge; `tags` are rejected.
   input_datasets:
   - id: mainz/zielpfad_fernwaerme   # a path of factors, 1 = no change
     tags: [factor]
-    interpolate: true
   params:
   - id: formula
-    value: district_heating_emissions_predominant_variant * (factor - 1)
+    value: district_heating_emissions_predominant_variant * (interpolate(factor) - 1)
   output_nodes:
   - id: district_heating_emissions_predominant_variant
     hook: true
@@ -100,8 +99,10 @@ identical `final_energy_use` and `net_emissions` (to floating-point precision)
 with the action enabled and disabled; the action's impact on `net_emissions`
 is unchanged. Rewriting the multiplier action `zp_fw_erdgas_heizoel_ausstieg`
 as the `FormulaAction` above is equally exact, target, `net_emissions` and
-impact alike (`interpolate: true` stands in for `GenericAction`'s own
-interpolation of the path's support years). Where the `zielpfad_*` scenarios
+impact alike. The formula's `interpolate(factor)` does what `GenericAction`
+did implicitly: it fills the years between the path's support years. The
+verification ran with the dataset flag `interpolate: true`, which uses the same
+implementation. Where the `zielpfad_*` scenarios
 enable two multiplier paths on the same cell, they compound today; as hooks
 they add, and the overlap becomes visible.
 
