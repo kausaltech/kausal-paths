@@ -4,7 +4,7 @@ Compile canonical pipeline operations to port shape rules.
 A pipeline is the node's own computation, so its shape semantics compile to
 the same rule union that node classes declare: ``add``/``subtract`` are
 ``same``-shape, ``multiply``/``divide`` are ``product``, ``identity``/``clip``
-pass one shape through. Rules chain through intermediate value UUIDs derived
+and the temporal operations pass one shape through. Rules chain through intermediate value UUIDs derived
 deterministically from the node UUID and the operation's ``result_id``; the
 operation that produces the pipeline output writes directly to the output
 port UUID.
@@ -26,7 +26,6 @@ from uuid import UUID, uuid5
 from nodes.constraints.rules import AnyShapeRule, ProductShapeRule, SameShapeRule, ShapeRuleError
 from nodes.pipeline.ops.arithmetic import (
     AddOperationSpec,
-    AnyOperationSpec,
     ClipOperationSpec,
     DivideOperationSpec,
     IdentityOperationSpec,
@@ -35,17 +34,21 @@ from nodes.pipeline.ops.arithmetic import (
 )
 from nodes.pipeline.ops.base import (
     DatasetInputRef,
+    HookBaseInputRef,
     IntermediateInputRef,
     OperationInput,
     ParameterInputRef,
     PortInputRef,
     ScalarValue,
+    step_key,
 )
+from nodes.pipeline.ops.temporal import BackfillOperationSpec, ExtendOperationSpec, InterpolateOperationSpec
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from nodes.defs.node_defs import NodeSpec
+    from nodes.pipeline.ops.union import AnyOperationSpec
 
 
 def _intermediate_value_id(node_uuid: UUID, result_key: str) -> UUID:
@@ -58,7 +61,7 @@ class _UnsupportedInputError(Exception):
         super().__init__(note)
 
 
-def compile_pipeline_operations(  # noqa: C901, PLR0912, PLR0915
+def compile_pipeline_operations(  # noqa: C901, PLR0915
     *,
     node_uuid: UUID,
     spec: NodeSpec,
@@ -100,12 +103,14 @@ def compile_pipeline_operations(  # noqa: C901, PLR0912, PLR0915
                 return None
             case DatasetInputRef():
                 raise _UnsupportedInputError(f'dataset reference {value.dataset!r} is not compilable to shape rules yet')
+            case HookBaseInputRef():
+                raise _UnsupportedInputError(f'hook base {value.hook_base!r} is not compilable to shape rules yet')
         raise ShapeRuleError(f'Pipeline on node {node_uuid} has unsupported input type {type(value).__name__}')
 
     rules: list[AnyShapeRule] = []
     notes: list[str] = []
     for index, op in enumerate(operations):
-        result_key = op.result_id or f'#{index}'
+        result_key = step_key(op, index)
         result_id = output_port_id if index == output_index else _intermediate_value_id(node_uuid, result_key)
 
         operands: list[OperationInput]
@@ -116,12 +121,17 @@ def compile_pipeline_operations(  # noqa: C901, PLR0912, PLR0915
             case DivideOperationSpec():
                 operands = [op.input]
                 inverse_operands = [op.other]
-            case IdentityOperationSpec() | ClipOperationSpec():
+            case (
+                IdentityOperationSpec()
+                | ClipOperationSpec()
+                | InterpolateOperationSpec()
+                | ExtendOperationSpec()
+                | BackfillOperationSpec()
+            ):
                 operands = [op.input]
             case _:
                 notes.append(f'operation {op.kind!r} ({result_key}) has no shape-rule compilation')
-                if op.result_id is not None:
-                    known_results[op.result_id] = result_id
+                known_results[result_key] = result_id
                 continue
 
         try:
@@ -131,8 +141,7 @@ def compile_pipeline_operations(  # noqa: C901, PLR0912, PLR0915
             )
         except _UnsupportedInputError as exc:
             notes.append(f'operation {op.kind!r} ({result_key}): {exc.note}')
-            if op.result_id is not None:
-                known_results[op.result_id] = result_id
+            known_results[result_key] = result_id
             continue
 
         if not inputs and not inverse_inputs:
@@ -142,7 +151,6 @@ def compile_pipeline_operations(  # noqa: C901, PLR0912, PLR0915
         else:
             rules.append(SameShapeRule(inputs=inputs, output=result_id))
 
-        if op.result_id is not None:
-            known_results[op.result_id] = result_id
+        known_results[result_key] = result_id
 
     return tuple(rules), tuple(notes)

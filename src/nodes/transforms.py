@@ -154,11 +154,11 @@ def apply_operation(  # noqa: C901, PLR0911, PLR0912
         case EnsureUnitOp():
             return _ensure_unit(df, op)
         case InterpolateOp():
-            return _linear_interpolate(df, env)
+            return interpolate_years(df, env)
         case BackfillOp():
-            return _backfill_leading_values(df)
+            return backfill_leading_values(df)
         case ExtendOp():
-            return _extend_to_end_year(df, env)
+            return extend_to_end_year(df, env)
         case SelectCategoriesTransformation() | AssignCategoryTransformation() | FlattenTransformation():
             # The legacy edge vocabulary. Edges still apply their own
             # transformations on the producing node, so nothing should reach
@@ -187,7 +187,7 @@ def _guard_not_empty(
     return df
 
 
-def _linear_interpolate(df: ppl.PathsDataFrame, env: PipelineEnv) -> ppl.PathsDataFrame:
+def interpolate_years(df: ppl.PathsDataFrame, env: PipelineEnv) -> ppl.PathsDataFrame:
     """Materialize missing interior years and linearly fill each metric series."""
     if YEAR_COLUMN not in df.columns:
         env.fail(f"'{YEAR_COLUMN}' does not exist. Available columns: {', '.join(df.columns)}.")
@@ -214,7 +214,7 @@ def _linear_interpolate(df: ppl.PathsDataFrame, env: PipelineEnv) -> ppl.PathsDa
     return df.with_columns(cols).paths.to_narrow()
 
 
-def _backfill_leading_values(df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+def backfill_leading_values(df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
     """Fill existing leading null rows independently for each category combination."""
     dims = df.dim_ids
     df = df.sort(YEAR_COLUMN)
@@ -225,7 +225,7 @@ def _backfill_leading_values(df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
     return df.with_columns(exprs)
 
 
-def _extend_to_end_year(df: ppl.PathsDataFrame, env: PipelineEnv) -> ppl.PathsDataFrame:
+def extend_to_end_year(df: ppl.PathsDataFrame, env: PipelineEnv) -> ppl.PathsDataFrame:
     """Carry the last historical value to the model end year."""
     from nodes.calc import extend_last_historical_value_pl
 

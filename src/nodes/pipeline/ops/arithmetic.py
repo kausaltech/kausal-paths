@@ -1,13 +1,10 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Annotated, Literal
+from typing import Literal
 
-from pydantic import Field, model_validator
+from pydantic import ConfigDict, Field, model_validator
 
-from .base import BinaryOperationSpec, InputOperationSpec, VariadicOperationSpec
-
-if TYPE_CHECKING:
-    from .base import OperationInput
+from .base import BinaryOperationSpec, InputOperationSpec, OperationInput, VariadicOperationSpec
 
 
 class IdentityOperationSpec(InputOperationSpec):
@@ -43,6 +40,8 @@ class DivideOperationSpec(BinaryOperationSpec):
 class ClipOperationSpec(InputOperationSpec):
     """Clamp values to a lower and/or upper bound."""
 
+    model_config = ConfigDict(validate_by_name=True, validate_by_alias=True)
+
     kind: Literal['clip'] = 'clip'
     min_value: OperationInput | None = Field(default=None, alias='min')
     max_value: OperationInput | None = Field(default=None, alias='max')
@@ -52,14 +51,3 @@ class ClipOperationSpec(InputOperationSpec):
         if self.min_value is None and self.max_value is None:
             raise ValueError('Clip operations must define at least one bound')
         return self
-
-
-AnyOperationSpec = Annotated[
-    IdentityOperationSpec
-    | AddOperationSpec
-    | SubtractOperationSpec
-    | MultiplyOperationSpec
-    | DivideOperationSpec
-    | ClipOperationSpec,
-    Field(discriminator='kind'),
-]

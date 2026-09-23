@@ -326,6 +326,9 @@ class FormulaNode(Node):
         'min_dim': '_custom_min_dim',
         'max_dim': '_custom_max_dim',
         'zero_fill': '_custom_zero_fill',
+        'interpolate': '_custom_temporal',
+        'extend': '_custom_temporal',
+        'backfill': '_custom_temporal',
         'select_port': '_custom_select_port',
         'float': '_custom_float',
         'coalesce_df': '_custom_coalesce_df',
@@ -436,6 +439,19 @@ class FormulaNode(Node):
         meta = df.get_meta()
         zdf = df.fill_null(0)
         return ppl.to_ppdf(zdf, meta=meta).paths.to_narrow()
+
+    def _custom_temporal(self, func: str, _node: ast.Call, _varss: EvalVars, df: EvalOutput) -> EvalOutput:
+        """Apply a canonical temporal operation, shared with the pipeline executor and binding transformations."""
+        from nodes.transforms import PipelineEnv, backfill_leading_values, extend_to_end_year, interpolate_years
+
+        if not isinstance(df, PDF):
+            raise NodeError(self, f'{func}() needs a series over years')
+        env = PipelineEnv(context=self.context, node=self)
+        if func == 'interpolate':
+            return interpolate_years(df, env)
+        if func == 'extend':
+            return extend_to_end_year(df, env)
+        return backfill_leading_values(df)
 
     def _custom_select_port(self, _func: str, node: ast.Call, varss: EvalVars, df: EvalOutput) -> EvalOutput:
         assert len(node.args) == 3
