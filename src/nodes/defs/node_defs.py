@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from enum import StrEnum
 from functools import cached_property
-from typing import TYPE_CHECKING, Annotated, Any, Literal, cast
+from typing import Annotated, Any, Literal, cast
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -22,6 +23,7 @@ from .transform_def import (
     AssignDimensionOp,
     BackfillOp,
     DropNullsOp,
+    EdgeTransformOp,
     EnsureUnitOp,
     ExtendOp,
     FilterColumnOp,
@@ -40,9 +42,6 @@ from .transform_def import (
     unit_from_transformations,
     without_transformations,
 )
-
-if TYPE_CHECKING:
-    from uuid import UUID
 
 
 class ColumnDatasetFilterDef(BaseModel):
@@ -430,6 +429,32 @@ class PipelineConfig(BaseModel):
     """The node's own computation. Not to be confused with a binding's transformations."""
 
 
+class ActionHookDef(BaseModel):
+    """
+    An action's contribution added to another node's output.
+
+    The action *acts on* the target: the target computes as it always does, and
+    the action's output is added to that result before it is propagated to the
+    target's consumers. Contributions only affect years after the last
+    historical year, so a hook can never move a historical balance. Hooks never
+    feed the target's own calculation; every hook on a port sees the same
+    un-hooked value, so their effects add up and each action's effect is
+    exactly its own output.
+
+    The hook belongs to the action, so an instance can attach its own actions to
+    nodes it inherits from a framework template without owning those nodes.
+    """
+
+    node: NodeRef
+    """The target node."""
+    port: UUID | None = None
+    """The target's output port; may be omitted when the target has a single output."""
+    from_port: UUID | None = None
+    """The action's output port; may be omitted when the action has a single output."""
+    transformations: list[EdgeTransformOp] = Field(default_factory=list)
+    """Dimension operations applied to the action's output, as on an ordinary edge."""
+
+
 class ActionConfig(BaseModel):
     """Type-specific config for action nodes."""
 
@@ -439,6 +464,7 @@ class ActionConfig(BaseModel):
     group: ActionGroupRef | None = None
     parent: NodeRef | None = None
     no_effect_value: float | None = None
+    hooks: list[ActionHookDef] = Field(default_factory=list)
 
 
 class SimpleConfig(BaseModel):
