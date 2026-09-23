@@ -1,6 +1,5 @@
 from .arithmetic import (
     AddOperationSpec,
-    AnyOperationSpec,
     ClipOperationSpec,
     DivideOperationSpec,
     IdentityOperationSpec,
@@ -8,10 +7,12 @@ from .arithmetic import (
     SubtractOperationSpec,
 )
 from .base import (
+    ANONYMOUS_STEP_PREFIX,
     BinaryOperationSpec,
     ComparisonCondition,
     ComparisonOperator,
     DatasetInputRef,
+    HookBaseInputRef,
     InputOperationSpec,
     IntermediateInputRef,
     MultiInputOperationSpec,
@@ -23,20 +24,28 @@ from .base import (
     ScalarValue,
     TruthyCondition,
     VariadicOperationSpec,
+    step_key,
 )
+from .temporal import BackfillOperationSpec, ExtendOperationSpec, InterpolateOperationSpec
+from .union import AnyOperationSpec
 
 __all__ = [
+    'ANONYMOUS_STEP_PREFIX',
     'AddOperationSpec',
     'AnyOperationSpec',
+    'BackfillOperationSpec',
     'BinaryOperationSpec',
     'ClipOperationSpec',
     'ComparisonCondition',
     'ComparisonOperator',
     'DatasetInputRef',
     'DivideOperationSpec',
+    'ExtendOperationSpec',
+    'HookBaseInputRef',
     'IdentityOperationSpec',
     'InputOperationSpec',
     'IntermediateInputRef',
+    'InterpolateOperationSpec',
     'MultiInputOperationSpec',
     'MultiplyOperationSpec',
     'OperationCondition',
@@ -48,4 +57,5 @@ __all__ = [
     'SubtractOperationSpec',
     'TruthyCondition',
     'VariadicOperationSpec',
+    'step_key',
 ]
