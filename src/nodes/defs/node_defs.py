@@ -14,6 +14,7 @@ from paths.refs import ActionGroupRef, NodeRef, QuantityKindRef
 
 from nodes.constants import DecisionLevel
 from nodes.goals import NodeGoals
+from nodes.pipeline.ir import PipelineSpec
 from nodes.units import Unit
 from nodes.visualizations import NodeVisualizations
 from params.discover import AnyParameter
@@ -414,19 +415,15 @@ class FormulaConfig(BaseModel):
     formula: str
 
 
-class PipelineOperation(BaseModel):
-    """A single operation in a pipeline."""
+class PipelineConfig(PipelineSpec):
+    """
+    Type-specific config for pipeline nodes: the node's own computation.
 
-    # FIXME
-    operation: str
-
-
-class PipelineConfig(BaseModel):
-    """Type-specific config for pipeline nodes."""
+    Not to be confused with a binding's transformations. A formula is a text
+    view of the same config, see ``nodes.pipeline.formula``.
+    """
 
     kind: Literal[NodeKind.PIPELINE] = NodeKind.PIPELINE
-    operations: list[PipelineOperation] = Field(default_factory=list)
-    """The node's own computation. Not to be confused with a binding's transformations."""
 
 
 class ActionHookDef(BaseModel):

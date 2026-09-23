@@ -219,3 +219,43 @@ def test_changing_the_target_invalidates_the_action_reading_it() -> None:
     demand.hasher.mark_modified()
     assert action.hasher._get_cached_hash() is None
     assert demand.hasher._get_cached_hash() is None
+
+
+def test_the_formula_as_a_pipeline_computes_the_same_effect() -> None:
+    """The formula compiles to a stored pipeline, and the pipeline executor agrees with the formula evaluator."""
+    from nodes.formula import FormulaNode
+    from nodes.pipeline import execute_pipeline_spec
+    from nodes.pipeline.formula import FormulaScope, compile_formula, render_pipeline
+
+    ctx = _context(_relative_config(_relative()))
+    action = ctx.get_action('relative')
+    scope = FormulaScope.for_node_spec(action.spec, hook_targets=[hook.target.id for hook in action.hook_targets])
+    formula = action.get_parameter_value_str('formula')
+    pipeline = compile_formula(formula, scope)
+    assert render_pipeline(pipeline, scope) == formula + '\n'
+    with ctx.run():
+        action.enabled_param.set(True)
+        expected = FormulaNode.compute(action)
+        actual = execute_pipeline_spec(action, pipeline)
+    assert _values(actual, years=(2020, 2025)) == pytest.approx(_values(expected, years=(2020, 2025)))
+    assert _values(actual, years=(2025,)) == {2025: pytest.approx(-20)}
+
+
+def test_interpolate_is_one_operation_in_formulas_and_pipelines() -> None:
+    from nodes.pipeline import execute_pipeline_spec
+    from nodes.pipeline.formula import FormulaScope, compile_formula
+
+    ctx = _context(_relative_config(_relative()))
+    action = ctx.get_action('relative')
+    scope = FormulaScope.for_node_spec(action.spec)
+    years = (2020, 2021, 2022, 2023, 2024, 2025)
+    with ctx.run():
+        varss = action._collect_eval_vars()
+        by_formula = action.evaluate_formula('interpolate(factor)', varss)
+        by_alias = action.evaluate_formula('linear_interpolate(factor)', varss)
+        # The action's output is energy, so the pipeline gives the factor a unit.
+        pipeline = compile_formula("interpolate(factor) * quantity(1, 'kWh/a')", scope)
+        by_pipeline = execute_pipeline_spec(action, pipeline)
+    expected = {2020: 0.5, 2021: 0.56, 2022: 0.62, 2023: 0.68, 2024: 0.74, 2025: 0.8}
+    for df in (by_formula, by_alias, by_pipeline):
+        assert _values(df, years=years) == pytest.approx(expected)
