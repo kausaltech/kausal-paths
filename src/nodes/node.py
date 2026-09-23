@@ -64,6 +64,7 @@ if typing.TYPE_CHECKING:
     from nodes.defs.node_defs import NodeKind, NodeSpec
     from nodes.defs.port_def import InputPortDeclaration, InputPortDef, OutputPortDeclaration
     from nodes.gpc import DatasetNode
+    from nodes.hooks import ActionHook
     from nodes.instance_graph import NodeMeta
     from nodes.instance_loader import ConfigLocation
     from nodes.instance_serialization import NodeSnapshot
@@ -491,6 +492,12 @@ class Node:
     edges: list[Edge]
     'List of edges that connect this node to other nodes, both input and output.'
 
+    hooks: list[ActionHook]
+    'Actions acting on this node: their outputs are added to what this node computes (see `nodes.hooks`).'
+
+    hook_targets: list[ActionHook]
+    'For an action, the nodes it acts on.'
+
     runtime_input_bindings: tuple[RuntimeInputBinding, ...]
     """Graph-defined inputs paired with request-local sources, ordered by binding position."""
     runtime_node_meta: NodeMeta | None
@@ -698,6 +705,8 @@ class Node:
 
         self.input_dataset_instances = input_datasets
         self.edges = []
+        self.hooks = []
+        self.hook_targets = []
         self.runtime_input_bindings = ()
         self.runtime_node_meta = None
         self._baseline_values = None
@@ -1272,7 +1281,11 @@ class Node:
             raise NodeError(self, 'No connection to target node %s' % target_node.id)
 
         df = self._get_output_for_node(df, edge)
+        return self._apply_edge_transforms(df, edge)
 
+    def _apply_edge_transforms(self, df: ppl.PathsDataFrame, edge: Edge) -> ppl.PathsDataFrame:
+        """Run an edge's dimension pipeline on this node's output and check the resulting dimensions."""
+        target_node = edge.output_node
         # Drop dim columns that are entirely null before the edge pipeline runs.
         # Multi-metric nodes with different dimensional spans use null to mark
         # dimensions not applicable to a given metric; those must be pruned so
@@ -1478,7 +1491,46 @@ class Node:
 
         return df
 
-    def _get_output_pl(  # noqa: C901, PLR0912
+    def _compute_validated(self, target_node: Node | None = None) -> ppl.PathsDataFrame:
+        try:
+            df = self.compute()
+        except Exception as e:
+            post_mortem_possibly(e)
+            if not isinstance(e, NodeError):
+                self.context.log.error('Exception when computing node %s: %s' % (str(self), str(e)))
+                raise NodeComputationError(self, 'Error computing node', event='compute') from e
+            raise
+
+        if df is None:  # pyright: ignore[reportUnnecessaryComparison]
+            raise NodeError(self, 'Node returned no output', event='compute', target_node=target_node)
+
+        if isinstance(df, pd.DataFrame):
+            df = ppl.from_pandas(df)
+
+        self.validate_output(df)
+        return df
+
+    def get_base_output_pl(self) -> ppl.PathsDataFrame:
+        """
+        Return this node's output without the actions acting on it.
+
+        This is the node's own value that every hook on it sees, e.g. what a
+        relative action multiplies. Equal to the output for an un-hooked node.
+        """
+        if not self.hooks:
+            return self.get_output_pl()
+        if self.status is NodeStatus.FAILED:
+            raise NodeError(self, 'This node failed earlier in this computation run', event='compute')
+        use_cache = not (self.disable_cache or self.context.skip_cache)
+        cache_res = self.hasher.get_cached_base_output() if use_cache else None
+        if cache_res is not None and cache_res.is_hit and cache_res.obj is not None:
+            return cache_res.obj
+        df = self._compute_validated()
+        if cache_res is not None and self.status in (None, NodeStatus.OK):
+            self.hasher.cache_output(cache_res, df)
+        return df
+
+    def _get_output_pl(
         self,
         target_node: Node | None = None,
         metric: str | None = None,
@@ -1494,22 +1546,12 @@ class Node:
             cache_res = self.hasher.get_cached_output()
 
         if cache_res is None or not cache_res.is_hit:
-            try:
-                df = self.compute()
-            except Exception as e:
-                post_mortem_possibly(e)
-                if not isinstance(e, NodeError):
-                    self.context.log.error('Exception when computing node %s: %s' % (str(self), str(e)))
-                    raise NodeComputationError(self, 'Error computing node', event='compute') from e
-                raise
+            if self.hooks:
+                from nodes.hooks import apply_hooks
 
-            if df is None:  # pyright: ignore[reportUnnecessaryComparison]
-                raise NodeError(self, 'Node returned no output', event='compute', target_node=target_node)
-
-            if isinstance(df, pd.DataFrame):
-                df = ppl.from_pandas(df)
-
-            self.validate_output(df)
+                df = apply_hooks(self, self.get_base_output_pl())
+            else:
+                df = self._compute_validated(target_node)
             # mark_status keeps any DEGRADED/INCOMPLETE a tolerant node set during compute().
             self.mark_status(NodeStatus.OK)
             # Cache only clean results: a cross-request cache hit must never read back as OK
@@ -1807,7 +1849,7 @@ class Node:
 
         result = []
         closed = set()
-        open_nodes = self.input_nodes.copy()
+        open_nodes = [*self.input_nodes, *(hook.action for hook in self.hooks)]
         while open_nodes:
             current = open_nodes.pop()
             if current in closed:
@@ -1820,6 +1862,7 @@ class Node:
             if isinstance(current, ParentActionNode):
                 open_nodes += current.subactions
             open_nodes += current.input_nodes
+            open_nodes += [hook.action for hook in current.hooks]
         return result
 
     def on_scenario_created(self, _scenario: Scenario):

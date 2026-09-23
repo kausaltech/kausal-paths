@@ -39,7 +39,7 @@ from nodes.defs import (
 )
 from nodes.defs.graph import DatasetMeta, DatasetMetricMeta
 from nodes.defs.instance_defs import ActionGroup, DatasetRepoSpec, InstanceFeatures, InstanceMetadata, InstanceTerms
-from nodes.defs.node_defs import NodeSpecExtra
+from nodes.defs.node_defs import ActionHookDef, NodeSpecExtra
 from nodes.defs.port_def import InputPortDef, OutputPortDef
 from nodes.dimensions import Dimension
 from nodes.goals import NodeGoals
@@ -178,6 +178,8 @@ class _ParsedNode:
     output_ports: list[OutputPortDef] = field(default_factory=list)
     dataset_defs: list[InputDatasetDef] = field(default_factory=list)
     has_fixed_dataset: bool = False
+    # Actions only: (edge, target metric) for each `output_nodes` entry marked `hook`.
+    hook_edges: list[tuple[_ParsedEdge, str | None]] = field(default_factory=list)
 
 
 @dataclass
@@ -1016,10 +1018,57 @@ class InstanceConfigParser:
             to_dimensions=to_dimensions,
         )
 
+    def _add_hook_edge(self, ec: dict[str, Any], node: _ParsedNode) -> None:
+        """
+        Record an `output_nodes` entry marked `hook`: the action acts on the target's output.
+
+        Not an edge of the target, so it never becomes one of the target's input
+        ports; the dimension options are parsed exactly as for an edge.
+        """
+        if not node.is_action:
+            raise InstanceParseError(f'Node {node.identifier}: only actions can act on another node (hook)')
+        to_metric = ec.get('to_metric')
+        ec = {key: value for key, value in ec.items() if key not in ('hook', 'to_metric')}
+        if ec.get('tags'):
+            raise InstanceParseError(f'Node {node.identifier}: a hook adds its output and takes no tags')
+        edge = self._make_edge(ec, node, is_output=True)
+        node.hook_edges.append((edge, to_metric))
+
+    def _resolve_hooks(self, parsed: _ParsedNode) -> list[ActionHookDef]:
+        hooks: list[ActionHookDef] = []
+        for edge, to_metric in parsed.hook_edges:
+            target = self.nodes[edge.to_node]
+            port = None
+            if to_metric is not None:
+                port = next((p.id for p in target.output_ports if to_metric in (p._metric_id, p.column_id, p.identifier)), None)
+                if port is None:
+                    raise InstanceParseError(f'Node {parsed.identifier}: {edge.to_node} has no output {to_metric!r} to act on')
+            elif len(target.output_ports) != 1:
+                raise InstanceParseError(f'Node {parsed.identifier}: {edge.to_node} has several outputs; give `to_metric`')
+            from_port = None
+            if len(parsed.output_ports) != 1:
+                if len(edge.metrics) != 1:
+                    raise InstanceParseError(f'Node {parsed.identifier}: give the one metric that acts on {edge.to_node}')
+                from_port = next((p.id for p in parsed.output_ports if p._metric_id == edge.metrics[0]), None)
+                if from_port is None:
+                    raise InstanceParseError(f'Node {parsed.identifier}: no output metric {edge.metrics[0]!r}')
+            hooks.append(
+                ActionHookDef(
+                    node=edge.to_node,
+                    port=port,
+                    from_port=from_port,
+                    transformations=self._edge_to_transforms(edge),
+                )
+            )
+        return hooks
+
     def _build_edges(self) -> None:
         """Mirror ``_setup_edges``: same creation order, edge appended to both endpoints."""
         for node in self.nodes.values():
             for ec in node.config.get('output_nodes', []):
+                if isinstance(ec, dict) and ec.get('hook'):
+                    self._add_hook_edge(ec, node)
+                    continue
                 edge = self._make_edge(ec, node, is_output=True)
                 node.edges.append(edge)
                 self.nodes[edge.to_node if edge.to_node != node.identifier else edge.from_node].edges.append(edge)
@@ -1318,6 +1367,7 @@ class InstanceConfigParser:
             parent=config.get('parent'),
             no_effect_value=no_effect_value,
             node_class=node_class,
+            hooks=self._resolve_hooks(parsed),
         )
 
     def _parse_node_goals(self, parsed: _ParsedNode) -> NodeGoals:

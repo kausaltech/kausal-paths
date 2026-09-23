@@ -120,6 +120,10 @@ class ActionNode(Node):
     def is_enabled(self) -> bool:
         return bool(self.enabled_param.value)
 
+    def reads_hook_base(self, target: Node) -> bool:
+        """Whether computing this action reads the own (un-hooked) output of `target`, a node it acts on."""
+        return False
+
     def forecast_series(self, series: pd.Series):
         df = pd.DataFrame(index=series.index)
         # Reindex the forecasted series to fill in years that
