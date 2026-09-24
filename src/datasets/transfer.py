@@ -41,7 +41,7 @@ from users.models import User
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
-    from nodes.models import InstanceConfig
+    from nodes.models import InstanceConfig, NodeInputPortBinding
 
 
 def _label_from_identifier(identifier: str) -> str:
@@ -541,6 +541,20 @@ def _validate_dataset_dimensions(
         )
 
 
+def _rewire_port(port: NodeInputPortBinding, dataset: DatasetModel) -> None:
+    """Point a dataset port at `dataset`, keeping the metric by name."""
+    assert port.metric is not None
+    assert dataset.schema is not None
+    metric = dataset.schema.metrics.filter(name=port.metric.name).first()
+    if metric is None:
+        raise ValueError(
+            f'Cannot rewire dataset port {port.pk} to dataset {dataset.identifier!r}; metric {port.metric.name!r} is missing'
+        )
+    port.dataset = dataset
+    port.metric = metric
+    port.save(update_fields=['dataset', 'metric'])
+
+
 def _rewire_dataset_ports(ic: InstanceConfig, datasets_by_id: dict[str, DatasetModel]) -> int:
     from nodes.models import NodeInputPortBinding
 
@@ -550,54 +564,55 @@ def _rewire_dataset_ports(ic: InstanceConfig, datasets_by_id: dict[str, DatasetM
     )
     for port in ports:
         assert port.dataset is not None
-        assert port.metric is not None
         if port.dataset.identifier is None:
             continue
         dataset = datasets_by_id.get(port.dataset.identifier)
         if dataset is None or dataset.pk == port.dataset_id:
             continue
-        assert dataset.schema is not None
-        metric = dataset.schema.metrics.filter(name=port.metric.name).first()
-        if metric is None:
-            raise ValueError(
-                f'Cannot rewire dataset port {port.pk} to dataset {dataset.identifier!r}; metric {port.metric.name!r} is missing'
-            )
-        port.dataset = dataset
-        port.metric = metric
-        port.save(update_fields=['dataset', 'metric'])
+        _rewire_port(port, dataset)
         rewired += 1
     return rewired
 
 
-def _delete_superseded_placeholders(ic: InstanceConfig, dataset_ids: Iterable[str]) -> int:
-    ids = set(dataset_ids)
-    if not ids:
-        return 0
+def _set_aside_placeholder(ic: InstanceConfig, ic_ct: ContentType, identifier: str) -> DatasetModel | None:
+    """Free the identifier of the instance's own placeholder for it, so a real dataset can take it."""
+    placeholder = DatasetModel.objects.filter(
+        scope_content_type=ic_ct, scope_id=ic.pk, identifier=identifier, is_external_placeholder=True
+    ).first()
+    if placeholder is None:
+        return None
+    placeholder.identifier = None
+    placeholder.save(update_fields=['identifier'])
+    return placeholder
 
-    ic_ct = ContentType.objects.get_for_model(ic)
-    schema_scope_ids = DatasetSchemaScope.objects.filter(
+
+def _replace_placeholder(placeholder: DatasetModel, dataset: DatasetModel) -> None:
+    """Move the placeholder's ports to `dataset`, then delete it and its schema if nothing else uses it."""
+    from nodes.models import NodeInputPortBinding
+
+    for port in NodeInputPortBinding.objects.filter(dataset=placeholder).select_related('metric'):
+        _rewire_port(port, dataset)
+    schema = placeholder.schema
+    placeholder.delete()
+    if schema is not None and not schema.datasets.exists():
+        schema.delete()
+
+
+def _already_imported(ic: InstanceConfig, ic_ct: ContentType, ds_snapshot: DatasetSnapshot) -> DatasetModel | None:
+    """Return the instance's real dataset for this snapshot's identifier, if it already holds the data."""
+    if ds_snapshot.identifier is None:
+        return None
+    existing = DatasetModel.objects.filter(
         scope_content_type=ic_ct,
         scope_id=ic.pk,
-    ).values('schema_id')
-    placeholders = list(
-        DatasetModel.objects
-        .filter(
-            schema_id__in=schema_scope_ids,
-            identifier__in=ids,
-            is_external_placeholder=True,
-        )
-        .exclude(scope_content_type=ic_ct, scope_id=ic.pk)
-        .select_related('schema')
-    )
-
-    deleted = 0
-    for placeholder in placeholders:
-        schema = placeholder.schema
-        placeholder.delete()
-        deleted += 1
-        if schema is not None and not schema.datasets.exists():
-            schema.delete()
-    return deleted
+        identifier=ds_snapshot.identifier,
+        is_external_placeholder=False,
+    ).first()
+    if existing is None:
+        return None
+    if ds_snapshot.data is None or existing.data_points.exists():
+        return existing
+    raise ValueError(f'Dataset {ds_snapshot.identifier!r} already exists for {ic.identifier!r} but has no datapoints')
 
 
 def import_instance_datasets(
@@ -605,7 +620,7 @@ def import_instance_datasets(
     dataset_snapshots: Iterable[DatasetSnapshot],
     *,
     rewire_dataset_ports: bool = False,
-    delete_superseded_placeholders: bool = False,
+    replace_placeholders: bool = False,
     create_missing_dimensions: bool = False,
 ) -> list[DatasetModel]:
     """
@@ -613,39 +628,40 @@ def import_instance_datasets(
 
     This is used when a template instance already has its node graph and
     dataset ports, but its datasets need to be promoted from external
-    placeholders to real DB datasets with datapoints.
+    placeholders to real DB datasets with datapoints. With `replace_placeholders`,
+    an imported dataset takes over the instance's own placeholder of the same
+    identifier: its ports, then its place.
     """
     ic_ct = ContentType.objects.get_for_model(ic)
     dim_lookup = _dimension_category_lookup_for_instance(ic, ic_ct)
     imported: list[DatasetModel] = []
     datasets_by_id: dict[str, DatasetModel] = {}
+    replaced: list[tuple[DatasetModel, DatasetModel]] = []
 
     for ds_snapshot in dataset_snapshots:
-        if ds_snapshot.identifier is not None:
-            existing = DatasetModel.objects.filter(
-                scope_content_type=ic_ct,
-                scope_id=ic.pk,
-                identifier=ds_snapshot.identifier,
-                is_external_placeholder=False,
-            ).first()
-            if existing is not None:
-                if ds_snapshot.data is None or existing.data_points.exists():
-                    imported.append(existing)
-                    datasets_by_id[ds_snapshot.identifier] = existing
-                    continue
-                raise ValueError(f'Dataset {ds_snapshot.identifier!r} already exists for {ic.identifier!r} but has no datapoints')
+        existing = _already_imported(ic, ic_ct, ds_snapshot)
+        if existing is not None:
+            assert ds_snapshot.identifier is not None
+            imported.append(existing)
+            datasets_by_id[ds_snapshot.identifier] = existing
+            continue
 
         if create_missing_dimensions:
             _ensure_dataset_dimensions(ic, ds_snapshot, ic_ct, dim_lookup)
         _validate_dataset_dimensions(ic, ds_snapshot, dim_lookup)
+        placeholder = None
+        if replace_placeholders and ds_snapshot.identifier is not None:
+            placeholder = _set_aside_placeholder(ic, ic_ct, ds_snapshot.identifier)
         dataset = import_dataset(ic, ds_snapshot, ic_ct, dim_lookup)
         imported.append(dataset)
         if ds_snapshot.identifier is not None:
             datasets_by_id[ds_snapshot.identifier] = dataset
+        if placeholder is not None:
+            replaced.append((placeholder, dataset))
 
+    for placeholder, dataset in replaced:
+        _replace_placeholder(placeholder, dataset)
     if rewire_dataset_ports:
         _rewire_dataset_ports(ic, datasets_by_id)
-    if delete_superseded_placeholders:
-        _delete_superseded_placeholders(ic, datasets_by_id.keys())
 
     return imported
