@@ -34,6 +34,7 @@ from .ops.base import (
     TruthyCondition,
     step_key,
 )
+from .ops.dimensional import SelectCategoryOperationSpec
 from .ops.temporal import BackfillOperationSpec, ExtendOperationSpec, InterpolateOperationSpec
 
 if TYPE_CHECKING:
@@ -144,7 +145,23 @@ class PipelineExecutor:
         if isinstance(operation, InterpolateOperationSpec | ExtendOperationSpec | BackfillOperationSpec):
             return self._apply_temporal(operation, self._resolve_input(operation.input))
 
+        if isinstance(operation, SelectCategoryOperationSpec):
+            return self._apply_select_category(operation, self._resolve_input(operation.input))
+
         raise NodeError(self.node, f'Unsupported pipeline operation kind: {operation.kind}')
+
+    def _apply_select_category(self, operation: SelectCategoryOperationSpec, value: RuntimeValue) -> PDF:
+        from nodes.transforms import PipelineEnv, select_category
+
+        if not isinstance(value, PDF):
+            raise NodeError(self.node, f'select_category needs a dimensioned value, got {type(value).__name__}')
+        category = operation.category
+        if isinstance(category, ParameterInputRef):
+            chosen = self._resolve_parameter(category.parameter)
+            if not isinstance(chosen, str):
+                raise NodeError(self.node, f"Parameter '{category.parameter}' does not name a category")
+            category = chosen
+        return select_category(value, operation.dimension, category, PipelineEnv(context=self.node.context, node=self.node))
 
     def _apply_temporal(
         self, operation: InterpolateOperationSpec | ExtendOperationSpec | BackfillOperationSpec, value: RuntimeValue
