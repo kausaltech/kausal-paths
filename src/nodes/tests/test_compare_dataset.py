@@ -6,7 +6,7 @@ import polars as pl
 import pytest
 
 from common.polars import DataFrameMeta, to_ppdf
-from nodes.dataset_diff import align_dtypes, compute_row_diff, compute_schema_diff, normalize_df
+from datasets.diff import align_dtypes, compute_row_diff, compute_schema_diff, normalize_df
 from nodes.units import unit_registry
 
 if TYPE_CHECKING:

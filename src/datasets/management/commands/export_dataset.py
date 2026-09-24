@@ -39,6 +39,7 @@ from kausal_common.datasets.models import (
     DimensionScope,
 )
 
+from datasets.management.commands.load_dvc_dataset import apply_repo_provenance, resolve_repo_provenance, source_target
 from nodes.constants import (
     COMMENT_SEPARATOR,
     SOURCE_NAME_SEPARATOR,
@@ -46,7 +47,6 @@ from nodes.constants import (
     SOURCE_TARGET_DATASET,
     YEAR_COLUMN,
 )
-from nodes.management.commands.load_dvc_dataset import apply_repo_provenance, resolve_repo_provenance, source_target
 from nodes.models import InstanceConfig
 
 if TYPE_CHECKING:

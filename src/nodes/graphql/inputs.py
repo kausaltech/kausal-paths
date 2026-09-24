@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from nodes.models import NodeConfig
 
 
-def _get_output_port(nc: NodeConfig | NodeMeta, port_id: UUID) -> OutputPortDef | None:
+def get_output_port(nc: NodeConfig | NodeMeta, port_id: UUID) -> OutputPortDef | None:
     assert nc.spec is not None
     for port in nc.spec.output_ports:
         if port.id == port_id:
@@ -22,7 +22,7 @@ def _get_output_port(nc: NodeConfig | NodeMeta, port_id: UUID) -> OutputPortDef 
     return None
 
 
-def _get_input_port(nc: NodeConfig, port_id: UUID) -> InputPortDef | None:
+def get_input_port(nc: NodeConfig, port_id: UUID) -> InputPortDef | None:
     assert nc.spec is not None
     for port in nc.spec.input_ports:
         if port.id == port_id:

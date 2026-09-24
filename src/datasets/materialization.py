@@ -10,7 +10,16 @@ from django.utils import timezone
 
 from kausal_common.datasets.models import Dataset
 
-from nodes.instance_serialization import DatasetSnapshot
+from datasets.shapes import build_observed_metric_shapes, dump_observed_metric_shapes
+from datasets.snapshot import DatasetSnapshot
+from datasets.validation import (
+    DatasetValidationError,
+    InstanceDatasetValidationError,
+    dump_violations,
+    evaluate_dataset_rules,
+    load_violations,
+    new_blocking_violations,
+)
 from nodes.models import DatasetMaterialization
 
 if TYPE_CHECKING:
@@ -61,21 +70,11 @@ def refresh_dataset_materialization(
         msg = 'Dataset materialization refresh requires an atomic write boundary'
         raise RuntimeError(msg)
 
-    from datasets.validation import (
-        DatasetValidationError,
-        dump_violations,
-        evaluate_dataset_rules,
-        load_violations,
-        new_blocking_violations,
-    )
-
     dataset = Dataset.objects.select_for_update().get(pk=dataset.pk)
     if touch:
         dataset.last_modified_by = user
         dataset.last_modified_at = timezone.now()
         dataset.save(update_fields=['last_modified_by', 'last_modified_at'])
-
-    from nodes.dataset_shape import build_observed_metric_shapes, dump_observed_metric_shapes
 
     content = serialize_dataset(dataset)
     shape_profiles = dump_observed_metric_shapes(build_observed_metric_shapes(dataset))
@@ -177,7 +176,6 @@ def collect_instance_dataset_violations(instance_config: InstanceConfig) -> list
     Reads the persisted violation sets, repairing stale materializations
     first — the same dataset scope the publication gate enforces.
     """
-    from datasets.validation import load_violations
     from nodes.instance_serialization import build_instance_snapshot
 
     snapshot = build_instance_snapshot(instance_config)
@@ -200,8 +198,6 @@ def require_valid_dataset_rules(materializations: Iterable[DatasetMaterializatio
     materializations carries validation-rule violations; both enforcement
     tiers keep a draft editable but block publication.
     """
-    from datasets.validation import InstanceDatasetValidationError, load_violations
-
     violations = [
         violation for materialization in materializations for violation in load_violations(materialization.validation_violations)
     ]

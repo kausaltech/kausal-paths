@@ -25,7 +25,7 @@ from kausal_paths_extensions.dataset_editor import DatasetViewSet
 from paths.context import realm_context
 
 from admin_site.viewsets import PathsCreateView, PathsEditView, PathsViewSet
-from nodes.dataset_materialization import datasets_change
+from datasets.materialization import datasets_change
 from users.models import User
 
 if TYPE_CHECKING:

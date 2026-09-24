@@ -234,9 +234,9 @@ class Instance:
         """
         # Workaround for pytests; if we have a globally set instance, do not
         # clean it.
-        from nodes.models import _pytest_instances
+        from nodes.models import test_instance_registry
 
-        if _pytest_instances.get(self.id) == self:
+        if test_instance_registry.get(self.id) == self:
             return
 
         self.log.debug('Cleaning instance')

@@ -1591,7 +1591,7 @@ class InstanceLoader:
         """Build the runtime natively from an ``InstanceSnapshot`` (typed specs, no YAML dicts)."""
         payload_refs = None
         if published:
-            from nodes.datasets import DatasetPayloadRef
+            from datasets.payloads import DatasetPayloadRef
 
             payload_refs = [
                 DatasetPayloadRef(
@@ -1691,7 +1691,7 @@ class InstanceLoader:
         from kausal_common.datasets.models import Dataset as DBDatasetModel
 
         if self.supplied_dataset_payload_refs is not None:
-            from nodes.datasets import RevisionDatasetPayloadStore
+            from datasets.payloads import RevisionDatasetPayloadStore
 
             self.db_datasets = {}
             self.db_dataset_refs = {ref.identifier: ref for ref in self.supplied_dataset_payload_refs}
@@ -1718,8 +1718,8 @@ class InstanceLoader:
             .only('uuid', 'identifier', 'last_modified_at', 'spec', 'is_external_placeholder')
         )
         self.db_datasets = {cast('str', ds.identifier): ds for ds in ds_objs}
-        from nodes.dataset_materialization import ensure_dataset_materializations
-        from nodes.datasets import CurrentDatasetPayloadStore, DatasetPayloadRef
+        from datasets.materialization import ensure_dataset_materializations
+        from datasets.payloads import CurrentDatasetPayloadStore, DatasetPayloadRef
 
         by_dataset = ensure_dataset_materializations(ds_objs)
         refs: list[DatasetPayloadRef] = []
@@ -1741,7 +1741,7 @@ class InstanceLoader:
             refs.append(ref)
             self.db_dataset_refs[dataset.identifier] = ref
         if self.snapshot.template_revision_id is not None:
-            from nodes.datasets import MixedDatasetPayloadStore
+            from datasets.payloads import MixedDatasetPayloadStore
 
             for pin in self.snapshot.dataset_revisions:
                 ref = DatasetPayloadRef(
