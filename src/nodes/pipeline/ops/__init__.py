@@ -26,6 +26,7 @@ from .base import (
     VariadicOperationSpec,
     step_key,
 )
+from .dimensional import SelectCategoryOperationSpec
 from .temporal import BackfillOperationSpec, ExtendOperationSpec, InterpolateOperationSpec
 from .union import AnyOperationSpec
 
@@ -54,6 +55,7 @@ __all__ = [
     'ParameterInputRef',
     'PortInputRef',
     'ScalarValue',
+    'SelectCategoryOperationSpec',
     'SubtractOperationSpec',
     'TruthyCondition',
     'VariadicOperationSpec',
