@@ -122,8 +122,9 @@ if TYPE_CHECKING:
 
     from frameworks.models import FrameworkConfig
     from nodes.dimensions import Dimension as NodeDimension
-    from nodes.instance_serialization import InstanceSnapshot, ModelSnapshot
+    from nodes.instance_serialization import InstanceSnapshot
     from nodes.node import Node
+    from nodes.snapshot_base import ModelSnapshot
     from pages.config import OutcomePage as OutcomePageConfig
     from pages.models import ActionListPage, InstanceSiteContent
     from users.models import User
@@ -278,7 +279,8 @@ class InstanceConfigPermissionPolicy(ModelPermissionPolicy['InstanceConfig', Non
         schemas = DatasetSchema.objects.filter(schema_q).values_list('pk', flat=True)
         ic_content_type_id = ContentType.objects.get_for_model(InstanceConfig).pk
         instance_configs_accessible_through_datasets = (
-            DatasetSchemaScope.objects.qs
+            DatasetSchemaScope.objects
+            .get_queryset()
             .filter(scope_content_type_id=ic_content_type_id)
             .filter(schema_id__in=schemas)
             .values_list('scope_id', flat=True)
@@ -363,7 +365,7 @@ class InstanceModelCache(TypedDict):
     datasets: dict[str, DatasetCache]
 
 
-_pytest_instances: dict[str, Instance] = {}
+test_instance_registry: dict[str, Instance] = {}
 """Used only in unittests to work around having to parse YAML configs."""
 
 instance_context: ContextVar[Instance | None] = ContextVar('instance_context', default=None)
@@ -622,7 +624,7 @@ class InstanceConfig(
     # a post-publish edit see the current DB state.
     _nodes_for_serialization: list[NodeConfig] | None
     _annotated_dataset_ports: list[NodeInputPortBinding]
-    template_revision: FK[Revision | None] = models.ForeignKey(
+    template_revision: FK[Revision[InstanceConfig] | None] = models.ForeignKey(
         'wagtailcore.Revision',
         on_delete=models.PROTECT,
         related_name='+',
@@ -700,9 +702,10 @@ class InstanceConfig(
         # partial `destructively_trim_db` run, where a deleted instance can share a schema with a
         # retained one.
         own_scope = models.Q(scope_content_type=ContentType.objects.get_for_model(type(self)), scope_id=self.pk)
-        own_schema_ids = set(DatasetSchemaScope.objects.qs.filter(own_scope).values_list('schema_id', flat=True))
+        own_schema_ids = set(DatasetSchemaScope.objects.get_queryset().filter(own_scope).values_list('schema_id', flat=True))
         shared_schema_ids = set(
-            DatasetSchemaScope.objects.qs
+            DatasetSchemaScope.objects
+            .get_queryset()
             .filter(schema_id__in=own_schema_ids)
             .exclude(own_scope)
             .values_list('schema_id', flat=True)
@@ -723,8 +726,10 @@ class InstanceConfig(
         Dataset.objects.qs.filter(own_scope | models.Q(schema_id__in=exclusive_schema_ids)).delete()
         # Drop this instance's schema-scope links, then delete the schemas left with no scopes and no
         # datasets (so a shared schema, which keeps another scope or its datasets, survives).
-        DatasetSchemaScope.objects.qs.filter(own_scope).delete()
-        DatasetSchema.objects.qs.filter(pk__in=affected_schema_ids, scopes__isnull=True, datasets__isnull=True).delete()
+        DatasetSchemaScope.objects.get_queryset().filter(own_scope).delete()
+        DatasetSchema.objects.get_queryset().filter(
+            pk__in=affected_schema_ids, scopes__isnull=True, datasets__isnull=True
+        ).delete()
         super().delete(**kwargs)
 
     def natural_key(self):
@@ -1057,7 +1062,7 @@ class InstanceConfig(
 
             dataset_ct = ContentType.objects.get_for_model(DatasetModel, for_concrete_model=False)
             now = timezone.now()
-            dataset_revisions: list[Revision] = [
+            dataset_revisions: list[Revision[DatasetModel]] = [
                 Revision(
                     content_type=dataset_ct,
                     base_content_type=dataset_ct,
@@ -1069,10 +1074,10 @@ class InstanceConfig(
                 )
                 for dataset in datasets
             ]
-            Revision.objects.bulk_create(dataset_revisions)
+            Revision.objects.bulk_create(dataset_revisions)  # type: ignore[arg-type]
 
             pins_by_dataset: dict[int, DatasetRevisionPinSnapshot] = {}
-            revisions_by_dataset: dict[int, Revision] = {}
+            revisions_by_dataset: dict[int, Revision[DatasetModel]] = {}
             for dataset, dataset_revision in zip(datasets, dataset_revisions, strict=True):
                 materialization = materializations[dataset.pk]
                 dataset.latest_revision = dataset_revision
@@ -1308,8 +1313,8 @@ class InstanceConfig(
         tolerate_node_failures: bool = False,
         force_reinitialize: bool = False,
     ):
-        if not force_reinitialize and self.identifier in _pytest_instances:
-            instance = _pytest_instances[self.identifier]
+        if not force_reinitialize and self.identifier in test_instance_registry:
+            instance = test_instance_registry[self.identifier]
         else:
             instance = self._initialize_instance(node_refs=True, source=source, tolerate_node_failures=tolerate_node_failures)
 
@@ -1332,8 +1337,8 @@ class InstanceConfig(
         tolerate_node_failures: bool = False,
         force_reinitialize: bool = False,
     ):
-        if not force_reinitialize and self.identifier in _pytest_instances:
-            instance = _pytest_instances[self.identifier]
+        if not force_reinitialize and self.identifier in test_instance_registry:
+            instance = test_instance_registry[self.identifier]
         else:
             instance = await sync_to_async(self._initialize_instance)(
                 node_refs=True,
@@ -1357,8 +1362,8 @@ class InstanceConfig(
         node_refs: bool = False,
         source: PreferredInstanceSource = PreferredInstanceSource.DRAFT,
     ) -> Instance:
-        if self.identifier in _pytest_instances:
-            return _pytest_instances[self.identifier]
+        if self.identifier in test_instance_registry:
+            return test_instance_registry[self.identifier]
 
         current_instance = instance_context.get()
         if current_instance is not None and current_instance.id == self.identifier:
@@ -2643,6 +2648,8 @@ class DatasetMaterialization(models.Model):
     source_modified_at = models.DateTimeField()
     updated_at = models.DateTimeField(auto_now=True)
 
+    dataset_id: int
+
     class Meta:
         ordering = ['dataset_id']
         verbose_name = _('Dataset materialization')
@@ -2679,6 +2686,10 @@ class InstanceRevisionDatasetPin(models.Model):
     identifier = models.CharField(max_length=100, null=True, blank=True)
     forecast_from = models.IntegerField(null=True, blank=True)
     shape_profiles = models.JSONField(null=True)
+
+    instance_revision_id: int
+    dataset_revision_id: int
+    dataset_id: int
 
     class Meta:
         ordering = ['instance_revision_id', 'dataset_id']

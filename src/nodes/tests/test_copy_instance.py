@@ -465,11 +465,11 @@ def test_dataset_binding_fanout_group_survives_export_import(db_source):
         DatasetSchemaFactory,
     )
 
+    from datasets.transfer import import_instance_datasets
     from nodes.instance_serialization import (
         InputBindingSnapshot,
         export_instance,
         group_unified_dataset_bindings,
-        import_instance_datasets,
         import_instance_edges_and_ports,
         import_instance_nodes,
     )
@@ -586,7 +586,7 @@ def test_export_includes_page_snapshot_with_node_identifiers(db_source):
 
 
 def _make_snapshot(metrics, fields):
-    from nodes.instance_serialization import DatasetSnapshot
+    from datasets.snapshot import DatasetSnapshot
 
     return DatasetSnapshot(
         identifier='ds',
@@ -607,19 +607,21 @@ def test_resolve_metric_data_columns_falls_back_to_label():
     """
     from kausal_common.i18n.pydantic import TranslatedString
 
-    from nodes.instance_serialization import DatasetMetricSnapshot, _resolve_metric_data_columns
+    from datasets.snapshot import DatasetMetricSnapshot
+    from datasets.transfer import resolve_metric_data_columns
 
     label = TranslatedString('Floor Area', default_language='en')
     metrics = [DatasetMetricSnapshot(identifier='461f-uuid', label=label, unit='m**2')]
     fields = [{'name': 'Year'}, {'name': 'building_use'}, {'name': 'Floor Area', 'unit': 'm**2'}]
-    cols = _resolve_metric_data_columns(_make_snapshot(metrics, fields), ['461f-uuid'], {'building_use': 'building_use'})
+    cols = resolve_metric_data_columns(_make_snapshot(metrics, fields), ['461f-uuid'], {'building_use': 'building_use'})
     assert cols == {'461f-uuid': 'Floor Area'}
 
 
 def test_resolve_metric_data_columns_prefers_identifier_when_present():
-    from nodes.instance_serialization import DatasetMetricSnapshot, _resolve_metric_data_columns
+    from datasets.snapshot import DatasetMetricSnapshot
+    from datasets.transfer import resolve_metric_data_columns
 
     metrics = [DatasetMetricSnapshot(identifier='floor_area', label=None, unit='m**2')]
     fields = [{'name': 'Year'}, {'name': 'building_use'}, {'name': 'floor_area', 'unit': 'm**2'}]
-    cols = _resolve_metric_data_columns(_make_snapshot(metrics, fields), ['floor_area'], {'building_use': 'building_use'})
+    cols = resolve_metric_data_columns(_make_snapshot(metrics, fields), ['floor_area'], {'building_use': 'building_use'})
     assert cols == {'floor_area': 'floor_area'}

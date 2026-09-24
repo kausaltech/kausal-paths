@@ -54,8 +54,8 @@ from .graph import (
     InstanceHostname,
     NodeEdgeType,
     NodePortRef,
-    _external_dataset_id_from_dataset,
     action_group_types,
+    external_dataset_id_from_dataset,
 )
 from .layout import NodeLayoutType
 from .node import QuantityKindType
@@ -460,7 +460,7 @@ class InstanceEditorFields:
                     port_id=dp.port_id,
                 ),
                 metric=DatasetMetricRefType.from_model(dp.metric),
-                external_dataset_id=_external_dataset_id_from_dataset(dp.dataset),
+                external_dataset_id=external_dataset_id_from_dataset(dp.dataset),
                 external_metric_id=dp.metric.name,
                 tags=list(dp.tags or []),
             )
@@ -630,13 +630,13 @@ class InstanceModelType:
         self._editor_nodes_prepared = True
 
     def _nodes_by_uuid(self) -> dict[UUID, Node]:
-        from nodes.graphql.types.node import _get_node_uuid_with_fallback
+        from nodes.graphql.types.node import get_node_uuid_with_fallback
 
         # The UUID of a runtime node comes from its NodeConfig row when there is
         # one; attach the rows first so a UUID lookup never falls back to the
         # derived identity for a node that has a real one.
         self._prepare_editor_nodes()
-        return {_get_node_uuid_with_fallback(node): node for node in self._instance.context.nodes.values()}
+        return {get_node_uuid_with_fallback(node): node for node in self._instance.context.nodes.values()}
 
     @sb.field
     def goals(self, id: sb.ID | None = None) -> list[InstanceGoalEntry]:
