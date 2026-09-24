@@ -311,8 +311,6 @@ def _sync_dataset_placeholder(  # noqa: C901
     force: bool = False,
     reporter: Callable[[str], None] | None = None,
 ) -> tuple[Dataset | None, bool]:
-    from django.contrib.contenttypes.models import ContentType
-
     instance_config = env.instance_config
     default_language = env.default_language
 

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pytest
 
-from nodes.management.commands.dataset_inventory import Row
+from datasets.management.commands.dataset_inventory import Row
 
 # The counts below are literals, but this package's fixtures reach for the DB on setup.
 pytestmark = pytest.mark.django_db

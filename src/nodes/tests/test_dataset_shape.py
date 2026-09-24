@@ -16,8 +16,8 @@ from kausal_common.datasets.tests.factories import (
     DimensionCategoryFactory,
 )
 
-from nodes.dataset_materialization import materialize_dataset
-from nodes.dataset_shape import load_dataset_shape_profiles
+from datasets.materialization import materialize_dataset
+from nodes.constraints.dataset_profiles import load_dataset_shape_profiles
 from nodes.defs.graph import DatasetMeta, DatasetMetricMeta
 from nodes.defs.instance_defs import InstanceMetadata, InstanceModelSpec
 from nodes.instance_graph import InstanceGraph

@@ -34,19 +34,19 @@ from kausal_common.datasets.tests.factories import (
 
 from paths.tests.graphql import PathsTestClient
 
+from datasets.materialization import (
+    materialize_dataset,
+    refresh_dataset_materialization,
+    require_valid_dataset_rules,
+)
+from datasets.snapshot import DatasetSnapshot
 from datasets.validation import (
     DatasetValidationError,
     InstanceDatasetValidationError,
     evaluate_dataset_rules,
     load_violations,
 )
-from nodes.dataset_materialization import (
-    materialize_dataset,
-    refresh_dataset_materialization,
-    require_valid_dataset_rules,
-)
 from nodes.defs.instance_defs import InstanceModelSpec, YearsSpec
-from nodes.instance_serialization import DatasetSnapshot
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory
 from users.tests.factories import UserFactory
 

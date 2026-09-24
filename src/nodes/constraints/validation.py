@@ -19,16 +19,16 @@ value and the cached graph is never touched.
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from nodes.constraints.dataset_profiles import bound_dataset_metric_pairs, load_dataset_shape_profiles
 from nodes.constraints.solver import ConstraintSolveResult, GraphOverlay
-from nodes.dataset_shape import bound_dataset_metric_pairs, load_dataset_shape_profiles
 from nodes.defs.binding_def import DatasetBindingDef
 from nodes.instance_graph import InstanceGraph
 
 if TYPE_CHECKING:
     from uuid import UUID
 
+    from datasets.shapes import DatasetMetricPair, DatasetShapeProfile
     from nodes.constraints.values import ConstraintConflict
-    from nodes.dataset_shape import DatasetMetricPair, DatasetShapeProfile
     from nodes.defs.binding_def import AnyPortBindingDef
     from nodes.defs.graph import DatasetMeta
     from nodes.defs.port_def import InputPortDef

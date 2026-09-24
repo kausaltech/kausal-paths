@@ -60,11 +60,11 @@ from wagtail.models import Page
 
 from loguru import logger
 
+from datasets.transfer import import_instance_datasets
 from nodes.blocks import NodeChooserBlock
 from nodes.instance_serialization import (
     export_instance,
     import_instance,
-    import_instance_datasets,
     import_instance_edges_and_ports,
     import_instance_nodes,
 )
