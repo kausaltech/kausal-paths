@@ -1033,7 +1033,7 @@ class InstanceConfig(
                     dataset_id__in=[dataset.pk for dataset in datasets],
                 )
             }
-            from nodes.dataset_materialization import (
+            from datasets.materialization import (
                 materialization_is_fresh,
                 refresh_dataset_materialization,
                 require_valid_dataset_rules,

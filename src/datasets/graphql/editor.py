@@ -32,6 +32,7 @@ from kausal_common.users import user_or_bust
 
 from paths import gql
 
+from datasets.materialization import refresh_dataset_materialization
 from datasets.validation_rules import ValidationRule, ValidationRuleSpecInput
 from frameworks.evidence import (
     UNCHANGED,
@@ -43,7 +44,6 @@ from frameworks.evidence import (
 )
 from frameworks.models import DataEvidenceKind, Framework
 from nodes.change_ops import gql_change_operation, record_change
-from nodes.dataset_materialization import refresh_dataset_materialization
 from nodes.graphql.types.problems import DatasetValidationViolationType
 from nodes.models import InstanceConfig
 

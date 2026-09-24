@@ -4,10 +4,10 @@ from uuid import UUID, uuid4
 
 import pytest
 
+from datasets.shapes import DatasetShapeProfile
 from nodes.constraints.rules import ProductShapeRule
 from nodes.constraints.solver import GraphOverlay
 from nodes.constraints.values import BindingValue, PortValue
-from nodes.dataset_shape import DatasetShapeProfile
 from nodes.defs.binding_def import EdgeBindingDef, NodePortRef
 from nodes.defs.graph import DatasetMeta, DatasetMetricMeta, DimensionCategoryMeta, DimensionMeta
 from nodes.defs.node_defs import DatasetPortSpec, NodeSpec, SimpleConfig

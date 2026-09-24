@@ -117,12 +117,13 @@ Everything that is not an application package stays at the repository root:
 #### Key Django Apps
 All of these live under `src/`:
 1. **`src/nodes/`** - Core calculation engine, node graph system, emissions calculations
-2. **`src/frameworks/`** - Framework configuration management (GPC, NZC, etc.)
-3. **`src/pages/`** - Wagtail CMS integration for content management
-4. **`src/admin_site/`** - Custom admin interface with authentication
-5. **`src/users/`** - User management with framework-specific roles
-6. **`src/params/`** - Parameter management for nodes and actions
-7. **`src/paths/`** - Django project itself: settings, URLs, GraphQL schema entry point
+2. **`src/datasets/`** - Dataset snapshots, transfer, validation, materialization, and data commands
+3. **`src/frameworks/`** - Framework configuration management (GPC, NZC, etc.)
+4. **`src/pages/`** - Wagtail CMS integration for content management
+5. **`src/admin_site/`** - Custom admin interface with authentication
+6. **`src/users/`** - User management with framework-specific roles
+7. **`src/params/`** - Parameter management for nodes and actions
+8. **`src/paths/`** - Django project itself: settings, URLs, GraphQL schema entry point
 
 `kausal_common/` sits at the repository root instead (a git submodule shared
 between Kausal Paths and Kausal Watch), and is on `sys.path` from there.
@@ -203,6 +204,14 @@ full rationale. In brief:
 
 #### Python
 - Type hints required (mypy checking enabled)
+- Use this dependency order from low to high: pure defs/specs, snapshot
+  shapes, Django models, services, then API/commands/runtime orchestration.
+  Modules may import lower layers, not higher ones.
+  Snapshot shapes must not import ORM models at module load time; put ORM
+  conversion in a service/adapter. Import lower layers at module scope. Keep
+  local imports for genuine cycles (especially model methods calling services)
+  or deferred optional work, and use `TYPE_CHECKING` only for type-only imports
+  that are not evaluated at runtime. Split modules when imports run both ways.
 - **Do not add `from __future__ import annotations`** to new files. Python
   3.14 evaluates annotations lazily by default (PEP 649), so the future
   import is redundant — and it actively breaks Strawberry types that rely

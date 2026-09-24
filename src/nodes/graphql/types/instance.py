@@ -375,7 +375,7 @@ class InstanceEditorFields:
     )
     @staticmethod
     def dataset_validation_violations(root: 'InstanceEditorFields') -> list[DatasetValidationViolationType]:
-        from nodes.dataset_materialization import collect_instance_dataset_violations
+        from datasets.materialization import collect_instance_dataset_violations
 
         return [
             DatasetValidationViolationType.from_violation(violation)
@@ -391,7 +391,7 @@ class InstanceEditorFields:
     )
     @staticmethod
     def problems(root: 'InstanceEditorFields', info: gql.Info) -> list[InstanceProblemInterface]:
-        from nodes.dataset_materialization import collect_instance_dataset_violations
+        from datasets.materialization import collect_instance_dataset_violations
 
         result = info.context.require_constraint_solve(root._config, source=root._source)
         conflicts: list[InstanceProblemInterface] = [

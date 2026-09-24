@@ -70,7 +70,7 @@ from nodes.units import Unit, unit_registry
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping, Sequence
 
-    from nodes.dataset_shape import DatasetMetricPair, DatasetShapeProfile
+    from datasets.shapes import DatasetMetricPair, DatasetShapeProfile
     from nodes.defs.binding_def import AnyPortBindingDef
     from nodes.instance_graph import InstanceGraph
 
