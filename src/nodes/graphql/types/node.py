@@ -53,6 +53,7 @@ from .metric import (
 from .spec import InputPortDeclarationType, InputPortType, OutputPortType
 
 if TYPE_CHECKING:
+    from datasets.graphql.types import DatasetType
     from nodes.context import Context
     from nodes.defs.instance_defs import ActionGroup
     from nodes.graphql.types.change_history import InstanceModelLogEntryType
@@ -299,6 +300,35 @@ class NodeEditorFields:
             limit=limit,
             before=before,
         )
+
+    @sb.field(
+        graphql_type=list[Annotated['DatasetType', sb.lazy('datasets.graphql.types')]],
+        description='Datasets owned by this node.',
+    )
+    @staticmethod
+    def datasets(root: 'NodeEditorFields', info: gql.Info) -> list[Any]:
+        from django.contrib.contenttypes.models import ContentType
+
+        from kausal_common.datasets.models import Dataset as DatasetModel
+
+        from datasets.graphql.types import DatasetType
+        from frameworks.models import Framework
+        from nodes.models import NodeConfig
+
+        nc = root._node.db_obj
+        if nc is None:
+            return []
+        qs = (
+            DatasetModel.objects
+            .get_queryset()
+            .with_schema_editability(Framework)
+            .filter(scope_content_type=ContentType.objects.get_for_model(NodeConfig), scope_id=nc.pk)
+            .viewable_by(info.context.user)
+            .select_related('schema', 'created_by', 'last_modified_by')
+            .prefetch_related('schema__metrics__validation_rules', 'schema__dimensions__dimension__categories')
+            .order_by('created_at', 'pk')
+        )
+        return [DatasetType.from_model(ds) for ds in qs]
 
     @sb.field
     @staticmethod

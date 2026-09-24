@@ -247,45 +247,43 @@ class InstanceConfigPermissionPolicy(ModelPermissionPolicy['InstanceConfig', Non
             return True
         return user.has_instance_role(self.super_admin_role, obj) or self.is_framework_admin(user, obj)
 
-    def construct_perm_q(self, user: User, action: ObjectSpecificAction, include_implicit_public: bool = True) -> models.Q | None:
+    def role_q(self, user: User, action: ObjectSpecificAction) -> Q:
+        """Match the instances the user's instance or framework roles grant `action` on, and nothing implicit."""
         is_super_admin = self.super_admin_role.role_q(user)
         is_admin = self.admin_role.role_q(user)
+        is_fw_admin = self.fw_admin_role.role_q(user, prefix='framework_config__framework')
+        if action != 'view':
+            return (is_super_admin | is_admin | is_fw_admin) & Q(is_locked=False)
         is_viewer = self.viewer_role.role_q(user)
         is_reviewer = self.reviewer_role.role_q(user)
-        is_fw_admin = self.fw_admin_role.role_q(user, prefix='framework_config__framework')
         is_fw_viewer = self.fw_viewer_role.role_q(user, prefix='framework_config__framework')
+        return is_viewer | is_reviewer | is_super_admin | is_admin | is_fw_admin | is_fw_viewer
 
-        q = is_super_admin | is_admin | is_fw_admin
-        if action in ('change', 'delete'):
-            q &= Q(is_locked=False)
-        if action == 'view':
-            q = is_viewer | is_reviewer | is_super_admin | is_admin | is_fw_admin | is_fw_viewer
-            if include_implicit_public:
-                q |= Q(framework_config__isnull=True)
-        else:
+    def construct_perm_q(self, user: User, action: ObjectSpecificAction, include_implicit_public: bool = True) -> models.Q | None:
+        q = self.role_q(user, action)
+        if action != 'view':
             return q
+        if include_implicit_public:
+            q |= Q(framework_config__isnull=True)
 
-        # PersonGroupPermissions and PersonPermissions can assign permissions directly to datasetschemas and their associated
-        # datasets. We want to count the instanceconfigs those schemas are scoped for as accessible for those users.
-        schema_q = DatasetSchema.accessible_by_user_q(user)
-        if schema_q is None or bool(schema_q) is False:
-            # schema_q can be false for superusers, but we do not want
-            # to handle that case here since superusers are already
-            # taken into account elsewhere.
-            #
-            # schema_q is None if there are no dataset schemas the user can access
-            return q
+        # Explicit dataset grants make the dataset's instance visible, so the grantee can reach the data.
+        from people.models import DatasetGroupPermission, DatasetPersonPermission
 
-        schemas = DatasetSchema.objects.filter(schema_q).values_list('pk', flat=True)
-        ic_content_type_id = ContentType.objects.get_for_model(InstanceConfig).pk
-        instance_configs_accessible_through_datasets = (
-            DatasetSchemaScope.objects
-            .get_queryset()
-            .filter(scope_content_type_id=ic_content_type_id)
-            .filter(schema_id__in=schemas)
-            .values_list('scope_id', flat=True)
+        granted = DatasetModel.objects.filter(
+            Q(pk__in=DatasetPersonPermission.objects.filter(person__user=user).values('object_id'))
+            | Q(pk__in=DatasetGroupPermission.objects.filter(group__persons__user=user).values('object_id'))
         )
-        return q | Q(pk__in=instance_configs_accessible_through_datasets)
+        instance_ct = ContentType.objects.get_for_model(InstanceConfig)
+        node_ct = ContentType.objects.get_for_model(NodeConfig)
+        return (
+            q
+            | Q(pk__in=granted.filter(scope_content_type=instance_ct).values('scope_id'))
+            | Q(
+                pk__in=NodeConfig.objects.filter(pk__in=granted.filter(scope_content_type=node_ct).values('scope_id')).values(
+                    'instance_id'
+                )
+            )
+        )
 
     def construct_perm_q_anon(self, action: BaseObjectAction) -> Q | None:
         if action == 'view':
@@ -677,7 +675,7 @@ class InstanceConfig(
     @transaction.atomic
     @copy_signature(models.Model.delete)
     def delete(self, **kwargs):
-        from kausal_common.datasets.models import Dataset, DatasetSchema, DatasetSchemaScope
+        from kausal_common.datasets.models import Dataset
 
         root_page = self.root_page
         if root_page is not None:
@@ -693,6 +691,12 @@ class InstanceConfig(
         from pages.models import OutcomePage
 
         OutcomePage.objects.filter(outcome_node__instance=self).delete()
+        # Dataset revisions are protected while an instance revision pins them.
+        # This explicit instance FK lets full instance deletion release all pins
+        # before its owned datasets and their generic Wagtail revisions cascade.
+        self.dataset_revision_pins.all().delete()
+        # A queryset delete skips NodeConfig.delete(), so the nodes' datasets go first.
+        NodeConfig.objects.filter(instance=self).delete_related()
         self.nodes.all().delete()
 
         # Delete this instance's own dataset graph, but preserve anything shared with another scope.
@@ -716,10 +720,6 @@ class InstanceConfig(
         affected_schema_ids = exclusive_schema_ids | {
             sid for sid in Dataset.objects.qs.filter(own_scope).values_list('schema_id', flat=True) if sid is not None
         }
-        # Dataset revisions are protected while an instance revision pins them.
-        # This explicit instance FK lets full instance deletion release all pins
-        # before its owned datasets and their generic Wagtail revisions cascade.
-        self.dataset_revision_pins.all().delete()
         # Delete the instance's own datasets: everything directly scoped to it (its own data, even
         # when the schema is shared), plus placeholder datasets whose schema is scoped only to this
         # instance. Placeholders of a schema shared with another scope are left for that scope.
@@ -1021,7 +1021,7 @@ class InstanceConfig(
                 DatasetModel.objects
                 .exclude(uuid__in=inherited_ids)
                 .filter(
-                    uuid__in=[dataset.id for dataset in effective_snapshot.datasets],
+                    uuid__in=[dataset.id for dataset in effective_snapshot.all_datasets()],
                 )
                 .values_list('pk', flat=True)
             )
@@ -2079,6 +2079,28 @@ class NodeConfigQuerySet(MultilingualQuerySet['NodeConfig'], PathsQuerySet['Node
     def for_serialization(self) -> Self:
         return self.active().with_spec().select_related('indicator_node', 'copy_of', 'layout').annotate_ports()
 
+    def delete_related(self) -> None:
+        """
+        Delete the datasets and schemas owned by these nodes, leaving the nodes themselves.
+
+        A GenericForeignKey scope does not cascade, so every path that deletes nodes calls this
+        first. Bindings of owned datasets can only be on the owning nodes, which are going anyway.
+        """
+        from kausal_common.datasets.models import Dataset
+
+        node_ids = list(self.values_list('pk', flat=True))
+        if not node_ids:
+            return
+        node_scope = Q(scope_content_type=ContentType.objects.get_for_model(NodeConfig), scope_id__in=node_ids)
+        datasets = Dataset.objects.qs.filter(node_scope)
+        schema_ids = set(DatasetSchemaScope.objects.get_queryset().filter(node_scope).values_list('schema_id', flat=True))
+        schema_ids |= {sid for sid in datasets.values_list('schema_id', flat=True) if sid is not None}
+        NodeInputPortBinding.objects.filter(dataset__in=datasets).delete()
+        NodeDataset.objects.filter(dataset__in=datasets).delete()
+        datasets.delete()
+        DatasetSchemaScope.objects.get_queryset().filter(node_scope).delete()
+        DatasetSchema.objects.get_queryset().filter(pk__in=schema_ids, scopes__isnull=True, datasets__isnull=True).delete()
+
 
 _NodeConfigManager = models.Manager.from_queryset(NodeConfigQuerySet)
 
@@ -2450,6 +2472,12 @@ class NodeConfig(PathsModel[InstanceConfig], EditableInstanceChild, index.Indexe
             self.uuid = uuid.uuid4()
 
         return super().save(**kwargs)
+
+    @transaction.atomic
+    @copy_signature(models.Model.delete)
+    def delete(self, **kwargs):
+        type(self).objects.filter(pk=self.pk).delete_related()
+        return super().delete(**kwargs)
 
     def natural_key(self):
         return self.instance.natural_key() + (self.identifier,)

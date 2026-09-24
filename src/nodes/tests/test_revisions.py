@@ -28,6 +28,7 @@ from nodes.models import NodeInputPortBinding
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory, NodeConfigFactory
 
 if TYPE_CHECKING:
+    from nodes.datasets import DatasetWithFilters
     from nodes.models import InstanceConfig
 
 
@@ -794,8 +795,9 @@ def test_dataset_serializable_data_bridges_to_paths():
     from kausal_common.datasets.tests.factories import DatasetFactory, DatasetMetricFactory
 
     from datasets.snapshot import DatasetSnapshot
+    from nodes.tests.factories import InstanceConfigFactory, InstanceFactory
 
-    ds = DatasetFactory.create()
+    ds = DatasetFactory.create(scope=InstanceConfigFactory.create(instance=InstanceFactory.create()))
     DatasetMetricFactory.create(schema=ds.schema, name='m1', label='Metric 1', unit='kt/a')
 
     data = ds.serializable_data()
@@ -830,7 +832,9 @@ def test_dataset_serializable_data_includes_forecast_from():
 def test_dataset_save_revision_updates_latest_revision():
     from kausal_common.datasets.tests.factories import DatasetFactory
 
-    ds = DatasetFactory.create()
+    from nodes.tests.factories import InstanceConfigFactory, InstanceFactory
+
+    ds = DatasetFactory.create(scope=InstanceConfigFactory.create(instance=InstanceFactory.create()))
     assert ds.latest_revision_id is None
     ds.save_revision()
     ds.refresh_from_db()
@@ -840,7 +844,7 @@ def test_dataset_save_revision_updates_latest_revision():
 def test_dataset_binding_snapshot_pins_dataset_revision(empty_db_instance: InstanceConfig):
     from kausal_common.datasets.tests.factories import DatasetFactory, DatasetMetricFactory
 
-    ds = DatasetFactory.create()
+    ds = DatasetFactory.create(scope=empty_db_instance)
     metric = DatasetMetricFactory.create(schema=ds.schema, name='m1', label='M', unit='kt/a')
     ds.save_revision()
     ds.refresh_from_db()
@@ -989,7 +993,7 @@ def test_draft_and_published_runtime_share_serialized_dataset_path(empty_db_inst
     from django.db import transaction
 
     from datasets.materialization import refresh_dataset_materialization
-    from nodes.datasets import DatasetWithFilters, SerializedDBDataset
+    from nodes.datasets import SerializedDBDataset
     from nodes.defs.node_defs import SimpleConfig
     from nodes.defs.port_def import InputPortDef, OutputPortDef
     from nodes.models import NodeConfig, PreferredInstanceSource
@@ -1168,7 +1172,7 @@ def test_pinned_dataset_revision_is_protected_until_instance_is_deleted(empty_db
     dataset.delete()
 
 
-def test_export_instance_includes_schema_scoped_placeholder(empty_db_instance: InstanceConfig):
+def test_export_instance_includes_placeholder(empty_db_instance: InstanceConfig):
     from django.contrib.contenttypes.models import ContentType
 
     from kausal_common.datasets.models import DatasetSchemaScope
@@ -1186,6 +1190,7 @@ def test_export_instance_includes_schema_scoped_placeholder(empty_db_instance: I
         schema=schema,
         identifier='external/source',
         is_external_placeholder=True,
+        scope=empty_db_instance,
     )
 
     export = export_instance(empty_db_instance)
@@ -1193,13 +1198,13 @@ def test_export_instance_includes_schema_scoped_placeholder(empty_db_instance: I
     assert [(ds.identifier, ds.is_external_placeholder) for ds in export.datasets] == [('external/source', True)]
 
 
-def test_import_instance_datasets_rewires_ports_and_removes_placeholder(empty_db_instance: InstanceConfig):
+def test_import_instance_datasets_replaces_the_instances_placeholder(empty_db_instance: InstanceConfig):
     import datetime
     from decimal import Decimal
 
     from django.contrib.contenttypes.models import ContentType
 
-    from kausal_common.datasets.models import Dataset, DatasetSchemaScope
+    from kausal_common.datasets.models import Dataset, DatasetSchema, DatasetSchemaScope
     from kausal_common.datasets.tests.factories import (
         DataPointFactory,
         DatasetFactory,
@@ -1243,6 +1248,7 @@ def test_import_instance_datasets_rewires_ports_and_removes_placeholder(empty_db
         schema=placeholder_schema,
         identifier='real/source',
         is_external_placeholder=True,
+        scope=target,
     )
     placeholder_metric = DatasetMetricFactory.create(schema=placeholder_schema, name='value', label='Value', unit='kt/a')
     node = NodeConfig.objects.create(instance=target, identifier='receiver', name='Receiver')
@@ -1259,7 +1265,7 @@ def test_import_instance_datasets_rewires_ports_and_removes_placeholder(empty_db
         target,
         source_export.datasets,
         rewire_dataset_ports=True,
-        delete_superseded_placeholders=True,
+        replace_placeholders=True,
     )
 
     assert len(imported) == 1
@@ -1270,6 +1276,7 @@ def test_import_instance_datasets_rewires_ports_and_removes_placeholder(empty_db
     )
     assert copied_dataset.data_points.count() == 1
     assert not Dataset.objects.filter(pk=placeholder.pk).exists()
+    assert not DatasetSchema.objects.filter(pk=placeholder_schema.pk).exists()
     assert DatasetMaterialization.objects.filter(dataset=copied_dataset, generation=1).exists()
 
     port.refresh_from_db()
@@ -2265,3 +2272,91 @@ def test_publish_instance_bumps_cache_invalidated_at(empty_db_instance: Instance
     empty_db_instance.publish_instance()
     empty_db_instance.refresh_from_db()
     assert empty_db_instance.cache_invalidated_at > before
+
+
+def test_a_node_owned_dataset_travels_in_its_node_and_loads_like_any_other(empty_db_instance: InstanceConfig):
+    """The snapshot keeps a node's own dataset inside its node, and both runtimes read it by uuid."""
+    from datetime import date
+    from decimal import Decimal
+    from typing import cast
+
+    from kausal_common.datasets.tests.factories import DataPointFactory, DatasetFactory, DatasetMetricFactory
+
+    from datasets.materialization import materialize_dataset
+    from nodes.defs.node_defs import SimpleConfig
+    from nodes.defs.port_def import InputPortDef, OutputPortDef
+    from nodes.instance_graph import build_instance_graph
+    from nodes.instance_serialization import InstanceSnapshot, build_instance_snapshot
+    from nodes.models import NodeConfig, PreferredInstanceSource
+    from nodes.tests.test_model_editor import SIMPLE_NODE_CLASS, _port_uuid
+    from nodes.units import unit_registry
+
+    assert empty_db_instance.spec is not None
+    empty_db_instance.spec.features.use_datasets_from_db = True
+    empty_db_instance.save(update_fields=['spec'])
+
+    port_id = _port_uuid('owned-value')
+    unit = unit_registry.parse_units('t/a')
+    node = NodeConfig.objects.create(
+        instance=empty_db_instance,
+        identifier='owner',
+        name='Owner',
+        spec=NodeSpec(
+            type_config=SimpleConfig(node_class=SIMPLE_NODE_CLASS),
+            input_ports=[InputPortDef(id=port_id, unit=unit, quantity='emissions')],
+            output_ports=[OutputPortDef(id=_port_uuid('owned-output'), unit=unit, quantity='emissions')],
+        ),
+    )
+    owned = DatasetFactory.create(scope=node)
+    metric = DatasetMetricFactory.create(schema=owned.schema, name='value', label='Value', unit='t/a')
+    DataPointFactory.create(dataset=owned, metric=metric, date=date(2020, 1, 1), value=Decimal(10))
+    materialize_dataset(owned)
+    unbound = DatasetFactory.create(scope=node)
+    NodeInputPortBinding.objects.create(instance=empty_db_instance, node=node, port_id=port_id, dataset=owned, metric=metric)
+
+    snapshot = build_instance_snapshot(empty_db_instance)
+    (node_snapshot,) = snapshot.nodes
+    assert {dataset.id for dataset in node_snapshot.datasets} == {owned.uuid, unbound.uuid}
+    assert snapshot.datasets == []
+    dumped = snapshot.model_dump(mode='json')
+    assert InstanceSnapshot.from_serialized_data(dumped).model_dump(mode='json') == dumped
+    assert owned.uuid in build_instance_graph(snapshot).dataset_by_id
+
+    empty_db_instance.publish_instance()
+    empty_db_instance.refresh_from_db()
+    for source in (PreferredInstanceSource.DRAFT, PreferredInstanceSource.PUBLISHED):
+        instance = empty_db_instance._create_from_config(source=source)
+        (dataset,) = instance.context.nodes['owner'].input_dataset_instances
+        assert float(cast('DatasetWithFilters', dataset).get_copy()['value'][0]) == 10
+
+
+def test_a_v11_snapshot_upgrades_with_no_node_owned_datasets(empty_db_instance: InstanceConfig):
+    from nodes.instance_serialization import SNAPSHOT_SCHEMA_VERSION, InstanceSnapshot, build_instance_snapshot
+
+    NodeConfigFactory.create(instance=empty_db_instance, identifier='plain', name='Plain')
+    data = build_instance_snapshot(empty_db_instance).model_dump(mode='json')
+    data['schema_version'] = 11
+    for node in data['nodes']:
+        del node['datasets']
+
+    upgraded = InstanceSnapshot.from_serialized_data(data)
+    assert upgraded.schema_version == SNAPSHOT_SCHEMA_VERSION == 12
+    assert [node.datasets for node in upgraded.nodes] == [[]]
+
+
+def test_the_graph_rejects_another_node_binding_a_node_owned_dataset(empty_db_instance: InstanceConfig):
+    from kausal_common.datasets.tests.factories import DatasetFactory, DatasetMetricFactory
+
+    from nodes.instance_graph import build_instance_graph
+    from nodes.instance_serialization import build_instance_snapshot
+
+    owner = NodeConfigFactory.create(instance=empty_db_instance, identifier='owner', name='Owner')
+    intruder = NodeConfigFactory.create(instance=empty_db_instance, identifier='intruder', name='Intruder')
+    owned = DatasetFactory.create(scope=owner)
+    metric = DatasetMetricFactory.create(schema=owned.schema, name='value', label='Value', unit='kt/a')
+    NodeInputPortBinding.objects.create(
+        instance=empty_db_instance, node=intruder, port_id=uuid.uuid4(), dataset=owned, metric=metric
+    )
+
+    with pytest.raises(ValueError, match='owned by node'):
+        build_instance_graph(build_instance_snapshot(empty_db_instance))

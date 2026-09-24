@@ -23,7 +23,7 @@ class Command(BaseCommand):
             from nodes.models import InstanceConfig
 
             instance = InstanceConfig.objects.get(identifier=instance_identifier)
-            qs = Dataset.objects.qs.for_instance_config(instance).filter(is_external_placeholder=False).order_by('pk')
+            qs = Dataset.objects.qs.governed_by_instance(instance).filter(is_external_placeholder=False).order_by('pk')
 
         count = 0
         for dataset in qs.iterator(chunk_size=batch_size):

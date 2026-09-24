@@ -12,10 +12,16 @@ from datasets.materialization import materialize_dataset
 pytestmark = pytest.mark.django_db
 
 
+def _instance():
+    from nodes.tests.factories import InstanceConfigFactory, InstanceFactory
+
+    return InstanceConfigFactory.create(instance=InstanceFactory.create())
+
+
 def test_fix_metric_name_materializes_every_dataset_using_schema(monkeypatch):
     schema = DatasetSchemaFactory.create()
-    first_dataset = DatasetFactory.create(schema=schema, identifier='first')
-    second_dataset = DatasetFactory.create(schema=schema, identifier='second')
+    first_dataset = DatasetFactory.create(schema=schema, identifier='first', scope=_instance())
+    second_dataset = DatasetFactory.create(schema=schema, identifier='second', scope=_instance())
     metric = DatasetMetric.objects.create(schema=schema, name='1.3 Car pooling', label='Car pooling', unit='kt')
     first_materialization = materialize_dataset(first_dataset)
     second_materialization = materialize_dataset(second_dataset)
