@@ -234,14 +234,14 @@ def _category_domain_coordinates(dataset: Dataset) -> dict[UUID, dict[str, str]]
     from kausal_common.datasets.models import DatasetSchemaDimension, DimensionScope
 
     schema = dataset.schema
-    if schema is None or dataset.scope_id is None or not schema.category_domain.combinations:
+    if schema is None or not schema.category_domain.combinations:
         return {}
+    instance = dataset.scope_instance
     scopes = {
         scope.dimension.pk: scope
         for scope in DimensionScope.objects
+        .for_instance_config(instance)
         .filter(
-            scope_content_type=dataset.scope_content_type,
-            scope_id=dataset.scope_id,
             dimension_id__in=schema.dimensions.values_list('dimension_id', flat=True),
         )
         .select_related('dimension')

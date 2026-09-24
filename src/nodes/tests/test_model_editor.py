@@ -1844,7 +1844,7 @@ def test_create_edge_replace_displaces_a_dataset_binding(gql_client: PathsTestCl
 
     _two_nodes_with_bindable_port(db_instance_config)
     nodes = {nc.identifier: nc for nc in db_instance_config.nodes.all()}
-    dataset = DatasetFactory.create(identifier='occupant')
+    dataset = DatasetFactory.create(identifier='occupant', scope=db_instance_config)
     metric = DatasetMetricFactory.create(schema=dataset.schema, name='Energy')
     NodeInputPortBinding.objects.create(
         instance=db_instance_config,
@@ -2138,7 +2138,7 @@ def test_model_instance_query_avoids_n_plus_one_for_port_bindings(
 ):
     from nodes.models import NodeInputPortBinding
 
-    dataset = DatasetFactory.create(identifier='test_dataset')
+    dataset = DatasetFactory.create(identifier='test_dataset', scope=db_instance_config)
     metric = DatasetMetricFactory.create(schema=dataset.schema, name='test_metric')
 
     node_count = 15
@@ -2203,9 +2203,10 @@ def test_model_instance_query_avoids_n_plus_one_for_port_bindings(
         if 'FROM "datasets_dataset"' in query['sql'] and 'WHERE "datasets_dataset"."uuid" =' in query['sql']
     ]
     assert per_binding_dataset_queries == []
-    # Constant budget, independent of node/binding count. Metric validation
-    # rules add fixed dataset-catalog queries, not per-binding ones.
-    assert len(query_ctx) <= 22
+    # Constant budget, independent of node/binding count (52 at both 15 and 30
+    # nodes). Metric validation rules add fixed dataset-catalog queries, and
+    # loading and materializing the instance's one DB dataset adds a fixed ~30.
+    assert len(query_ctx) <= 55
 
 
 def test_dataset_ports_rebuild_multimetric_action_dataset(db_instance_config: InstanceConfig):
