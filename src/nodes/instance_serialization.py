@@ -34,23 +34,8 @@ from kausal_common.i18n.pydantic import (
 )
 
 from datasets.catalogue import dataset_meta_from_model
-from datasets.snapshot import (
-    DataPointCommentSnapshot,  # noqa: F401 - compatibility import
-    DataPointEvidenceSnapshot,  # noqa: F401 - compatibility import
-    DataPointKey,  # noqa: F401 - compatibility import
-    DatasetMetricSnapshot,  # noqa: F401 - compatibility import
-    DatasetSnapshot,
-    DataSourceSnapshot,  # noqa: F401 - compatibility import
-    MetricValidationRuleSnapshot,  # noqa: F401 - compatibility import
-    QualityLevelRef,  # noqa: F401 - compatibility import
-    SourceReferenceSnapshot,  # noqa: F401 - compatibility import
-    metric_column_id,
-)
-from datasets.transfer import (
-    _import_dataset,  # noqa: F401 - compatibility import
-    _resolve_metric_data_columns,  # noqa: F401 - compatibility import
-    import_instance_datasets,
-)
+from datasets.snapshot import DatasetSnapshot, metric_column_id
+from datasets.transfer import import_instance_datasets
 from nodes.defs.graph import (
     DatasetMeta,
     DimensionCategoryMeta,
@@ -58,9 +43,9 @@ from nodes.defs.graph import (
 )
 from nodes.defs.instance_defs import InstanceMetadata, InstanceModelSpec
 from nodes.defs.node_defs import DatasetPortSpec, NodeSpec
-from nodes.defs.transform_def import EdgeTransformOp, PortTransformOp  # noqa: TC001 - Pydantic fields
+from nodes.defs.transform_def import EdgeTransformOp, PortTransformOp
 from nodes.page_snapshot import PageSnapshot
-from nodes.snapshot_base import ModelSnapshot, _apply_translated, _ts_from_modeltrans
+from nodes.snapshot_base import ModelSnapshot, apply_translated, translated_string_from_model
 
 if TYPE_CHECKING:
     from collections.abc import Hashable, Iterable, Mapping, Sequence
@@ -108,7 +93,7 @@ _MARKDOWN = MarkdownIt('commonmark', {'html': True})
 # round-tripping of translations through export/import.
 
 
-class NodeLayoutSnapshot(ModelSnapshot):
+class NodeLayoutSnapshot(ModelSnapshot['NodeLayout']):
     x: float
     y: float
     source: Literal['auto', 'user'] = 'auto'
@@ -118,7 +103,7 @@ class NodeLayoutSnapshot(ModelSnapshot):
         return cls(x=obj.x, y=obj.y, source=cast("Literal['auto', 'user']", obj.source))
 
 
-class NodeSnapshot(ModelSnapshot):
+class NodeSnapshot(ModelSnapshot['NodeConfig']):
     uuid: UUID
     identifier: str | None = None
     name: TranslatedString | None = None
@@ -165,11 +150,11 @@ class NodeSnapshot(ModelSnapshot):
         return cls(
             uuid=obj.uuid,
             identifier=obj.identifier,
-            name=_ts_from_modeltrans(obj, 'name', primary_language),
-            short_name=_ts_from_modeltrans(obj, 'short_name', primary_language),
-            short_description=_ts_from_modeltrans(obj, 'short_description', primary_language),
-            description=_ts_from_modeltrans(obj, 'description', primary_language),
-            goal=_ts_from_modeltrans(obj, 'goal', primary_language),
+            name=translated_string_from_model(obj, 'name', primary_language),
+            short_name=translated_string_from_model(obj, 'short_name', primary_language),
+            short_description=translated_string_from_model(obj, 'short_description', primary_language),
+            description=translated_string_from_model(obj, 'description', primary_language),
+            goal=translated_string_from_model(obj, 'goal', primary_language),
             color=obj.color,
             order=obj.order,
             is_visible=obj.is_visible,
@@ -294,7 +279,7 @@ def _upgrade_node_references_v3(data: dict[str, Any], nodes: list[Any]) -> None:
         port['node'] = node_uuids[port['node']]
 
 
-class EdgeSnapshot(ModelSnapshot):
+class EdgeSnapshot(BaseModel):
     kind: Literal['edge'] = 'edge'
     uuid: UUID | None = None
     # Stable order among values delivered to the target port, shared with
@@ -309,7 +294,7 @@ class EdgeSnapshot(ModelSnapshot):
     tags: list[str] = Field(default_factory=list)
 
 
-class DatasetPortSnapshot(ModelSnapshot):
+class DatasetPortSnapshot(BaseModel):
     kind: Literal['dataset'] = 'dataset'
     uuid: UUID | None = None
     # See ``EdgeSnapshot.position`` — one order across both binding kinds.
@@ -471,7 +456,7 @@ class DatasetMetricSource(BaseModel):
 type InputBindingSource = NodePortSource | DatasetMetricSource
 
 
-class InputBindingSnapshot(ModelSnapshot):
+class InputBindingSnapshot(ModelSnapshot['NodeInputPortBinding']):
     """
     Snapshot form of one ``NodeInputPortBinding`` row.
 
@@ -1073,7 +1058,7 @@ def _dimension_catalog_for(ic: InstanceConfig) -> list[DimensionMeta]:
             DimensionCategoryMeta(
                 id=category.uuid,
                 identifier=category.identifier,
-                label=_ts_from_modeltrans(category, 'label', ic.primary_language),
+                label=translated_string_from_model(category, 'label', ic.primary_language),
                 order=category.order,
                 spec=dict(category.spec or {}),
             )
@@ -1083,7 +1068,7 @@ def _dimension_catalog_for(ic: InstanceConfig) -> list[DimensionMeta]:
             DimensionMeta(
                 id=dimension.uuid,
                 identifier=scope.identifier,
-                label=_ts_from_modeltrans(dimension, 'name', ic.primary_language),
+                label=translated_string_from_model(dimension, 'name', ic.primary_language),
                 order=scope.order,
                 spec=dict(dimension.spec or {}),
                 categories=categories,
@@ -1194,7 +1179,7 @@ def export_instance(ic: InstanceConfig, *, exported_from: str | None = None) -> 
     snapshot = build_instance_snapshot(ic)
 
     ic_ct = ContentType.objects.get_for_model(ic)
-    datasets = [DatasetSnapshot.from_model_for_instance(ds, ic) for ds in _datasets_for_instance_export(ic, ic_ct)]
+    datasets = [DatasetSnapshot.from_model(ds, ic) for ds in _datasets_for_instance_export(ic, ic_ct)]
 
     return InstanceExport(
         instance=snapshot,
@@ -1316,11 +1301,11 @@ def _import_nodes(
             raise ValueError(f'Node {n.uuid} has no identifier; the legacy runtime still requires one')
         fields: dict[str, Any] = {}
         i18n_dict: dict[str, str] = {}
-        _apply_translated(fields, i18n_dict, n.name, 'name', primary_lang)
-        _apply_translated(fields, i18n_dict, n.short_name, 'short_name', primary_lang)
-        _apply_translated(fields, i18n_dict, n.short_description, 'short_description', primary_lang)
-        _apply_translated(fields, i18n_dict, n.description, 'description', primary_lang)
-        _apply_translated(fields, i18n_dict, n.goal, 'goal', primary_lang)
+        apply_translated(fields, i18n_dict, n.name, 'name', primary_lang)
+        apply_translated(fields, i18n_dict, n.short_name, 'short_name', primary_lang)
+        apply_translated(fields, i18n_dict, n.short_description, 'short_description', primary_lang)
+        apply_translated(fields, i18n_dict, n.description, 'description', primary_lang)
+        apply_translated(fields, i18n_dict, n.goal, 'goal', primary_lang)
 
         nc = NodeConfig.objects.create(
             instance=ic,

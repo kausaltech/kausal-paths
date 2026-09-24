@@ -793,7 +793,7 @@ def test_poc_delete_node_cascades_under_single_operation(
 def test_dataset_serializable_data_bridges_to_paths():
     from kausal_common.datasets.tests.factories import DatasetFactory, DatasetMetricFactory
 
-    from nodes.instance_serialization import DatasetSnapshot
+    from datasets.snapshot import DatasetSnapshot
 
     ds = DatasetFactory.create()
     DatasetMetricFactory.create(schema=ds.schema, name='m1', label='Metric 1', unit='kt/a')
@@ -810,19 +810,20 @@ def test_dataset_serializable_data_bridges_to_paths():
 def test_dataset_serializable_data_includes_forecast_from():
     from kausal_common.datasets.tests.factories import DatasetFactory
 
-    from nodes.instance_serialization import DatasetSnapshot, _import_dataset
+    from datasets.snapshot import DatasetSnapshot
+    from datasets.transfer import import_dataset
     from nodes.tests.factories import InstanceConfigFactory, InstanceFactory
 
     source = InstanceConfigFactory.create(instance=InstanceFactory.create(), config_source='database')
     target = InstanceConfigFactory.create(instance=InstanceFactory.create(), config_source='database')
     ds = DatasetFactory.create(scope=source, identifier='forecasted', spec={'forecast_from': 2025})
 
-    snap = DatasetSnapshot.from_model_for_instance(ds, source)
+    snap = DatasetSnapshot.from_model(ds, source)
     assert snap.forecast_from == 2025
 
     from django.contrib.contenttypes.models import ContentType
 
-    copied = _import_dataset(target, snap, ContentType.objects.get_for_model(target), {})
+    copied = import_dataset(target, snap, ContentType.objects.get_for_model(target), {})
     assert copied.spec == {'forecast_from': 2025}
 
 
@@ -1206,7 +1207,8 @@ def test_import_instance_datasets_rewires_ports_and_removes_placeholder(empty_db
         DatasetSchemaFactory,
     )
 
-    from nodes.instance_serialization import export_instance, import_instance_datasets
+    from datasets.transfer import import_instance_datasets
+    from nodes.instance_serialization import export_instance
     from nodes.models import DatasetMaterialization, NodeConfig
 
     source = empty_db_instance
@@ -1292,8 +1294,9 @@ def test_import_instance_datasets_preserves_dimension_column_name(empty_db_insta
         DimensionFactory,
     )
 
+    from datasets.transfer import import_instance_datasets
     from nodes.datasets import DBDataset
-    from nodes.instance_serialization import export_instance, import_instance_datasets
+    from nodes.instance_serialization import export_instance
 
     source = empty_db_instance
     target_instance = InstanceFactory.create()
@@ -2056,7 +2059,7 @@ def test_published_metadata_ignores_draft_edits(empty_db_instance: InstanceConfi
 
 def test_instance_graphql_content_comes_from_selected_snapshot(gql_client, empty_db_instance: InstanceConfig):
     """Instance content follows the selected snapshot; operational state remains live."""
-    from nodes.models import _pytest_instances
+    from nodes.models import test_instance_registry
 
     empty_db_instance.name = 'Published instance'
     empty_db_instance.owner = 'Published owner'
@@ -2079,7 +2082,7 @@ def test_instance_graphql_content_comes_from_selected_snapshot(gql_client, empty
     empty_db_instance.save(
         update_fields=['name', 'owner', 'lead_title', 'lead_paragraph', 'spec'],
     )
-    _pytest_instances.pop(empty_db_instance.identifier, None)
+    test_instance_registry.pop(empty_db_instance.identifier, None)
 
     query = f"""
     query Q @instance(identifier: "{empty_db_instance.identifier}", preview: PUBLISHED) {{
@@ -2197,7 +2200,7 @@ def test_published_indicator_node_uses_snapshot_reference(empty_db_instance: Ins
 
 def test_published_editor_reads_revision_node_without_live_row_dependency(gql_client, empty_db_instance: InstanceConfig):
     """Authorized editor reads remain available on a published runtime."""
-    from nodes.models import _pytest_instances
+    from nodes.models import test_instance_registry
 
     _make_publishable_node(empty_db_instance, 'guarded', 'Guarded')
     empty_db_instance.publish_instance()
@@ -2205,7 +2208,7 @@ def test_published_editor_reads_revision_node_without_live_row_dependency(gql_cl
 
     # The factory registers a pre-built empty Instance that short-circuits
     # request-path hydration; drop it so the query hydrates from the DB.
-    _pytest_instances.pop(empty_db_instance.identifier, None)
+    test_instance_registry.pop(empty_db_instance.identifier, None)
 
     query = f"""
     query Q @instance(identifier: "{empty_db_instance.identifier}", preview: PUBLISHED) {{
@@ -2231,7 +2234,7 @@ def test_published_editor_reads_revision_node_without_live_row_dependency(gql_cl
 
 def test_published_node_history_uses_uuid_after_draft_row_deletion(gql_client, empty_db_instance: InstanceConfig):
     from nodes.change_ops import change_operation, record_change
-    from nodes.models import _pytest_instances
+    from nodes.models import test_instance_registry
 
     node = _make_publishable_node(empty_db_instance, 'deleted_from_draft', 'Published only')
     empty_db_instance.publish_instance()
@@ -2240,7 +2243,7 @@ def test_published_node_history_uses_uuid_after_draft_row_deletion(gql_client, e
         entry = record_change(node, action='node.delete', before=before, after=None)
         node.delete()
     empty_db_instance.refresh_from_db()
-    _pytest_instances.pop(empty_db_instance.identifier, None)
+    test_instance_registry.pop(empty_db_instance.identifier, None)
 
     data = gql_client.query_data(
         f"""

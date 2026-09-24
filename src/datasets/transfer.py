@@ -1,174 +1,63 @@
 """Transfer dataset bodies, provenance, and dimensions between database scopes."""
 
 from datetime import date, datetime
+from itertools import chain
 from typing import TYPE_CHECKING, Any
 
-from django.contrib.auth import get_user_model
+from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
 
 from loguru import logger
 
-from kausal_common.datasets.category_domain import DatasetCategoryDomain
+from kausal_common.datasets.models import (
+    DataPoint,
+    DataPointComment,
+    DataPointCommentReviewState,
+    DataPointDimensionCategory,
+    Dataset as DatasetModel,
+    DatasetMetric as DatasetMetricModel,
+    DatasetMetricValidationRule,
+    DatasetSchema as DatasetSchemaModel,
+    DatasetSchemaDimension,
+    DatasetSchemaScope,
+    DatasetSourceReference,
+    DataSource,
+    Dimension as DimensionModel,
+    DimensionCategory as DimensionCategoryModel,
+    DimensionScope,
+)
 
 from datasets.snapshot import (
     DataPointCommentSnapshot,
     DataPointEvidenceSnapshot,
     DataPointKey,
-    DatasetMetricSnapshot,
     DatasetSnapshot,
     DataSourceSnapshot,
-    MetricValidationRuleSnapshot,
-    QualityLevelRef,
     SourceReferenceSnapshot,
-    _label_from_identifier,
-    _primary_language_for_dataset,
-    metric_column_id,
 )
-from datasets.validation_rules import validation_rule_adapter
-from nodes.snapshot_base import _apply_translated, _ts_from_modeltrans
+from nodes.snapshot_base import apply_translated
+from users.models import User
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
-    from django.contrib.contenttypes.models import ContentType
-
-    from kausal_common.datasets.models import Dataset as DatasetModel, DatasetMetric, DimensionCategory
-    from kausal_common.i18n.pydantic import TranslatedString
-
     from nodes.models import InstanceConfig
 
 
-def metric_validation_rule_snapshot_from_model(obj: Any) -> MetricValidationRuleSnapshot:
-    return MetricValidationRuleSnapshot(uuid=obj.uuid, rule=validation_rule_adapter.validate_python(obj.rule))
-
-
-def dataset_metric_snapshot_from_model(obj: Any) -> DatasetMetricSnapshot:
-    # Metrics live under a DatasetSchema; primary language is the
-    # schema's parent scope's instance-config primary language. For the
-    # nested path the caller resolves the language and passes via
-    # ``from_model_with_language`` below — the default path assumes
-    # i18n-less data.
-    return DatasetMetricSnapshot(
-        identifier=metric_column_id(obj),
-        label=_ts_from_modeltrans(obj, 'label', 'en') if obj.label or obj.i18n else None,
-        unit=obj.unit,
-        quantity=(obj.spec or {}).get('quantity'),
-        validation_rules=metric_rules_from_model(obj),
-    )
-
-
-def dataset_metric_snapshot_from_model_with_language(obj: Any, primary_language: str) -> DatasetMetricSnapshot:
-    return DatasetMetricSnapshot(
-        identifier=metric_column_id(obj),
-        label=_ts_from_modeltrans(obj, 'label', primary_language),
-        unit=obj.unit,
-        quantity=(obj.spec or {}).get('quantity'),
-        validation_rules=metric_rules_from_model(obj),
-    )
-
-
-def metric_rules_from_model(obj: Any) -> list[MetricValidationRuleSnapshot]:
-    return [metric_validation_rule_snapshot_from_model(rule) for rule in obj.validation_rules.order_by('order')]
-
-
-def snapshot_from_model_for_instance(obj: Any, instance_config: InstanceConfig | None) -> DatasetSnapshot:
-    from kausal_common.datasets.models import DatasetSchemaDimension, DimensionScope
-
-    schema = obj.schema
-    metrics: list[DatasetMetricSnapshot] = []
-    dimensions: list[str] = []
-    dimension_columns: dict[str, str] = {}
-    name_ts: TranslatedString | None = None
-    time_resolution = 'yearly'
-    is_editable = True
-    primary_language = instance_config.primary_language if instance_config is not None else _primary_language_for_dataset(obj)
-
-    if schema is not None:
-        time_resolution = schema.time_resolution
-        is_editable = schema.is_editable
-        # Schema name is a plain CharField + an i18n TranslationField.
-        name_ts = _ts_from_modeltrans(schema, 'name', primary_language)
-        metrics = [
-            DatasetMetricSnapshot.from_model_with_language(m, primary_language) for m in schema.metrics.all().order_by('order')
-        ]
-        if instance_config is not None:
-            from django.contrib.contenttypes.models import ContentType
-
-            scope_content_type = ContentType.objects.get_for_model(instance_config)
-            scope_id = instance_config.pk
-        else:
-            scope_content_type = obj.scope_content_type
-            scope_id = obj.scope_id
-        if scope_content_type is not None and scope_id is not None:
-            for dsd in DatasetSchemaDimension.objects.filter(schema=schema).select_related('dimension').order_by('order'):
-                scope = DimensionScope.objects.filter(
-                    dimension=dsd.dimension,
-                    scope_content_type=scope_content_type,
-                    scope_id=scope_id,
-                ).first()
-                if scope and scope.identifier:
-                    dimensions.append(scope.identifier)
-                    if dsd.column_name and dsd.column_name != scope.identifier:
-                        dimension_columns[scope.identifier] = dsd.column_name
-
-    data: dict[str, Any] | None = None
-    data_sources: list[DataSourceSnapshot] = []
-    source_references: list[SourceReferenceSnapshot] = []
-    comments: list[DataPointCommentSnapshot] = []
-    evidence: list[DataPointEvidenceSnapshot] = []
-    if not obj.is_external_placeholder:
-        data = export_dataset_data_safe(obj)
-        data_sources, source_references, comments = export_dataset_provenance(obj)
-        evidence = export_dataset_evidence(obj)
-
-    return DatasetSnapshot(
-        identifier=obj.identifier,
-        name=name_ts,
-        forecast_from=(obj.spec or {}).get('forecast_from'),
-        is_external_placeholder=obj.is_external_placeholder,
-        external_ref=obj.external_ref,
-        time_resolution=time_resolution,
-        is_editable=is_editable,
-        dimensions=dimensions,
-        dimension_columns=dimension_columns,
-        metrics=metrics,
-        category_domain=schema.category_domain if schema is not None else DatasetCategoryDomain(),
-        data=data,
-        data_sources=data_sources,
-        source_references=source_references,
-        comments=comments,
-        evidence=evidence,
-    )
-
-
-def _data_point_key(dp: Any) -> DataPointKey:
-    """Natural key for a DataPoint: (year, metric identifier, sorted category ids)."""
-    metric = dp.metric
-    metric_id = metric_column_id(metric)
-    categories = sorted((c.identifier or str(c.uuid)) for c in dp.dimension_categories.all())
-    return DataPointKey(year=dp.date.year, metric=metric_id, categories=categories)
+def _label_from_identifier(identifier: str) -> str:
+    return identifier.replace('_', ' ').replace('-', ' ').title()
 
 
 def export_dataset_provenance(
     ds: DatasetModel,
 ) -> tuple[list[DataSourceSnapshot], list[SourceReferenceSnapshot], list[DataPointCommentSnapshot]]:
     """Serialize a dataset's source references and (non-soft-deleted) data-point comments."""
-    from kausal_common.datasets.models import DataPointComment, DatasetSourceReference
-
     sources: dict[str, DataSourceSnapshot] = {}
 
-    def add_source(src: Any) -> str:
+    def add_source(src: DataSource) -> None:
         key = str(src.uuid)
         if key not in sources:
-            sources[key] = DataSourceSnapshot(
-                uuid=key,
-                name=src.name,
-                edition=src.edition,
-                authority=src.authority,
-                description=src.description,
-                url=src.url,
-            )
-        return key
+            sources[key] = DataSourceSnapshot.from_model(src)
 
     dataset_refs = DatasetSourceReference.objects.filter(dataset=ds).select_related('data_source')
     dp_refs = (
@@ -177,10 +66,10 @@ def export_dataset_provenance(
         .select_related('data_source', 'data_point__metric')
         .prefetch_related('data_point__dimension_categories')
     )
-    references = [SourceReferenceSnapshot(data_source=add_source(r.data_source), point=None) for r in dataset_refs]
-    references += [
-        SourceReferenceSnapshot(data_source=add_source(r.data_source), point=_data_point_key(r.data_point)) for r in dp_refs
-    ]
+    references: list[SourceReferenceSnapshot] = []
+    for reference in chain(dataset_refs, dp_refs):
+        add_source(reference.data_source)
+        references.append(SourceReferenceSnapshot.from_model(reference))
 
     comment_qs = (
         DataPointComment.objects  # default manager excludes soft-deleted
@@ -188,20 +77,7 @@ def export_dataset_provenance(
         .select_related('data_point__metric', 'created_by', 'last_modified_by', 'resolved_by')
         .prefetch_related('data_point__dimension_categories')
     )
-    comments = [
-        DataPointCommentSnapshot(
-            point=_data_point_key(c.data_point),
-            text=c.text,
-            is_sticky=c.is_sticky,
-            is_review=c.is_review,
-            review_state=c.review_state,
-            resolved_at=c.resolved_at.isoformat() if c.resolved_at else None,
-            created_by=str(c.created_by.uuid) if c.created_by else None,
-            last_modified_by=str(c.last_modified_by.uuid) if c.last_modified_by else None,
-            resolved_by=str(c.resolved_by.uuid) if c.resolved_by else None,
-        )
-        for c in comment_qs
-    ]
+    comments = [DataPointCommentSnapshot.from_model(comment) for comment in comment_qs]
     return list(sources.values()), references, comments
 
 
@@ -215,26 +91,7 @@ def export_dataset_evidence(ds: DatasetModel) -> list[DataPointEvidenceSnapshot]
         .prefetch_related('data_point__dimension_categories')
         .order_by('data_point_id')
     )
-    result = []
-    for ev in evidence_qs:
-        level = ev.quality_level
-        result.append(
-            DataPointEvidenceSnapshot(
-                point=_data_point_key(ev.data_point),
-                kind=ev.kind,
-                quality_level=QualityLevelRef(
-                    uuid=str(level.uuid),
-                    scheme=level.scheme.identifier,
-                    scheme_version=level.scheme.version,
-                    level=level.identifier,
-                )
-                if level is not None
-                else None,
-                created_by=str(ev.created_by.uuid) if ev.created_by else None,
-                last_modified_by=str(ev.last_modified_by.uuid) if ev.last_modified_by else None,
-            )
-        )
-    return result
+    return [DataPointEvidenceSnapshot.from_model(evidence) for evidence in evidence_qs]
 
 
 def _import_dataset_evidence(
@@ -260,7 +117,7 @@ def _import_dataset_evidence(
     by_identity = {(level.scheme.identifier, level.scheme.version, level.identifier): level for level in levels}
     users = {
         str(u.uuid): u
-        for u in get_user_model().objects.filter(
+        for u in User.objects.filter(
             uuid__in={uid for ev in ds_snapshot.evidence for uid in (ev.created_by, ev.last_modified_by) if uid}
         )
     }
@@ -322,22 +179,13 @@ def export_dataset_data_safe(ds: DatasetModel) -> dict[str, Any] | None:
 
 
 @transaction.atomic
-def _import_dataset(
+def import_dataset(
     ic: InstanceConfig,
     ds_snapshot: DatasetSnapshot,
     ic_ct: ContentType,
-    dim_lookup: dict[str, DimensionCategory],
+    dim_lookup: dict[str, DimensionCategoryModel],
 ) -> DatasetModel:
     """Create DatasetSchema, Dataset, DatasetMetric, DatasetSchemaDimension, and DataPoints."""
-    from kausal_common.datasets.models import (
-        Dataset as DatasetModel,
-        DatasetMetric as DatasetMetricModel,
-        DatasetMetricValidationRule,
-        DatasetSchema as DatasetSchemaModel,
-        DatasetSchemaDimension,
-        DatasetSchemaScope,
-        DimensionScope,
-    )
 
     primary_lang = ic.primary_language
 
@@ -348,7 +196,7 @@ def _import_dataset(
         'category_domain': ds_snapshot.category_domain,
     }
     schema_i18n: dict[str, str] = {}
-    _apply_translated(schema_fields, schema_i18n, ds_snapshot.name, 'name', primary_lang)
+    apply_translated(schema_fields, schema_i18n, ds_snapshot.name, 'name', primary_lang)
     if schema_fields.get('name') is None:
         # DatasetSchema.name is required; fall back to empty if the source
         # snapshot had no name in any language.
@@ -369,7 +217,7 @@ def _import_dataset(
     for idx, m_snap in enumerate(ds_snapshot.metrics):
         metric_fields: dict[str, Any] = {}
         metric_i18n: dict[str, str] = {}
-        _apply_translated(metric_fields, metric_i18n, m_snap.label, 'label', primary_lang)
+        apply_translated(metric_fields, metric_i18n, m_snap.label, 'label', primary_lang)
         if metric_fields.get('label') is None:
             metric_fields['label'] = m_snap.identifier
         metric = DatasetMetricModel.objects.create(
@@ -450,21 +298,13 @@ def _import_dataset_provenance(  # noqa: C901
     if not (ds_snapshot.data_sources or ds_snapshot.source_references or ds_snapshot.comments):
         return
 
-    from kausal_common.datasets.models import (
-        DataPointComment,
-        DataPointCommentReviewState,
-        DatasetSourceReference,
-        DataSource,
-    )
-
-    user_model = get_user_model()
     user_cache: dict[str, Any] = {}
 
     def resolve_user(user_uuid: str | None) -> Any:
         if not user_uuid:
             return None
         if user_uuid not in user_cache:
-            user_cache[user_uuid] = user_model.objects.filter(uuid=user_uuid).first()
+            user_cache[user_uuid] = User.objects.filter(uuid=user_uuid).first()
         return user_cache[user_uuid]
 
     # DataSources are scoped to the target instance and get fresh uuids (a same-DB
@@ -509,7 +349,7 @@ def _import_dataset_provenance(  # noqa: C901
         )
 
 
-def _resolve_metric_data_columns(
+def resolve_metric_data_columns(
     ds_snapshot: DatasetSnapshot, metric_ids: list[str], dim_columns: dict[str, str]
 ) -> dict[str, str]:
     """
@@ -546,20 +386,18 @@ def _resolve_metric_data_columns(
 def _import_data_points(
     dataset: DatasetModel,
     ds_snapshot: DatasetSnapshot,
-    metrics_by_id: dict[str, DatasetMetric],
-    dim_lookup: dict[str, DimensionCategory],
+    metrics_by_id: dict[str, DatasetMetricModel],
+    dim_lookup: dict[str, DimensionCategoryModel],
 ) -> dict[tuple[int, str, tuple[str, ...]], Any]:
     """Create DataPoints; return a natural-key → DataPoint map for provenance wiring."""
-    from kausal_common.datasets.models import DataPoint, DataPointDimensionCategory
-
     assert ds_snapshot.data is not None
     dim_ids = ds_snapshot.dimensions
     dim_columns = {dim_id: ds_snapshot.dimension_columns.get(dim_id, dim_id) for dim_id in dim_ids}
-    metric_columns = _resolve_metric_data_columns(ds_snapshot, list(metrics_by_id), dim_columns)
+    metric_columns = resolve_metric_data_columns(ds_snapshot, list(metrics_by_id), dim_columns)
 
     data_points: list[DataPoint] = []
     # (data_point_index, category) pairs for bulk M2M creation
-    dp_categories: list[tuple[int, DimensionCategory]] = []
+    dp_categories: list[tuple[int, DimensionCategoryModel]] = []
     # natural key per created data point, parallel to ``data_points``
     dp_keys: list[tuple[int, str, tuple[str, ...]]] = []
 
@@ -571,7 +409,7 @@ def _import_data_points(
 
         # Resolve dimension categories for this row (objects + their id strings,
         # which match the export-side natural key).
-        row_cats: list[DimensionCategory] = []
+        row_cats: list[DimensionCategoryModel] = []
         row_cat_ids: list[str] = []
         for dim_id in dim_ids:
             cat_id = row.get(dim_columns[dim_id])
@@ -619,10 +457,8 @@ def _import_data_points(
     return {dp_keys[i]: created_dps[i] for i in range(len(created_dps))}
 
 
-def _dimension_category_lookup_for_instance(ic: InstanceConfig, ic_ct: ContentType) -> dict[str, DimensionCategory]:
-    from kausal_common.datasets.models import DimensionScope
-
-    lookup: dict[str, DimensionCategory] = {}
+def _dimension_category_lookup_for_instance(ic: InstanceConfig, ic_ct: ContentType) -> dict[str, DimensionCategoryModel]:
+    lookup: dict[str, DimensionCategoryModel] = {}
     scopes = (
         DimensionScope.objects
         .filter(scope_content_type=ic_ct, scope_id=ic.pk, identifier__isnull=False)
@@ -641,10 +477,8 @@ def _ensure_dataset_dimensions(
     ic: InstanceConfig,
     ds_snapshot: DatasetSnapshot,
     ic_ct: ContentType,
-    dim_lookup: dict[str, DimensionCategory],
+    dim_lookup: dict[str, DimensionCategoryModel],
 ) -> None:
-    from kausal_common.datasets.models import Dimension, DimensionCategory as DimensionCategoryModel, DimensionScope
-
     for dim_id in ds_snapshot.dimensions:
         dim_scope = (
             DimensionScope.objects
@@ -657,7 +491,7 @@ def _ensure_dataset_dimensions(
             .first()
         )
         if dim_scope is None:
-            dimension = Dimension.objects.create(name=_label_from_identifier(dim_id))
+            dimension = DimensionModel.objects.create(name=_label_from_identifier(dim_id))
             DimensionScope.objects.create(
                 dimension=dimension,
                 identifier=dim_id,
@@ -687,7 +521,7 @@ def _ensure_dataset_dimensions(
 def _validate_dataset_dimensions(
     ic: InstanceConfig,
     ds_snapshot: DatasetSnapshot,
-    dim_lookup: dict[str, DimensionCategory],
+    dim_lookup: dict[str, DimensionCategoryModel],
 ) -> None:
     if ds_snapshot.data is None:
         return
@@ -736,10 +570,6 @@ def _rewire_dataset_ports(ic: InstanceConfig, datasets_by_id: dict[str, DatasetM
 
 
 def _delete_superseded_placeholders(ic: InstanceConfig, dataset_ids: Iterable[str]) -> int:
-    from django.contrib.contenttypes.models import ContentType
-
-    from kausal_common.datasets.models import Dataset as DatasetModel, DatasetSchemaScope
-
     ids = set(dataset_ids)
     if not ids:
         return 0
@@ -785,10 +615,6 @@ def import_instance_datasets(
     dataset ports, but its datasets need to be promoted from external
     placeholders to real DB datasets with datapoints.
     """
-    from django.contrib.contenttypes.models import ContentType
-
-    from kausal_common.datasets.models import Dataset as DatasetModel
-
     ic_ct = ContentType.objects.get_for_model(ic)
     dim_lookup = _dimension_category_lookup_for_instance(ic, ic_ct)
     imported: list[DatasetModel] = []
@@ -812,7 +638,7 @@ def import_instance_datasets(
         if create_missing_dimensions:
             _ensure_dataset_dimensions(ic, ds_snapshot, ic_ct, dim_lookup)
         _validate_dataset_dimensions(ic, ds_snapshot, dim_lookup)
-        dataset = _import_dataset(ic, ds_snapshot, ic_ct, dim_lookup)
+        dataset = import_dataset(ic, ds_snapshot, ic_ct, dim_lookup)
         imported.append(dataset)
         if ds_snapshot.identifier is not None:
             datasets_by_id[ds_snapshot.identifier] = dataset

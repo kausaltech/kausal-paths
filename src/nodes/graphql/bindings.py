@@ -46,14 +46,14 @@ from nodes.defs.transform_def import (
 )
 from nodes.graphql.binding_storage import LocalBindingEditor
 from nodes.graphql.constraint_checks import check_binding_change, dataset_candidate, edge_candidate, require_draft_graph
-from nodes.graphql.inputs import _get_input_port, is_maybe_set
+from nodes.graphql.inputs import get_input_port, is_maybe_set
 from nodes.graphql.types.constraints import ConstraintViolationsType
 from nodes.graphql.types.graph import (
     DatasetMetricRefType,
     DatasetPortType,
     NodeEdgeType,
     NodePortRef,
-    _external_dataset_id_from_dataset,
+    external_dataset_id_from_dataset,
 )
 from nodes.graphql.types.transformations import (
     DatasetTransformationInput,
@@ -204,7 +204,7 @@ def _resolve_port(info: gql.Info, nc: NodeConfig, port_id: str) -> UUID:
         if named is None:
             raise GraphQLValidationError(info, f'Input port "{port_id}" not found on node "{nc.identifier}"') from None
         return named.id
-    if _get_input_port(nc, parsed) is None:
+    if get_input_port(nc, parsed) is None:
         raise GraphQLValidationError(info, f'Input port "{port_id}" does not exist on node "{nc.identifier}"')
     return parsed
 
@@ -212,7 +212,7 @@ def _resolve_port(info: gql.Info, nc: NodeConfig, port_id: str) -> UUID:
 def _check_port_has_capacity(info: gql.Info, nc: NodeConfig, port_id: UUID) -> None:
     """Reject the binding if the port is already occupied and not declared ``multi``."""
 
-    port = _get_input_port(nc, port_id)
+    port = get_input_port(nc, port_id)
     assert port is not None
     if port.multi:
         return
@@ -222,7 +222,7 @@ def _check_port_has_capacity(info: gql.Info, nc: NodeConfig, port_id: UUID) -> N
         raise GraphQLValidationError(info, f'Input port "{port_id}" already has {kind} bound to it')
 
 
-def _port_occupants(info: gql.Info, nc: NodeConfig, port_id: UUID) -> list[NodeInputPortBinding]:
+def port_occupants(info: gql.Info, nc: NodeConfig, port_id: UUID) -> list[NodeInputPortBinding]:
     """
     Return what a replacing bind displaces from the port.
 
@@ -233,7 +233,7 @@ def _port_occupants(info: gql.Info, nc: NodeConfig, port_id: UUID) -> list[NodeI
     not unbind its siblings.
     """
 
-    port = _get_input_port(nc, port_id)
+    port = get_input_port(nc, port_id)
     assert port is not None
     if port.multi:
         raise GraphQLValidationError(
@@ -463,7 +463,7 @@ class PortBindingEditorMutation:
                     after=row.serializable_data(),
                 )
 
-        return _to_gql(rows[0])
+        return binding_to_gql(rows[0])
 
     @gql.mutation(
         description='Change the transformations or tags of this edge binding.',
@@ -554,7 +554,7 @@ class PortBindingEditorMutation:
             compact_port_positions(target_node, port_ids)
 
 
-def _to_gql(row: NodeInputPortBinding) -> DatasetPortType:
+def binding_to_gql(row: NodeInputPortBinding) -> DatasetPortType:
     """Build the read type for a dataset binding row, matching the instance-level resolver."""
 
     assert row.dataset is not None
@@ -568,7 +568,7 @@ def _to_gql(row: NodeInputPortBinding) -> DatasetPortType:
             port_id=row.port_id,
         ),
         metric=DatasetMetricRefType.from_model(row.metric),
-        external_dataset_id=_external_dataset_id_from_dataset(row.dataset),
+        external_dataset_id=external_dataset_id_from_dataset(row.dataset),
         external_metric_id=row.metric.name,
         tags=list(row.tags or []),
     )
@@ -594,7 +594,7 @@ def bind_dataset(
     displaced: list[NodeInputPortBinding] = []
     if ic.template_revision_id is None:
         if input.replace:
-            displaced = _port_occupants(info, nc, port_id)
+            displaced = port_occupants(info, nc, port_id)
         else:
             _check_port_has_capacity(info, nc, port_id)
     dataset = _resolve_dataset(info, ic, str(input.dataset_id))
@@ -676,7 +676,7 @@ def bind_dataset(
         )
         record_change(row, action='node.dataset_binding.create', before=None, after=row.serializable_data())
 
-    return _to_gql(row)
+    return binding_to_gql(row)
 
 
 def _sole_metric_or_error(info: gql.Info, dataset: DatasetModel) -> DatasetMetric:

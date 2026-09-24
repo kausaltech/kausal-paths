@@ -386,7 +386,7 @@ def action_group_types(groups: list[ActionGroup]) -> list[ActionGroupType]:
     ]
 
 
-def _dataset_external_ref_to_gql(external_ref: object) -> DatasetExternalRefType | None:
+def dataset_external_ref_to_gql(external_ref: object) -> DatasetExternalRefType | None:
     if not isinstance(external_ref, dict):
         return None
     repo_url = external_ref.get('repo_url')
@@ -401,7 +401,7 @@ def _dataset_external_ref_to_gql(external_ref: object) -> DatasetExternalRefType
     )
 
 
-def _external_dataset_id_from_dataset(dataset: DatasetModel | DatasetBindingDef) -> str | None:
+def external_dataset_id_from_dataset(dataset: DatasetModel | DatasetBindingDef) -> str | None:
     if isinstance(dataset, DatasetBindingDef):
         external_ref = dataset.dataset_external_ref
         if isinstance(external_ref, dict):

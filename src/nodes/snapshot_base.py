@@ -1,7 +1,8 @@
 """Shared snapshot helpers independent of Django model modules."""
 
-from typing import TYPE_CHECKING, Any, Self, cast
+from typing import Any, Self, cast
 
+from django.db.models import Model
 from modeltrans.translator import get_i18n_field
 
 from kausal_common.i18n.pydantic import (
@@ -12,11 +13,8 @@ from kausal_common.i18n.pydantic import (
     get_translated_string_from_modeltrans,
 )
 
-if TYPE_CHECKING:
-    from django.db.models import Model
 
-
-class ModelSnapshot(I18nBaseModel):
+class ModelSnapshot[ModelT: Model](I18nBaseModel):
     """
     Base for Pydantic types that mirror ORM-row state of editable children.
 
@@ -30,11 +28,11 @@ class ModelSnapshot(I18nBaseModel):
     """
 
     @classmethod
-    def from_model(cls, obj: Any) -> Self:
+    def from_model(cls, obj: ModelT) -> Self:
         return cls.model_validate(obj, from_attributes=True)
 
 
-def _ts_from_modeltrans(obj: Model, field_name: str, primary_language: str) -> TranslatedString | None:
+def translated_string_from_model(obj: Model, field_name: str, primary_language: str) -> TranslatedString | None:
     """
     Read a modeltrans-backed field into a ``TranslatedString``.
 
@@ -52,7 +50,7 @@ def _ts_from_modeltrans(obj: Model, field_name: str, primary_language: str) -> T
     return get_translated_string_from_modeltrans(mt_obj, field_name, primary_language)
 
 
-def _apply_translated(
+def apply_translated(
     fields: dict[str, Any],
     i18n: dict[str, str],
     ts: TranslatedString | None,

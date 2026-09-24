@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 from datasets.validation_rules import validation_rule_adapter
 from nodes.defs.graph import DatasetMeta, DatasetMetricMeta
-from nodes.snapshot_base import _ts_from_modeltrans
+from nodes.snapshot_base import translated_string_from_model
 
 if TYPE_CHECKING:
     from kausal_common.datasets.models import Dataset as DatasetModel
@@ -24,7 +24,7 @@ def dataset_meta_from_model(
         DatasetMetricMeta(
             id=metric.uuid,
             identifier=metric.name,
-            label=_ts_from_modeltrans(metric, 'label', primary_language),
+            label=translated_string_from_model(metric, 'label', primary_language),
             unit=metric.unit,
             quantity=(metric.spec or {}).get('quantity'),
             order=metric.order,
