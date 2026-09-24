@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING
 
-from nodes.dataset_materialization import ensure_dataset_materializations
+from datasets.materialization import ensure_dataset_materializations
 
 if TYPE_CHECKING:
     from pydantic import JsonValue

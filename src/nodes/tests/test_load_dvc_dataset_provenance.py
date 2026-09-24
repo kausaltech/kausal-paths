@@ -15,7 +15,7 @@ from kausal_common.datasets.models import DataPoint, DataPointComment, Dataset, 
 from kausal_common.datasets.tests.factories import DatasetFactory, DatasetSchemaFactory
 
 from common.polars import DataFrameMeta, to_ppdf
-from nodes.management.commands.load_dvc_dataset import Command, build_dataset_plan, dataset_level_source_names
+from datasets.management.commands.load_dvc_dataset import Command, build_dataset_plan, dataset_level_source_names
 from nodes.models import DatasetMaterialization, InstanceConfig
 from nodes.tests.factories import InstanceConfigFactory
 from nodes.units import unit_registry

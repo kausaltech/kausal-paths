@@ -94,7 +94,7 @@ def dataset_candidate(
     datasets, so a first-time bind must inject the metadata it validates
     against.
     """
-    from nodes.instance_serialization import dataset_meta_from_model
+    from datasets.catalogue import dataset_meta_from_model
 
     binding = DatasetBindingDef(
         id=binding_id or uuid4(),

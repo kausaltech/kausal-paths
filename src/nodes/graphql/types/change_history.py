@@ -305,9 +305,9 @@ def _resolve_binding_target(entry: InstanceModelLogEntry, pk: int, *, by_pk: boo
         return None
     if binding.source_node_id is not None:
         return NodeEdgeType.from_input_binding(binding)
-    from nodes.graphql.bindings import _to_gql
+    from nodes.graphql.bindings import binding_to_gql
 
-    return _to_gql(binding)
+    return binding_to_gql(binding)
 
 
 @sb.type

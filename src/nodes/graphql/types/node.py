@@ -138,7 +138,7 @@ class NodeSpecType(StrawberryPydanticType[NodeSpec]):
 
         node = root._node
         assert node is not None
-        node_uuid = _get_node_uuid_with_fallback(node)
+        node_uuid = get_node_uuid_with_fallback(node)
         config = node.context.instance.config
         assert config is not None
         if node.db_obj is not None and config.template_revision_id is None:
@@ -178,7 +178,7 @@ class NodeSpecType(StrawberryPydanticType[NodeSpec]):
 
         node = root._node
         assert node is not None
-        node_uuid = _get_node_uuid_with_fallback(node)
+        node_uuid = get_node_uuid_with_fallback(node)
         config = node.context.instance.config
         assert config is not None
         bindings = (
@@ -212,7 +212,7 @@ class NodeSpecType(StrawberryPydanticType[NodeSpec]):
         return conflicts_for_node(
             info.context.require_instance_graph(config, source=source),
             info.context.require_constraint_solve(config, source=source),
-            _get_node_uuid_with_fallback(root._node),
+            get_node_uuid_with_fallback(root._node),
         )
 
     @sb.field(
@@ -294,7 +294,7 @@ class NodeEditorFields:
             return []
         return fetch_entity_history_by_uuid(
             NodeConfig,
-            _get_node_uuid_with_fallback(root._node),
+            get_node_uuid_with_fallback(root._node),
             info,
             limit=limit,
             before=before,
@@ -378,7 +378,7 @@ class NodeEditorFields:
         return list(root._node.output_dimensions.keys())
 
 
-def _get_node_uuid_with_fallback(root: 'Node') -> UUID:  # noqa: UP037
+def get_node_uuid_with_fallback(root: 'Node') -> UUID:  # noqa: UP037
     if root.source_snapshot is not None:
         return root.source_snapshot.uuid
     nc = root.db_obj
@@ -400,7 +400,7 @@ class NodeInterface(UserPermissionsMixin):
     unit: UnitType | None
     quantity: str | None
 
-    uuid: UUID = sb.field(resolver=_get_node_uuid_with_fallback)
+    uuid: UUID = sb.field(resolver=get_node_uuid_with_fallback)
 
     input_nodes: list['NodeInterface']
     output_nodes: list['NodeInterface']

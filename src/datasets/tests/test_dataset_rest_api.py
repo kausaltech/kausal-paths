@@ -16,9 +16,9 @@ from kausal_common.datasets.models import (
 )
 from kausal_common.testing.utils import parse_table
 
+from datasets.materialization import materialize_dataset
 from datasets.tests.fixtures import *
 from datasets.tests.utils import AssertIdenticalUUIDs, AssertNewUUID, AssertRemovedUUID
-from nodes.dataset_materialization import materialize_dataset
 from nodes.models import DatasetMaterialization
 
 pytestmark = pytest.mark.django_db()

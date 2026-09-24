@@ -12,7 +12,7 @@ import pytest
 from kausal_common.datasets.models import DataPoint, Dataset, DatasetMetric
 
 from common import polars as ppl
-from nodes.management.commands.load_dvc_dataset import Command, build_dataset_plan, count_incoming_cells
+from datasets.management.commands.load_dvc_dataset import Command, build_dataset_plan, count_incoming_cells
 from nodes.models import NodeConfig, NodeInputPortBinding
 from nodes.tests.factories import InstanceConfigFactory, NodeConfigFactory
 
@@ -134,8 +134,8 @@ def test_plan_reports_the_diff_without_writing():
 
 def test_provenance_reports_disagreeing_pins(monkeypatch: pytest.MonkeyPatch):
     """Importing from a different commit than the model expects must never be silent."""
+    from datasets.management.commands import load_dvc_dataset as mod
     from nodes.defs.instance_defs import DatasetRepoSpec
-    from nodes.management.commands import load_dvc_dataset as mod
 
     url = 'https://example.com/dvc.git'
     ic = InstanceConfigFactory.create(name='prov-mismatch', config_source='database')

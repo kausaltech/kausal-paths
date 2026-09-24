@@ -34,7 +34,7 @@ from rich import print
 from kausal_common.datasets.models import Dataset, DatasetMetric
 
 from common import polars as ppl
-from nodes.management.commands.load_dvc_dataset import apply_repo_provenance, resolve_repo_provenance
+from datasets.management.commands.load_dvc_dataset import apply_repo_provenance, resolve_repo_provenance
 from nodes.models import InstanceConfig, NodeInputPortBinding
 
 if TYPE_CHECKING:

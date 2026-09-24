@@ -194,7 +194,7 @@ def test_publication_retains_framework_data_revision(
 
     from kausal_common.datasets.tests.factories import DataPointFactory, DatasetMetricFactory
 
-    from nodes.dataset_materialization import dataset_change
+    from datasets.materialization import dataset_change
     from nodes.models import InstanceRevisionDatasetPin, NodeInputPortBinding
 
     template = release.framework.template_instance

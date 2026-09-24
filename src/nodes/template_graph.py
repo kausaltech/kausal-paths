@@ -13,8 +13,9 @@ import networkx as nx
 from kausal_common.datasets.models import Dataset
 from kausal_common.i18n.pydantic import set_i18n_context
 
+from datasets.catalogue import dataset_meta_from_model
+from datasets.materialization import ensure_dataset_materializations
 from nodes.constraints.validation import InstanceConstraintError, solve_instance_constraints
-from nodes.dataset_materialization import ensure_dataset_materializations
 from nodes.instance_graph import NodeEditContext, NodeMeta, build_instance_graph
 from nodes.instance_graph_cache import resolve_instance_source
 from nodes.instance_serialization import (
@@ -25,7 +26,6 @@ from nodes.instance_serialization import (
     NodePortSource,
     NodeSnapshot,
     build_instance_snapshot,
-    dataset_meta_from_model,
 )
 from nodes.models import InputPortBindingSet, InstanceConfig, InstanceRevisionDatasetPin, PreferredInstanceSource
 from nodes.template_reference_data import release_reference_materializations
