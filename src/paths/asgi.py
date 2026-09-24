@@ -74,3 +74,15 @@ class AuthGraphQLProtocolTypeRouter(ProtocolTypeRouter):
 
 
 application = AuthGraphQLProtocolTypeRouter()
+if os.getenv('OTEL_EXPORTER_OTLP_METRICS_ENDPOINT'):
+    from opentelemetry.instrumentation.asgi import OpenTelemetryMiddleware
+    from opentelemetry.trace import NoOpTracerProvider
+
+    from kausal_common.telemetry.metrics import HEALTH_CHECK_EXCLUDED_URLS
+
+    application = OpenTelemetryMiddleware(
+        application,
+        excluded_urls=HEALTH_CHECK_EXCLUDED_URLS,
+        tracer_provider=NoOpTracerProvider(),
+        exclude_spans=['receive', 'send'],
+    )
