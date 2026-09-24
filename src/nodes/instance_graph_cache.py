@@ -153,7 +153,7 @@ def _build_graph(
     return build_instance_graph(
         snapshot,
         legacy_dimensions=tuple(catalog_snapshot.dimensions),
-        legacy_datasets=tuple(catalog_snapshot.datasets),
+        legacy_datasets=tuple(catalog_snapshot.all_datasets()),
     )
 
 

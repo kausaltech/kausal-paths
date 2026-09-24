@@ -60,7 +60,6 @@ class ScopeIds:
     kept_instance_ids: list[int]
     kept_org_ids: list[int]
     deleted_schema_ids: list[int]
-    kept_schema_ids: list[int]
 
 
 class Command(BaseCommand):
@@ -214,20 +213,11 @@ class Command(BaseCommand):
             )
 
         deleted_scope = scope_q(scope_ids.deleted_instance_ids, scope_ids.deleted_org_ids)
-        kept_scope = scope_q(scope_ids.kept_instance_ids, scope_ids.kept_org_ids)
 
-        # Paths treats a dataset as owned by an instance either when it is directly scoped to it OR
-        # when its schema is made available there via a DatasetSchemaScope (see
-        # instance_serialization._datasets_for_instance_export). Delete in two tiers:
-        #
-        # 1. Datasets directly scoped to a deleted instance/org hold that customer's data, so they go
-        #    unconditionally — even if their schema is also shared with a retained instance.
-        # 2. Datasets owned only via schema scope (placeholders / not directly scoped to anything
-        #    being deleted) are deleted only when no retained instance/org still has them, i.e. the
-        #    schema isn't shared with a kept scope and the dataset isn't directly scoped to a kept one.
-        belongs_to_kept = kept_scope | Q(schema_id__in=scope_ids.kept_schema_ids)
-        schema_scoped_orphan = Q(schema_id__in=scope_ids.deleted_schema_ids) & ~belongs_to_kept
-        to_delete = deleted_scope | schema_scoped_orphan
+        # Every dataset is directly scoped, so a deleted instance's datasets are exactly those in its
+        # scope, even when their schema is also shared with a retained instance. Node-owned datasets
+        # went with their nodes in InstanceConfig.delete().
+        to_delete = deleted_scope
 
         # Capture the schemas/dimensions this trim may orphan *before* deleting anything, so the
         # orphan cleanups below only ever touch objects this trim affected — never a pre-existing
@@ -407,7 +397,6 @@ class Command(BaseCommand):
             kept_instance_ids=kept_instance_ids,
             kept_org_ids=kept_org_ids,
             deleted_schema_ids=schema_ids_for(deleted_instance_ids, deleted_org_ids),
-            kept_schema_ids=schema_ids_for(kept_instance_ids, kept_org_ids),
         )
 
     @transaction.atomic

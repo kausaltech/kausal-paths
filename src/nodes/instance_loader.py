@@ -1715,7 +1715,7 @@ class InstanceLoader:
         # dataset that has none, as the published loader and the snapshot do.
         ds_objs = list(
             DBDatasetModel.objects.qs
-            .for_instance_config(ic)
+            .governed_by_instance(ic)
             .filter(is_external_placeholder=False)
             .only('uuid', 'identifier', 'last_modified_at', 'spec', 'is_external_placeholder')
         )
@@ -1879,12 +1879,12 @@ class InstanceLoader:
 
         graph_snapshot = snapshot
         is_yaml = getattr(self, 'yaml_file_path', None) is not None
-        if is_yaml or not snapshot.datasets:
-            catalog = list(snapshot.datasets)
+        if is_yaml or not snapshot.all_datasets():
+            catalog = snapshot.all_datasets()
             if not catalog and self.instance_config is not None and not is_yaml:
                 from nodes.instance_serialization import build_instance_snapshot
 
-                catalog.extend(build_instance_snapshot(self.instance_config).datasets)
+                catalog.extend(build_instance_snapshot(self.instance_config).all_datasets())
 
             specs_by_node = {node.uuid: node.spec for node in snapshot.nodes if node.spec is not None}
             datasets_by_id = {dataset.id: dataset for dataset in catalog}

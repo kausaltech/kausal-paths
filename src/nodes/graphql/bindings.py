@@ -163,10 +163,12 @@ def _validate_transformations(
         raise GraphQLValidationError(info, 'A binding can select its metric only once')
 
 
-def _resolve_dataset(info: gql.Info, ic: InstanceConfig, dataset_id: str) -> DatasetModel:
+def _resolve_dataset(info: gql.Info, ic: InstanceConfig, nc: NodeConfig, dataset_id: str) -> DatasetModel:
+    """Resolve among the instance's datasets and the node's own; other nodes' datasets are not found."""
     qs = Dataset.objects.get_queryset().for_instance_config(ic)
+    qs = Dataset.objects.filter(Q(pk__in=qs.values('pk')) | Q(pk__in=Dataset.objects.get_queryset().for_node(nc).values('pk')))
     if ic.template_revision_id is not None:
-        defaults = [dataset.id for dataset in template_snapshot(ic).datasets]
+        defaults = [dataset.id for dataset in template_snapshot(ic).all_datasets()]
         qs = Dataset.objects.filter(Q(pk__in=qs.values('pk')) | Q(uuid__in=defaults))
     qs = qs.select_related('schema')
     dataset = qs.filter(uuid=dataset_id).first() if _looks_like_uuid(dataset_id) else qs.filter(identifier=dataset_id).first()
@@ -338,7 +340,7 @@ class PortBindingEditorMutation:
         source = binding.source
         if not isinstance(source, DatasetMetricSource):
             raise GraphQLValidationError(info, 'This binding is an edge; use updateEdgeBinding')
-        dataset = _resolve_dataset(info, root.instance, str(source.dataset_uuid))
+        dataset = _resolve_dataset(info, root.instance, root.local_node, str(source.dataset_uuid))
         selects_metric = any(op.kind == 'select_metric' for op in binding.transformations)
         metric_column = source.metric if selects_metric else None
         if is_maybe_set(input.metric_id):
@@ -597,7 +599,7 @@ def bind_dataset(
             displaced = port_occupants(info, nc, port_id)
         else:
             _check_port_has_capacity(info, nc, port_id)
-    dataset = _resolve_dataset(info, ic, str(input.dataset_id))
+    dataset = _resolve_dataset(info, ic, nc, str(input.dataset_id))
 
     metric = None
     metric_column: str | None = None
