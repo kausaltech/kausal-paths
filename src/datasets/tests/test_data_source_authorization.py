@@ -23,12 +23,12 @@ class TestDataSourceAdminAuthorization:
             ('super_admin_user', ['data_source1', 'data_source1_alternative']),
             ('reviewer_user', ['data_source1', 'data_source1_alternative']),
             ('viewer_user', ['data_source1', 'data_source1_alternative']),
-            ('schema1_viewer', ['data_source1', 'data_source1_alternative']),
-            ('schema1_editor', ['data_source1', 'data_source1_alternative']),
-            ('schema1_admin', ['data_source1', 'data_source1_alternative']),
-            ('schema1_viewer_group_user', ['data_source1', 'data_source1_alternative']),
-            ('schema1_editor_group_user', ['data_source1', 'data_source1_alternative']),
-            ('schema1_admin_group_user', ['data_source1', 'data_source1_alternative']),
+            ('dataset1_viewer', ['data_source1', 'data_source1_alternative']),
+            ('dataset1_editor', ['data_source1', 'data_source1_alternative']),
+            ('dataset1_admin', ['data_source1', 'data_source1_alternative']),
+            ('dataset1_viewer_group_user', ['data_source1', 'data_source1_alternative']),
+            ('dataset1_editor_group_user', ['data_source1', 'data_source1_alternative']),
+            ('dataset1_admin_group_user', ['data_source1', 'data_source1_alternative']),
             ('regular_user', []),
         ],
     )
@@ -77,24 +77,24 @@ reviewer_user              data_source2                   -
 viewer_user                data_source1                   -
 viewer_user                data_source1_alternative       -
 viewer_user                data_source2                   -
-schema1_viewer             data_source1                   -
-schema1_viewer             data_source1_alternative       -
-schema1_viewer             data_source2                   -
-schema1_editor             data_source1                   -
-schema1_editor             data_source1_alternative       -
-schema1_editor             data_source2                   -
-schema1_admin              data_source1                   -
-schema1_admin              data_source1_alternative       -
-schema1_admin              data_source2                   -
-schema1_viewer_group_user  data_source1                   -
-schema1_viewer_group_user  data_source1_alternative       -
-schema1_viewer_group_user  data_source2                   -
-schema1_editor_group_user  data_source1                   -
-schema1_editor_group_user  data_source1_alternative       -
-schema1_editor_group_user  data_source2                   -
-schema1_admin_group_user   data_source1                   -
-schema1_admin_group_user   data_source1_alternative       -
-schema1_admin_group_user   data_source2                   -
+dataset1_viewer            data_source1                   -
+dataset1_viewer            data_source1_alternative       -
+dataset1_viewer            data_source2                   -
+dataset1_editor            data_source1                   -
+dataset1_editor            data_source1_alternative       -
+dataset1_editor            data_source2                   -
+dataset1_admin             data_source1                   -
+dataset1_admin             data_source1_alternative       -
+dataset1_admin             data_source2                   -
+dataset1_viewer_group_user data_source1                   -
+dataset1_viewer_group_user data_source1_alternative       -
+dataset1_viewer_group_user data_source2                   -
+dataset1_editor_group_user data_source1                   -
+dataset1_editor_group_user data_source1_alternative       -
+dataset1_editor_group_user data_source2                   -
+dataset1_admin_group_user  data_source1                   -
+dataset1_admin_group_user  data_source1_alternative       -
+dataset1_admin_group_user  data_source2                   -
 regular_user               data_source1                   -
 regular_user               data_source1_alternative       -
 regular_user               data_source2                   -
@@ -131,18 +131,18 @@ reviewer_user              data_source1_alternative       -
 reviewer_user              data_source2                   -
 viewer_user                data_source1_alternative       -
 viewer_user                data_source2                   -
-schema1_viewer             data_source1_alternative       -
-schema1_viewer             data_source2                   -
-schema1_editor             data_source1_alternative       -
-schema1_editor             data_source2                   -
-schema1_admin              data_source1_alternative       -
-schema1_admin              data_source2                   -
-schema1_viewer_group_user  data_source1_alternative       -
-schema1_viewer_group_user  data_source2                   -
-schema1_editor_group_user  data_source1_alternative       -
-schema1_editor_group_user  data_source2                   -
-schema1_admin_group_user   data_source1_alternative       -
-schema1_admin_group_user   data_source2                   -
+dataset1_viewer            data_source1_alternative       -
+dataset1_viewer            data_source2                   -
+dataset1_editor            data_source1_alternative       -
+dataset1_editor            data_source2                   -
+dataset1_admin             data_source1_alternative       -
+dataset1_admin             data_source2                   -
+dataset1_viewer_group_user data_source1_alternative       -
+dataset1_viewer_group_user data_source2                   -
+dataset1_editor_group_user data_source1_alternative       -
+dataset1_editor_group_user data_source2                   -
+dataset1_admin_group_user  data_source1_alternative       -
+dataset1_admin_group_user  data_source2                   -
 regular_user               data_source1_alternative       -
 regular_user               data_source2                   -
 """)

@@ -614,6 +614,21 @@ def normalize_paired_action_ports(spec: NodeSpec) -> NodeSpec:
     return spec.model_copy(update={'input_ports': input_ports})
 
 
+def _require_owned_datasets_bound_by_owner(snapshot: InstanceSnapshot) -> None:
+    """Reject bindings of a node-owned dataset from any node but its owner."""
+    owners = {dataset.id: node.uuid for node in snapshot.nodes for dataset in node.datasets}
+    if not owners:
+        return
+    for binding in snapshot.dataset_bindings:
+        source = binding.dataset_source
+        assert source is not None
+        owner = owners.get(source.dataset_uuid) if source.dataset_uuid is not None else None
+        if owner is not None and owner != binding.node_id:
+            raise ValueError(
+                f'Binding {binding.uuid} on node {binding.node_id} reads dataset {source.dataset_uuid} owned by node {owner}'
+            )
+
+
 def build_instance_graph(
     snapshot: InstanceSnapshot,
     *,
@@ -623,7 +638,8 @@ def build_instance_graph(
     """Normalize one structural snapshot into the canonical UUID graph."""
 
     dimensions = tuple(snapshot.dimensions) or legacy_dimensions
-    datasets = tuple(snapshot.datasets) or legacy_datasets
+    datasets = tuple(snapshot.all_datasets()) or legacy_datasets
+    _require_owned_datasets_bound_by_owner(snapshot)
     datasets_by_id = {dataset.id: dataset for dataset in datasets}
     datasets_by_identifier = {dataset.identifier: dataset for dataset in datasets if dataset.identifier is not None}
 

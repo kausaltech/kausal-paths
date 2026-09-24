@@ -184,7 +184,7 @@ def ensure_template_datasets() -> None:
         target,
         [ds for ds in source_datasets if ds.identifier in missing_dataset_ids],
         rewire_dataset_ports=True,
-        delete_superseded_placeholders=True,
+        replace_placeholders=True,
         create_missing_dimensions=True,
     )
     print(f'Copied {len(copied)} dataset(s) from {source.identifier} to {target.identifier}')

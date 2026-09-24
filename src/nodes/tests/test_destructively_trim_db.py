@@ -147,51 +147,6 @@ def test_instance_delete_removes_directly_scoped_dataset_with_shared_schema():
     assert InstanceConfig.objects.filter(pk=other.pk).exists()
 
 
-def test_schema_scoped_placeholder_and_orphan_schema_deleted(run_trim):
-    """
-    Delete schema-scoped placeholder datasets and the now-orphaned schema.
-
-    A placeholder dataset owned only via a DatasetSchemaScope to a deleted instance, and the
-    now-orphaned schema, are both removed.
-    """
-    deleted = _ic()
-    kept = _ic()
-
-    schema = DatasetSchemaFactory.create()
-    DatasetSchemaScope.objects.create(schema=schema, **_scope(deleted))
-    # Owned only via the schema scope (not directly scoped to anything).
-    placeholder = DatasetFactory.create(schema=schema, is_external_placeholder=True)
-
-    run_trim([kept])
-
-    assert not Dataset.objects.filter(pk=placeholder.pk).exists()
-    assert not DatasetSchema.objects.filter(pk=schema.pk).exists()
-    assert not DatasetSchemaScope.objects.filter(schema_id=schema.pk).exists()
-
-
-def test_shared_schema_scoped_placeholder_preserved(run_trim):
-    """
-    Preserve a placeholder whose schema is shared with a retained instance.
-
-    A placeholder whose schema is shared between a deleted and a retained instance must remain;
-    only the deleted instance's scope link is removed.
-    """
-    deleted = _ic()
-    kept = _ic()
-
-    schema = DatasetSchemaFactory.create()
-    DatasetSchemaScope.objects.create(schema=schema, **_scope(deleted))
-    DatasetSchemaScope.objects.create(schema=schema, **_scope(kept))
-    placeholder = DatasetFactory.create(schema=schema, is_external_placeholder=True)
-
-    run_trim([kept])
-
-    assert Dataset.objects.filter(pk=placeholder.pk).exists()
-    assert DatasetSchema.objects.filter(pk=schema.pk).exists()
-    assert DatasetSchemaScope.objects.filter(schema_id=schema.pk, scope_id=kept.pk).exists()
-    assert not DatasetSchemaScope.objects.filter(schema_id=schema.pk, scope_id=deleted.pk).exists()
-
-
 def test_deleted_scope_data_source_referenced_by_kept_dataset_preserved(run_trim):
     """
     Preserve a deleted-scope data source while retained data still references it.

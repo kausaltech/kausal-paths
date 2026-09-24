@@ -1807,7 +1807,7 @@ class InstanceEditorMutation:
         ic = root.instance
         dataset = get_or_error(
             info,
-            Dataset.objects.get_queryset().for_instance_config(ic),
+            Dataset.objects.get_queryset().governed_by_instance(ic),
             uuid=str(dataset_id),
             for_action='change',
         )

@@ -977,3 +977,46 @@ def test_deleting_an_edge_binding_leaves_the_ports(gql_client: PathsTestClient, 
     consumer.refresh_from_db()
     assert consumer.spec is not None
     assert [port.identifier for port in consumer.spec.input_ports] == ['heating']
+
+
+# ---------------------------------------------------------------------------
+# Node-owned datasets bind only to their owner
+# ---------------------------------------------------------------------------
+
+
+def _node_with_heating_port(ic: InstanceConfig, identifier: str):
+    port = InputPortDef(id=_port_id('input'), identifier='heating', unit=unit_registry.parse_units('kt/a'))
+    return NodeConfigFactory.create(instance=ic, identifier=identifier, spec=_node_spec(input_ports=[port]))
+
+
+def test_a_node_owned_dataset_binds_to_its_owner(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
+    owner = _node_with_heating_port(db_instance_config, 'owner')
+    dataset = DatasetFactory.create(scope=owner)
+    metric = DatasetMetricFactory.create(schema=dataset.schema, name='Energy', label='Energy', unit='kt/a')
+
+    binding = gql_client.query_data(
+        BIND_DATASET,
+        variables={
+            'instanceId': str(db_instance_config.pk),
+            'nodeId': 'owner',
+            'input': {'portId': 'heating', 'datasetId': str(dataset.uuid), 'metricId': str(metric.uuid)},
+        },
+    )['instanceEditor']['nodeEditor']['bindDataset']
+    assert binding['__typename'] == 'DatasetPortType'
+
+
+def test_another_node_cannot_bind_a_node_owned_dataset(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
+    owner = _node_with_heating_port(db_instance_config, 'owner')
+    _node_with_heating_port(db_instance_config, 'intruder')
+    dataset = DatasetFactory.create(scope=owner)
+    metric = DatasetMetricFactory.create(schema=dataset.schema, name='Energy', label='Energy', unit='kt/a')
+
+    gql_client.query_errors(
+        BIND_DATASET,
+        variables={
+            'instanceId': str(db_instance_config.pk),
+            'nodeId': 'intruder',
+            'input': {'portId': 'heating', 'datasetId': str(dataset.uuid), 'metricId': str(metric.uuid)},
+        },
+        assert_error_message='not found in this instance',
+    )
