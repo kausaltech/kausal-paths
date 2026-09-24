@@ -77,13 +77,21 @@ def compose_template_snapshot(
     for dataset_uuid, pin in pins_by_uuid.items():
         if dataset_uuid in datasets:
             datasets[dataset_uuid] = datasets[dataset_uuid].model_copy(update={'revision_id': pin.revision_id})
+    # Node-owned datasets stay inside their nodes; only the instance-level catalog is filtered by use.
+    owned_ids = {dataset.id for node in nodes for dataset in node.datasets}
+    nodes = [
+        node.model_copy(update={'datasets': [datasets.get(dataset.id, dataset) for dataset in node.datasets]})
+        if node.datasets
+        else node
+        for node in nodes
+    ]
     return local.model_copy(
         update={
             'template_revision_id': revision.pk,
             'nodes': nodes,
             'bindings': pinned_bindings,
             'dimensions': dimensions,
-            'datasets': [dataset for uuid, dataset in datasets.items() if uuid in used],
+            'datasets': [dataset for uuid, dataset in datasets.items() if uuid in used and uuid not in owned_ids],
             'dataset_revisions': list(
                 {
                     pin.dataset_uuid: pin
@@ -101,8 +109,8 @@ def _effective_datasets(
     local: InstanceSnapshot,
     bindings: list[InputBindingSnapshot],
 ) -> tuple[dict[UUID, DatasetMeta], set[UUID]]:
-    datasets = {dataset.id: dataset for dataset in base.datasets}
-    datasets.update({dataset.id: dataset for dataset in local.datasets})
+    datasets = {dataset.id: dataset for dataset in base.all_datasets()}
+    datasets.update({dataset.id: dataset for dataset in local.all_datasets()})
     used = {
         b.source.dataset_uuid for b in bindings if isinstance(b.source, DatasetMetricSource) and b.source.dataset_uuid is not None
     }
@@ -121,7 +129,7 @@ def _effective_datasets(
         isinstance(b.source, DatasetMetricSource) and b.source.dataset_uuid is None for b in bindings
     ):
         raise ValueError('A framework binding references an unknown dataset')
-    names = [dataset.identifier for key, dataset in datasets.items() if key in used]
+    names = [dataset.identifier for key, dataset in datasets.items() if key in used and dataset.identifier is not None]
     if len(names) != len(set(names)):
         raise ValueError('Effective input datasets must have distinct identifiers')
     return datasets, used
@@ -226,7 +234,11 @@ def replace_input_port_bindings(
         config.binding_overrides.filter(node_uuid=node_uuid, port_uuid=port_uuid).delete()
     else:
         permitted_datasets = set(Dataset.objects.for_instance_config(instance).values_list('uuid', flat=True))
-        permitted_datasets.update(dataset.id for dataset in template_snapshot(instance).datasets)
+        # A local node may bind its own datasets; a template node owns none here.
+        local_node = instance.nodes.filter(uuid=node_uuid).first()
+        if local_node is not None:
+            permitted_datasets.update(Dataset.objects.qs.for_node(local_node).values_list('uuid', flat=True))
+        permitted_datasets.update(dataset.id for dataset in template_snapshot(instance).all_datasets())
         for binding in bindings:
             if isinstance(binding.source, DatasetMetricSource) and binding.source.dataset_uuid not in permitted_datasets:
                 raise ValidationError('Dataset belongs to another instance')
@@ -347,7 +359,7 @@ def _freeze_template_revision(template: InstanceConfig, user: User | None, refer
         .filter(
             Q(is_external_placeholder=False)
             | Q(identifier__in=[key for key, ds in reference_data.items() if not ds.is_external_placeholder]),
-            uuid__in=[dataset.id for dataset in snapshot.datasets],
+            uuid__in=[dataset.id for dataset in snapshot.all_datasets()],
         )
     )
     materializations = ensure_dataset_materializations([dataset for dataset in datasets if not dataset.is_external_placeholder])

@@ -30,11 +30,11 @@ from paths.context import realm_context
 
 from frameworks.models import Framework
 from frameworks.roles import framework_admin_role
-from nodes.models import InstanceConfig, InstanceConfigPermissionPolicy
+from nodes.models import InstanceConfig, InstanceConfigPermissionPolicy, NodeConfig
 from nodes.roles import (
     InstanceGroupMembershipRole,
 )
-from people.models import DatasetSchemaGroupPermission, DatasetSchemaPersonPermission, PersonGroupMember
+from people.models import DatasetGroupPermission, DatasetPersonPermission
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
@@ -187,6 +187,16 @@ class InstanceConfigScopedPermissionPolicy[
         return any(user.has_instance_role(role, active_instance) for role in roles)
 
 
+def _dataset_grant_q(user: User, action: BaseObjectAction) -> Q | None:
+    """Match the datasets an explicit person or group grant gives the user `action` on."""
+    roles = ObjectRole.get_roles_for_action(action)
+    if not roles:
+        return None
+    return Q(pk__in=DatasetPersonPermission.objects.filter(person__user=user, role__in=roles).values('object_id')) | Q(
+        pk__in=DatasetGroupPermission.objects.filter(group__persons__user=user, role__in=roles).values('object_id')
+    )
+
+
 @final
 class DatasetSchemaPermissionPolicy(InstanceConfigScopedPermissionPolicy[DatasetSchema, None, DatasetSchemaQuerySet]):
     """Permission policy for DatasetSchema, based on its scope (InstanceConfig)."""
@@ -202,39 +212,27 @@ class DatasetSchemaPermissionPolicy(InstanceConfigScopedPermissionPolicy[Dataset
         """Get IDs of all InstanceConfigs this schema is scoped for."""
         ic_content_type = ContentType.objects.get_for_model(InstanceConfig)
         local = obj.scopes.filter(scope_content_type=ic_content_type).values_list('scope_id', flat=True)
+        node_ids = obj.scopes.filter(scope_content_type=ContentType.objects.get_for_model(NodeConfig)).values('scope_id')
         framework_ids = obj.scopes.filter(scope_content_type=ContentType.objects.get_for_model(Framework)).values('scope_id')
         return list(
-            InstanceConfig.objects.filter(Q(pk__in=local) | Q(framework_config__framework_id__in=framework_ids)).values_list(
-                'pk', flat=True
-            )
+            InstanceConfig.objects
+            .filter(Q(pk__in=local) | Q(nodes__in=node_ids) | Q(framework_config__framework_id__in=framework_ids))
+            .distinct()
+            .values_list('pk', flat=True)
         )
 
     @override
     def construct_perm_q(self, user: User, action: BaseObjectAction) -> Q | None:
-        ic_content_type = ContentType.objects.get_for_model(InstanceConfig)
-
         def make_q(role: InstanceRoleIdentifier) -> Q:
-            return Q(
-                scopes__scope_content_type=ic_content_type, scopes__scope_id__in=self.get_role(role).get_instances_for_user(user)
-            )
+            return Dataset.instance_scope_q(self.get_role(role).get_instances_for_user(user), prefix='scopes__')
 
-        super_admin_q = make_q('instance-super-admin')
-        admin_q = make_q('instance-admin')
-        reviewer_q = make_q('instance-reviewer')
-        viewer_q = make_q('instance-viewer')
-
-        q = super_admin_q | admin_q
-
+        q = make_q('instance-super-admin') | make_q('instance-admin')
         if action == 'view':
-            viewer_q = Q(
-                scopes__scope_content_type=ic_content_type,
-                scopes__scope_id__in=self.get_role('instance-viewer').get_instances_for_user(user),
-            )
-            reviewer_q = Q(
-                scopes__scope_content_type=ic_content_type,
-                scopes__scope_id__in=self.get_role('instance-reviewer').get_instances_for_user(user),
-            )
-            q |= viewer_q | reviewer_q
+            q |= make_q('instance-viewer') | make_q('instance-reviewer')
+            # A dataset grant lets its holder read the schema's structure, never change it.
+            grant_q = _dataset_grant_q(user, 'view')
+            if grant_q is not None:
+                q |= Q(pk__in=Dataset.objects.filter(grant_q).values('schema_id'))
 
         def apply_editable_filter(value: Q) -> Q:
             framework_ct = ContentType.objects.get_for_model(Framework)
@@ -248,35 +246,19 @@ class DatasetSchemaPermissionPolicy(InstanceConfigScopedPermissionPolicy[Dataset
                 return value
             shared_ids = DatasetSchema.objects.filter(scopes__scope_content_type=framework_ct).values('pk')
             administered = Framework.objects.filter(framework_admin_role.role_q(user)).values('pk')
+            # FIXME: `is_editable` is deprecated; see DatasetSchema.is_editable.
             return (value & ~Q(pk__in=shared_ids) & Q(is_editable=True)) | Q(
                 scopes__scope_content_type=framework_ct,
                 scopes__scope_id__in=administered,
             )
 
-        if getattr(user, 'person', None) is None:
-            return apply_editable_filter(q)
-
-        privileged_roles = ObjectRole.get_roles_for_action(action)
-        if not privileged_roles:
-            return apply_editable_filter(q)
-
-        group_ids = PersonGroupMember.objects.filter(person=user.person).values_list('group_id', flat=True)
-        group_object_ids = DatasetSchemaGroupPermission.objects.filter(
-            group_id__in=group_ids, role__in=privileged_roles
-        ).values_list('object_id', flat=True)  # type: ignore[misc]
-        individual_object_ids = DatasetSchemaPersonPermission.objects.filter(
-            person=user.person, role__in=privileged_roles
-        ).values_list('object_id', flat=True)  # type: ignore[misc]
-        q |= Q(pk__in=group_object_ids) | Q(pk__in=individual_object_ids)
         return apply_editable_filter(q)
 
     def construct_state_perm_q(self, action: ObjectSpecificAction) -> Q:
         if action not in ('change', 'delete'):
             return Q()
-        ic_content_type = ContentType.objects.get_for_model(InstanceConfig)
-        unlocked_instances = InstanceConfig.objects.filter(is_locked=False).values_list('pk', flat=True)
-
-        return Q(scopes__scope_content_type=ic_content_type, scopes__scope_id__in=unlocked_instances) | Q(
+        unlocked_instances = InstanceConfig.objects.filter(is_locked=False)
+        return Dataset.instance_scope_q(unlocked_instances, prefix='scopes__') | Q(
             scopes__scope_content_type=ContentType.objects.get_for_model(Framework),
         )
 
@@ -296,31 +278,18 @@ class DatasetSchemaPermissionPolicy(InstanceConfigScopedPermissionPolicy[Dataset
                 return False
         if self.get_permission_block(action, obj=obj) is not None:
             return False
+        # FIXME: `is_editable` is deprecated; see DatasetSchema.is_editable.
         if action in ('change', 'delete') and not obj.is_editable and not user.is_superuser:
             return False
-        if hasattr(user, 'person'):
-            # Check dataset schema's person / group permissions first
-            privileged_roles = ObjectRole.get_roles_for_action(action)
-            if obj.person_permissions.filter(person=user.person, role__in=privileged_roles).exists():
+        if action == 'view':
+            grant_q = _dataset_grant_q(user, 'view')
+            if grant_q is not None and obj.datasets.filter(grant_q).exists():
                 return True
-
-            if obj.group_permissions.filter(group__persons=user.person, role__in=privileged_roles).exists():
-                return True
-
         return super().user_has_perm(user, action, obj)
 
     def user_has_permission(self, user: User | AnonymousUser, action: str) -> bool:
         if not self.user_is_authenticated(user):
             return False
-
-        if hasattr(user, 'person'):
-            # Check dataset schema's person / group permissions first
-            privileged_roles = ObjectRole.get_roles_for_action(action)
-            if DatasetSchemaPersonPermission.objects.filter(person=user.person, role__in=privileged_roles).exists():
-                return True
-
-            if DatasetSchemaGroupPermission.objects.filter(group__persons=user.person, role__in=privileged_roles).exists():
-                return True
 
         allowed_roles: list[InstanceSpecificRole[InstanceConfig]] = [
             self.get_role('instance-admin'),
@@ -339,34 +308,51 @@ class DatasetSchemaPermissionPolicy(InstanceConfigScopedPermissionPolicy[Dataset
 
 
 class DatasetPermissionPolicy(ParentInheritedPolicy[Dataset, DatasetSchema, DatasetQuerySet, DatasetSchema]):
-    """Instance data has its own owner; shared schema visibility never grants access to other instances' data."""
+    """
+    A dataset's permissions are its scope's, plus explicit grants on the dataset.
+
+    An instance dataset follows InstanceConfigPermissionPolicy and a node-owned one
+    NodeConfigPermissionPolicy, which adds the node's edit lock. Viewing needs an explicit
+    instance or framework role: a public instance does not make its data rows public. The
+    schema governs structure only and grants nothing here.
+    """
 
     def __init__(self):
         super().__init__(Dataset, DatasetSchema, 'schema', create_context_type=DatasetSchema)
 
-    @override
-    def user_has_perm(self, user: User, action: ObjectSpecificAction, obj: Dataset) -> bool:
-        if obj.scope_content_type_id == ContentType.objects.get_for_model(InstanceConfig).pk:
-            query = self.construct_perm_q(user, action)
-            return query is not None and Dataset.objects.filter(query, self.construct_state_perm_q(action), pk=obj.pk).exists()
-        parent_obj = self.get_parent_obj(obj)
-        return self.parent_policy.user_has_perm(user, action, parent_obj)
+    @staticmethod
+    def _scope_q(user: User, action: BaseObjectAction) -> Q:
+        ic_policy = InstanceConfigPermissionPolicy()
+        if action == 'view':
+            return Dataset.instance_scope_q(InstanceConfig.objects.filter(ic_policy.role_q(user, 'view')))
+        # Editing or deleting a dataset changes its scope object; it never deletes it.
+        instances = InstanceConfig.objects.filter(ic_policy.role_q(user, 'change'))
+        node_q = NodeConfig.permission_policy().construct_perm_q(user, 'change')
+        nodes = NodeConfig.objects.filter(node_q) if node_q is not None else NodeConfig.objects.none()
+        return Q(scope_content_type=ContentType.objects.get_for_model(InstanceConfig), scope_id__in=instances.values('pk')) | Q(
+            scope_content_type=ContentType.objects.get_for_model(NodeConfig), scope_id__in=nodes.values('pk')
+        )
 
     def construct_perm_q(self, user: User, action: BaseObjectAction) -> Q | None:
-        instance_ct = ContentType.objects.get_for_model(InstanceConfig)
-        shared_schemas = DatasetSchema.objects.for_scope_type(Framework).values('pk')
-        own = Q(scope_content_type=instance_ct)
-        if not user.is_superuser:
-            own &= Q(scope_id__in=_instance_role_ids(user, action))
-            if action in ('change', 'delete'):
-                # Shared schemas protect their structure, not the instance's data.
-                # Legacy local schemas also use this flag to protect their data.
-                own &= Q(schema__is_editable=True) | Q(schema_id__in=shared_schemas)
-        inherited = super().construct_perm_q(user, action)
-        if inherited is None:
-            return own
-        # Retain explicit per-schema grants for legacy instance-scoped schemas only.
-        return own | (inherited & ~Q(schema_id__in=shared_schemas))
+        q = self._scope_q(user, action)
+        grant_q = _dataset_grant_q(user, action)
+        if grant_q is not None:
+            q |= grant_q
+        if action in ('change', 'delete'):
+            # FIXME: `is_editable` is deprecated; see DatasetSchema.is_editable. It locks the data
+            # of legacy local schemas; shared schemas protect only their structure.
+            shared_schemas = DatasetSchema.objects.for_scope_type(Framework).values('pk')
+            q &= Q(schema__is_editable=True) | Q(schema_id__in=shared_schemas)
+        return q
+
+    @override
+    def user_has_perm(self, user: User, action: ObjectSpecificAction, obj: Dataset) -> bool:
+        if self.get_permission_block(action, obj=obj) is not None:
+            return False
+        if user.is_superuser:
+            return True
+        query = self.construct_perm_q(user, action)
+        return query is not None and Dataset.objects.filter(query, self.construct_state_perm_q(action), pk=obj.pk).exists()
 
     def get_permission_block(
         self,
@@ -375,22 +361,14 @@ class DatasetPermissionPolicy(ParentInheritedPolicy[Dataset, DatasetSchema, Data
         obj: Dataset | None = None,
         context: DatasetSchema | None = None,
     ) -> PermissionBlock | None:
-        if obj is not None and obj.scope_content_type_id == ContentType.objects.get_for_model(InstanceConfig).pk:
-            assert obj.scope_id is not None
-            instance = InstanceConfig.objects.get(pk=obj.scope_id)
-            return InstanceConfig.permission_policy().get_permission_block(action, obj=instance)
+        if obj is not None and action in ('change', 'delete'):
+            return InstanceConfig.permission_policy().get_permission_block('change', obj=obj.scope_instance)
         return super().get_permission_block(action, obj=obj, context=context)
 
     def construct_state_perm_q(self, action: ObjectSpecificAction) -> Q:
         if action not in ('change', 'delete'):
             return Q()
-        ic_content_type = ContentType.objects.get_for_model(InstanceConfig)
-        unlocked_instances = InstanceConfig.objects.filter(is_locked=False).values_list('pk', flat=True)
-        return (
-            Q(scope_content_type__isnull=True)
-            | ~Q(scope_content_type=ic_content_type)
-            | Q(scope_content_type=ic_content_type, scope_id__in=unlocked_instances)
-        )
+        return Dataset.instance_scope_q(InstanceConfig.objects.filter(is_locked=False))
 
     @override
     def anon_has_perm(self, action: BaseObjectAction, obj: Dataset) -> bool:
@@ -402,6 +380,20 @@ class DatasetPermissionPolicy(ParentInheritedPolicy[Dataset, DatasetSchema, Data
 
     def user_can_review(self, user: User) -> bool:
         return self.parent_policy.user_has_permission(user, 'review')
+
+    @override
+    def user_has_permission(self, user: User | AnonymousUser, action: str) -> bool:
+        if self.parent_policy.user_has_permission(user, action):
+            return True
+        if not self.user_is_authenticated(user) or action == 'review':
+            return False
+        grant_action: BaseObjectAction = 'view' if action == 'view' else 'delete' if action == 'delete' else 'change'
+        grant_q = _dataset_grant_q(user, grant_action)
+        return grant_q is not None and Dataset.objects.filter(grant_q).exists()
+
+    @override
+    def user_has_any_permission(self, user: User | AnonymousUser, actions: Sequence[str]) -> bool:
+        return any(self.user_has_permission(user, action) for action in actions)
 
 
 class DatasetMetricPermissionPolicy(
@@ -535,9 +527,7 @@ class DataPointCommentPermissionPolicy(
     def user_can_create(self, user: User, context: DataPoint) -> bool:
         data_point = context
         dataset = data_point.dataset
-        instance_config_in_scope = dataset.scope
-        if not isinstance(instance_config_in_scope, InstanceConfig):
-            raise TypeError('Only InstanceConfigs supported as Dataset scopes in Paths.')
+        instance_config_in_scope = dataset.scope_instance
         user_has_reviewer_role_in_instance = user.has_instance_role_with_id('instance-reviewer', instance_config_in_scope)
         user_can_create_datapoint = self.parent_policy.user_can_create(user, dataset)
         return user_can_create_datapoint or user_has_reviewer_role_in_instance
@@ -571,7 +561,4 @@ class DatasetSourceReferencePermissionPolicy(
     @override
     def user_can_create(self, user: User, context: Dataset) -> bool:
         dataset = context
-        instance_config_in_scope = dataset.scope
-        if not isinstance(instance_config_in_scope, InstanceConfig):
-            raise TypeError('Only InstanceConfigs supported as Dataset scopes in Paths.')
         return self.parent_policy.user_has_perm(user, 'change', dataset)

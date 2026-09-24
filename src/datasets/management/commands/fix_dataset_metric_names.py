@@ -153,7 +153,7 @@ class Command(BaseCommand):
 
             from kausal_common.datasets.models import Dataset as DBDatasetModel
 
-            datasets = list(DBDatasetModel.objects.get_queryset().for_instance_config(ic).select_related('schema'))
+            datasets = list(DBDatasetModel.objects.get_queryset().governed_by_instance(ic).select_related('schema'))
             if not datasets:
                 print('  No datasets found.')
                 continue

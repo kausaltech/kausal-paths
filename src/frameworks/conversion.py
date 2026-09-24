@@ -277,7 +277,7 @@ def _adopt_dimensions(instance: InstanceConfig, framework: Framework) -> dict[st
         scope.identifier: scope for scope in DimensionScope.objects.filter(scope_content_type=framework_ct, scope_id=framework.pk)
     }
     identities: dict[str, str] = {}
-    datasets = Dataset.objects.for_instance_config(instance)
+    datasets = Dataset.objects.governed_by_instance(instance)
     for local in DimensionScope.objects.for_instance_config(instance):
         target = shared.get(local.identifier)
         if target is None or target.dimension_id == local.dimension_id:
@@ -623,7 +623,7 @@ def convert_to_framework(instance: InstanceConfig, framework: Framework, revisio
         removed_datasets = _delete_datasets(instance, [dataset for dataset, _target in superseded])
         _bind_local_data_slots(instance)
 
-        for dataset in Dataset.objects.for_instance_config(instance).filter(is_external_placeholder=False):
+        for dataset in Dataset.objects.governed_by_instance(instance).filter(is_external_placeholder=False):
             refresh_dataset_materialization(dataset, touch=False)
         instance.refresh_from_db()
         effective = build_instance_snapshot(instance)
