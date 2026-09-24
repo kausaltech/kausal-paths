@@ -89,6 +89,10 @@ else:
     dotenv_path = BASE_DIR / Path('.env')
     if dotenv_path.exists():
         environ.Env.read_env(dotenv_path)
+    for env_file in Path(BASE_DIR).glob('.env.*'):
+        if str(env_file).endswith('~') or env_file.suffix == '.bak':
+            continue
+        environ.Env.read_env(env_file)
 
 GDAL_LIBRARY_PATH = env('GDAL_LIBRARY_PATH') or None
 GEOS_LIBRARY_PATH = env('GEOS_LIBRARY_PATH') or None
