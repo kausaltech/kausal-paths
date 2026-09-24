@@ -9,7 +9,15 @@ from graphql.error import GraphQLError
 from paths import gql
 from paths.graphql_helpers import get_instance_context, graphql_error_nodes
 
-from . import BoolParameter, NumberParameter, Parameter, StringParameter, ValidationError
+from . import (
+    BoolParameter,
+    ChoiceParameter,
+    DimensionCategoryParameter,
+    NumberParameter,
+    Parameter,
+    StringParameter,
+    ValidationError,
+)
 
 if TYPE_CHECKING:
     from paths.graphql_types import UnitType
@@ -32,6 +40,7 @@ def _get_parameter_type_name(instance: Parameter[Any, Any]) -> str:
         BoolParameter: 'BoolParameterType',
         NumberParameter: 'NumberParameterType',
         StringParameter: 'StringParameterType',
+        ChoiceParameter: 'ChoiceParameterType',
     }
     for param_type in type(instance).mro():
         if param_type in type_map:
@@ -55,26 +64,23 @@ def _get_parameter_value_for_mutation(
     bool_value: bool | None,
     string_value: str | None,
 ) -> Any:
-    parameter_values = {
-        NumberParameter: (number_value, 'numberValue'),
-        BoolParameter: (bool_value, 'boolValue'),
-        StringParameter: (string_value, 'stringValue'),
+    values = {'numberValue': number_value, 'boolValue': bool_value, 'stringValue': string_value}
+    value_fields: dict[type[Parameter[Any, Any]], str] = {
+        NumberParameter: 'numberValue',
+        BoolParameter: 'boolValue',
+        StringParameter: 'stringValue',
+        ChoiceParameter: 'stringValue',
     }
-    param_type = type(param)
-    for klass, (value, attr_name) in parameter_values.items():  # noqa: B007
-        if issubclass(param_type, klass):
-            break
-    else:
+    attr_name = next((name for klass, name in value_fields.items() if isinstance(param, klass)), None)
+    if attr_name is None:
         msg = f'Attempting to mutate an unsupported parameter class: {type(param)}'
         raise Exception(msg)
 
+    value = values.pop(attr_name)
     if value is None:
         raise GraphQLError(f"You must specify '{attr_name}' for '{param.global_id}'", graphql_error_nodes(info))
-
-    del parameter_values[klass]
-    for other_value, _ in parameter_values.values():
-        if other_value is not None:
-            raise GraphQLError('Only one type of value allowed', graphql_error_nodes(info))
+    if any(other is not None for other in values.values()):
+        raise GraphQLError('Only one type of value allowed', graphql_error_nodes(info))
 
     try:
         return param.clean(value)
@@ -165,6 +171,39 @@ class StringParameterType(ParameterInterface):
     @sb.field
     @staticmethod
     def default_value(root: StringParameter, info: gql.Info) -> str | None:
+        return _resolve_default_value(info, root)
+
+
+@sb.type(name='ParameterChoiceType')
+class ParameterChoiceType:
+    id: sb.ID
+    label: str | None
+
+
+@sb.type(name='ChoiceParameterType', description='A parameter whose value is one of a set of choices.')
+class ChoiceParameterType(ParameterInterface):
+    @classmethod
+    def is_type_of(cls, obj: Any, _info: gql.Info) -> bool:
+        return isinstance(obj, ChoiceParameter)
+
+    value: str | None = sb.field(description='The id of the chosen choice.')
+
+    @sb.field
+    @staticmethod
+    def choices(root: ChoiceParameter) -> list[ParameterChoiceType]:
+        return [
+            ParameterChoiceType(id=sb.ID(choice.id), label=str(choice.label) if choice.label is not None else None)
+            for choice in root.get_choices() or []
+        ]
+
+    @sb.field(description='For a choice among the categories of a dimension: the dimension.')
+    @staticmethod
+    def dimension_id(root: ChoiceParameter) -> sb.ID | None:
+        return sb.ID(root.dimension) if isinstance(root, DimensionCategoryParameter) else None
+
+    @sb.field
+    @staticmethod
+    def default_value(root: ChoiceParameter, info: gql.Info) -> str | None:
         return _resolve_default_value(info, root)
 
 
@@ -305,4 +344,4 @@ class SBQuery:
         return param
 
 
-types = [BoolParameterType, NumberParameterType, StringParameterType, UnknownParameterType]
+types = [BoolParameterType, NumberParameterType, StringParameterType, ChoiceParameterType, UnknownParameterType]

@@ -69,6 +69,8 @@ CANONICAL = [
     'add(a, b, skip_if=limit > 3)\n',
     'add(a + b, c)\n',
     'multiply(a * b, c)\n',
+    "select_category(a, sector='heating')\n",
+    'select_category(a + b, sector=flag) * c\n',
 ]
 
 
@@ -161,6 +163,8 @@ def test_the_step_identity_follows_the_name() -> None:
         ('add(a, b, when=flag)', "no argument 'when'", 1),
         ("a * quantity(2, 'no_such_unit')", 'Invalid unit', 1),
         ('', 'empty', None),
+        ('select_category(a)', 'one dimension=category', 1),
+        ('select_category(a, sector=b)', "'b' is not a parameter", 1),
     ],
 )
 def test_errors_point_at_the_line(text: str, message: str, line: int | None) -> None:
