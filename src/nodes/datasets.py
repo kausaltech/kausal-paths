@@ -13,6 +13,11 @@ from functools import cached_property, wraps
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Concatenate, Literal, Self, TypedDict, cast, override
 
+from django.contrib.postgres.expressions import ArraySubquery
+from django.db.models import F, OuterRef
+from django.db.models.fields import CharField
+from django.db.models.functions import Cast, Coalesce, JSONObject
+
 import numpy as np
 import orjson
 import polars as pl
@@ -31,8 +36,10 @@ from nodes.defs.transform_def import (
     PortTransformOp,
     forecast_from_transformations,
     unit_from_transformations,
+    with_forecast_from,
 )
 from nodes.exceptions import DatasetError
+from nodes.transforms import PipelineEnv, apply_port_transformations
 from nodes.units import Unit, unit_registry
 
 from .constants import (
@@ -51,6 +58,7 @@ if TYPE_CHECKING:
     from kausal_common.datasets.models import Dataset as DBDatasetModel
     from kausal_common.perf.perf_context import PerfAttrs, PerfSpanEntry
 
+    from datasets.payloads import DatasetPayloadRef, DatasetPayloadStore
     from datasets.prepared import PreparedRecipe
     from nodes.defs.node_defs import InputDatasetDef
 
@@ -247,8 +255,6 @@ class Dataset(ABC):
         metric_column: str | None = None,
     ) -> ppl.PathsDataFrame:
         """Execute a transformation list with this dataset as its source environment."""
-        from nodes.transforms import PipelineEnv, apply_port_transformations
-
         env = PipelineEnv(context=self.context, dataset=self, metric_column=metric_column)
         return apply_port_transformations(df, self.transformations if transformations is None else transformations, env)
 
@@ -315,8 +321,6 @@ class DatasetWithFilters(Dataset, ABC):
         ends there, whatever the data says. A ``Forecast`` column the data
         carries itself still wins over all of them (see ``set_forecast_from``).
         """
-        from nodes.defs.transform_def import with_forecast_from
-
         if kwargs['forecast_from'] is not None:
             return
         year = dataset_default
@@ -1063,87 +1067,6 @@ class JSONDataset(Dataset):
         return d
 
 
-@dataclass(frozen=True)
-class DatasetPayloadRef:
-    """Lightweight pointer to a serialized dataset payload."""
-
-    payload_id: int
-    dataset_pk: int
-    dataset_uuid: str
-    identifier: str
-    content_hash: str
-    generation: int | None
-    forecast_from: int | None
-
-
-class DatasetPayloadStore(ABC):
-    """Lazy bulk loader shared by current and revision-backed datasets."""
-
-    def __init__(self, refs: list[DatasetPayloadRef]) -> None:
-        self.refs = refs
-        self._contents: dict[tuple[bool, int], dict[str, Any]] | None = None
-        self._dataframes: dict[tuple[bool, int], ppl.PathsDataFrame] = {}
-
-    @abstractmethod
-    def _load_contents(self) -> dict[tuple[bool, int], dict[str, Any]]:
-        raise NotImplementedError
-
-    def get_content(self, ref: DatasetPayloadRef) -> dict[str, Any]:
-        if self._contents is None:
-            self._contents = self._load_contents()
-        try:
-            return self._contents[(ref.generation is None, ref.payload_id)]
-        except KeyError as exc:
-            raise RuntimeError(f'Missing serialized payload {ref.payload_id} for dataset {ref.identifier}') from exc
-
-    def get_dataframe(self, ref: DatasetPayloadRef) -> ppl.PathsDataFrame:
-        cached = self._dataframes.get((ref.generation is None, ref.payload_id))
-        if cached is not None:
-            return cached
-        content = self.get_content(ref)
-        data = content.get('data')
-        if data is None:
-            raise RuntimeError(f'Dataset {ref.identifier} has no serialized dataframe payload')
-        df = JSONDataset.deserialize_df(data)
-        self._dataframes[(ref.generation is None, ref.payload_id)] = df
-        return df
-
-
-class CurrentDatasetPayloadStore(DatasetPayloadStore):
-    def _load_contents(self) -> dict[tuple[bool, int], dict[str, Any]]:
-        from nodes.models import DatasetMaterialization
-
-        payload_ids = {ref.payload_id for ref in self.refs}
-        rows = DatasetMaterialization.objects.filter(pk__in=payload_ids).values_list('pk', 'content')
-        contents = dict(rows)
-        missing = payload_ids - contents.keys()
-        if missing:
-            raise RuntimeError(f'Missing current dataset materializations: {sorted(missing)}')
-        return {(False, pk): content for pk, content in contents.items()}
-
-
-class RevisionDatasetPayloadStore(DatasetPayloadStore):
-    def _load_contents(self) -> dict[tuple[bool, int], dict[str, Any]]:
-        from wagtail.models import Revision
-
-        payload_ids = {ref.payload_id for ref in self.refs}
-        rows = Revision.objects.filter(pk__in=payload_ids).values_list('pk', 'content')
-        contents = dict(rows)
-        missing = payload_ids - contents.keys()
-        if missing:
-            raise RuntimeError(f'Missing published dataset revisions: {sorted(missing)}')
-        return {(True, pk): content for pk, content in contents.items()}
-
-
-class MixedDatasetPayloadStore(DatasetPayloadStore):
-    """Draft local data together with immutable framework reference data."""
-
-    def _load_contents(self) -> dict[tuple[bool, int], dict[str, Any]]:
-        current = CurrentDatasetPayloadStore([ref for ref in self.refs if ref.generation is not None])
-        revisions = RevisionDatasetPayloadStore([ref for ref in self.refs if ref.generation is None])
-        return current._load_contents() | revisions._load_contents()
-
-
 @dataclass
 class SerializedDBDataset(DatasetWithFilters):
     """DB dataset loaded from a current or immutable serialized payload."""
@@ -1267,11 +1190,6 @@ class DBDataset(DatasetWithFilters):
 
     @classmethod
     def deserialize_df(cls, ds_in: DBDatasetModel, *, include_data_point_primary_keys: bool = False) -> ppl.PathsDataFrame:
-        from django.contrib.postgres.expressions import ArraySubquery
-        from django.db.models.expressions import F, OuterRef
-        from django.db.models.fields import CharField
-        from django.db.models.functions import Cast, Coalesce, JSONObject
-
         from kausal_common.datasets.models import (
             DataPoint,
             Dataset as DBDatasetModel,
@@ -1330,7 +1248,7 @@ class DBDataset(DatasetWithFilters):
 
         # This Coalesce names the metric columns, so anything building a *selector* for
         # them has to resolve the name the same way, or it asks for a column that is not
-        # there. Keep it in step with `metric_column_id()` in `nodes/instance_serialization.py`,
+        # there. Keep it in step with `metric_column_id()` in `datasets/snapshot.py`,
         # which is the Python-side twin.
         metrics = DatasetMetric.objects.filter(schema=OuterRef('schema')).values(
             json=JSONObject(

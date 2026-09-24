@@ -710,8 +710,8 @@ class DatasetType(UserPermissionsMixin):
     def validation_violations(root: 'DatasetType') -> "list['DatasetValidationViolationType']":
         if root._model is None:
             return []
+        from datasets.materialization import ensure_dataset_materializations
         from datasets.validation import load_violations
-        from nodes.dataset_materialization import ensure_dataset_materializations
         from nodes.graphql.types.problems import DatasetValidationViolationType
 
         materializations = ensure_dataset_materializations([root._model])

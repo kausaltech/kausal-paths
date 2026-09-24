@@ -41,7 +41,7 @@ from rich import print
 from kausal_common.datasets.models import Dataset
 
 from common import polars as ppl
-from nodes.management.commands.load_dvc_dataset import (
+from datasets.management.commands.load_dvc_dataset import (
     DatasetPlan,
     apply_repo_provenance,
     build_dataset_plan,

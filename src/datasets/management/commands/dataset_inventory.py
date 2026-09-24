@@ -57,8 +57,8 @@ from rich.table import Table
 from kausal_common.datasets.models import Dataset
 
 from common import polars as ppl
-from nodes.management.commands.dataset_status import candidate_dataset_ids
-from nodes.management.commands.load_dvc_dataset import (
+from datasets.management.commands.dataset_status import candidate_dataset_ids
+from datasets.management.commands.load_dvc_dataset import (
     apply_repo_provenance,
     count_incoming_cells,
     resolve_repo_provenance,

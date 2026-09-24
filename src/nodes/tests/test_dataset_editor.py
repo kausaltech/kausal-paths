@@ -529,7 +529,8 @@ def test_delete_metric_with_data_requires_force(gql_client: PathsTestClient, db_
 
 def test_metric_quantity_in_snapshot_and_meta(db_instance_config: InstanceConfig):
     """`quantity` survives into the revision snapshot and the graph catalog."""
-    from nodes.instance_serialization import DatasetSnapshot, dataset_meta_from_model
+    from datasets.catalogue import dataset_meta_from_model
+    from datasets.snapshot import DatasetSnapshot
 
     ic = db_instance_config
     dataset, metric = _make_dataset(ic)

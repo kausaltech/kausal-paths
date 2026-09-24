@@ -1,0 +1,825 @@
+"""Transfer dataset bodies, provenance, and dimensions between database scopes."""
+
+from datetime import date, datetime
+from typing import TYPE_CHECKING, Any
+
+from django.contrib.auth import get_user_model
+from django.db import transaction
+
+from loguru import logger
+
+from kausal_common.datasets.category_domain import DatasetCategoryDomain
+
+from datasets.snapshot import (
+    DataPointCommentSnapshot,
+    DataPointEvidenceSnapshot,
+    DataPointKey,
+    DatasetMetricSnapshot,
+    DatasetSnapshot,
+    DataSourceSnapshot,
+    MetricValidationRuleSnapshot,
+    QualityLevelRef,
+    SourceReferenceSnapshot,
+    _label_from_identifier,
+    _primary_language_for_dataset,
+    metric_column_id,
+)
+from datasets.validation_rules import validation_rule_adapter
+from nodes.snapshot_base import _apply_translated, _ts_from_modeltrans
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from django.contrib.contenttypes.models import ContentType
+
+    from kausal_common.datasets.models import Dataset as DatasetModel, DatasetMetric, DimensionCategory
+    from kausal_common.i18n.pydantic import TranslatedString
+
+    from nodes.models import InstanceConfig
+
+
+def metric_validation_rule_snapshot_from_model(obj: Any) -> MetricValidationRuleSnapshot:
+    return MetricValidationRuleSnapshot(uuid=obj.uuid, rule=validation_rule_adapter.validate_python(obj.rule))
+
+
+def dataset_metric_snapshot_from_model(obj: Any) -> DatasetMetricSnapshot:
+    # Metrics live under a DatasetSchema; primary language is the
+    # schema's parent scope's instance-config primary language. For the
+    # nested path the caller resolves the language and passes via
+    # ``from_model_with_language`` below — the default path assumes
+    # i18n-less data.
+    return DatasetMetricSnapshot(
+        identifier=metric_column_id(obj),
+        label=_ts_from_modeltrans(obj, 'label', 'en') if obj.label or obj.i18n else None,
+        unit=obj.unit,
+        quantity=(obj.spec or {}).get('quantity'),
+        validation_rules=metric_rules_from_model(obj),
+    )
+
+
+def dataset_metric_snapshot_from_model_with_language(obj: Any, primary_language: str) -> DatasetMetricSnapshot:
+    return DatasetMetricSnapshot(
+        identifier=metric_column_id(obj),
+        label=_ts_from_modeltrans(obj, 'label', primary_language),
+        unit=obj.unit,
+        quantity=(obj.spec or {}).get('quantity'),
+        validation_rules=metric_rules_from_model(obj),
+    )
+
+
+def metric_rules_from_model(obj: Any) -> list[MetricValidationRuleSnapshot]:
+    return [metric_validation_rule_snapshot_from_model(rule) for rule in obj.validation_rules.order_by('order')]
+
+
+def snapshot_from_model_for_instance(obj: Any, instance_config: InstanceConfig | None) -> DatasetSnapshot:
+    from kausal_common.datasets.models import DatasetSchemaDimension, DimensionScope
+
+    schema = obj.schema
+    metrics: list[DatasetMetricSnapshot] = []
+    dimensions: list[str] = []
+    dimension_columns: dict[str, str] = {}
+    name_ts: TranslatedString | None = None
+    time_resolution = 'yearly'
+    is_editable = True
+    primary_language = instance_config.primary_language if instance_config is not None else _primary_language_for_dataset(obj)
+
+    if schema is not None:
+        time_resolution = schema.time_resolution
+        is_editable = schema.is_editable
+        # Schema name is a plain CharField + an i18n TranslationField.
+        name_ts = _ts_from_modeltrans(schema, 'name', primary_language)
+        metrics = [
+            DatasetMetricSnapshot.from_model_with_language(m, primary_language) for m in schema.metrics.all().order_by('order')
+        ]
+        if instance_config is not None:
+            from django.contrib.contenttypes.models import ContentType
+
+            scope_content_type = ContentType.objects.get_for_model(instance_config)
+            scope_id = instance_config.pk
+        else:
+            scope_content_type = obj.scope_content_type
+            scope_id = obj.scope_id
+        if scope_content_type is not None and scope_id is not None:
+            for dsd in DatasetSchemaDimension.objects.filter(schema=schema).select_related('dimension').order_by('order'):
+                scope = DimensionScope.objects.filter(
+                    dimension=dsd.dimension,
+                    scope_content_type=scope_content_type,
+                    scope_id=scope_id,
+                ).first()
+                if scope and scope.identifier:
+                    dimensions.append(scope.identifier)
+                    if dsd.column_name and dsd.column_name != scope.identifier:
+                        dimension_columns[scope.identifier] = dsd.column_name
+
+    data: dict[str, Any] | None = None
+    data_sources: list[DataSourceSnapshot] = []
+    source_references: list[SourceReferenceSnapshot] = []
+    comments: list[DataPointCommentSnapshot] = []
+    evidence: list[DataPointEvidenceSnapshot] = []
+    if not obj.is_external_placeholder:
+        data = export_dataset_data_safe(obj)
+        data_sources, source_references, comments = export_dataset_provenance(obj)
+        evidence = export_dataset_evidence(obj)
+
+    return DatasetSnapshot(
+        identifier=obj.identifier,
+        name=name_ts,
+        forecast_from=(obj.spec or {}).get('forecast_from'),
+        is_external_placeholder=obj.is_external_placeholder,
+        external_ref=obj.external_ref,
+        time_resolution=time_resolution,
+        is_editable=is_editable,
+        dimensions=dimensions,
+        dimension_columns=dimension_columns,
+        metrics=metrics,
+        category_domain=schema.category_domain if schema is not None else DatasetCategoryDomain(),
+        data=data,
+        data_sources=data_sources,
+        source_references=source_references,
+        comments=comments,
+        evidence=evidence,
+    )
+
+
+def _data_point_key(dp: Any) -> DataPointKey:
+    """Natural key for a DataPoint: (year, metric identifier, sorted category ids)."""
+    metric = dp.metric
+    metric_id = metric_column_id(metric)
+    categories = sorted((c.identifier or str(c.uuid)) for c in dp.dimension_categories.all())
+    return DataPointKey(year=dp.date.year, metric=metric_id, categories=categories)
+
+
+def export_dataset_provenance(
+    ds: DatasetModel,
+) -> tuple[list[DataSourceSnapshot], list[SourceReferenceSnapshot], list[DataPointCommentSnapshot]]:
+    """Serialize a dataset's source references and (non-soft-deleted) data-point comments."""
+    from kausal_common.datasets.models import DataPointComment, DatasetSourceReference
+
+    sources: dict[str, DataSourceSnapshot] = {}
+
+    def add_source(src: Any) -> str:
+        key = str(src.uuid)
+        if key not in sources:
+            sources[key] = DataSourceSnapshot(
+                uuid=key,
+                name=src.name,
+                edition=src.edition,
+                authority=src.authority,
+                description=src.description,
+                url=src.url,
+            )
+        return key
+
+    dataset_refs = DatasetSourceReference.objects.filter(dataset=ds).select_related('data_source')
+    dp_refs = (
+        DatasetSourceReference.objects
+        .filter(data_point__dataset=ds)
+        .select_related('data_source', 'data_point__metric')
+        .prefetch_related('data_point__dimension_categories')
+    )
+    references = [SourceReferenceSnapshot(data_source=add_source(r.data_source), point=None) for r in dataset_refs]
+    references += [
+        SourceReferenceSnapshot(data_source=add_source(r.data_source), point=_data_point_key(r.data_point)) for r in dp_refs
+    ]
+
+    comment_qs = (
+        DataPointComment.objects  # default manager excludes soft-deleted
+        .filter(data_point__dataset=ds)
+        .select_related('data_point__metric', 'created_by', 'last_modified_by', 'resolved_by')
+        .prefetch_related('data_point__dimension_categories')
+    )
+    comments = [
+        DataPointCommentSnapshot(
+            point=_data_point_key(c.data_point),
+            text=c.text,
+            is_sticky=c.is_sticky,
+            is_review=c.is_review,
+            review_state=c.review_state,
+            resolved_at=c.resolved_at.isoformat() if c.resolved_at else None,
+            created_by=str(c.created_by.uuid) if c.created_by else None,
+            last_modified_by=str(c.last_modified_by.uuid) if c.last_modified_by else None,
+            resolved_by=str(c.resolved_by.uuid) if c.resolved_by else None,
+        )
+        for c in comment_qs
+    ]
+    return list(sources.values()), references, comments
+
+
+def export_dataset_evidence(ds: DatasetModel) -> list[DataPointEvidenceSnapshot]:
+    from frameworks.models import DataPointEvidence
+
+    evidence_qs = (
+        DataPointEvidence.objects
+        .filter(data_point__dataset=ds)
+        .select_related('data_point__metric', 'quality_level__scheme', 'created_by', 'last_modified_by')
+        .prefetch_related('data_point__dimension_categories')
+        .order_by('data_point_id')
+    )
+    result = []
+    for ev in evidence_qs:
+        level = ev.quality_level
+        result.append(
+            DataPointEvidenceSnapshot(
+                point=_data_point_key(ev.data_point),
+                kind=ev.kind,
+                quality_level=QualityLevelRef(
+                    uuid=str(level.uuid),
+                    scheme=level.scheme.identifier,
+                    scheme_version=level.scheme.version,
+                    level=level.identifier,
+                )
+                if level is not None
+                else None,
+                created_by=str(ev.created_by.uuid) if ev.created_by else None,
+                last_modified_by=str(ev.last_modified_by.uuid) if ev.last_modified_by else None,
+            )
+        )
+    return result
+
+
+def _import_dataset_evidence(
+    ds_snapshot: DatasetSnapshot,
+    dataset: DatasetModel,
+    dp_map: dict[tuple[int, str, tuple[str, ...]], Any],
+) -> None:
+    """
+    Recreate data-point evidence.
+
+    A grade resolves by UUID, else by authored identity within the schemes that
+    apply to the target dataset. An unresolvable grade is dropped with a warning
+    rather than failing the import; the evidence kind is kept.
+    """
+    if not ds_snapshot.evidence:
+        return
+
+    from frameworks.evidence import quality_schemes_for_dataset
+    from frameworks.models import DataEvidenceKind, DataPointEvidence, DataQualityLevel
+
+    levels = list(DataQualityLevel.objects.filter(scheme__in=quality_schemes_for_dataset(dataset)).select_related('scheme'))
+    by_uuid = {str(level.uuid): level for level in levels}
+    by_identity = {(level.scheme.identifier, level.scheme.version, level.identifier): level for level in levels}
+    users = {
+        str(u.uuid): u
+        for u in get_user_model().objects.filter(
+            uuid__in={uid for ev in ds_snapshot.evidence for uid in (ev.created_by, ev.last_modified_by) if uid}
+        )
+    }
+
+    rows = []
+    for ev in ds_snapshot.evidence:
+        dp = dp_map.get(_data_point_key_tuple(ev.point))
+        if dp is None:
+            continue
+        level = None
+        ref = ev.quality_level
+        if ref is not None:
+            level = by_uuid.get(ref.uuid) or by_identity.get((ref.scheme, ref.scheme_version, ref.level))
+            if level is None:
+                logger.warning(
+                    'Dropping unresolvable quality level %s/%s/%s on dataset %s'
+                    % (
+                        ref.scheme,
+                        ref.scheme_version,
+                        ref.level,
+                        dataset.identifier,
+                    )
+                )
+        kind = DataEvidenceKind(ev.kind) if ev.kind else None
+        if kind is None and level is None:
+            continue
+        rows.append(
+            DataPointEvidence(
+                data_point=dp,
+                kind=kind,
+                quality_level=level,
+                created_by=users.get(ev.created_by or ''),
+                last_modified_by=users.get(ev.last_modified_by or ''),
+            )
+        )
+    DataPointEvidence.objects.bulk_create(rows)
+
+
+def _export_dataset_data(ds: DatasetModel) -> dict[str, Any]:
+    """Serialize dataset DataPoints into JSON Table Schema format."""
+    from nodes.datasets import DBDataset, JSONDataset
+
+    df = DBDataset.deserialize_df(ds)
+    return JSONDataset.serialize_df(df)
+
+
+def export_dataset_data_safe(ds: DatasetModel) -> dict[str, Any] | None:
+    """
+    Serialize DataPoints.
+
+    Returns ``None`` when the dataset has no data or the deserialization
+    fails (e.g. empty / mis-seeded datasets during tests). Robustness
+    matters here because ``serializable_data()`` is
+    called on every ``save_revision`` and must not crash on edge cases.
+    """
+    if not ds.data_points.exists():
+        return None
+    return _export_dataset_data(ds)
+
+
+@transaction.atomic
+def _import_dataset(
+    ic: InstanceConfig,
+    ds_snapshot: DatasetSnapshot,
+    ic_ct: ContentType,
+    dim_lookup: dict[str, DimensionCategory],
+) -> DatasetModel:
+    """Create DatasetSchema, Dataset, DatasetMetric, DatasetSchemaDimension, and DataPoints."""
+    from kausal_common.datasets.models import (
+        Dataset as DatasetModel,
+        DatasetMetric as DatasetMetricModel,
+        DatasetMetricValidationRule,
+        DatasetSchema as DatasetSchemaModel,
+        DatasetSchemaDimension,
+        DatasetSchemaScope,
+        DimensionScope,
+    )
+
+    primary_lang = ic.primary_language
+
+    # Resolve schema name from the TranslatedString snapshot.
+    schema_fields: dict[str, Any] = {
+        'time_resolution': ds_snapshot.time_resolution,
+        'is_editable': ds_snapshot.is_editable,
+        'category_domain': ds_snapshot.category_domain,
+    }
+    schema_i18n: dict[str, str] = {}
+    _apply_translated(schema_fields, schema_i18n, ds_snapshot.name, 'name', primary_lang)
+    if schema_fields.get('name') is None:
+        # DatasetSchema.name is required; fall back to empty if the source
+        # snapshot had no name in any language.
+        schema_fields['name'] = ''
+
+    schema = DatasetSchemaModel.objects.create(
+        i18n=schema_i18n,
+        **schema_fields,
+    )
+    DatasetSchemaScope.objects.create(
+        schema=schema,
+        scope_content_type=ic_ct,
+        scope_id=ic.pk,
+    )
+
+    # Create metrics (metric.label is TranslatedString in the snapshot)
+    metrics_by_id: dict[str, DatasetMetricModel] = {}
+    for idx, m_snap in enumerate(ds_snapshot.metrics):
+        metric_fields: dict[str, Any] = {}
+        metric_i18n: dict[str, str] = {}
+        _apply_translated(metric_fields, metric_i18n, m_snap.label, 'label', primary_lang)
+        if metric_fields.get('label') is None:
+            metric_fields['label'] = m_snap.identifier
+        metric = DatasetMetricModel.objects.create(
+            schema=schema,
+            name=m_snap.identifier,
+            unit=m_snap.unit,
+            spec={'quantity': m_snap.quantity} if m_snap.quantity is not None else {},
+            order=idx,
+            i18n=metric_i18n,
+            **metric_fields,
+        )
+        # Like the metric itself, a restored rule gets a fresh uuid; the
+        # snapshot uuid records provenance only.
+        for rule_idx, rule_snap in enumerate(m_snap.validation_rules):
+            DatasetMetricValidationRule.objects.create(
+                metric=metric,
+                rule=rule_snap.rule.model_dump(mode='json'),
+                order=rule_idx,
+            )
+        metrics_by_id[m_snap.identifier] = metric
+
+    # Link dimensions to schema
+    for idx, dim_id in enumerate(ds_snapshot.dimensions):
+        dim_scope = DimensionScope.objects.filter(
+            identifier=dim_id,
+            scope_content_type=ic_ct,
+            scope_id=ic.pk,
+        ).first()
+        if dim_scope:
+            DatasetSchemaDimension.objects.create(
+                schema=schema,
+                dimension=dim_scope.dimension,
+                order=idx,
+                column_name=ds_snapshot.dimension_columns.get(dim_id),
+            )
+
+    # Create dataset
+    dataset = DatasetModel(
+        identifier=ds_snapshot.identifier,
+        spec={'forecast_from': ds_snapshot.forecast_from} if ds_snapshot.forecast_from is not None else {},
+        is_external_placeholder=ds_snapshot.is_external_placeholder,
+        external_ref=ds_snapshot.external_ref,
+        scope_content_type=ic_ct,
+        scope_id=ic.pk,
+        schema=schema,
+    )
+    dataset.save()
+
+    # Create data points
+    dp_map: dict[tuple[int, str, tuple[str, ...]], Any] = {}
+    if ds_snapshot.data is not None:
+        dp_map = _import_data_points(dataset, ds_snapshot, metrics_by_id, dim_lookup)
+
+    # Recreate source references and comments (data points must exist first).
+    _import_dataset_provenance(ic, ic_ct, ds_snapshot, dataset, dp_map)
+    _import_dataset_evidence(ds_snapshot, dataset, dp_map)
+
+    if not dataset.is_external_placeholder:
+        from datasets.materialization import refresh_dataset_materialization
+
+        refresh_dataset_materialization(dataset)
+
+    return dataset
+
+
+def _data_point_key_tuple(point: DataPointKey) -> tuple[int, str, tuple[str, ...]]:
+    return (point.year, point.metric, tuple(point.categories))
+
+
+def _import_dataset_provenance(  # noqa: C901
+    ic: InstanceConfig,
+    ic_ct: ContentType,
+    ds_snapshot: DatasetSnapshot,
+    dataset: DatasetModel,
+    dp_map: dict[tuple[int, str, tuple[str, ...]], Any],
+) -> None:
+    """Recreate a dataset's DataSources, source references and data-point comments."""
+    if not (ds_snapshot.data_sources or ds_snapshot.source_references or ds_snapshot.comments):
+        return
+
+    from kausal_common.datasets.models import (
+        DataPointComment,
+        DataPointCommentReviewState,
+        DatasetSourceReference,
+        DataSource,
+    )
+
+    user_model = get_user_model()
+    user_cache: dict[str, Any] = {}
+
+    def resolve_user(user_uuid: str | None) -> Any:
+        if not user_uuid:
+            return None
+        if user_uuid not in user_cache:
+            user_cache[user_uuid] = user_model.objects.filter(uuid=user_uuid).first()
+        return user_cache[user_uuid]
+
+    # DataSources are scoped to the target instance and get fresh uuids (a same-DB
+    # copy can't reuse the globally-unique source uuid); map old uuid → new object.
+    src_map: dict[str, Any] = {}
+    for s in ds_snapshot.data_sources:
+        src_map[s.uuid] = DataSource.objects.create(
+            scope_content_type=ic_ct,
+            scope_id=ic.pk,
+            name=s.name,
+            edition=s.edition,
+            authority=s.authority,
+            description=s.description,
+            url=s.url,
+        )
+
+    for ref in ds_snapshot.source_references:
+        src_obj = src_map.get(ref.data_source)
+        if src_obj is None:
+            continue
+        if ref.point is None:
+            DatasetSourceReference.objects.create(dataset=dataset, data_source=src_obj)
+            continue
+        dp = dp_map.get(_data_point_key_tuple(ref.point))
+        if dp is not None:
+            DatasetSourceReference.objects.create(data_point=dp, data_source=src_obj)
+
+    for c in ds_snapshot.comments:
+        dp = dp_map.get(_data_point_key_tuple(c.point))
+        if dp is None:
+            continue
+        DataPointComment.objects.create(
+            data_point=dp,
+            text=c.text,
+            is_sticky=c.is_sticky,
+            is_review=c.is_review,
+            review_state=DataPointCommentReviewState(c.review_state) if c.review_state else None,
+            resolved_at=datetime.fromisoformat(c.resolved_at) if c.resolved_at else None,
+            created_by=resolve_user(c.created_by),
+            last_modified_by=resolve_user(c.last_modified_by),
+            resolved_by=resolve_user(c.resolved_by),
+        )
+
+
+def _resolve_metric_data_columns(
+    ds_snapshot: DatasetSnapshot, metric_ids: list[str], dim_columns: dict[str, str]
+) -> dict[str, str]:
+    """
+    Map each metric id to the data column that holds its value.
+
+    The serialized data columns are named ``Coalesce(name, label, uuid)`` (see
+    ``DBDataset.deserialize_df``), whereas a metric snapshot's identifier is
+    ``name or uuid`` — so a metric with no ``name`` but a ``label`` is keyed by
+    its uuid here while its data column is the label. ``deserialize_df`` builds
+    that column from the metric's raw (base-language) ``label``, which need not
+    equal ``str(label)`` under a different active Django language, so match
+    against *all* of the label's translations. Fall back (for the common
+    single-metric case) to the sole remaining value column.
+    """
+    fields = (ds_snapshot.data or {}).get('schema', {}).get('fields', [])
+    all_columns = {f['name'] for f in fields}
+    value_columns = all_columns - {'Year', 'id', 'uuid', *dim_columns.values()}
+    labels_by_id = {m.identifier: (m.label.all() if m.label is not None else []) for m in ds_snapshot.metrics}
+
+    columns: dict[str, str] = {}
+    for metric_id in metric_ids:
+        label_match = next((lbl for lbl in labels_by_id.get(metric_id, []) if lbl in value_columns), None)
+        if metric_id in value_columns:
+            columns[metric_id] = metric_id
+        elif label_match is not None:
+            columns[metric_id] = label_match
+        elif len(metric_ids) == 1 and len(value_columns) == 1:
+            columns[metric_id] = next(iter(value_columns))
+        else:
+            columns[metric_id] = metric_id
+    return columns
+
+
+def _import_data_points(
+    dataset: DatasetModel,
+    ds_snapshot: DatasetSnapshot,
+    metrics_by_id: dict[str, DatasetMetric],
+    dim_lookup: dict[str, DimensionCategory],
+) -> dict[tuple[int, str, tuple[str, ...]], Any]:
+    """Create DataPoints; return a natural-key → DataPoint map for provenance wiring."""
+    from kausal_common.datasets.models import DataPoint, DataPointDimensionCategory
+
+    assert ds_snapshot.data is not None
+    dim_ids = ds_snapshot.dimensions
+    dim_columns = {dim_id: ds_snapshot.dimension_columns.get(dim_id, dim_id) for dim_id in dim_ids}
+    metric_columns = _resolve_metric_data_columns(ds_snapshot, list(metrics_by_id), dim_columns)
+
+    data_points: list[DataPoint] = []
+    # (data_point_index, category) pairs for bulk M2M creation
+    dp_categories: list[tuple[int, DimensionCategory]] = []
+    # natural key per created data point, parallel to ``data_points``
+    dp_keys: list[tuple[int, str, tuple[str, ...]]] = []
+
+    for row in ds_snapshot.data['data']:
+        year_val = row.get('Year')
+        if year_val is None:
+            continue
+        dp_date = date(year=int(year_val), month=1, day=1)
+
+        # Resolve dimension categories for this row (objects + their id strings,
+        # which match the export-side natural key).
+        row_cats: list[DimensionCategory] = []
+        row_cat_ids: list[str] = []
+        for dim_id in dim_ids:
+            cat_id = row.get(dim_columns[dim_id])
+            if cat_id:
+                cat = dim_lookup.get(f'{dim_id}/{cat_id}')
+                if cat:
+                    row_cats.append(cat)
+                    row_cat_ids.append(str(cat_id))
+        cat_key = tuple(sorted(row_cat_ids))
+
+        for metric_id, metric in metrics_by_id.items():
+            column = metric_columns[metric_id]
+            if column not in row:
+                continue
+            # An empty cell is kept as a null-valued data point, as `load_dvc_dataset` creates
+            # it: a template dataset is all empty cells, and dropping them leaves a dataset with
+            # no data points and so no payload, which the runtime cannot load.
+            value = row[column]
+            dp_idx = len(data_points)
+            data_points.append(
+                DataPoint(
+                    dataset=dataset,
+                    date=dp_date,
+                    metric=metric,
+                    value=value,
+                )
+            )
+            dp_keys.append((int(year_val), metric_id, cat_key))
+            dp_categories.extend((dp_idx, cat) for cat in row_cats)
+
+    # Bulk create data points
+    created_dps = DataPoint.objects.bulk_create(data_points)
+
+    # Bulk create M2M links
+    if dp_categories:
+        m2m_objs = [
+            DataPointDimensionCategory(
+                data_point=created_dps[dp_idx],
+                dimension_category=cat,
+            )
+            for dp_idx, cat in dp_categories
+        ]
+        DataPointDimensionCategory.objects.bulk_create(m2m_objs)
+
+    return {dp_keys[i]: created_dps[i] for i in range(len(created_dps))}
+
+
+def _dimension_category_lookup_for_instance(ic: InstanceConfig, ic_ct: ContentType) -> dict[str, DimensionCategory]:
+    from kausal_common.datasets.models import DimensionScope
+
+    lookup: dict[str, DimensionCategory] = {}
+    scopes = (
+        DimensionScope.objects
+        .filter(scope_content_type=ic_ct, scope_id=ic.pk, identifier__isnull=False)
+        .select_related('dimension')
+        .prefetch_related('dimension__categories')
+    )
+    for scope in scopes:
+        assert scope.identifier is not None
+        for category in scope.dimension.categories.all():
+            if category.identifier is not None:
+                lookup[f'{scope.identifier}/{category.identifier}'] = category
+    return lookup
+
+
+def _ensure_dataset_dimensions(
+    ic: InstanceConfig,
+    ds_snapshot: DatasetSnapshot,
+    ic_ct: ContentType,
+    dim_lookup: dict[str, DimensionCategory],
+) -> None:
+    from kausal_common.datasets.models import Dimension, DimensionCategory as DimensionCategoryModel, DimensionScope
+
+    for dim_id in ds_snapshot.dimensions:
+        dim_scope = (
+            DimensionScope.objects
+            .filter(
+                identifier=dim_id,
+                scope_content_type=ic_ct,
+                scope_id=ic.pk,
+            )
+            .select_related('dimension')
+            .first()
+        )
+        if dim_scope is None:
+            dimension = Dimension.objects.create(name=_label_from_identifier(dim_id))
+            DimensionScope.objects.create(
+                dimension=dimension,
+                identifier=dim_id,
+                scope_content_type=ic_ct,
+                scope_id=ic.pk,
+            )
+        else:
+            dimension = dim_scope.dimension
+
+        existing_categories = set(dimension.categories.values_list('identifier', flat=True))
+        column_name = ds_snapshot.dimension_columns.get(dim_id, dim_id)
+        category_ids = sorted({
+            str(cat_id) for row in (ds_snapshot.data or {}).get('data', []) if (cat_id := row.get(column_name))
+        })
+        for cat_id in category_ids:
+            if cat_id in existing_categories:
+                continue
+            cat = DimensionCategoryModel.objects.create(
+                dimension=dimension,
+                identifier=cat_id,
+                label=_label_from_identifier(cat_id),
+            )
+            dim_lookup[f'{dim_id}/{cat_id}'] = cat
+            existing_categories.add(cat_id)
+
+
+def _validate_dataset_dimensions(
+    ic: InstanceConfig,
+    ds_snapshot: DatasetSnapshot,
+    dim_lookup: dict[str, DimensionCategory],
+) -> None:
+    if ds_snapshot.data is None:
+        return
+    missing = {
+        f'{dim_id}/{cat_id}'
+        for row in ds_snapshot.data.get('data', [])
+        for dim_id in ds_snapshot.dimensions
+        if (cat_id := row.get(ds_snapshot.dimension_columns.get(dim_id, dim_id))) and f'{dim_id}/{cat_id}' not in dim_lookup
+    }
+    if missing:
+        missing_str = ', '.join(sorted(missing)[:10])
+        if len(missing) > 10:
+            missing_str += ', ...'
+        raise ValueError(
+            f'Cannot import dataset {ds_snapshot.identifier!r} into {ic.identifier!r}; missing dimension categories: '
+            + f'{missing_str}'
+        )
+
+
+def _rewire_dataset_ports(ic: InstanceConfig, datasets_by_id: dict[str, DatasetModel]) -> int:
+    from nodes.models import NodeInputPortBinding
+
+    rewired = 0
+    ports = NodeInputPortBinding.objects.filter(instance=ic, dataset__identifier__in=datasets_by_id).select_related(
+        'dataset', 'metric'
+    )
+    for port in ports:
+        assert port.dataset is not None
+        assert port.metric is not None
+        if port.dataset.identifier is None:
+            continue
+        dataset = datasets_by_id.get(port.dataset.identifier)
+        if dataset is None or dataset.pk == port.dataset_id:
+            continue
+        assert dataset.schema is not None
+        metric = dataset.schema.metrics.filter(name=port.metric.name).first()
+        if metric is None:
+            raise ValueError(
+                f'Cannot rewire dataset port {port.pk} to dataset {dataset.identifier!r}; metric {port.metric.name!r} is missing'
+            )
+        port.dataset = dataset
+        port.metric = metric
+        port.save(update_fields=['dataset', 'metric'])
+        rewired += 1
+    return rewired
+
+
+def _delete_superseded_placeholders(ic: InstanceConfig, dataset_ids: Iterable[str]) -> int:
+    from django.contrib.contenttypes.models import ContentType
+
+    from kausal_common.datasets.models import Dataset as DatasetModel, DatasetSchemaScope
+
+    ids = set(dataset_ids)
+    if not ids:
+        return 0
+
+    ic_ct = ContentType.objects.get_for_model(ic)
+    schema_scope_ids = DatasetSchemaScope.objects.filter(
+        scope_content_type=ic_ct,
+        scope_id=ic.pk,
+    ).values('schema_id')
+    placeholders = list(
+        DatasetModel.objects
+        .filter(
+            schema_id__in=schema_scope_ids,
+            identifier__in=ids,
+            is_external_placeholder=True,
+        )
+        .exclude(scope_content_type=ic_ct, scope_id=ic.pk)
+        .select_related('schema')
+    )
+
+    deleted = 0
+    for placeholder in placeholders:
+        schema = placeholder.schema
+        placeholder.delete()
+        deleted += 1
+        if schema is not None and not schema.datasets.exists():
+            schema.delete()
+    return deleted
+
+
+def import_instance_datasets(
+    ic: InstanceConfig,
+    dataset_snapshots: Iterable[DatasetSnapshot],
+    *,
+    rewire_dataset_ports: bool = False,
+    delete_superseded_placeholders: bool = False,
+    create_missing_dimensions: bool = False,
+) -> list[DatasetModel]:
+    """
+    Import dataset bodies into an existing InstanceConfig without touching nodes.
+
+    This is used when a template instance already has its node graph and
+    dataset ports, but its datasets need to be promoted from external
+    placeholders to real DB datasets with datapoints.
+    """
+    from django.contrib.contenttypes.models import ContentType
+
+    from kausal_common.datasets.models import Dataset as DatasetModel
+
+    ic_ct = ContentType.objects.get_for_model(ic)
+    dim_lookup = _dimension_category_lookup_for_instance(ic, ic_ct)
+    imported: list[DatasetModel] = []
+    datasets_by_id: dict[str, DatasetModel] = {}
+
+    for ds_snapshot in dataset_snapshots:
+        if ds_snapshot.identifier is not None:
+            existing = DatasetModel.objects.filter(
+                scope_content_type=ic_ct,
+                scope_id=ic.pk,
+                identifier=ds_snapshot.identifier,
+                is_external_placeholder=False,
+            ).first()
+            if existing is not None:
+                if ds_snapshot.data is None or existing.data_points.exists():
+                    imported.append(existing)
+                    datasets_by_id[ds_snapshot.identifier] = existing
+                    continue
+                raise ValueError(f'Dataset {ds_snapshot.identifier!r} already exists for {ic.identifier!r} but has no datapoints')
+
+        if create_missing_dimensions:
+            _ensure_dataset_dimensions(ic, ds_snapshot, ic_ct, dim_lookup)
+        _validate_dataset_dimensions(ic, ds_snapshot, dim_lookup)
+        dataset = _import_dataset(ic, ds_snapshot, ic_ct, dim_lookup)
+        imported.append(dataset)
+        if ds_snapshot.identifier is not None:
+            datasets_by_id[ds_snapshot.identifier] = dataset
+
+    if rewire_dataset_ports:
+        _rewire_dataset_ports(ic, datasets_by_id)
+    if delete_superseded_placeholders:
+        _delete_superseded_placeholders(ic, datasets_by_id.keys())
+
+    return imported

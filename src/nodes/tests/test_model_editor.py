@@ -2324,7 +2324,7 @@ def test_dataset_ports_rebuild_uses_dataset_forecast_default(db_instance_config:
 
 
 def test_dataset_port_forecast_from_promotes_to_dataset_default(db_instance_config: InstanceConfig):
-    from nodes.dataset_materialization import materialize_dataset
+    from datasets.materialization import materialize_dataset
     from nodes.models import DatasetMaterialization, NodeInputPortBinding
     from nodes.spec_sync import _promote_dataset_forecast_defaults
 

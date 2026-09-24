@@ -155,7 +155,7 @@ def _promote_dataset_forecast_defaults(ic: InstanceConfig) -> int:
     """
     from collections import defaultdict
 
-    from nodes.dataset_materialization import refresh_dataset_materialization
+    from datasets.materialization import refresh_dataset_materialization
     from nodes.models import DatasetMaterialization, NodeInputPortBinding
 
     ports_by_dataset: dict[int, list[NodeInputPortBinding]] = defaultdict(list)
@@ -403,7 +403,7 @@ def _sync_dataset_metadata_from_snapshot(ic: InstanceConfig, snapshot: InstanceS
     """
     from kausal_common.datasets.models import Dataset
 
-    from nodes.dataset_materialization import refresh_dataset_materialization
+    from datasets.materialization import refresh_dataset_materialization
 
     declared_schema_editability: dict[int, tuple[str, bool]] = {}
     declared_schema_domains: dict[int, tuple[str, object]] = {}
@@ -761,7 +761,7 @@ def sync_parsed_instance_to_db(
 
     from kausal_common.i18n.pydantic import set_i18n_context
 
-    from nodes.dataset_placeholders import sync_dataset_placeholders_from_snapshot
+    from datasets.placeholders import sync_dataset_placeholders_from_snapshot
     from nodes.instance_loader import InstanceYAMLConfig
     from nodes.instance_parser import parse_instance_snapshot
     from nodes.instance_serialization import reconcile_snapshot_node_metadata
