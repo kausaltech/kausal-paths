@@ -3,7 +3,7 @@ default_language: de
 supported_languages: [en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: c1921ba0c3df94b1ba1407703e52596bc4b74fab
+  commit: 9498c060872399adcfc4befca0b3b4efcd66a021
   dvc_remote: kausal-s3
 name_de: Treibhausgas-Monitor Mainz
 name_en: GHG Monitor Mainz
@@ -131,6 +131,44 @@ include:
     to: mainz/municipal_street_lighting_energy
   - from: gpc/municipal_avoided_energy
     to: mainz/municipal_avoided_energy
+
+#//////  Impact overviews
+
+impact_overviews:
+
+- graph_type: simple_effect
+  effect_node: emission_reductions
+  indicator_unit: t_co2e
+  label_en: Emission impact
+  label_de: Emissionsauswirkung
+
+- graph_type: simple_effect
+  effect_node: energy_spending
+  indicator_unit: MEUR
+  label_en: Energy costs
+  label_de: Energiekosten
+
+- graph_type: cost_benefit
+  effect_node: energy_spending
+  indicator_unit: MEUR
+  label_en: Energy costs by cost type
+  label_de: Energiekosten nach Kosttyp
+  outcome_dimension: energy_cost_component
+
+- graph_type: wedge_diagram
+  effect_node: net_emissions
+  indicator_unit: kt_co2e/a
+  label_en: Wedge diagram of emissions
+  label_de: Keildiagramm der Emissionen
+
+- graph_type: cost_efficiency
+  cost_node: energy_spending
+  effect_node: net_emissions
+  cost_unit: MEUR
+  effect_unit: kt_co2e
+  indicator_unit: EUR/t_co2e
+  label_en: Cost-efficiency
+  label_de: Kosteneffizienz
 
 #//////  Dimensions  //////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -389,6 +427,21 @@ dimensions:
 # Mainz-specific nodes not (yet) part of the shared BISKO module. Kept as standalone
 # entries -- not wired into any consumer -- since the raw-to-final transformation they
 # used to feed has moved into extract_bisko.py (see scripts repo, paths/models/mainz/).
+
+# What an energy bill is made of, for the energy-cost indicator below. Two parts because they
+# answer different questions: the first is what the energy costs at today's prices, the second
+# what the rising CO2 price adds to it. The second is the part that falls away with the fossil
+# fuel, and it grows with every year a fossil boiler or engine stays in use.
+- id: energy_cost_component
+  label_de: Kostenbestandteil
+  label_en: Cost component
+  categories:
+  - id: energy_price
+    label_de: Energiepreis (Preisstand 2023)
+    label_en: Energy price (2023 price level)
+  - id: co2_price_increase
+    label_de: Anstieg des CO₂-Preises gegenüber 2023
+    label_en: Rise of the CO₂ price above 2023
 
 nodes:
 
@@ -844,10 +897,11 @@ nodes:
     Nahwärme ist nicht enthalten: die Emissionen der Fernwärme decken nur den
     Energieträger Fernwärme ab, und eine Division durch Fern- plus Nahwärme würde den
     Faktor um rund ein Fünftel zu niedrig ausweisen.<br/>
-    <b>Der Wert liegt derzeit konstant bei rund 260 g/kWh</b>, in jedem Jahr gleich. Das ist
-    kein Messergebnis, sondern der Standardfaktor der BISKO-Methodik: ein lokaler Faktor
-    setzt Angaben zum Brennstoffeinsatz der Fernwärmeerzeugung voraus, und dafür nutzt Mainz
-    bislang die leere Vorlage <code>fernwaerme_energieeinsatz</code>. Sobald diese Daten
+    <b>Der Wert liegt derzeit konstant bei 130 g/kWh</b>, in jedem Jahr gleich. Das ist
+    kein Messergebnis, sondern der Tabellenwert der BISKO-Methodik für die erklärte
+    überwiegende Erzeugungsart, in Mainz die Kraft-Wärme-Kopplung im Müllheizkraftwerk: ein
+    lokaler Faktor setzt Angaben zum Brennstoffeinsatz der Fernwärmeerzeugung voraus, und dafür
+    nutzt Mainz bislang die leere Vorlage <code>fernwaerme_energieeinsatz</code>. Sobald diese Daten
     vorliegen, bewegt sich der Indikator -- und erst dann kann er die Dekarbonisierung des
     Netzes abbilden, die der Maßnahmenkatalog mit ihm verfolgen will. Dieselbe Datenlücke
     blockiert den Indikator „Anteil Erneuerbarer Energien an der Wärmeerzeugung“.<br/>
@@ -864,9 +918,10 @@ nodes:
     Local heating is excluded: district heating emissions cover only the district heating
     carrier, and dividing by district plus local heating would understate the factor by
     about a fifth.<br/>
-    <b>The value currently sits flat at about 260 g/kWh</b>, identical every year. That is
-    not a measurement but the BISKO methodology's default factor: a local factor requires
-    fuel input data for district heating generation, and Mainz still uses the blank
+    <b>The value currently sits flat at 130 g/kWh</b>, identical every year. That is not a
+    measurement but the BISKO methodology's table value for the declared predominant generation
+    type, which in Mainz is combined heat and power at the waste-to-energy plant: a local factor
+    requires fuel input data for district heating generation, and Mainz still uses the blank
     <code>fernwaerme_energieeinsatz</code> template. Once that data arrives the indicator
     starts to move -- and only then can it show the network decarbonisation the measure
     catalogue means it to track. The same gap blocks the indicator “renewable share of heat
@@ -1092,24 +1147,12 @@ nodes:
     - id: energy_carrier
       flatten: true
 
-# ///// A 2.1 Solaroffensive -- COMMENTED OUT UNTIL ITS TWO DATASETS ARE UPLOADED /////
-#
-# Every line of the node chain below, and of the action `mp100_solaroffensive` in `actions:`, is
-# prefixed `#PV# `. Commented out because a dataset that does not load breaks every scenario,
-# not only this action. Verified on 23.09.2026 against a scratch clone of dvctest carrying the
-# two datasets: net_emissions and the administration balance unchanged in all ten scenarios;
-# impact on emission_reductions -1.9 / -38.1 / -41.9 / -8.6 / -3.5 kt at 2025 / 30 / 35 / 40 / 45
-# in the core scenarios. To switch it on:
-#
-#   python manage.py sync_instance_to_db mainz-bisko   # the mirror must know mp100_solaroffensive
-#   python -m tools.upload_new_dataset \
-#       -i ~/devel/paths-data/models/mainz/mainz_solaroffensive.csv \
-#       -o mainz -n mainz-bisko -l de \
-#       --sources-csv ~/devel/paths-data/models/mainz/mainz_sources.csv
-#
-# then bump `dataset_repo.commit` and uncomment with
-#
-#   sed -i '' -e 's/^#PV# //' -e 's/^#PV#$//' configs/mainz-bisko.yaml
+# The two A 2.1 datasets are uploaded and the chain below is live (it was shipped commented out
+# behind a `#PV#` prefix until then, because a dataset that does not load breaks every
+# scenario). Verified on 23.09.2026 against a scratch clone of dvctest before the upload:
+# net_emissions and the administration balance unchanged in all ten scenarios; impact on
+# emission_reductions -1.9 / -38.1 / -41.9 / -8.6 / -3.5 kt at 2025 / 30 / 35 / 40 / 45 in the
+# core scenarios.
 #
 # ///// A 2.1 Solaroffensive: local photovoltaics, beside the balance /////
 #
@@ -1275,6 +1318,406 @@ nodes:
   - id: emission_reductions
     tags: [arithmetic_inverse]
 
+#//////  Energiekosten  /////////////////////////////////////////////////////////////////////////
+#
+# Gross energy spending in Mainz: every MWh of final energy, stationary and transport, valued at
+# the price of its carrier and sector. What it is for: the defence of the measures rests partly
+# on money, and this is the part of that argument that can be stated without inventing anything
+# -- what Mainz spends on energy, how much of it is fossil, and how that changes between
+# scenarios. What it is not: a cost-benefit account. Investment costs are not in it, so a
+# scenario with a lower energy bill is not thereby a cheaper scenario, and the descriptions say
+# so.
+#
+# Prices: `mainz/energiepreise`, derived from the city's Klimaschutz-Planer export as cost /
+# energy per cell, 2010-2023, and held at the 2023 level from 2024. Every gap-filling rule is in
+# the dataset rows and in `create_energiepreise.py` in paths-data. The CO2 price is kept apart
+# because the Klimaschutz-Planer table does not say which prices contain it; what the model adds
+# is only its rise above 2023, on the combustion factors the BEHG prices (EBeV 2030), not on the
+# BISKO life-cycle factors of the balance.
+- id: energy_prices
+  is_editable: false
+  name_de: Energiepreise nach Sektor und Energieträger
+  name_en: Energy prices by sector and energy carrier
+  description_de: |
+    Der Preis je Megawattstunde, mit dem jeder Energieträger in jedem Sektor bewertet wird.
+    Grundlage ist die Preistabelle des Klimaschutz-Planers, abgeleitet aus dem Mainzer Export:
+    Energiekosten geteilt durch Endenergie in derselben Zelle, 2010 bis 2023, in Euro des
+    jeweiligen Jahres. Ab 2024 gilt der Preisstand 2023.<br/>
+    Wo der Export für einen Sektor keine Menge und damit keinen Preis führt, wird der Preis aus
+    einem verwandten Wert abgeleitet, etwa der Industriepreis aus dem Gewerbepreis im festen
+    Verhältnis des letzten gemeinsamen Jahres. Jede solche Ergänzung ist im Datensatz einzeln
+    benannt.<br/>
+    Zwei Hinweise zur Einordnung: Die Preise sind ohne Mehrwertsteuer. Der Export sagt das nicht,
+    aber die Kraftstoffpreise zeigen es: 145 Euro je Megawattstunde Diesel sind 1,45 Euro je Liter,
+    und der Jahresdurchschnitt des ADAC lag 2023 bei 1,72 Euro mit Mehrwertsteuer. Für Unternehmen,
+    die die Mehrwertsteuer zurückerhalten, ist das die richtige Grundlage; Haushalte zahlen 19 %
+    darauf. Und Solarthermie, sonstige erneuerbare und sonstige konventionelle
+    Energieträger sind ohne Preis angesetzt, weil für sie kein Brennstoff eingekauft wird oder
+    der Klimaschutz-Planer keinen Preis führt.
+  description_en: |
+    The price per megawatt-hour at which every energy carrier is valued in every sector. The
+    basis is the Klimaschutz-Planer's price table, derived from the Mainz export: energy costs
+    divided by final energy in the same cell, 2010 to 2023, in euros of each year. From 2024 the
+    2023 price level applies.<br/>
+    Where the export carries no quantity and therefore no price for a sector, the price is
+    derived from a related value — the industrial price from the commercial price, for
+    instance, in the fixed ratio of the latest year both exist. Every such addition is named
+    individually in the dataset.<br/>
+    Two caveats for reading the figures: the prices are net of VAT. The export does not say so,
+    but the fuel prices show it: 145 euros per megawatt-hour of diesel is 1.45 euros per litre, and
+    the ADAC annual average for 2023 was 1.72 euros including VAT. That is the right basis for
+    businesses, which reclaim VAT; households pay 19 % on top. And solar thermal, other renewable and other conventional carriers carry no price,
+    because no fuel is bought for them or the Klimaschutz-Planer lists none.
+  type: simple.AdditiveNode
+  quantity: unit_price
+  unit: EUR/MWh
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: mainz/energiepreise
+    column: Value
+    forecast_from: 2024
+
+- id: fuel_co2_factors
+  is_editable: false
+  name_de: CO₂-Faktoren der Brennstoffe für den CO₂-Preis
+  name_en: Fuel CO₂ factors for the carbon price
+  description_de: |
+    Wie viel Kohlendioxid bei der Verbrennung einer Megawattstunde eines Brennstoffs entsteht,
+    nach den Standardwerten der Emissionsberichterstattungsverordnung 2030. Auf diese Menge wird
+    der nationale CO₂-Preis erhoben.<br/>
+    Nicht zu verwechseln mit den Emissionsfaktoren der Treibhausgasbilanz: Diese enthalten auch
+    die Vorkette und andere Treibhausgase und liegen deshalb höher.<br/>
+    Strom, Fernwärme, Nahwärme und Umweltwärme haben hier den Wert null. Ihr CO₂-Preis fällt bei
+    der Erzeugung an und ist bereits im Preis enthalten, den die Kundinnen und Kunden zahlen.
+  description_en: |
+    How much carbon dioxide burning one megawatt-hour of a fuel produces, per the standard
+    values of the German Emissions Reporting Ordinance 2030 (EBeV 2030). The national CO₂ price
+    is levied on this quantity.<br/>
+    Not to be confused with the emission factors of the greenhouse gas balance: those include
+    the upstream chain and other greenhouse gases, and are therefore higher.<br/>
+    Electricity, district heating, local heating and environmental heat are zero here. Their
+    CO₂ price arises at generation and is already contained in the price customers pay.
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: t_co2e/MWh
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets:
+  - id: mainz/brennstoff_co2_faktoren
+    column: Value
+
+- id: co2_price_fuels
+  is_editable: false
+  name_de: CO₂-Preis auf Brenn- und Kraftstoffe
+  name_en: CO₂ price on heating and road fuels
+  description_de: |
+    Der nationale CO₂-Preis auf Heiz- und Kraftstoffe nach dem Brennstoffemissionshandelsgesetz:
+    25 Euro je Tonne 2021, 30 Euro 2022 und 2023, 45 Euro 2024, 55 Euro 2025 und ein Korridor von
+    55 bis 65 Euro 2026, von dem hier die Obergrenze angesetzt ist; 2027 bleibt es bei 65 Euro.<br/>
+    Ab 2028 gilt der europäische Emissionshandel für Gebäude und Verkehr, dessen Preis sich heute
+    nicht angeben lässt. Ab diesem Jahr kommt der Wert deshalb aus dem Parameter „CO₂-Preis auf
+    Heiz- und Kraftstoffe ab 2028“. Voreingestellt sind 65 Euro, die niedrige Lesart; 100 Euro
+    entsprechen etwa dem oberen Ende dessen, was der Emissionshandel für Strom und Industrie
+    bereits erreicht hat. Der Preis verändert die Energieausgaben, nicht die Emissionen.
+  description_en: |
+    The national CO₂ price on heating and road fuels under the Fuel Emissions Trading Act
+    (BEHG): 25 euros per tonne in 2021, 30 euros in 2022 and 2023, 45 euros in 2024, 55 euros in
+    2025 and a corridor of 55 to 65 euros in 2026, of which the upper bound is applied here; 2027
+    stays at 65 euros.<br/>
+    From 2028 the European emissions trading system for buildings and transport applies, whose
+    price cannot be stated today. From that year the value therefore comes from the parameter
+    "CO₂ price on heating and road fuels from 2028". The default is 65 euros, the low reading;
+    100 euros is roughly the upper end of what emissions trading for power and industry has
+    already reached. The price changes energy spending, not emissions.
+  type: formula.FormulaNode
+  quantity: unit_price
+  unit: EUR/t_co2e
+  input_datasets:
+  - id: mainz/co2_preis_brennstoffe
+    tags: [law]
+    column: co2_price
+    forecast_from: 2026
+  - id: mainz/co2_preis_brennstoffe
+    tags: [ets2]
+    column: ets2_active
+    forecast_from: 2026
+  params:
+  - id: formula
+    value: law * (1 - ets2) + ets2 * constant
+  - id: constant
+    ref: ets2_co2_price
+
+- id: co2_price_fuels_increase
+  is_editable: false
+  name_de: Anstieg des CO₂-Preises gegenüber 2023
+  name_en: Rise of the CO₂ price above 2023
+  description_de: |
+    Um wie viel der CO₂-Preis auf Brenn- und Kraftstoffe über dem Wert von 2023 (30 Euro je
+    Tonne) liegt: bis 2023 null, danach 15 Euro 2024, 25 Euro 2025, 35 Euro 2026 und 2027, und ab
+    2028 der eingestellte Preis weniger 30 Euro. Weil die Energiepreise ab 2024 auf dem Stand von
+    2023 gehalten werden, ist dieser Anstieg der Teil der künftigen Energiekosten, der allein aus
+    dem CO₂-Preis kommt.
+  description_en: |
+    How far the CO₂ price on heating and road fuels lies above its 2023 value (30 euros per
+    tonne): zero up to 2023, then 15 euros in 2024, 25 euros in 2025, 35 euros in 2026 and 2027,
+    and from 2028 the set price less 30 euros. Because energy prices are held at their 2023 level
+    from 2024, this rise is the part of future energy costs that comes from the CO₂ price alone.
+  type: formula.FormulaNode
+  quantity: unit_price
+  unit: EUR/t_co2e
+  input_datasets:
+  - id: mainz/co2_preis_brennstoffe
+    tags: [increase]
+    column: co2_price_increase
+    forecast_from: 2024
+  - id: mainz/co2_preis_brennstoffe
+    tags: [law]
+    column: co2_price
+    forecast_from: 2026
+  - id: mainz/co2_preis_brennstoffe
+    tags: [ets2]
+    column: ets2_active
+    forecast_from: 2026
+  params:
+  # Up to 2027 the dataset's own increase; from 2028 it is corrected by what the parameter adds
+  # over the held path, so the two stay one quantity whatever the parameter is set to.
+  - id: formula
+    value: increase + ets2 * (constant - law)
+  - id: constant
+    ref: ets2_co2_price
+
+- id: co2_price_per_energy
+  is_editable: false
+  name_de: CO₂-Preis je Megawattstunde Brennstoff
+  name_en: CO₂ price per megawatt-hour of fuel
+  description_de: |
+    Was der CO₂-Preis auf eine Megawattstunde des jeweiligen Brenn- oder Kraftstoffs aufschlägt:
+    CO₂-Preis mal CO₂-Faktor des Brennstoffs.
+  description_en: |
+    What the CO₂ price adds to one megawatt-hour of each heating or road fuel: the CO₂ price
+    times the fuel's CO₂ factor.
+  type: generic.GenericNode
+  quantity: unit_price
+  unit: EUR/MWh
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_nodes:
+  - id: fuel_co2_factors
+  - id: co2_price_fuels
+  params:
+    operations: multiply
+
+- id: co2_price_increase_per_energy
+  is_editable: false
+  name_de: CO₂-Preisanstieg je Megawattstunde Brennstoff
+  name_en: CO₂ price rise per megawatt-hour of fuel
+  description_de: |
+    Was der Anstieg des CO₂-Preises über den Wert von 2023 auf eine Megawattstunde des jeweiligen
+    Brenn- oder Kraftstoffs aufschlägt.
+  description_en: |
+    What the rise of the CO₂ price above its 2023 value adds to one megawatt-hour of each
+    heating or road fuel.
+  type: generic.GenericNode
+  quantity: unit_price
+  unit: EUR/MWh
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_nodes:
+  - id: fuel_co2_factors
+  - id: co2_price_fuels_increase
+  params:
+    operations: multiply
+
+- id: energy_spending_at_energy_prices
+  is_editable: false
+  name_de: Energieausgaben der stationären Sektoren zum Energiepreis
+  name_en: Stationary energy spending at energy prices
+  description_de: |
+    Die Endenergie der Haushalte, des Gewerbes, der Industrie und der städtischen Einrichtungen,
+    bewertet mit dem Preis ihres Energieträgers im jeweiligen Sektor. Bis 2023 mit den Preisen des
+    jeweiligen Jahres, ab 2024 mit dem Preisstand 2023. Der Verkehr folgt in einem eigenen Knoten,
+    weil dort der Preis vom Fahrzeug abhängt.
+  description_en: |
+    The final energy of households, commerce, industry and municipal facilities, valued at the
+    price of its carrier in each sector. Up to 2023 at the prices of each year, from 2024 at the
+    2023 price level. Transport follows in a node of its own, because there the price depends on
+    the vehicle.
+  type: generic.GenericNode
+  quantity: currency
+  unit: MEUR/a
+  minimum_year: 2010
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_nodes:
+  - id: final_energy_use
+  - id: energy_prices
+  params:
+    operations: multiply
+
+- id: transport_energy_prices
+  is_editable: false
+  name_de: Energiepreise im Verkehr nach Fahrzeugart
+  name_en: Transport energy prices by vehicle type
+  description_de: |
+    Der Preis je Megawattstunde für jeden Kraftstoff und für Strom, nach Fahrzeugart. Kraftstoffe
+    kosten für alle Fahrzeuge dasselbe, nach der Preistabelle des Klimaschutz-Planers. Strom nicht:
+    Personenwagen und Krafträder laden überwiegend zu Hause zum Haushaltsstrompreis, leichte
+    Nutzfahrzeuge am Betriebsstandort zum Gewerbestrompreis, und Lastwagen, Busse, Straßenbahnen,
+    Züge und Schiffe beziehen Flotten- oder Bahnstrom in großen Mengen zum Industriestrompreis.<br/>
+    Öffentliches Schnellladen, das teurer ist als jeder dieser Preise, ist nicht abgebildet. Die
+    Preise sind ohne Mehrwertsteuer.
+  description_en: |
+    The price per megawatt-hour of every fuel and of electricity, by vehicle type. Fuels cost the
+    same for every vehicle, per the Klimaschutz-Planer's price table. Electricity does not: cars
+    and motorcycles charge mostly at home at the household tariff, vans at business premises at the
+    commercial tariff, and trucks, buses, trams, trains and ships buy fleet or traction power in
+    bulk at the industrial tariff.<br/>
+    Public fast charging, which costs more than any of these, is not represented. The prices are
+    net of VAT.
+  type: simple.AdditiveNode
+  quantity: unit_price
+  unit: EUR/MWh
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_datasets:
+  - id: mainz/energiepreise_verkehr
+    column: Value
+    forecast_from: 2024
+
+- id: transport_energy_spending
+  is_editable: false
+  name_de: Energieausgaben im Verkehr zum Energiepreis
+  name_en: Transport energy spending at energy prices
+  description_de: |
+    Die Endenergie des Verkehrs in Mainz, bewertet mit dem Preis ihres Energieträgers für die
+    jeweilige Fahrzeugart. Bis 2023 mit den Preisen des jeweiligen Jahres, ab 2024 mit dem
+    Preisstand 2023.
+  description_en: |
+    Transport final energy in Mainz, valued at the price of its carrier for each vehicle type. Up
+    to 2023 at the prices of each year, from 2024 at the 2023 price level.
+  type: generic.GenericNode
+  quantity: currency
+  unit: MEUR/a
+  minimum_year: 2010
+  input_dimensions: [energy_carrier, vehicle_type]
+  output_dimensions: [energy_carrier, vehicle_type]
+  input_nodes:
+  - id: transport_energy
+  - id: transport_energy_prices
+  params:
+    operations: multiply
+
+- id: energy_spending_co2_price_increase
+  is_editable: false
+  name_de: Mehrausgaben durch den steigenden CO₂-Preis
+  name_en: Additional spending from the rising CO₂ price
+  description_de: |
+    Was der Anstieg des CO₂-Preises über den Wert von 2023 zu den Energieausgaben hinzufügt: die
+    fossilen Brenn- und Kraftstoffe, die in Mainz verbraucht werden, mal ihr CO₂-Faktor mal der
+    Preisanstieg. Diese Ausgaben entfallen mit dem fossilen Brennstoff.
+  description_en: |
+    What the rise of the CO₂ price above its 2023 value adds to energy spending: the fossil
+    heating and road fuels used in Mainz, times their CO₂ factor, times the price rise. This
+    spending falls away with the fossil fuel.
+  type: generic.GenericNode
+  quantity: currency
+  unit: MEUR/a
+  minimum_year: 2010
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_nodes:
+  - id: total_final_energy_use
+  - id: co2_price_increase_per_energy
+  params:
+    operations: multiply
+
+- id: energy_spending
+  name_de: Energieausgaben in Mainz
+  name_en: Energy spending in Mainz
+  description_de: |
+    Was Haushalte, Unternehmen, die Stadtverwaltung und der Verkehr in Mainz zusammen im Jahr
+    für Energie ausgeben: jede Megawattstunde Endenergie, bewertet mit dem Preis ihres
+    Energieträgers. Bis 2023 zu den Preisen des jeweiligen Jahres, ab 2024 zum Preisstand 2023,
+    dazu der Anstieg des CO₂-Preises auf fossile Brenn- und Kraftstoffe.<br/>
+    Der größte Teil dieser Ausgaben fließt für Erdgas, Heizöl, Benzin und Diesel aus der Region
+    ab. Wie viel davon in den Szenarien wegfällt, zeigt der Vergleich der Szenarien.<br/>
+    Zwei Hinweise zur Einordnung: Das sind Bruttoausgaben für Energie, keine Kosten-Nutzen-Rechnung.
+    Die Investitionen in Heizungen, Wärmenetze, Fahrzeuge und Sanierung sind nicht enthalten. Ein
+    Szenario mit niedrigeren Energieausgaben ist deshalb nicht schon deshalb das günstigere. Und die
+    Preise sind ohne Mehrwertsteuer: Für Unternehmen ist das der tatsächliche Aufwand, die Ausgaben
+    der Haushalte liegen um 19 % höher.
+  description_en: |
+    What households, businesses, the city administration and transport in Mainz together spend
+    on energy each year: every megawatt-hour of final energy, valued at the price of its
+    carrier. Up to 2023 at the prices of each year, from 2024 at the 2023 price level, plus the
+    rise of the CO₂ price on fossil heating and road fuels.<br/>
+    Most of this spending leaves the region for natural gas, heating oil, petrol and diesel.
+    How much of it falls away in the scenarios is shown by comparing them.<br/>
+    Two caveats for reading the figure: this is gross spending on energy, not a cost-benefit
+    account. Investments in heating systems, heat networks, vehicles and renovation are not
+    included, so a scenario with lower energy spending is not thereby the cheaper one. And the
+    prices are net of VAT: for businesses that is the actual cost, while households spend 19 %
+    more.
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: MEUR/a
+  minimum_year: 2010
+  is_outcome: true
+  input_dimensions: [sector, energy_carrier, energy_cost_component]
+  output_dimensions: [sector, energy_carrier, energy_cost_component]
+  input_nodes:
+  - id: energy_spending_at_energy_prices
+    to_dimensions:
+    - id: sector
+    - id: energy_carrier
+    - id: energy_cost_component
+      categories: [energy_price]
+  - id: transport_energy_spending
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+    - id: sector
+      categories: [transport]
+    - id: energy_cost_component
+      categories: [energy_price]
+  - id: energy_spending_co2_price_increase
+    to_dimensions:
+    - id: sector
+    - id: energy_carrier
+    - id: energy_cost_component
+      categories: [co2_price_increase]
+
+- id: co2_price_paid
+  is_editable: false
+  name_de: In Mainz gezahlter CO₂-Preis
+  name_en: CO₂ price paid in Mainz
+  description_de: |
+    Wie viel CO₂-Preis Haushalte, Unternehmen und Verkehr in Mainz im Jahr auf fossile Brenn- und
+    Kraftstoffe zahlen: der gesamte Preis, nicht nur sein Anstieg. Er ist in den Energieausgaben
+    enthalten und wird hier nicht zusätzlich addiert.<br/>
+    Er entfällt vollständig, sobald kein fossiler Brennstoff mehr verbrannt wird, und ist damit
+    der Teil der Energierechnung, den Mainz durch eigene Maßnahmen vermeiden kann.
+  description_en: |
+    How much CO₂ price households, businesses and transport in Mainz pay each year on fossil
+    heating and road fuels: the whole price, not just its rise. It is contained in energy
+    spending and not added to it again here.<br/>
+    It falls away entirely once no fossil fuel is burned, which makes it the part of the energy
+    bill that Mainz can avoid through its own measures.
+  type: generic.GenericNode
+  quantity: currency
+  unit: MEUR/a
+  minimum_year: 2010
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_nodes:
+  - id: total_final_energy_use
+  - id: co2_price_per_energy
+  params:
+    operations: multiply
+
 action_groups:
 
 - id: gebaeude_energie
@@ -1399,7 +1842,7 @@ actions:
     - id: measure_scenario
       flatten: true
 
-# Measure sheet B4 puts the potential of user behaviour overall at "10 % energy savings on
+# Measure sheet B3 puts the potential of user behaviour overall at "10 % energy savings on
 # average". The report's own scenario calculation (5 % / 2 %) stays below that and is what the
 # dataset carries.
 - id: knsv_nutzendenverhalten_waerme
@@ -1415,7 +1858,7 @@ actions:
     und richtig zu lüften. Zweck ist, Wärme ohne bauliche Investitionen einzusparen:
     Verhaltensänderung ist der schnellste und günstigste Hebel und wirkt schon in Gebäuden, deren
     Sanierung noch Jahre entfernt ist.<br/>
-    Die Maßnahme gehört zum Konzept Klimaneutrale Stadtverwaltung (Maßnahmensteckbrief B4). Sie
+    Die Maßnahme gehört zum Konzept Klimaneutrale Stadtverwaltung (Maßnahmensteckbrief B3). Sie
     umfasst Informations- und Schulungsangebote für Beschäftigte und Hausmeisterdienste,
     Rückmeldungen zum Verbrauch der einzelnen Liegenschaft und feste Ansprechpersonen in den
     Gebäuden. Sie richtet sich an alle Liegenschaften der Stadt und wirkt unabhängig davon, in
@@ -1429,7 +1872,7 @@ actions:
     The people who use the city's buildings are encouraged to heat sparingly and ventilate
     properly. The purpose is to save heat without any building work: behaviour is the fastest and
     cheapest lever, and it works in buildings whose renovation is still years away.<br/>
-    The measure belongs to the Climate-Neutral Administration concept (measure sheet B4). It
+    The measure belongs to the Climate-Neutral Administration concept (measure sheet B3). It
     covers information and training for staff and caretakers, feedback on each property's own
     consumption, and a named contact person in each building. It addresses every property the city
     owns and works whatever structural condition a building is in.<br/>
@@ -1695,7 +2138,7 @@ actions:
     - id: measure_scenario
       flatten: true
 
-# Cross-check against measure sheet B3, which gives about 5,000 t CO2e a year at 70 %: this
+# Cross-check against measure sheet B4, which gives about 5,000 t CO2e a year at 70 %: this
 # model
 # computes 7,678 t of Scope 2 district heating emissions for 2019, and 70 % of that is 5,375 t
 # --
@@ -1713,7 +2156,7 @@ actions:
     klimaneutralen Quellen erzeugt. Zweck ist, die Wärmeversorgung sauberer zu machen, ohne dass
     in den einzelnen Gebäuden etwas geschehen muss – jede angeschlossene Liegenschaft profitiert
     automatisch.<br/>
-    Die Maßnahme gehört zum Konzept Klimaneutrale Stadtverwaltung (Maßnahmensteckbrief B3).
+    Die Maßnahme gehört zum Konzept Klimaneutrale Stadtverwaltung (Maßnahmensteckbrief B4).
     Umgesetzt wird sie nicht von der Verwaltung selbst, sondern von den Mainzer Stadtwerken, die
     die Erzeugung des Fernwärmenetzes umbauen. Das Konzept geht davon aus, dass der Anteil
     klimaneutraler Quellen bis 2050 auf durchschnittlich 92 % steigt.<br/>
@@ -1727,7 +2170,7 @@ actions:
     The district heating that warms part of the city's buildings is increasingly generated from
     climate-neutral sources. The purpose is to clean up the heat supply without anything having to
     change in the individual building: every connected property benefits automatically.<br/>
-    The measure belongs to the Climate-Neutral Administration concept (measure sheet B3). It is
+    The measure belongs to the Climate-Neutral Administration concept (measure sheet B4). It is
     carried out not by the administration but by the municipal utility, Mainzer Stadtwerke, which
     rebuilds the generation behind the district heating network. The concept assumes the share of
     climate-neutral sources rises to 92 % on average by 2050.<br/>
@@ -2715,9 +3158,10 @@ actions:
 # that
 # no heat plan retires. The path therefore overstates what is reachable there.
 # The emission factors. The heat plan values district heat at about 4 g CO2e/kWh
-# (Stromgutschriftmethode under the GEG); the model uses the BISKO default of 260 g/kWh, because
-# the
-# generation fuel input is still missing. That is the factor of sixty the description refers to.
+# (Stromgutschriftmethode under the GEG); the model uses the declared BISKO Moeglichkeit 3 factor
+# of 130 g/kWh (waste-fired CHP, BISKO Tabelle 5), because the fuel-input route has no factor for
+# waste or sewage sludge. That is the factor of about thirty the description refers to; it was
+# sixty until the balance moved off the 260 g/kWh standard factor on 2026-09-18.
 - id: kwp_waermewende
   name_de: Wärmewende nach der Kommunalen Wärmeplanung (Zielszenario 2040)
   name_en: Heat transition per the municipal heat plan (target scenario 2040)
@@ -2742,7 +3186,7 @@ actions:
     auf Fernwärme und Strom verschiebt und die Gesamtmenge senkt.<br/>
     Ein Hinweis zur Einordnung: Die Energiewirkung dieser Maßnahme ist belastbar, ihre
     Emissionswirkung noch nicht. Wärmeplan und Treibhausgasbilanz bewerten dieselbe Kilowattstunde
-    Fernwärme derzeit um das Sechzigfache unterschiedlich, und genau auf dieses Netz verlagert die
+    Fernwärme derzeit um rund das Dreißigfache unterschiedlich, und genau auf dieses Netz verlagert die
     Maßnahme die Wärme. Solange offen ist, mit welchem Emissionsfaktor die Mainzer Fernwärme zu
     rechnen ist, ist das Ergebnis mit Vorbehalt zu lesen.
   description_en: |
@@ -2761,7 +3205,7 @@ actions:
     district heating and electricity and reducing the total.<br/>
     One caveat for reading the figure: the energy effect is sound, the emissions effect not yet.
     The heat plan and the greenhouse gas balance value the same kilowatt-hour of district heating
-    sixty times differently, and district heating is precisely where this measure moves the heat.
+    about thirty times differently, and district heating is precisely where this measure moves the heat.
     Until that factor is settled, read the emissions result with that reservation.
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
@@ -2782,33 +3226,15 @@ actions:
   # producer's docstring for why a relative factor would have required exactly that.
   - id: final_energy_use
 
-# ///// IE Leipzig territorial scenarios -- COMMENTED OUT UNTIL THE DATASETS ARE UPLOADED /////
+# ///// IE Leipzig territorial scenarios /////
 #
-# The four actions and two scenarios below are finished and verified as far as they can be
-# without their data: the instance loads, each action resolves and attaches to the right target
-# node, and `create_ie_leipzig_scenario.py` in paths-data lands every sector on the study's own
-# relative path to within 0.05 %. What is missing is the two DVC datasets.
-#
-# They are commented out rather than left live because a missing dataset does not break only
-# these scenarios -- it breaks **every** scenario, `default` included. `final_energy_use` is a
-# FormulaNode, and `_role_from_unit` (src/nodes/operands.py) computes each unused input just to
-# read its unit, so a *disabled* action whose dataset will not load still takes `net_emissions`
-# down with it.
-#
-# To switch them on:
-#
-#   python tools/upload_new_dataset.py -n mainz-bisko -l de \
-#       -i $PATHS_DATA/models/mainz/mainz_ie_leipzig_stationaer.csv \
-#       -o mainz/ie_leipzig_szenarien_stationaer \
-#       --sources-csv $PATHS_DATA/models/mainz/mainz_sources.csv
-#   python tools/upload_new_dataset.py -n mainz-bisko -l de \
-#       -i $PATHS_DATA/models/mainz/mainz_ie_leipzig_verkehr.csv \
-#       -o mainz/ie_leipzig_szenarien_verkehr \
-#       --sources-csv $PATHS_DATA/models/mainz/mainz_sources.csv
-#
-# then bump `dataset_repo.commit` above, uncomment down to the matching end marker, and
-# recompute. Background: paths-data `models/mainz/README.md`, *The IE Leipzig scenarios are
-# built, and wait only on the upload*.
+# The four actions below are whole-sector paths from the IE Leipzig scenario comparison. Their
+# two datasets are uploaded and the block is live; `create_ie_leipzig_scenario.py` in paths-data
+# lands every sector on the study's own relative path to within 0.05 %. They run only in the
+# scenarios `ie_mp2050` and `ie_kn2035` and must stay switched off everywhere else: they are the
+# aggregate outcome of the `mp100_*` measures and would count them twice. Background:
+# paths-data `models/mainz/README.md`, *The IE Leipzig scenarios are built, and wait only on the
+# upload*.
 
 # How it is computed. Not the study's levels but its *relative* path, applied to each carrier's
 # 2024
@@ -3152,15 +3578,19 @@ actions:
   # Untagged, and additive by that fact, exactly as `kwp_waermewende` attaches: the target sums
   # its inputs, so this needs no copy of the shared module's node into this file.
   - id: transport_energy
-# ///// end of the commented-out IE Leipzig block /////
+# ///// end of the IE Leipzig block /////
 
-# The source says "share of electric cars", i.e. a fleet share; it is read here as a share of
-# mileage, and the two coincide only if electric and combustion cars drive the same distance a
-# year.
-# The displaced share is taken from the remaining carriers in proportion to their base-year
-# shares,
-# since the scenario bans new combustion registrations from 2025 and so privileges no one
-# carrier.
+# The targets are the catalogue's own (C 6.1: more than 5 / 15 / 75 % electric vehicles in the
+# private car fleet by 2025 / 2030 / 2035). Until 24 Sep 2026 the action carried IE Leipzig's
+# KN-2035 figure of 90 % by 2035, on the mistaken belief that the catalogue stated no number;
+# it does, in the 2022 PDF and the 2023 edition alike, and an adopted target is easier to defend
+# than a higher study figure. The switch lowered the action's 2035 impact from 141 to 117 kt.
+#
+# Two readings are ours. The source states a fleet share; it is read as a share of mileage, and
+# the two coincide only if electric and combustion cars drive the same distance a year. And
+# "private" cars are read as all passenger cars, because transport_energy_shares separates
+# neither. The displaced share is taken from the remaining carriers in proportion to their
+# base-year shares, since the target privileges no one combustion carrier.
 - id: mp100_elektrifizierung_pkw
   name_de: Elektrifizierung der Pkw-Fahrleistung (C 6.1)
   name_en: Electrification of car mileage (C 6.1)
@@ -3174,32 +3604,34 @@ actions:
     Mainz.<br/>
     Die Maßnahme entspricht dem Steckbrief C 6.1 „Förderung der E-Mobilität“ aus dem
     Maßnahmenkatalog des Masterplans 100 % Klimaschutz der Stadt Mainz. Zu ihr gehören der Ausbau
-    der öffentlichen und privaten Ladeinfrastruktur, Beratung und Förderung sowie – als Annahme
-    des Szenarios – ein Zulassungsstopp für Verbrennungsmotoren ab 2025.<br/>
-    Der Zielwert stammt aus dem Szenarienvergleich des IE Leipzig, Szenario KN-2035, weil der
-    Maßnahmenkatalog für diese Maßnahme keinen nennt: 90 % Elektro-Pkw bis 2035.<br/>
+    der öffentlichen und privaten Ladeinfrastruktur sowie Beratung und Förderung.<br/>
+    Die Zielwerte sind die des Maßnahmenkatalogs: mehr als 5 % Elektrofahrzeuge am privaten
+    Pkw-Bestand bis 2025, mehr als 15 % bis 2030 und mehr als 75 % bis 2035. Das Modell setzt die
+    Untergrenzen an.<br/>
     Im Modell steigt dadurch der Anteil des Stroms an den Verkehrsenergieanteilen der
     Personenwagen, und die verdrängten Kraftstoffe gehen anteilig zu ihren heutigen Anteilen
     zurück. Die gefahrenen Kilometer ändern sich nicht, nur womit sie gefahren werden.<br/>
-    Ein Hinweis zur Einordnung: Der Zielwert wird hier als Anteil an der Fahrleistung gelesen,
+    Zwei Hinweise zur Einordnung: Der Zielwert wird hier als Anteil an der Fahrleistung gelesen,
     nicht am Fahrzeugbestand. Beides fällt nur dann zusammen, wenn Elektro- und Verbrenner-Pkw im
-    Jahr gleich viele Kilometer zurücklegen.
+    Jahr gleich viele Kilometer zurücklegen. Und er gilt hier für alle Personenwagen, nicht nur
+    für die privaten, weil die Bilanz private und gewerbliche Pkw nicht getrennt führt.
   description_en: |
     Passenger cars in the city increasingly run on electricity. The purpose is to replace the fuel
     used by the largest transport mode: cars account for about 70 % of the passenger kilometres
     travelled in Mainz.<br/>
     The measure corresponds to sheet C 6.1 “Promotion of e-mobility” in the catalogue of measures
     of the city's Masterplan 100 % Climate Protection. It covers the build-out of public and
-    private charging infrastructure, advice and subsidy, and — as an assumption of the scenario —
-    a stop on new combustion-engine registrations from 2025.<br/>
-    The target figure comes from the IE Leipzig scenario comparison, scenario KN-2035, because the
-    catalogue states none for this measure: 90 % electric cars by 2035.<br/>
+    private charging infrastructure, and advice and subsidy.<br/>
+    The targets are the catalogue's: more than 5 % electric vehicles in the private car fleet by
+    2025, more than 15 % by 2030 and more than 75 % by 2035. The model applies the lower
+    bounds.<br/>
     In the model this raises the share of electricity in the transport energy shares of passenger
     cars, and the displaced fuels fall back in proportion to their present shares. The kilometres
     driven do not change, only what they are driven on.<br/>
-    One caveat for reading the figure: the target is read here as a share of mileage rather than
+    Two caveats for reading the figure: the target is read here as a share of mileage rather than
     of the vehicle fleet. The two coincide only if electric and combustion cars cover the same
-    number of kilometres a year.
+    number of kilometres a year. And it applies here to all passenger cars, not only private ones,
+    because the balance does not keep private and commercial cars apart.
   input_dimensions: [vehicle_type, road_type, energy_carrier, mp100_measure]
   output_dimensions: [vehicle_type, road_type, energy_carrier]
   input_datasets:
@@ -3244,7 +3676,8 @@ actions:
     Betriebshöfen.<br/>
     Der Steckbrief sieht bis 2025 eine zu 25 % und bis 2030 eine zu 60 % dekarbonisierte Busflotte
     vor; für 2035 nennt der Szenarienvergleich des IE Leipzig im Szenario KN-2035 80 % elektrisch
-    gefahrene Bus-Kilometer.<br/>
+    gefahrene Bus-Kilometer. Der Steckbrief selbst strebt für 2035 eine vollständig
+    dekarbonisierte Busflotte an; das Modell folgt dem vorsichtigeren Wert der Studie.<br/>
     Im Modell steigt dadurch der Anteil des Stroms an den Verkehrsenergieanteilen der Busse,
     während Diesel, Erdgas, Biodiesel und Biogas entsprechend zurückgehen. Das Fahrtenangebot
     ändert sich dadurch nicht.<br/>
@@ -3262,7 +3695,8 @@ actions:
     buses as the fleet is replaced and building the charging infrastructure at the depots.<br/>
     The measure sheet calls for a bus fleet 25 % decarbonised by 2025 and 60 % by 2030; for 2035
     the IE Leipzig scenario comparison states, in its KN-2035 scenario, that 80 % of bus
-    kilometres are driven electrically.<br/>
+    kilometres are driven electrically. The measure sheet itself aims at a fully decarbonised bus
+    fleet by 2035; the model follows the study's more cautious figure.<br/>
     In the model this raises the share of electricity in the transport energy shares of buses,
     while diesel, natural gas, biodiesel and biogas fall correspondingly. The service offered does
     not change.<br/>
@@ -3766,7 +4200,7 @@ actions:
   # `kwp_waermewende` uses, and for the same reason.
   - id: final_energy_use
 
-# ///// end of the commented-out Zielpfad action block /////
+# ///// end of the Zielpfad action block /////
 
 #//////  Parameters  ////////////////////////////////////////////////////////////////////////////////////////////////////
 params:
@@ -3780,6 +4214,23 @@ params:
 # share of the exergetic allocation moves about 4 percentage points, where a realistic swing in
 # the electricity fraction moves it by 8. The temperature is the less consequential of the two,
 # which is why the fraction is taken from measured data and only this one is left adjustable.
+# The CO2 price on heating and road fuels from the start of EU ETS2, read by `co2_price_fuels`
+# and `co2_price_fuels_increase`. A parameter rather than an action, because it is an assumption
+# about the frame and not something the city does: as an action it appeared in the impact
+# overviews as a "measure" with a cost and no emissions effect. The default is the held path
+# (65 EUR/t, the 2026 corridor ceiling); 100 EUR/t is roughly the top of what EU ETS1 has reached
+# (83.68 EUR/t annual average 2023, peak 100.34 EUR/t). Emissions do not respond to it.
+- id: ets2_co2_price
+  label_de: CO₂-Preis auf Heiz- und Kraftstoffe ab 2028 (Euro je Tonne)
+  label_en: CO₂ price on heating and road fuels from 2028 (euros per tonne)
+  value: 65.0
+  min_value: 45.0
+  max_value: 250.0
+  step: 5.0
+  unit: EUR/t_co2e
+  is_customizable: true
+  is_visible: true
+
 - id: chp_supply_temperature
   label_de: Vorlauftemperatur des Fernwärmenetzes (K)
   label_en: District heating supply temperature (K)
@@ -4570,33 +5021,11 @@ scenarios:
   - id: knsv_vegetarische_verpflegung.selected_number
     value: 0
 
-# ///// IE Leipzig territorial scenarios -- COMMENTED OUT UNTIL THE DATASETS ARE UPLOADED /////
+# ///// IE Leipzig territorial scenarios /////
 #
-# The four actions and two scenarios below are finished and verified as far as they can be
-# without their data: the instance loads, each action resolves and attaches to the right target
-# node, and `create_ie_leipzig_scenario.py` in paths-data lands every sector on the study's own
-# relative path to within 0.05 %. What is missing is the two DVC datasets.
-#
-# They are commented out rather than left live because a missing dataset does not break only
-# these scenarios -- it breaks **every** scenario, `default` included. `final_energy_use` is a
-# FormulaNode, and `_role_from_unit` (src/nodes/operands.py) computes each unused input just to
-# read its unit, so a *disabled* action whose dataset will not load still takes `net_emissions`
-# down with it.
-#
-# To switch them on:
-#
-#   python tools/upload_new_dataset.py -n mainz-bisko -l de \
-#       -i $PATHS_DATA/models/mainz/mainz_ie_leipzig_stationaer.csv \
-#       -o mainz/ie_leipzig_szenarien_stationaer \
-#       --sources-csv $PATHS_DATA/models/mainz/mainz_sources.csv
-#   python tools/upload_new_dataset.py -n mainz-bisko -l de \
-#       -i $PATHS_DATA/models/mainz/mainz_ie_leipzig_verkehr.csv \
-#       -o mainz/ie_leipzig_szenarien_verkehr \
-#       --sources-csv $PATHS_DATA/models/mainz/mainz_sources.csv
-#
-# then bump `dataset_repo.commit` above, uncomment down to the matching end marker, and
-# recompute. Background: paths-data `models/mainz/README.md`, *The IE Leipzig scenarios are
-# built, and wait only on the upload*.
+# The two technical scenarios for the IE Leipzig paths above. Both set `all_actions_enabled:
+# false` and switch on only their own two actions plus the national electricity mix, so no
+# `mp100_*` measure runs beside the aggregate it is part of.
 #
 #
 # The IE Leipzig MP-2050 variant: the Masterplan measure package carried forward

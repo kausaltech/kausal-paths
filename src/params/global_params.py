@@ -69,6 +69,15 @@ class ChpSupplyTemperature(NumberGlobalParameter):
     id = 'chp_supply_temperature'
 
 
+class Ets2Co2Price(NumberGlobalParameter):
+    # CO2 price on heating and road fuels once EU ETS2 applies (EUR/t CO2). Global rather than an
+    # action because it is an assumption about the framework, not a measure: as an action it shows
+    # up in impact overviews with a cost and no emissions effect. mainz-bisko.yaml reads it from
+    # FormulaNodes through a ReferenceParameter on `constant`.
+    name = _('CO2 price on heating and road fuels under EU ETS2')
+    id = 'ets2_co2_price'
+
+
 class PopulationGrowthRate(NumberGlobalParameter):
     name = _('Population growth rate')
     id = 'population_growth_rate'
