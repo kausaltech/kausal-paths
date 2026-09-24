@@ -9,11 +9,12 @@ from pint import DimensionalityError
 from common import polars as ppl
 from frameworks.models import MeasureDataPoint
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
-from nodes.datasets import DatasetPayloadRef, DatasetPayloadStore, DVCDataset, GenericDataset
+from nodes.datasets import DVCDataset, GenericDataset
 
 if TYPE_CHECKING:
     from kausal_common.datasets.models import Dataset as DBDatasetModel
 
+    from datasets.payloads import DatasetPayloadRef, DatasetPayloadStore
     from nodes.context import Context, FrameworkConfigData
     from nodes.defs.node_defs import InputDatasetDef
 

@@ -869,7 +869,7 @@ def _make_materialized_dataset(instance_config: InstanceConfig, identifier: str,
 
     from kausal_common.datasets.tests.factories import DataPointFactory, DatasetFactory, DatasetMetricFactory
 
-    from nodes.dataset_materialization import materialize_dataset
+    from datasets.materialization import materialize_dataset
 
     dataset = DatasetFactory.create(identifier=identifier, scope=instance_config)
     metric = DatasetMetricFactory.create(schema=dataset.schema, name='value', label='Value', unit='t/a')
@@ -952,7 +952,7 @@ def test_published_dataset_payload_is_isolated_from_later_draft_edit(empty_db_in
 
     from django.db import transaction
 
-    from nodes.dataset_materialization import refresh_dataset_materialization
+    from datasets.materialization import refresh_dataset_materialization
     from nodes.models import InstanceRevisionDatasetPin
 
     dataset, metric, point, _materialization = _make_materialized_dataset(empty_db_instance, 'isolated', '10')
@@ -987,7 +987,7 @@ def test_draft_and_published_runtime_share_serialized_dataset_path(empty_db_inst
 
     from django.db import transaction
 
-    from nodes.dataset_materialization import refresh_dataset_materialization
+    from datasets.materialization import refresh_dataset_materialization
     from nodes.datasets import DatasetWithFilters, SerializedDBDataset
     from nodes.defs.node_defs import SimpleConfig
     from nodes.defs.port_def import InputPortDef, OutputPortDef
@@ -1067,7 +1067,7 @@ def test_draft_and_published_runtime_share_serialized_dataset_path(empty_db_inst
 
 
 def test_current_dataset_payload_store_bulk_loads_once(empty_db_instance: InstanceConfig):
-    from nodes.datasets import CurrentDatasetPayloadStore, DatasetPayloadRef
+    from datasets.payloads import CurrentDatasetPayloadStore, DatasetPayloadRef
 
     refs = []
     for identifier, value in [('one', '1'), ('two', '2')]:
@@ -1099,7 +1099,7 @@ def test_current_dataset_payload_store_bulk_loads_once(empty_db_instance: Instan
 
 
 def test_revision_dataset_payload_store_bulk_loads_once(empty_db_instance: InstanceConfig):
-    from nodes.datasets import DatasetPayloadRef, RevisionDatasetPayloadStore
+    from datasets.payloads import DatasetPayloadRef, RevisionDatasetPayloadStore
 
     node = NodeConfigFactory.create(instance=empty_db_instance, identifier='owner', name='Owner')
     for identifier, value in [('published-one', '1'), ('published-two', '2')]:

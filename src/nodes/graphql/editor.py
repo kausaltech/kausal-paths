@@ -50,11 +50,11 @@ from kausal_common.users import user_or_bust, user_or_none
 from paths import gql
 from paths.identifiers import identifier_or_none
 
+from datasets.materialization import refresh_dataset_materialization
 from frameworks.catalogue import dimension_scopes, schema_scopes
 from frameworks.models import Framework
 from nodes.change_ops import gql_change_operation, record_change
 from nodes.constraints.validation import BindingChange, InstanceConstraintError
-from nodes.dataset_materialization import refresh_dataset_materialization
 from nodes.defs import ActionGroup, FormulaConfig, SimpleConfig
 from nodes.defs.binding_def import EdgeBindingDef
 from nodes.defs.node_defs import ActionConfig, NodeKind, NodeSpec, PipelineConfig, TypeConfig

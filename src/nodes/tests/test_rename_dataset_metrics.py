@@ -16,8 +16,8 @@ import pytest
 
 from kausal_common.datasets.models import Dataset, DatasetMetric
 
-from nodes.management.commands.load_dvc_dataset import Command as LoadCommand
-from nodes.management.commands.rename_dataset_metrics import build_rename_plan
+from datasets.management.commands.load_dvc_dataset import Command as LoadCommand
+from datasets.management.commands.rename_dataset_metrics import build_rename_plan
 from nodes.models import NodeInputPortBinding
 from nodes.tests.factories import InstanceConfigFactory, NodeConfigFactory
 from nodes.tests.test_load_dvc_dataset_refresh import make_context
@@ -85,7 +85,7 @@ def test_renaming_keeps_the_bindings_pointing_at_the_same_row():
 
 def test_renaming_clears_the_way_for_the_import():
     """After the rename the incoming column is *kept*, so nothing is dropped and nothing is protected."""
-    from nodes.management.commands.load_dvc_dataset import build_dataset_plan
+    from datasets.management.commands.load_dvc_dataset import build_dataset_plan
 
     ic = InstanceConfigFactory.create(name='rename-unblocks', config_source='database')
     dataset = _import(ic, {'Value': [1.0]}, {'Value': 'kt'})
