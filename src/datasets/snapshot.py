@@ -235,8 +235,6 @@ class DatasetSnapshot(ModelSnapshot['Dataset']):
 
     @classmethod
     def from_model(cls, obj: Dataset, instance_config: InstanceConfig | None = None) -> Self:
-        from django.contrib.contenttypes.models import ContentType
-
         from kausal_common.datasets.models import DatasetSchemaDimension, DimensionScope
 
         from datasets.transfer import export_dataset_data_safe, export_dataset_evidence, export_dataset_provenance
@@ -257,25 +255,20 @@ class DatasetSnapshot(ModelSnapshot['Dataset']):
             metrics = [
                 DatasetMetricSnapshot.from_model(metric, primary_language) for metric in schema.metrics.all().order_by('order')
             ]
-            if instance_config is not None:
-                scope_content_type = ContentType.objects.get_for_model(instance_config)
-                scope_id = instance_config.pk
-            else:
-                scope_content_type = obj.scope_content_type
-                scope_id = obj.scope_id
-            if scope_content_type is not None and scope_id is not None:
-                for schema_dimension in (
-                    DatasetSchemaDimension.objects.filter(schema=schema).select_related('dimension').order_by('order')
-                ):
-                    scope = DimensionScope.objects.filter(
-                        dimension=schema_dimension.dimension,
-                        scope_content_type=scope_content_type,
-                        scope_id=scope_id,
-                    ).first()
-                    if scope and scope.identifier:
-                        dimensions.append(scope.identifier)
-                        if schema_dimension.column_name and schema_dimension.column_name != scope.identifier:
-                            dimension_columns[scope.identifier] = schema_dimension.column_name
+            dimension_instance = instance_config or obj.scope_instance
+            for schema_dimension in (
+                DatasetSchemaDimension.objects.filter(schema=schema).select_related('dimension').order_by('order')
+            ):
+                scope = (
+                    DimensionScope.objects
+                    .for_instance_config(dimension_instance)
+                    .filter(dimension=schema_dimension.dimension)
+                    .first()
+                )
+                if scope and scope.identifier:
+                    dimensions.append(scope.identifier)
+                    if schema_dimension.column_name and schema_dimension.column_name != scope.identifier:
+                        dimension_columns[scope.identifier] = schema_dimension.column_name
 
         data: dict[str, Any] | None = None
         data_sources: list[DataSourceSnapshot] = []
@@ -309,9 +302,4 @@ class DatasetSnapshot(ModelSnapshot['Dataset']):
 
 def _primary_language_for_dataset(obj: Dataset) -> str:
     """Resolve the primary language for a Dataset via its scope's InstanceConfig."""
-    scope = getattr(obj, 'scope', None)
-    if scope is not None:
-        lang = getattr(scope, 'primary_language', None)
-        if lang:
-            return lang
-    return 'en'
+    return obj.scope_instance.primary_language or 'en'
