@@ -19,6 +19,8 @@ either, and both edit the same pipeline::
 - ``+ - * /`` are ``add``, ``subtract``, ``multiply`` and ``divide``; every
   operation also has a call form (``interpolate(x)``, ``clip(x, min=0)``,
   ``add(a, b, only_if=flag)``), which carries conditions.
+- ``select_category(x, dimension='category')`` keeps one category and drops
+  the dimension; ``dimension=variant`` takes the category from a parameter.
 - A name refers to what the scope says: an input port, a dataset, a
   parameter, or the un-hooked value of a node an action acts on.
 
@@ -66,6 +68,7 @@ from .ops.base import (
     VariadicOperationSpec,
     step_key,
 )
+from .ops.dimensional import SelectCategoryOperationSpec
 from .ops.temporal import BackfillOperationSpec, ExtendOperationSpec, InterpolateOperationSpec
 
 if TYPE_CHECKING:
@@ -113,6 +116,7 @@ VARIADIC_OPERATIONS: dict[str, _VariadicType] = {
     'multiply': MultiplyOperationSpec,
 }
 CONDITION_KEYWORDS = ('only_if', 'skip_if')
+SELECT_CATEGORY_FUNCTION = 'select_category'
 QUANTITY_FUNCTION = 'quantity'
 """Call form of a scalar with a unit: ``quantity(2.5, 'kg/a')``. Plain numbers are dimensionless."""
 
@@ -172,14 +176,16 @@ class FormulaScope:
         object.__setattr__(self, '_names', dict(seen))
 
     @classmethod
-    def for_node_spec(cls, spec: NodeSpec, *, hook_targets: Iterable[str] = ()) -> FormulaScope:
+    def for_node_spec(
+        cls, spec: NodeSpec, *, hook_targets: Iterable[str] = (), global_parameters: Iterable[str] = ()
+    ) -> FormulaScope:
         """
         Build the scope of a node's pipeline.
 
         Input ports are written as their identifiers and parameters as their
-        local ids. ``hook_targets`` are the identifiers of the nodes an action
-        acts on; in the action's own formula they stand for those nodes'
-        un-hooked values.
+        local ids; a node parameter shadows a global one of the same id.
+        ``hook_targets`` are the identifiers of the nodes an action acts on; in
+        the action's own formula they stand for those nodes' un-hooked values.
         """
         inputs: dict[str, OperationInput] = {}
         for port in spec.input_ports:
@@ -187,6 +193,8 @@ class FormulaScope:
                 inputs[port.identifier] = PortInputRef(port=port.id)
         for param in spec.params:
             inputs.setdefault(param.local_id, ParameterInputRef(parameter=param.local_id))
+        for param_id in global_parameters:
+            inputs.setdefault(param_id, ParameterInputRef(parameter=param_id))
         for node_id in hook_targets:
             inputs[node_id] = HookBaseInputRef(hook_base=node_id)
         return cls(inputs)
@@ -378,6 +386,8 @@ class _Compiler:
         func = call.func.id
         if func == QUANTITY_FUNCTION:
             return self._quantity(call)
+        if func == SELECT_CATEGORY_FUNCTION:
+            return self._select_category(call)
         keywords = {keyword.arg for keyword in call.keywords}
         if None in keywords:
             raise FormulaError.at(call, 'Keyword unpacking is not supported')
@@ -417,6 +427,31 @@ class _Compiler:
                 raise FormulaError.at(call, exc.errors()[0]['msg']) from exc
         else:
             raise FormulaError.at(call, f'{func}() is not representable as a pipeline yet')
+        return self.append(self._add_conditions(call, operation))
+
+    def _select_category(self, call: ast.Call) -> OperationInput:
+        """`select_category(x, dimension='category')`, or with a parameter naming the category: `dimension=variant`."""
+        selections = [keyword for keyword in call.keywords if keyword.arg not in CONDITION_KEYWORDS]
+        if len(call.args) != 1 or len(selections) != 1 or selections[0].arg is None:
+            raise FormulaError.at(call, "select_category() takes one input and one dimension=category, e.g. sector='heating'")
+        selection = selections[0]
+        dimension = cast('str', selection.arg)
+        value = self.expr(call.args[0])
+        category: str | ParameterInputRef
+        match selection.value:
+            case ast.Constant(value=str() as literal):
+                category = literal
+            case ast.Name(id=name):
+                resolved = self.scope.resolve(name)
+                if not isinstance(resolved, ParameterInputRef):
+                    raise FormulaError.at(selection.value, f'{name!r} is not a parameter')
+                category = resolved
+            case _:
+                raise FormulaError.at(selection.value, 'A category is a quoted id or a parameter')
+        try:
+            operation = SelectCategoryOperationSpec(input=value, dimension=dimension, category=category)
+        except ValidationError as exc:
+            raise FormulaError.at(call, exc.errors()[0]['msg']) from exc
         return self.append(self._add_conditions(call, operation))
 
     def _quantity(self, call: ast.Call) -> ScalarValue:
@@ -555,6 +590,10 @@ class _Renderer:
                     args.append(f'min={self.value(operation.min_value, 0)}')
                 if operation.max_value is not None:
                     args.append(f'max={self.value(operation.max_value, 0)}')
+            case SelectCategoryOperationSpec():
+                category = operation.category
+                chosen = self.scope.name_for(category) if isinstance(category, ParameterInputRef) else repr(category)
+                args = [self.value(operation.input, 0), f'{operation.dimension}={chosen}']
             case InputOperationSpec():
                 args = [self.value(operation.input, 0)]
             case _:

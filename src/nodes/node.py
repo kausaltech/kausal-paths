@@ -1510,6 +1510,10 @@ class Node:
         self.validate_output(df)
         return df
 
+    def referenced_global_parameters(self) -> list[str]:
+        """Return global parameters this node's configuration refers to, beyond the class's `global_parameters`."""
+        return []
+
     def get_base_output_pl(self) -> ppl.PathsDataFrame:
         """
         Return this node's output without the actions acting on it.
