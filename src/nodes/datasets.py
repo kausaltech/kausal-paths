@@ -296,6 +296,31 @@ class DatasetWithFilters(Dataset, ABC):
             ),
         )
 
+    @staticmethod
+    def apply_forecast_defaults(kwargs: FilterDatasetKwargs, context: Context, dataset_default: int | None = None) -> None:
+        """
+        Give a binding that does not say where the forecast begins the year from its dataset or instance.
+
+        The binding's own year wins, then the dataset's, then — when the
+        instance opts in with ``forecast_after_maximum_historical_year`` — the
+        year after the instance's last historical year: the model's history
+        ends there, whatever the data says. A ``Forecast`` column the data
+        carries itself still wins over all of them (see ``set_forecast_from``).
+        """
+        from nodes.defs.transform_def import with_forecast_from
+
+        if kwargs['forecast_from'] is not None:
+            return
+        year = dataset_default
+        instance = context.instance
+        last_historical = instance.maximum_historical_year
+        if year is None and instance.features.forecast_after_maximum_historical_year and last_historical is not None:
+            year = last_historical + 1
+        if year is None:
+            return
+        kwargs['forecast_from'] = year
+        kwargs['transformations'] = with_forecast_from(kwargs['transformations'], year)
+
     def __rich_repr__(self) -> RichReprResult:
         yield from super().__rich_repr__()
         if self.column is not None:
@@ -480,10 +505,12 @@ class DVCDataset(DatasetWithFilters):
 
     @classmethod
     def from_def(cls, ds_def: InputDatasetDef, context: Context) -> Self:
+        kwargs = super().kwargs_from_def(ds_def)
+        cls.apply_forecast_defaults(kwargs, context)
         return cls(
             id=ds_def.id,
             context=context,
-            **super().kwargs_from_def(ds_def),
+            **kwargs,
             input_dataset=ds_def.input_dataset,
         )
 
@@ -1123,12 +1150,8 @@ class SerializedDBDataset(DatasetWithFilters):
         payload_ref: DatasetPayloadRef,
         payload_store: DatasetPayloadStore,
     ) -> Self:
-        from nodes.defs.transform_def import with_forecast_from
-
         kwargs = super().kwargs_from_def(ds_def)
-        if kwargs['forecast_from'] is None and payload_ref.forecast_from is not None:
-            kwargs['forecast_from'] = payload_ref.forecast_from
-            kwargs['transformations'] = with_forecast_from(kwargs['transformations'], payload_ref.forecast_from)
+        cls.apply_forecast_defaults(kwargs, context, payload_ref.forecast_from)
         return cls(
             id=ds_def.id,
             context=context,
@@ -1186,19 +1209,12 @@ class DBDataset(DatasetWithFilters):
 
     @classmethod
     def from_def(cls, ds_def: InputDatasetDef, context: Context, db_dataset_obj: DBDatasetModel) -> Self:
-        from nodes.defs.transform_def import with_forecast_from
-
         kwargs = super().kwargs_from_def(ds_def)
-        if kwargs['forecast_from'] is None:
-            # A DB dataset can declare its own forecast year, which bindings
-            # inherit when they don't override it (see
-            # `_promote_dataset_forecast_defaults`). Forecast synthesis is an
-            # operation now, so the default has to enter the pipeline — setting
-            # the field alone would do nothing.
-            dataset_default = (db_dataset_obj.spec or {}).get('forecast_from')
-            if dataset_default is not None:
-                kwargs['forecast_from'] = dataset_default
-                kwargs['transformations'] = with_forecast_from(kwargs['transformations'], dataset_default)
+        # A DB dataset can declare its own forecast year, which bindings inherit when they
+        # don't override it (see `_promote_dataset_forecast_defaults`). Forecast synthesis is
+        # an operation, so the default has to enter the pipeline — setting the field alone
+        # would do nothing.
+        cls.apply_forecast_defaults(kwargs, context, (db_dataset_obj.spec or {}).get('forecast_from'))
         return cls(
             id=ds_def.id,
             context=context,
