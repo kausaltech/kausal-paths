@@ -18,8 +18,11 @@ pure function of the class.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from functools import cache
 from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID, uuid3
+
+from pydantic import TypeAdapter
 
 from kausal_common.datasets.category_domain import DatasetCategoryDomainSpec
 from kausal_common.i18n.pydantic import TranslatedString
@@ -60,6 +63,13 @@ if TYPE_CHECKING:
     from nodes.node import Node, NodeMetric
     from nodes.scenario import Scenario
     from params import Parameter
+
+
+@cache
+def _parameter_adapter() -> TypeAdapter[Parameter]:
+    from params.discover import AnyParameter
+
+    return TypeAdapter(AnyParameter)
 
 
 class InstanceParseError(Exception):
@@ -461,14 +471,27 @@ class InstanceConfigParser:
             if unit_str is not None:
                 pc['unit'] = unit_registry.parse_units(unit_str)
             proto = prototypes.get(param_id)
-            if proto is None:
-                raise InstanceParseError(f'Unknown global parameter: {param_id}')
+            param_type = pc.get('type')
+            if proto is None and param_type is None:
+                raise InstanceParseError(f'Unknown global parameter: {param_id}; give its `type` to define it here')
             param_val = pc.pop('value', None)
             if 'is_customizable' not in pc:
                 pc['is_customizable'] = False
             pc['label'] = _make_trans_string(pc, 'label', pop=True)
             pc['description'] = _make_trans_string(pc, 'description', pop=True)
-            param = type(proto)(**pc)
+            if 'choices' in pc:
+                pc['choices'] = [
+                    {'id': choice['id'], 'label': _make_trans_string(dict(choice), 'label', pop=True)} for choice in pc['choices']
+                ]
+            if proto is not None:
+                if param_type is not None and param_type != proto.type:
+                    raise InstanceParseError(f'Global parameter {param_id} is of type {proto.type!r}, not {param_type!r}')
+                pc.pop('type', None)
+                param = type(proto)(**pc)
+            else:
+                # Defined by the instance rather than in code: a scenario-wide setting such as
+                # which implementation variant of a concept the actions follow.
+                param = _parameter_adapter().validate_python(pc)
             if param_val is not None:
                 param.value = param.clean(param_val)
             self.global_params[param_id] = param
