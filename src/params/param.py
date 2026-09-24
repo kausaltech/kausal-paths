@@ -2,10 +2,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Literal
 
-from pydantic import PrivateAttr
+from pydantic import Field, PrivateAttr, model_validator
 
-from paths.identifiers import ParameterGlobalId
+from kausal_common.i18n.pydantic import I18nBaseModel, I18nString
 
+from paths.identifiers import DimensionIdentifier, Identifier, ParameterGlobalId
+
+from nodes.exceptions import ParameterError
 from nodes.units import Quantity
 
 from .base import Parameter, ParameterWithUnit, parameter
@@ -147,3 +150,59 @@ class StringParameter(Parameter[str]):
         if not isinstance(value, str):
             raise ValidationError(self)
         return value
+
+
+class ParameterChoice(I18nBaseModel):
+    """One of the values a `ChoiceParameter` can take."""
+
+    id: Identifier
+    label: I18nString | None = None
+
+
+@parameter
+class ChoiceParameter(Parameter[str]):
+    """A parameter whose value is one of a fixed set of choices, identified by id."""
+
+    type: Literal['choice'] = 'choice'
+    value: str | None = None
+    choices: list[ParameterChoice] = Field(default_factory=list)
+
+    def get_choices(self) -> list[ParameterChoice] | None:
+        """Return the choices, or None while they cannot be known (before the context is set)."""
+        return self.choices
+
+    def clean(self, value: str) -> str:
+        if not isinstance(value, str):
+            raise ValidationError(self, 'Invalid value type: %s' % type(value))
+        choices = self.get_choices()
+        if choices is not None and value not in {choice.id for choice in choices}:
+            raise ValidationError(self, "'%s' is not one of %s" % (value, ', '.join(choice.id for choice in choices)))
+        return value
+
+
+@parameter
+class DimensionCategoryParameter(ChoiceParameter):
+    """A choice among the categories of a dimension; the choices are the dimension's own."""
+
+    type: Literal['dimension_category'] = 'dimension_category'  # type: ignore[assignment]
+    dimension: DimensionIdentifier
+
+    @model_validator(mode='after')
+    def _no_own_choices(self) -> DimensionCategoryParameter:
+        if self.choices:
+            raise ValueError('A dimension category parameter takes its choices from the dimension')
+        return self
+
+    def get_choices(self) -> list[ParameterChoice] | None:
+        if self.context is None:
+            return None
+        dimension = self.context.dimensions.get(self.dimension)
+        if dimension is None:
+            raise ParameterError(self, "Dimension '%s' does not exist" % self.dimension)
+        return [ParameterChoice(id=cat.id, label=cat.label) for cat in dimension.categories]
+
+    def set_context(self, context: Context):
+        super().set_context(context)
+        if self.value is not None:
+            # Checked now: the dimension is only known once the context is.
+            self.clean(self.value)

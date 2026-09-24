@@ -418,6 +418,17 @@ def _filter_dimension(df: ppl.PathsDataFrame, op: FilterDimensionOp, env: Pipeli
     return df
 
 
+def select_category(df: ppl.PathsDataFrame, dimension: str, category: str, env: PipelineEnv) -> ppl.PathsDataFrame:
+    """Keep the rows of one category of ``dimension`` and drop the dimension."""
+    if dimension not in df.dim_ids:
+        env.fail(f"Dimension '{dimension}' not found in the frame. Available dimensions: {', '.join(df.dim_ids)}")
+    selected = df.filter(pl.col(dimension) == category)
+    if len(selected) == 0 and len(df) > 0:
+        available = ', '.join(sorted(str(cat) for cat in df[dimension].unique().to_list()))
+        env.fail(f"Category '{category}' of '{dimension}' has no data. Available: {available}")
+    return selected.paths.sum_over_dims(dimension)
+
+
 def _assign_dimension(df: ppl.PathsDataFrame, op: AssignDimensionOp, env: PipelineEnv) -> ppl.PathsDataFrame:
     dim_id = op.dimension
     cat_id = op.category

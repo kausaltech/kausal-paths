@@ -326,6 +326,7 @@ class FormulaNode(Node):
         'min_dim': '_custom_min_dim',
         'max_dim': '_custom_max_dim',
         'zero_fill': '_custom_zero_fill',
+        'select_category': '_custom_select_category',
         'interpolate': '_custom_temporal',
         'extend': '_custom_temporal',
         'backfill': '_custom_temporal',
@@ -452,6 +453,42 @@ class FormulaNode(Node):
         if func == 'extend':
             return extend_to_end_year(df, env)
         return backfill_leading_values(df)
+
+    def _custom_select_category(self, _func: str, node: ast.Call, _varss: EvalVars, df: EvalOutput) -> EvalOutput:
+        """`select_category(x, dimension='category')`, or `dimension=parameter`: the shared `select_category` operation."""
+        from nodes.transforms import PipelineEnv, select_category
+
+        selections = [kw for kw in node.keywords if kw.arg is not None]
+        if not isinstance(df, PDF) or len(node.args) != 1 or len(selections) != 1:
+            raise NodeError(self, "select_category() takes one input and one dimension=category, e.g. sector='heating'")
+        selection = selections[0]
+        match selection.value:
+            case ast.Constant(value=str() as category):
+                pass
+            case ast.Name(id=param_id):
+                param = self.get_parameter(param_id, required=False) or self.context.get_parameter(param_id)
+                if not isinstance(param.value, str):
+                    raise NodeError(self, f"Parameter '{param_id}' does not name a category")
+                category = param.value
+            case _:
+                raise NodeError(self, 'select_category(): a category is a quoted id or a parameter')
+        return select_category(df, cast('str', selection.arg), category, PipelineEnv(context=self.context, node=self))
+
+    def referenced_global_parameters(self) -> list[str]:
+        """Global parameters the formula selects categories by: the node depends on them."""
+        formula = self.get_parameter_value_str('formula', required=False)
+        if not formula:
+            return []
+        names: list[str] = []
+        for call in ast.walk(ast.parse(formula, '<string>', mode='eval')):
+            if not isinstance(call, ast.Call) or not isinstance(call.func, ast.Name) or call.func.id != 'select_category':
+                continue
+            names.extend(
+                keyword.value.id
+                for keyword in call.keywords
+                if isinstance(keyword.value, ast.Name) and keyword.value.id not in self.parameters
+            )
+        return [name for name in names if name in self.context.global_parameters]
 
     def _custom_select_port(self, _func: str, node: ast.Call, varss: EvalVars, df: EvalOutput) -> EvalOutput:
         assert len(node.args) == 3

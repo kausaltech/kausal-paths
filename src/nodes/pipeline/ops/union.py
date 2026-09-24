@@ -12,6 +12,7 @@ from .arithmetic import (
     MultiplyOperationSpec,
     SubtractOperationSpec,
 )
+from .dimensional import SelectCategoryOperationSpec
 from .temporal import BackfillOperationSpec, ExtendOperationSpec, InterpolateOperationSpec
 
 AnyOperationSpec = Annotated[
@@ -23,6 +24,7 @@ AnyOperationSpec = Annotated[
     | ClipOperationSpec
     | InterpolateOperationSpec
     | ExtendOperationSpec
-    | BackfillOperationSpec,
+    | BackfillOperationSpec
+    | SelectCategoryOperationSpec,
     Field(discriminator='kind'),
 ]

@@ -1086,6 +1086,10 @@ class InstanceLoader:
 
         if spec.params:
             self._make_node_params({'params': [_param_config(p) for p in spec.params]}, node)
+        for param_id in node.referenced_global_parameters():
+            # Subscribed when the node is added to the context, so its cache follows the parameter.
+            if param_id not in node.global_parameters:
+                node.global_parameters.append(param_id)
 
         if extra.tags:
             node.tags.update(extra.tags)
@@ -1524,8 +1528,10 @@ class InstanceLoader:
 
         context = self.context
         for spec_param in self.snapshot.spec.params:
-            if spec_param.local_id not in global_params:
-                raise Exception('Unknown global parameter: %s' % spec_param.local_id)
+            proto = global_params.get(spec_param.local_id)
+            if proto is not None and proto.type != spec_param.type:
+                raise Exception('Global parameter %s must be of type %s' % (spec_param.local_id, proto.type))
+            # A parameter without a prototype in code is defined by the instance itself.
             param = spec_param.model_copy(deep=True)
             param.set_context(context)
             context.add_global_parameter(param)
