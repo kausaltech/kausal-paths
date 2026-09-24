@@ -128,6 +128,16 @@ class InstanceFeatures(BaseModel):
     use_datasets_from_db: bool = False
     """Whether to use datasets from the database instead of the .parquet files."""
 
+    forecast_after_maximum_historical_year: bool = False
+    """
+    Whether dataset years after the instance's `maximum_historical_year` count as forecast by default.
+
+    Applies to bindings that set no forecast year themselves and whose
+    dataset declares none (`Dataset.spec['forecast_from']`). A `Forecast`
+    column in the data still wins. Opt-in per instance, since some instances
+    rely on every dataset year being historical unless told otherwise.
+    """
+
     show_explanations: bool = False
     """Whether to show node explanation in the slot for description (under the graph)."""
 
