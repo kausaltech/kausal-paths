@@ -28,9 +28,9 @@ if TYPE_CHECKING:
 
     import networkx as nx
 
+    from datasets.shapes import DatasetMetricPair, DatasetShapeProfile
     from nodes.constraints.compile import ShapeRuleCompilation
     from nodes.constraints.solver import ConstraintProgram, ConstraintSolveResult, GraphOverlay
-    from nodes.dataset_shape import DatasetMetricPair, DatasetShapeProfile
     from nodes.instance_serialization import InstanceSnapshot
     from nodes.node import Node
 

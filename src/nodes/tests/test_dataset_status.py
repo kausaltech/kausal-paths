@@ -17,8 +17,8 @@ import pytest
 
 from kausal_common.datasets.models import Dataset, DatasetMetric
 
-from nodes.management.commands.dataset_status import candidate_dataset_ids, status_for
-from nodes.management.commands.load_dvc_dataset import Command as LoadCommand
+from datasets.management.commands.dataset_status import candidate_dataset_ids, status_for
+from datasets.management.commands.load_dvc_dataset import Command as LoadCommand
 from nodes.models import NodeInputPortBinding
 from nodes.tests.factories import InstanceConfigFactory, NodeConfigFactory
 from nodes.tests.test_load_dvc_dataset_refresh import make_context

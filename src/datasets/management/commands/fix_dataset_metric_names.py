@@ -19,7 +19,7 @@ from rich import print
 from kausal_common.datasets.models import Dataset, DatasetMetric
 
 from common import polars as ppl
-from nodes.dataset_materialization import datasets_change
+from datasets.materialization import datasets_change
 from nodes.models import InstanceConfig
 
 if TYPE_CHECKING:

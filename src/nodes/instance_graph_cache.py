@@ -188,9 +188,9 @@ def _load_yaml_config(config: InstanceConfig) -> InstanceYAMLConfig:
 def _snapshot_from_preloaded_test_instance(config: InstanceConfig) -> InstanceSnapshot | None:
     """Honor the repository's runtime-only factory fixture without hydrating it again."""
     from nodes.defs.instance_defs import InstanceMetadata
-    from nodes.models import _pytest_instances, make_minimal_instance_spec
+    from nodes.models import make_minimal_instance_spec, test_instance_registry
 
-    instance = _pytest_instances.get(config.identifier)
+    instance = test_instance_registry.get(config.identifier)
     if instance is None:
         return None
     metadata = InstanceMetadata.from_model(config)

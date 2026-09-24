@@ -13,7 +13,7 @@ from admin_site.auth_pipeline import assign_roles
 from frameworks.models import Framework, FrameworkConfig
 from frameworks.roles import FrameworkRoleDef
 from nodes.defs import InstanceModelSpec, YearsSpec
-from nodes.models import InstanceConfig, _pytest_instances, make_minimal_instance_spec
+from nodes.models import InstanceConfig, make_minimal_instance_spec, test_instance_registry
 from nodes.roles import instance_admin_role, instance_super_admin_role
 from nodes.tests.factories import InstanceFactory, NodeConfigFactory, SimpleNodeFactory
 from orgs.tests.factories import OrganizationFactory
@@ -142,7 +142,7 @@ def test_instance_view_url_preserves_client_wildcard_scheme_and_port() -> None:
 def test_framework_backed_yaml_instance_resolves_outcome_node_configs(monkeypatch: pytest.MonkeyPatch) -> None:
     instance = InstanceFactory.create(id='framework-city', name='Framework City')
     SimpleNodeFactory.create(context=instance.context, id='net_emissions', is_outcome=True)
-    _pytest_instances.pop(instance.id, None)
+    test_instance_registry.pop(instance.id, None)
 
     ic = InstanceConfig.objects.create(
         identifier=instance.id,

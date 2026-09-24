@@ -6,7 +6,6 @@ from django import forms
 from django.contrib.admin.widgets import AdminFileWidget
 from django.utils.text import format_lazy
 from django.utils.translation import gettext_lazy as _
-from django_stubs_ext import StrOrPromise
 
 from dal import autocomplete
 
@@ -23,7 +22,6 @@ from .models import Person
 from .widgets import RoleSelectionWidget
 
 if typing.TYPE_CHECKING:
-    from django.utils.functional import _StrPromise
     from django_stubs_ext import StrOrPromise
 
     from kausal_common.models.roles import InstanceSpecificRole
@@ -99,12 +97,12 @@ class PersonForm(PathsAdminModelForm[Person]):
             return NONE_ROLE
         return role.id
 
-    def get_role_choices(self) -> list[tuple[str, _StrPromise]]:
+    def get_role_choices(self) -> list[tuple[str, StrOrPromise]]:
         def group_exists(role: InstanceSpecificRole[typing.Any]) -> bool:
             return role.model == InstanceConfig and role.get_existing_instance_group(self.active_instance) is not None
 
         roles = role_registry.get_all_roles()
-        choices: list[tuple[str, _StrPromise]] = [(r.id, r.name) for r in roles if group_exists(r)]
+        choices: list[tuple[str, StrOrPromise]] = [(r.id, r.name) for r in roles if group_exists(r)]
         return choices + [(NONE_ROLE, _('None'))]
 
     def __init__(self, *args, **kwargs):
