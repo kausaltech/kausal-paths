@@ -71,17 +71,17 @@ def _make_node_spec(**overrides: Any) -> NodeSpec:
 
 def _rebuild_from_db(ic: InstanceConfig) -> Context:
     """Refresh IC from DB, bypass test cache, and rebuild the runtime Instance via InstanceLoader."""
-    from nodes.models import _pytest_instances
+    from nodes.models import test_instance_registry
 
     ic.refresh_from_db()
     # Temporarily remove from test cache so _create_from_config() goes through the DB path
-    cached = _pytest_instances.pop(ic.identifier, None)
+    cached = test_instance_registry.pop(ic.identifier, None)
     try:
         instance = ic._create_from_config()
     finally:
         # Restore cache to avoid breaking other fixtures
         if cached is not None:
-            _pytest_instances[ic.identifier] = cached
+            test_instance_registry[ic.identifier] = cached
     return instance.context
 
 
@@ -225,9 +225,9 @@ def test_node_layout_is_readable_per_node_and_in_bulk(
 
     node = NodeConfigFactory.create(instance=db_instance_config, identifier='positioned', spec=_make_node_spec())
     NodeLayout.objects.create(node=node, x=1.5, y=2.5, source=NodeLayoutSource.USER)
-    from nodes.models import _pytest_instances
+    from nodes.models import test_instance_registry
 
-    _pytest_instances.pop(db_instance_config.identifier, None)
+    test_instance_registry.pop(db_instance_config.identifier, None)
 
     with CaptureQueriesContext(connection) as queries:
         data = gql_client.query_data(
@@ -261,11 +261,11 @@ def test_model_nodes_resolve_identifiers_and_uuids_interchangeably(
     gql_client: PathsTestClient,
     db_instance_config: InstanceConfig,
 ) -> None:
-    from nodes.models import _pytest_instances
+    from nodes.models import test_instance_registry
 
     by_name = NodeConfigFactory.create(instance=db_instance_config, identifier='by_name', spec=_make_node_spec())
     by_uuid = NodeConfigFactory.create(instance=db_instance_config, identifier='by_uuid', spec=_make_node_spec())
-    _pytest_instances.pop(db_instance_config.identifier, None)
+    test_instance_registry.pop(db_instance_config.identifier, None)
 
     data = gql_client.query_data(
         """
@@ -585,9 +585,9 @@ def test_query_instance_quantity_kinds_with_used_units(gql_client: PathsTestClie
             },
         )
 
-    from nodes.models import _pytest_instances
+    from nodes.models import test_instance_registry
 
-    _pytest_instances.pop(db_instance_config.identifier, None)
+    test_instance_registry.pop(db_instance_config.identifier, None)
     data = gql_client.query_data(INSTANCE_QUANTITY_KINDS)
     quantity_kinds = {entry['kind']['id']: entry for entry in data['instance']['editor']['quantityKinds']}
 
@@ -921,7 +921,7 @@ def test_protected_node_exposes_effective_permissions_and_rejects_admin_update(
     from paths.tests.graphql import PathsTestClient
 
     from nodes.change_ops import change_operation, record_change
-    from nodes.models import _pytest_instances
+    from nodes.models import test_instance_registry
     from nodes.roles import instance_admin_role
     from users.tests.factories import UserFactory
 
@@ -983,7 +983,7 @@ def test_protected_node_exposes_effective_permissions_and_rejects_admin_update(
     nc.refresh_from_db()
     assert nc.name == 'Certified'
 
-    _pytest_instances.pop(db_instance_config.identifier, None)
+    test_instance_registry.pop(db_instance_config.identifier, None)
     client.force_login(UserFactory.create())
     unauthorized_client = PathsTestClient(client)
     unauthorized_client.set_instance(db_instance_config)
@@ -2435,7 +2435,7 @@ def test_dataset_port_forecast_from_not_promoted_for_external_placeholder(db_ins
 def test_public_instance_nodes_hide_hidden_nodes_from_non_editors(client, db_instance_config: InstanceConfig):
     from paths.tests.graphql import PathsTestClient
 
-    from nodes.models import _pytest_instances
+    from nodes.models import test_instance_registry
     from nodes.roles import instance_admin_role
     from users.tests.factories import UserFactory
 
@@ -2459,12 +2459,12 @@ def test_public_instance_nodes_hide_hidden_nodes_from_non_editors(client, db_ins
 
     public_client = PathsTestClient(client)
     public_client.set_instance(db_instance_config)
-    cached = _pytest_instances.pop(db_instance_config.identifier, None)
+    cached = test_instance_registry.pop(db_instance_config.identifier, None)
     try:
         public_data = public_client.query_data(query)
     finally:
         if cached is not None:
-            _pytest_instances[db_instance_config.identifier] = cached
+            test_instance_registry[db_instance_config.identifier] = cached
     public_ids = {node['identifier'] for node in public_data['instance']['nodes']}
     public_model_ids = {node['identifier'] for node in public_data['instance']['model']['nodes']}
     assert 'visible_node' in public_ids
@@ -2477,12 +2477,12 @@ def test_public_instance_nodes_hide_hidden_nodes_from_non_editors(client, db_ins
 
     editor_client = PathsTestClient(client)
     editor_client.set_instance(db_instance_config)
-    cached = _pytest_instances.pop(db_instance_config.identifier, None)
+    cached = test_instance_registry.pop(db_instance_config.identifier, None)
     try:
         editor_data = editor_client.query_data(query)
     finally:
         if cached is not None:
-            _pytest_instances[db_instance_config.identifier] = cached
+            test_instance_registry[db_instance_config.identifier] = cached
     editor_ids = {node['identifier'] for node in editor_data['instance']['nodes']}
     editor_model_ids = {node['identifier'] for node in editor_data['instance']['model']['nodes']}
     assert 'visible_node' in editor_ids

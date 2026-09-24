@@ -39,6 +39,7 @@ from datasets.materialization import (
     refresh_dataset_materialization,
     require_valid_dataset_rules,
 )
+from datasets.snapshot import DatasetSnapshot
 from datasets.validation import (
     DatasetValidationError,
     InstanceDatasetValidationError,
@@ -46,7 +47,6 @@ from datasets.validation import (
     load_violations,
 )
 from nodes.defs.instance_defs import InstanceModelSpec, YearsSpec
-from nodes.instance_serialization import DatasetSnapshot
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory
 from users.tests.factories import UserFactory
 

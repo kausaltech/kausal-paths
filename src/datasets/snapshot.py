@@ -1,23 +1,35 @@
 """Dataset revision and portable export snapshot shapes."""
 
-from typing import TYPE_CHECKING, Any, Self, cast
-from uuid import UUID  # noqa: TC003 - Pydantic evaluates snapshot fields
+from typing import TYPE_CHECKING, Any, Self
+from uuid import UUID  # noqa: TC003 - Pydantic field
 
 from pydantic import BaseModel, Field
 
 from kausal_common.datasets.category_domain import DatasetCategoryDomain
 from kausal_common.i18n.pydantic import TranslatedString  # noqa: TC002 - Pydantic field
 
-from datasets.validation_rules import ValidationRule  # noqa: TC001 - Pydantic field
-from nodes.snapshot_base import ModelSnapshot
+from datasets.validation_rules import (
+    ValidationRule,
+    validation_rule_adapter,
+)
+from nodes.snapshot_base import ModelSnapshot, translated_string_from_model
 
 if TYPE_CHECKING:
-    from kausal_common.datasets.models import DatasetMetric
+    from kausal_common.datasets.models import (
+        DataPoint,
+        DataPointComment,
+        Dataset,
+        DatasetMetric,
+        DatasetMetricValidationRule,
+        DatasetSourceReference,
+        DataSource,
+    )
 
+    from frameworks.models import DataPointEvidence
     from nodes.models import InstanceConfig
 
 
-class MetricValidationRuleSnapshot(ModelSnapshot):
+class MetricValidationRuleSnapshot(ModelSnapshot['DatasetMetricValidationRule']):
     """
     One validation rule bound to a metric.
 
@@ -29,10 +41,8 @@ class MetricValidationRuleSnapshot(ModelSnapshot):
     rule: ValidationRule
 
     @classmethod
-    def from_model(cls, obj: Any) -> Self:
-        from datasets.transfer import metric_validation_rule_snapshot_from_model
-
-        return cast('Self', metric_validation_rule_snapshot_from_model(obj))
+    def from_model(cls, obj: DatasetMetricValidationRule) -> Self:
+        return cls(uuid=obj.uuid, rule=validation_rule_adapter.validate_python(obj.rule))
 
 
 def metric_column_id(metric: DatasetMetric) -> str:
@@ -55,7 +65,7 @@ def metric_column_id(metric: DatasetMetric) -> str:
     return metric.name or metric.label or str(metric.uuid)
 
 
-class DatasetMetricSnapshot(ModelSnapshot):
+class DatasetMetricSnapshot(ModelSnapshot['DatasetMetric']):
     identifier: str
     label: TranslatedString | None = None
     unit: str
@@ -63,22 +73,14 @@ class DatasetMetricSnapshot(ModelSnapshot):
     validation_rules: list[MetricValidationRuleSnapshot] = Field(default_factory=list)
 
     @classmethod
-    def from_model(cls, obj: Any) -> Self:
-        from datasets.transfer import dataset_metric_snapshot_from_model
-
-        return cast('Self', dataset_metric_snapshot_from_model(obj))
-
-    @classmethod
-    def from_model_with_language(cls, obj: Any, primary_language: str) -> Self:
-        from datasets.transfer import dataset_metric_snapshot_from_model_with_language
-
-        return cast('Self', dataset_metric_snapshot_from_model_with_language(obj, primary_language))
-
-    @staticmethod
-    def _rules_from_model(obj: Any) -> list[MetricValidationRuleSnapshot]:
-        from datasets.transfer import metric_rules_from_model
-
-        return metric_rules_from_model(obj)
+    def from_model(cls, obj: DatasetMetric, primary_language: str = 'en') -> Self:
+        return cls(
+            identifier=metric_column_id(obj),
+            label=translated_string_from_model(obj, 'label', primary_language),
+            unit=obj.unit,
+            quantity=(obj.spec or {}).get('quantity'),
+            validation_rules=[MetricValidationRuleSnapshot.from_model(rule) for rule in obj.validation_rules.order_by('order')],
+        )
 
 
 class DataPointKey(BaseModel):
@@ -88,8 +90,16 @@ class DataPointKey(BaseModel):
     metric: str  # metric identifier (name or uuid)
     categories: list[str] = Field(default_factory=list)  # sorted dimension-category ids
 
+    @classmethod
+    def from_model(cls, obj: DataPoint) -> Self:
+        return cls(
+            year=obj.date.year,
+            metric=metric_column_id(obj.metric),
+            categories=sorted(category.identifier or str(category.uuid) for category in obj.dimension_categories.all()),
+        )
 
-class DataSourceSnapshot(BaseModel):
+
+class DataSourceSnapshot(ModelSnapshot['DataSource']):
     """A published data source referenced by a dataset or its data points."""
 
     uuid: str  # source DataSource uuid; the join key for references within the snapshot
@@ -99,15 +109,33 @@ class DataSourceSnapshot(BaseModel):
     description: str | None = None
     url: str | None = None
 
+    @classmethod
+    def from_model(cls, obj: DataSource) -> Self:
+        return cls(
+            uuid=str(obj.uuid),
+            name=obj.name,
+            edition=obj.edition,
+            authority=obj.authority,
+            description=obj.description,
+            url=obj.url,
+        )
 
-class SourceReferenceSnapshot(BaseModel):
+
+class SourceReferenceSnapshot(ModelSnapshot['DatasetSourceReference']):
     """Links a data source to the dataset (``point`` is None) or to one data point."""
 
     data_source: str  # DataSourceSnapshot.uuid
     point: DataPointKey | None = None
 
+    @classmethod
+    def from_model(cls, obj: DatasetSourceReference) -> Self:
+        return cls(
+            data_source=str(obj.data_source.uuid),
+            point=DataPointKey.from_model(obj.data_point) if obj.data_point is not None else None,
+        )
 
-class DataPointCommentSnapshot(BaseModel):
+
+class DataPointCommentSnapshot(ModelSnapshot['DataPointComment']):
     """A (non-soft-deleted) comment on a data point. Users are referenced by uuid."""
 
     point: DataPointKey
@@ -119,6 +147,21 @@ class DataPointCommentSnapshot(BaseModel):
     created_by: str | None = None  # user uuid
     last_modified_by: str | None = None  # user uuid
     resolved_by: str | None = None  # user uuid
+
+    @classmethod
+    def from_model(cls, obj: DataPointComment) -> Self:
+        assert obj.data_point is not None
+        return cls(
+            point=DataPointKey.from_model(obj.data_point),
+            text=obj.text,
+            is_sticky=obj.is_sticky,
+            is_review=obj.is_review,
+            review_state=obj.review_state,
+            resolved_at=obj.resolved_at.isoformat() if obj.resolved_at else None,
+            created_by=str(obj.created_by.uuid) if obj.created_by else None,
+            last_modified_by=str(obj.last_modified_by.uuid) if obj.last_modified_by else None,
+            resolved_by=str(obj.resolved_by.uuid) if obj.resolved_by else None,
+        )
 
 
 class QualityLevelRef(BaseModel):
@@ -135,7 +178,7 @@ class QualityLevelRef(BaseModel):
     level: str
 
 
-class DataPointEvidenceSnapshot(BaseModel):
+class DataPointEvidenceSnapshot(ModelSnapshot['DataPointEvidence']):
     """What is asserted about one data point's value. Users are referenced by uuid."""
 
     point: DataPointKey
@@ -144,8 +187,26 @@ class DataPointEvidenceSnapshot(BaseModel):
     created_by: str | None = None  # user uuid
     last_modified_by: str | None = None  # user uuid
 
+    @classmethod
+    def from_model(cls, obj: DataPointEvidence) -> Self:
+        level = obj.quality_level
+        return cls(
+            point=DataPointKey.from_model(obj.data_point),
+            kind=obj.kind,
+            quality_level=QualityLevelRef(
+                uuid=str(level.uuid),
+                scheme=level.scheme.identifier,
+                scheme_version=level.scheme.version,
+                level=level.identifier,
+            )
+            if level is not None
+            else None,
+            created_by=str(obj.created_by.uuid) if obj.created_by else None,
+            last_modified_by=str(obj.last_modified_by.uuid) if obj.last_modified_by else None,
+        )
 
-class DatasetSnapshot(ModelSnapshot):
+
+class DatasetSnapshot(ModelSnapshot['Dataset']):
     """
     Pydantic representation of a ``Dataset`` ORM row.
 
@@ -173,17 +234,80 @@ class DatasetSnapshot(ModelSnapshot):
     evidence: list[DataPointEvidenceSnapshot] = Field(default_factory=list)
 
     @classmethod
-    def from_model(cls, obj: Any) -> Self:
-        return cls.from_model_for_instance(obj, None)
+    def from_model(cls, obj: Dataset, instance_config: InstanceConfig | None = None) -> Self:
+        from django.contrib.contenttypes.models import ContentType
 
-    @classmethod
-    def from_model_for_instance(cls, obj: Any, instance_config: InstanceConfig | None) -> Self:
-        from datasets.transfer import snapshot_from_model_for_instance
+        from kausal_common.datasets.models import DatasetSchemaDimension, DimensionScope
 
-        return cast('Self', snapshot_from_model_for_instance(obj, instance_config))
+        from datasets.transfer import export_dataset_data_safe, export_dataset_evidence, export_dataset_provenance
+
+        schema = obj.schema
+        metrics: list[DatasetMetricSnapshot] = []
+        dimensions: list[str] = []
+        dimension_columns: dict[str, str] = {}
+        name_ts: TranslatedString | None = None
+        time_resolution = 'yearly'
+        is_editable = True
+        primary_language = instance_config.primary_language if instance_config is not None else _primary_language_for_dataset(obj)
+
+        if schema is not None:
+            time_resolution = schema.time_resolution
+            is_editable = schema.is_editable
+            name_ts = translated_string_from_model(schema, 'name', primary_language)
+            metrics = [
+                DatasetMetricSnapshot.from_model(metric, primary_language) for metric in schema.metrics.all().order_by('order')
+            ]
+            if instance_config is not None:
+                scope_content_type = ContentType.objects.get_for_model(instance_config)
+                scope_id = instance_config.pk
+            else:
+                scope_content_type = obj.scope_content_type
+                scope_id = obj.scope_id
+            if scope_content_type is not None and scope_id is not None:
+                for schema_dimension in (
+                    DatasetSchemaDimension.objects.filter(schema=schema).select_related('dimension').order_by('order')
+                ):
+                    scope = DimensionScope.objects.filter(
+                        dimension=schema_dimension.dimension,
+                        scope_content_type=scope_content_type,
+                        scope_id=scope_id,
+                    ).first()
+                    if scope and scope.identifier:
+                        dimensions.append(scope.identifier)
+                        if schema_dimension.column_name and schema_dimension.column_name != scope.identifier:
+                            dimension_columns[scope.identifier] = schema_dimension.column_name
+
+        data: dict[str, Any] | None = None
+        data_sources: list[DataSourceSnapshot] = []
+        source_references: list[SourceReferenceSnapshot] = []
+        comments: list[DataPointCommentSnapshot] = []
+        evidence: list[DataPointEvidenceSnapshot] = []
+        if not obj.is_external_placeholder:
+            data = export_dataset_data_safe(obj)
+            data_sources, source_references, comments = export_dataset_provenance(obj)
+            evidence = export_dataset_evidence(obj)
+
+        return cls(
+            identifier=obj.identifier,
+            name=name_ts,
+            forecast_from=(obj.spec or {}).get('forecast_from'),
+            is_external_placeholder=obj.is_external_placeholder,
+            external_ref=obj.external_ref,
+            time_resolution=time_resolution,
+            is_editable=is_editable,
+            dimensions=dimensions,
+            dimension_columns=dimension_columns,
+            metrics=metrics,
+            category_domain=schema.category_domain if schema is not None else DatasetCategoryDomain(),
+            data=data,
+            data_sources=data_sources,
+            source_references=source_references,
+            comments=comments,
+            evidence=evidence,
+        )
 
 
-def _primary_language_for_dataset(obj: Any) -> str:
+def _primary_language_for_dataset(obj: Dataset) -> str:
     """Resolve the primary language for a Dataset via its scope's InstanceConfig."""
     scope = getattr(obj, 'scope', None)
     if scope is not None:
@@ -191,7 +315,3 @@ def _primary_language_for_dataset(obj: Any) -> str:
         if lang:
             return lang
     return 'en'
-
-
-def _label_from_identifier(identifier: str) -> str:
-    return identifier.replace('_', ' ').replace('-', ' ').title()

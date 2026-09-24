@@ -25,12 +25,13 @@ from kausal_common.datasets.tests.factories import (
 
 from paths.tests.graphql import PathsTestClient
 
+from datasets.snapshot import DatasetSnapshot
+from datasets.transfer import import_dataset
 from frameworks.evidence import QUALITY_OF_SPEC_KEY
 from frameworks.models import DataEvidenceKind, DataPointEvidence, DataQualityLevel, DataQualityScheme
 from frameworks.tests.factories import FrameworkConfigFactory, FrameworkFactory
 from nodes.datasets import DBDataset
 from nodes.defs.instance_defs import InstanceModelSpec, YearsSpec
-from nodes.instance_serialization import DatasetSnapshot, _import_dataset
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory
 from users.tests.factories import UserFactory
 
@@ -282,7 +283,7 @@ def test_evidence_survives_snapshot_round_trip(setup: Setup) -> None:
     )
     DataPointEvidence.objects.create(data_point=zero, kind=DataEvidenceKind.EXPLICIT_ZERO)
 
-    snap = DatasetSnapshot.from_model_for_instance(dataset, setup.ic)
+    snap = DatasetSnapshot.from_model(dataset, setup.ic)
     assert {(ev.kind, ev.quality_level.level if ev.quality_level else None) for ev in snap.evidence} == {
         ('observed', 'A'),
         ('explicit_zero', None),
@@ -290,7 +291,7 @@ def test_evidence_survives_snapshot_round_trip(setup: Setup) -> None:
 
     # Another member of the same framework resolves the grade.
     member = make_member(setup.framework)
-    new_ds = _import_dataset(member, snap, ContentType.objects.get_for_model(member), {})
+    new_ds = import_dataset(member, snap, ContentType.objects.get_for_model(member), {})
     imported = {
         (ev.data_point.value, ev.kind, ev.quality_level.identifier if ev.quality_level else None, ev.created_by_id)
         for ev in DataPointEvidence.objects.filter(data_point__dataset=new_ds).select_related('data_point', 'quality_level')
@@ -299,7 +300,7 @@ def test_evidence_survives_snapshot_round_trip(setup: Setup) -> None:
 
     # An instance outside the framework keeps the kind and drops the grade.
     outsider = make_instance()
-    new_ds = _import_dataset(outsider, snap, ContentType.objects.get_for_model(outsider), {})
+    new_ds = import_dataset(outsider, snap, ContentType.objects.get_for_model(outsider), {})
     kinds = set(DataPointEvidence.objects.filter(data_point__dataset=new_ds).values_list('kind', 'quality_level'))
     assert kinds == {('observed', None), ('explicit_zero', None)}
 

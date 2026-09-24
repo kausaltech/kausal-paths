@@ -720,7 +720,7 @@ class DatasetType(UserPermissionsMixin):
     @staticmethod
     def port_bindings(root: 'DatasetType') -> list['DatasetPortType']:
         """Discover which node ports use this dataset."""
-        from nodes.graphql.bindings import _to_gql
+        from nodes.graphql.bindings import binding_to_gql
         from nodes.models import NodeInputPortBinding
 
         if root._model is None:
@@ -731,17 +731,17 @@ class DatasetType(UserPermissionsMixin):
             .select_related('node', 'dataset', 'metric')
             .order_by('node', 'port_id', 'position')
         )
-        return [_to_gql(row) for row in rows]
+        return [binding_to_gql(row) for row in rows]
 
     @classmethod
     def from_model(cls, dataset: DatasetModel) -> DatasetType:
-        from nodes.graphql.types.graph import _dataset_external_ref_to_gql
+        from nodes.graphql.types.graph import dataset_external_ref_to_gql
 
         obj = cls(
             id=sb.ID(str(dataset.uuid)),
             identifier=dataset.identifier,
             is_external_placeholder=dataset.is_external_placeholder,
-            external_ref=_dataset_external_ref_to_gql(dataset.external_ref),
+            external_ref=dataset_external_ref_to_gql(dataset.external_ref),
             last_modified_at=dataset.last_modified_at,
             last_modified_by=dataset.last_modified_by,
             created_at=dataset.created_at,
@@ -758,7 +758,7 @@ class DatasetType(UserPermissionsMixin):
         dataset_models_by_uuid: Mapping[UUID, DatasetModel] | None = None,
     ) -> DatasetType | None:
         """Construct from a binding, using a bulk-loaded model map when available."""
-        from nodes.graphql.types.graph import _dataset_external_ref_to_gql
+        from nodes.graphql.types.graph import dataset_external_ref_to_gql
 
         if binding.dataset_uuid is None:
             return None
@@ -782,7 +782,7 @@ class DatasetType(UserPermissionsMixin):
             id=sb.ID(str(binding.dataset_uuid)),
             identifier=binding.external_dataset_id,
             is_external_placeholder=binding.dataset_is_external_placeholder,
-            external_ref=_dataset_external_ref_to_gql(binding.dataset_external_ref),
+            external_ref=dataset_external_ref_to_gql(binding.dataset_external_ref),
             created_at=None,
             created_by=None,
             last_modified_at=None,

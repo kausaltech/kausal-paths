@@ -60,9 +60,9 @@ from nodes.defs.binding_def import EdgeBindingDef
 from nodes.defs.node_defs import ActionConfig, NodeKind, NodeSpec, PipelineConfig, TypeConfig
 from nodes.defs.port_def import InputPortDef, OutputPortDef
 from nodes.graphql.binding_storage import LocalBindingEditor
-from nodes.graphql.bindings import _port_occupants, bind_dataset, binding_editor
+from nodes.graphql.bindings import bind_dataset, binding_editor, port_occupants
 from nodes.graphql.constraint_checks import check_binding_change, edge_candidate, require_draft_graph
-from nodes.graphql.inputs import _get_input_port, _get_output_port, is_maybe_set
+from nodes.graphql.inputs import get_input_port, get_output_port, is_maybe_set
 from nodes.input_bindings import compact_port_positions, next_port_position
 from nodes.instance_graph import NodeEditContext, NodeMeta
 from nodes.instance_serialization import InputBindingSnapshot, NodePortSource
@@ -294,7 +294,7 @@ def _plan_target_port(
     when the connection is accepted.
     """
     if to_port is not None:
-        if _get_input_port(to_node, to_port) is not None:
+        if get_input_port(to_node, to_port) is not None:
             return to_port, None
         raise GraphQLValidationError(info, f'Input port "{to_port}" does not exist on node "{to_node.identifier}"')
 
@@ -345,7 +345,7 @@ def _resolve_source_port(info: gql.Info, from_node: NodeConfig | NodeMeta, from_
             info,
             f'Node "{from_node.identifier}" has {len(output_ports)} output ports; `fromRef.portId` must name one',
         )
-    if _get_output_port(from_node, from_port) is not None:
+    if get_output_port(from_node, from_port) is not None:
         return from_port
     raise GraphQLValidationError(
         info,
@@ -374,7 +374,7 @@ def _check_target_port_capacity(info: gql.Info, to_node: NodeConfig, to_port: UU
     every shape/unit/quantity question belongs to the constraint solver.
     """
 
-    target_port = _get_input_port(to_node, to_port)
+    target_port = get_input_port(to_node, to_port)
     if target_port is None:
         raise GraphQLValidationError(info, f'Input port "{to_port}" does not exist on node "{to_node.identifier}"')
     if target_port.multi:
@@ -1507,7 +1507,7 @@ class NodeEditorMutation:
         if nc.spec is None:
             raise GraphQLError(f'Node "{nc.identifier}" has no spec')
         pid = _parse_port_id(info, str(port_id), field_name='portId')
-        port = _get_input_port(nc, pid)
+        port = get_input_port(nc, pid)
         if port is None:
             raise NotFoundError(info, f'Input port "{port_id}" not found on node "{nc.identifier}"')
         resources = info.context.instance_resources
@@ -1565,7 +1565,7 @@ class NodeEditorMutation:
         if nc.spec is None:
             raise GraphQLError(f'Node "{nc.identifier}" has no spec')
         pid = _parse_port_id(info, str(port_id), field_name='portId')
-        port = _get_output_port(nc, pid)
+        port = get_output_port(nc, pid)
         if port is None:
             raise NotFoundError(info, f'Output port "{port_id}" not found on node "{nc.identifier}"')
         resources = info.context.instance_resources
@@ -1846,7 +1846,7 @@ class InstanceEditorMutation:
 
         requested_to_port = input.port_ref.port_id
         from_port = _resolve_source_port(info, from_node, input.from_ref.port_id)
-        source_port = _get_output_port(from_node, from_port)
+        source_port = get_output_port(from_node, from_port)
         assert source_port is not None  # _resolve_source_port validated it
 
         to_port, planned_port = _plan_target_port(info, to_node, requested_to_port, source_port)
@@ -1858,7 +1858,7 @@ class InstanceEditorMutation:
                     info,
                     '`replace` requires an explicit `portRef.portId`: an auto-selected or auto-created port is never occupied',
                 )
-            displaced = _port_occupants(info, to_node, to_port)
+            displaced = port_occupants(info, to_node, to_port)
         elif planned_port is None:
             _check_target_port_capacity(info, to_node, to_port)
 

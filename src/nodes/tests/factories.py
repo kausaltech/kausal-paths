@@ -111,11 +111,11 @@ class InstanceConfigFactory(DjangoModelFactory[InstanceConfig]):
 
         obj: InstanceConfig = super().create(name=name, **kwargs)
         if instance:
-            from nodes.models import _pytest_instances
+            from nodes.models import test_instance_registry
 
             instance.config = obj
             # For tests we want to avoid reading a YAML file to configure the Instance
-            _pytest_instances[instance.id] = instance
+            test_instance_registry[instance.id] = instance
 
         return obj
 

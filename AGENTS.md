@@ -207,8 +207,9 @@ full rationale. In brief:
 - Use this dependency order from low to high: pure defs/specs, snapshot
   shapes, Django models, services, then API/commands/runtime orchestration.
   Modules may import lower layers, not higher ones.
-  Snapshot shapes must not import ORM models at module load time; put ORM
-  conversion in a service/adapter. Import lower layers at module scope. Keep
+  Snapshot shapes must not import ORM models at module load time; their typed
+  `from_model()` methods may use local ORM imports. Put multi-row transfer and
+  persistence in services. Import lower layers at module scope. Keep
   local imports for genuine cycles (especially model methods calling services)
   or deferred optional work, and use `TYPE_CHECKING` only for type-only imports
   that are not evaluated at runtime. Split modules when imports run both ways.

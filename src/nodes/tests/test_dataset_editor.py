@@ -25,8 +25,8 @@ from kausal_common.datasets.tests.factories import (
     DimensionFactory,
 )
 
+from datasets.snapshot import metric_column_id
 from nodes.defs.instance_defs import InstanceModelSpec, YearsSpec
-from nodes.instance_serialization import metric_column_id
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory
 
 if TYPE_CHECKING:
@@ -537,7 +537,7 @@ def test_metric_quantity_in_snapshot_and_meta(db_instance_config: InstanceConfig
     metric.spec = {'quantity': 'emissions'}
     metric.save(update_fields=['spec'])
 
-    snap = DatasetSnapshot.from_model_for_instance(dataset, ic)
+    snap = DatasetSnapshot.from_model(dataset, ic)
     assert snap.metrics[0].quantity == 'emissions'
 
     meta = dataset_meta_from_model(dataset, primary_language=ic.primary_language)
