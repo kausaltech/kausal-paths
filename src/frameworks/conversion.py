@@ -21,8 +21,8 @@ from kausal_common.datasets.models import (
 )
 from kausal_common.i18n.pydantic import set_i18n_context
 
+from datasets.materialization import ensure_dataset_materializations, refresh_dataset_materialization
 from frameworks.models import FrameworkConfig
-from nodes.dataset_materialization import ensure_dataset_materializations, refresh_dataset_materialization
 from nodes.defs.port_def import InputPortDef
 from nodes.instance_graph import build_instance_graph
 from nodes.instance_serialization import InputBindingSnapshot, InstanceSnapshot, build_instance_snapshot

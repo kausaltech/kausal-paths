@@ -9,9 +9,9 @@ from django.db import transaction
 
 from kausal_common.datasets.models import DataPoint, Dataset, DatasetMetric
 
+from datasets.materialization import refresh_dataset_materialization
 from frameworks.evidence import QUALITY_OF_SPEC_KEY, get_evidence, quality_schemes_for_dataset, set_evidence
 from frameworks.models import DataQualityLevel
-from nodes.dataset_materialization import refresh_dataset_materialization
 from nodes.models import InstanceConfig
 
 if TYPE_CHECKING:

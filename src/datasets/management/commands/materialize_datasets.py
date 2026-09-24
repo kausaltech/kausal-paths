@@ -2,7 +2,7 @@ from django.core.management.base import BaseCommand, CommandParser
 
 from kausal_common.datasets.models import Dataset
 
-from nodes.dataset_materialization import materialize_dataset
+from datasets.materialization import materialize_dataset
 
 
 class Command(BaseCommand):

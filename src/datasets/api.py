@@ -34,7 +34,7 @@ from kausal_common.datasets.models import (
 )
 from kausal_common.users import user_or_bust
 
-from nodes.dataset_materialization import dataset_change, datasets_change, refresh_dataset_materialization
+from datasets.materialization import dataset_change, datasets_change, refresh_dataset_materialization
 from nodes.models import InstanceConfig
 
 if TYPE_CHECKING:

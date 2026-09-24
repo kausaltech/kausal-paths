@@ -21,7 +21,8 @@ from kausal_common.datasets.tests.factories import (
     DatasetSchemaFactory,
 )
 
-from nodes.instance_serialization import DatasetSnapshot, _import_dataset
+from datasets.snapshot import DatasetSnapshot
+from datasets.transfer import import_dataset
 from nodes.tests.factories import InstanceConfigFactory
 from users.tests.factories import UserFactory
 
@@ -54,7 +55,7 @@ def test_dataset_provenance_round_trip():
     deleted.soft_delete(author)
 
     # --- Export ---
-    snap = DatasetSnapshot.from_model_for_instance(ds, src)
+    snap = DatasetSnapshot.from_model(ds, src)
     assert [s.name for s in snap.data_sources] == ['Census']
     assert len(snap.source_references) == 2
     assert {r.point is None for r in snap.source_references} == {True, False}
@@ -67,7 +68,7 @@ def test_dataset_provenance_round_trip():
     # --- Import into a fresh instance ---
     dst = InstanceConfigFactory.create(name='prov-dst', config_source='database')
     dst_ct = ContentType.objects.get_for_model(dst)
-    new_ds = _import_dataset(dst, snap, dst_ct, {})
+    new_ds = import_dataset(dst, snap, dst_ct, {})
 
     # DataSource recreated, scoped to the copy, with a fresh uuid.
     new_sources = DataSource.objects.filter(scope_content_type=dst_ct, scope_id=dst.pk, name='Census')
@@ -101,12 +102,12 @@ def test_dataset_provenance_unknown_user_uuid_is_dropped():
     author = UserFactory.create()
     DataPointComment.objects.create(data_point=dp, text='note', created_by=author)
 
-    snap = DatasetSnapshot.from_model_for_instance(ds, src)
+    snap = DatasetSnapshot.from_model(ds, src)
     # Drop the author so import can't resolve the uuid.
     author.delete()
 
     dst = InstanceConfigFactory.create(name='prov-dst2', config_source='database')
-    new_ds = _import_dataset(dst, snap, ContentType.objects.get_for_model(dst), {})
+    new_ds = import_dataset(dst, snap, ContentType.objects.get_for_model(dst), {})
 
     new_comment = DataPointComment.objects.get(data_point__dataset=new_ds)
     assert new_comment.text == 'note'
