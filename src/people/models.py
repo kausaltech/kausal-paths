@@ -15,14 +15,15 @@ from wagtail.search import index
 
 from loguru import logger
 
-from kausal_common.datasets.models import DatasetSchema
+from kausal_common.datasets.models import Dataset
 
 # from wagtail.images.rect import Rect
 from kausal_common.models.permissions import PermissionedModel, PermissionedQuerySet
 from kausal_common.models.types import MLModelManager, ModelManager
 from kausal_common.people.models import (
     BasePerson,
-    create_permission_membership_models,
+    ObjectGroupPermissionBase,
+    ObjectPersonPermissionBase,
 )
 
 from paths.types import PathsModel, PathsQuerySet
@@ -35,10 +36,6 @@ if TYPE_CHECKING:
     from django.http import HttpRequest
 
     from kausal_common.models.types import FK, M2M
-    from kausal_common.people.models import (
-        ObjectGroupPermissionBase,
-        ObjectPersonPermissionBase,
-    )
 
     from nodes.models import InstanceConfig
     from people.permission_policy import PersonPermissionPolicy
@@ -245,17 +242,30 @@ class PersonGroupMember(models.Model):
 
 if TYPE_CHECKING:
 
-    class DatasetSchemaGroupPermission(ObjectGroupPermissionBase[DatasetSchema]):
-        object: FK[DatasetSchema] = ForeignKey(DatasetSchema, on_delete=models.CASCADE, related_name='group_permissions')
+    class DatasetGroupPermission(ObjectGroupPermissionBase[Dataset]):
+        object: FK[Dataset] = ForeignKey(Dataset, on_delete=models.CASCADE, related_name='group_permissions')
 
-        _default_manager: ClassVar[models.Manager[DatasetSchemaGroupPermission]]
+        _default_manager: ClassVar[models.Manager[DatasetGroupPermission]]
 
-    class DatasetSchemaPersonPermission(ObjectPersonPermissionBase[DatasetSchema]):
-        object: FK[DatasetSchema] = ForeignKey(DatasetSchema, on_delete=models.CASCADE, related_name='person_permissions')
+    class DatasetPersonPermission(ObjectPersonPermissionBase[Dataset]):
+        object: FK[Dataset] = ForeignKey(Dataset, on_delete=models.CASCADE, related_name='person_permissions')
 
-        _default_manager: ClassVar[models.Manager[DatasetSchemaPersonPermission]]
+        _default_manager: ClassVar[models.Manager[DatasetPersonPermission]]
 
 else:
-    # Create permission membership models here, in the `people` app, since they will be part of this app. If you call
-    # `create_permission_membership_models` in a different app, `shell_plus` will get confused.
-    DatasetSchemaGroupPermission, DatasetSchemaPersonPermission = create_permission_membership_models(DatasetSchema)
+    # Grants are on the dataset, not its schema: delegating a dataset's data must not let the grantee edit its
+    # schema. Dataset is not a ClusterableModel, so these use a plain ForeignKey rather than
+    # `create_permission_membership_models`, whose ParentalKey requires one.
+    class DatasetGroupPermission(ObjectGroupPermissionBase):
+        object = models.ForeignKey(Dataset, on_delete=models.CASCADE, related_name='group_permissions')
+
+        class Meta:
+            unique_together = (('group', 'object'),)
+            ordering = ['object', 'group']
+
+    class DatasetPersonPermission(ObjectPersonPermissionBase):
+        object = models.ForeignKey(Dataset, on_delete=models.CASCADE, related_name='person_permissions')
+
+        class Meta:
+            unique_together = (('person', 'object'),)
+            ordering = ['object', 'person']

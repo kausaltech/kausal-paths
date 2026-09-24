@@ -38,12 +38,12 @@ def api_client():
         pytest.param('admin_user', True, {'Schema 1', 'Unused schema'}, id='admin_user'),
         pytest.param('reviewer_user', True, {'Schema 1', 'Unused schema'}, id='reviewer_user'),
         pytest.param('viewer_user', True, {'Schema 1', 'Unused schema'}, id='viewer_user'),
-        pytest.param('schema1_viewer', True, {'Schema 1'}, id='schema1_viewer'),
-        pytest.param('schema1_editor', True, {'Schema 1'}, id='schema1_editor'),
-        pytest.param('schema1_admin', True, {'Schema 1'}, id='schema1_admin'),
-        pytest.param('schema1_viewer_group_user', True, {'Schema 1'}, id='schema1_viewer_group_user'),
-        pytest.param('schema1_editor_group_user', True, {'Schema 1'}, id='schema1_editor_group_user'),
-        pytest.param('schema1_admin_group_user', True, {'Schema 1'}, id='schema1_admin_group_user'),
+        pytest.param('dataset1_viewer', True, {'Schema 1'}, id='dataset1_viewer'),
+        pytest.param('dataset1_editor', True, {'Schema 1'}, id='dataset1_editor'),
+        pytest.param('dataset1_admin', True, {'Schema 1'}, id='dataset1_admin'),
+        pytest.param('dataset1_viewer_group_user', True, {'Schema 1'}, id='dataset1_viewer_group_user'),
+        pytest.param('dataset1_editor_group_user', True, {'Schema 1'}, id='dataset1_editor_group_user'),
+        pytest.param('dataset1_admin_group_user', True, {'Schema 1'}, id='dataset1_admin_group_user'),
         pytest.param('regular_user', False, set(), id='regular_user'),
     ],
 )
@@ -76,18 +76,18 @@ reviewer_user              schema1     +               +
 reviewer_user              schema2     +               -
 viewer_user                schema1     +               +
 viewer_user                schema2     +               -
-schema1_viewer             schema1     +               +
-schema1_viewer             schema2     +               -
-schema1_editor             schema1     +               +
-schema1_editor             schema2     +               -
-schema1_admin              schema1     +               +
-schema1_admin              schema2     +               -
-schema1_viewer_group_user  schema1     +               +
-schema1_viewer_group_user  schema2     +               -
-schema1_editor_group_user  schema1     +               +
-schema1_editor_group_user  schema2     +               -
-schema1_admin_group_user   schema1     +               +
-schema1_admin_group_user   schema2     +               -
+dataset1_viewer            schema1     +               +
+dataset1_viewer            schema2     +               -
+dataset1_editor            schema1     +               +
+dataset1_editor            schema2     +               -
+dataset1_admin             schema1     +               +
+dataset1_admin             schema2     +               -
+dataset1_viewer_group_user schema1     +               +
+dataset1_viewer_group_user schema2     +               -
+dataset1_editor_group_user schema1     +               +
+dataset1_editor_group_user schema2     +               -
+dataset1_admin_group_user  schema1     +               +
+dataset1_admin_group_user  schema2     +               -
 regular_user               schema1     -               -
 regular_user               schema2     -               -
 """)
@@ -118,28 +118,28 @@ superuser                  schema1     200
 superuser                  schema2     200
 admin_user                 schema1     200
 super_admin_user           schema1     200
-schema1_editor             schema1     200
-schema1_admin              schema1     200
-schema1_editor_group_user  schema1     200
-schema1_admin_group_user   schema1     200
+dataset1_editor            schema1     403
+dataset1_admin             schema1     403
+dataset1_editor_group_user schema1     403
+dataset1_admin_group_user  schema1     403
 
 reviewer_user              schema1     403
 reviewer_user              schema2     403
 viewer_user                schema1     403
 viewer_user                schema2     403
-schema1_viewer             schema1     403
-schema1_viewer_group_user  schema1     403
+dataset1_viewer            schema1     403
+dataset1_viewer_group_user schema1     403
 regular_user               schema1     403
 regular_user               schema2     403
 
 admin_user                 schema2     404
 super_admin_user           schema2     404
-schema1_viewer             schema2     404
-schema1_editor             schema2     404
-schema1_admin              schema2     404
-schema1_viewer_group_user  schema2     404
-schema1_editor_group_user  schema2     404
-schema1_admin_group_user   schema2     404
+dataset1_viewer            schema2     404
+dataset1_editor            schema2     404
+dataset1_admin             schema2     404
+dataset1_viewer_group_user schema2     404
+dataset1_editor_group_user schema2     404
+dataset1_admin_group_user  schema2     404
 """)
 )
 def test_dataset_schema_update(api_client, dataset_test_data, user_key, schema_key, expected_status):
@@ -167,25 +167,26 @@ def test_dataset_schema_update(api_client, dataset_test_data, user_key, schema_k
     *parse_table("""
 user_key                   schema_key     delete_allowed  should_be_found  has_linked_objects
 
-# The schemas below have datasets linked to them so deletion won't work (HTTP 400)
+# The schemas below have datasets linked to them so deletion won't work (HTTP 400).
+# A dataset grant never reaches the schema's structure, so its holders get 403.
 admin_user                 schema1        +               +                +
 admin_user                 schema2        +               -                +
 regular_user               schema1        -               -                +
 regular_user               schema2        -               -                +
 reviewer_user              schema1        -               -                +
 reviewer_user              schema2        -               -                +
-schema1_admin              schema1        +               +                +
-schema1_admin              schema2        +               -                +
-schema1_admin_group_user   schema1        +               +                +
-schema1_admin_group_user   schema2        +               -                +
-schema1_editor             schema1        -               -                +
-schema1_editor             schema2        +               -                +
-schema1_editor_group_user  schema1        -               -                +
-schema1_editor_group_user  schema2        +               -                +
-schema1_viewer             schema1        -               -                +
-schema1_viewer             schema2        +               -                +
-schema1_viewer_group_user  schema1        -               -                +
-schema1_viewer_group_user  schema2        +               -                +
+dataset1_admin             schema1        -               -                +
+dataset1_admin             schema2        +               -                +
+dataset1_admin_group_user  schema1        -               -                +
+dataset1_admin_group_user  schema2        +               -                +
+dataset1_editor            schema1        -               -                +
+dataset1_editor            schema2        +               -                +
+dataset1_editor_group_user schema1        -               -                +
+dataset1_editor_group_user schema2        +               -                +
+dataset1_viewer            schema1        -               -                +
+dataset1_viewer            schema2        +               -                +
+dataset1_viewer_group_user schema1        -               -                +
+dataset1_viewer_group_user schema2        +               -                +
 super_admin_user           schema1        +               +                +
 super_admin_user           schema2        +               -                +
 superuser                  schema1        +               +                +
@@ -205,12 +206,12 @@ reviewer_user              unused_schema  -               -                -
 viewer_user                unused_schema  -               -                -
 
 # 404: subsector admins should only know about schemas they are directly linked to
-schema1_admin              unused_schema  +               -                -
-schema1_admin_group_user   unused_schema  +               -                -
-schema1_editor             unused_schema  +               -                -
-schema1_editor_group_user  unused_schema  +               -                -
-schema1_viewer             unused_schema  +               -                -
-schema1_viewer_group_user  unused_schema  +               -                -
+dataset1_admin             unused_schema  +               -                -
+dataset1_admin_group_user  unused_schema  +               -                -
+dataset1_editor            unused_schema  +               -                -
+dataset1_editor_group_user unused_schema  +               -                -
+dataset1_viewer            unused_schema  +               -                -
+dataset1_viewer_group_user unused_schema  +               -                -
 """)
 )
 def test_dataset_schema_delete(
@@ -292,12 +293,12 @@ def test_dataset_schema_create(api_client, dataset_test_data, user_key, access_a
         'super_admin_user',
         'reviewer_user',
         'viewer_user',
-        'schema1_viewer',
-        'schema1_editor',
-        'schema1_admin',
-        'schema1_viewer_group_user',
-        'schema1_editor_group_user',
-        'schema1_admin_group_user',
+        'dataset1_viewer',
+        'dataset1_editor',
+        'dataset1_admin',
+        'dataset1_viewer_group_user',
+        'dataset1_editor_group_user',
+        'dataset1_admin_group_user',
         'regular_user',
     ],
 )
@@ -312,12 +313,12 @@ def test_dataset_list(api_client, dataset_test_data, user_key):
         'super_admin_user',
         'reviewer_user',
         'viewer_user',
-        'schema1_viewer',
-        'schema1_editor',
-        'schema1_admin',
-        'schema1_viewer_group_user',
-        'schema1_editor_group_user',
-        'schema1_admin_group_user',
+        'dataset1_viewer',
+        'dataset1_editor',
+        'dataset1_admin',
+        'dataset1_viewer_group_user',
+        'dataset1_editor_group_user',
+        'dataset1_admin_group_user',
     ]:
         expected_datasets = {'dataset1'}
     else:
@@ -350,18 +351,18 @@ reviewer_user              dataset1     +               +
 reviewer_user              dataset2     +               -
 viewer_user                dataset1     +               +
 viewer_user                dataset2     +               -
-schema1_viewer             dataset1     +               +
-schema1_viewer             dataset2     +               -
-schema1_editor             dataset1     +               +
-schema1_editor             dataset2     +               -
-schema1_admin              dataset1     +               +
-schema1_admin              dataset2     +               -
-schema1_viewer_group_user  dataset1     +               +
-schema1_viewer_group_user  dataset2     +               -
-schema1_editor_group_user  dataset1     +               +
-schema1_editor_group_user  dataset2     +               -
-schema1_admin_group_user   dataset1     +               +
-schema1_admin_group_user   dataset2     +               -
+dataset1_viewer            dataset1     +               +
+dataset1_viewer            dataset2     +               -
+dataset1_editor            dataset1     +               +
+dataset1_editor            dataset2     +               -
+dataset1_admin             dataset1     +               +
+dataset1_admin             dataset2     +               -
+dataset1_viewer_group_user dataset1     +               +
+dataset1_viewer_group_user dataset2     +               -
+dataset1_editor_group_user dataset1     +               +
+dataset1_editor_group_user dataset2     +               -
+dataset1_admin_group_user  dataset1     +               +
+dataset1_admin_group_user  dataset2     +               -
 regular_user               dataset1     -               -
 regular_user               dataset2     -               -
 """)
@@ -393,26 +394,26 @@ superuser                  dataset2     200
 
 admin_user                 dataset1     200
 super_admin_user           dataset1     200
-schema1_editor             dataset1     200
-schema1_admin              dataset1     200
-schema1_editor_group_user  dataset1     200
-schema1_admin_group_user   dataset1     200
+dataset1_editor            dataset1     200
+dataset1_admin             dataset1     200
+dataset1_editor_group_user dataset1     200
+dataset1_admin_group_user  dataset1     200
 
 viewer_user                dataset1     403
 viewer_user                dataset2     403
 reviewer_user              dataset1     403
 reviewer_user              dataset2     403
-schema1_viewer             dataset1     403
-schema1_viewer_group_user  dataset1     403
+dataset1_viewer            dataset1     403
+dataset1_viewer_group_user dataset1     403
 regular_user               dataset1     403
 regular_user               dataset2     403
 
-schema1_editor             dataset2     404
-schema1_admin              dataset2     404
-schema1_editor_group_user  dataset2     404
-schema1_admin_group_user   dataset2     404
-schema1_viewer             dataset2     404
-schema1_viewer_group_user  dataset2     404
+dataset1_editor            dataset2     404
+dataset1_admin             dataset2     404
+dataset1_editor_group_user dataset2     404
+dataset1_admin_group_user  dataset2     404
+dataset1_viewer            dataset2     404
+dataset1_viewer_group_user dataset2     404
 admin_user                 dataset2     404
 super_admin_user           dataset2     404
 """)
@@ -439,8 +440,8 @@ superuser                  dataset1     204
 superuser                  dataset2     204
 admin_user                 dataset1     204
 super_admin_user           dataset1     204
-schema1_admin              dataset1     204
-schema1_admin_group_user   dataset1     204
+dataset1_admin             dataset1     204
+dataset1_admin_group_user  dataset1     204
 
 reviewer_user              dataset1     403
 reviewer_user              dataset2     403
@@ -448,19 +449,19 @@ viewer_user                dataset1     403
 viewer_user                dataset2     403
 regular_user               dataset1     403
 regular_user               dataset2     403
-schema1_viewer             dataset1     403
-schema1_editor             dataset1     403
-schema1_viewer_group_user  dataset1     403
-schema1_editor_group_user  dataset1     403
+dataset1_viewer            dataset1     403
+dataset1_editor            dataset1     403
+dataset1_viewer_group_user dataset1     403
+dataset1_editor_group_user dataset1     403
 
 admin_user                 dataset2     404
 super_admin_user           dataset2     404
-schema1_viewer             dataset2     404
-schema1_editor             dataset2     404
-schema1_admin              dataset2     404
-schema1_viewer_group_user  dataset2     404
-schema1_editor_group_user  dataset2     404
-schema1_admin_group_user   dataset2     404
+dataset1_viewer            dataset2     404
+dataset1_editor            dataset2     404
+dataset1_admin             dataset2     404
+dataset1_viewer_group_user dataset2     404
+dataset1_editor_group_user dataset2     404
+dataset1_admin_group_user  dataset2     404
 """)
 )
 def test_dataset_delete(api_client, dataset_test_data, user_key, dataset_key, expected_status):
@@ -537,24 +538,24 @@ admin_user                 dataset1     200
 super_admin_user           dataset1     200
 reviewer_user              dataset1     200
 viewer_user                dataset1     200
-schema1_viewer             dataset1     200
-schema1_editor             dataset1     200
-schema1_admin              dataset1     200
-schema1_viewer_group_user  dataset1     200
-schema1_editor_group_user  dataset1     200
-schema1_admin_group_user   dataset1     200
+dataset1_viewer            dataset1     200
+dataset1_editor            dataset1     200
+dataset1_admin             dataset1     200
+dataset1_viewer_group_user dataset1     200
+dataset1_editor_group_user dataset1     200
+dataset1_admin_group_user  dataset1     200
 
 # No access to dataset
 admin_user                 dataset2     404
 super_admin_user           dataset2     404
 reviewer_user              dataset2     404
 viewer_user                dataset2     404
-schema1_viewer             dataset2     404
-schema1_editor             dataset2     404
-schema1_admin              dataset2     404
-schema1_viewer_group_user  dataset2     404
-schema1_editor_group_user  dataset2     404
-schema1_admin_group_user   dataset2     404
+dataset1_viewer            dataset2     404
+dataset1_editor            dataset2     404
+dataset1_admin             dataset2     404
+dataset1_viewer_group_user dataset2     404
+dataset1_editor_group_user dataset2     404
+dataset1_admin_group_user  dataset2     404
 
 # No access to endpoint
 regular_user               dataset1     403
@@ -587,18 +588,18 @@ reviewer_user              data_point1    +               +
 reviewer_user              data_point2    +               -
 viewer_user                data_point1    +               +
 viewer_user                data_point2    +               -
-schema1_viewer             data_point1    +               +
-schema1_viewer             data_point2    +               -
-schema1_editor             data_point1    +               +
-schema1_editor             data_point2    +               -
-schema1_admin              data_point1    +               +
-schema1_admin              data_point2    +               -
-schema1_viewer_group_user  data_point1    +               +
-schema1_viewer_group_user  data_point2    +               -
-schema1_editor_group_user  data_point1    +               +
-schema1_editor_group_user  data_point2    +               -
-schema1_admin_group_user   data_point1    +               +
-schema1_admin_group_user   data_point2    +               -
+dataset1_viewer            data_point1    +               +
+dataset1_viewer            data_point2    +               -
+dataset1_editor            data_point1    +               +
+dataset1_editor            data_point2    +               -
+dataset1_admin             data_point1    +               +
+dataset1_admin             data_point2    +               -
+dataset1_viewer_group_user data_point1    +               +
+dataset1_viewer_group_user data_point2    +               -
+dataset1_editor_group_user data_point1    +               +
+dataset1_editor_group_user data_point2    +               -
+dataset1_admin_group_user  data_point1    +               +
+dataset1_admin_group_user  data_point2    +               -
 regular_user               data_point1    -               -
 regular_user               data_point2    -               -
 """)
@@ -628,14 +629,14 @@ user_key                   dataset_key  expected_status
 superuser                  dataset1     201
 admin_user                 dataset1     201
 super_admin_user           dataset1     201
-schema1_editor             dataset1     201
-schema1_admin              dataset1     201
-schema1_editor_group_user  dataset1     201
-schema1_admin_group_user   dataset1     201
+dataset1_editor            dataset1     201
+dataset1_admin             dataset1     201
+dataset1_editor_group_user dataset1     201
+dataset1_admin_group_user  dataset1     201
 reviewer_user              dataset1     403
 viewer_user                dataset1     403
-schema1_viewer             dataset1     403
-schema1_viewer_group_user  dataset1     403
+dataset1_viewer            dataset1     403
+dataset1_viewer_group_user dataset1     403
 regular_user               dataset1     403
 """)
 )
@@ -678,26 +679,26 @@ superuser                  data_point2    200
 superuser                  data_point1    200
 admin_user                 data_point1    200
 super_admin_user           data_point1    200
-schema1_editor             data_point1    200
-schema1_admin              data_point1    200
-schema1_editor_group_user  data_point1    200
-schema1_admin_group_user   data_point1    200
+dataset1_editor            data_point1    200
+dataset1_admin             data_point1    200
+dataset1_editor_group_user data_point1    200
+dataset1_admin_group_user  data_point1    200
 
 # No write access to data_point1
 reviewer_user              data_point1    403
 viewer_user                data_point1    403
-schema1_viewer             data_point1    403
-schema1_viewer_group_user  data_point1    403
+dataset1_viewer            data_point1    403
+dataset1_viewer_group_user data_point1    403
 
 # No access to data_point2 ( parent not visible )
 admin_user                 data_point2    404
 super_admin_user           data_point2    404
-schema1_editor             data_point2    404
-schema1_admin              data_point2    404
-schema1_editor_group_user  data_point2    404
-schema1_admin_group_user   data_point2    404
-schema1_viewer             data_point2    404
-schema1_viewer_group_user  data_point2    404
+dataset1_editor            data_point2    404
+dataset1_admin             data_point2    404
+dataset1_editor_group_user data_point2    404
+dataset1_admin_group_user  data_point2    404
+dataset1_viewer            data_point2    404
+dataset1_viewer_group_user data_point2    404
 
 # No access to endpoint
 reviewer_user              data_point2    403
@@ -747,26 +748,26 @@ superuser                  data_point1    +               +
 superuser                  data_point2    +               +
 admin_user                 data_point1    +               +
 super_admin_user           data_point1    +               +
-schema1_admin              data_point1    +               +
-schema1_admin_group_user   data_point1    +               +
+dataset1_admin             data_point1    +               +
+dataset1_admin_group_user  data_point1    +               +
 
 admin_user                 data_point2    +               -
 super_admin_user           data_point2    +               -
-schema1_admin              data_point2    +               -
-schema1_admin_group_user   data_point2    +               -
+dataset1_admin             data_point2    +               -
+dataset1_admin_group_user  data_point2    +               -
 
 reviewer_user              data_point1    -               -
 reviewer_user              data_point2    -               -
 viewer_user                data_point1    -               -
 viewer_user                data_point2    -               -
-schema1_viewer             data_point1    -               -
-schema1_viewer             data_point2    +               -
-schema1_editor             data_point1    -               -
-schema1_editor             data_point2    +               -
-schema1_viewer_group_user  data_point1    -               -
-schema1_viewer_group_user  data_point2    +               -
-schema1_editor_group_user  data_point1    -               -
-schema1_editor_group_user  data_point2    +               -
+dataset1_viewer            data_point1    -               -
+dataset1_viewer            data_point2    +               -
+dataset1_editor            data_point1    -               -
+dataset1_editor            data_point2    +               -
+dataset1_viewer_group_user data_point1    -               -
+dataset1_viewer_group_user data_point2    +               -
+dataset1_editor_group_user data_point1    -               -
+dataset1_editor_group_user data_point2    +               -
 regular_user               data_point1    -               -
 regular_user               data_point2    -               -
 """)
@@ -801,12 +802,12 @@ admin_user                 data_point1     200
 super_admin_user           data_point1     200
 reviewer_user              data_point1     200
 viewer_user                data_point1     200
-schema1_viewer             data_point1     200
-schema1_editor             data_point1     200
-schema1_admin              data_point1     200
-schema1_viewer_group_user  data_point1     200
-schema1_editor_group_user  data_point1     200
-schema1_admin_group_user   data_point1     200
+dataset1_viewer            data_point1     200
+dataset1_editor            data_point1     200
+dataset1_admin             data_point1     200
+dataset1_viewer_group_user data_point1     200
+dataset1_editor_group_user data_point1     200
+dataset1_admin_group_user  data_point1     200
 
 # Access to data_point2 (instance2)
 superuser                  data_point2     200
@@ -816,12 +817,12 @@ admin_user                 data_point2     404
 super_admin_user           data_point2     404
 reviewer_user              data_point2     404
 viewer_user                data_point2     404
-schema1_viewer             data_point2     404
-schema1_editor             data_point2     404
-schema1_admin              data_point2     404
-schema1_viewer_group_user  data_point2     404
-schema1_editor_group_user  data_point2     404
-schema1_admin_group_user   data_point2     404
+dataset1_viewer            data_point2     404
+dataset1_editor            data_point2     404
+dataset1_admin             data_point2     404
+dataset1_viewer_group_user data_point2     404
+dataset1_editor_group_user data_point2     404
+dataset1_admin_group_user  data_point2     404
 
 # No access to endpoint
 regular_user               data_point1     403
@@ -852,12 +853,12 @@ admin_user                 comment1     200
 super_admin_user           comment1     200
 reviewer_user              comment1     200
 viewer_user                comment1     200
-schema1_viewer             comment1     200
-schema1_editor             comment1     200
-schema1_admin              comment1     200
-schema1_viewer_group_user  comment1     200
-schema1_editor_group_user  comment1     200
-schema1_admin_group_user   comment1     200
+dataset1_viewer            comment1     200
+dataset1_editor            comment1     200
+dataset1_admin             comment1     200
+dataset1_viewer_group_user comment1     200
+dataset1_editor_group_user comment1     200
+dataset1_admin_group_user  comment1     200
 
 # Access to comment2 (on data_point2, instance2)
 superuser                  comment2     200
@@ -867,12 +868,12 @@ admin_user                 comment2     404
 super_admin_user           comment2     404
 reviewer_user              comment2     404
 viewer_user                comment2     404
-schema1_viewer             comment2     404
-schema1_editor             comment2     404
-schema1_admin              comment2     404
-schema1_viewer_group_user  comment2     404
-schema1_editor_group_user  comment2     404
-schema1_admin_group_user   comment2     404
+dataset1_viewer            comment2     404
+dataset1_editor            comment2     404
+dataset1_admin             comment2     404
+dataset1_viewer_group_user comment2     404
+dataset1_editor_group_user comment2     404
+dataset1_admin_group_user  comment2     404
 
 # No access to endpoint
 regular_user               comment1     403
@@ -904,29 +905,29 @@ superuser                  data_point1     201
 admin_user                 data_point1     201
 super_admin_user           data_point1     201
 reviewer_user              data_point1     201
-schema1_editor             data_point1     201
-schema1_admin              data_point1     201
-schema1_editor_group_user  data_point1     201
-schema1_admin_group_user   data_point1     201
+dataset1_editor            data_point1     201
+dataset1_admin             data_point1     201
+dataset1_editor_group_user data_point1     201
+dataset1_admin_group_user  data_point1     201
 
 # Access to data_point2 instance2
 superuser                  data_point2     201
 
 # No write access to data_point1
 viewer_user                data_point1     403
-schema1_viewer             data_point1     403
-schema1_viewer_group_user  data_point1     403
+dataset1_viewer            data_point1     403
+dataset1_viewer_group_user data_point1     403
 
 # No access to data_point2: parent not visible
 admin_user                 data_point2     404
 super_admin_user           data_point2     404
 reviewer_user              data_point2     404
-schema1_editor             data_point2     404
-schema1_admin              data_point2     404
-schema1_editor_group_user  data_point2     404
-schema1_admin_group_user   data_point2     404
-schema1_viewer             data_point2     404
-schema1_viewer_group_user  data_point2     404
+dataset1_editor            data_point2     404
+dataset1_admin             data_point2     404
+dataset1_editor_group_user data_point2     404
+dataset1_admin_group_user  data_point2     404
+dataset1_viewer            data_point2     404
+dataset1_viewer_group_user data_point2     404
 
 # No access to endpoint / method
 viewer_user                data_point2     403
@@ -971,8 +972,8 @@ user_key                   comment_key  expected_status
 superuser                  comment1     204
 admin_user                 comment1     204
 super_admin_user           comment1     204
-schema1_admin              comment1     204
-schema1_admin_group_user   comment1     204
+dataset1_admin             comment1     204
+dataset1_admin_group_user  comment1     204
 
 # Access to comment2 on data_point2 instance2
 superuser                  comment2     204
@@ -980,20 +981,20 @@ superuser                  comment2     204
 # No delete access to comment1
 reviewer_user              comment1     403
 viewer_user                comment1     403
-schema1_viewer             comment1     403
-schema1_editor             comment1     403
-schema1_viewer_group_user  comment1     403
-schema1_editor_group_user  comment1     403
+dataset1_viewer            comment1     403
+dataset1_editor            comment1     403
+dataset1_viewer_group_user comment1     403
+dataset1_editor_group_user comment1     403
 
 # No access to comment2 parent not visible
 admin_user                 comment2     404
 super_admin_user           comment2     404
-schema1_admin              comment2     404
-schema1_admin_group_user   comment2     404
-schema1_viewer             comment2     404
-schema1_editor             comment2     404
-schema1_viewer_group_user  comment2     404
-schema1_editor_group_user  comment2     404
+dataset1_admin             comment2     404
+dataset1_admin_group_user  comment2     404
+dataset1_viewer            comment2     404
+dataset1_editor            comment2     404
+dataset1_viewer_group_user comment2     404
+dataset1_editor_group_user comment2     404
 
 # No access to endpoint / method
 reviewer_user              comment2     403
@@ -1033,18 +1034,18 @@ reviewer_user              dataset1     200
 reviewer_user              dataset2     404
 viewer_user                dataset1     200
 viewer_user                dataset2     404
-schema1_viewer             dataset1     200
-schema1_viewer             dataset2     404
-schema1_editor             dataset1     200
-schema1_editor             dataset2     404
-schema1_admin              dataset1     200
-schema1_admin              dataset2     404
-schema1_viewer_group_user  dataset1     200
-schema1_viewer_group_user  dataset2     404
-schema1_editor_group_user  dataset1     200
-schema1_editor_group_user  dataset2     404
-schema1_admin_group_user   dataset1     200
-schema1_admin_group_user   dataset2     404
+dataset1_viewer            dataset1     200
+dataset1_viewer            dataset2     404
+dataset1_editor            dataset1     200
+dataset1_editor            dataset2     404
+dataset1_admin             dataset1     200
+dataset1_admin             dataset2     404
+dataset1_viewer_group_user dataset1     200
+dataset1_viewer_group_user dataset2     404
+dataset1_editor_group_user dataset1     200
+dataset1_editor_group_user dataset2     404
+dataset1_admin_group_user  dataset1     200
+dataset1_admin_group_user  dataset2     404
 regular_user               dataset1     403
 regular_user               dataset2     403
 """)
@@ -1090,12 +1091,12 @@ admin_user                 dataset1     200
 super_admin_user           dataset1     200
 reviewer_user              dataset1     200
 viewer_user                dataset1     200
-schema1_viewer             dataset1     200
-schema1_editor             dataset1     200
-schema1_admin              dataset1     200
-schema1_viewer_group_user  dataset1     200
-schema1_editor_group_user  dataset1     200
-schema1_admin_group_user   dataset1     200
+dataset1_viewer            dataset1     200
+dataset1_editor            dataset1     200
+dataset1_admin             dataset1     200
+dataset1_viewer_group_user dataset1     200
+dataset1_editor_group_user dataset1     200
+dataset1_admin_group_user  dataset1     200
 
 # Access to dataset2 (instance2)
 superuser                  dataset2     200
@@ -1105,12 +1106,12 @@ admin_user                 dataset2     404
 super_admin_user           dataset2     404
 reviewer_user              dataset2     404
 viewer_user                dataset2     404
-schema1_viewer             dataset2     404
-schema1_editor             dataset2     404
-schema1_admin              dataset2     404
-schema1_viewer_group_user  dataset2     404
-schema1_editor_group_user  dataset2     404
-schema1_admin_group_user   dataset2     404
+dataset1_viewer            dataset2     404
+dataset1_editor            dataset2     404
+dataset1_admin             dataset2     404
+dataset1_viewer_group_user dataset2     404
+dataset1_editor_group_user dataset2     404
+dataset1_admin_group_user  dataset2     404
 
 # No access to endpoint
 regular_user               dataset1     403
@@ -1141,12 +1142,12 @@ admin_user                 source_ref1     200
 super_admin_user           source_ref1     200
 reviewer_user              source_ref1     200
 viewer_user                source_ref1     200
-schema1_viewer             source_ref1     200
-schema1_editor             source_ref1     200
-schema1_admin              source_ref1     200
-schema1_viewer_group_user  source_ref1     200
-schema1_editor_group_user  source_ref1     200
-schema1_admin_group_user   source_ref1     200
+dataset1_viewer            source_ref1     200
+dataset1_editor            source_ref1     200
+dataset1_admin             source_ref1     200
+dataset1_viewer_group_user source_ref1     200
+dataset1_editor_group_user source_ref1     200
+dataset1_admin_group_user  source_ref1     200
 
 # Access to source_ref2 (on dataset2, instance2)
 superuser                  source_ref2     200
@@ -1156,12 +1157,12 @@ admin_user                 source_ref2     404
 super_admin_user           source_ref2     404
 reviewer_user              source_ref2     404
 viewer_user                source_ref2     404
-schema1_viewer             source_ref2     404
-schema1_editor             source_ref2     404
-schema1_admin              source_ref2     404
-schema1_viewer_group_user  source_ref2     404
-schema1_editor_group_user  source_ref2     404
-schema1_admin_group_user   source_ref2     404
+dataset1_viewer            source_ref2     404
+dataset1_editor            source_ref2     404
+dataset1_admin             source_ref2     404
+dataset1_viewer_group_user source_ref2     404
+dataset1_editor_group_user source_ref2     404
+dataset1_admin_group_user  source_ref2     404
 
 # No access to endpoint
 regular_user               source_ref1     403
@@ -1191,10 +1192,10 @@ user_key                   source_ref_key  expected_status
 superuser                  source_ref1     200
 admin_user                 source_ref1     200
 super_admin_user           source_ref1     200
-schema1_editor             source_ref1     200
-schema1_admin              source_ref1     200
-schema1_editor_group_user  source_ref1     200
-schema1_admin_group_user   source_ref1     200
+dataset1_editor            source_ref1     200
+dataset1_admin             source_ref1     200
+dataset1_editor_group_user source_ref1     200
+dataset1_admin_group_user  source_ref1     200
 
 # Access to source_ref2 (on dataset2, instance2)
 superuser                  source_ref2     200
@@ -1202,18 +1203,18 @@ superuser                  source_ref2     200
 # No write access to source_ref1
 reviewer_user              source_ref1     403
 viewer_user                source_ref1     403
-schema1_viewer             source_ref1     403
-schema1_viewer_group_user  source_ref1     403
+dataset1_viewer            source_ref1     403
+dataset1_viewer_group_user source_ref1     403
 
 # No access to source_ref2 (parent not visible)
 admin_user                 source_ref2     404
 super_admin_user           source_ref2     404
-schema1_editor             source_ref2     404
-schema1_admin              source_ref2     404
-schema1_editor_group_user  source_ref2     404
-schema1_admin_group_user   source_ref2     404
-schema1_viewer             source_ref2     404
-schema1_viewer_group_user  source_ref2     404
+dataset1_editor            source_ref2     404
+dataset1_admin             source_ref2     404
+dataset1_editor_group_user source_ref2     404
+dataset1_admin_group_user  source_ref2     404
+dataset1_viewer            source_ref2     404
+dataset1_viewer_group_user source_ref2     404
 
 # No access to endpoint
 reviewer_user              source_ref2     403
@@ -1260,10 +1261,10 @@ user_key                   dataset_key  expected_status
 superuser                  dataset1     201
 admin_user                 dataset1     201
 super_admin_user           dataset1     201
-schema1_editor             dataset1     201
-schema1_admin              dataset1     201
-schema1_editor_group_user  dataset1     201
-schema1_admin_group_user   dataset1     201
+dataset1_editor            dataset1     201
+dataset1_admin             dataset1     201
+dataset1_editor_group_user dataset1     201
+dataset1_admin_group_user  dataset1     201
 
 # Access to dataset2 (instance2)
 superuser                  dataset2     201
@@ -1271,18 +1272,18 @@ superuser                  dataset2     201
 # No write access to dataset1
 reviewer_user              dataset1     403
 viewer_user                dataset1     403
-schema1_viewer             dataset1     403
-schema1_viewer_group_user  dataset1     403
+dataset1_viewer            dataset1     403
+dataset1_viewer_group_user dataset1     403
 
 # No access to dataset2 (parent not visible)
 admin_user                 dataset2     404
 super_admin_user           dataset2     404
-schema1_editor             dataset2     404
-schema1_admin              dataset2     404
-schema1_editor_group_user  dataset2     404
-schema1_admin_group_user   dataset2     404
-schema1_viewer             dataset2     404
-schema1_viewer_group_user  dataset2     404
+dataset1_editor            dataset2     404
+dataset1_admin             dataset2     404
+dataset1_editor_group_user dataset2     404
+dataset1_admin_group_user  dataset2     404
+dataset1_viewer            dataset2     404
+dataset1_viewer_group_user dataset2     404
 
 # No access to endpoint
 reviewer_user              dataset2     403
@@ -1323,8 +1324,8 @@ user_key                   source_ref_key  expected_status
 superuser                  source_ref1     204
 admin_user                 source_ref1     204
 super_admin_user           source_ref1     204
-schema1_admin              source_ref1     204
-schema1_admin_group_user   source_ref1     204
+dataset1_admin             source_ref1     204
+dataset1_admin_group_user  source_ref1     204
 
 # Access to source_ref2 on dataset2 instance2
 superuser                  source_ref2     204
@@ -1332,20 +1333,20 @@ superuser                  source_ref2     204
 # No delete access to source_ref1
 reviewer_user              source_ref1     403
 viewer_user                source_ref1     403
-schema1_viewer             source_ref1     403
-schema1_editor             source_ref1     403
-schema1_viewer_group_user  source_ref1     403
-schema1_editor_group_user  source_ref1     403
+dataset1_viewer            source_ref1     403
+dataset1_editor            source_ref1     403
+dataset1_viewer_group_user source_ref1     403
+dataset1_editor_group_user source_ref1     403
 
 # No access to source_ref2 parent not visible
 admin_user                 source_ref2     404
 super_admin_user           source_ref2     404
-schema1_admin              source_ref2     404
-schema1_admin_group_user   source_ref2     404
-schema1_viewer             source_ref2     404
-schema1_editor             source_ref2     404
-schema1_viewer_group_user  source_ref2     404
-schema1_editor_group_user  source_ref2     404
+dataset1_admin             source_ref2     404
+dataset1_admin_group_user  source_ref2     404
+dataset1_viewer            source_ref2     404
+dataset1_editor            source_ref2     404
+dataset1_viewer_group_user source_ref2     404
+dataset1_editor_group_user source_ref2     404
 
 # No access to endpoint / method
 reviewer_user              source_ref2     403
@@ -1381,12 +1382,12 @@ admin_user                 data_point1     200
 super_admin_user           data_point1     200
 reviewer_user              data_point1     200
 viewer_user                data_point1     200
-schema1_viewer             data_point1     200
-schema1_editor             data_point1     200
-schema1_admin              data_point1     200
-schema1_viewer_group_user  data_point1     200
-schema1_editor_group_user  data_point1     200
-schema1_admin_group_user   data_point1     200
+dataset1_viewer            data_point1     200
+dataset1_editor            data_point1     200
+dataset1_admin             data_point1     200
+dataset1_viewer_group_user data_point1     200
+dataset1_editor_group_user data_point1     200
+dataset1_admin_group_user  data_point1     200
 
 # Access to data_point2 (instance2)
 superuser                  data_point2     200
@@ -1396,12 +1397,12 @@ admin_user                 data_point2     404
 super_admin_user           data_point2     404
 reviewer_user              data_point2     404
 viewer_user                data_point2     404
-schema1_viewer             data_point2     404
-schema1_editor             data_point2     404
-schema1_admin              data_point2     404
-schema1_viewer_group_user  data_point2     404
-schema1_editor_group_user  data_point2     404
-schema1_admin_group_user   data_point2     404
+dataset1_viewer            data_point2     404
+dataset1_editor            data_point2     404
+dataset1_admin             data_point2     404
+dataset1_viewer_group_user data_point2     404
+dataset1_editor_group_user data_point2     404
+dataset1_admin_group_user  data_point2     404
 
 # No access to endpoint
 regular_user               data_point1     403
@@ -1433,12 +1434,12 @@ admin_user                 source_ref_on_datapoint     200
 super_admin_user           source_ref_on_datapoint     200
 reviewer_user              source_ref_on_datapoint     200
 viewer_user                source_ref_on_datapoint     200
-schema1_viewer             source_ref_on_datapoint     200
-schema1_editor             source_ref_on_datapoint     200
-schema1_admin              source_ref_on_datapoint     200
-schema1_viewer_group_user  source_ref_on_datapoint     200
-schema1_editor_group_user  source_ref_on_datapoint     200
-schema1_admin_group_user   source_ref_on_datapoint     200
+dataset1_viewer            source_ref_on_datapoint     200
+dataset1_editor            source_ref_on_datapoint     200
+dataset1_admin             source_ref_on_datapoint     200
+dataset1_viewer_group_user source_ref_on_datapoint     200
+dataset1_editor_group_user source_ref_on_datapoint     200
+dataset1_admin_group_user  source_ref_on_datapoint     200
 
 # Access to source_ref_on_datapoint2 (on data_point2, instance2)
 superuser                  source_ref_on_datapoint2    200
@@ -1448,12 +1449,12 @@ admin_user                 source_ref_on_datapoint2    404
 super_admin_user           source_ref_on_datapoint2    404
 reviewer_user              source_ref_on_datapoint2    404
 viewer_user                source_ref_on_datapoint2    404
-schema1_viewer             source_ref_on_datapoint2    404
-schema1_editor             source_ref_on_datapoint2    404
-schema1_admin              source_ref_on_datapoint2    404
-schema1_viewer_group_user  source_ref_on_datapoint2    404
-schema1_editor_group_user  source_ref_on_datapoint2    404
-schema1_admin_group_user   source_ref_on_datapoint2    404
+dataset1_viewer            source_ref_on_datapoint2    404
+dataset1_editor            source_ref_on_datapoint2    404
+dataset1_admin             source_ref_on_datapoint2    404
+dataset1_viewer_group_user source_ref_on_datapoint2    404
+dataset1_editor_group_user source_ref_on_datapoint2    404
+dataset1_admin_group_user  source_ref_on_datapoint2    404
 
 # No access to endpoint
 regular_user               source_ref_on_datapoint     403
@@ -1486,10 +1487,10 @@ user_key                   source_ref_key              expected_status
 superuser                  source_ref_on_datapoint     200
 admin_user                 source_ref_on_datapoint     200
 super_admin_user           source_ref_on_datapoint     200
-schema1_editor             source_ref_on_datapoint     200
-schema1_admin              source_ref_on_datapoint     200
-schema1_editor_group_user  source_ref_on_datapoint     200
-schema1_admin_group_user   source_ref_on_datapoint     200
+dataset1_editor            source_ref_on_datapoint     200
+dataset1_admin             source_ref_on_datapoint     200
+dataset1_editor_group_user source_ref_on_datapoint     200
+dataset1_admin_group_user  source_ref_on_datapoint     200
 
 # Access to source_ref_on_datapoint2 (on data_point2, instance2)
 superuser                  source_ref_on_datapoint2    200
@@ -1497,18 +1498,18 @@ superuser                  source_ref_on_datapoint2    200
 # No write access to source_ref_on_datapoint
 reviewer_user              source_ref_on_datapoint     403
 viewer_user                source_ref_on_datapoint     403
-schema1_viewer             source_ref_on_datapoint     403
-schema1_viewer_group_user  source_ref_on_datapoint     403
+dataset1_viewer            source_ref_on_datapoint     403
+dataset1_viewer_group_user source_ref_on_datapoint     403
 
 # No access to source_ref_on_datapoint2 (parent not visible)
 admin_user                 source_ref_on_datapoint2    404
 super_admin_user           source_ref_on_datapoint2    404
-schema1_editor             source_ref_on_datapoint2    404
-schema1_admin              source_ref_on_datapoint2    404
-schema1_editor_group_user  source_ref_on_datapoint2    404
-schema1_admin_group_user   source_ref_on_datapoint2    404
-schema1_viewer             source_ref_on_datapoint2    404
-schema1_viewer_group_user  source_ref_on_datapoint2    404
+dataset1_editor            source_ref_on_datapoint2    404
+dataset1_admin             source_ref_on_datapoint2    404
+dataset1_editor_group_user source_ref_on_datapoint2    404
+dataset1_admin_group_user  source_ref_on_datapoint2    404
+dataset1_viewer            source_ref_on_datapoint2    404
+dataset1_viewer_group_user source_ref_on_datapoint2    404
 
 # No access to endpoint
 reviewer_user              source_ref_on_datapoint2    403
@@ -1560,10 +1561,10 @@ user_key                   data_point_key  expected_status
 superuser                  data_point1     201
 admin_user                 data_point1     201
 super_admin_user           data_point1     201
-schema1_editor             data_point1     201
-schema1_admin              data_point1     201
-schema1_editor_group_user  data_point1     201
-schema1_admin_group_user   data_point1     201
+dataset1_editor            data_point1     201
+dataset1_admin             data_point1     201
+dataset1_editor_group_user data_point1     201
+dataset1_admin_group_user  data_point1     201
 
 # Access to data_point2 (instance2)
 superuser                  data_point2     201
@@ -1571,18 +1572,18 @@ superuser                  data_point2     201
 # No write access to data_point1
 reviewer_user              data_point1     403
 viewer_user                data_point1     403
-schema1_viewer             data_point1     403
-schema1_viewer_group_user  data_point1     403
+dataset1_viewer            data_point1     403
+dataset1_viewer_group_user data_point1     403
 
 # No access to data_point2 (parent not visible)
 admin_user                 data_point2     404
 super_admin_user           data_point2     404
-schema1_editor             data_point2     404
-schema1_admin              data_point2     404
-schema1_editor_group_user  data_point2     404
-schema1_admin_group_user   data_point2     404
-schema1_viewer             data_point2     404
-schema1_viewer_group_user  data_point2     404
+dataset1_editor            data_point2     404
+dataset1_admin             data_point2     404
+dataset1_editor_group_user data_point2     404
+dataset1_admin_group_user  data_point2     404
+dataset1_viewer            data_point2     404
+dataset1_viewer_group_user data_point2     404
 
 # No access to endpoint
 reviewer_user              data_point2     403
@@ -1652,14 +1653,14 @@ user_key                   expected_status
 superuser                  204
 admin_user                 204
 super_admin_user           204
-schema1_admin              204
-schema1_admin_group_user   204
+dataset1_admin             204
+dataset1_admin_group_user  204
 reviewer_user              403
 viewer_user                403
-schema1_viewer             403
-schema1_editor             403
-schema1_viewer_group_user  403
-schema1_editor_group_user  403
+dataset1_viewer            403
+dataset1_editor            403
+dataset1_viewer_group_user 403
+dataset1_editor_group_user 403
 regular_user               403
 """)
 )
@@ -1694,18 +1695,18 @@ reviewer_user              schema1     +               +
 reviewer_user              schema2     +               -
 viewer_user                schema1     +               +
 viewer_user                schema2     +               -
-schema1_viewer             schema1     +               +
-schema1_viewer             schema2     +               -
-schema1_editor             schema1     +               +
-schema1_editor             schema2     +               -
-schema1_admin              schema1     +               +
-schema1_admin              schema2     +               -
-schema1_viewer_group_user  schema1     +               +
-schema1_viewer_group_user  schema2     +               -
-schema1_editor_group_user  schema1     +               +
-schema1_editor_group_user  schema2     +               -
-schema1_admin_group_user   schema1     +               +
-schema1_admin_group_user   schema2     +               -
+dataset1_viewer            schema1     +               +
+dataset1_viewer            schema2     +               -
+dataset1_editor            schema1     +               +
+dataset1_editor            schema2     +               -
+dataset1_admin             schema1     +               +
+dataset1_admin             schema2     +               -
+dataset1_viewer_group_user schema1     +               +
+dataset1_viewer_group_user schema2     +               -
+dataset1_editor_group_user schema1     +               +
+dataset1_editor_group_user schema2     +               -
+dataset1_admin_group_user  schema1     +               +
+dataset1_admin_group_user  schema2     +               -
 regular_user               schema1     -               -
 regular_user               schema2     -               -
 """)
@@ -1741,18 +1742,18 @@ reviewer_user              metric1     +               +
 reviewer_user              metric2     +               -
 viewer_user                metric1     +               +
 viewer_user                metric2     +               -
-schema1_viewer             metric1     +               +
-schema1_viewer             metric2     +               -
-schema1_editor             metric1     +               +
-schema1_editor             metric2     +               -
-schema1_admin              metric1     +               +
-schema1_admin              metric2     +               -
-schema1_viewer_group_user  metric1     +               +
-schema1_viewer_group_user  metric2     +               -
-schema1_editor_group_user  metric1     +               +
-schema1_editor_group_user  metric2     +               -
-schema1_admin_group_user   metric1     +               +
-schema1_admin_group_user   metric2     +               -
+dataset1_viewer            metric1     +               +
+dataset1_viewer            metric2     +               -
+dataset1_editor            metric1     +               +
+dataset1_editor            metric2     +               -
+dataset1_admin             metric1     +               +
+dataset1_admin             metric2     +               -
+dataset1_viewer_group_user metric1     +               +
+dataset1_viewer_group_user metric2     +               -
+dataset1_editor_group_user metric1     +               +
+dataset1_editor_group_user metric2     +               -
+dataset1_admin_group_user  metric1     +               +
+dataset1_admin_group_user  metric2     +               -
 regular_user               metric1     -               -
 regular_user               metric2     -               -
 """)
@@ -1888,19 +1889,19 @@ regular_user     data_point2,data_point3 403
 
 # Test object-level permissions
 # Data points of dataset2 (schema2, instance2)
-schema1_admin    data_point3             404  # instance2 datasets not visible
-schema1_viewer   data_point3             404  # instance2 datasets not visible
-schema2_admin    data_point3             200
-schema2_viewer   data_point3             403  # dataset visible, but no write access
-schema3_admin    data_point3             404  # schema2 datasets not visible
-schema3_viewer   data_point3             404  # schema2 datasets not visible
+dataset1_admin   data_point3             404  # instance2 datasets not visible
+dataset1_viewer  data_point3             404  # instance2 datasets not visible
+dataset2_admin   data_point3             200
+dataset2_viewer  data_point3             403  # dataset visible, but no write access
+dataset3_admin   data_point3             404  # schema2 datasets not visible
+dataset3_viewer  data_point3             404  # schema2 datasets not visible
 # Data points of dataset3 (schema3, instance2)
-schema1_admin    data_point4             404  # instance2 datasets not visible
-schema1_viewer   data_point4             404  # instance2 datasets not visible
-schema2_admin    data_point4             404  # schema3 datasets not visible
-schema2_viewer   data_point4             404  # schema3 datasets not visible
-schema3_admin    data_point4             200
-schema3_viewer   data_point4             403  # dataset visible, but no write access
+dataset1_admin   data_point4             404  # instance2 datasets not visible
+dataset1_viewer  data_point4             404  # instance2 datasets not visible
+dataset2_admin   data_point4             404  # schema3 datasets not visible
+dataset2_viewer  data_point4             404  # schema3 datasets not visible
+dataset3_admin   data_point4             200
+dataset3_viewer  data_point4             403  # dataset visible, but no write access
 
 # The following are the same as in test_datapoint_update
 # Access to data_point1 (instance1)

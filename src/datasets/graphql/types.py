@@ -540,6 +540,14 @@ class DatasetType(UserPermissionsMixin):
         model._schema_is_shared = annotated._schema_is_shared
         model._schema_has_other_datasets = annotated._schema_has_other_datasets
 
+    @sb.field(description='UUID of the node that owns this dataset, or null for instance datasets.')
+    @staticmethod
+    def owner_node_id(root: 'DatasetType') -> sb.ID | None:
+        if root._model is None:
+            return None
+        owner = root._model.scope_node
+        return sb.ID(str(owner.uuid)) if owner is not None else None
+
     @sb.field
     @staticmethod
     def name(root: 'DatasetType') -> str:

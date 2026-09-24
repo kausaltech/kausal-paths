@@ -27,12 +27,12 @@ def api_client():
         'super_admin_user',
         'reviewer_user',
         'viewer_user',
-        'schema1_viewer',
-        'schema1_editor',
-        'schema1_admin',
-        'schema1_viewer_group_user',
-        'schema1_editor_group_user',
-        'schema1_admin_group_user',
+        'dataset1_viewer',
+        'dataset1_editor',
+        'dataset1_admin',
+        'dataset1_viewer_group_user',
+        'dataset1_editor_group_user',
+        'dataset1_admin_group_user',
         'regular_user',
     ],
 )
@@ -47,12 +47,12 @@ def test_data_source_list(api_client, dataset_test_data, user_key):
         'super_admin_user',
         'reviewer_user',
         'viewer_user',
-        'schema1_viewer',
-        'schema1_editor',
-        'schema1_admin',
-        'schema1_viewer_group_user',
-        'schema1_editor_group_user',
-        'schema1_admin_group_user',
+        'dataset1_viewer',
+        'dataset1_editor',
+        'dataset1_admin',
+        'dataset1_viewer_group_user',
+        'dataset1_editor_group_user',
+        'dataset1_admin_group_user',
     ]:
         expected_data_sources = {'data_source1', 'data_source1_alternative'}
     else:
@@ -83,23 +83,23 @@ super_admin_user           data_source1              200
 reviewer_user              data_source1              200
 viewer_user                data_source1              200
 
-schema1_viewer             data_source1              200
-schema1_editor             data_source1              200
-schema1_admin              data_source1              200
-schema1_viewer_group_user  data_source1              200
-schema1_editor_group_user  data_source1              200
-schema1_admin_group_user   data_source1              200
+dataset1_viewer            data_source1              200
+dataset1_editor            data_source1              200
+dataset1_admin             data_source1              200
+dataset1_viewer_group_user data_source1              200
+dataset1_editor_group_user data_source1              200
+dataset1_admin_group_user  data_source1              200
 
 admin_user                 data_source2              404
 super_admin_user           data_source2              404
 reviewer_user              data_source2              404
 viewer_user                data_source2              404
-schema1_viewer             data_source2              404
-schema1_editor             data_source2              404
-schema1_admin              data_source2              404
-schema1_viewer_group_user  data_source2              404
-schema1_editor_group_user  data_source2              404
-schema1_admin_group_user   data_source2              404
+dataset1_viewer            data_source2              404
+dataset1_editor            data_source2              404
+dataset1_admin             data_source2              404
+dataset1_viewer_group_user data_source2              404
+dataset1_editor_group_user data_source2              404
+dataset1_admin_group_user  data_source2              404
 
 regular_user               data_source1              403
 regular_user               data_source2              403
@@ -130,24 +130,24 @@ super_admin_user           data_source1              200
 
 viewer_user                data_source1              403
 reviewer_user              data_source1              403
-schema1_viewer             data_source1              403
-schema1_editor             data_source1              403
-schema1_admin              data_source1              403
-schema1_viewer_group_user  data_source1              403
-schema1_editor_group_user  data_source1              403
-schema1_admin_group_user   data_source1              403
+dataset1_viewer            data_source1              403
+dataset1_editor            data_source1              403
+dataset1_admin             data_source1              403
+dataset1_viewer_group_user data_source1              403
+dataset1_editor_group_user data_source1              403
+dataset1_admin_group_user  data_source1              403
 regular_user               data_source1              403
 
 # TODO: the 403s below should be 404s to be consistent.
 # Leaving them be for now.
 viewer_user                data_source2              403
 reviewer_user              data_source2              403
-schema1_viewer             data_source2              403
-schema1_editor             data_source2              403
-schema1_admin              data_source2              403
-schema1_viewer_group_user  data_source2              403
-schema1_editor_group_user  data_source2              403
-schema1_admin_group_user   data_source2              403
+dataset1_viewer            data_source2              403
+dataset1_editor            data_source2              403
+dataset1_admin             data_source2              403
+dataset1_viewer_group_user data_source2              403
+dataset1_editor_group_user data_source2              403
+dataset1_admin_group_user  data_source2              403
 regular_user               data_source2              403
 
 admin_user                 data_source2              404
@@ -182,22 +182,22 @@ super_admin_user           data_source1_alternative       204
 
 reviewer_user              data_source1_alternative       403
 viewer_user                data_source1_alternative       403
-schema1_viewer             data_source1_alternative       403
-schema1_editor             data_source1_alternative       403
-schema1_admin              data_source1_alternative       403
-schema1_viewer_group_user  data_source1_alternative       403
-schema1_editor_group_user  data_source1_alternative       403
-schema1_admin_group_user   data_source1_alternative       403
+dataset1_viewer            data_source1_alternative       403
+dataset1_editor            data_source1_alternative       403
+dataset1_admin             data_source1_alternative       403
+dataset1_viewer_group_user data_source1_alternative       403
+dataset1_editor_group_user data_source1_alternative       403
+dataset1_admin_group_user  data_source1_alternative       403
 regular_user               data_source1_alternative       403
 
 reviewer_user              data_source2                   403
 viewer_user                data_source2                   403
-schema1_viewer             data_source2                   403
-schema1_editor             data_source2                   403
-schema1_admin              data_source2                   403
-schema1_viewer_group_user  data_source2                   403
-schema1_editor_group_user  data_source2                   403
-schema1_admin_group_user   data_source2                   403
+dataset1_viewer            data_source2                   403
+dataset1_editor            data_source2                   403
+dataset1_admin             data_source2                   403
+dataset1_viewer_group_user data_source2                   403
+dataset1_editor_group_user data_source2                   403
+dataset1_admin_group_user  data_source2                   403
 regular_user               data_source2                   403
 """)
 )

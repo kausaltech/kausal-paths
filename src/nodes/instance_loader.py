@@ -1710,13 +1710,15 @@ class InstanceLoader:
                 self.db_datasets = {}
                 return
             self.instance.config = ic
+        # Keyed by the binding's runtime dataset id: the identifier, or the uuid of a
+        # node-owned dataset, which has none.
         ds_objs = list(
             DBDatasetModel.objects.qs
-            .for_instance_config(ic)
-            .filter(is_external_placeholder=False, identifier__isnull=False)
+            .governed_by_instance(ic)
+            .filter(is_external_placeholder=False)
             .only('uuid', 'identifier', 'last_modified_at', 'spec', 'is_external_placeholder')
         )
-        self.db_datasets = {cast('str', ds.identifier): ds for ds in ds_objs}
+        self.db_datasets = {ds.identifier or str(ds.uuid): ds for ds in ds_objs}
         from datasets.materialization import ensure_dataset_materializations
         from datasets.payloads import CurrentDatasetPayloadStore, DatasetPayloadRef
 
@@ -1727,18 +1729,17 @@ class InstanceLoader:
             materialization = by_dataset.get(dataset.pk)
             if materialization is None:
                 raise RuntimeError(f'Dataset {dataset.uuid} could not be materialized')
-            assert dataset.identifier is not None
             ref = DatasetPayloadRef(
                 payload_id=materialization.pk,
                 dataset_pk=dataset.pk,
                 dataset_uuid=str(dataset.uuid),
-                identifier=dataset.identifier,
+                identifier=dataset.identifier or str(dataset.uuid),
                 content_hash=materialization.content_hash,
                 generation=materialization.generation,
                 forecast_from=materialization.forecast_from,
             )
             refs.append(ref)
-            self.db_dataset_refs[dataset.identifier] = ref
+            self.db_dataset_refs[ref.identifier] = ref
         if self.snapshot.template_revision_id is not None:
             from datasets.payloads import MixedDatasetPayloadStore
 
@@ -1877,12 +1878,12 @@ class InstanceLoader:
 
         graph_snapshot = snapshot
         is_yaml = getattr(self, 'yaml_file_path', None) is not None
-        if is_yaml or not snapshot.datasets:
-            catalog = list(snapshot.datasets)
+        if is_yaml or not snapshot.all_datasets():
+            catalog = snapshot.all_datasets()
             if not catalog and self.instance_config is not None and not is_yaml:
                 from nodes.instance_serialization import build_instance_snapshot
 
-                catalog.extend(build_instance_snapshot(self.instance_config).datasets)
+                catalog.extend(build_instance_snapshot(self.instance_config).all_datasets())
 
             specs_by_node = {node.uuid: node.spec for node in snapshot.nodes if node.spec is not None}
             datasets_by_id = {dataset.id: dataset for dataset in catalog}

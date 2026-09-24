@@ -79,7 +79,12 @@ if TYPE_CHECKING:
 #       replaces the ``edges`` + ``dataset_ports`` arrays.
 #   v10: action groups have stable UUIDs and action node group references
 #        use those UUIDs instead of human-readable identifiers.
-SNAPSHOT_SCHEMA_VERSION = 11
+#   v11: bindings are unified ``InputBindingSnapshot`` entries instead of
+#        kind-discriminated edge/dataset-port payloads.
+#   v12: ``NodeSnapshot.datasets`` holds the catalog entries of the datasets a
+#        node owns; ``InstanceSnapshot.datasets`` keeps the instance's own. Older
+#        snapshots have no node-owned datasets, so the default ``[]`` upgrades them.
+SNAPSHOT_SCHEMA_VERSION = 12
 
 _MARKDOWN = MarkdownIt('commonmark', {'html': True})
 
@@ -125,6 +130,8 @@ class NodeSnapshot(ModelSnapshot['NodeConfig']):
     published serving doesn't lose (or leak drafts of) body content."""
     spec: NodeSpec | None = None
     layout: NodeLayoutSnapshot | None = None
+    datasets: list[DatasetMeta] = Field(default_factory=list)
+    """Catalog entries of the datasets this node owns; they are internal to it and travel with it."""
 
     @field_validator('short_description')
     @classmethod
@@ -810,6 +817,10 @@ class InstanceSnapshot(BaseModel):
 
     model_config = {'arbitrary_types_allowed': True}
 
+    def all_datasets(self) -> list[DatasetMeta]:
+        """Return the instance's own catalog entries followed by those of the datasets its nodes own."""
+        return [*self.datasets, *(dataset for node in self.nodes for dataset in node.datasets)]
+
     @property
     def edge_bindings(self) -> list[InputBindingSnapshot]:
         return [b for b in self.bindings if isinstance(b.source, NodePortSource)]
@@ -979,7 +990,8 @@ def build_instance_snapshot(
     node_qs = (
         ic.nodes.get_queryset().active().with_spec().select_related('indicator_node', 'copy_of', 'layout').order_by('order', 'pk')
     )
-    nodes = [NodeSnapshot.from_model(nc, primary_language=ic.primary_language) for nc in node_qs]
+    node_configs = list(node_qs)
+    nodes = [NodeSnapshot.from_model(nc, primary_language=ic.primary_language) for nc in node_configs]
     _check_spec_is_not_yaml_minimal(ic, nodes)
 
     bindings: list[InputBindingSnapshot] = []
@@ -1021,11 +1033,13 @@ def build_instance_snapshot(
         )
 
     dimensions = _dimension_catalog_for(ic)
-    datasets = _dataset_catalog_for(
+    datasets, owned_datasets = _dataset_catalog_for(
         ic,
         dataset_ids=dataset_ids,
         dataset_revision_pins=dataset_revision_pins,
+        node_uuids={nc.pk: nc.uuid for nc in node_configs},
     )
+    nodes = [node.model_copy(update={'datasets': owned_datasets.get(node.uuid, [])}) for node in nodes]
 
     snapshot = InstanceSnapshot(
         metadata=InstanceMetadata.from_model(ic),
@@ -1082,27 +1096,43 @@ def _dataset_catalog_for(
     *,
     dataset_ids: set[int],
     dataset_revision_pins: dict[int, DatasetRevisionPinSnapshot] | None,
-) -> list[DatasetMeta]:
+    node_uuids: dict[int, UUID],
+) -> tuple[list[DatasetMeta], dict[UUID, list[DatasetMeta]]]:
+    """
+    Catalog the bound datasets and every dataset the nodes own.
+
+    Returns the instance-level entries and, per node uuid, the node-owned ones. A node's
+    datasets are listed whether bound or not: they belong to the node.
+    """
+    from django.contrib.contenttypes.models import ContentType
+
     from kausal_common.datasets.models import Dataset as DatasetModel
 
+    from nodes.models import NodeConfig
+
+    node_ct = ContentType.objects.get_for_model(NodeConfig)
     datasets = (
         DatasetModel.objects
-        .filter(pk__in=dataset_ids)
+        .filter(Q(pk__in=dataset_ids) | Q(scope_content_type=node_ct, scope_id__in=node_uuids.keys()))
         .select_related('schema')
         .prefetch_related('schema__metrics__validation_rules', 'schema__dimensions__dimension')
         .order_by('pk')
     )
-    result: list[DatasetMeta] = []
+    instance_level: list[DatasetMeta] = []
+    owned: dict[UUID, list[DatasetMeta]] = {}
     for dataset in datasets:
         pin = dataset_revision_pins.get(dataset.pk) if dataset_revision_pins is not None else None
-        result.append(
-            dataset_meta_from_model(
-                dataset,
-                primary_language=ic.primary_language,
-                pinned_revision_id=pin.revision_id if pin is not None else None,
-            )
+        meta = dataset_meta_from_model(
+            dataset,
+            primary_language=ic.primary_language,
+            pinned_revision_id=pin.revision_id if pin is not None else None,
         )
-    return result
+        owner = node_uuids.get(dataset.scope_id) if dataset.scope_content_type_id == node_ct.pk else None
+        if owner is not None:
+            owned.setdefault(owner, []).append(meta)
+        else:
+            instance_level.append(meta)
+    return instance_level, owned
 
 
 def binding_qs_for(ic: InstanceConfig) -> QuerySet[NodeInputPortBinding]:
