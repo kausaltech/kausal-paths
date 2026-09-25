@@ -119,14 +119,19 @@ surfaces much later as `No metric <column> in dataset <id>` from
   `dataset_status` (below) which ones need naming.
 - **An index column no dimension resolves.** `sync_dimensions` looks every index
   column up in `ctx.dimensions`, so a dataset carrying a raw key column dies with
-  a bare `KeyError: '<column>'` partway through. That is not a fault to fix in the
-  dataset: some datasets keep a raw key on purpose — `mainz/municipal_building_energy`
-  and `mainz/municipal_water_use` carry `we_from`/`we_to` so a reader can re-derive
-  the property-group assignment instead of inheriting it, and the BISKO transport
-  datasets carry `district`/`ags`. **These are DVC-only by design**: they stay
-  external placeholders, the model reads them straight from DVC, and they must be
-  left out of a `load_dvc_dataset` list rather than forced in. A city user cannot
-  edit them in the admin either, which is part of the same trade.
+  a bare `KeyError: '<column>'` partway through. Some datasets keep a raw key on
+  purpose — the BISKO transport datasets carry `district`/`ags`. **These are DVC-only by
+  design**: they stay external placeholders, the model reads them straight from DVC, and
+  they must be left out of a `load_dvc_dataset` list rather than forced in. A city user
+  cannot edit them in the admin either, which is part of the same trade.
+
+  Weigh that trade before adding such a column. The Mainz property-record datasets
+  (`mainz/municipal_building_energy`, `mainz/municipal_water_use`) used to carry the
+  source's raw WE ranges as `we_from`/`we_to`, and that locked the building office out
+  of the one dataset it was meant to maintain. Since 25 Sep 2026 the producer sums the
+  ranges into their property group and names them in each row's comment. The per-range
+  detail stays reproducible from the source and the producer script, and the datasets
+  import normally.
 
   Each dataset syncs inside its own transaction, so a failure here rolls that one
   back and leaves the datasets already processed committed — re-run without the

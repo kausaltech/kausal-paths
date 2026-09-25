@@ -3,7 +3,7 @@ default_language: de
 supported_languages: [en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 82948008a5f0ae56f59e46f508e2e2190f401c02
+  commit: e112c5202e82092805d6e7ae387c0548c0190bdf
   dvc_remote: kausal-s3
 name_de: Treibhausgas-Monitor Mainz
 name_en: GHG Monitor Mainz
@@ -768,15 +768,15 @@ nodes:
 # Their only source is the Arqum workbook (2019-2021, carrier `not_defined`, 3-4 % of building
 # energy). The Gebäudewirtschaft's SAP records, which carry every other property from 2010 to
 # 2023, do not contain them: the office meters what it manages, and a rented property is
-# billed through service charges. So from 2022 they are carried forward (`extend`), and that
-# is right -- a gap, not a zero.
+# billed through service charges. From 2022 the dataset holds an estimate (grade B, source
+# `Kausal Schätzung Verwaltungsbilanz Mainz 2022-2024`): 2021 scaled by the heat trend of the
+# owned properties. See `extract_verwaltung.estimate_later_years` in paths-data.
 #
 # Why separate nodes: the UI draws one forecast boundary per node, at the first year in which
 # any row is forecast. As a second binding of `municipal_building_energy` they made the whole
 # building branch read as forecast from 2022, hiding two years of measured SAP data behind
-# 3-4 % of carried-forward energy. Here, the building branch shows as measured to 2023 and
-# the carried figure is visible as what it is. The two totals still show 2022+ as forecast,
-# and should: they contain it.
+# 3-4 % of carried-forward energy. As a node of their own, their different source and grade
+# stay visible instead of being averaged into the building figure.
 #
 # It cannot hang *under* the building energy node instead, because the forecast flag passes
 # through an addition. It has to meet the other branches at the totals.
@@ -794,14 +794,16 @@ nodes:
     Wärme der von der Stadtverwaltung angemieteten Liegenschaften. Sie werden über die
     Nebenkosten abgerechnet und sind deshalb nicht in den Verbrauchsdaten der
     Gebäudewirtschaft enthalten; der Energieträger ist meist nicht bekannt.<br/>
-    Erhoben sind sie nur in der Verwaltungsbilanz 2019–2021 (Arqum). Ab 2022 wird der Wert
-    von 2021 fortgeschrieben, bis neue Daten vorliegen.
+    Erhoben sind sie nur in der Verwaltungsbilanz 2019–2021 (Arqum). Ab 2022 sind sie
+    geschätzt: der Wert von 2021, fortgeschrieben mit der Entwicklung des Wärmeverbrauchs der
+    eigenen Liegenschaften. Die Schätzung wird ersetzt, sobald Daten vorliegen.
   description_en: |
     Heat for the properties the city administration rents. They are billed through service
     charges, so the building management office's consumption records do not include them,
     and the energy carrier is usually unknown.<br/>
-    They were surveyed only in the 2019–2021 administration balance (Arqum). From 2022 the
-    2021 value is carried forward until new data arrives.
+    They were surveyed only in the 2019–2021 administration balance (Arqum). From 2022 they
+    are estimated: the 2021 value, carried forward with the trend in heat use of the city's
+    own properties. The estimate is replaced as soon as data arrives.
   type: generic.GenericNode
   params:
     operations: add_datasets,split_dims,add,multiply
@@ -830,10 +832,10 @@ nodes:
   name_en: City administration rented properties emissions
   description_de: |
     Emissionen aus der Wärme der angemieteten Liegenschaften, mit den Emissionsfaktoren der
-    Verwaltungsbilanz. Ab 2022 fortgeschrieben, weil keine neueren Daten vorliegen.
+    Verwaltungsbilanz. Ab 2022 geschätzt, weil keine neueren Daten vorliegen.
   description_en: |
     Emissions from heating the rented properties, using the administration balance's emission
-    factors. Carried forward from 2022, because no newer data exists.
+    factors. Estimated from 2022, because no newer data exists.
   color: '#F06292'
   type: simple.MultiplicativeNode2
   quantity: emissions

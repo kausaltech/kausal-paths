@@ -75,16 +75,19 @@ datasets:
 - id: gpc/municipal_balance_activity
   is_editable: true
 
-# The building-management records. Not editable, and not editable in a second sense: they
-# carry `we_from`/`we_to` as raw index columns, which no dimension resolves, so
-# `load_dvc_dataset` cannot import them into the database at all and they stay external
-# DVC placeholders. That is the accepted price of keeping the property key that lets a
-# reader re-derive the group assignment instead of inheriting it. See the city's own
-# property-record extractor.
+# The building-management records, one row per property group, carrier and year. Editable,
+# because this is where the building management office enters a year the city's export has
+# not reached yet.
+#
+# Until 25 Sep 2026 they carried the source's raw property key as `we_from`/`we_to` index
+# columns. No dimension resolves those, so `load_dvc_dataset` could not import the datasets
+# into the database and nobody could edit them. The key now lives where it is reproducible:
+# the city's extractor sums the ranges into their group and lists them in each row's
+# comment, and the original export stays in the city's data repository.
 - id: gpc/municipal_building_energy
-  is_editable: false
+  is_editable: true
 - id: gpc/municipal_water_use
-  is_editable: false
+  is_editable: true
 
 # Billed through the network operator and the roads department, not through the building
 # management office whose records `municipal_building_energy` comes from -- that node's filter
@@ -569,13 +572,6 @@ nodes:
       categories: [administrative_buildings, fire_and_civil_protection, schools,
                    cultural_facilities, childrens_youth_and_social_facilities,
                    day_care_centres, youth_centres]
-    # `flatten`, not a bare drop: several WE ranges share one property group -- fire and
-    # civil protection is 1700-1799 plus 1800-1899 -- so dropping without summing would
-    # leave two rows sharing an index instead of one row holding their sum.
-    - column: we_from
-      flatten: true
-    - column: we_to
-      flatten: true
 
   # **Rented properties (Mietliegenschaften) do not belong in this node.** The building
   # management records do not contain them -- the office meters what it manages, and a rented
@@ -653,8 +649,7 @@ nodes:
     # `flatten`, not `drop_col`, and the distinction is not cosmetic: dropping without
     # summing leaves two rows sharing an index, which is what made this node fail with
     # *aggregation 'item' expected no or a single value, got 2 values* while the
-    # installation was still buried in the comment prose. Same reason `we_from`/`we_to` are
-    # flattened rather than dropped in `municipal_building_energy`.
+    # installation was still buried in the comment prose.
     #
     # By dimension rather than by column: `installation` is a declared dimension, and it is
     # declared in the city's own config rather than here, since its categories are that city's
@@ -710,10 +705,28 @@ nodes:
   input_dimensions: [ghg_category, municipal_facility_type, emission_source]
   output_dimensions: [ghg_category, municipal_facility_type, emission_source]
   input_datasets:
+  # Two bindings of one dataset, split by what the rows are, because `extend` fills every
+  # series up to the *frame's* last historical year and flags the filled years as history. A
+  # city that estimates its refrigerant top-ups past its last survey -- Mainz does, to 2024 --
+  # would otherwise have its paper and waste carried forward as though they were measured.
+  # Split, each branch ends at its own last year and is flagged forecast from there.
   - id: gpc/municipal_balance_activity
     column: mass
     extend: true
     filters:
+    - dimension: ghg_category
+      categories: [fugitive_gases]
+    - column: energy_carrier
+    - column: vehicle_type
+    - column: scope
+  - id: gpc/municipal_balance_activity
+    column: mass
+    extend: true
+    filters:
+    # Stated as an inclusion, as the property-group filters are: a mass category added later
+    # has to be placed in one binding or the other, not swept into this one unseen.
+    - dimension: ghg_category
+      categories: [procurement, waste_and_water]
     - column: energy_carrier
     - column: vehicle_type
     - column: scope
@@ -808,10 +821,6 @@ nodes:
     # one water source, named, instead of a dimension quietly going missing.
     - dimension: emission_source
       assign_category: drinking_water
-    - column: we_from
-      flatten: true
-    - column: we_to
-      flatten: true
 
 # --------------------------------------------------------------------------------------
 # Emission factors
