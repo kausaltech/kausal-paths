@@ -109,14 +109,6 @@ dimensions:
     label: Pakettiauto
     label_en: Vans
 
-- id: streetlight_type
-  label: Streetlight Type
-  categories:
-  - id: incandescent
-    label: Incandescent
-  - id: led
-    label: LED
-
 - id: cost_type
   label: Kustannustyyppi
   label_en: Cost type
@@ -186,17 +178,6 @@ dimensions:
   - id: plusbus
     label: Plusbussi/Sähkö
     label_en: Plusbus/Electricity
-
-- id: road_type
-  label: Tietyyppi
-  label_en: Road type
-  categories:
-  - id: roads
-    label: Tiet
-    label_en: Roads
-  - id: streets
-    label: Kadut
-    label_en: Streets
 
 - id: heating
   label: Lämmitys
@@ -922,7 +903,6 @@ nodes:
   - id: direct_electric_heating_emissions
   - id: district_heating_emissions
   - id: geothermal_heating_emissions
-# - id: water_to_air_heat_pump_emissions
   - id: heating_emissions_impacts
     from_dimensions:
     - id: heating
@@ -969,8 +949,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: currency
   unit: EUR/a
-  input_dimensions: [heating, energy_carrier, scope, owner, cost_type]
-  output_dimensions: [heating, energy_carrier, scope, owner, cost_type]
+  input_dimensions: [heating, energy_carrier, scope, cost_type]
+  output_dimensions: [heating, energy_carrier, scope, cost_type]
   input_nodes:
   - id: district_heating_energy_consumption
     to_dimensions:
@@ -980,7 +960,6 @@ nodes:
   - id: energy_unit_prices
     to_dimensions:
     - id: energy_carrier
-    - id: owner
     - id: cost_type
   output_nodes:
   - id: building_heating_price
@@ -1132,8 +1111,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: currency
   unit: EUR/a
-  input_dimensions: [heating, energy_carrier, scope, owner, cost_type]
-  output_dimensions: [heating, energy_carrier, scope, owner, cost_type]
+  input_dimensions: [heating, energy_carrier, scope, cost_type]
+  output_dimensions: [heating, energy_carrier, scope, cost_type]
   input_nodes:
   - id: oil_heating_energy_consumption
     to_dimensions:
@@ -1143,7 +1122,6 @@ nodes:
   - id: energy_unit_prices
     to_dimensions:
     - id: energy_carrier
-    - id: owner
     - id: cost_type
   output_nodes:
   - id: building_heating_price
@@ -1235,8 +1213,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: currency
   unit: EUR/a
-  input_dimensions: [heating, energy_carrier, scope, owner, cost_type]
-  output_dimensions: [heating, energy_carrier, scope, owner, cost_type]
+  input_dimensions: [heating, energy_carrier, scope, cost_type]
+  output_dimensions: [heating, energy_carrier, scope, cost_type]
   input_nodes:
   - id: geothermal_heating_electricity_consumption
     to_dimensions:
@@ -1246,7 +1224,6 @@ nodes:
   - id: energy_unit_prices
     to_dimensions:
     - id: energy_carrier
-    - id: owner
     - id: cost_type
   output_nodes:
   - id: building_heating_price
@@ -1336,8 +1313,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: currency
   unit: EUR/a
-  input_dimensions: [heating, energy_carrier, scope, owner, cost_type]
-  output_dimensions: [heating, energy_carrier, scope, owner, cost_type]
+  input_dimensions: [heating, energy_carrier, scope, cost_type]
+  output_dimensions: [heating, energy_carrier, scope, cost_type]
   input_nodes:
   - id: direct_electric_heating_electricity_consumption
     to_dimensions:
@@ -1347,7 +1324,6 @@ nodes:
   - id: energy_unit_prices
     to_dimensions:
     - id: energy_carrier
-    - id: owner
     - id: cost_type
   output_nodes:
   - id: building_heating_price
@@ -1438,8 +1414,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: currency
   unit: EUR/a
-  input_dimensions: [energy_carrier, scope, owner, cost_type]
-  output_dimensions: [energy_carrier, scope, owner, cost_type]
+  input_dimensions: [energy_carrier, scope, cost_type]
+  output_dimensions: [energy_carrier, scope, cost_type]
   input_nodes:
   - id: industrial_electricity_consumption
     to_dimensions:
@@ -1448,7 +1424,6 @@ nodes:
   - id: energy_unit_prices
     to_dimensions:
     - id: energy_carrier
-    - id: owner
     - id: cost_type
   output_nodes:
   - id: electricity_consumption_price
@@ -1543,8 +1518,8 @@ nodes:
   type: simple.MultiplicativeNode
   quantity: currency
   unit: EUR/a
-  input_dimensions: [energy_carrier, scope, owner, cost_type]
-  output_dimensions: [energy_carrier, scope, owner, cost_type]
+  input_dimensions: [energy_carrier, scope, cost_type]
+  output_dimensions: [energy_carrier, scope, cost_type]
   input_nodes:
   - id: other_electricity_consumption
     to_dimensions:
@@ -1553,7 +1528,6 @@ nodes:
   - id: energy_unit_prices
     to_dimensions:
     - id: energy_carrier
-    - id: owner
     - id: cost_type
   output_nodes:
   - id: electricity_consumption_price
@@ -2833,18 +2807,20 @@ nodes:
   type: simple.AdditiveNode
   quantity: unit_price
   unit: EUR/kWh
-  input_dimensions: [energy_carrier, owner, cost_type]
-  output_dimensions: [energy_carrier, owner, cost_type]
+  input_dimensions: [energy_carrier, cost_type]
+  output_dimensions: [energy_carrier, cost_type]
   output_nodes:
   - id: energy_cost_reductions
     to_dimensions:
     - id: energy_carrier
     - id: owner
+      categories: [private]
     - id: cost_type
   - id: energy_cost_increases
     to_dimensions:
     - id: energy_carrier
     - id: owner
+      categories: [private]
     - id: cost_type
 
 - id: fuel_unit_prices
@@ -2910,8 +2886,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: currency
   unit: EUR/a
-  input_dimensions: [cost_type, owner]
-  output_dimensions: [cost_type, owner]
+  input_dimensions: [cost_type]
+  output_dimensions: [cost_type]
   order: 2
   is_outcome: true
   output_nodes:
@@ -2919,8 +2895,6 @@ nodes:
     tags: [currency]
     from_dimensions:
     - id: cost_type
-      flatten: true
-    - id: owner
       flatten: true
 
 - id: net_cost
@@ -2941,8 +2915,8 @@ nodes:
   color: '#AD3963'
   quantity: currency
   unit: EUR/a
-  input_dimensions: [cost_type, owner]
-  output_dimensions: [cost_type, owner]
+  input_dimensions: [cost_type]
+  output_dimensions: [cost_type]
   output_nodes:
   - id: net_price
 
@@ -2953,8 +2927,8 @@ nodes:
   color: '#668EC9'
   quantity: currency
   unit: EUR/a
-  input_dimensions: [cost_type, owner]
-  output_dimensions: [cost_type, owner]
+  input_dimensions: [cost_type]
+  output_dimensions: [cost_type]
   output_nodes:
   - id: net_price
 
@@ -2969,6 +2943,9 @@ nodes:
   output_dimensions: [cost_type, owner]
   output_nodes:
   - id: net_price
+    from_dimensions:
+    - id: owner
+      flatten: true
 
 - id: electricity_consumption_price
   name: Sähkön kulutuksen kustannukset
@@ -2977,8 +2954,8 @@ nodes:
   color: '#F4D240'
   quantity: currency
   unit: EUR/a
-  input_dimensions: [cost_type, owner]
-  output_dimensions: [cost_type, owner]
+  input_dimensions: [cost_type]
+  output_dimensions: [cost_type]
   output_nodes:
   - id: net_price
 
@@ -3000,15 +2977,21 @@ nodes:
     - id: action
       categories: [aahps_in_municipal_building_stock, additional_investments_in_naistenlahti_3, electric_boiler_and_district_heat_battery, energy_efficiency_measures_for_new_construction, energy_efficiency_renovations_in_city_buildings]
       flatten: true
+    - id: owner
+      flatten: true
   - id: electricity_consumption_price
     from_dimensions:
     - id: action
       categories: [building_renewable_electricity_production_pv, replacing_street_lighting_with_leds]
       flatten: true
+    - id: owner
+      flatten: true
   - id: transportation_price
     from_dimensions:
     - id: action
       categories: [change_in_vehicle_propulsion, promoting_walking_and_cycling, tramline_3_construction]
+      flatten: true
+    - id: owner
       flatten: true
 
 - id: annuitized_costs_by_heating_system
@@ -3025,6 +3008,8 @@ nodes:
     - id: action
       flatten: true
     - id: heating
+      flatten: true
+    - id: owner
       flatten: true
 
 - id: total_costs
@@ -4301,9 +4286,10 @@ actions:
       flatten: true
     - id: scope
       flatten: true
+    - id: owner
+      flatten: true
     to_dimensions:
     - id: cost_type
-    - id: owner
   - id: total_costs
     metrics: [currency]
     tags: [make_nonnegative]
@@ -4514,9 +4500,10 @@ actions:
       flatten: true
     - id: scope
       flatten: true
+    - id: owner
+      flatten: true
     to_dimensions:
     - id: cost_type
-    - id: owner
   - id: total_costs
     metrics: [currency]
     tags: [make_nonnegative]
@@ -4686,9 +4673,10 @@ actions:
       exclude: true
     - id: vehicle_type
       flatten: true
+    - id: owner
+      flatten: true
     to_dimensions:
     - id: cost_type
-    - id: owner
   - id: total_costs
     metrics: [currency]
     tags: [make_nonnegative]
@@ -4861,9 +4849,10 @@ actions:
       flatten: true
     - id: scope
       flatten: true
+    - id: owner
+      flatten: true
     to_dimensions:
     - id: cost_type
-    - id: owner
   - id: total_costs
     metrics: [currency]
     tags: [make_nonnegative]
@@ -5013,9 +5002,10 @@ actions:
       flatten: true
     - id: scope
       flatten: true
+    - id: owner
+      flatten: true
     to_dimensions:
     - id: cost_type
-    - id: owner
   - id: total_costs
     metrics: [currency]
     tags: [make_nonnegative]
@@ -5191,9 +5181,10 @@ actions:
       flatten: true
     - id: scope
       flatten: true
+    - id: owner
+      flatten: true
     to_dimensions:
     - id: cost_type
-    - id: owner
   - id: total_costs
     metrics: [currency]
     tags: [make_nonnegative]
@@ -5527,9 +5518,10 @@ actions:
       flatten: true
     - id: scope
       flatten: true
+    - id: owner
+      flatten: true
     to_dimensions:
     - id: cost_type
-    - id: owner
   - id: total_costs
     metrics: [currency]
     tags: [make_nonnegative]
@@ -5671,9 +5663,10 @@ actions:
       flatten: true
     - id: scope
       flatten: true
+    - id: owner
+      flatten: true
     to_dimensions:
     - id: cost_type
-    - id: owner
   - id: total_costs
     metrics: [currency]
     tags: [make_nonnegative]
@@ -5809,9 +5802,10 @@ actions:
       flatten: true
     - id: scope
       flatten: true
+    - id: owner
+      flatten: true
     to_dimensions:
     - id: cost_type
-    - id: owner
   - id: total_costs
     metrics: [currency]
     tags: [make_nonnegative]
@@ -5945,9 +5939,10 @@ actions:
       flatten: true
     - id: scope
       flatten: true
+    - id: owner
+      flatten: true
     to_dimensions:
     - id: cost_type
-    - id: owner
   - id: total_costs
     metrics: [currency]
     tags: [make_nonnegative]
@@ -6077,9 +6072,10 @@ actions:
       flatten: true
     - id: scope
       flatten: true
+    - id: owner
+      flatten: true
     to_dimensions:
     - id: cost_type
-    - id: owner
   - id: total_costs
     metrics: [currency]
     tags: [make_nonnegative]
@@ -6561,8 +6557,6 @@ actions:
     to_dimensions:
     - id: energy_carrier
       categories: [district_heat]
-    - id: owner
-      categories: [private]
     - id: cost_type
       categories: [energy]
 
@@ -6603,8 +6597,6 @@ actions:
     to_dimensions:
     - id: energy_carrier
       categories: [electricity]
-    - id: owner
-      categories: [private]
     - id: cost_type
       categories: [energy]
 
@@ -6645,8 +6637,6 @@ actions:
     to_dimensions:
     - id: energy_carrier
       categories: [fuel_oil]
-    - id: owner
-      categories: [private]
     - id: cost_type
       categories: [energy]
 
