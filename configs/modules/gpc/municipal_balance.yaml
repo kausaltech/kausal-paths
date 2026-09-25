@@ -548,7 +548,7 @@ nodes:
   # these same records, so the extractor's `--check` mode reproduces the consultant's
   # property groups from them kilowatt-hour for kilowatt-hour; adding both would double the
   # overlap years. The consultant figures enter only where the records genuinely do not
-  # reach — see the rented properties below.
+  # reach, and not in this node -- see the note on rented properties below.
   #
   # The boundary is applied here rather than in the extractor, so that what the balance
   # covers is legible in the model. The groups below are an operational-control boundary's
@@ -577,32 +577,18 @@ nodes:
     - column: we_to
       flatten: true
 
-  # The rented properties (Mietliegenschaften), which the building management records do
-  # not contain at all -- the office meters what it manages, and a rented property is billed
-  # through service charges where the landlord's carrier is often unknown. That is the one
-  # part of the balance a consultant source is not reproducible from the records, and so
-  # remains the only source for; on a typical portfolio it is a low single-digit percentage
-  # of building energy.
+  # **Rented properties (Mietliegenschaften) do not belong in this node.** The building
+  # management records do not contain them -- the office meters what it manages, and a rented
+  # property is billed through service charges -- so where a city has them at all they come
+  # from a different source, usually a consultant balance that ends with the engagement.
   #
-  # Booked under the carrier `not_defined` and **restricted to that one carrier on purpose**.
-  # Every other carrier in this dataset is the same measurement the branch above already
-  # carries, and taking both would count the overlap years twice.
-  #
-  # A consultant delivery ends when the engagement did, which is a declared gap from the
-  # following year and *not* a zero: the model carries the last value forward. Whether
-  # persistence or zero is the better assumption for a rented portfolio is open -- see the
-  # city's README, Open items.
-  - id: gpc/municipal_balance_activity
-    column: energy
-    extend: true
-    filters:
-    - dimension: ghg_category
-      categories: [heat, electricity]
-    - dimension: energy_carrier
-      categories: [not_defined]
-    - column: emission_source
-    - column: vehicle_type
-    - column: scope
+  # Until 25 Sep 2026 they were a second binding here, and that made the whole node read as
+  # forecast from the year after the consultant stopped. The UI draws one forecast boundary
+  # per node, at the first year in which *any* row is forecast, so 3-4 % of the energy
+  # carried forward from 2021 pulled 2022-2023 of measured records back to forecast. They are
+  # now the city's own branch, beside this one: Mainz has
+  # `municipal_rented_building_energy` / `_emissions` in its config, feeding the two totals
+  # directly. A city with rented properties does the same; one without needs nothing.
 
 - id: municipal_street_lighting_energy
   is_editable: false
