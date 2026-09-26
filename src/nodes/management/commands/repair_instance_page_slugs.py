@@ -7,31 +7,31 @@ Bring an instance's root page slugs back into line with its identifier.
 
 Nothing is written without ``--apply``.
 
-## Why this is needed at all
+## What this was for, and what it is for now
 
-Page routing keys off the *identifier*, not off ``InstanceConfig.root_page``.
-``PathsPage.resolve_url_path`` (``pages/page_interface.py``) strips
-``^/<instance-id>(-[0-9]+)?/`` from the page's ``url_path``, and ``Query.resolve_page``
-(``pages/schema.py``) then prepends the translated root page's ``url_path`` to the path it
-is given. The two only agree while the root page's slug equals the identifier.
+Page routing used to key off the *identifier*. ``PathsPage.resolve_url_path`` stripped
+``^/<instance-id>(-[0-9]+)?/`` from a page's ``url_path`` while ``Query.resolve_page``
+prepended the translated root page's ``url_path``, so the two agreed only while the root
+page's slug equalled the identifier -- which nothing maintained. A rename, or a slug edited
+in the Wagtail admin, silently 404ed every subpage while the front page kept working, twice:
+``augsburg-bisko`` in July 2026 and both Longmont instances in September 2026.
 
-Nothing keeps them in step. The slug is set from the identifier once, when the pages are
-created (``InstanceConfig._create_default_pages``), and never revisited -- so **renaming an
-instance silently breaks every subpage of it**, and so does editing the root page's slug in
-the Wagtail admin. The failure is a 404 on the children while the front page keeps working,
-because the front page's path is empty and survives the mismatch: with identifier
-``longmont`` and slug ``longmont-dev``, the strip does not match, ``resolve_url_path``
-returns ``/longmont-dev/actions``, and ``resolve_page`` looks up
-``/longmont-dev/longmont-dev/actions/``, which exists nowhere.
+Both resolvers now take the prefix from the root page's own ``url_path`` (see
+``pages/url_paths.py``), so **a mismatched slug no longer breaks routing**. What is left is
+hygiene, and it is still worth having: the slug is what the Wagtail admin shows, it is what
+``_create_default_pages`` falls back to when ``root_page`` was never populated, and a
+drifted slug is a reliable sign that an instance was renamed without anything else being
+looked at. Run it with no ``--apply`` as an audit for that.
 
-This has now happened twice -- ``augsburg-bisko`` in July 2026 via an admin slug edit, and
-both Longmont instances in September 2026 via a rename -- which is why it is a command and
-not a third one-off script.
+The revision pass is the part that is not cosmetic -- see below.
 
 ## Translations are part of the fix
 
-A translated root page carries a numeric suffix (``longmont-1``), which is what the
-``(-[0-9]+)?`` in the regex is for, so the Spanish site breaks and heals by the same rule.
+A translated root page carries a numeric suffix (``longmont-1``). Routing no longer needs
+that suffix, but Wagtail still does: ``Page._slug_is_available`` compares against all
+siblings regardless of locale, and translated roots are siblings under the Wagtail root, so
+they cannot share the primary page's slug.
+
 Translations are resolved by ``translation_key`` and locale
 (``InstanceConfig.get_translated_root_page``), never by slug, so renaming them moves no
 references. Every tree the instance serves is repaired the same way: slug, descendant
