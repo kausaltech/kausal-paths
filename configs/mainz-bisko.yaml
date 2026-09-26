@@ -96,7 +96,7 @@ include:
   # 2021-2024 -- but `de/emissionsfaktoren_endenergie` carries no fuel-input factor for waste
   # or sewage sludge, which are 83 % of this network, and route 1 outranks route 3 in
   # `district_heating_emissions`. Filling the plant template today would therefore replace a
-  # defensible factor with a near-zero one. See models/mainz/create_fernwaerme_variante.py.
+  # defensible factor with a near-zero one. See models/mainz/scripts/create_fernwaerme_variante.py.
   - from: kommune/fernwaerme_erzeugungsvariante
     to: mainz/fernwaerme_erzeugungsvariante
   # Mainz's own degree-day ratio (private_households, commerce_trade_services,
@@ -1184,7 +1184,7 @@ nodes:
 # cumulative per-year increments written into YAML, which puts the numbers back in the config
 # and makes the trajectory hard to read. Instead each is a signed quantity in the branch's own
 # unit -- negative where the activity leaves a category, positive where it arrives -- added to
-# the node, with `paths-data/models/mainz/create_knsv_measures.py` asserting the rows sum to
+# the node, with `paths-data/models/mainz/scripts/create_knsv_measures.py` asserting the rows sum to
 # zero per measure, variant and year. That is rule 1 of `docs/architecture/action-design.md`.
 #
 # Built and wired, from `mainz/knsv_verlagerung_*`:
@@ -3338,7 +3338,7 @@ actions:
 # lands every sector on the study's own relative path to within 0.05 %. They run only in the
 # scenarios `ie_mp2050` and `ie_kn2035` and must stay switched off everywhere else: they are the
 # aggregate outcome of the `mp100_*` measures and would count them twice. Background:
-# paths-data `models/mainz/README.md`, *The IE Leipzig scenarios are built, and wait only on the
+# paths-data `models/mainz/docs/log.md`, *The IE Leipzig scenarios are built, and wait only on the
 # upload*.
 
 # How it is computed. Not the study's levels but its *relative* path, applied to each carrier's
@@ -3968,7 +3968,7 @@ actions:
 # holds constant after 2030, not energy still to be saved -- which is why three of the six move a
 # factor and only two move fuel. How each number was arrived at, and which of them are
 # assumptions of this model rather than readings from a law or a delivery, is in
-# `paths-data/models/mainz/create_zielpfad_measures.py`.
+# `paths-data/models/mainz/scripts/create_zielpfad_measures.py`.
 #
 # Uploaded and live since 22.09.2026; the datasets are `mainz/zielpfad_strommix`,
 # `mainz/zielpfad_fernwaerme`, `mainz/zielpfad_verlagerung_energietraeger_verkehr` and

@@ -1,6 +1,7 @@
 # How an action attaches to the graph
 
 *Produced by Claude Opus 5.0 on 2026-09-09.*
+*Version 2 produced by Claude Opus 5.5 on 2026-09-26 (paths repointed after the Mainz setup directory was restructured).*
 *Responsible: Jouni Tuomisto.*
 
 An action is a node whose output is switched on and off by the scenario. Deciding
@@ -304,7 +305,7 @@ shape:
   before the `add` and `multiply` that follow it
   (`operations: add_datasets,split_dims,add,multiply`).
 
-`paths-data/models/mainz/create_knsv_measures.py` is the producer, and the derivation of
+`paths-data/models/mainz/scripts/create_knsv_measures.py` is the producer, and the derivation of
 every value that is not quoted straight from the source is in the row's own `Comment`.
 
 
