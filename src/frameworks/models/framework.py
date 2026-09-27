@@ -26,6 +26,7 @@ if TYPE_CHECKING:
 
     from .config import FrameworkConfig, FrameworkConfigQuerySet
     from .measures import MeasureTemplateQuerySet, Section, SectionQuerySet
+    from .organizations import OrganizationPopulation
     from .quality import DataQualityScheme
 
 
@@ -188,6 +189,7 @@ class Framework(CacheablePathsModel['FrameworkSpecificCache'], UUIDIdentifiedMod
     sections: RevManyQS[Section, SectionQuerySet]
     configs: RevManyQS[FrameworkConfig, FrameworkConfigQuerySet]
     quality_schemes: RevMany[DataQualityScheme]
+    organization_populations: RevMany[OrganizationPopulation]
 
     def __str__(self):
         return self.name

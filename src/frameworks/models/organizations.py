@@ -18,6 +18,26 @@ class FrameworkOrganizationRoot(models.Model):
         return f'{self.framework_id}: {self.organization_id}'
 
 
+class OrganizationPopulation(models.Model):
+    """Indexed municipality population projected from a versioned provider dataset."""
+
+    framework = models.ForeignKey('frameworks.Framework', on_delete=models.CASCADE, related_name='organization_populations')
+    organization = models.ForeignKey('orgs.Organization', on_delete=models.PROTECT, related_name='population_observations')
+    year = models.PositiveSmallIntegerField()
+    value = models.PositiveIntegerField()
+    source_dataset = models.CharField(max_length=200)
+    source_revision = models.CharField(max_length=100)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['framework', 'organization', 'year'], name='unique_framework_org_population_year'),
+        ]
+        indexes = [models.Index(fields=['framework', 'year'], name='framework_population_year_idx')]
+
+    def __str__(self) -> str:
+        return f'{self.organization_id} {self.year}: {self.value}'
+
+
 class OrganizationAccessGrant(models.Model):
     """Grant access to an organization and its descendants within one framework."""
 

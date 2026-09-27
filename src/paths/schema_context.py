@@ -35,6 +35,7 @@ if TYPE_CHECKING:
     from paths import gql
     from paths.schema import PreviewMode
 
+    from frameworks.population import PopulationYearIndex
     from nodes.constraints.solver import ConstraintSolveResult
     from nodes.instance import Instance
     from nodes.instance_graph import InstanceGraph
@@ -295,6 +296,7 @@ class PathsGraphQLContext[InstanceType: Instance | None = Instance | None](Graph
     instance_config: InstanceConfig | None = None
     cache: PathsObjectCache = field(init=False)
     instance_resources: InstanceRequestResources | None = field(init=False, default=None, repr=False)
+    organization_population_indexes: dict[tuple[int, int], PopulationYearIndex] = field(default_factory=dict, repr=False)
 
     # Populated by DetermineInstanceContextExtension from @instance / @context
     # directive arguments. Consumed by editing mutations for optimistic
