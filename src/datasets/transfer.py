@@ -169,13 +169,19 @@ def export_dataset_data_safe(ds: DatasetModel) -> dict[str, Any] | None:
     """
     Serialize DataPoints.
 
-    An empty dataset still needs a typed dataframe payload so inherited model
-    inputs can evaluate it as missing municipal data. Returns ``None`` when
-    deserialization fails (e.g. mis-seeded datasets during tests). Robustness
+    An empty dataset with declared metrics still needs a typed dataframe payload
+    so inherited model inputs can evaluate it as missing municipal data. A
+    dataset without metrics has no value column and returns ``None``. Robustness
     matters here because ``serializable_data()`` is
     called on every ``save_revision`` and must not crash on edge cases.
     """
     if not ds.data_points.exists():
+        # A newly created dataset may not have any metrics yet. There is no
+        # value column to type, and DBDataset.deserialize_df requires at least
+        # one metric when it joins the empty DataPoint frame to metric metadata.
+        assert ds.schema is not None
+        if ds.schema_id is None or not ds.schema.metrics.exists():
+            return None
         data = _export_dataset_data(ds)
         fields = data['schema']['fields']
         for field in fields:
