@@ -2,6 +2,7 @@
 
 from typing import TYPE_CHECKING
 
+from datasets.snapshot import metric_column_id
 from datasets.validation_rules import validation_rule_adapter
 from nodes.defs.graph import DatasetMeta, DatasetMetricMeta
 from nodes.snapshot_base import translated_string_from_model
@@ -23,7 +24,7 @@ def dataset_meta_from_model(
     metrics = tuple(
         DatasetMetricMeta(
             id=metric.uuid,
-            identifier=metric.name,
+            identifier=metric_column_id(metric),
             label=translated_string_from_model(metric, 'label', primary_language),
             unit=metric.unit,
             quantity=(metric.spec or {}).get('quantity'),
