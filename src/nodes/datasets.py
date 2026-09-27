@@ -1236,14 +1236,16 @@ class DBDataset(DatasetWithFilters):
             )
         )
 
-        # This Coalesce names the metric columns, so anything building a *selector* for
-        # them has to resolve the name the same way, or it asks for a column that is not
-        # there. Keep it in step with `metric_column_id()` in `datasets/snapshot.py`,
-        # which is the Python-side twin.
+        # This names the metric columns, so anything building a *selector* for them
+        # has to resolve the name the same way, or it asks for a column that is not
+        # there: use `metric_column_id()` / `metric_column_id_expr()` from
+        # `datasets/snapshot.py`.
+        from datasets.snapshot import metric_column_id_expr
+
         metrics = DatasetMetric.objects.filter(schema=OuterRef('schema')).values(
             json=JSONObject(
                 uuid=F('uuid'),
-                name=Coalesce(F('name'), F('label'), Cast('uuid', output_field=CharField())),
+                name=metric_column_id_expr(),
                 unit=F('unit'),
             )
         )

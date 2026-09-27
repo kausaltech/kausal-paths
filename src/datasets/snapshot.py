@@ -3,6 +3,8 @@
 from typing import TYPE_CHECKING, Any, Self
 from uuid import UUID  # noqa: TC003 - Pydantic field
 
+from django.db.models import CharField, F, Value
+from django.db.models.functions import Cast, Coalesce, NullIf
 from pydantic import BaseModel, Field
 
 from kausal_common.datasets.category_domain import DatasetCategoryDomain
@@ -55,6 +57,7 @@ def metric_column_id(metric: DatasetMetric) -> str:
     no ``name`` at all, and its column is built from the label — see the
     ``Coalesce(name, label, uuid)`` in ``DBDataset.deserialize_df``
     (``nodes/datasets.py``), which is the writer this function has to agree with.
+    Build SQL selectors with ``metric_column_id_expr()``, its twin below.
 
     **Falling through to the uuid is never a working answer.** No dataframe column is
     ever named after a metric uuid, so a selector built from one cannot match: it
@@ -63,6 +66,20 @@ def metric_column_id(metric: DatasetMetric) -> str:
     ``None``.
     """
     return metric.name or metric.label or str(metric.uuid)
+
+
+def metric_column_id_expr(prefix: str = '') -> Coalesce:
+    """
+    Return the SQL twin of ``metric_column_id()`` for a ``DatasetMetric`` queryset.
+
+    ``prefix`` is the lookup path to the metric (``'metric__'`` from a binding row).
+    Empty strings fall through as in the Python version, which tests truthiness.
+    """
+    return Coalesce(
+        NullIf(F(f'{prefix}name'), Value('')),
+        NullIf(F(f'{prefix}label'), Value('')),
+        Cast(f'{prefix}uuid', output_field=CharField()),
+    )
 
 
 class DatasetMetricSnapshot(ModelSnapshot['DatasetMetric']):

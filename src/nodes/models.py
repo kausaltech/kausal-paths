@@ -2022,6 +2022,8 @@ class NodeConfigQuerySet(MultilingualQuerySet['NodeConfig'], PathsQuerySet['Node
         Served from the authoritative ``NodeInputPortBinding`` table. This is
         the projection behind ``port_edge_bindings`` / ``port_dataset_bindings``.
         """
+        from datasets.snapshot import metric_column_id_expr
+
         edge_bindings = (
             NodeInputPortBinding.objects
             .filter(Q(node=OuterRef('pk')) | Q(source_node=OuterRef('pk')), source_node__isnull=False)
@@ -2064,7 +2066,7 @@ class NodeConfigQuerySet(MultilingualQuerySet['NodeConfig'], PathsQuerySet['Node
                     dataset_is_external_placeholder=F('dataset__is_external_placeholder'),
                     dataset_external_ref=F('dataset__external_ref'),
                     external_dataset_id=F('dataset__identifier'),
-                    external_metric_id=F('metric__name'),
+                    external_metric_id=metric_column_id_expr('metric__'),
                     transformations=F('transformations'),
                     tags=F('tags'),
                 ),
