@@ -293,7 +293,7 @@ class DatasetSnapshot(ModelSnapshot['Dataset']):
         comments: list[DataPointCommentSnapshot] = []
         evidence: list[DataPointEvidenceSnapshot] = []
         if not obj.is_external_placeholder:
-            data = export_dataset_data_safe(obj)
+            data = export_dataset_data_safe(obj, has_metrics=bool(metrics))
             data_sources, source_references, comments = export_dataset_provenance(obj)
             evidence = export_dataset_evidence(obj)
 
