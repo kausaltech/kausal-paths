@@ -107,7 +107,8 @@ parent it searches the accessible subtree. `framework.organization(id: ...)`
 retrieves one organization by UUID if the caller has access. Each organization
 reports `municipalityCount`, `activatedMunicipalityCount`, and
 `unactivatedMunicipalityCount` for its whole subtree (including itself if it
-is a municipality). District-free cities count as municipalities. Activated
+is a municipality). The AGS-bearing municipality counts once, including the
+municipality child of a district-free city. Activated
 means that a BISKO `FrameworkConfig` exists; it says nothing about whether the
 municipality has entered data or finalized a submission. These counts are
 aggregated in the database, so a UI need not page through thousands of towns.
@@ -143,6 +144,35 @@ mutation Activate($organization: ID!) {
 The current Data Studio municipality picker still reads `framework.configs`,
 which lists only provisioned model instances. Its loader must switch to the
 organization query for browsing municipalities without model instances.
+
+## Organization population
+
+After importing the BKG tree, project the pinned `demography/population_lau`
+dataset from the BISKO template onto its AGS-bearing organizations:
+
+```bash
+python manage.py migrate
+python manage.py import_organization_population --dry-run
+python manage.py import_organization_population
+```
+
+The projection stores one provider observation per municipality and year with
+the template's dataset revision. Repeating the import replaces the projection
+atomically; it does not create a `FrameworkConfig` for a Landkreis or Land.
+When the pinned population dataset changes, rerun the command. The source
+dataset remains authoritative, and the same `DE_<AGS>` key is used by the
+municipal model's population node.
+
+`FrameworkOrganization.population(year:)` returns `value` only when every
+municipality in that organization's subtree has an observation for the year.
+`partialValue`, `observedMunicipalityCount`, and `municipalityCount` show the
+sum and coverage when some are missing. `sourceRevision` identifies the
+provider snapshot. The request loads a year's observations once and reuses
+their rollups across organization fields, including a page of districts.
+`FrameworkConfig.population(year:)` delegates to the same organization value
+for the municipality switcher.
+Missing years are never filled with zero or copied from adjacent years.
+
 Active organization grants also reach provisioned municipal instances and their
 datasets under the grant's subtree. An instance membership suspension blocks
 that instance even if a wider organization grant would otherwise allow it.
