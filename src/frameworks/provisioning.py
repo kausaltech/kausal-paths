@@ -7,6 +7,7 @@ from django.db import transaction
 from frameworks.identity import ensure_municipal_organization
 from frameworks.models import DataQualityLevel, DataQualityScheme, Framework, FrameworkConfig
 from nodes.models import InstanceConfig
+from orgs.models import Namespace, OrganizationClass
 
 # Catalogue version, not a claim about a particular certification protocol edition.
 BISKO_QUALITY_VERSION = '1'
@@ -17,9 +18,31 @@ BISKO_QUALITY_LEVELS = (
     ('D', 'Bundesweite Kennzahlen', Decimal(0)),
 )
 
+GERMAN_ORGANIZATION_CLASSES = (
+    ('de_state', 'Bundesland'),
+    ('de_district', 'Landkreis'),
+    ('de_district_free_city', 'Kreisfreie Stadt'),
+    ('de_samtgemeinde', 'Samtgemeinde'),
+    ('de_verbandsgemeinde', 'Verbandsgemeinde'),
+    ('de_amt', 'Amt'),
+    ('de_municipality', 'Gemeinde'),
+)
+GERMAN_IDENTIFIER_NAMESPACES = (
+    ('ars', 'Amtlicher Regionalschlüssel'),
+    ('ags', 'Amtlicher Gemeindeschlüssel'),
+)
+
+
+def provision_german_organization_catalogue() -> None:
+    """Seed stable identifiers used by the BKG administrative tree importer."""
+    for identifier, name in GERMAN_ORGANIZATION_CLASSES:
+        OrganizationClass.objects.get_or_create(identifier=identifier, defaults={'name': name})
+    for identifier, name in GERMAN_IDENTIFIER_NAMESPACES:
+        Namespace.objects.get_or_create(identifier=identifier, defaults={'name': name, 'user_editable': False})
+
 
 @transaction.atomic
-def setup_bisko(*, template_identifier: str = 'bisko', instance_identifiers: tuple[str, ...] = ()) -> Framework:
+def setup_bisko(*, template_identifier: str = 'bisko', instance_identifiers: tuple[str, ...] = ()) -> Framework:  # noqa: C901
     """
     Register BISKO and its quality scale without cloning graphs or creating pages.
 
@@ -50,10 +73,16 @@ def setup_bisko(*, template_identifier: str = 'bisko', instance_identifiers: tup
             'template_instance': template,
             'use_instance_subdomains': False,
             'enable_user_management': True,
+            'max_user_accounts_per_instance': 5,
         },
     )
     if framework.template_instance_id != template.pk:
         raise ValueError('BISKO already has a different template; resolve that explicitly before provisioning.')
+    if framework.max_user_accounts_per_instance is None:
+        framework.max_user_accounts_per_instance = 5
+        framework.save(update_fields=['max_user_accounts_per_instance'])
+
+    provision_german_organization_catalogue()
 
     scheme, _ = DataQualityScheme.objects.get_or_create(
         framework=framework,
