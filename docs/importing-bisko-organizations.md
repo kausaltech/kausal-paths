@@ -46,11 +46,27 @@ python manage.py grant_organization_access username 03 --role viewer --dry-run
 python manage.py grant_organization_access username 03001 --role editor
 ```
 
-State, Landkreis, and municipality grants are tested with nine users, one at
-each level in each state. These are test database users. Data Studio signs in
-through the Kausal OIDC provider, so usable UI test accounts must first be
-created there; this command can then attach access to their matching Paths
-users. The GraphQL `framework.organizations` field returns only accessible
+To provision 12 password-login test accounts after importing the BKG tree,
+set `BISKO_TEST_ACCOUNT_PASSWORD` in the environment and run:
+
+```bash
+python manage.py provision_bisko_test_accounts --dry-run
+python manage.py provision_bisko_test_accounts
+```
+
+The command creates two state accounts (admin and editor), one Landkreis
+editor, and one municipality editor in each of Niedersachsen (03),
+Rheinland-Pfalz (07), and Brandenburg (12). It chooses the first Landkreis by
+ARS that contains a municipality and grants the municipality account access
+inside that Landkreis. The emails are `bisko-<state>-<level>.fake@kausal.tech`.
+They are the login names; the command also prints each internal username and
+ARS. Repeating the command keeps the same accounts and grants and resets their
+passwords to the supplied value. A changed, suspended, or extra grant requires
+explicit resolution. The password is never printed. The command creates users
+in the Paths database; a deployment using an external identity provider also
+needs matching accounts there for password login through that provider.
+
+The GraphQL `framework.organizations` field returns only accessible
 organizations, with `parentId`, `search`, `first`, and `offset` arguments.
 
 The current Data Studio municipality picker still reads `framework.configs`,
