@@ -12,6 +12,7 @@ nothing, so a failed replace always leaves the old binding intact.
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
+from datasets.snapshot import metric_column_id
 from nodes.constraints.validation import BindingChange, validate_binding_change
 from nodes.defs.binding_def import DatasetBindingDef, EdgeBindingDef, NodePortRef
 from nodes.graphql.types.constraints import ConstraintViolationsType
@@ -107,7 +108,7 @@ def dataset_candidate(
         dataset_is_external_placeholder=dataset.is_external_placeholder,
         dataset_external_ref=dataset.external_ref,
         external_dataset_id=dataset.identifier,
-        external_metric_id=metric.name,
+        external_metric_id=metric_column_id(metric),
     )
     additions: tuple[DatasetMeta, ...] = ()
     if dataset.uuid not in graph.dataset_by_id:

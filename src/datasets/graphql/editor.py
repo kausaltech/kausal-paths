@@ -233,7 +233,7 @@ def create_metric_row(
     # uuid, which no dataframe column is ever named after, and the node consuming the
     # metric fails with "Column '<uuid>' not found". Both other creators
     # (`load_dvc_dataset`, `dataset_placeholders`) create metrics as `name=label=<column>`;
-    # match them. See `metric_column_id()` in `nodes/instance_serialization.py`.
+    # match them. See `metric_column_id()` in `datasets/snapshot.py`.
     metric = DatasetMetric(
         schema=schema,
         uuid=input.id or uuid4(),
