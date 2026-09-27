@@ -73,6 +73,13 @@ def test_empty_dataset_has_typed_calculation_payload() -> None:
     assert JSONDataset.deserialize_df(materialization.content['data']).is_empty()
 
 
+def test_empty_dataset_without_metrics_has_no_calculation_payload() -> None:
+    from datasets.transfer import export_dataset_data_safe
+
+    dataset = DatasetFactory.create(identifier='kommune/not-configured')
+    assert export_dataset_data_safe(dataset) is None
+
+
 CREATE_DATA_POINT = """
 mutation CreateDataPoint($instanceId: ID!, $datasetId: ID!, $input: CreateDataPointInput!) {
     instanceEditor(instanceId: $instanceId) {
