@@ -28,6 +28,7 @@ from paths.graphql_types import UnitType
 
 from datasets.graphql import DatasetType
 from datasets.graphql.types import DatasetSchemaType
+from datasets.snapshot import metric_column_id
 from frameworks.catalogue import schema_scopes
 from frameworks.models import Framework, FrameworkConfig
 from nodes.defs import InstanceMetadata, InstanceModelSpec
@@ -461,7 +462,7 @@ class InstanceEditorFields:
                 ),
                 metric=DatasetMetricRefType.from_model(dp.metric),
                 external_dataset_id=external_dataset_id_from_dataset(dp.dataset),
-                external_metric_id=dp.metric.name,
+                external_metric_id=metric_column_id(dp.metric),
                 tags=list(dp.tags or []),
             )
             from nodes.defs.transform_def import forecast_from_transformations
