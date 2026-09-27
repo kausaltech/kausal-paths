@@ -8,6 +8,7 @@ from django.core.exceptions import ValidationError
 
 from kausal_common.datasets.models import Dataset
 
+from datasets.snapshot import metric_column_id
 from nodes.defs.node_defs import InputDatasetDef
 from nodes.graphql.types.transformations import DatasetTransformationInput, dataset_transformations_from_input
 from nodes.instance_serialization import DatasetMetricSource, InputBindingSnapshot, NodePortSource
@@ -50,7 +51,7 @@ class InputPortBindingInput:
             source = DatasetMetricSource(
                 dataset=row.identifier or str(row.uuid),
                 dataset_uuid=row.uuid,
-                metric=metric.name or str(metric.uuid),
+                metric=metric_column_id(metric),
                 metric_uuid=metric.uuid,
             )
             default = InputDatasetDef(id=source.dataset, column=source.metric).to_transformations()

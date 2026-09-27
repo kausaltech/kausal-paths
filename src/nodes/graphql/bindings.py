@@ -32,6 +32,7 @@ from kausal_common.strawberry.errors import GraphQLValidationError
 from paths import gql
 
 from datasets.graphql.types import DatasetType
+from datasets.snapshot import metric_column_id
 from nodes.change_ops import gql_change_operation, record_change
 from nodes.constraints.validation import BindingChange
 from nodes.defs.binding_def import DatasetBindingDef, EdgeBindingDef
@@ -345,8 +346,8 @@ class PortBindingEditorMutation:
         metric_column = source.metric if selects_metric else None
         if is_maybe_set(input.metric_id):
             metric = _resolve_metric(info, dataset, str(input.metric_id.value))
-            source = source.model_copy(update={'metric': metric.name, 'metric_uuid': metric.uuid})
-            metric_column = metric.name
+            source = source.model_copy(update={'metric': metric_column_id(metric), 'metric_uuid': metric.uuid})
+            metric_column = metric_column_id(metric)
         transformations = list(binding.transformations)
         if is_maybe_set(input.transformations):
             transformations = preserve_temporal_fill_transformations(
@@ -409,7 +410,7 @@ class PortBindingEditorMutation:
         previous_transformations = list(first.transformations or [])
         selects_metric = any(op.kind == 'select_metric' for op in previous_transformations)
 
-        metric_column = (first.metric.name or None) if selects_metric and first.metric is not None else None
+        metric_column = metric_column_id(first.metric) if selects_metric and first.metric is not None else None
         metric = None
         if is_maybe_set(input.metric_id):
             if len(rows) > 1:
@@ -420,7 +421,7 @@ class PortBindingEditorMutation:
             metric = _resolve_metric(info, first.dataset, str(input.metric_id.value))
             # The column follows the new metric; keeping the old column would
             # select what the previous metric carried.
-            metric_column = metric.name or None
+            metric_column = metric_column_id(metric)
 
         transformations = list(previous_transformations)
         if is_maybe_set(input.transformations):
@@ -571,7 +572,7 @@ def binding_to_gql(row: NodeInputPortBinding) -> DatasetPortType:
         ),
         metric=DatasetMetricRefType.from_model(row.metric),
         external_dataset_id=external_dataset_id_from_dataset(row.dataset),
-        external_metric_id=row.metric.name,
+        external_metric_id=metric_column_id(row.metric),
         tags=list(row.tags or []),
     )
 
@@ -605,7 +606,7 @@ def bind_dataset(
     metric_column: str | None = None
     if input.metric_id is not None:
         metric = _resolve_metric(info, dataset, str(input.metric_id))
-        metric_column = metric.name
+        metric_column = metric_column_id(metric)
     else:
         metric = _sole_metric_or_error(info, dataset)
 
@@ -624,7 +625,7 @@ def bind_dataset(
             source=DatasetMetricSource(
                 dataset=dataset.identifier or str(dataset.uuid),
                 dataset_uuid=dataset.uuid,
-                metric=metric.name or str(metric.uuid),
+                metric=metric_column_id(metric),
                 metric_uuid=metric.uuid,
             ),
             transformations=transformations,
