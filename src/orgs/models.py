@@ -19,6 +19,9 @@ from kausal_common.organizations.models import (
 from paths.context import realm_context
 
 if TYPE_CHECKING:
+    from kausal_common.models.types import RevMany
+
+    from frameworks.models import OrganizationPopulation
     from nodes.models import InstanceConfig
     from users.models import User
 
@@ -77,6 +80,7 @@ del _OrganizationManager
 
 class Organization(PermissionedModel, BaseOrganization, Node[OrganizationQuerySet]):
     objects: ClassVar[OrganizationManager] = OrganizationManager()
+    population_observations: RevMany[OrganizationPopulation]
 
     VIEWSET_CLASS = 'orgs.wagtail_hooks.OrganizationViewSet'
 
