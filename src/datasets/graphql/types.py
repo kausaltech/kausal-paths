@@ -22,6 +22,8 @@ from kausal_common.strawberry.ordering import with_sibling_ids
 from kausal_common.strawberry.permissions import UserPermissionsMixin
 from kausal_common.strawberry.registry import register_strawberry_type
 
+from paths import gql
+
 from datasets.validation_rules import (
     AllowedCombinationsRule,
     DimensionSumRule,
@@ -555,11 +557,25 @@ class DatasetType(UserPermissionsMixin):
 
     @sb.field
     @staticmethod
-    def is_editable(root: 'DatasetType') -> bool:
+    def is_editable(root: 'DatasetType', info: gql.Info) -> bool:
         if root._model is None or root._model.schema is None:
             return False
         root._load_schema_editability()
-        return root._model.schema.is_editable or root._model._schema_is_shared
+        if not (root._model.schema.is_editable or root._model._schema_is_shared):
+            return False
+        instance = info.context.instance_config
+        if instance is None:
+            return True
+        from django.contrib.contenttypes.models import ContentType
+
+        from nodes.models import InstanceConfig, PreferredInstanceSource
+
+        if root._model.scope_content_type_id != ContentType.objects.get_for_model(InstanceConfig).pk:
+            return True  # Node-owned data follows its node editor's permissions.
+        if root._model.scope_id != instance.pk:
+            return False
+        resources = info.context.instance_resources
+        return bool(resources and resources.node_edit_context(info, instance, PreferredInstanceSource.DRAFT).can_change_instance)
 
     @sb.field(description='Default or effective first forecast year for this dataset.')
     @staticmethod

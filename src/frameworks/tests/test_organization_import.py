@@ -1,7 +1,9 @@
 from datetime import date
 from io import StringIO
 from typing import TYPE_CHECKING
+from uuid import uuid4
 
+from django.contrib.contenttypes.models import ContentType
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.utils import timezone
@@ -9,24 +11,33 @@ from django.utils import timezone
 import polars as pl
 import pytest
 
-from kausal_common.datasets.tests.factories import DatasetFactory, DatasetSchemaFactory
+from kausal_common.datasets.models import Dataset, DatasetSchemaScope
+from kausal_common.datasets.tests.factories import DataPointFactory, DatasetFactory, DatasetMetricFactory, DatasetSchemaFactory
 from kausal_common.people.models import ObjectRole
 
 from paths.tests.graphql import PathsTestClient
 
+from frameworks.activation import ActivationError, activate_bisko_municipality
 from frameworks.models import (
+    Framework,
     FrameworkConfig,
     FrameworkOrganizationRoot,
     OrganizationAccessGrant,
     OrganizationAccessGrantEvent,
+    Submission,
 )
 from frameworks.organization_access import accessible_organizations, user_can_access_organization
 from frameworks.provisioning import GERMAN_ORGANIZATION_CLASSES, setup_bisko
 from frameworks.roles import framework_admin_role
 from frameworks.tests.factories import FrameworkConfigFactory
+from nodes.defs.instance_defs import YearsSpec
+from nodes.defs.port_def import InputPortDef
+from nodes.instance_serialization import DatasetMetricSource, build_instance_snapshot
 from nodes.membership import retention_date
-from nodes.models import InstanceMemberAssignment
-from nodes.tests.factories import InstanceConfigFactory
+from nodes.models import InstanceMemberAssignment, NodeInputPortBinding
+from nodes.template_graph import publish_template_instance
+from nodes.tests.factories import InstanceConfigFactory, NodeConfigFactory
+from nodes.units import unit_registry
 from orgs.import_bkg import import_bkg_organizations
 from orgs.models import Namespace, Organization, OrganizationClass, OrganizationIdentifier
 from orgs.tests.factories import OrganizationFactory
@@ -68,6 +79,33 @@ def snapshot(tmp_path: Path) -> Path:
         for ars, ags, parent, name, classification, level in rows
     ]).write_parquet(path)
     return path
+
+
+def publish_bisko_template(framework: Framework) -> None:
+    template = framework.template_instance
+    assert template is not None
+    spec = template.ensure_spec()
+    spec.years = YearsSpec(reference=2020, min_historical=2010, max_historical=2023, target=2035)
+    template.spec = spec
+    template.save(update_fields=['spec'])
+    node = NodeConfigFactory.create(instance=template, identifier='bisko_shared')
+    node.refresh_from_db()
+    assert node.spec is not None
+    local_port = InputPortDef(id=uuid4(), identifier='local', unit=unit_registry.parse_units('kt/a'), binding_owner='instance')
+    reference_port = InputPortDef(id=uuid4(), identifier='reference', unit=unit_registry.parse_units('kt/a'))
+    node.spec.input_ports = [local_port, reference_port]
+    node.save(update_fields=['spec'])
+    for identifier, port in (('kommune/endenergieverbrauch', local_port), ('de/reference', reference_port)):
+        dataset = DatasetFactory.create(scope=template, identifier=identifier)
+        assert dataset.schema is not None
+        DatasetSchemaScope.objects.create(
+            schema=dataset.schema, scope_content_type=ContentType.objects.get_for_model(framework), scope_id=framework.pk
+        )
+        metric = DatasetMetricFactory.create(schema=dataset.schema, name='Value', unit='kt/a')
+        DataPointFactory.create(dataset=dataset, metric=metric, date=date(2023, 1, 1), value=42)
+        NodeInputPortBinding.objects.create(instance=template, node=node, port_id=port.id, dataset=dataset, metric=metric)
+    template.invalidate_cache()
+    publish_template_instance(template)
 
 
 def test_catalogue_and_import_reuse_existing_municipality(tmp_path: Path) -> None:
@@ -134,10 +172,11 @@ def test_nine_delegated_accounts_cover_only_their_subtrees(tmp_path: Path) -> No
                 assert not user_can_access_organization(framework, user, neighboring_district)
 
 
-def test_provision_bisko_test_accounts_is_repeatable(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    InstanceConfigFactory.create(identifier='bisko', name='BISKO')
+def test_provision_bisko_test_accounts_is_repeatable(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:  # noqa: PLR0915
+    InstanceConfigFactory.create(identifier='bisko', name='BISKO', config_source='database')
     framework = setup_bisko()
     import_bkg_organizations(snapshot(tmp_path), framework=framework)
+    publish_bisko_template(framework)
     output = StringIO()
 
     call_command('provision_bisko_test_accounts', dry_run=True, stdout=output)
@@ -152,6 +191,40 @@ def test_provision_bisko_test_accounts_is_repeatable(tmp_path: Path, monkeypatch
 
     grants = OrganizationAccessGrant.objects.filter(framework=framework, user__email__endswith='.fake@kausal.tech')
     assert grants.count() == 12
+    assert FrameworkConfig.objects.filter(framework=framework).count() == 3
+    template = framework.template_instance
+    assert template is not None
+    template.refresh_from_db()
+    for state in ('03', '07', '12'):
+        config = FrameworkConfig.objects.get(instance_config__identifier=f'bisko-{state}001001')
+        assert config.organization_identifier == f'{state}001001'
+        assert config.instance_config.template_revision_id == template.live_revision_id
+        assert config.instance_config.config_source == 'database'
+        assert config.instance_config.primary_language == 'de'
+        assert build_instance_snapshot(config.instance_config).spec.years.reference == 2020
+        assert [node.identifier for node in build_instance_snapshot(config.instance_config).nodes] == ['bisko_shared']
+        assert not config.instance_config.nodes.exists()
+        spec = config.instance_config.spec
+        assert spec is not None
+        assert {p.local_id: p.value for p in spec.params if p.local_id in ('ags_number', 'lau_code')} == {
+            'ags_number': f'{state}001001',
+            'lau_code': f'DE_{state}001001',
+        }
+        assert spec.features.enable_user_management
+        assert Submission.objects.filter(instance_config=config.instance_config, period_start=2023).count() == 1
+        local = Dataset.objects.for_instance_config(config.instance_config).get(identifier='kommune/endenergieverbrauch')
+        assert not local.data_points.exists()
+        effective = build_instance_snapshot(config.instance_config)
+        local_binding = next(
+            b for b in effective.bindings if isinstance(b.source, DatasetMetricSource) and b.source.dataset.startswith('kommune/')
+        )
+        reference_binding = next(
+            b for b in effective.bindings if isinstance(b.source, DatasetMetricSource) and b.source.dataset == 'de/reference'
+        )
+        assert isinstance(local_binding.source, DatasetMetricSource)
+        assert isinstance(reference_binding.source, DatasetMetricSource)
+        assert local_binding.source.dataset_uuid == local.uuid
+        assert reference_binding.source.dataset_uuid != local.uuid
     identifiers = Namespace.objects.get(identifier='ars')
     for state in ('03', '07', '12'):
         for level, ars, role in (
@@ -170,18 +243,38 @@ def test_provision_bisko_test_accounts_is_repeatable(tmp_path: Path, monkeypatch
             assert grants.get(user=user).role == role
             assert f'{email} | username={user.username}' in output.getvalue()
 
+    town = FrameworkConfig.objects.get(instance_config__identifier='bisko-03001001').instance_config
+    town_dataset = Dataset.objects.for_instance_config(town).get(identifier='kommune/endenergieverbrauch')
+    assert town_dataset.schema is not None
+    town_metric = town_dataset.schema.metrics.get(name='Value')
+    DataPointFactory.create(dataset=town_dataset, metric=town_metric, date=date(2023, 1, 1), value=99)
+    override_ids = set(town.binding_overrides.values_list('uuid', flat=True))
     monkeypatch.setenv('BISKO_TEST_ACCOUNT_PASSWORD', 'new-password-123')
     output = StringIO()
     call_command('provision_bisko_test_accounts', stdout=output)
     assert output.getvalue().count('existing:') == 12
     assert grants.count() == 12
+    assert FrameworkConfig.objects.filter(framework=framework).count() == 3
+    assert list(town_dataset.data_points.values_list('value', flat=True)) == [99]
+    assert set(town.binding_overrides.values_list('uuid', flat=True)) == override_ids
     assert User.objects.get(email='bisko-03-state-admin.fake@kausal.tech').check_password('new-password-123')
+
+    template = framework.template_instance
+    assert template is not None
+    earlier_revision_id = template.live_revision_id
+    template.nodes.filter(identifier='bisko_shared').update(name='Updated BISKO method')
+    template.publish_instance()
+    instance = FrameworkConfig.objects.get(instance_config__identifier='bisko-03001001').instance_config
+    instance.refresh_from_db()
+    assert instance.template_revision_id != earlier_revision_id
+    assert [str(node.name) for node in build_instance_snapshot(instance).nodes] == ['Updated BISKO method']
 
 
 def test_provision_bisko_test_accounts_rejects_changed_grant_atomically(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    InstanceConfigFactory.create(identifier='bisko', name='BISKO')
+    InstanceConfigFactory.create(identifier='bisko', name='BISKO', config_source='database')
     framework = setup_bisko()
     import_bkg_organizations(snapshot(tmp_path), framework=framework)
+    publish_bisko_template(framework)
     monkeypatch.setenv('BISKO_TEST_ACCOUNT_PASSWORD', 'test-password-123')
     call_command('provision_bisko_test_accounts', stdout=StringIO())
     grant = OrganizationAccessGrant.objects.get(framework=framework, user__email='bisko-07-state-admin.fake@kausal.tech')
@@ -194,11 +287,174 @@ def test_provision_bisko_test_accounts_rejects_changed_grant_atomically(tmp_path
     assert User.objects.get(email='bisko-03-state-admin.fake@kausal.tech').check_password('test-password-123')
 
 
+def test_activate_bisko_municipality_requires_published_template(tmp_path: Path) -> None:
+    InstanceConfigFactory.create(identifier='bisko', name='BISKO')
+    framework = setup_bisko()
+    import_bkg_organizations(snapshot(tmp_path), framework=framework)
+    municipality = OrganizationIdentifier.objects.get(namespace__identifier='ars', identifier='030010000001').organization
+
+    with pytest.raises(ActivationError, match='Publish the BISKO template'):
+        activate_bisko_municipality(framework, municipality)
+    assert not FrameworkConfig.objects.filter(framework=framework).exists()
+
+
+def test_activate_framework_organization_is_scoped_and_repeatable(tmp_path: Path, client: Client) -> None:  # noqa: PLR0915
+    InstanceConfigFactory.create(identifier='bisko', name='BISKO', config_source='database')
+    framework = setup_bisko()
+    import_bkg_organizations(snapshot(tmp_path), framework=framework)
+    publish_bisko_template(framework)
+    municipality = OrganizationIdentifier.objects.get(namespace__identifier='ars', identifier='030010000001').organization
+    state = OrganizationIdentifier.objects.get(namespace__identifier='ars', identifier='03').organization
+    user = UserFactory.create()
+    OrganizationAccessGrant.objects.create(framework=framework, organization=state, user=user, role=ObjectRole.EDITOR)
+    client.force_login(user)
+    gql = PathsTestClient(client)
+    mutation = """
+        mutation ($organization: ID!) {
+          activateFrameworkOrganization(frameworkId: "bisko", organizationId: $organization) {
+            ... on ActivateOrganizationResult {
+              organizationId frameworkConfigId instanceIdentifier created
+            }
+          }
+        }
+    """
+    variables = {'organization': str(municipality.uuid)}
+    first = gql.query_data(mutation, variables=variables)['activateFrameworkOrganization']
+    assert first['created'] is True
+    assert first['instanceIdentifier'] == 'bisko-03001001'
+    second = gql.query_data(mutation, variables=variables)['activateFrameworkOrganization']
+    assert second['created'] is False
+    assert second['frameworkConfigId'] == first['frameworkConfigId']
+    assert FrameworkConfig.objects.filter(framework=framework).count() == 1
+
+    config = FrameworkConfig.objects.get(framework=framework, instance_config__organization=municipality)
+    gql.set_instance(config.instance_config)
+    editor = gql.query_data("""
+        { instance { editor {
+          datasets { id identifier isEditable }
+          datasetPorts { dataset { id identifier isEditable } }
+        } } }
+    """)['instance']['editor']
+    local_dataset = next(item for item in editor['datasets'] if item['identifier'] == 'kommune/endenergieverbrauch')
+    assert local_dataset['isEditable'] is True
+    bound = {port['dataset']['identifier']: port['dataset'] for port in editor['datasetPorts']}
+    assert bound['kommune/endenergieverbrauch']['id'] == local_dataset['id']
+    assert bound['de/reference']['isEditable'] is False
+    assert (
+        gql.query_data(
+            """
+        query ($id: ID!) { instance { editor { dataset(id: $id) { id identifier } } } }
+    """,
+            variables={'id': local_dataset['id']},
+        )['instance']['editor']['dataset']['identifier']
+        == 'kommune/endenergieverbrauch'
+    )
+    local_input = Dataset.objects.for_instance_config(config.instance_config).get(identifier='kommune/endenergieverbrauch')
+    assert local_input.schema is not None
+    point = gql.query_data(
+        """
+        mutation ($instanceId: ID!, $datasetId: ID!, $metricId: UUID!) {
+          instanceEditor(instanceId: $instanceId) {
+            datasetEditor(datasetId: $datasetId) {
+              createDataPoint(input: {
+                date: "2023-01-01", value: 42, metricId: $metricId, dimensionCategoryIds: []
+              }) {
+                __typename
+                ... on DataPoint { id value }
+                ... on OperationInfo { messages { kind message field code } }
+              }
+            }
+          }
+        }
+        """,
+        variables={
+            'instanceId': str(config.instance_config.pk),
+            'datasetId': str(local_input.uuid),
+            'metricId': str(local_input.schema.metrics.get(name='Value').uuid),
+        },
+    )['instanceEditor']['datasetEditor']['createDataPoint']
+    assert point['__typename'] == 'DataPoint'
+    assert list(local_input.data_points.values_list('value', flat=True)) == [42]
+    gql.set_instance(None)
+
+    admin = UserFactory.create()
+    OrganizationAccessGrant.objects.create(framework=framework, organization=state, user=admin, role=ObjectRole.ADMIN)
+    client.force_login(admin)
+    gql.set_instance(config.instance_config)
+    account_data = gql.query_data("""
+        { instance {
+          memberSeatLimit memberSeatsInUse
+          users { role }
+          inheritedOrganizationGrants { userEmail role organizationId }
+        } }
+    """)['instance']
+    assert account_data['memberSeatLimit'] == 5
+    assert account_data['memberSeatsInUse'] == 0
+    assert account_data['users'] == []
+    assert {(grant['userEmail'], grant['role']) for grant in account_data['inheritedOrganizationGrants']} == {
+        (user.email, 'EDITOR'),
+        (admin.email, 'ADMIN'),
+    }
+    gql.set_instance(None)
+
+    rows = gql.query_data("""
+        { framework(identifier: "bisko") { organizations(search: "Municipality 03001001") {
+          ars instanceIdentifier municipalityCount activatedMunicipalityCount unactivatedMunicipalityCount
+        } } }
+    """)['framework']['organizations']
+    assert rows == [
+        {
+            'ars': '030010000001',
+            'instanceIdentifier': 'bisko-03001001',
+            'municipalityCount': 1,
+            'activatedMunicipalityCount': 1,
+            'unactivatedMunicipalityCount': 0,
+        }
+    ]
+    state_counts = gql.query_data(
+        """query ($id: ID!) { framework(identifier: "bisko") {
+          organization(id: $id) { municipalityCount activatedMunicipalityCount unactivatedMunicipalityCount }
+        } }""",
+        variables={'id': str(state.uuid)},
+    )['framework']['organization']
+    assert state_counts == {
+        'municipalityCount': 4,
+        'activatedMunicipalityCount': 1,
+        'unactivatedMunicipalityCount': 3,
+    }
+    configs = gql.query_data(
+        """
+        query ($organization: ID!) {
+          framework(identifier: "bisko") {
+            configs(organizationId: $organization) { instanceIdentifier organizationName organizationId }
+          }
+        }
+    """,
+        variables={'organization': str(state.uuid)},
+    )['framework']['configs']
+    assert configs == [
+        {
+            'instanceIdentifier': 'bisko-03001001',
+            'organizationName': 'Municipality 03001001',
+            'organizationId': str(municipality.uuid),
+        }
+    ]
+
+    foreign = OrganizationIdentifier.objects.get(namespace__identifier='ars', identifier='070010000001').organization
+    gql.query_errors(mutation, variables={'organization': str(foreign.uuid)}, assert_error_message='Permission denied')
+    gql.query_errors(mutation, variables={'organization': str(state.uuid)}, assert_error_message='Only municipalities')
+
+
 def test_framework_graphql_lists_only_granted_subtree(tmp_path: Path, client: Client) -> None:
     InstanceConfigFactory.create(identifier='bisko', name='BISKO')
     framework = setup_bisko()
     import_bkg_organizations(snapshot(tmp_path), framework=framework)
     district = OrganizationIdentifier.objects.get(namespace__identifier='ars', identifier='03001').organization
+    municipality = OrganizationIdentifier.objects.get(namespace__identifier='ars', identifier='030010000001').organization
+    instance = InstanceConfigFactory.create(
+        identifier='municipality-count', name='Municipality count', organization=municipality, config_source='database'
+    )
+    FrameworkConfigFactory.create(framework=framework, instance_config=instance)
     user = UserFactory.create(username='district-reader')
     OrganizationAccessGrant.objects.create(framework=framework, organization=district, user=user, role=ObjectRole.VIEWER)
     client.force_login(user)
@@ -207,7 +463,8 @@ def test_framework_graphql_lists_only_granted_subtree(tmp_path: Path, client: Cl
         query ($parent: ID, $search: String) {
           framework(identifier: "bisko") {
             organizations(parentId: $parent, search: $search) {
-              __typename id name classificationIdentifier ars ags
+              __typename id name classificationIdentifier ars ags instanceIdentifier
+              municipalityCount activatedMunicipalityCount unactivatedMunicipalityCount
             }
           }
         }
@@ -215,9 +472,38 @@ def test_framework_graphql_lists_only_granted_subtree(tmp_path: Path, client: Cl
     root = gql.query_data(query)['framework']['organizations']
     assert [entry['ars'] for entry in root] == ['03001']
     assert root[0]['__typename'] == 'FrameworkOrganization'
+    assert (root[0]['municipalityCount'], root[0]['activatedMunicipalityCount'], root[0]['unactivatedMunicipalityCount']) == (
+        2,
+        1,
+        1,
+    )
     children = gql.query_data(query, variables={'parent': str(district.uuid)})['framework']['organizations']
     assert {entry['ars'] for entry in children} == {'030010000001', '030010000002'}
+    assert {entry['ars']: entry['unactivatedMunicipalityCount'] for entry in children} == {
+        '030010000001': 0,
+        '030010000002': 1,
+    }
+    assert next(entry for entry in children if entry['ars'] == '030010000001')['instanceIdentifier'] == 'municipality-count'
+    searched = gql.query_data(query, variables={'parent': str(district.uuid), 'search': '03001002'})['framework']['organizations']
+    assert [entry['ars'] for entry in searched] == ['030010000002']
     assert gql.query_data(query, variables={'search': 'State 07'})['framework']['organizations'] == []
+    lookup = """
+        query ($id: ID!) {
+          framework(identifier: "bisko") {
+            organization(id: $id) { id ars municipalityCount activatedMunicipalityCount unactivatedMunicipalityCount }
+          }
+        }
+    """
+    found = gql.query_data(lookup, variables={'id': str(district.uuid)})['framework']['organization']
+    assert found == {
+        'id': str(district.uuid),
+        'ars': '03001',
+        'municipalityCount': 2,
+        'activatedMunicipalityCount': 1,
+        'unactivatedMunicipalityCount': 1,
+    }
+    state = OrganizationIdentifier.objects.get(namespace__identifier='ars', identifier='03').organization
+    assert gql.query_data(lookup, variables={'id': str(state.uuid)})['framework']['organization'] is None
 
 
 def test_grants_outside_framework_scope_cannot_cross_into_it() -> None:

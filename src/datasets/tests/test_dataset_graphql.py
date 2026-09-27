@@ -43,6 +43,36 @@ if TYPE_CHECKING:
 pytestmark = pytest.mark.django_db
 
 
+def test_empty_dataset_has_typed_calculation_payload() -> None:
+    import polars as pl
+
+    from datasets.materialization import materialize_dataset
+    from datasets.payloads import CurrentDatasetPayloadStore, DatasetPayloadRef
+    from nodes.datasets import JSONDataset
+
+    dataset = DatasetFactory.create(identifier='kommune/empty')
+    DatasetSchemaDimensionFactory.create(schema=dataset.schema, dimension=DimensionFactory.create())
+    DatasetMetricFactory.create(schema=dataset.schema, name='Value', unit='MWh')
+    materialization = materialize_dataset(dataset)
+    assert materialization.content['data']['data'] == []
+    ref = DatasetPayloadRef(
+        payload_id=materialization.pk,
+        dataset_pk=dataset.pk,
+        dataset_uuid=str(dataset.uuid),
+        identifier=dataset.identifier or '',
+        content_hash=materialization.content_hash,
+        generation=materialization.generation,
+        forecast_from=None,
+    )
+    frame = CurrentDatasetPayloadStore([ref]).get_dataframe(ref)
+    assert 'Value' in frame.columns
+    assert frame.is_empty()
+    assert 'Value' in frame.get_meta().units
+    assert len(frame.dim_ids) == 1
+    assert frame.schema[frame.dim_ids[0]] == pl.String
+    assert JSONDataset.deserialize_df(materialization.content['data']).is_empty()
+
+
 CREATE_DATA_POINT = """
 mutation CreateDataPoint($instanceId: ID!, $datasetId: ID!, $input: CreateDataPointInput!) {
     instanceEditor(instanceId: $instanceId) {
