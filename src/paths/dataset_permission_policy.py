@@ -98,6 +98,12 @@ class InstanceConfigScopedPermissionPolicy[
             return False
         if user.is_superuser:
             return True
+        # An instance may be public, but its scoped resources still require
+        # their own explicit permissions. Deletion uses the resource's roles,
+        # since deleting a resource does not delete its governing instance.
+        permission_q = self.construct_perm_q(user, action)
+        if permission_q is None or not self.get_queryset().filter(permission_q, pk=obj.pk).exists():
+            return False
         try:
             # Realm context only works in admin context, not for REST API
             active_instance = realm_context.get().realm
@@ -111,7 +117,8 @@ class InstanceConfigScopedPermissionPolicy[
             if active_instance.pk not in instance_ids:
                 return False
             instances = [active_instance]
-        return any(InstanceConfigPermissionPolicy().user_has_perm(user, action, instance) for instance in instances)
+        instance_action = 'change' if action == 'delete' else action
+        return any(InstanceConfigPermissionPolicy().user_has_perm(user, instance_action, instance) for instance in instances)
 
     def get_permission_block(
         self,
