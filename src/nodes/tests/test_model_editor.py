@@ -2133,15 +2133,15 @@ def test_model_instance_query(gql_client: PathsTestClient, db_instance_config: I
     ]
 
 
+@pytest.mark.parametrize('node_count', [15, 30])
 def test_model_instance_query_avoids_n_plus_one_for_port_bindings(
-    gql_client: PathsTestClient, db_instance_config: InstanceConfig
+    gql_client: PathsTestClient, db_instance_config: InstanceConfig, node_count: int
 ):
     from nodes.models import NodeInputPortBinding
 
     dataset = DatasetFactory.create(identifier='test_dataset', scope=db_instance_config)
     metric = DatasetMetricFactory.create(schema=dataset.schema, name='test_metric')
 
-    node_count = 15
     for idx in range(node_count):
         NodeConfigFactory.create(
             instance=db_instance_config,
@@ -2203,10 +2203,9 @@ def test_model_instance_query_avoids_n_plus_one_for_port_bindings(
         if 'FROM "datasets_dataset"' in query['sql'] and 'WHERE "datasets_dataset"."uuid" =' in query['sql']
     ]
     assert per_binding_dataset_queries == []
-    # Constant budget, independent of node/binding count (52 at both 15 and 30
-    # nodes). Metric validation rules add fixed dataset-catalog queries, and
-    # loading and materializing the instance's one DB dataset adds a fixed ~30.
-    assert len(query_ctx) <= 55
+    # Keep the same fixed budget at 15 and 30 nodes so a query per binding
+    # cannot pass. A cold framework ContentType lookup may add one query.
+    assert len(query_ctx) <= 56
 
 
 def test_dataset_ports_rebuild_multimetric_action_dataset(db_instance_config: InstanceConfig):
