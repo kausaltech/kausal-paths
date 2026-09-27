@@ -67,6 +67,7 @@ if TYPE_CHECKING:
     from django.db.models import QuerySet
 
     from datasets.graphql.types import DataSourceType  # used in lazy strawberry annotation
+    from frameworks.mutations import OrganizationAccessGrantType
     from frameworks.schema import FrameworkConfigType  # used in lazy strawberry annotation
     from frameworks.submission_schema import SubmissionType
     from nodes.context import Context
@@ -950,6 +951,24 @@ class InstanceType:
         if not _instance_admin_allowed(self._config, info):
             return []
         return _collect_instance_members(self._config)
+
+    @sb.field(
+        graphql_type=list[Annotated['OrganizationAccessGrantType', sb.lazy('frameworks.mutations')]],
+        description='Regional organization grants that cover this municipality. These are separate from municipal seats.',
+    )
+    def inherited_organization_grants(self, info: gql.Info) -> list['OrganizationAccessGrantType']:
+        from frameworks.models import OrganizationAccessGrant
+        from frameworks.mutations import OrganizationAccessGrantType
+
+        if not _instance_admin_allowed(self._config, info) or not self._config.has_framework_config():
+            return []
+        framework = self._config.framework_config.framework
+        organization = self._config.organization
+        ancestor_ids = [organization.pk, *organization.get_ancestors().values_list('pk', flat=True)]
+        grants = OrganizationAccessGrant.objects.filter(framework=framework, organization_id__in=ancestor_ids).select_related(
+            'organization', 'user'
+        )
+        return [OrganizationAccessGrantType.from_model(grant) for grant in grants]
 
     @sb.field(description='Maximum municipal accounts and pending invitations for this instance, if limited.')
     def member_seat_limit(self, info: gql.Info) -> int | None:

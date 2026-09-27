@@ -324,9 +324,14 @@ class DatasetPermissionPolicy(ParentInheritedPolicy[Dataset, DatasetSchema, Data
     def _scope_q(user: User, action: BaseObjectAction) -> Q:
         ic_policy = InstanceConfigPermissionPolicy()
         if action == 'view':
-            return Dataset.instance_scope_q(InstanceConfig.objects.filter(ic_policy.role_q(user, 'view')))
+            from frameworks.organization_access import instance_grant_q
+
+            instances = InstanceConfig.objects.filter(ic_policy.role_q(user, 'view') | instance_grant_q(user, action='view'))
+            return Dataset.instance_scope_q(instances)
         # Editing or deleting a dataset changes its scope object; it never deletes it.
-        instances = InstanceConfig.objects.filter(ic_policy.role_q(user, 'change'))
+        from frameworks.organization_access import instance_grant_q
+
+        instances = InstanceConfig.objects.filter(ic_policy.role_q(user, 'change') | instance_grant_q(user, action='change'))
         node_q = NodeConfig.permission_policy().construct_perm_q(user, 'change')
         nodes = NodeConfig.objects.filter(node_q) if node_q is not None else NodeConfig.objects.none()
         return Q(scope_content_type=ContentType.objects.get_for_model(InstanceConfig), scope_id__in=instances.values('pk')) | Q(

@@ -34,6 +34,7 @@ from datasets.snapshot import (
     DatasetSnapshot,
     DataSourceSnapshot,
     SourceReferenceSnapshot,
+    metric_column_id,
 )
 from nodes.snapshot_base import apply_translated
 from users.models import User
@@ -168,13 +169,29 @@ def export_dataset_data_safe(ds: DatasetModel) -> dict[str, Any] | None:
     """
     Serialize DataPoints.
 
-    Returns ``None`` when the dataset has no data or the deserialization
-    fails (e.g. empty / mis-seeded datasets during tests). Robustness
+    An empty dataset still needs a typed dataframe payload so inherited model
+    inputs can evaluate it as missing municipal data. Returns ``None`` when
+    deserialization fails (e.g. mis-seeded datasets during tests). Robustness
     matters here because ``serializable_data()`` is
     called on every ``save_revision`` and must not crash on edge cases.
     """
     if not ds.data_points.exists():
-        return None
+        data = _export_dataset_data(ds)
+        fields = data['schema']['fields']
+        for field in fields:
+            if field['type'] == 'any':
+                field['type'] = 'string'
+                field.pop('constraints', None)
+                field.pop('ordered', None)
+        present = {field['name'] for field in fields}
+        if ds.schema is not None:
+            for metric in ds.schema.metrics.all():
+                name = metric_column_id(metric)
+                if name in present:
+                    continue
+                field = {'name': name, 'type': 'number', 'unit': metric.unit}
+                fields.append(field)
+        return data
     return _export_dataset_data(ds)
 
 
