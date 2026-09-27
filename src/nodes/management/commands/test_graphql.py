@@ -45,8 +45,45 @@ def compare_func(x: Any, y: Any, level: DiffLevel | None):
         raise CannotCompare() from None
 
 
-def _diff_responses(fn: Path, data: dict[str, Any], out: dict[str, Any]) -> bool:
-    """Return True if there are differences."""
+def _errored_paths(data: Any, errors: list[dict[str, Any]]) -> list[list[str | int]]:
+    """
+    Return the response subtrees nulled by ``errors``.
+
+    GraphQL nulls an errored field's nearest nullable ancestor, so the subtree
+    to ignore is the first prefix of the error path that is null in ``data``.
+    """
+    paths: list[list[str | int]] = []
+    for err in errors:
+        path = err.get('path')
+        if not path:
+            continue
+        node = data
+        for depth, key in enumerate(path):
+            if node is None:
+                paths.append(path[:depth])
+                break
+            try:
+                node = node[key]
+            except KeyError, IndexError, TypeError:
+                break
+        else:
+            if node is None:
+                paths.append(path)
+    return paths
+
+
+def _deepdiff_path(path: list[str | int]) -> str:
+    return 'root' + ''.join(f'[{key!r}]' for key in path)
+
+
+def _diff_responses(fn: Path, data: dict[str, Any], out: dict[str, Any], *, ignore_fixed_errors: bool = False) -> bool:
+    """
+    Return True if there are differences.
+
+    With ``ignore_fixed_errors``, the subtrees that errored in the reference
+    are left out of the comparison, so a field that resolves now where the
+    reference failed is not a difference.
+    """
     resp_errors = out.get('errors', [])
     target_errors = data['response'].get('errors', [])
     if resp_errors and not target_errors:
@@ -64,16 +101,23 @@ def _diff_responses(fn: Path, data: dict[str, Any], out: dict[str, Any]) -> bool
 
     target_data = data['response'].get('data')
     resp_data = out.get('data')
+    excluded = _errored_paths(target_data, target_errors) if ignore_fixed_errors else []
     if isinstance(target_data, dict) and isinstance(resp_data, dict) and len(target_data) == len(resp_data) == 1:
         solo_key = next(iter(target_data.keys()))
         target_data = target_data[solo_key]
         resp_data = resp_data[solo_key]
+        excluded = [path[1:] for path in excluded if path and path[0] == solo_key]
+    if excluded:
+        print('Ignoring subtrees that errored in the reference: %s' % ', '.join(_deepdiff_path(p) for p in excluded))
+        if [] in excluded:
+            return False
 
     diff = DeepDiff(
         target_data,
         resp_data,
         math_epsilon=1e-5,
         iterable_compare_func=compare_func,
+        exclude_paths=[_deepdiff_path(path) for path in excluded],
     )
     if not diff:
         return False
@@ -92,6 +136,7 @@ class Command(BaseCommand):
     check_perf: bool = False
     redis: Redis | None = None
     keep_cache: bool = False
+    ignore_fixed_errors: bool = False
 
     def add_arguments(self, parser: CommandParser):
         parser.add_argument('files', metavar='FILE', type=str, nargs='*')
@@ -113,6 +158,12 @@ class Command(BaseCommand):
         )
         parser.add_argument(
             '--keep-cache', action='store_true', default=False, help='Do not flush the external cache before running'
+        )
+        parser.add_argument(
+            '--ignore-fixed-errors',
+            action='store_true',
+            default=False,
+            help='Do not count fields that errored in the reference response as differences if they resolve now',
         )
 
     def fail(self) -> None:
@@ -169,7 +220,7 @@ class Command(BaseCommand):
             resp = client.post(GQL_URL, body, content_type='application/json', **kwargs)
             end_time = time.time()
             out = json.loads(resp.content)
-            if _diff_responses(fn, data, out):
+            if _diff_responses(fn, data, out, ignore_fixed_errors=self.ignore_fixed_errors):
                 self.fail()
 
             self.evaluate_perf(start_time, end_time, data, fn)
@@ -200,7 +251,7 @@ class Command(BaseCommand):
             if resp.cookies:
                 session.cookie_jar.update_cookies(resp.cookies)
 
-        if _diff_responses(fn, data, out):
+        if _diff_responses(fn, data, out, ignore_fixed_errors=self.ignore_fixed_errors):
             self.failures += 1
             if self.failures >= self.maxfail:
                 exit(1)
@@ -249,6 +300,7 @@ class Command(BaseCommand):
         self.limit = options['limit']
         self.check_perf = options['check_perf']
         self.keep_cache = options['keep_cache']
+        self.ignore_fixed_errors = options['ignore_fixed_errors']
 
         os.environ['DISABLE_GRAPHQL_CACHE'] = '1'
 
