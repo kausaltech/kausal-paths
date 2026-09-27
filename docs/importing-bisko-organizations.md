@@ -46,8 +46,11 @@ python manage.py grant_organization_access username 03 --role viewer --dry-run
 python manage.py grant_organization_access username 03001 --role editor
 ```
 
-To provision 12 password-login test accounts after importing the BKG tree,
-set `BISKO_TEST_ACCOUNT_PASSWORD` in the environment and run:
+Publish the BISKO template before activating any municipality. Activation pins
+each new instance to that published revision; it does not copy the template's
+nodes or datasets into a local model. To provision 12 password-login test
+accounts and activate their three selected municipalities after importing the
+BKG tree, set `BISKO_TEST_ACCOUNT_PASSWORD` in the environment and run:
 
 ```bash
 python manage.py provision_bisko_test_accounts --dry-run
@@ -60,14 +63,82 @@ Rheinland-Pfalz (07), and Brandenburg (12). It chooses the first Landkreis by
 ARS that contains a municipality and grants the municipality account access
 inside that Landkreis. The emails are `bisko-<state>-<level>.fake@kausal.tech`.
 They are the login names; the command also prints each internal username and
-ARS. Repeating the command keeps the same accounts and grants and resets their
+ARS. It also prints the instance identifier and framework config UUID for each
+selected municipality. Repeating the command keeps the same accounts, grants,
+and instances and resets their
 passwords to the supplied value. A changed, suspended, or extra grant requires
 explicit resolution. The password is never printed. The command creates users
 in the Paths database; a deployment using an external identity provider also
 needs matching accounts there for password login through that provider.
 
+Activation gives the municipality its own empty `kommune/` datasets against
+the shared BISKO schemas. Its editable municipal input bindings point to those
+local dataset UUIDs; the `de/` method and reference inputs stay shared. It
+sets `ags_number` and `lau_code` from the municipality's AGS, enables account
+management when BISKO enables it, and opens one draft submission for the most
+recent historical year. A draft with empty municipal inputs is deliberately
+incomplete; do not treat template demonstration values as the town's balance.
+
+For municipalities activated before local inputs were provisioned, reconcile
+their existing instances without resetting account passwords:
+
+```bash
+python manage.py reconcile_bisko_municipalities \
+  bisko-03151009 bisko-07131007 bisko-12060005 --dry-run
+python manage.py reconcile_bisko_municipalities \
+  bisko-03151009 bisko-07131007 bisko-12060005
+```
+
+The command creates missing datasets, binding overrides, and a draft submission;
+it preserves existing municipal data points, local binding choices, and
+submissions. The dry run rolls back its database writes. These test accounts
+hold regional `OrganizationAccessGrant` roles. `Instance.users` lists direct
+municipal memberships only, so it remains empty until a municipal admin adds
+or invites one; regional grant holders do not consume municipal seats.
+An instance admin can query `Instance.inheritedOrganizationGrants` for the
+regional accounts that cover the municipality, including their email, role,
+and grant root. `memberSeatLimit` and `memberSeatsInUse` describe the separate
+municipal roster.
+
 The GraphQL `framework.organizations` field returns only accessible
 organizations, with `parentId`, `search`, `first`, and `offset` arguments.
+`search` filters the direct children when `parentId` is supplied; without a
+parent it searches the accessible subtree. `framework.organization(id: ...)`
+retrieves one organization by UUID if the caller has access. Each organization
+reports `municipalityCount`, `activatedMunicipalityCount`, and
+`unactivatedMunicipalityCount` for its whole subtree (including itself if it
+is a municipality). District-free cities count as municipalities. Activated
+means that a BISKO `FrameworkConfig` exists; it says nothing about whether the
+municipality has entered data or finalized a submission. These counts are
+aggregated in the database, so a UI need not page through thousands of towns.
+Each row has `instanceIdentifier`, which is null until activation. A UI can
+offer activation on an accessible municipality without an instance using
+`activateFrameworkOrganization(frameworkId: "bisko", organizationId: ...)`.
+The mutation requires edit access to that municipality, returns the instance
+identifier and framework config UUID, and is repeatable. It rejects nonmunicipal
+organizations, missing AGS identifiers, and activation before template
+publication. Existing model instances without published-template inheritance
+need explicit conversion; activation will not silently replace them.
+`FrameworkConfig.organizationId` links back to the direct organization, and
+`Framework.configs(organizationId: ...)` returns configs under that organization
+or any descendant, filtered by the caller's access. Population remains a
+separate data input; the instance's `lau_code` now selects its own LAU from the
+shared population dataset.
+The local `kommune/` datasets start empty. Until municipal data is entered or
+imported, the balance has missing inputs and must be shown as incomplete; the
+template's demonstration values are never used as town-specific totals.
+
+```graphql
+mutation Activate($organization: ID!) {
+  activateFrameworkOrganization(frameworkId: "bisko", organizationId: $organization) {
+    ... on ActivateOrganizationResult {
+      frameworkConfigId
+      instanceIdentifier
+      created
+    }
+  }
+}
+```
 
 The current Data Studio municipality picker still reads `framework.configs`,
 which lists only provisioned model instances. Its loader must switch to the
