@@ -184,8 +184,8 @@ if test_mode_enabled():
 
     @sb.type
     class PathsTestModeMutations:
-        @sb.field
-        def test_mode(self) -> PathsTestMode:
+        @sb.field(graphql_type=PathsTestMode)
+        def test_mode(self) -> object:
             if not test_mode_enabled():
                 raise TestModeNotEnabledError()
             return PathsTestMode()
