@@ -1,6 +1,7 @@
 from datetime import date
 from io import StringIO
 from typing import TYPE_CHECKING
+from unittest.mock import patch
 from uuid import uuid4
 
 from django.contrib.contenttypes.models import ContentType
@@ -27,6 +28,7 @@ from frameworks.models import (
     Submission,
 )
 from frameworks.organization_access import accessible_organizations, user_can_access_organization
+from frameworks.population import population_aggregates, replace_population_projection
 from frameworks.provisioning import GERMAN_ORGANIZATION_CLASSES, setup_bisko
 from frameworks.roles import framework_admin_role
 from frameworks.tests.factories import FrameworkConfigFactory
@@ -455,6 +457,18 @@ def test_framework_graphql_lists_only_granted_subtree(tmp_path: Path, client: Cl
         identifier='municipality-count', name='Municipality count', organization=municipality, config_source='database'
     )
     FrameworkConfigFactory.create(framework=framework, instance_config=instance)
+    result = replace_population_projection(
+        framework,
+        pl.DataFrame({
+            'lau': ['DE_03001001', 'DE_03001002', 'DE_03002001'],
+            'Year': [2023, 2023, 2023],
+            'population': [100.0, 200.0, 300.0],
+        }),
+        source_revision='population-test-revision',
+    )
+    assert result.observations == 3
+    state = OrganizationIdentifier.objects.get(namespace__identifier='ars', identifier='03').organization
+    assert population_aggregates(framework, 2023).by_path[state.path].value == 600
     user = UserFactory.create(username='district-reader')
     OrganizationAccessGrant.objects.create(framework=framework, organization=district, user=user, role=ObjectRole.VIEWER)
     client.force_login(user)
@@ -502,8 +516,108 @@ def test_framework_graphql_lists_only_granted_subtree(tmp_path: Path, client: Cl
         'activatedMunicipalityCount': 1,
         'unactivatedMunicipalityCount': 1,
     }
-    state = OrganizationIdentifier.objects.get(namespace__identifier='ars', identifier='03').organization
     assert gql.query_data(lookup, variables={'id': str(state.uuid)})['framework']['organization'] is None
+    population = gql.query_data(
+        """query ($id: ID!) { framework(identifier: "bisko") {
+          organization(id: $id) { population(year: 2023) {
+            year value partialValue municipalityCount observedMunicipalityCount sourceRevision
+          } }
+        } }""",
+        variables={'id': str(district.uuid)},
+    )['framework']['organization']['population']
+    assert population == {
+        'year': 2023,
+        'value': 300,
+        'partialValue': 300,
+        'municipalityCount': 2,
+        'observedMunicipalityCount': 2,
+        'sourceRevision': 'population-test-revision',
+    }
+    config_population = gql.query_data(
+        """query ($district: ID!) { framework(identifier: "bisko") {
+          configs(organizationId: $district) { population(year: 2023) { value sourceRevision } }
+        } }""",
+        variables={'district': str(district.uuid)},
+    )['framework']['configs']
+    assert config_population == [{'population': {'value': 100, 'sourceRevision': 'population-test-revision'}}]
+    with patch('frameworks.schema.population_aggregates', wraps=population_aggregates) as load_year:
+        siblings = gql.query_data(
+            """query ($parent: ID!) { framework(identifier: "bisko") {
+              organizations(parentId: $parent) { population(year: 2023) { value } }
+            } }""",
+            variables={'parent': str(district.uuid)},
+        )['framework']['organizations']
+    assert [row['population']['value'] for row in siblings] == [100, 200]
+    assert load_year.call_count == 1
+    state_user = UserFactory.create()
+    OrganizationAccessGrant.objects.create(framework=framework, organization=state, user=state_user, role=ObjectRole.VIEWER)
+    client.force_login(state_user)
+    state_population = gql.query_data(
+        """query ($id: ID!) { framework(identifier: "bisko") {
+          organization(id: $id) { population(year: 2023) {
+            value partialValue municipalityCount observedMunicipalityCount
+          } }
+        } }""",
+        variables={'id': str(state.uuid)},
+    )['framework']['organization']['population']
+    assert state_population == {
+        'value': None,
+        'partialValue': 600,
+        'municipalityCount': 4,
+        'observedMunicipalityCount': 3,
+    }
+    with pytest.raises(ValueError, match='Duplicate population'):
+        replace_population_projection(
+            framework,
+            pl.DataFrame({'lau': ['DE_03001001', 'DE_03001001'], 'Year': [2023, 2023], 'population': [1.0, 2.0]}),
+            source_revision='bad-revision',
+        )
+    assert population_aggregates(framework, 2023).by_path[state.path].value == 600
+
+
+def test_district_free_city_population_is_counted_once(client: Client) -> None:
+    InstanceConfigFactory.create(identifier='bisko', name='BISKO')
+    framework = setup_bisko()
+    state = OrganizationFactory.create(name='State', classification=OrganizationClass.objects.get(identifier='de_state'))
+    city = OrganizationFactory.create(
+        parent=state, name='City district', classification=OrganizationClass.objects.get(identifier='de_district_free_city')
+    )
+    municipality = OrganizationFactory.create(
+        parent=city, name='City municipality', classification=OrganizationClass.objects.get(identifier='de_municipality')
+    )
+    FrameworkOrganizationRoot.objects.create(framework=framework, organization=state)
+    OrganizationIdentifier.objects.create(
+        organization=municipality, namespace=Namespace.objects.get(identifier='ags'), identifier='07111000'
+    )
+    instance = InstanceConfigFactory.create(name='City', identifier='city-count', organization=municipality)
+    FrameworkConfigFactory.create(framework=framework, instance_config=instance)
+    replace_population_projection(
+        framework,
+        pl.DataFrame({'lau': ['DE_07111000'], 'Year': [2023], 'population': [115000.0]}),
+        source_revision='city-source',
+    )
+    user = UserFactory.create()
+    OrganizationAccessGrant.objects.create(framework=framework, organization=state, user=user, role=ObjectRole.VIEWER)
+    client.force_login(user)
+    gql = PathsTestClient(client)
+    rows = gql.query_data(
+        """query ($parent: ID!) { framework(identifier: "bisko") {
+          organizations(parentId: $parent) {
+            name municipalityCount activatedMunicipalityCount unactivatedMunicipalityCount
+            population(year: 2023) { value observedMunicipalityCount }
+          }
+        } }""",
+        variables={'parent': str(state.uuid)},
+    )['framework']['organizations']
+    assert rows == [
+        {
+            'name': 'City district',
+            'municipalityCount': 1,
+            'activatedMunicipalityCount': 1,
+            'unactivatedMunicipalityCount': 0,
+            'population': {'value': 115000, 'observedMunicipalityCount': 1},
+        }
+    ]
 
 
 def test_grants_outside_framework_scope_cannot_cross_into_it() -> None:
