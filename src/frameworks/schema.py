@@ -28,6 +28,8 @@ from nodes.exceptions import NodeComputationError
 from nodes.models import InstanceConfig
 from nodes.schema import NodeInterface
 from nodes.units import unit_registry
+from orgs.models import Organization, OrganizationIdentifier
+from users.models import User
 
 from .models import (
     Framework,
@@ -40,6 +42,8 @@ from .models import (
     MinMaxDefaultInt as MinMaxDefaultIntModel,
     Section,
 )
+from .mutations import OrganizationAccessGrantType
+from .organization_access import accessible_organizations, organization_is_in_framework, user_can_access_organization
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -159,6 +163,16 @@ class FrameworkDefaultsType:
     baseline_year: strawberry.auto
 
 
+@register_strawberry_type
+@sb.type(name='FrameworkOrganization')
+class FrameworkOrganizationType:
+    id: sb.ID
+    name: str
+    classification_identifier: str | None
+    ars: str | None
+    ags: str | None
+
+
 class FrameworkType(DjangoNode[Framework]):
     class Meta(DjangoNodeMeta):
         model = Framework
@@ -170,6 +184,114 @@ class FrameworkType(DjangoNode[Framework]):
     configs = graphene.List(graphene.NonNull(lambda: FrameworkConfigType), required=True)
     config = graphene.Field(lambda: FrameworkConfigType, id=graphene.ID(required=True), required=False)
     defaults = graphene.Field(FrameworkDefaultsType, required=True)
+    organizations = graphene.List(
+        graphene.NonNull(FrameworkOrganizationType),
+        parent_id=graphene.ID(),
+        search=graphene.String(),
+        first=graphene.Int(default_value=100),
+        offset=graphene.Int(default_value=0),
+        required=True,
+        description='Accessible administrative organizations. Without a parent, returns delegated entry points.',
+    )
+    organization_grants = graphene.List(
+        graphene.NonNull(OrganizationAccessGrantType),
+        organization_id=graphene.ID(),
+        first=graphene.Int(default_value=100),
+        offset=graphene.Int(default_value=0),
+        required=True,
+        description='Organization grants visible to a framework or subtree administrator.',
+    )
+
+    @staticmethod
+    def resolve_organization_grants(
+        root: Framework,
+        info: GQLInfo,
+        organization_id: str | None = None,
+        first: int = 100,
+        offset: int = 0,
+    ) -> list[OrganizationAccessGrantType]:
+        from frameworks.models import OrganizationAccessGrant
+        from frameworks.roles import framework_admin_role
+
+        if not 1 <= first <= 200 or offset < 0:
+            raise GraphQLError('first must be between 1 and 200 and offset must be nonnegative', nodes=info.field_nodes)
+        user = info.context.get_user()
+        if not isinstance(user, User):
+            return []
+        queryset = OrganizationAccessGrant.objects.filter(framework=root)
+        if organization_id is not None:
+            organization = Organization.objects.filter(uuid=organization_id).first()
+            if organization is None:
+                return []
+            queryset = queryset.filter(organization=organization)
+        if not user.is_superuser and not user.has_instance_role(framework_admin_role, root):
+            admin_grants = OrganizationAccessGrant.objects.filter(
+                framework=root, user=user, role='admin', suspended_at__isnull=True
+            ).select_related('organization')
+            q = Q(pk__in=[])
+            for grant in admin_grants:
+                if organization_is_in_framework(root, grant.organization):
+                    q |= Q(organization__path__startswith=grant.organization.path)
+            queryset = queryset.filter(q)
+        grants = queryset.select_related('user', 'organization').order_by('organization__path', 'user__email')[
+            offset : offset + first
+        ]
+        return [OrganizationAccessGrantType.from_model(grant) for grant in grants]
+
+    @staticmethod
+    def resolve_organizations(
+        root: Framework,
+        info: GQLInfo,
+        parent_id: str | None = None,
+        search: str | None = None,
+        first: int = 100,
+        offset: int = 0,
+    ) -> list[FrameworkOrganizationType]:
+        from frameworks.models import OrganizationAccessGrant
+
+        if not 1 <= first <= 200 or offset < 0:
+            raise GraphQLError('first must be between 1 and 200 and offset must be nonnegative', nodes=info.field_nodes)
+        user = info.context.get_user()
+        if not isinstance(user, User):
+            return []
+        allowed = accessible_organizations(root, user)
+        if parent_id is not None:
+            parent = Organization.objects.filter(uuid=parent_id).first()
+            if parent is None or not user_can_access_organization(root, user, parent):
+                return []
+            allowed = allowed.filter(path__startswith=parent.path, depth=parent.depth + 1)
+        elif search:
+            allowed = allowed.filter(name__icontains=search.strip())
+        else:
+            entry_ids = set(root.organization_roots.values_list('organization_id', flat=True))
+            if not user.is_superuser:
+                from frameworks.roles import framework_admin_role, framework_viewer_role
+
+                if not user.has_instance_role(framework_admin_role, root) and not user.has_instance_role(
+                    framework_viewer_role, root
+                ):
+                    entry_ids = set(
+                        OrganizationAccessGrant.objects.filter(framework=root, user=user, suspended_at__isnull=True).values_list(
+                            'organization_id', flat=True
+                        )
+                    )
+            allowed = allowed.filter(pk__in=entry_ids)
+        organizations = list(allowed.select_related('classification').order_by('path')[offset : offset + first])
+        identifiers: dict[int, dict[str, str]] = {org.pk: {} for org in organizations}
+        for org_id, namespace, identifier in OrganizationIdentifier.objects.filter(organization_id__in=identifiers).values_list(
+            'organization_id', 'namespace__identifier', 'identifier'
+        ):
+            identifiers[org_id][namespace] = identifier
+        return [
+            FrameworkOrganizationType(
+                id=sb.ID(str(org.uuid)),
+                name=org.name,
+                classification_identifier=org.classification.identifier if org.classification else None,
+                ars=identifiers[org.pk].get('ars'),
+                ags=identifiers[org.pk].get('ags'),
+            )
+            for org in organizations
+        ]
 
     @staticmethod
     def resolve_sections(root: Framework, info: GQLInfo) -> list[Section]:

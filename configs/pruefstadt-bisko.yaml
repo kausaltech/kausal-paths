@@ -26,6 +26,7 @@ features:
   use_datasets_from_db: true
   show_explanations: true
   show_category_warnings: true
+  enable_user_management: true
 
 include:
 - file: modules/bisko/model.yaml

@@ -8,7 +8,8 @@ from unittest.mock import patch
 import pytest
 
 from frameworks.tests.factories import FrameworkConfigFactory
-from nodes.models import InstanceConfig, InstanceInvitation
+from nodes.membership import seats_in_use
+from nodes.models import InstanceConfig, InstanceInvitation, InstanceMemberAssignment, InstanceMemberEvent
 from users.models import User
 
 if TYPE_CHECKING:
@@ -219,6 +220,43 @@ def test_invite_rejects_existing_user_email(
     assert any('already exists' in e['message'] for e in errors)
 
 
+def test_invited_role_is_preserved_on_registration(
+    gql_client: PathsTestClient,
+    client: Client,
+    managed_instance: InstanceConfig,
+    owner_user: User,
+) -> None:
+    client.force_login(owner_user)
+    query = """
+    mutation ($instanceId: ID!) {
+      instanceAdmin(instanceId: $instanceId) {
+        inviteUserToInstance(email: "reviewer@example.com", role: REVIEWER) {
+          ... on InstanceInvitation { id role }
+        }
+      }
+    }
+    """
+    with patch('users.graphql.mutations.send_instance_invitation'):
+        data = gql_client.query_data(query, variables={'instanceId': managed_instance.identifier})
+    assert data['instanceAdmin']['inviteUserToInstance']['role'] == 'REVIEWER'
+    inv = InstanceInvitation.objects.get(instance_config=managed_instance, email='reviewer@example.com')
+    assert inv.role == 'reviewer'
+    client.logout()
+    gql_client.query_data(
+        REGISTER_QUERY,
+        variables={
+            'input': {
+                'email': 'reviewer@example.com',
+                'password': 'Sufficient1!',
+                'invitationToken': inv.token,
+            },
+        },
+    )
+    reviewer = User.objects.get(email='reviewer@example.com')
+    assert reviewer.has_instance_role(managed_instance.permission_policy().reviewer_role, managed_instance)
+    assert not managed_instance.permission_policy().is_admin(reviewer, managed_instance)
+
+
 REGISTER_QUERY = """
 mutation Register($input: RegisterUserInput!) {
   registerUser(input: $input) {
@@ -378,6 +416,184 @@ def test_remove_user_requires_owner_not_just_admin(
         variables={'instanceId': managed_instance.identifier, 'userId': str(other_user.uuid)},
     )
     assert any('owner' in e['message'].lower() or 'superuser' in e['message'].lower() for e in errors)
+
+
+def test_editor_can_edit_without_managing_members(
+    gql_client: PathsTestClient,
+    client: Client,
+    managed_instance: InstanceConfig,
+    owner_user: User,
+    other_user: User,
+) -> None:
+    client.force_login(owner_user)
+    query = """
+    mutation ($instanceId: ID!, $email: String!) {
+      instanceAdmin(instanceId: $instanceId) {
+        addUserToInstance(email: $email, role: EDITOR) {
+          __typename
+          ... on User { id }
+        }
+      }
+    }
+    """
+    gql_client.query_data(query, variables={'instanceId': managed_instance.identifier, 'email': other_user.email})
+    pp = managed_instance.permission_policy()
+    assert pp.is_editor(other_user, managed_instance)
+    assert not pp.is_admin(other_user, managed_instance)
+    assert pp.user_has_perm(other_user, 'change', managed_instance)
+    client.force_login(other_user)
+    assert gql_client.query_data('{ me { isSuperuser } }')['me']['isSuperuser'] is False
+    assert gql_client.query_errors(
+        ADD_USER_QUERY,
+        variables={'instanceId': managed_instance.identifier, 'email': 'person@example.com'},
+    )
+
+
+def test_member_mutation_rejects_operator_role(
+    gql_client: PathsTestClient,
+    client: Client,
+    managed_instance: InstanceConfig,
+    owner_user: User,
+    other_user: User,
+) -> None:
+    client.force_login(owner_user)
+    errors = gql_client.query_errors(
+        """mutation ($id: ID!, $email: String!) {
+          instanceAdmin(instanceId: $id) {
+            addUserToInstance(email: $email, role: SUPER_ADMIN) { __typename }
+          }
+        }""",
+        variables={'id': managed_instance.identifier, 'email': other_user.email},
+    )
+    assert any('Operator access' in error['message'] for error in errors)
+    assert not managed_instance.permission_policy().is_admin(other_user, managed_instance)
+
+
+def test_me_exposes_superuser_flag(gql_client: PathsTestClient, client: Client) -> None:
+    admin = User.objects.create_superuser(username='operator', email='operator@example.com', password='Sufficient1!')
+    client.force_login(admin)
+    assert gql_client.query_data('{ me { isSuperuser } }')['me']['isSuperuser'] is True
+
+
+def test_role_change_suspension_and_reactivation_preserve_history(
+    gql_client: PathsTestClient,
+    client: Client,
+    managed_instance: InstanceConfig,
+    owner_user: User,
+    other_user: User,
+) -> None:
+    client.force_login(owner_user)
+    gql_client.query_data(
+        ADD_USER_QUERY,
+        variables={'instanceId': managed_instance.identifier, 'email': other_user.email},
+    )
+    member_id = str(other_user.uuid)
+    change = """
+    mutation ($instanceId: ID!, $member: ID!) {
+      instanceAdmin(instanceId: $instanceId) {
+        changeUserRole(userId: $member, role: REVIEWER) { __typename }
+      }
+    }
+    """
+    gql_client.query_data(change, variables={'instanceId': managed_instance.identifier, 'member': member_id})
+    assignment = InstanceMemberAssignment.objects.get(instance_config=managed_instance, user=other_user)
+    assert assignment.role == 'reviewer'
+    suspend = """
+    mutation ($instanceId: ID!, $member: ID!) {
+      instanceAdmin(instanceId: $instanceId) {
+        suspendUser(userId: $member) { __typename }
+      }
+    }
+    """
+    gql_client.query_data(suspend, variables={'instanceId': managed_instance.identifier, 'member': member_id})
+    assignment.refresh_from_db()
+    assert assignment.suspended_at is not None
+    assert assignment.retention_until is not None
+    assert assignment.retention_until.year == assignment.suspended_at.year + 5
+    assert not other_user.has_instance_role(managed_instance.permission_policy().reviewer_role, managed_instance)
+    gql_client.set_instance(managed_instance)
+    directory = gql_client.query_data('{ instance { users { user { id } role suspendedAt retentionUntil } } }')
+    suspended = next(row for row in directory['instance']['users'] if row['user']['id'] == member_id)
+    assert suspended['suspendedAt'] is not None
+    assert suspended['retentionUntil'] is not None
+    reactivate = """
+    mutation ($instanceId: ID!, $member: ID!) {
+      instanceAdmin(instanceId: $instanceId) {
+        reactivateUser(userId: $member) { __typename }
+      }
+    }
+    """
+    gql_client.query_data(reactivate, variables={'instanceId': managed_instance.identifier, 'member': member_id})
+    assignment.refresh_from_db()
+    assert assignment.suspended_at is None
+    other_user = User.objects.get(pk=other_user.pk)
+    assert other_user.has_instance_role(managed_instance.permission_policy().reviewer_role, managed_instance)
+    assert list(InstanceMemberEvent.objects.filter(assignment=assignment).order_by('pk').values_list('action', flat=True)) == [
+        'added',
+        'role_changed',
+        'suspended',
+        'reactivated',
+    ]
+    assert InstanceMemberEvent.objects.get(assignment=assignment, action='reactivated').retention_until is not None
+
+
+def test_seat_limit_counts_invites_and_suspended_members(
+    gql_client: PathsTestClient,
+    client: Client,
+    managed_instance: InstanceConfig,
+    owner_user: User,
+    other_user: User,
+) -> None:
+    framework = managed_instance.framework_config.framework
+    framework.max_user_accounts_per_instance = 2
+    framework.save(update_fields=['max_user_accounts_per_instance'])
+    client.force_login(owner_user)
+    with patch('users.graphql.mutations.send_instance_invitation'):
+        gql_client.query_data(
+            INVITE_QUERY,
+            variables={'instanceId': managed_instance.identifier, 'email': 'pending@example.com'},
+        )
+    assert seats_in_use(managed_instance) == 2
+    operator = User.objects.create_superuser(username='seat-operator', email='seat-operator@example.com', password='Sufficient1!')
+    managed_instance.permission_policy().super_admin_role.assign_user(managed_instance, operator)
+    assert seats_in_use(managed_instance) == 2
+    errors = gql_client.query_errors(
+        ADD_USER_QUERY,
+        variables={'instanceId': managed_instance.identifier, 'email': other_user.email},
+    )
+    assert any('limit' in error['message'] for error in errors)
+    invite = InstanceInvitation.objects.get(instance_config=managed_instance, email='pending@example.com')
+    invite.soft_delete(owner_user)
+    gql_client.query_data(
+        ADD_USER_QUERY,
+        variables={'instanceId': managed_instance.identifier, 'email': other_user.email},
+    )
+    assert seats_in_use(managed_instance) == 2
+    gql_client.query_data(
+        """mutation ($id: ID!, $member: ID!) {
+          instanceAdmin(instanceId: $id) { suspendUser(userId: $member) { __typename } }
+        }""",
+        variables={'id': managed_instance.identifier, 'member': str(other_user.uuid)},
+    )
+    assert seats_in_use(managed_instance) == 1
+    gql_client.set_instance(managed_instance)
+    assert gql_client.query_data('{ instance { memberSeatLimit memberSeatsInUse } }')['instance'] == {
+        'memberSeatLimit': 2,
+        'memberSeatsInUse': 1,
+    }
+    with patch('users.graphql.mutations.send_instance_invitation'):
+        gql_client.query_data(
+            INVITE_QUERY,
+            variables={'instanceId': managed_instance.identifier, 'email': 'replacement@example.com'},
+        )
+    errors = gql_client.query_errors(
+        """mutation ($id: ID!, $member: ID!) {
+          instanceAdmin(instanceId: $id) { reactivateUser(userId: $member) { __typename } }
+        }""",
+        variables={'id': managed_instance.identifier, 'member': str(other_user.uuid)},
+    )
+    assert any('limit' in error['message'] for error in errors)
+    InstanceInvitation.objects.get(instance_config=managed_instance, email='replacement@example.com').soft_delete(owner_user)
 
 
 # ----------------------------------------------------------------------
