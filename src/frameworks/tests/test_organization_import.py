@@ -1,4 +1,5 @@
 from datetime import date
+from io import StringIO
 from typing import TYPE_CHECKING
 
 from django.core.management import call_command
@@ -29,6 +30,7 @@ from nodes.tests.factories import InstanceConfigFactory
 from orgs.import_bkg import import_bkg_organizations
 from orgs.models import Namespace, Organization, OrganizationClass, OrganizationIdentifier
 from orgs.tests.factories import OrganizationFactory
+from users.models import User
 from users.tests.factories import UserFactory
 
 if TYPE_CHECKING:
@@ -130,6 +132,66 @@ def test_nine_delegated_accounts_cover_only_their_subtrees(tmp_path: Path) -> No
                 assert not user_can_access_organization(framework, user, neighboring_municipality)
             if level == 'district':
                 assert not user_can_access_organization(framework, user, neighboring_district)
+
+
+def test_provision_bisko_test_accounts_is_repeatable(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    InstanceConfigFactory.create(identifier='bisko', name='BISKO')
+    framework = setup_bisko()
+    import_bkg_organizations(snapshot(tmp_path), framework=framework)
+    output = StringIO()
+
+    call_command('provision_bisko_test_accounts', dry_run=True, stdout=output)
+    assert 'Dry run' in output.getvalue()
+    assert not User.objects.filter(email__endswith='.fake@kausal.tech').exists()
+
+    monkeypatch.setenv('BISKO_TEST_ACCOUNT_PASSWORD', 'test-password-123')
+    output = StringIO()
+    call_command('provision_bisko_test_accounts', stdout=output)
+    assert output.getvalue().count('created:') == 12
+    assert 'test-password-123' not in output.getvalue()
+
+    grants = OrganizationAccessGrant.objects.filter(framework=framework, user__email__endswith='.fake@kausal.tech')
+    assert grants.count() == 12
+    identifiers = Namespace.objects.get(identifier='ars')
+    for state in ('03', '07', '12'):
+        for level, ars, role in (
+            ('state-admin', state, ObjectRole.ADMIN),
+            ('state-editor', state, ObjectRole.EDITOR),
+            ('district-editor', state + '001', ObjectRole.EDITOR),
+            ('municipality-editor', state + '0010000001', ObjectRole.EDITOR),
+        ):
+            email = f'bisko-{state}-{level}.fake@kausal.tech'
+            user = User.objects.get(email=email)
+            assert user.check_password('test-password-123')
+            assert (
+                grants.get(user=user).organization
+                == OrganizationIdentifier.objects.get(namespace=identifiers, identifier=ars).organization
+            )
+            assert grants.get(user=user).role == role
+            assert f'{email} | username={user.username}' in output.getvalue()
+
+    monkeypatch.setenv('BISKO_TEST_ACCOUNT_PASSWORD', 'new-password-123')
+    output = StringIO()
+    call_command('provision_bisko_test_accounts', stdout=output)
+    assert output.getvalue().count('existing:') == 12
+    assert grants.count() == 12
+    assert User.objects.get(email='bisko-03-state-admin.fake@kausal.tech').check_password('new-password-123')
+
+
+def test_provision_bisko_test_accounts_rejects_changed_grant_atomically(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    InstanceConfigFactory.create(identifier='bisko', name='BISKO')
+    framework = setup_bisko()
+    import_bkg_organizations(snapshot(tmp_path), framework=framework)
+    monkeypatch.setenv('BISKO_TEST_ACCOUNT_PASSWORD', 'test-password-123')
+    call_command('provision_bisko_test_accounts', stdout=StringIO())
+    grant = OrganizationAccessGrant.objects.get(framework=framework, user__email='bisko-07-state-admin.fake@kausal.tech')
+    grant.role = ObjectRole.VIEWER
+    grant.save(update_fields=['role'])
+
+    monkeypatch.setenv('BISKO_TEST_ACCOUNT_PASSWORD', 'new-password-123')
+    with pytest.raises(CommandError, match='changed or suspended grant'):
+        call_command('provision_bisko_test_accounts', stdout=StringIO())
+    assert User.objects.get(email='bisko-03-state-admin.fake@kausal.tech').check_password('test-password-123')
 
 
 def test_framework_graphql_lists_only_granted_subtree(tmp_path: Path, client: Client) -> None:
