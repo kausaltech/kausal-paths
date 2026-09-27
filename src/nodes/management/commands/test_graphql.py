@@ -54,9 +54,16 @@ def _diff_responses(fn: Path, data: dict[str, Any], out: dict[str, Any]) -> bool
         for err in resp_errors:
             print(err)
         return True
+    if resp_errors:
+        # The reference errored as well, so the errors themselves are not a
+        # regression. Its partial data is still compared below: a field that
+        # errored now but resolved in the reference shows up as a difference.
+        print('Errors in response (the reference response errored too):')
+        for err in resp_errors:
+            print(err)
 
-    target_data = data['response']['data']
-    resp_data = out['data']
+    target_data = data['response'].get('data')
+    resp_data = out.get('data')
     if isinstance(target_data, dict) and isinstance(resp_data, dict) and len(target_data) == len(resp_data) == 1:
         solo_key = next(iter(target_data.keys()))
         target_data = target_data[solo_key]
@@ -162,14 +169,7 @@ class Command(BaseCommand):
             resp = client.post(GQL_URL, body, content_type='application/json', **kwargs)
             end_time = time.time()
             out = json.loads(resp.content)
-            if 'errors' in out:
-                print('Errors in response:')
-                for err in out['errors']:
-                    print(err)
-                exit(1)
-
             if _diff_responses(fn, data, out):
-                print(f'Differences in response for query {fn}')
                 self.fail()
 
             self.evaluate_perf(start_time, end_time, data, fn)
