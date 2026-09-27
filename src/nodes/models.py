@@ -120,7 +120,7 @@ if TYPE_CHECKING:
     )
     from kausal_common.users import UserOrAnon
 
-    from frameworks.models import FrameworkConfig
+    from frameworks.models import FrameworkConfig, Submission
     from nodes.dimensions import Dimension as NodeDimension
     from nodes.instance_serialization import InstanceSnapshot
     from nodes.node import Node
@@ -665,6 +665,7 @@ class InstanceConfig(
     dataset_revision_pins: RevMany[InstanceRevisionDatasetPin]
     change_operations: RevMany[InstanceChangeOperation]
     framework_config: RevOne[InstanceConfig, FrameworkConfig]
+    submissions: RevMany[Submission]
     framework_config_id: int | None
     live_revision_id: int | None  # from DraftStateMixin; id-side of ``live_revision`` FK
     organization_id: int
