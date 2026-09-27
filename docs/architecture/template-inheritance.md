@@ -106,20 +106,26 @@ Provision the framework and quality catalogue with `python -m tools.setup_bisko`
 Conversion requires existing database-backed instances:
 
 ```bash
-python -m tools.setup_bisko --prepare-from example-bisko --dry-run
-python -m tools.setup_bisko --prepare-from example-bisko --publish --convert example-bisko
+python -m tools.setup_bisko --convert example-bisko --dry-run
+python -m tools.setup_bisko --convert example-bisko
 ```
 
-`--prepare-from` explicitly reconciles the template's input declarations and
-category vocabulary with the selected migration examples. `--publish` freezes
-the template and advances existing dependent drafts. `--convert` replaces copied
-shared nodes with inheritance while preserving local bindings, settings, and
-page references. Repeat the instance flags for multiple framework instances.
+`--convert` replaces copied shared nodes with inheritance. Framework-owned
+bindings always come from the published template; the conversion result counts
+copied bindings discarded for this reason. Instance-owned bindings, settings,
+and page references are preserved. Repeat the instance flag for multiple
+framework instances.
+
+`--prepare-from` explicitly changes the template's input declarations and
+category vocabulary using selected migration examples. `--publish` freezes the
+template and advances existing dependent drafts. Neither is needed when
+adopting an already published template as the authority.
 
 For output-preserving migration of historical national datasets,
 `--reference-instance example-bisko` selects that instance's reference-data
 edition during publication. It requires `--publish`; using it also advances
-existing dependents, so it is not an independent per-city release channel.
+existing dependents, so it is not an independent per-city release channel. Do
+not use it when the template's own data is authoritative.
 Rerun node-output comparisons against the intended reference edition after
 conversion.
 

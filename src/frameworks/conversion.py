@@ -549,7 +549,14 @@ def _convert_bindings(
     before: InstanceSnapshot,
     base: InstanceSnapshot,
     identities: dict[str, str],
-) -> None:
+) -> int:
+    framework_ports = {
+        (node.uuid, port.id)
+        for node in base.nodes
+        if node.spec is not None
+        for port in node.spec.input_ports
+        if port.binding_owner == 'framework'
+    }
     groups = defaultdict(list)
     for binding in before.bindings:
         mapped = InputBindingSnapshot.model_validate(remap_json(binding.model_dump(mode='json'), identities))
@@ -558,6 +565,7 @@ def _convert_bindings(
     base_groups = defaultdict(list)
     for binding in base.bindings:
         base_groups[(binding.node_id, binding.port_id)].append(binding)
+    adopted_framework_bindings = 0
     # Every input of a local node is represented here as well, so shared
     # sources never require an FK to a mutable template NodeConfig.
     for node_id, port_id in groups.keys() | base_groups.keys():
@@ -570,7 +578,13 @@ def _convert_bindings(
             return data
 
         if [comparable(b) for b in bindings] != [comparable(b) for b in base_bindings]:
+            if (node_id, port_id) in framework_ports:
+                # The published method owns this input. An older copied graph
+                # must not turn its former selection into a local override.
+                adopted_framework_bindings += 1
+                continue
             InputPortBindingSet.objects.create(instance=config, node_uuid=node_id, port_uuid=port_id, bindings=bindings)
+    return adopted_framework_bindings
 
 
 @transaction.atomic
@@ -600,7 +614,7 @@ def convert_to_framework(instance: InstanceConfig, framework: Framework, revisio
         instance.template_revision = revision
         instance.node_settings = settings
         instance.save(update_fields=['template_revision', 'node_settings'])
-        _convert_bindings(instance, before, base, identities)
+        adopted_framework_bindings = _convert_bindings(instance, before, base, identities)
         NodeInputPortBinding.objects.filter(instance=instance).delete()
         shared_rows = instance.nodes.filter(identifier__in=shared)
         # Page FKs are authoring references; point them at the surviving template
@@ -634,5 +648,6 @@ def convert_to_framework(instance: InstanceConfig, framework: Framework, revisio
             'shared_nodes': count,
             'local_nodes': instance.nodes.count(),
             'binding_overrides': instance.binding_overrides.count(),
+            'adopted_framework_bindings': adopted_framework_bindings,
             'removed_datasets': len(removed_datasets),
         }
