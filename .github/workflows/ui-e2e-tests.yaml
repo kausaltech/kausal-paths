@@ -129,11 +129,6 @@ jobs:
       PATHS_BACKEND_URL: http://localhost:8000
       TEST_INSTANCE_IDENTIFIERS: ${{ inputs.instance_identifiers }}
       TEST_PAGE_BASE_URL: 'http://{instanceId}.localhost:3000'
-      TEST_EDITOR_AUTH: 1
-      TEST_EDITOR_BACKEND_URL: http://localhost:8000
-      TEST_EDITOR_AUTH_CLIENT_ID: paths-ui-e2e
-      TEST_EDITOR_AUTH_CLIENT_SECRET: paths-ui-e2e-secret
-      TEST_EDITOR_INSTANCE_IDENTIFIER: editor-e2e
     steps:
       - name: Check out code
         uses: actions/checkout@v7
