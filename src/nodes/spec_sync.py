@@ -17,6 +17,7 @@ from uuid import uuid3
 
 from loguru import logger
 
+from datasets.snapshot import metric_column_id
 from nodes.defs.transform_def import resolve_metric_columns
 
 if TYPE_CHECKING:
@@ -67,7 +68,7 @@ def collect_dataset_schema_info(ic: InstanceConfig) -> dict[str, DatasetSchemaIn
         for metric in metrics_by_schema.get(ds.schema.pk, []):
             key = _dataset_metric_binding_key(metric)
             info.metric_keys.append(key)
-            info.metric_names[key] = metric.name or str(metric.uuid)
+            info.metric_names[key] = key
         result[identifier] = info
     return result
 
@@ -84,18 +85,8 @@ def _get_db_datasets(ic: InstanceConfig) -> dict[str, DatasetModel]:
 
 
 def _dataset_metric_binding_key(metric: DatasetMetric) -> str:
-    """
-    Return the metric identifier used in dataset-port bindings.
-
-    DB-backed datasets deserialize their metric columns using the same fallback order:
-    ``name``, then ``label``, then ``uuid``. Keep dataset-port lookup aligned with that
-    runtime behavior so bindings resolve to the same effective metric column.
-    """
-    if metric.name:
-        return metric.name
-    if metric.label:
-        return metric.label
-    return str(metric.uuid)
+    """Return the metric identifier used in dataset-port bindings: the column it deserializes to."""
+    return metric_column_id(metric)
 
 
 def pair_metrics_to_columns(
@@ -631,7 +622,7 @@ def _write_bindings(
     schema_pks = {ds.schema.pk for ds in db_datasets.values() if ds.schema is not None}
     metric_by_identity: dict[tuple[int, str], DatasetMetric] = {}
     for metric in DatasetMetric.objects.filter(schema__pk__in=schema_pks):
-        identity = metric.name or str(metric.uuid)
+        identity = metric_column_id(metric)
         metric_by_identity[(metric.schema.pk, identity)] = metric
 
     triples: list[tuple[InputBindingSnapshot, DatasetModel, DatasetMetric]] = []
