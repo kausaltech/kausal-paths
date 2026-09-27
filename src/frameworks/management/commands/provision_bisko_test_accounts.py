@@ -10,6 +10,7 @@ from django.db import transaction
 
 from kausal_common.people.models import ObjectRole
 
+from frameworks.activation import ActivationError, activate_bisko_municipality
 from frameworks.models import Framework, OrganizationAccessGrant
 from frameworks.organization_access import organization_is_in_framework
 from orgs.models import Organization, OrganizationIdentifier
@@ -27,6 +28,7 @@ ACCOUNT_SECRET_ENV = 'BISKO_TEST_ACCOUNT_PASSWORD'  # noqa: S105 -- This names a
 @dataclass(frozen=True)
 class AccountSpec:
     email: str
+    level: str
     ars: str
     organization: Organization
     role: ObjectRole
@@ -87,6 +89,7 @@ def _account_specs(framework: Framework) -> list[AccountSpec]:
             specs.append(
                 AccountSpec(
                     email=f'bisko-{state_ars}-{level}.fake@kausal.tech',
+                    level=level,
                     ars=ars,
                     organization=organization,
                     role=role,
@@ -142,6 +145,8 @@ class Command(BaseCommand):
         if options['dry_run']:
             for spec in specs:
                 self.stdout.write(f'{spec.email} | {spec.role} | {spec.ars} {spec.organization.name}')
+                if spec.level == 'municipality-editor':
+                    self.stdout.write(f'  activate BISKO instance for {spec.ars}')
             self.stdout.write('Dry run: no accounts or grants created.')
             return
 
@@ -149,7 +154,18 @@ class Command(BaseCommand):
         if not password:
             raise CommandError(f'Set {options["password_env"]} to the password for the 12 test accounts.')
 
-        with transaction.atomic():
-            results = [_provision_one(framework, spec, password) for spec in specs]
+        try:
+            with transaction.atomic():
+                results = [_provision_one(framework, spec, password) for spec in specs]
+                for spec in specs:
+                    if spec.level != 'municipality-editor':
+                        continue
+                    config, created = activate_bisko_municipality(framework, spec.organization)
+                    results.append(
+                        f'{"activated" if created else "existing instance"}: {spec.ars} | '
+                        f'{config.instance_config.identifier} | framework_config={config.uuid}'
+                    )
+        except ActivationError as error:
+            raise CommandError(str(error)) from error
         for result in results:
             self.stdout.write(result)
