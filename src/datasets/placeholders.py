@@ -478,7 +478,7 @@ def sync_instance_dataset_placeholders(
 # ---------------------------------------------------------------------------
 
 
-def _build_dataset_repo(repo_spec: DatasetRepoSpec) -> dvc_pandas.Repository:
+def build_dataset_repo(repo_spec: DatasetRepoSpec) -> dvc_pandas.Repository:
     """Mirror ``Context.dataset_repo``: same credentials, same target commit."""
     import dvc_pandas
 
@@ -519,7 +519,7 @@ class _SnapshotDvcLoader:
         if self.repo_spec is None:
             raise RuntimeError('Dataset repository not set')
         if self._repo is None:
-            self._repo = _build_dataset_repo(self.repo_spec)
+            self._repo = build_dataset_repo(self.repo_spec)
         return self._repo
 
     def load(self, ds_id: str) -> dvc_pandas.Dataset:
