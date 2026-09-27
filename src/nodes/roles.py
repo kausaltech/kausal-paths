@@ -21,6 +21,7 @@ from kausal_common.models.roles import (
 
 from paths.const import (
     INSTANCE_ADMIN_ROLE,
+    INSTANCE_EDITOR_ROLE,
     INSTANCE_REVIEWER_ROLE,
     INSTANCE_SUPER_ADMIN_ROLE,
     INSTANCE_VIEWER_ROLE,
@@ -204,6 +205,39 @@ class InstanceAdminRole(InstanceGroupMembershipRole, AdminRole['InstanceConfig']
         obj.save(update_fields=[self.instance_group_field_name])
 
 
+class InstanceEditorRole(InstanceGroupMembershipRole, InstanceSpecificRole['InstanceConfig']):
+    id = INSTANCE_EDITOR_ROLE
+    name = _('Editor')
+    description = _('Edit instance data and finalise balances without managing accounts')
+    group_name = 'Editors'
+    instance_group_field_name = 'editor_group'
+    model_perms = [
+        ('nodes', ('instanceconfig', 'nodeconfig'), ('view', 'change')),
+        (
+            'datasets',
+            (
+                'datasetschema',
+                'dataset',
+                'datapoint',
+                'datasource',
+                'datasetsourcereference',
+                'datapointcomment',
+                'datasetmetric',
+            ),
+            ALL_MODEL_PERMS,
+        ),
+        ('frameworks', ('framework',), ('view',)),
+        ('frameworks', ('frameworkconfig', 'measure', 'measuredatapoint'), ('view', 'change')),
+    ]
+
+    def get_existing_instance_group(self, obj: InstanceConfig) -> Group | None:
+        return obj.editor_group
+
+    def update_instance_group(self, obj: InstanceConfig, group: Group | None) -> None:
+        obj.editor_group = group
+        obj.save(update_fields=[self.instance_group_field_name])
+
+
 class InstanceViewerRole(InstanceGroupMembershipRole, InstanceSpecificRole['InstanceConfig']):
     id = INSTANCE_VIEWER_ROLE
     name = _('Viewer')
@@ -293,11 +327,13 @@ class InstanceReviewerRole(InstanceGroupMembershipRole, InstanceSpecificRole['In
 
 instance_super_admin_role = InstanceSuperAdminRole()
 instance_admin_role = InstanceAdminRole()
+instance_editor_role = InstanceEditorRole()
 instance_viewer_role = InstanceViewerRole()
 instance_reviewer_role = InstanceReviewerRole()
 
 # Roles registered from most permissions to least permissions to have them in sensible order when listed
 register_role(instance_super_admin_role)
 register_role(instance_admin_role)
+register_role(instance_editor_role)
 register_role(instance_reviewer_role)
 register_role(instance_viewer_role)

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, TypeGuard, final, override
+from typing import TYPE_CHECKING, Any, Literal, TypeGuard, final, override
 
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Model, Q
@@ -55,13 +55,8 @@ if TYPE_CHECKING:
 
 
 def _instance_role_ids(user: User, action: BaseObjectAction) -> QuerySet[InstanceConfig]:
-    roles = ['instance-admin', 'instance-super-admin']
-    if action == 'view':
-        roles.extend(['instance-viewer', 'instance-reviewer'])
-    query = Q(pk__in=[])
-    for role_id in roles:
-        query |= Q(pk__in=role_registry.get_role(role_id).get_instances_for_user(user).values('pk'))
-    return InstanceConfig.objects.filter(query)
+    policy_action: Literal['view', 'change'] = 'view' if action == 'view' else 'change'
+    return InstanceConfig.objects.filter(InstanceConfigPermissionPolicy().role_q(user, policy_action))
 
 
 class InstanceConfigScopedPermissionPolicy[
@@ -116,19 +111,7 @@ class InstanceConfigScopedPermissionPolicy[
             if active_instance.pk not in instance_ids:
                 return False
             instances = [active_instance]
-        for instance in instances:
-            # Check if user is admin for any of the instances
-            if user.has_instance_role_with_id('instance-admin', instance):
-                return True
-            if user.has_instance_role_with_id('instance-super-admin', instance):
-                return True
-            # For view permission, check if user is a viewer or reviewer for any of the instances
-            if action == 'view':
-                return any((
-                    user.has_instance_role_with_id('instance-viewer', instance),
-                    user.has_instance_role_with_id('instance-reviewer', instance),
-                ))
-        return False
+        return any(InstanceConfigPermissionPolicy().user_has_perm(user, action, instance) for instance in instances)
 
     def get_permission_block(
         self,
@@ -172,7 +155,9 @@ class InstanceConfigScopedPermissionPolicy[
         return (
             user.is_superuser
             or user.has_instance_role_in_any_instance('instance-admin')
+            or user.has_instance_role_in_any_instance('instance-editor')
             or user.has_instance_role_in_any_instance('instance-super-admin')
+            or InstanceConfig.objects.filter(InstanceConfigPermissionPolicy().role_q(user, 'change')).exists()
         )
 
     @override
@@ -226,7 +211,14 @@ class DatasetSchemaPermissionPolicy(InstanceConfigScopedPermissionPolicy[Dataset
         def make_q(role: InstanceRoleIdentifier) -> Q:
             return Dataset.instance_scope_q(self.get_role(role).get_instances_for_user(user), prefix='scopes__')
 
-        q = make_q('instance-super-admin') | make_q('instance-admin')
+        q = make_q('instance-super-admin') | make_q('instance-admin') | make_q('instance-editor')
+        if action != 'delete':
+            from frameworks.organization_access import instance_grant_q
+
+            granted_instances = InstanceConfig.objects.filter(
+                instance_grant_q(user, action='view' if action == 'view' else 'change')
+            )
+            q |= Dataset.instance_scope_q(granted_instances, prefix='scopes__')
         if action == 'view':
             q |= make_q('instance-viewer') | make_q('instance-reviewer')
             # A dataset grant lets its holder read the schema's structure, never change it.
@@ -293,6 +285,7 @@ class DatasetSchemaPermissionPolicy(InstanceConfigScopedPermissionPolicy[Dataset
 
         allowed_roles: list[InstanceSpecificRole[InstanceConfig]] = [
             self.get_role('instance-admin'),
+            self.get_role('instance-editor'),
             self.get_role('instance-super-admin'),
         ]
         if action == 'view':
@@ -458,11 +451,19 @@ class DataSourcePermissionPolicy(InstanceConfigScopedPermissionPolicy[DataSource
     def construct_perm_q(self, user: User, action: BaseObjectAction) -> Q | None:
         ic_content_type = ContentType.objects.get_for_model(InstanceConfig)
         admin_q = self.get_instanceconfig_scope_q_for_role(user, 'instance-admin')
+        editor_q = self.get_instanceconfig_scope_q_for_role(user, 'instance-editor')
         super_admin_q = self.get_instanceconfig_scope_q_for_role(user, 'instance-super-admin')
         viewer_q = self.get_instanceconfig_scope_q_for_role(user, 'instance-viewer')
         reviewer_q = self.get_instanceconfig_scope_q_for_role(user, 'instance-reviewer')
 
-        q = super_admin_q | admin_q
+        q = super_admin_q | admin_q | editor_q
+        if action != 'delete':
+            from frameworks.organization_access import instance_grant_q
+
+            granted_instances = InstanceConfig.objects.filter(
+                instance_grant_q(user, action='view' if action == 'view' else 'change')
+            )
+            q |= Q(scope_content_type=ic_content_type, scope_id__in=granted_instances.values('pk'))
         if action == 'view':
             q |= viewer_q | reviewer_q
 
