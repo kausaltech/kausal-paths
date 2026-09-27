@@ -97,6 +97,31 @@ def test_release_is_immutable_and_nodes_are_copied_per_instance(
     assert str(build_instance_snapshot(dependent_instance).nodes[0].name) == str(release.snapshot.nodes[0].name)
 
 
+def test_conversion_adopts_framework_owned_bindings(
+    release: TemplateEdition,
+    dependent_instance: InstanceConfig,
+) -> None:
+    from frameworks.conversion import _convert_bindings
+
+    base = release.snapshot
+    shared = base.nodes[0]
+    assert shared.spec is not None
+    before = base.model_copy(deep=True)
+    before.bindings = [
+        InputBindingSnapshot(
+            uuid=uuid4(),
+            node_id=shared.uuid,
+            port_id=port.id,
+            position=0,
+            source=NodePortSource(node_id=uuid4(), port_id=uuid4()),
+        )
+        for port in shared.spec.input_ports
+    ]
+
+    assert _convert_bindings(dependent_instance, before, base, {}) == 1
+    assert list(dependent_instance.binding_overrides.values_list('port_uuid', flat=True)) == [shared.spec.input_ports[0].id]
+
+
 def test_local_edge_can_feed_shared_input_and_restore_default(
     release: TemplateEdition,
     dependent_instance: InstanceConfig,
