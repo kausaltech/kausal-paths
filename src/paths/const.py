@@ -14,6 +14,7 @@ FrameworkRoleIdentifier = Literal[
 InstanceRoleIdentifier = Literal[
     'instance-super-admin',
     'instance-admin',
+    'instance-editor',
     'instance-viewer',
     'instance-reviewer',
 ]
@@ -23,6 +24,7 @@ FRAMEWORK_ADMIN_ROLE: FrameworkRoleIdentifier = 'framework-admin'
 FRAMEWORK_VIEWER_ROLE: FrameworkRoleIdentifier = 'framework-viewer'
 INSTANCE_SUPER_ADMIN_ROLE: InstanceRoleIdentifier = 'instance-super-admin'
 INSTANCE_ADMIN_ROLE: InstanceRoleIdentifier = 'instance-admin'
+INSTANCE_EDITOR_ROLE: InstanceRoleIdentifier = 'instance-editor'
 INSTANCE_VIEWER_ROLE: InstanceRoleIdentifier = 'instance-viewer'
 INSTANCE_REVIEWER_ROLE: InstanceRoleIdentifier = 'instance-reviewer'
 

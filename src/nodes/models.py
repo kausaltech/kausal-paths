@@ -205,6 +205,7 @@ class InstanceConfigPermissionPolicy(ModelPermissionPolicy['InstanceConfig', Non
 
         from .roles import (
             instance_admin_role,
+            instance_editor_role,
             instance_reviewer_role,
             instance_super_admin_role,
             instance_viewer_role,
@@ -212,6 +213,7 @@ class InstanceConfigPermissionPolicy(ModelPermissionPolicy['InstanceConfig', Non
 
         self.super_admin_role = instance_super_admin_role
         self.admin_role = instance_admin_role
+        self.editor_role = instance_editor_role
         self.viewer_role = instance_viewer_role
         self.reviewer_role = instance_reviewer_role
         self.fw_admin_role = framework_admin_role
@@ -219,10 +221,32 @@ class InstanceConfigPermissionPolicy(ModelPermissionPolicy['InstanceConfig', Non
         super().__init__(InstanceConfig)
 
     def is_admin(self, user: User, obj: InstanceConfig) -> bool:
-        return user.has_instance_role(self.admin_role, obj) or user.has_instance_role(self.super_admin_role, obj)
+        from frameworks.organization_access import user_is_organization_admin
+
+        if InstanceMemberAssignment.objects.filter(instance_config=obj, user=user, suspended_at__isnull=False).exists():
+            return False
+
+        return (
+            user.has_instance_role(self.admin_role, obj)
+            or user.has_instance_role(self.super_admin_role, obj)
+            or user_is_organization_admin(user, obj)
+        )
+
+    def is_editor(self, user: User, obj: InstanceConfig) -> bool:
+        from frameworks.organization_access import user_has_instance_grant
+
+        if InstanceMemberAssignment.objects.filter(instance_config=obj, user=user, suspended_at__isnull=False).exists():
+            return False
+
+        return user.has_instance_role(self.editor_role, obj) or user_has_instance_grant(user, obj, action='change')
 
     def is_viewer(self, user: User, obj: InstanceConfig) -> bool:
-        return user.has_instance_role(self.viewer_role, obj)
+        from frameworks.organization_access import user_has_instance_grant
+
+        if InstanceMemberAssignment.objects.filter(instance_config=obj, user=user, suspended_at__isnull=False).exists():
+            return False
+
+        return user.has_instance_role(self.viewer_role, obj) or user_has_instance_grant(user, obj, action='view')
 
     def is_reviewer(self, user: User, obj: InstanceConfig) -> bool:
         return user.has_instance_role(self.reviewer_role, obj)
@@ -240,7 +264,7 @@ class InstanceConfigPermissionPolicy(ModelPermissionPolicy['InstanceConfig', Non
     def user_can_preview_draft(self, user: User, obj: InstanceConfig) -> bool:
         if user.is_superuser:
             return True
-        return self.is_admin(user, obj) or self.is_framework_admin(user, obj)
+        return self.is_admin(user, obj) or self.is_editor(user, obj) or self.is_framework_admin(user, obj)
 
     def user_can_set_lock(self, user: User, obj: InstanceConfig) -> bool:
         if user.is_superuser:
@@ -249,15 +273,37 @@ class InstanceConfigPermissionPolicy(ModelPermissionPolicy['InstanceConfig', Non
 
     def role_q(self, user: User, action: ObjectSpecificAction) -> Q:
         """Match the instances the user's instance or framework roles grant `action` on, and nothing implicit."""
+        from frameworks.organization_access import instance_grant_q
+
+        suspended = Q(
+            pk__in=InstanceMemberAssignment.objects.filter(user=user, suspended_at__isnull=False).values('instance_config_id')
+        )
+
         is_super_admin = self.super_admin_role.role_q(user)
         is_admin = self.admin_role.role_q(user)
+        is_editor = self.editor_role.role_q(user)
         is_fw_admin = self.fw_admin_role.role_q(user, prefix='framework_config__framework')
         if action != 'view':
-            return (is_super_admin | is_admin | is_fw_admin) & Q(is_locked=False)
+            if action == 'delete':
+                return (is_super_admin | is_admin | is_fw_admin) & Q(is_locked=False) & ~suspended
+            return (
+                (is_super_admin | is_admin | is_editor | is_fw_admin | instance_grant_q(user, action='change'))
+                & Q(is_locked=False)
+                & ~suspended
+            )
         is_viewer = self.viewer_role.role_q(user)
         is_reviewer = self.reviewer_role.role_q(user)
         is_fw_viewer = self.fw_viewer_role.role_q(user, prefix='framework_config__framework')
-        return is_viewer | is_reviewer | is_super_admin | is_admin | is_fw_admin | is_fw_viewer
+        return (
+            is_viewer
+            | is_reviewer
+            | is_editor
+            | is_super_admin
+            | is_admin
+            | is_fw_admin
+            | is_fw_viewer
+            | instance_grant_q(user, action='view')
+        ) & ~suspended
 
     def construct_perm_q(self, user: User, action: ObjectSpecificAction, include_implicit_public: bool = True) -> models.Q | None:
         q = self.role_q(user, action)
@@ -308,11 +354,13 @@ class InstanceConfigPermissionPolicy(ModelPermissionPolicy['InstanceConfig', Non
             return qs
         return qs.filter(self.construct_perm_q(user, 'view', include_implicit_public=False))
 
-    def user_has_perm(self, user: User, action: ObjectSpecificAction, obj: InstanceConfig) -> bool:
+    def user_has_perm(self, user: User, action: ObjectSpecificAction, obj: InstanceConfig) -> bool:  # noqa: C901
         if self.get_permission_block(action, obj=obj) is not None:
             return False
         if user.is_superuser:
             return True
+        if InstanceMemberAssignment.objects.filter(instance_config=obj, user=user, suspended_at__isnull=False).exists():
+            return False
         if action == 'delete':
             return self.is_framework_admin(user, obj)
         if action == 'view':
@@ -322,9 +370,11 @@ class InstanceConfigPermissionPolicy(ModelPermissionPolicy['InstanceConfig', Non
                 return True
             if self.is_reviewer(user, obj):
                 return True
+            if self.is_editor(user, obj):
+                return True
             if self.is_framework_viewer(user, obj):
                 return True
-        return self.is_admin(user, obj) or self.is_framework_admin(user, obj)
+        return self.is_admin(user, obj) or self.is_editor(user, obj) or self.is_framework_admin(user, obj)
 
     def get_permission_block(
         self,
@@ -556,6 +606,10 @@ class InstanceConfig(
         Group, on_delete=models.PROTECT, editable=False, related_name='reviewer_instances', null=True
     )
     reviewer_group_id: int | None
+    editor_group: FK[Group | None] = models.ForeignKey(
+        Group, on_delete=models.PROTECT, editable=False, related_name='editor_instances', null=True
+    )
+    editor_group_id: int | None
     admin_group: FK[Group | None] = models.ForeignKey(
         Group,
         on_delete=models.PROTECT,
@@ -685,6 +739,7 @@ class InstanceConfig(
 
         pp = self.permission_policy()
         pp.admin_role.delete_instance_group(self)
+        pp.editor_role.delete_instance_group(self)
         pp.viewer_role.delete_instance_group(self)
         pp.reviewer_role.delete_instance_group(self)
         pp.super_admin_role.delete_instance_group(obj=self)
@@ -1001,12 +1056,16 @@ class InstanceConfig(
             ).exists()
         )
 
-    def publish_instance(self, user: User | None = None) -> None:
+    def publish_instance(self, user: User | None = None) -> None:  # noqa: PLR0915
         """Atomically publish the model and immutable revisions of its DB datasets."""
+        from wagtail.actions.publish_revision import PublishPermissionError
         from wagtail.models import Revision
 
         from nodes.instance_serialization import DatasetRevisionPinSnapshot, build_instance_snapshot
         from nodes.template_graph import lock_template_for_publication, publish_template_instance
+
+        if user is not None and not self.permission_policy().user_has_perm(user, 'change', self):
+            raise PublishPermissionError('You do not have permission to publish this instance.')
 
         if self.is_template:
             publish_template_instance(self, user=user)
@@ -1130,7 +1189,7 @@ class InstanceConfig(
                     )
                     for pin in inherited_pins
                 ])
-            locked.publish(revision, user=user)
+            locked.publish(revision, user=user, skip_permission_checks=True)
             locked.invalidate_cache()
 
             locked.refresh_from_db(fields=['latest_revision', 'live_revision', 'cache_invalidated_at'])
@@ -1896,6 +1955,7 @@ class InstanceConfig(
     def create_or_update_instance_groups(self):
         pp = self.permission_policy()
         pp.admin_role.create_or_update_instance_group(self)
+        pp.editor_role.create_or_update_instance_group(self)
         pp.viewer_role.create_or_update_instance_group(self)
         # For now, try not to proliferate reviewer groups for NZC instances.
         if not self.has_framework_config() or self.framework_config.framework.identifier != 'nzc':
@@ -2916,12 +2976,68 @@ class InstanceInvitationManagerIncludingDeleted(PermissionedManager['InstanceInv
         return InstanceInvitationQuerySet(self.model, using=self._db)
 
 
+class InstanceMemberRole(models.TextChoices):
+    ADMIN = 'admin', _('Admin')
+    EDITOR = 'editor', _('Editor')
+    REVIEWER = 'reviewer', _('Reviewer')
+    VIEWER = 'viewer', _('Viewer')
+
+
+class InstanceMemberAssignment(models.Model):
+    """One municipal account's persistent role and suspension state."""
+
+    instance_config: FK[InstanceConfig] = models.ForeignKey(
+        InstanceConfig, on_delete=models.CASCADE, related_name='member_assignments'
+    )
+    user: FK[User] = models.ForeignKey('users.User', on_delete=models.PROTECT, related_name='instance_memberships')
+    role = models.CharField(max_length=10, choices=InstanceMemberRole.choices)
+    suspended_at = models.DateTimeField(null=True, blank=True)
+    retention_until = models.DateField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by: FK[User | None] = models.ForeignKey(
+        'users.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='created_instance_memberships'
+    )
+    last_modified_at = models.DateTimeField(auto_now=True)
+    last_modified_by: FK[User | None] = models.ForeignKey(
+        'users.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='modified_instance_memberships'
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['instance_config', 'user'], name='unique_instance_member_assignment'),
+            models.CheckConstraint(
+                condition=Q(suspended_at__isnull=True, retention_until__isnull=True)
+                | Q(suspended_at__isnull=False, retention_until__isnull=False),
+                name='instance_member_suspension_has_retention',
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f'{self.user_id} on {self.instance_config_id}: {self.role}'
+
+
+class InstanceMemberEvent(models.Model):
+    """Append-only audit of membership role and lifecycle changes."""
+
+    assignment = models.ForeignKey(InstanceMemberAssignment, on_delete=models.CASCADE, related_name='events')
+    action = models.CharField(max_length=20)
+    old_role = models.CharField(max_length=10, choices=InstanceMemberRole.choices, null=True, blank=True)
+    new_role = models.CharField(max_length=10, choices=InstanceMemberRole.choices, null=True, blank=True)
+    suspended_at = models.DateTimeField(null=True, blank=True)
+    retention_until = models.DateField(null=True, blank=True)
+    changed_at = models.DateTimeField(auto_now_add=True)
+    changed_by: FK[User | None] = models.ForeignKey('users.User', on_delete=models.SET_NULL, null=True, blank=True)
+
+    def __str__(self) -> str:
+        return f'{self.assignment_id}: {self.action}'
+
+
 class InstanceInvitation(UserModifiableModel, PermissionedModel):
     """
     An invitation extended to an email address to join an :class:`InstanceConfig`.
 
     On acceptance via the ``registerUser`` mutation, the invited email is
-    promoted to a real ``User`` and granted the instance admin role.
+    promoted to a real ``User`` and granted the invitation's chosen role.
     Soft-deletion is used for revocation so the audit trail survives.
     """
 
@@ -2932,6 +3048,7 @@ class InstanceInvitation(UserModifiableModel, PermissionedModel):
     )
     uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     email = models.EmailField()
+    role = models.CharField(max_length=10, choices=InstanceMemberRole.choices, default=InstanceMemberRole.ADMIN)
     token = models.CharField(max_length=64, unique=True, default=_generate_invitation_token, editable=False)
     expires_at = models.DateTimeField(default=_default_invitation_expiry)
     accepted_at = models.DateTimeField(null=True, blank=True, editable=False)

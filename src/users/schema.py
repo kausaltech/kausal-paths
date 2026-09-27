@@ -34,6 +34,7 @@ class UserType:
     email: auto
     first_name: auto
     last_name: auto
+    is_superuser: auto
 
     @strawberry_django.field
     @staticmethod
