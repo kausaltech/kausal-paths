@@ -21,7 +21,6 @@ from kausal_common.graphene.version_query import Query as ServerVersionQuery
 from kausal_common.models.types import copy_signature
 from kausal_common.strawberry.extensions import LoggingTracingExtension
 from kausal_common.strawberry.schema import Schema as UnifiedSchema
-from kausal_common.testing.schema import TestModeMutations
 
 from paths import gql
 from paths.context import realm_context
@@ -166,13 +165,32 @@ SB_MUTATION_TYPES: list[type] = [
     FrameworkMutation,
     UsersMutation,
 ]
-if find_spec('kausal_paths_extensions') is not None:
+HAS_PATHS_EXTENSIONS = find_spec('kausal_paths_extensions') is not None
+if HAS_PATHS_EXTENSIONS:
     from kausal_paths_extensions import schema as _kpe_schema  # type: ignore[import-not-found]
 
     SB_QUERY_TYPES.append(_kpe_schema.Query)
     SB_MUTATION_TYPES.append(_kpe_schema.Mutation)
 if test_mode_enabled():
-    SB_MUTATION_TYPES.append(TestModeMutations)
+    from kausal_common.testing.schema import TestModeMutation, TestModeNotEnabledError
+
+    test_mode_types: list[type] = [TestModeMutation]
+    if HAS_PATHS_EXTENSIONS:
+        from kausal_paths_extensions.test_mode import ExtensionsTestModeMutation
+
+        test_mode_types.append(ExtensionsTestModeMutation)
+
+    PathsTestMode = merge_types('PathsTestMode', tuple(test_mode_types))
+
+    @sb.type
+    class PathsTestModeMutations:
+        @sb.field
+        def test_mode(self) -> PathsTestMode:
+            if not test_mode_enabled():
+                raise TestModeNotEnabledError()
+            return PathsTestMode()
+
+    SB_MUTATION_TYPES.append(PathsTestModeMutations)
 
 SBQuery = merge_types('Query', tuple(SB_QUERY_TYPES))
 
