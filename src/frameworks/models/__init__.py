@@ -42,6 +42,7 @@ from .organizations import (
     FrameworkOrganizationRoot as FrameworkOrganizationRoot,
     OrganizationAccessGrant as OrganizationAccessGrant,
     OrganizationAccessGrantEvent as OrganizationAccessGrantEvent,
+    OrganizationPopulation as OrganizationPopulation,
 )
 from .quality import DataQualityLevel as DataQualityLevel, DataQualityScheme as DataQualityScheme
 from .submission import (
