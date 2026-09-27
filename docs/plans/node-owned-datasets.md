@@ -1,10 +1,11 @@
 # Datasets owned by a node
 
-Status: agreed with Juha 2026-09-24. Step 1 is done (2026-09-25), Paths side
-uncommitted: scope types, `Dataset.scope_instance`/`scope_node`, the query split,
-the scope-delegating policy with dataset `ObjectRole`s, `NodeSnapshot.datasets`
+Status: agreed with Juha 2026-09-24. Step 1 is done (95b8af88, 2026-09-25):
+scope types, `Dataset.scope_instance`/`scope_node`, the query split, the
+scope-delegating policy with dataset `ObjectRole`s, `NodeSnapshot.datasets`
 (snapshot v12), graph-level exclusive binding, deletion, and `Dataset.scope`
-NOT NULL with the backfill. Step 2 is next.
+NOT NULL with the backfill. Step 2 is next. Decisions 13–15 and the split of
+the former step 3 into steps 3–6 were agreed on 2026-09-27.
 
 ## Why
 
@@ -58,7 +59,7 @@ table, edited in the data studio, which lives and travels with the action.
      identifier, and import gives them fresh uuids). Owned datasets have no
      identifier, and bindings refer to metrics, so the snapshot gains
      `uuid`, `schema_uuid` and metric `uuid`s. Import and export can use them
-     too (step 3).
+     too (steps 4 and 5).
    - Revert is all or nothing and refuses on conflict: the identifier is taken
      by another node, a source node or dimension category is gone, or a port it
      would rebind is now bound elsewhere.
@@ -113,6 +114,66 @@ table, edited in the data studio, which lives and travels with the action.
     which stays for now with a FIXME: it was a quick lock for a BISKO
     certification round and goes when shared BISKO data is injected from the
     framework template instead of copied.
+13. **Persisted references are uuids; column names are a runtime detail.** A
+    metric has three roles that `DatasetMetric.name` used to conflate:
+    identity (`uuid`), the dataframe column (a handle), and display (`label`,
+    optionally with `spec.quantity`). Nothing persisted names a DB dataset's
+    metric column: a binding selects its metric by `metric_uuid`, and the
+    dataset loader both names the columns and resolves the selection, so the
+    two cannot drift.
+    - The column name is generated on `DatasetMetricMeta`, the graph-bound
+      catalogue entry the computation uses: the authored `name` if present,
+      else a slug of the label, else of the quantity; deduplicated with a
+      suffix in a deterministic order (`order`, then uuid), so cache keys are
+      stable across graph builds. Metric columns carry a fixed prefix (for
+      example `m_`) so a user-controlled name cannot collide with a dimension
+      column or a reserved column (`Year`, `Forecast`, `Value`, `node`). The
+      prefix exists only in the raw dataset frame; `select_metric` renames the
+      column to the port's.
+    - A label edit renames the column on the next load. Nothing persisted
+      notices, and the frames stay readable while debugging. Neither the
+      label nor the quantity kind is unique within a dataset (two `currency`
+      metrics are ordinary), which is why neither can be the handle; the
+      editor asks for distinct sibling labels as a usability rule.
+    - An external dataset's column name is the source's identifier, not
+      ours: it goes into `DatasetMetricSpec` (for example `external_column`)
+      and serves DVC import, re-sync and materialization.
+      `fix_dataset_metric_names` and `rename_dataset_metrics` become
+      maintenance of that field. This replaces step 3 of the metric-spec plan
+      ("move `name` into `spec`"): `name` moves as the external column, and its
+      handle role disappears.
+    - Why: `ostersund-c4c` `net_costs` failed because `DBDataset` named a
+      column `Coalesce(name, label, uuid)` (`Mileage`) while the binding
+      selected by `metric.name` (`None`), so a two-metric port was never
+      narrowed. 42 metrics had no name, with 11,280 bindings to them. Any rule
+      computed in two places drifts; the fix is one place, not a better rule.
+14. **A dataset's structure is described once.** `DatasetSnapshot` contains a
+    `DatasetMeta` for the structure (composition, so the meta stays a frozen
+    value) and adds the body: data, sources, references, comments, evidence.
+    `InstanceExport.datasets` carries only bodies keyed by dataset uuid; the
+    structure is already in the `InstanceSnapshot`. Today one export describes
+    each dataset twice, and the two disagree: `DatasetMetricSnapshot.identifier`
+    is `metric_column_id()`, `DatasetMetricMeta.identifier` is raw
+    `metric.name`.
+    - `DatasetMeta` becomes pure structure. `revision_id` is binding state (which
+      revision the graph pinned) and moves to `DatasetRevisionPinSnapshot`;
+      inside a dataset's own revision it would be circular. `is_editable` (the
+      deprecated BISKO lock) stays out of it.
+    - The fields only the snapshot has today are structure and move into the
+      meta: `name`, `forecast_from`, `time_resolution`. `dimension_columns`
+      is a persisted column-name mapping, so by decision 13 it is external-source
+      metadata, like `external_column`.
+    - Dimensions already have this shape: `InstanceSnapshot.dimensions` stores
+      `DimensionMeta` directly. The other Snapshot/Meta pairs (`NodeSnapshot`
+      and its graph counterpart) have not been compared yet.
+15. **Authored identifiers are preferred, never required, never
+    load-bearing.** The rule of decision 13 applies one level up to dimension
+    columns and category identifiers (the values in those columns): use the
+    authored identifier if present and unique in its scope, else generate one.
+    Their scope is the instance, not the dataset, because nodes and category
+    filters use them too, so their naming authority is the instance-level
+    `DimensionMeta`. `filter_column` refers to dimension columns by identifier
+    today; like the metric references, those become uuid references.
 
 ## Work
 
@@ -154,8 +215,87 @@ table, edited in the data studio, which lives and travels with the action.
   the pin change, uuids in `DatasetSnapshot`, the log entries, and the revert
   mutation. Both delete paths (the editor mutation and `instance_export_sync`)
   record the same entries.
+  - The uuids `DatasetSnapshot` gains here (`uuid`, `schema_uuid`, metric
+    `uuid`s) take `DatasetMeta`'s field names and types, so that step 4
+    moves them into the contained meta instead of renaming them.
 
-### Step 3: export, import, copy
+Steps 3–6 were one step. They are split where each can land and be verified
+on its own: 3 fixes the class of bug that motivated decision 13 and needs no
+format break; 4 is the one `DatasetSnapshot` format break; 5 and 6 build on
+the uuid-complete format.
+
+### Step 3: metric columns named on the catalogue
+
+Decision 13. Independent of the export format; it changes `DatasetMetricMeta`
+(an `InstanceSnapshot` version bump) but not `DatasetSnapshot`.
+
+- **Stopgap, if needed before the rest.** Build every metric selector with
+  `metric_column_id()`: `dataset_meta_from_model` (`datasets/catalogue.py`),
+  the `external_metric_id=F('metric__name')` in
+  `NodeConfigQuerySet.annotate_ports` (as a `Coalesce`), and the GraphQL
+  `external_metric_id=...metric.name` sites (`nodes/graphql/bindings.py`,
+  `nodes/graphql/types/instance.py`). Fixes `ostersund-c4c` without the
+  design change.
+- **Generated column names** on `DatasetMetricMeta`, as in decision 13.
+  `DBDataset.deserialize_df` takes its column names from the meta instead of
+  its SQL `Coalesce`; `metric_column_id()` and the `Coalesce` go.
+- **Selection by uuid.** `_load_dataset_value` (`nodes/runtime_input.py`)
+  selects by `metric_uuid` through the meta. A binding to a multi-metric
+  dataset whose selection resolves to nothing fails loudly instead of
+  delivering the wide frame. `external_metric_id` then means only the id in an
+  external source.
+- **Rewrite the string references.** Of 5,790 dataset bindings (local DB,
+  2026-09-27), 6 pipeline ops name a metric column: all `filter_column`,
+  presumably dropping unwanted metrics. They become uuid references or a
+  keep-these-metrics selection. `SelectMetricOp` already takes no parameters.
+- **Remove the identifier fallback** in `build_instance_graph`
+  (`nodes/instance_graph.py`: a binding without `metric_uuid` matched by
+  `m.identifier`). An `InstanceSnapshot` upgrader resolves old bindings once
+  against the catalogue the snapshot carries, as
+  `instance-graph-dimension-constraints.md` requires ("must not silently fall
+  back to identifier lookup").
+- **External column in the spec.** `DatasetMetricSpec.external_column`,
+  written by `load_dvc_dataset.create_metric` and
+  `placeholders._create_metric` from the DVC metadata `column_id`. The same
+  metadata (`metrics: [{column_id, id, label, quantity}]`) also has
+  `quantity`, which import does not write into the spec today; it should. The
+  label fallback becomes the capitalized column name instead of the raw one.
+- **Backfill** the 42 nameless metrics, then check sibling-label clashes and
+  report them rather than failing.
+- **Check Watch** before moving or dropping `DatasetMetric.name`: the model is
+  in kausal_common.
+
+### Step 4: one dataset description, uuid-keyed data
+
+Decision 14 and the long-form data, in one `DatasetSnapshot.schema_version`
+bump, so stored revisions are upgraded and content hashes change once.
+
+- **`DatasetSnapshot` contains `DatasetMeta`.** `revision_id` moves to the pin;
+  `name`, `forecast_from` and `time_resolution` move into the meta.
+  `InstanceExport.datasets` carries bodies keyed by dataset uuid.
+- **Every `*Snapshot` carries the uuids of what it describes:** dataset,
+  schema, metrics, dimensions, categories, data points, sources, comments.
+  Today import mints fresh ones for all of them, and categories travel as
+  `dim_id/cat_id` identifiers. `DataPointKey` (a natural key, so that the
+  export-then-import copy could mint fresh uuids) goes.
+- **Long-form data.** `DatasetSnapshot.data` is today
+  `JSONDataset.serialize_df` of the runtime frame: wide pandas
+  `to_json(orient='table')`, one row per year and category combination, one
+  column per metric. It has no place for a data point's uuid, and pandas
+  rounds to 10 significant digits (`double_precision=10`), while
+  `DataPoint.value` is `Decimal(32, 16)`. Replace it with a Pydantic model:
+  long form, one entry per data point (uuid, date, metric and category uuid
+  references, `Decimal` value), with comments, evidence and source references
+  nested under it instead of matched by natural key. The model converts to and
+  from `PathsDataFrame`; `JSONDataset` delegates to it. If long form is too
+  large for revision storage, the model can store columns without changing its
+  interface.
+- **One upgrader.** `DatasetSnapshot` is also the materialization content, the
+  hash input and the published revision payload (`serialize_dataset`). The
+  `schema_version` upgrader converts stored revisions; every content hash
+  changes once, here.
+
+### Step 5: lossless export and import
 
 - `instance_serialization.py` writes and reads the instance scope in about ten
   places (export ranking and dataset query around :1655-1671, and creation at
@@ -167,27 +307,15 @@ table, edited in the data studio, which lives and travels with the action.
   `instance_export_sync`, which today matches nodes by uuid or identifier and
   datasets by identifier only; it matches everything by uuid. The round-trip
   test is the contract.
-  - Every `*Snapshot` carries the uuids of what it describes: dataset,
-    schema, metrics, dimensions, categories, data points, sources, comments.
-    Today import mints fresh ones for all of them, and categories travel as
-    `dim_id/cat_id` identifiers.
-  - `DatasetSnapshot.data` is today `JSONDataset.serialize_df` of the
-    runtime frame: wide pandas `to_json(orient='table')`, one row per year and
-    category combination, one column per metric. It has no place for a data
-    point's uuid, and pandas rounds to 10 significant digits
-    (`double_precision=10`), while `DataPoint.value` is `Decimal(32, 16)`.
-    Replace it with a Pydantic model: long form, one entry per data point
-    (uuid, date, metric and category uuid references, `Decimal` value), with
-    comments, evidence and source references nested under it instead of
-    matched by natural key. The model converts to and from `PathsDataFrame`;
-    `JSONDataset` delegates to it. If long form is too large for revision
-    storage, the model can store columns without changing its interface.
-  - `DatasetSnapshot` is also the materialization content, the hash input and
-    the published revision payload (`serialize_dataset`). The format change
-    needs a `DatasetSnapshot.schema_version` upgrader for stored revisions,
-    and every content hash changes once.
-- **Copying rekeys first.** A copy (`copy_instance`, a future single-node
-  copy) calls `ModelSnapshot.rekeyed(mapping)` and then imports as usual.
+
+### Step 6: copy by rekeying
+
+Today `copy_instance` is export plus an import that mints fresh uuids, which is
+what `DataPointKey` served. With step 5's identity-preserving import, a copy
+rekeys the export first and then imports it as usual.
+
+- **`ModelSnapshot.rekeyed(mapping)`**, used by `copy_instance` and a future
+  single-node copy.
   - Uuid fields are one of three kinds, marked on the field type:
     - *identity*: minted anew, with the old→new pair added to the mapping;
     - *reference*: rewritten if its target is in the mapping and kept if not
@@ -197,13 +325,22 @@ table, edited in the data studio, which lives and travels with the action.
     rewrite `copy_of` wrongly, so the kinds are needed.
   - References cross snapshot boundaries (binding → node, dataset or metric;
     `NodeSnapshot.datasets`; `dataset_revisions`), so the mapping is shared
-    across one call: collect identities first, then rewrite references.
+    across one call: first collect identities and mint their new uuids, then
+    rewrite references.
   - Uuids inside untyped `dict[str, Any]` fields (`spec`, `data`,
     `external_ref`) are invisible to the walker. The `Any` clean-up makes them
     typed.
-  - Invariant test: in a rekeyed dump of a real instance, no source identity
-    uuid appears except in provenance fields. It scans the JSON text for
-    uuid-shaped strings, so it also catches uuids that are not typed as such.
+- **Invariant test:** in a rekeyed dump of a real instance, no source identity
+  uuid appears except in provenance fields. It scans the JSON text for
+  uuid-shaped strings, so it also catches uuids that are not typed as such.
+
+### Later
+
+- **Generated dimension and category identifiers** (decision 15), on the
+  instance-level `DimensionMeta`. Authored identifiers are more deliberate and
+  stable than metric labels, so this is not urgent.
+- **Compare the remaining Snapshot/Meta pairs** (decision 14) and merge them the
+  same way where they duplicate.
 - **Read-only BISKO copies.** The 121 datasets on `is_editable=False` schemas in
   paths-de are 26 identifiers (70 placeholders). The `de/*` copies in `bisko`,
   `mainz-bisko` and `augsburg-bisko` have drifted apart (different values and
