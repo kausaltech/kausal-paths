@@ -22,6 +22,7 @@ from kausal_common.models.general import public_fields
 from kausal_common.models.uuid import UUID_PATTERN, query_pk_or_uuid, query_pk_or_uuid_or_identifier
 from kausal_common.strawberry.registry import register_strawberry_type
 
+from paths import gql
 from paths.graphql_types import resolve_unit
 
 from nodes.constants import VALUE_COLUMN, YEAR_COLUMN
@@ -45,12 +46,14 @@ from .models import (
 )
 from .mutations import OrganizationAccessGrantType
 from .organization_access import accessible_organizations, organization_is_in_framework, user_can_access_organization
+from .population import population_aggregates
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
     from django.db.models import CharField
 
+    from paths.schema_context import PathsGraphQLContext
     from paths.types import PathsGQLInfo as GQLInfo
 
     from common import polars as ppl
@@ -165,6 +168,38 @@ class FrameworkDefaultsType:
 
 
 @register_strawberry_type
+@sb.type(name='OrganizationPopulation')
+class OrganizationPopulationType:
+    year: int
+    value: int | None
+    partial_value: int | None
+    municipality_count: int
+    observed_municipality_count: int
+    source_revision: str | None
+
+
+def _population_type(
+    framework_pk: int, path: str, municipality_count: int, context: PathsGraphQLContext, year: int
+) -> OrganizationPopulationType:
+    key = (framework_pk, year)
+    indexes = context.organization_population_indexes
+    if key not in indexes:
+        indexes[key] = population_aggregates(Framework.objects.get(pk=framework_pk), year)
+    index = indexes[key]
+    aggregate = index.by_path.get(path)
+    observed = aggregate.observed if aggregate else 0
+    partial = aggregate.value if aggregate else None
+    return OrganizationPopulationType(
+        year=year,
+        value=partial if observed == municipality_count and observed > 0 else None,
+        partial_value=partial,
+        municipality_count=municipality_count,
+        observed_municipality_count=observed,
+        source_revision=index.source_revision,
+    )
+
+
+@register_strawberry_type
 @sb.type(name='FrameworkOrganization')
 class FrameworkOrganizationType:
     id: sb.ID
@@ -176,6 +211,12 @@ class FrameworkOrganizationType:
     municipality_count: int
     activated_municipality_count: int
     unactivated_municipality_count: int
+    framework_pk: sb.Private[int]
+    path: sb.Private[str]
+
+    @sb.field(description='Population for a year; value is null unless every municipality has an observation.')
+    def population(self, info: gql.Info, year: int) -> OrganizationPopulationType:
+        return _population_type(self.framework_pk, self.path, self.municipality_count, info.context, year)
 
 
 MUNICIPALITY_CLASSES = ('de_municipality', 'de_district_free_city')
@@ -205,7 +246,11 @@ def _organization_types(framework: Framework, organizations: list[Organization])
         prefix_length = depth * Organization.steplen
         counts = (
             Organization.objects
-            .filter(subtree, classification__identifier__in=MUNICIPALITY_CLASSES)
+            .filter(
+                subtree,
+                classification__identifier__in=MUNICIPALITY_CLASSES,
+                identifiers__namespace__identifier='ags',
+            )
             .annotate(prefix=Left('path', prefix_length))
             .values('prefix')
             .annotate(count=Count('pk'))
@@ -220,6 +265,7 @@ def _organization_types(framework: Framework, organizations: list[Organization])
                 active_subtree,
                 framework=framework,
                 instance_config__organization__classification__identifier__in=MUNICIPALITY_CLASSES,
+                instance_config__organization__identifiers__namespace__identifier='ags',
             )
             .annotate(prefix=Left('instance_config__organization__path', prefix_length))
             .values('prefix')
@@ -237,6 +283,8 @@ def _organization_types(framework: Framework, organizations: list[Organization])
             municipality_count=total_by_path.get(org.path, 0),
             activated_municipality_count=activated_by_path.get(org.path, 0),
             unactivated_municipality_count=total_by_path.get(org.path, 0) - activated_by_path.get(org.path, 0),
+            framework_pk=framework.pk,
+            path=org.path,
         )
         for org in organizations
     ]
@@ -600,6 +648,12 @@ class OrganizationIdentifierType(graphene.ObjectType[Any]):
 
 class FrameworkConfigType(DjangoNode[FrameworkConfig]):
     organization_id = graphene.ID(required=True, description='UUID of the organization this instance belongs to.')
+    population = graphene.Field(
+        OrganizationPopulationType,
+        year=graphene.Int(required=True),
+        required=True,
+        description='Organization population for a year.',
+    )
     baseline_year = graphene.Int(required=True)
     target_year = graphene.Int(required=False)
     measures = graphene.List(graphene.NonNull(MeasureType), required=True)
@@ -635,6 +689,10 @@ class FrameworkConfigType(DjangoNode[FrameworkConfig]):
     @staticmethod
     def resolve_organization_id(root: FrameworkConfig, info: GQLInfo) -> str:
         return str(root.instance_config.organization.uuid)
+
+    @staticmethod
+    def resolve_population(root: FrameworkConfig, info: GQLInfo, year: int) -> OrganizationPopulationType:
+        return _population_type(root.framework_id, root.instance_config.organization.path, 1, info.context, year)
 
     @staticmethod
     def resolve_organization_identifiers(root: FrameworkConfig, info: GQLInfo) -> list[dict[str, str]]:
