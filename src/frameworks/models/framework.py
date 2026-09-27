@@ -145,6 +145,11 @@ class Framework(CacheablePathsModel['FrameworkSpecificCache'], UUIDIdentifiedMod
         verbose_name=_('Enable user management'),
         help_text=_('Whether instance admins under this framework can manage users (add, invite, remove).'),
     )
+    max_user_accounts_per_instance = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        help_text=_('Maximum active municipal accounts and pending invitations for one instance. Null means no limit.'),
+    )
 
     defaults = SchemaField(schema=FrameworkDefaults, default=FrameworkDefaults)
 

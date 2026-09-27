@@ -1,7 +1,7 @@
 import enum
 from collections import Counter
 from collections.abc import Iterable
-from datetime import datetime
+from datetime import date, datetime
 from functools import cached_property
 from typing import TYPE_CHECKING, Annotated, Any, Protocol, Self, cast
 from uuid import UUID
@@ -198,6 +198,7 @@ def _node_is_publicly_visible(node: Node) -> bool:
 class InstanceMemberRole(enum.Enum):
     SUPER_ADMIN = 'super_admin'
     ADMIN = 'admin'
+    EDITOR = 'editor'
     REVIEWER = 'reviewer'
     VIEWER = 'viewer'
 
@@ -207,6 +208,8 @@ class InstanceMemberType:
     user: User = sb.field(graphql_type=Annotated['UserType', sb.lazy('users.schema')])
     role: InstanceMemberRole
     is_owner: bool
+    suspended_at: datetime | None = None
+    retention_until: date | None = None
 
 
 def _collect_instance_members(ic: InstanceConfig) -> list[InstanceMemberType]:
@@ -216,6 +219,7 @@ def _collect_instance_members(ic: InstanceConfig) -> list[InstanceMemberType]:
     role_priority: list[tuple[InstanceMemberRole, Any]] = [
         (InstanceMemberRole.SUPER_ADMIN, pp.super_admin_role.get_existing_instance_group(ic)),
         (InstanceMemberRole.ADMIN, pp.admin_role.get_existing_instance_group(ic)),
+        (InstanceMemberRole.EDITOR, pp.editor_role.get_existing_instance_group(ic)),
         (InstanceMemberRole.REVIEWER, pp.reviewer_role.get_existing_instance_group(ic)),
         (InstanceMemberRole.VIEWER, pp.viewer_role.get_existing_instance_group(ic)),
     ]
@@ -230,6 +234,13 @@ def _collect_instance_members(ic: InstanceConfig) -> list[InstanceMemberType]:
     if owner_pk is not None:
         role_by_user_pk.setdefault(owner_pk, InstanceMemberRole.ADMIN)
 
+    from nodes.models import InstanceMemberAssignment
+
+    assignments = {assignment.user_id: assignment for assignment in InstanceMemberAssignment.objects.filter(instance_config=ic)}
+    for user_pk, assignment in assignments.items():
+        if user_pk not in role_by_user_pk or assignment.suspended_at is not None:
+            role_by_user_pk[user_pk] = InstanceMemberRole(assignment.role)
+
     if not role_by_user_pk:
         return []
     users = _User.objects.filter(pk__in=list(role_by_user_pk.keys()))
@@ -238,6 +249,8 @@ def _collect_instance_members(ic: InstanceConfig) -> list[InstanceMemberType]:
             user=u,
             role=role_by_user_pk[u.pk],
             is_owner=(u.pk == owner_pk),
+            suspended_at=assignments[u.pk].suspended_at if u.pk in assignments else None,
+            retention_until=assignments[u.pk].retention_until if u.pk in assignments else None,
         )
         for u in users
     ]
@@ -937,6 +950,20 @@ class InstanceType:
         if not _instance_admin_allowed(self._config, info):
             return []
         return _collect_instance_members(self._config)
+
+    @sb.field(description='Maximum municipal accounts and pending invitations for this instance, if limited.')
+    def member_seat_limit(self, info: gql.Info) -> int | None:
+        if not _instance_admin_allowed(self._config, info) or not self._config.has_framework_config():
+            return None
+        return self._config.framework_config.framework.max_user_accounts_per_instance
+
+    @sb.field(description='Active municipal accounts plus pending invitations; operators are excluded.')
+    def member_seats_in_use(self, info: gql.Info) -> int | None:
+        if not _instance_admin_allowed(self._config, info):
+            return None
+        from nodes.membership import seats_in_use
+
+        return seats_in_use(self._config)
 
     @sb.field(
         graphql_type=list[Annotated['InstanceInvitationType', sb.lazy('users.graphql.mutations')]],
