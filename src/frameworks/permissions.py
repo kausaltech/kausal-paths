@@ -78,6 +78,7 @@ class FrameworkConfigPermissionPolicy(
     def __init__(self):
         from nodes.roles import (
             instance_admin_role,
+            instance_editor_role,
             instance_reviewer_role,
             instance_viewer_role,
         )
@@ -88,22 +89,42 @@ class FrameworkConfigPermissionPolicy(
         self.framework_admin_role = framework_admin_role
         self.framework_viewer_role = framework_viewer_role
         self.realm_admin_role = instance_admin_role
+        self.realm_editor_role = instance_editor_role
         self.realm_viewer_role = instance_viewer_role
         self.realm_reviewer_role = instance_reviewer_role
         self.fw_pp = Framework.permission_policy()
         super().__init__(FrameworkConfig)
 
     def construct_perm_q(self, user: User, action: BaseObjectAction) -> Q | None:
+        from frameworks.organization_access import instance_grant_q
+        from nodes.models import InstanceConfig, InstanceMemberAssignment
+
+        suspended = Q(
+            instance_config_id__in=InstanceMemberAssignment.objects.filter(user=user, suspended_at__isnull=False).values(
+                'instance_config_id'
+            )
+        )
+
         fw_admin_q = self.framework_admin_role.role_q(user, prefix='framework')
         fw_viewer_q = self.framework_viewer_role.role_q(user, prefix='framework')
         if action == 'delete':
-            return fw_admin_q
+            return fw_admin_q & ~suspended
         realm_admin_q = self.realm_admin_role.role_q(user, prefix='instance_config')
+        realm_editor_q = self.realm_editor_role.role_q(user, prefix='instance_config')
+        organization_q = Q(pk__in=[])
+        if action != 'delete':
+            organization_q = Q(
+                instance_config__in=InstanceConfig.objects.filter(
+                    instance_grant_q(user, action='view' if action == 'view' else 'change')
+                )
+            )
         realm_viewer_q = self.realm_viewer_role.role_q(user, prefix='instance_config')
         realm_reviewer_q = self.realm_reviewer_role.role_q(user, prefix='instance_config')
         if action == 'view':
-            return fw_admin_q | fw_viewer_q | realm_admin_q | realm_viewer_q | realm_reviewer_q
-        return fw_admin_q | realm_admin_q
+            return (
+                fw_admin_q | fw_viewer_q | realm_admin_q | realm_editor_q | realm_viewer_q | realm_reviewer_q | organization_q
+            ) & ~suspended
+        return (fw_admin_q | realm_admin_q | realm_editor_q | organization_q) & ~suspended
 
     def construct_state_perm_q(self, action: ObjectSpecificAction) -> Q:
         if action in ('change', 'delete'):
@@ -117,7 +138,17 @@ class FrameworkConfigPermissionPolicy(
         return False
 
     def user_has_perm(self, user: User, action: BaseObjectAction, obj: FrameworkConfig) -> bool:
+        from frameworks.organization_access import user_has_instance_grant
+        from nodes.models import InstanceMemberAssignment
+
         if self.get_permission_block(action, obj=obj) is not None:
+            return False
+        if (
+            not user.is_superuser
+            and InstanceMemberAssignment.objects.filter(
+                instance_config=obj.instance_config, user=user, suspended_at__isnull=False
+            ).exists()
+        ):
             return False
         fw = obj.framework
         is_fw_admin = user.has_instance_role(self.framework_admin_role, fw)
@@ -126,13 +157,16 @@ class FrameworkConfigPermissionPolicy(
         if action == 'delete':
             return False
         ic = obj.instance_config
+        if user_has_instance_grant(user, ic, action='view' if action == 'view' else 'change'):
+            return True
         is_fw_viewer = user.has_instance_role(self.framework_viewer_role, fw)
         is_realm_admin = user.has_instance_role(self.realm_admin_role, ic)
+        is_realm_editor = user.has_instance_role(self.realm_editor_role, ic)
         is_realm_viewer = user.has_instance_role(self.realm_viewer_role, ic)
         is_realm_reviewer = user.has_instance_role(self.realm_reviewer_role, ic)
         if action == 'view':
-            return is_realm_viewer or is_realm_reviewer or is_realm_admin or is_fw_viewer
-        return is_realm_admin
+            return is_realm_viewer or is_realm_reviewer or is_realm_editor or is_realm_admin or is_fw_viewer
+        return is_realm_editor or is_realm_admin
 
     def get_permission_block(
         self,

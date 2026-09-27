@@ -112,6 +112,18 @@ def test_finalising_without_publish_permission_is_denied() -> None:
     assert sub.status == SubmissionStatus.IN_REVIEW
 
 
+def test_editor_can_finalise_without_member_admin_rights() -> None:
+    from nodes.roles import instance_editor_role
+
+    ic = make_instance()
+    editor = UserFactory.create()
+    instance_editor_role.assign_user(ic, editor)
+    assert ic.permission_policy().user_has_perm(editor, 'change', ic)
+    assert not ic.permission_policy().is_admin(editor, ic)
+    sub = ops.request_review(ops.create_submission(ic, period_start=2021, user=editor), user=editor)
+    assert ops.finalise(sub, user=editor).status == SubmissionStatus.FINAL
+
+
 def test_correction_supersedes_the_final_submission_only_when_finalised() -> None:
     ic = make_instance()
     first = ops.finalise(ops.request_review(ops.create_submission(ic, period_start=2021, user=None), user=None), user=None)

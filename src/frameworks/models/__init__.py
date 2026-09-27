@@ -38,6 +38,11 @@ from .measures import (
     SectionManager as SectionManager,
     SectionQuerySet as SectionQuerySet,
 )
+from .organizations import (
+    FrameworkOrganizationRoot as FrameworkOrganizationRoot,
+    OrganizationAccessGrant as OrganizationAccessGrant,
+    OrganizationAccessGrantEvent as OrganizationAccessGrantEvent,
+)
 from .quality import DataQualityLevel as DataQualityLevel, DataQualityScheme as DataQualityScheme
 from .submission import (
     Submission as Submission,
