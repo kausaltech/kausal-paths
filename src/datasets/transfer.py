@@ -165,7 +165,7 @@ def _export_dataset_data(ds: DatasetModel) -> dict[str, Any]:
     return JSONDataset.serialize_df(df)
 
 
-def export_dataset_data_safe(ds: DatasetModel) -> dict[str, Any] | None:
+def export_dataset_data_safe(ds: DatasetModel, *, has_metrics: bool | None = None) -> dict[str, Any] | None:
     """
     Serialize DataPoints.
 
@@ -180,7 +180,9 @@ def export_dataset_data_safe(ds: DatasetModel) -> dict[str, Any] | None:
         # value column to type, and DBDataset.deserialize_df requires at least
         # one metric when it joins the empty DataPoint frame to metric metadata.
         assert ds.schema is not None
-        if ds.schema_id is None or not ds.schema.metrics.exists():
+        if has_metrics is None:
+            has_metrics = ds.schema_id is not None and ds.schema.metrics.exists()
+        if not has_metrics:
             return None
         data = _export_dataset_data(ds)
         fields = data['schema']['fields']
