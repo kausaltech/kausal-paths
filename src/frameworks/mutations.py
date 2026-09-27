@@ -16,13 +16,14 @@ from kausal_common.strawberry.registry import register_strawberry_type
 
 from paths import gql
 
+from frameworks.activation import ActivationError, activate_bisko_municipality
 from frameworks.models import (
     Framework,
     FrameworkConfig,
     OrganizationAccessGrant,
     OrganizationAccessGrantEvent,
 )
-from frameworks.organization_access import organization_is_in_framework
+from frameworks.organization_access import organization_is_in_framework, user_can_access_organization
 from frameworks.roles import framework_admin_role
 from nodes.membership import retention_date
 from nodes.models import InstanceConfig
@@ -51,6 +52,14 @@ class CreateInstanceResult:
         return self.instance.get_name()
 
 
+@sb.type
+class ActivateOrganizationResult:
+    organization_id: sb.ID
+    framework_config_id: sb.ID
+    instance_identifier: str
+    created: bool
+
+
 @sb.enum(name='OrganizationAccessRole')
 class OrganizationAccessRole(enum.Enum):
     VIEWER = 'viewer'
@@ -62,6 +71,7 @@ class OrganizationAccessRole(enum.Enum):
 @sb.type(name='OrganizationAccessGrant')
 class OrganizationAccessGrantType:
     user_id: sb.ID
+    user_email: str
     organization_id: sb.ID
     role: OrganizationAccessRole
     suspended_at: datetime | None
@@ -71,6 +81,7 @@ class OrganizationAccessGrantType:
     def from_model(cls, grant: OrganizationAccessGrant) -> OrganizationAccessGrantType:
         return cls(
             user_id=sb.ID(str(grant.user.uuid)),
+            user_email=grant.user.email,
             organization_id=sb.ID(str(grant.organization.uuid)),
             role=OrganizationAccessRole(grant.role),
             suspended_at=grant.suspended_at,
@@ -126,6 +137,30 @@ def _grant_for_user(
 
 @sb.type
 class FrameworkMutation:
+    @gql.mutation(description='Activate a BISKO municipality with a local instance pinned to the published template.')
+    @staticmethod
+    def activate_framework_organization(
+        info: gql.Info, framework_id: sb.ID, organization_id: sb.ID
+    ) -> ActivateOrganizationResult:
+        actor = _get_authenticated_user(info)
+        framework = _get_framework(str(framework_id))
+        try:
+            organization = Organization.objects.get(uuid=UUID(str(organization_id)))
+        except Organization.DoesNotExist, ValueError:
+            raise GraphQLError('Organization not found') from None
+        if not user_can_access_organization(framework, actor, organization, action='change'):
+            raise GraphQLError('Permission denied for organization activation')
+        try:
+            config, created = activate_bisko_municipality(framework, organization, actor=actor)
+        except ActivationError as error:
+            raise GraphQLError(str(error)) from error
+        return ActivateOrganizationResult(
+            organization_id=sb.ID(str(organization.uuid)),
+            framework_config_id=sb.ID(str(config.uuid)),
+            instance_identifier=config.instance_config.identifier,
+            created=created,
+        )
+
     @gql.mutation(description='Assign or update an organization subtree role for an existing user.')
     @staticmethod
     def assign_organization_role(

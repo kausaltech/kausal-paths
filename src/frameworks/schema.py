@@ -7,7 +7,8 @@ import graphene
 import strawberry as sb
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Count, Q
+from django.db.models.functions import Left
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
@@ -171,6 +172,74 @@ class FrameworkOrganizationType:
     classification_identifier: str | None
     ars: str | None
     ags: str | None
+    instance_identifier: str | None
+    municipality_count: int
+    activated_municipality_count: int
+    unactivated_municipality_count: int
+
+
+MUNICIPALITY_CLASSES = ('de_municipality', 'de_district_free_city')
+
+
+def _organization_types(framework: Framework, organizations: list[Organization]) -> list[FrameworkOrganizationType]:
+    if not organizations:
+        return []
+    ids = [org.pk for org in organizations]
+    identifiers: dict[int, dict[str, str]] = {pk: {} for pk in ids}
+    for org_id, namespace, identifier in OrganizationIdentifier.objects.filter(organization_id__in=ids).values_list(
+        'organization_id', 'namespace__identifier', 'identifier'
+    ):
+        identifiers[org_id][namespace] = identifier
+    activated = dict(
+        FrameworkConfig.objects.filter(framework=framework, instance_config__organization_id__in=ids).values_list(
+            'instance_config__organization_id', 'instance_config__identifier'
+        )
+    )
+    total_by_path: dict[str, int] = {}
+    activated_by_path: dict[str, int] = {}
+    for depth in {org.depth for org in organizations}:
+        at_depth = [org for org in organizations if org.depth == depth]
+        subtree = Q(pk__in=[])
+        for org in at_depth:
+            subtree |= Q(path__startswith=org.path)
+        prefix_length = depth * Organization.steplen
+        counts = (
+            Organization.objects
+            .filter(subtree, classification__identifier__in=MUNICIPALITY_CLASSES)
+            .annotate(prefix=Left('path', prefix_length))
+            .values('prefix')
+            .annotate(count=Count('pk'))
+        )
+        total_by_path.update({row['prefix']: row['count'] for row in counts})
+        active_subtree = Q(pk__in=[])
+        for org in at_depth:
+            active_subtree |= Q(instance_config__organization__path__startswith=org.path)
+        active_counts = (
+            FrameworkConfig.objects
+            .filter(
+                active_subtree,
+                framework=framework,
+                instance_config__organization__classification__identifier__in=MUNICIPALITY_CLASSES,
+            )
+            .annotate(prefix=Left('instance_config__organization__path', prefix_length))
+            .values('prefix')
+            .annotate(count=Count('instance_config__organization_id', distinct=True))
+        )
+        activated_by_path.update({row['prefix']: row['count'] for row in active_counts})
+    return [
+        FrameworkOrganizationType(
+            id=sb.ID(str(org.uuid)),
+            name=org.name,
+            classification_identifier=org.classification.identifier if org.classification else None,
+            ars=identifiers[org.pk].get('ars'),
+            ags=identifiers[org.pk].get('ags'),
+            instance_identifier=activated.get(org.pk),
+            municipality_count=total_by_path.get(org.path, 0),
+            activated_municipality_count=activated_by_path.get(org.path, 0),
+            unactivated_municipality_count=total_by_path.get(org.path, 0) - activated_by_path.get(org.path, 0),
+        )
+        for org in organizations
+    ]
 
 
 class FrameworkType(DjangoNode[Framework]):
@@ -181,7 +250,12 @@ class FrameworkType(DjangoNode[Framework]):
     sections = graphene.List(graphene.NonNull(SectionType), required=True)
     section = graphene.Field(SectionType, identifier=graphene.ID(required=True))
     measure_template = graphene.Field(MeasureTemplateType, id=graphene.ID(required=True))
-    configs = graphene.List(graphene.NonNull(lambda: FrameworkConfigType), required=True)
+    configs = graphene.List(
+        graphene.NonNull(lambda: FrameworkConfigType),
+        organization_id=graphene.ID(),
+        required=True,
+        description='Framework instances, optionally restricted to an organization and its descendants.',
+    )
     config = graphene.Field(lambda: FrameworkConfigType, id=graphene.ID(required=True), required=False)
     defaults = graphene.Field(FrameworkDefaultsType, required=True)
     organizations = graphene.List(
@@ -192,6 +266,11 @@ class FrameworkType(DjangoNode[Framework]):
         offset=graphene.Int(default_value=0),
         required=True,
         description='Accessible administrative organizations. Without a parent, returns delegated entry points.',
+    )
+    organization = graphene.Field(
+        FrameworkOrganizationType,
+        id=graphene.ID(required=True),
+        description='One accessible administrative organization by UUID.',
     )
     organization_grants = graphene.List(
         graphene.NonNull(OrganizationAccessGrantType),
@@ -260,9 +339,7 @@ class FrameworkType(DjangoNode[Framework]):
             if parent is None or not user_can_access_organization(root, user, parent):
                 return []
             allowed = allowed.filter(path__startswith=parent.path, depth=parent.depth + 1)
-        elif search:
-            allowed = allowed.filter(name__icontains=search.strip())
-        else:
+        elif not search:
             entry_ids = set(root.organization_roots.values_list('organization_id', flat=True))
             if not user.is_superuser:
                 from frameworks.roles import framework_admin_role, framework_viewer_role
@@ -276,22 +353,20 @@ class FrameworkType(DjangoNode[Framework]):
                         )
                     )
             allowed = allowed.filter(pk__in=entry_ids)
+        if search:
+            allowed = allowed.filter(name__icontains=search.strip())
         organizations = list(allowed.select_related('classification').order_by('path')[offset : offset + first])
-        identifiers: dict[int, dict[str, str]] = {org.pk: {} for org in organizations}
-        for org_id, namespace, identifier in OrganizationIdentifier.objects.filter(organization_id__in=identifiers).values_list(
-            'organization_id', 'namespace__identifier', 'identifier'
-        ):
-            identifiers[org_id][namespace] = identifier
-        return [
-            FrameworkOrganizationType(
-                id=sb.ID(str(org.uuid)),
-                name=org.name,
-                classification_identifier=org.classification.identifier if org.classification else None,
-                ars=identifiers[org.pk].get('ars'),
-                ags=identifiers[org.pk].get('ags'),
-            )
-            for org in organizations
-        ]
+        return _organization_types(root, organizations)
+
+    @staticmethod
+    def resolve_organization(root: Framework, info: GQLInfo, id: str) -> FrameworkOrganizationType | None:
+        user = info.context.get_user()
+        if not isinstance(user, User):
+            return None
+        organization = accessible_organizations(root, user).filter(uuid=id).select_related('classification').first()
+        if organization is None:
+            return None
+        return _organization_types(root, [organization])[0]
 
     @staticmethod
     def resolve_sections(root: Framework, info: GQLInfo) -> list[Section]:
@@ -306,8 +381,20 @@ class FrameworkType(DjangoNode[Framework]):
         return root.cache.measure_templates.first(query_pk_or_uuid(id))
 
     @staticmethod
-    def resolve_configs(root: Framework, info: GQLInfo) -> list[FrameworkConfig]:
-        return root.cache.framework_configs.get_list()
+    def resolve_configs(root: Framework, info: GQLInfo, organization_id: str | None = None) -> list[FrameworkConfig]:
+        configs = root.cache.framework_configs.get_list()
+        if organization_id is None:
+            return configs
+        organization = Organization.objects.filter(uuid=organization_id).first()
+        user = info.context.get_user()
+        if organization is None or not isinstance(user, User) or not user_can_access_organization(root, user, organization):
+            return []
+        ids = set(
+            FrameworkConfig.objects.filter(
+                framework=root, instance_config__organization__path__startswith=organization.path
+            ).values_list('pk', flat=True)
+        )
+        return [config for config in configs if config.pk in ids]
 
     @staticmethod
     def resolve_config(root: Framework, info: GQLInfo, id: str) -> FrameworkConfig | None:
@@ -512,6 +599,7 @@ class OrganizationIdentifierType(graphene.ObjectType[Any]):
 
 
 class FrameworkConfigType(DjangoNode[FrameworkConfig]):
+    organization_id = graphene.ID(required=True, description='UUID of the organization this instance belongs to.')
     baseline_year = graphene.Int(required=True)
     target_year = graphene.Int(required=False)
     measures = graphene.List(graphene.NonNull(MeasureType), required=True)
@@ -543,6 +631,10 @@ class FrameworkConfigType(DjangoNode[FrameworkConfig]):
     @staticmethod
     def resolve_framework(root: FrameworkConfig, info: GQLInfo) -> Framework:
         return root.cache.fw_cache.framework
+
+    @staticmethod
+    def resolve_organization_id(root: FrameworkConfig, info: GQLInfo) -> str:
+        return str(root.instance_config.organization.uuid)
 
     @staticmethod
     def resolve_organization_identifiers(root: FrameworkConfig, info: GQLInfo) -> list[dict[str, str]]:
