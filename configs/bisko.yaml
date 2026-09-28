@@ -32,21 +32,10 @@ include:
   #   to: duesseldorf/final_energy
   # - from: kommune/gemeldete_emissionen
   #   to: duesseldorf/historical_emissions
-  # - from: kommune/verkehrsleistung_personen
-  #   to: duesseldorf/passenger_kilometers
 
 #//////  Parameters  ////////////////////////////////////////////////////////////////////////////
 params:
 
-- id: municipality_name
-  label_en: Municipality name
-  label_de: Gemeindename
-  # Filters de/fahrleistung_strassenverkehr and
-  # de/energieverbrauch_uebriger_verkehr, so it must match a municipality that exists in those
-  # datasets. It is not a display name -- the template's display name is set by `name`.
-  value: Düsseldorf
-  is_customizable: false
-  is_visible: false
 - id: ags_number
   label_en: AGS number
   label_de: AGS-Nummer
@@ -183,7 +172,6 @@ result_excels:
   - road_transport_energy_method_in_force
   - other_transport_energy_source_in_force
   - transport_energy_own_availability
-  - passenger_kilometers_own        # the pkm/vkm distinction the certifier asked about
   # "Visuelles Ausweisen als Pflichtfeld waere hilfreich" -- raised under 1.2, 1.4 and 1.5.
   # These show which required cell is missing rather than a bare 0.
   - final_energy_use_availability
