@@ -8,13 +8,16 @@ from django.db import transaction
 
 from kausal_common.datasets.models import Dataset
 
+from datasets.materialization import refresh_dataset_materialization
+from datasets.validation import dump_violations, evaluate_dataset_rules
+from datasets.year_slots import ensure_empty_year
 from frameworks.activation import municipality_nuts3
 from frameworks.identity import ensure_municipal_organization
 from frameworks.models import DataQualityLevel, DataQualityScheme, Framework, FrameworkConfig
 from frameworks.quality_provisioning import provision_bisko_quality_projections
 from frameworks.weather import WEATHER_DATASET, load_weather_source, seed_weather_defaults
 from nodes.defs.transform_def import FilterColumnOp
-from nodes.models import InstanceConfig, NodeInputPortBinding
+from nodes.models import DatasetMaterialization, InstanceConfig, NodeInputPortBinding
 from orgs.models import Namespace, OrganizationClass, OrganizationIdentifier
 from params.param import StringParameter
 
@@ -112,6 +115,37 @@ def _reconcile_bisko_weather_defaults(framework: Framework) -> None:
         organization = instance.organization
         assert organization is not None
         seed_weather_defaults(instance, dataset, frame, nuts3=municipality_nuts3(organization), source_revision=revision)
+
+
+def _reconcile_bisko_empty_cells(framework: Framework) -> None:
+    template = framework.template_instance
+    assert template is not None
+    sources = {
+        dataset.identifier: dataset
+        for dataset in Dataset.objects.for_instance_config(template).filter(identifier__startswith='kommune/')
+        if dataset.identifier != WEATHER_DATASET
+    }
+    configs = FrameworkConfig.objects.filter(
+        framework=framework,
+        instance_config__template_revision__isnull=False,
+        instance_config__organization__classification__identifier__in=('de_municipality', 'de_district_free_city'),
+    ).select_related('instance_config')
+    for config in configs:
+        instance = config.instance_config
+        year = instance.ensure_spec().years.max_historical
+        if year is None:
+            continue
+        for dataset in Dataset.objects.for_instance_config(instance).filter(identifier__in=sources):
+            assert dataset.identifier is not None
+            if ensure_empty_year(dataset, year, prototype=sources[dataset.identifier]):
+                continue
+            materialization = DatasetMaterialization.objects.filter(dataset=dataset).first()
+            if materialization is None or not any(
+                violation.get('kind') == 'invalid_rule' for violation in materialization.validation_violations
+            ):
+                continue
+            if dump_violations(evaluate_dataset_rules(dataset)) != materialization.validation_violations:
+                refresh_dataset_materialization(dataset, touch=False)
 
 
 def _remove_passenger_spec_references(spec: InstanceModelSpec) -> bool:
@@ -267,6 +301,7 @@ def setup_bisko(*, template_identifier: str = 'bisko', instance_identifiers: tup
     _check_nuts3_identifiers()
     _reconcile_bisko_nuts_codes(framework)
     _reconcile_bisko_weather_defaults(framework)
+    _reconcile_bisko_empty_cells(framework)
 
     scheme, _ = DataQualityScheme.objects.get_or_create(
         framework=framework,
