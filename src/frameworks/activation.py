@@ -60,7 +60,8 @@ def _ensure_local_inputs(instance: InstanceConfig) -> None:
         raise ActivationError(f'Published municipal datasets are missing from the database: {sorted(required - sources.keys())}')
     content_type = ContentType.objects.get_for_model(instance)
     local: dict[str, Dataset] = {}
-    for identifier, source in sources.items():
+    for identifier in sorted(required):
+        source = sources[identifier]
         if source.schema_id is None:
             raise ActivationError(f'{identifier} has no dataset schema.')
         dataset, _ = Dataset.objects.get_or_create(
