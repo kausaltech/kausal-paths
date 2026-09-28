@@ -35,6 +35,7 @@ from kausal_common.datasets.tests.factories import (
 from paths.tests.graphql import PathsTestClient
 
 from datasets.materialization import (
+    ensure_dataset_materializations,
     materialize_dataset,
     refresh_dataset_materialization,
     require_valid_dataset_rules,
@@ -103,6 +104,39 @@ def test_value_range_rule_locates_offending_cells(rig):
     assert violation.categories == {'region': 'b'}
     assert violation.metric == 'amount'
     assert violation.dataset_uuid == dataset.uuid
+
+
+def test_violation_uuids_work_without_readable_identifiers(rig, db_instance_config):
+    dataset, metric, _, category = rig
+    dimension = category.dimension
+    category.identifier = None
+    category.save(update_fields=['identifier'])
+    dataset.schema.dimensions.filter(dimension=dimension).update(column_name=None)
+    DimensionScope.objects.filter(dimension=dimension, scope_id=db_instance_config.pk).delete()
+    set_rule(metric, {'kind': 'value_range', 'enforcement': 'block_edit', 'min': 0})
+    add_point(dataset, metric, 2020, -5, category)
+
+    (violation,) = evaluate_dataset_rules(dataset)
+
+    assert violation.categories == {str(dimension.uuid): str(category.uuid)}
+    assert violation.coordinates[0].dimension_uuid == dimension.uuid
+    assert violation.coordinates[0].category_uuid == category.uuid
+
+
+def test_old_materialization_rebuilds_coordinate_uuids(rig):
+    dataset, metric, category, _ = rig
+    set_rule(metric, {'kind': 'value_range', 'enforcement': 'block_edit', 'min': 0})
+    add_point(dataset, metric, 2020, -5, category)
+    materialization = materialize_dataset(dataset)
+    materialization.validation_payload_version = 0
+    materialization.validation_violations[0].pop('coordinates')
+    materialization.save(update_fields=['validation_payload_version', 'validation_violations'])
+
+    refreshed = ensure_dataset_materializations([dataset])[dataset.pk]
+
+    assert refreshed.generation == materialization.generation + 1
+    assert refreshed.validation_payload_version == 1
+    assert load_violations(refreshed.validation_violations)[0].coordinates[0].category_uuid == category.uuid
 
 
 def test_value_range_rule_supports_exclusive_bounds(rig):
@@ -459,7 +493,7 @@ query DatasetValidation($datasetId: ID!) {
                     years
                     requirementGroup
                     combinationIds
-                    coordinates { dimension category }
+                    coordinates { dimension category dimensionUuid categoryUuid }
                 }
             }
         }
@@ -560,7 +594,14 @@ def test_dataset_query_exposes_category_domain_and_required_combination_violatio
             'years': [2021],
             'requirementGroup': 'region_b',
             'combinationIds': [str(combo_b.id)],
-            'coordinates': [{'dimension': 'region', 'category': 'b'}],
+            'coordinates': [
+                {
+                    'dimension': 'region',
+                    'category': 'b',
+                    'dimensionUuid': str(dimension.uuid),
+                    'categoryUuid': str(cat_b.uuid),
+                }
+            ],
         }
     ]
 
