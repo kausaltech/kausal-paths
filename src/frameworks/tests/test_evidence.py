@@ -323,6 +323,36 @@ def test_import_converts_exact_grades_and_projects(setup: Setup) -> None:
     assert not DataPoint.objects.filter(metric=setup.quality).exists()
 
 
+def test_import_does_not_project_a_schema_shared_with_unconverted_values(setup: Setup) -> None:
+    sibling = DatasetFactory.create(schema=setup.schema, scope=make_member(setup.framework))
+    DataPointFactory.create(dataset=sibling, metric=setup.value, date=date(2022, 1, 1), value=10)
+    DataPointFactory.create(dataset=sibling, metric=setup.quality, date=date(2022, 1, 1), value=Decimal('0.5'))
+
+    output = run_import(setup)
+    assert 'shared schema has unconverted quality values' in output
+    setup.quality.refresh_from_db()
+    assert QUALITY_OF_SPEC_KEY not in setup.quality.spec
+
+
+def test_import_can_convert_all_instances_sharing_a_schema(setup: Setup) -> None:
+    first_value = setup.point(setup.value, setup.households, 10)
+    setup.point(setup.quality, setup.households, 0.5)
+    sibling_instance = make_member(setup.framework)
+    sibling = DatasetFactory.create(schema=setup.schema, scope=sibling_instance)
+    second_value = DataPointFactory.create(dataset=sibling, metric=setup.value, date=date(2022, 1, 1), value=20)
+    DataPointFactory.create(dataset=sibling, metric=setup.quality, date=date(2022, 1, 1), value=Decimal('0.25'))
+
+    call_command('import_quality_evidence', setup.ic.identifier, sibling_instance.identifier, stdout=StringIO())
+
+    setup.quality.refresh_from_db()
+    assert setup.quality.spec[QUALITY_OF_SPEC_KEY] == str(setup.value.uuid)
+    assert set(
+        DataPointEvidence.objects.filter(data_point__in=[first_value, second_value]).values_list(
+            'quality_level__identifier', flat=True
+        )
+    ) == {'B', 'C'}
+
+
 def test_import_does_not_project_values_between_grades(setup: Setup) -> None:
     setup.point(setup.value, setup.households, 10)
     setup.point(setup.value, setup.industry, 20)
