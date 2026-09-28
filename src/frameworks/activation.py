@@ -10,6 +10,7 @@ from kausal_common.datasets.models import Dataset
 
 from datasets.materialization import refresh_dataset_materialization
 from datasets.snapshot import metric_column_id
+from datasets.year_slots import ensure_empty_year
 from frameworks import submissions
 from frameworks.models import Framework, FrameworkConfig
 from frameworks.organization_access import organization_is_in_framework
@@ -45,7 +46,7 @@ def _municipal_spec(snapshot: InstanceSnapshot, framework: Framework, ags: str, 
     return spec
 
 
-def _ensure_local_inputs(instance: InstanceConfig) -> None:
+def _ensure_local_inputs(instance: InstanceConfig) -> None:  # noqa: C901
     """Give each municipality local input slots, seed weather, and replace local bindings."""
     base = template_snapshot(instance)
     framework = instance.framework_config.framework
@@ -81,6 +82,10 @@ def _ensure_local_inputs(instance: InstanceConfig) -> None:
             assert organization is not None
             frame, revision = weather_source
             seed_weather_defaults(instance, dataset, frame, nuts3=municipality_nuts3(organization), source_revision=revision)
+        elif identifier != WEATHER_DATASET:
+            year = instance.ensure_spec().years.max_historical
+            if year is not None:
+                ensure_empty_year(dataset, year, prototype=source)
         if not dataset.data_points.exists():
             materialization = DatasetMaterialization.objects.filter(dataset=dataset).first()
             data = materialization.content.get('data') if materialization is not None else None

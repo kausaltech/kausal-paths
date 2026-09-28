@@ -295,6 +295,43 @@ def test_formula_node_three_argument_form_matches_the_documented_example():
     assert _as_map(target.compute()) == {2020: 100.0, 2021: 110.0, 2022: 500.0}
 
 
+@pytest.mark.parametrize('coverage_value', [0.0, 1.0])
+def test_formula_skips_unavailable_preferred_branch_only_when_coverage_is_zero(
+    monkeypatch: pytest.MonkeyPatch, coverage_value: float
+) -> None:
+    context = _make_context(f'prefer-by-year-lazy-coverage-{coverage_value}')
+    target = FormulaNode(
+        id='selected_energy',
+        context=context,
+        name=TranslatedString('target', default_language='en'),
+        unit=unit_registry.parse_units('MWh/a'),
+        quantity='energy',
+    )
+    target.parameters['formula'] = StringParameter(local_id='formula', value='prefer_by_year(own, default, coverage)')
+    own = _fixed_node(context, 'own', [(2023, 1.0)])
+    fallback = _fixed_node(context, 'default', [(2023, 5.0)])
+    coverage = _FixedOutputNode(
+        id='coverage',
+        context=context,
+        name=TranslatedString('coverage', default_language='en'),
+        unit=unit_registry.parse_units('dimensionless'),
+        quantity='fraction',
+        fixed_df=_flags([(2023, coverage_value)]),
+    )
+    for node in (own, fallback, coverage):
+        _connect(node, target)
+
+    def fail(*_args: object, **_kwargs: object) -> None:
+        raise RuntimeError('unused branch was evaluated')
+
+    monkeypatch.setattr(own, 'get_output_pl', fail)
+    if coverage_value == 0:
+        assert _as_map(target.compute()) == {2023: 5.0}
+    else:
+        with pytest.raises(RuntimeError, match='unused branch was evaluated'):
+            target.compute()
+
+
 def _ppdf_fc(rows: list[tuple[int, float | None, bool]], unit: str = 'MWh/a') -> ppl.PathsDataFrame:
     """Like ``_ppdf``, but each row carries its own Forecast flag."""
     df = pl.DataFrame(
