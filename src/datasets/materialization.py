@@ -95,6 +95,7 @@ def refresh_dataset_materialization(
             'generation': generation,
             'shape_profiles': shape_profiles,
             'validation_violations': dump_violations(violations),
+            'validation_payload_version': 1,
             'forecast_from': (dataset.spec or {}).get('forecast_from'),
             'source_modified_at': dataset.last_modified_at,
         },
@@ -110,7 +111,11 @@ def materialize_dataset(dataset: Dataset, *, user: User | None = None) -> Datase
 
 
 def materialization_is_fresh(dataset: Dataset, materialization: DatasetMaterialization) -> bool:
-    return materialization.source_modified_at == dataset.last_modified_at and materialization.shape_profiles is not None
+    return (
+        materialization.source_modified_at == dataset.last_modified_at
+        and materialization.shape_profiles is not None
+        and (materialization.validation_payload_version == 1 or not materialization.validation_violations)
+    )
 
 
 def ensure_dataset_materializations(datasets: Iterable[Dataset]) -> dict[int, DatasetMaterialization]:
