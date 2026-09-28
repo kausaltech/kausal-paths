@@ -188,15 +188,16 @@ datasets:
     - {kind: value_range, enforcement: block_edit, min: 0, max: 1}
 - id: kommune/witterungsbereinigung            # degree days; not part of the BISKO baseline
   # Editable, and in the municipal namespace, because degree days are a property of the city's
-  # own weather -- the shipped values are one German city's delivery standing in until the city
-  # has its own. It sat in `de/` and locked until 2026-08-21, which said "national methodology
+  # own weather. Framework-provisioned municipalities receive provisional Eurostat NUTS-3
+  # factors; the template still carries one German city's delivery. It sat in `de/` and locked
+  # until 2026-08-21, which said "national methodology
   # constant" about a number that is neither. Being editable does not make a weather-corrected
   # balance conformant: criterion 5 forbids the correction outright, and `has_no_weather_
   # correction` gates on the switch, not on these values.
   #
-  # `data/weather/` builds a city's own factors from the Eurostat degree-day table, at NUTS-3
-  # so the region is the city rather than its hinterland, keyed on the instance's `nuts_code`
-  # parameter. Note that the Eurostat
+  # Municipal defaults use the Eurostat degree-day table at district NUTS-3, resolved from
+  # the instance's organization. For a Kreisfreie Stadt, the region is the city itself.
+  # Note that the Eurostat
   # convention (18 degC reference) and the German Gradtagzahl G20/15 (20 degC) are not
   # interchangeable -- the German factors are measurably flatter -- so a city that supplies its
   # own VDI 3807 series is not supplying the same quantity. See `data/weather/README.md`.
@@ -1246,7 +1247,7 @@ nodes:
   name_de: Witterungsbereinigung
   name_en: Weather Correction
   description_en: |
-    The ratio of the balance year's degree days to the long-term average (1970–2014), per sector.
+    The ratio of the long-term average degree days to those of the balance year, per sector.
     It scales the space-heating part of a sector's final energy to what it would have been in an
     average year.<br/>
     <b>Applied to households, commerce/trade/services and municipal facilities; not to industry
@@ -1256,11 +1257,12 @@ nodes:
     <b>BISKO does not permit this correction</b> (criterion 5). The balance computes without it
     by default; switching <i>Witterungsbereinigung durchführen</i> on makes the result explicitly
     non-conformant, and <code>has_no_weather_correction</code> reports that. The factors are
-    city data — the shipped series is a stand-in until the city enters its own degree days — but
+    city data — municipal instances receive provisional regional factors until the city enters
+    its own values — but
     editing them cannot make a corrected balance conformant, because the conformity test is on
     the switch, not on the values.
   description_de: |
-    Das Verhältnis der Gradtagzahlen des Bilanzjahres zum langjährigen Mittel (1970–2014), je
+    Das Verhältnis des langjährigen Mittels der Gradtagzahlen zu denen des Bilanzjahres, je
     Sektor. Es skaliert den raumwärmebedingten Anteil des Endenergieverbrauchs eines Sektors auf
     das, was er in einem durchschnittlichen Jahr gewesen wäre.<br/>
     <b>Angewendet auf Haushalte, GHD/Sonstiges und kommunale Einrichtungen; nicht auf Industrie
@@ -1270,8 +1272,8 @@ nodes:
     <b>BISKO lässt diese Bereinigung nicht zu</b> (Kriterium 5). Die Bilanz rechnet
     standardmäßig ohne sie; wird <i>Witterungsbereinigung durchführen</i> eingeschaltet, ist das
     Ergebnis ausdrücklich nicht BISKO-konform, und <code>has_no_weather_correction</code> weist
-    das aus. Die Faktoren sind kommunale Daten – die ausgelieferte Reihe ist eine Vorbelegung,
-    bis die Kommune eigene Gradtagzahlen einträgt –, doch ihre
+    das aus. Die Faktoren sind kommunale Daten – kommunale Instanzen erhalten vorläufige
+    regionale Faktoren, bis die Kommune eigene Werte einträgt –, doch ihre
     Bearbeitung kann eine bereinigte Bilanz nicht konform machen, denn geprüft wird der Schalter
     und nicht der Wert.
   type: generic.GenericNode
