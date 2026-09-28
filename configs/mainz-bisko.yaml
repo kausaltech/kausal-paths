@@ -4733,6 +4733,7 @@ scenarios:
 # transport and process coal -- municipal decisions (Beschlusspunkte 3-5), not federal ones,
 # which is why it is not called "beschleunigte Maßnahmen des Bundes".
 - id: zielpfad_2045
+  default: true
   all_actions_enabled: true
   name_de: 'Zielpfad 2045: zusätzlich vorgeschlagene Maßnahmen'
   name_en: 'Target path 2045: additional proposed measures'
@@ -4803,609 +4804,609 @@ scenarios:
   - id: knsv_vegetarische_verpflegung.selected_number
     value: 0
 
-# The `zielpfad_2045` package above with the grid on the faster of the two statutory readings -- near
-# greenhouse-gas neutrality for electricity before 2035 rather than for the whole economy by
-# 2045. It exists because Stadtratsbeschluss 0024/2021/1 aims for climate neutrality
-# "möglichst schon 2035", and the honest answer to how much earlier that is reachable turns
-# almost entirely on this one path rather than on anything the city decides.
-- id: zielpfad_2035
-  all_actions_enabled: true
-  name_de: Zielpfad mit beschleunigtem Strommix
-  name_en: Target path with accelerated electricity mix
-  params:
-  # The IE Leipzig paths are aggregate outcomes of the Masterplan package and would
-  # stack on the individual measures they already contain, so they stay off here as
-  # they do in every other scenario.
-  - id: ie_mp2050_stationaer.enabled
-    value: false
-  - id: ie_mp2050_verkehr.enabled
-    value: false
-  - id: ie_kn2035_stationaer.enabled
-    value: false
-  - id: ie_kn2035_verkehr.enabled
-    value: false
-  # The heat plan is ON: it owns the demand side of building heat, and without it the
-  # city keeps burning gas. The Zielpfad district heating measures own the supply side,
-  # so the two multiply rather than overwrite each other -- less heat times cleaner heat.
-  - id: kwp_waermewende.enabled
-    value: true
-  - id: zp_strommix_zielpfad.enabled
-    value: true
-  # Variant 1: near greenhouse-gas neutrality for electricity before 2035, per section 1(2) of
-  # the Renewable Energy Sources Act. The only difference from `zielpfad_2045` is this line.
-  - id: zp_strommix_zielpfad.selected_number
-    value: 1
-  - id: zp_fw_mhkw_fossiler_kohlenstoff.enabled
-    value: true
-  - id: zp_wirtschaftsverkehr_elektrisch.enabled
-    value: true
-  - id: zp_industrie_kohleausstieg.enabled
-    value: true
-  # Szenario 1 throughout for the administration measures, as in `default`: the parameter
-  # is not customizable, so a scenario that omits it inherits the last activated one.
-  - id: knsv_energetische_sanierung_waerme.selected_number
-    value: 0
-  - id: knsv_nutzendenverhalten_waerme.selected_number
-    value: 0
-  - id: knsv_energieeffizienz_gebaeude_strom.selected_number
-    value: 0
-  - id: knsv_nutzendenverhalten_strom.selected_number
-    value: 0
-  - id: knsv_photovoltaik_eigenerzeugung.selected_number
-    value: 0
-  - id: knsv_dekarbonisierung_fernwaerme.selected_number
-    value: 0
-  - id: knsv_fernwaerme_anschluss.selected_number
-    value: 0
-  - id: knsv_dekarbonisierung_strommix.selected_number
-    value: 0
-  - id: knsv_led_strassenbeleuchtung.selected_number
-    value: 0
-  - id: knsv_elektrifizierung_pkw_flotte.selected_number
-    value: 0
-  - id: knsv_alternative_antriebe_nutzfahrzeuge.selected_number
-    value: 0
-  - id: knsv_dienstreisen_vermeiden.selected_number
-    value: 0
-  # - id: knsv_homeoffice.selected_number
-  #   value: 0
-  - id: knsv_papierloses_buero.selected_number
-    value: 0
-  - id: knsv_abfallreduktion.selected_number
-    value: 0
-  # - id: knsv_klimafreundliche_veranstaltungen.selected_number
-  #   value: 0
-  - id: knsv_vegetarische_verpflegung.selected_number
-    value: 0
+# # The `zielpfad_2045` package above with the grid on the faster of the two statutory readings -- near
+# # greenhouse-gas neutrality for electricity before 2035 rather than for the whole economy by
+# # 2045. It exists because Stadtratsbeschluss 0024/2021/1 aims for climate neutrality
+# # "möglichst schon 2035", and the honest answer to how much earlier that is reachable turns
+# # almost entirely on this one path rather than on anything the city decides.
+# - id: zielpfad_2035
+#   all_actions_enabled: true
+#   name_de: Zielpfad mit beschleunigtem Strommix
+#   name_en: Target path with accelerated electricity mix
+#   params:
+#   # The IE Leipzig paths are aggregate outcomes of the Masterplan package and would
+#   # stack on the individual measures they already contain, so they stay off here as
+#   # they do in every other scenario.
+#   - id: ie_mp2050_stationaer.enabled
+#     value: false
+#   - id: ie_mp2050_verkehr.enabled
+#     value: false
+#   - id: ie_kn2035_stationaer.enabled
+#     value: false
+#   - id: ie_kn2035_verkehr.enabled
+#     value: false
+#   # The heat plan is ON: it owns the demand side of building heat, and without it the
+#   # city keeps burning gas. The Zielpfad district heating measures own the supply side,
+#   # so the two multiply rather than overwrite each other -- less heat times cleaner heat.
+#   - id: kwp_waermewende.enabled
+#     value: true
+#   - id: zp_strommix_zielpfad.enabled
+#     value: true
+#   # Variant 1: near greenhouse-gas neutrality for electricity before 2035, per section 1(2) of
+#   # the Renewable Energy Sources Act. The only difference from `zielpfad_2045` is this line.
+#   - id: zp_strommix_zielpfad.selected_number
+#     value: 1
+#   - id: zp_fw_mhkw_fossiler_kohlenstoff.enabled
+#     value: true
+#   - id: zp_wirtschaftsverkehr_elektrisch.enabled
+#     value: true
+#   - id: zp_industrie_kohleausstieg.enabled
+#     value: true
+#   # Szenario 1 throughout for the administration measures, as in `default`: the parameter
+#   # is not customizable, so a scenario that omits it inherits the last activated one.
+#   - id: knsv_energetische_sanierung_waerme.selected_number
+#     value: 0
+#   - id: knsv_nutzendenverhalten_waerme.selected_number
+#     value: 0
+#   - id: knsv_energieeffizienz_gebaeude_strom.selected_number
+#     value: 0
+#   - id: knsv_nutzendenverhalten_strom.selected_number
+#     value: 0
+#   - id: knsv_photovoltaik_eigenerzeugung.selected_number
+#     value: 0
+#   - id: knsv_dekarbonisierung_fernwaerme.selected_number
+#     value: 0
+#   - id: knsv_fernwaerme_anschluss.selected_number
+#     value: 0
+#   - id: knsv_dekarbonisierung_strommix.selected_number
+#     value: 0
+#   - id: knsv_led_strassenbeleuchtung.selected_number
+#     value: 0
+#   - id: knsv_elektrifizierung_pkw_flotte.selected_number
+#     value: 0
+#   - id: knsv_alternative_antriebe_nutzfahrzeuge.selected_number
+#     value: 0
+#   - id: knsv_dienstreisen_vermeiden.selected_number
+#     value: 0
+#   # - id: knsv_homeoffice.selected_number
+#   #   value: 0
+#   - id: knsv_papierloses_buero.selected_number
+#     value: 0
+#   - id: knsv_abfallreduktion.selected_number
+#     value: 0
+#   # - id: knsv_klimafreundliche_veranstaltungen.selected_number
+#   #   value: 0
+#   - id: knsv_vegetarische_verpflegung.selected_number
+#     value: 0
 
-# The ambitious path. For the administration balance every action selects Arqum's Szenario 1
-# -- "die Maßnahmen so, wie sie von der Stadtverwaltung entsprechend der Zielsetzung
-# angestrebt sind", with optimistic assumptions where one was needed. Named after the
-# Masterplan rather than after the KNSV because the territorial measures will join it here;
-# today it carries the administration measures alone.
-- id: default
-  default: true
-  all_actions_enabled: true
-  name_de: Masterplan 100% Klimaschutz
-  name_en: Masterplan 100% Climate Protection
-  # Szenario 1 throughout, stated rather than inherited from the parameter defaults -- see the
-  # note on `selected_number` above.
-  params:
-  # The IE Leipzig paths are deliberately OFF here, exactly as `kwp_waermewende` is, and
-  # `all_actions_enabled: true` is why they have to be named: it switches on every action,
-  # which would turn both variants on at once and stack them on the `mp100_*` measures whose
-  # aggregate outcome they already are. Listed even where `all_actions_enabled` is false,
-  # because a parameter absent from a scenario keeps whatever the previously activated one
-  # left behind -- the same reason the `selected_number` block below is spelled out.
-  - id: ie_mp2050_stationaer.enabled
-    value: false
-  - id: ie_mp2050_verkehr.enabled
-    value: false
-  - id: ie_kn2035_stationaer.enabled
-    value: false
-  - id: ie_kn2035_verkehr.enabled
-    value: false
-  # The Zielpfad measures are OFF here. They are not part of this scenario's programme,
-  # and `all_actions_enabled` would otherwise switch on both members of each mutually
-  # exclusive pair at once. Listed even where `all_actions_enabled` is false, because a
-  # parameter absent from a scenario keeps whatever the previously activated one left
-  # behind.
-  - id: zp_strommix_zielpfad.enabled
-    value: false
-  # Set even where the action is off: the parameter is not customizable, so the loader does not
-  # fold it into any scenario and a scenario that omits it keeps whatever the previously
-  # activated one left behind.
-  - id: zp_strommix_zielpfad.selected_number
-    value: 0
-  - id: zp_fw_mhkw_fossiler_kohlenstoff.enabled
-    value: false
-  - id: zp_wirtschaftsverkehr_elektrisch.enabled
-    value: false
-  - id: zp_industrie_kohleausstieg.enabled
-    value: false
-  - id: knsv_energetische_sanierung_waerme.selected_number
-    value: 0
-  - id: knsv_nutzendenverhalten_waerme.selected_number
-    value: 0
-  - id: knsv_energieeffizienz_gebaeude_strom.selected_number
-    value: 0
-  - id: knsv_nutzendenverhalten_strom.selected_number
-    value: 0
-  - id: knsv_photovoltaik_eigenerzeugung.selected_number
-    value: 0
-  - id: knsv_dekarbonisierung_fernwaerme.selected_number
-    value: 0
-  - id: knsv_fernwaerme_anschluss.selected_number
-    value: 0
-  - id: knsv_dekarbonisierung_strommix.selected_number
-    value: 0
-  - id: knsv_led_strassenbeleuchtung.selected_number
-    value: 0
-  - id: knsv_elektrifizierung_pkw_flotte.selected_number
-    value: 0
-  - id: knsv_alternative_antriebe_nutzfahrzeuge.selected_number
-    value: 0
-  - id: knsv_dienstreisen_vermeiden.selected_number
-    value: 0
-  # - id: knsv_homeoffice.selected_number
-  #   value: 0
-  - id: knsv_papierloses_buero.selected_number
-    value: 0
-  - id: knsv_abfallreduktion.selected_number
-    value: 0
-  # - id: knsv_klimafreundliche_veranstaltungen.selected_number
-  #   value: 0
-  - id: knsv_vegetarische_verpflegung.selected_number
-    value: 0
-  # The heat plan is deliberately OFF in Masterplan 100 %, although `all_actions_enabled: true`
-  # would otherwise switch it on. The two documents own different halves of the same quantity:
-  # the Waermeplanung owns the supply side of building heat (which carrier, which network), the
-  # Masterplan owns everything else. Leaving it on here would show the heat transition as a
-  # Masterplan result and then count it a second time in the combined scenario below. See
-  # `models/mainz/correspondence/kmw-szenario-handlungsoptionen.md` section 4, where this
-  # boundary was set out for the city.
-  - id: kwp_waermewende.enabled
-    value: false
+# # The ambitious path. For the administration balance every action selects Arqum's Szenario 1
+# # -- "die Maßnahmen so, wie sie von der Stadtverwaltung entsprechend der Zielsetzung
+# # angestrebt sind", with optimistic assumptions where one was needed. Named after the
+# # Masterplan rather than after the KNSV because the territorial measures will join it here;
+# # today it carries the administration measures alone.
+# - id: default
+#   default: true
+#   all_actions_enabled: true
+#   name_de: Masterplan 100% Klimaschutz
+#   name_en: Masterplan 100% Climate Protection
+#   # Szenario 1 throughout, stated rather than inherited from the parameter defaults -- see the
+#   # note on `selected_number` above.
+#   params:
+#   # The IE Leipzig paths are deliberately OFF here, exactly as `kwp_waermewende` is, and
+#   # `all_actions_enabled: true` is why they have to be named: it switches on every action,
+#   # which would turn both variants on at once and stack them on the `mp100_*` measures whose
+#   # aggregate outcome they already are. Listed even where `all_actions_enabled` is false,
+#   # because a parameter absent from a scenario keeps whatever the previously activated one
+#   # left behind -- the same reason the `selected_number` block below is spelled out.
+#   - id: ie_mp2050_stationaer.enabled
+#     value: false
+#   - id: ie_mp2050_verkehr.enabled
+#     value: false
+#   - id: ie_kn2035_stationaer.enabled
+#     value: false
+#   - id: ie_kn2035_verkehr.enabled
+#     value: false
+#   # The Zielpfad measures are OFF here. They are not part of this scenario's programme,
+#   # and `all_actions_enabled` would otherwise switch on both members of each mutually
+#   # exclusive pair at once. Listed even where `all_actions_enabled` is false, because a
+#   # parameter absent from a scenario keeps whatever the previously activated one left
+#   # behind.
+#   - id: zp_strommix_zielpfad.enabled
+#     value: false
+#   # Set even where the action is off: the parameter is not customizable, so the loader does not
+#   # fold it into any scenario and a scenario that omits it keeps whatever the previously
+#   # activated one left behind.
+#   - id: zp_strommix_zielpfad.selected_number
+#     value: 0
+#   - id: zp_fw_mhkw_fossiler_kohlenstoff.enabled
+#     value: false
+#   - id: zp_wirtschaftsverkehr_elektrisch.enabled
+#     value: false
+#   - id: zp_industrie_kohleausstieg.enabled
+#     value: false
+#   - id: knsv_energetische_sanierung_waerme.selected_number
+#     value: 0
+#   - id: knsv_nutzendenverhalten_waerme.selected_number
+#     value: 0
+#   - id: knsv_energieeffizienz_gebaeude_strom.selected_number
+#     value: 0
+#   - id: knsv_nutzendenverhalten_strom.selected_number
+#     value: 0
+#   - id: knsv_photovoltaik_eigenerzeugung.selected_number
+#     value: 0
+#   - id: knsv_dekarbonisierung_fernwaerme.selected_number
+#     value: 0
+#   - id: knsv_fernwaerme_anschluss.selected_number
+#     value: 0
+#   - id: knsv_dekarbonisierung_strommix.selected_number
+#     value: 0
+#   - id: knsv_led_strassenbeleuchtung.selected_number
+#     value: 0
+#   - id: knsv_elektrifizierung_pkw_flotte.selected_number
+#     value: 0
+#   - id: knsv_alternative_antriebe_nutzfahrzeuge.selected_number
+#     value: 0
+#   - id: knsv_dienstreisen_vermeiden.selected_number
+#     value: 0
+#   # - id: knsv_homeoffice.selected_number
+#   #   value: 0
+#   - id: knsv_papierloses_buero.selected_number
+#     value: 0
+#   - id: knsv_abfallreduktion.selected_number
+#     value: 0
+#   # - id: knsv_klimafreundliche_veranstaltungen.selected_number
+#   #   value: 0
+#   - id: knsv_vegetarische_verpflegung.selected_number
+#     value: 0
+#   # The heat plan is deliberately OFF in Masterplan 100 %, although `all_actions_enabled: true`
+#   # would otherwise switch it on. The two documents own different halves of the same quantity:
+#   # the Waermeplanung owns the supply side of building heat (which carrier, which network), the
+#   # Masterplan owns everything else. Leaving it on here would show the heat transition as a
+#   # Masterplan result and then count it a second time in the combined scenario below. See
+#   # `models/mainz/correspondence/kmw-szenario-handlungsoptionen.md` section 4, where this
+#   # boundary was set out for the city.
+#   - id: kwp_waermewende.enabled
+#     value: false
 
-# Arqum's Szenario 2: the same measures, assumed to be implemented to a lesser extent. Both
-# variants live in the measure datasets under `measure_scenario`, so this scenario changes
-# nothing but which row each action selects -- `selected_number` 1 instead of 0. Every action
-# is listed, including the three whose two variants happen to carry the same value: partly so
-# the list reads as "this scenario is Szenario 2 throughout" rather than leaving a reader to
-# work out why some are missing, and partly because it is now required -- the parameter is not
-# customizable, so a scenario that omits it inherits the last activated scenario's value.
-- id: knsv_szenario_2
-  all_actions_enabled: true
-  name_de: KNSV Szenario 2 (konservativ)
-  name_en: KNSV scenario 2 (conservative)
-  params:
-  # The IE Leipzig paths are deliberately OFF here, exactly as `kwp_waermewende` is, and
-  # `all_actions_enabled: true` is why they have to be named: it switches on every action,
-  # which would turn both variants on at once and stack them on the `mp100_*` measures whose
-  # aggregate outcome they already are. Listed even where `all_actions_enabled` is false,
-  # because a parameter absent from a scenario keeps whatever the previously activated one
-  # left behind -- the same reason the `selected_number` block below is spelled out.
-  - id: ie_mp2050_stationaer.enabled
-    value: false
-  - id: ie_mp2050_verkehr.enabled
-    value: false
-  - id: ie_kn2035_stationaer.enabled
-    value: false
-  - id: ie_kn2035_verkehr.enabled
-    value: false
-  # The Zielpfad measures are OFF here. They are not part of this scenario's programme,
-  # and `all_actions_enabled` would otherwise switch on both members of each mutually
-  # exclusive pair at once. Listed even where `all_actions_enabled` is false, because a
-  # parameter absent from a scenario keeps whatever the previously activated one left
-  # behind.
-  - id: zp_strommix_zielpfad.enabled
-    value: false
-  # Set even where the action is off: the parameter is not customizable, so the loader does not
-  # fold it into any scenario and a scenario that omits it keeps whatever the previously
-  # activated one left behind.
-  - id: zp_strommix_zielpfad.selected_number
-    value: 0
-  - id: zp_fw_mhkw_fossiler_kohlenstoff.enabled
-    value: false
-  - id: zp_wirtschaftsverkehr_elektrisch.enabled
-    value: false
-  - id: zp_industrie_kohleausstieg.enabled
-    value: false
-  - id: knsv_energetische_sanierung_waerme.selected_number
-    value: 1
-  - id: knsv_nutzendenverhalten_waerme.selected_number
-    value: 1
-  - id: knsv_energieeffizienz_gebaeude_strom.selected_number
-    value: 1
-  - id: knsv_nutzendenverhalten_strom.selected_number
-    value: 1
-  - id: knsv_photovoltaik_eigenerzeugung.selected_number
-    value: 1
-  - id: knsv_dekarbonisierung_fernwaerme.selected_number
-    value: 1
-  - id: knsv_fernwaerme_anschluss.selected_number
-    value: 1
-  - id: knsv_dekarbonisierung_strommix.selected_number
-    value: 1
-  - id: knsv_led_strassenbeleuchtung.selected_number
-    value: 1
-  - id: knsv_elektrifizierung_pkw_flotte.selected_number
-    value: 1
-  - id: knsv_alternative_antriebe_nutzfahrzeuge.selected_number
-    value: 1
-  - id: knsv_dienstreisen_vermeiden.selected_number
-    value: 1
-  # - id: knsv_homeoffice.selected_number
-  #   value: 1
-  - id: knsv_papierloses_buero.selected_number
-    value: 1
-  - id: knsv_abfallreduktion.selected_number
-    value: 1
-  # - id: knsv_klimafreundliche_veranstaltungen.selected_number
-  #   value: 1
-  - id: knsv_vegetarische_verpflegung.selected_number
-    value: 1
+# # Arqum's Szenario 2: the same measures, assumed to be implemented to a lesser extent. Both
+# # variants live in the measure datasets under `measure_scenario`, so this scenario changes
+# # nothing but which row each action selects -- `selected_number` 1 instead of 0. Every action
+# # is listed, including the three whose two variants happen to carry the same value: partly so
+# # the list reads as "this scenario is Szenario 2 throughout" rather than leaving a reader to
+# # work out why some are missing, and partly because it is now required -- the parameter is not
+# # customizable, so a scenario that omits it inherits the last activated scenario's value.
+# - id: knsv_szenario_2
+#   all_actions_enabled: true
+#   name_de: KNSV Szenario 2 (konservativ)
+#   name_en: KNSV scenario 2 (conservative)
+#   params:
+#   # The IE Leipzig paths are deliberately OFF here, exactly as `kwp_waermewende` is, and
+#   # `all_actions_enabled: true` is why they have to be named: it switches on every action,
+#   # which would turn both variants on at once and stack them on the `mp100_*` measures whose
+#   # aggregate outcome they already are. Listed even where `all_actions_enabled` is false,
+#   # because a parameter absent from a scenario keeps whatever the previously activated one
+#   # left behind -- the same reason the `selected_number` block below is spelled out.
+#   - id: ie_mp2050_stationaer.enabled
+#     value: false
+#   - id: ie_mp2050_verkehr.enabled
+#     value: false
+#   - id: ie_kn2035_stationaer.enabled
+#     value: false
+#   - id: ie_kn2035_verkehr.enabled
+#     value: false
+#   # The Zielpfad measures are OFF here. They are not part of this scenario's programme,
+#   # and `all_actions_enabled` would otherwise switch on both members of each mutually
+#   # exclusive pair at once. Listed even where `all_actions_enabled` is false, because a
+#   # parameter absent from a scenario keeps whatever the previously activated one left
+#   # behind.
+#   - id: zp_strommix_zielpfad.enabled
+#     value: false
+#   # Set even where the action is off: the parameter is not customizable, so the loader does not
+#   # fold it into any scenario and a scenario that omits it keeps whatever the previously
+#   # activated one left behind.
+#   - id: zp_strommix_zielpfad.selected_number
+#     value: 0
+#   - id: zp_fw_mhkw_fossiler_kohlenstoff.enabled
+#     value: false
+#   - id: zp_wirtschaftsverkehr_elektrisch.enabled
+#     value: false
+#   - id: zp_industrie_kohleausstieg.enabled
+#     value: false
+#   - id: knsv_energetische_sanierung_waerme.selected_number
+#     value: 1
+#   - id: knsv_nutzendenverhalten_waerme.selected_number
+#     value: 1
+#   - id: knsv_energieeffizienz_gebaeude_strom.selected_number
+#     value: 1
+#   - id: knsv_nutzendenverhalten_strom.selected_number
+#     value: 1
+#   - id: knsv_photovoltaik_eigenerzeugung.selected_number
+#     value: 1
+#   - id: knsv_dekarbonisierung_fernwaerme.selected_number
+#     value: 1
+#   - id: knsv_fernwaerme_anschluss.selected_number
+#     value: 1
+#   - id: knsv_dekarbonisierung_strommix.selected_number
+#     value: 1
+#   - id: knsv_led_strassenbeleuchtung.selected_number
+#     value: 1
+#   - id: knsv_elektrifizierung_pkw_flotte.selected_number
+#     value: 1
+#   - id: knsv_alternative_antriebe_nutzfahrzeuge.selected_number
+#     value: 1
+#   - id: knsv_dienstreisen_vermeiden.selected_number
+#     value: 1
+#   # - id: knsv_homeoffice.selected_number
+#   #   value: 1
+#   - id: knsv_papierloses_buero.selected_number
+#     value: 1
+#   - id: knsv_abfallreduktion.selected_number
+#     value: 1
+#   # - id: knsv_klimafreundliche_veranstaltungen.selected_number
+#   #   value: 1
+#   - id: knsv_vegetarische_verpflegung.selected_number
+#     value: 1
 
 
-# The statutory heat plan on its own: no Masterplan measures, no administration measures, only
-# the carrier path of the Kommunale Waermeplanung. This is what Lorig asked for on 17.09.2026 --
-# "dass die KWP ein eigenstaendig auswaehlbares Szenario wird". Read beside `baseline` it shows
-# what the heat plan alone does to the balance.
-#
-# The knsv `selected_number` parameters are listed although every action here is disabled, for
-# the reason given on `baseline`: the parameter is not customizable, so a scenario that omits it
-# inherits whatever the previously activated scenario left behind.
-- id: kwp
-  all_actions_enabled: false
-  name_de: Kommunale Wärmeplanung (Zielszenario 2040)
-  name_en: Municipal heat plan (target scenario 2040)
-  params:
-  # The national grid mix decarbonises whether or not Mainz does anything, so this one action
-  # is on in every scenario -- including Business as Usual. Leaving it off here would assert
-  # that the German grid never cleans up, and, now that it also drives
-  # `end_energy_emission_factors`, would electrify a whole city onto a grid frozen at its 2024
-  # factor. It is the only action that is enabled everywhere, and that is the point: what it
-  # contributes is the part of the reduction the city does not earn.
-  - id: knsv_dekarbonisierung_strommix.enabled
-    value: true
-  # The IE Leipzig paths are deliberately OFF here, exactly as `kwp_waermewende` is, and
-  # `all_actions_enabled: true` is why they have to be named: it switches on every action,
-  # which would turn both variants on at once and stack them on the `mp100_*` measures whose
-  # aggregate outcome they already are. Listed even where `all_actions_enabled` is false,
-  # because a parameter absent from a scenario keeps whatever the previously activated one
-  # left behind -- the same reason the `selected_number` block below is spelled out.
-  - id: ie_mp2050_stationaer.enabled
-    value: false
-  - id: ie_mp2050_verkehr.enabled
-    value: false
-  - id: ie_kn2035_stationaer.enabled
-    value: false
-  - id: ie_kn2035_verkehr.enabled
-    value: false
-  # The Zielpfad measures are OFF here. They are not part of this scenario's programme,
-  # and `all_actions_enabled` would otherwise switch on both members of each mutually
-  # exclusive pair at once. Listed even where `all_actions_enabled` is false, because a
-  # parameter absent from a scenario keeps whatever the previously activated one left
-  # behind.
-  - id: zp_strommix_zielpfad.enabled
-    value: false
-  # Set even where the action is off: the parameter is not customizable, so the loader does not
-  # fold it into any scenario and a scenario that omits it keeps whatever the previously
-  # activated one left behind.
-  - id: zp_strommix_zielpfad.selected_number
-    value: 0
-  - id: zp_fw_mhkw_fossiler_kohlenstoff.enabled
-    value: false
-  - id: zp_wirtschaftsverkehr_elektrisch.enabled
-    value: false
-  - id: zp_industrie_kohleausstieg.enabled
-    value: false
-  - id: kwp_waermewende.enabled
-    value: true
-  - id: knsv_energetische_sanierung_waerme.selected_number
-    value: 0
-  - id: knsv_nutzendenverhalten_waerme.selected_number
-    value: 0
-  - id: knsv_energieeffizienz_gebaeude_strom.selected_number
-    value: 0
-  - id: knsv_nutzendenverhalten_strom.selected_number
-    value: 0
-  - id: knsv_photovoltaik_eigenerzeugung.selected_number
-    value: 0
-  - id: knsv_dekarbonisierung_fernwaerme.selected_number
-    value: 0
-  - id: knsv_fernwaerme_anschluss.selected_number
-    value: 0
-  - id: knsv_dekarbonisierung_strommix.selected_number
-    value: 0
-  - id: knsv_led_strassenbeleuchtung.selected_number
-    value: 0
-  - id: knsv_elektrifizierung_pkw_flotte.selected_number
-    value: 0
-  - id: knsv_alternative_antriebe_nutzfahrzeuge.selected_number
-    value: 0
-  - id: knsv_dienstreisen_vermeiden.selected_number
-    value: 0
-  # - id: knsv_homeoffice.selected_number
-  #   value: 0
-  - id: knsv_papierloses_buero.selected_number
-    value: 0
-  - id: knsv_abfallreduktion.selected_number
-    value: 0
-  # - id: knsv_klimafreundliche_veranstaltungen.selected_number
-  #   value: 0
-  - id: knsv_vegetarische_verpflegung.selected_number
-    value: 0
+# # The statutory heat plan on its own: no Masterplan measures, no administration measures, only
+# # the carrier path of the Kommunale Waermeplanung. This is what Lorig asked for on 17.09.2026 --
+# # "dass die KWP ein eigenstaendig auswaehlbares Szenario wird". Read beside `baseline` it shows
+# # what the heat plan alone does to the balance.
+# #
+# # The knsv `selected_number` parameters are listed although every action here is disabled, for
+# # the reason given on `baseline`: the parameter is not customizable, so a scenario that omits it
+# # inherits whatever the previously activated scenario left behind.
+# - id: kwp
+#   all_actions_enabled: false
+#   name_de: Kommunale Wärmeplanung (Zielszenario 2040)
+#   name_en: Municipal heat plan (target scenario 2040)
+#   params:
+#   # The national grid mix decarbonises whether or not Mainz does anything, so this one action
+#   # is on in every scenario -- including Business as Usual. Leaving it off here would assert
+#   # that the German grid never cleans up, and, now that it also drives
+#   # `end_energy_emission_factors`, would electrify a whole city onto a grid frozen at its 2024
+#   # factor. It is the only action that is enabled everywhere, and that is the point: what it
+#   # contributes is the part of the reduction the city does not earn.
+#   - id: knsv_dekarbonisierung_strommix.enabled
+#     value: true
+#   # The IE Leipzig paths are deliberately OFF here, exactly as `kwp_waermewende` is, and
+#   # `all_actions_enabled: true` is why they have to be named: it switches on every action,
+#   # which would turn both variants on at once and stack them on the `mp100_*` measures whose
+#   # aggregate outcome they already are. Listed even where `all_actions_enabled` is false,
+#   # because a parameter absent from a scenario keeps whatever the previously activated one
+#   # left behind -- the same reason the `selected_number` block below is spelled out.
+#   - id: ie_mp2050_stationaer.enabled
+#     value: false
+#   - id: ie_mp2050_verkehr.enabled
+#     value: false
+#   - id: ie_kn2035_stationaer.enabled
+#     value: false
+#   - id: ie_kn2035_verkehr.enabled
+#     value: false
+#   # The Zielpfad measures are OFF here. They are not part of this scenario's programme,
+#   # and `all_actions_enabled` would otherwise switch on both members of each mutually
+#   # exclusive pair at once. Listed even where `all_actions_enabled` is false, because a
+#   # parameter absent from a scenario keeps whatever the previously activated one left
+#   # behind.
+#   - id: zp_strommix_zielpfad.enabled
+#     value: false
+#   # Set even where the action is off: the parameter is not customizable, so the loader does not
+#   # fold it into any scenario and a scenario that omits it keeps whatever the previously
+#   # activated one left behind.
+#   - id: zp_strommix_zielpfad.selected_number
+#     value: 0
+#   - id: zp_fw_mhkw_fossiler_kohlenstoff.enabled
+#     value: false
+#   - id: zp_wirtschaftsverkehr_elektrisch.enabled
+#     value: false
+#   - id: zp_industrie_kohleausstieg.enabled
+#     value: false
+#   - id: kwp_waermewende.enabled
+#     value: true
+#   - id: knsv_energetische_sanierung_waerme.selected_number
+#     value: 0
+#   - id: knsv_nutzendenverhalten_waerme.selected_number
+#     value: 0
+#   - id: knsv_energieeffizienz_gebaeude_strom.selected_number
+#     value: 0
+#   - id: knsv_nutzendenverhalten_strom.selected_number
+#     value: 0
+#   - id: knsv_photovoltaik_eigenerzeugung.selected_number
+#     value: 0
+#   - id: knsv_dekarbonisierung_fernwaerme.selected_number
+#     value: 0
+#   - id: knsv_fernwaerme_anschluss.selected_number
+#     value: 0
+#   - id: knsv_dekarbonisierung_strommix.selected_number
+#     value: 0
+#   - id: knsv_led_strassenbeleuchtung.selected_number
+#     value: 0
+#   - id: knsv_elektrifizierung_pkw_flotte.selected_number
+#     value: 0
+#   - id: knsv_alternative_antriebe_nutzfahrzeuge.selected_number
+#     value: 0
+#   - id: knsv_dienstreisen_vermeiden.selected_number
+#     value: 0
+#   # - id: knsv_homeoffice.selected_number
+#   #   value: 0
+#   - id: knsv_papierloses_buero.selected_number
+#     value: 0
+#   - id: knsv_abfallreduktion.selected_number
+#     value: 0
+#   # - id: knsv_klimafreundliche_veranstaltungen.selected_number
+#   #   value: 0
+#   - id: knsv_vegetarische_verpflegung.selected_number
+#     value: 0
 
-# ///// IE Leipzig territorial scenarios /////
-#
-# The two technical scenarios for the IE Leipzig paths above. Both set `all_actions_enabled:
-# false` and switch on only their own two actions plus the national electricity mix, so no
-# `mp100_*` measure runs beside the aggregate it is part of.
-#
-#
-# The IE Leipzig MP-2050 variant: the Masterplan measure package carried forward
-# unchanged, climate neutrality in 2050. This is the `MP-2050` ambition level the model has
-# been missing -- until now every scenario carried one.
-#
-# `all_actions_enabled: false` is the whole point. These paths are the *aggregate outcome* of
-# the Masterplan package, and the three `mp100_*` actions are individual measures of that same
-# package -- C 6.1, C 3.1 and C 4.1. Switching both on counts the transport measures twice. The
-# heat plan is off here for a different reason: it claims the same heat carriers from a newer
-# source, and which of the two owns the heat layer is a decision the city has not taken.
-# `kwp` and `mp100_kwp` are where the heat plan lives.
-- id: ie_mp2050
-  all_actions_enabled: false
-  name_de: 'Masterplan-Szenario MP-2050 (Klimaneutralität 2050)'
-  name_en: 'Master plan scenario MP-2050 (climate neutrality 2050)'
-  params:
-  # The national grid mix decarbonises whether or not Mainz does anything, so this one action
-  # is on in every scenario -- including Business as Usual. Leaving it off here would assert
-  # that the German grid never cleans up, and, now that it also drives
-  # `end_energy_emission_factors`, would electrify a whole city onto a grid frozen at its 2024
-  # factor. It is the only action that is enabled everywhere, and that is the point: what it
-  # contributes is the part of the reduction the city does not earn.
-  - id: knsv_dekarbonisierung_strommix.enabled
-    value: true
-  # The IE Leipzig paths are deliberately OFF here, exactly as `kwp_waermewende` is, and
-  # `all_actions_enabled: true` is why they have to be named: it switches on every action,
-  # which would turn both variants on at once and stack them on the `mp100_*` measures whose
-  # aggregate outcome they already are. Listed even where `all_actions_enabled` is false,
-  # because a parameter absent from a scenario keeps whatever the previously activated one
-  # left behind -- the same reason the `selected_number` block below is spelled out.
-  - id: ie_mp2050_stationaer.enabled
-    value: true
-  - id: ie_mp2050_verkehr.enabled
-    value: true
-  - id: ie_kn2035_stationaer.enabled
-    value: false
-  - id: ie_kn2035_verkehr.enabled
-    value: false
-  # The Zielpfad measures are OFF here. They are not part of this scenario's programme,
-  # and `all_actions_enabled` would otherwise switch on both members of each mutually
-  # exclusive pair at once. Listed even where `all_actions_enabled` is false, because a
-  # parameter absent from a scenario keeps whatever the previously activated one left
-  # behind.
-  - id: zp_strommix_zielpfad.enabled
-    value: false
-  # Set even where the action is off: the parameter is not customizable, so the loader does not
-  # fold it into any scenario and a scenario that omits it keeps whatever the previously
-  # activated one left behind.
-  - id: zp_strommix_zielpfad.selected_number
-    value: 0
-  - id: zp_fw_mhkw_fossiler_kohlenstoff.enabled
-    value: false
-  - id: zp_wirtschaftsverkehr_elektrisch.enabled
-    value: false
-  - id: zp_industrie_kohleausstieg.enabled
-    value: false
-  - id: kwp_waermewende.enabled
-    value: false
-  - id: knsv_energetische_sanierung_waerme.selected_number
-    value: 0
-  - id: knsv_nutzendenverhalten_waerme.selected_number
-    value: 0
-  - id: knsv_energieeffizienz_gebaeude_strom.selected_number
-    value: 0
-  - id: knsv_nutzendenverhalten_strom.selected_number
-    value: 0
-  - id: knsv_photovoltaik_eigenerzeugung.selected_number
-    value: 0
-  - id: knsv_dekarbonisierung_fernwaerme.selected_number
-    value: 0
-  - id: knsv_fernwaerme_anschluss.selected_number
-    value: 0
-  - id: knsv_dekarbonisierung_strommix.selected_number
-    value: 0
-  - id: knsv_led_strassenbeleuchtung.selected_number
-    value: 0
-  - id: knsv_elektrifizierung_pkw_flotte.selected_number
-    value: 0
-  - id: knsv_alternative_antriebe_nutzfahrzeuge.selected_number
-    value: 0
-  - id: knsv_dienstreisen_vermeiden.selected_number
-    value: 0
-  # - id: knsv_homeoffice.selected_number
-  #   value: 0
-  - id: knsv_papierloses_buero.selected_number
-    value: 0
-  - id: knsv_abfallreduktion.selected_number
-    value: 0
-  # - id: knsv_klimafreundliche_veranstaltungen.selected_number
-  #   value: 0
-  - id: knsv_vegetarische_verpflegung.selected_number
-    value: 0
+# # ///// IE Leipzig territorial scenarios /////
+# #
+# # The two technical scenarios for the IE Leipzig paths above. Both set `all_actions_enabled:
+# # false` and switch on only their own two actions plus the national electricity mix, so no
+# # `mp100_*` measure runs beside the aggregate it is part of.
+# #
+# #
+# # The IE Leipzig MP-2050 variant: the Masterplan measure package carried forward
+# # unchanged, climate neutrality in 2050. This is the `MP-2050` ambition level the model has
+# # been missing -- until now every scenario carried one.
+# #
+# # `all_actions_enabled: false` is the whole point. These paths are the *aggregate outcome* of
+# # the Masterplan package, and the three `mp100_*` actions are individual measures of that same
+# # package -- C 6.1, C 3.1 and C 4.1. Switching both on counts the transport measures twice. The
+# # heat plan is off here for a different reason: it claims the same heat carriers from a newer
+# # source, and which of the two owns the heat layer is a decision the city has not taken.
+# # `kwp` and `mp100_kwp` are where the heat plan lives.
+# - id: ie_mp2050
+#   all_actions_enabled: false
+#   name_de: 'Masterplan-Szenario MP-2050 (Klimaneutralität 2050)'
+#   name_en: 'Master plan scenario MP-2050 (climate neutrality 2050)'
+#   params:
+#   # The national grid mix decarbonises whether or not Mainz does anything, so this one action
+#   # is on in every scenario -- including Business as Usual. Leaving it off here would assert
+#   # that the German grid never cleans up, and, now that it also drives
+#   # `end_energy_emission_factors`, would electrify a whole city onto a grid frozen at its 2024
+#   # factor. It is the only action that is enabled everywhere, and that is the point: what it
+#   # contributes is the part of the reduction the city does not earn.
+#   - id: knsv_dekarbonisierung_strommix.enabled
+#     value: true
+#   # The IE Leipzig paths are deliberately OFF here, exactly as `kwp_waermewende` is, and
+#   # `all_actions_enabled: true` is why they have to be named: it switches on every action,
+#   # which would turn both variants on at once and stack them on the `mp100_*` measures whose
+#   # aggregate outcome they already are. Listed even where `all_actions_enabled` is false,
+#   # because a parameter absent from a scenario keeps whatever the previously activated one
+#   # left behind -- the same reason the `selected_number` block below is spelled out.
+#   - id: ie_mp2050_stationaer.enabled
+#     value: true
+#   - id: ie_mp2050_verkehr.enabled
+#     value: true
+#   - id: ie_kn2035_stationaer.enabled
+#     value: false
+#   - id: ie_kn2035_verkehr.enabled
+#     value: false
+#   # The Zielpfad measures are OFF here. They are not part of this scenario's programme,
+#   # and `all_actions_enabled` would otherwise switch on both members of each mutually
+#   # exclusive pair at once. Listed even where `all_actions_enabled` is false, because a
+#   # parameter absent from a scenario keeps whatever the previously activated one left
+#   # behind.
+#   - id: zp_strommix_zielpfad.enabled
+#     value: false
+#   # Set even where the action is off: the parameter is not customizable, so the loader does not
+#   # fold it into any scenario and a scenario that omits it keeps whatever the previously
+#   # activated one left behind.
+#   - id: zp_strommix_zielpfad.selected_number
+#     value: 0
+#   - id: zp_fw_mhkw_fossiler_kohlenstoff.enabled
+#     value: false
+#   - id: zp_wirtschaftsverkehr_elektrisch.enabled
+#     value: false
+#   - id: zp_industrie_kohleausstieg.enabled
+#     value: false
+#   - id: kwp_waermewende.enabled
+#     value: false
+#   - id: knsv_energetische_sanierung_waerme.selected_number
+#     value: 0
+#   - id: knsv_nutzendenverhalten_waerme.selected_number
+#     value: 0
+#   - id: knsv_energieeffizienz_gebaeude_strom.selected_number
+#     value: 0
+#   - id: knsv_nutzendenverhalten_strom.selected_number
+#     value: 0
+#   - id: knsv_photovoltaik_eigenerzeugung.selected_number
+#     value: 0
+#   - id: knsv_dekarbonisierung_fernwaerme.selected_number
+#     value: 0
+#   - id: knsv_fernwaerme_anschluss.selected_number
+#     value: 0
+#   - id: knsv_dekarbonisierung_strommix.selected_number
+#     value: 0
+#   - id: knsv_led_strassenbeleuchtung.selected_number
+#     value: 0
+#   - id: knsv_elektrifizierung_pkw_flotte.selected_number
+#     value: 0
+#   - id: knsv_alternative_antriebe_nutzfahrzeuge.selected_number
+#     value: 0
+#   - id: knsv_dienstreisen_vermeiden.selected_number
+#     value: 0
+#   # - id: knsv_homeoffice.selected_number
+#   #   value: 0
+#   - id: knsv_papierloses_buero.selected_number
+#     value: 0
+#   - id: knsv_abfallreduktion.selected_number
+#     value: 0
+#   # - id: knsv_klimafreundliche_veranstaltungen.selected_number
+#   #   value: 0
+#   - id: knsv_vegetarische_verpflegung.selected_number
+#     value: 0
 
-# The IE Leipzig KN-2035 variant: strengthened and additional measures, climate
-# neutrality in 2035 -- the target the city council actually resolved on. It ends in 2035,
-# and its 2035 level is held to 2050 rather than extrapolated.
-#
-# `all_actions_enabled: false` is the whole point. These paths are the *aggregate outcome* of
-# the Masterplan package, and the three `mp100_*` actions are individual measures of that same
-# package -- C 6.1, C 3.1 and C 4.1. Switching both on counts the transport measures twice. The
-# heat plan is off here for a different reason: it claims the same heat carriers from a newer
-# source, and which of the two owns the heat layer is a decision the city has not taken.
-# `kwp` and `mp100_kwp` are where the heat plan lives.
-- id: ie_kn2035
-  all_actions_enabled: false
-  name_de: 'Klimaneutralität-Szenario KN-2035 (Klimaneutralität 2035)'
-  name_en: 'Climate neutrality scenario KN-2035 (climate neutrality 2035)'
-  params:
-  # The national grid mix decarbonises whether or not Mainz does anything, so this one action
-  # is on in every scenario -- including Business as Usual. Leaving it off here would assert
-  # that the German grid never cleans up, and, now that it also drives
-  # `end_energy_emission_factors`, would electrify a whole city onto a grid frozen at its 2024
-  # factor. It is the only action that is enabled everywhere, and that is the point: what it
-  # contributes is the part of the reduction the city does not earn.
-  - id: knsv_dekarbonisierung_strommix.enabled
-    value: true
-  # The IE Leipzig paths are deliberately OFF here, exactly as `kwp_waermewende` is, and
-  # `all_actions_enabled: true` is why they have to be named: it switches on every action,
-  # which would turn both variants on at once and stack them on the `mp100_*` measures whose
-  # aggregate outcome they already are. Listed even where `all_actions_enabled` is false,
-  # because a parameter absent from a scenario keeps whatever the previously activated one
-  # left behind -- the same reason the `selected_number` block below is spelled out.
-  - id: ie_mp2050_stationaer.enabled
-    value: false
-  - id: ie_mp2050_verkehr.enabled
-    value: false
-  - id: ie_kn2035_stationaer.enabled
-    value: true
-  - id: ie_kn2035_verkehr.enabled
-    value: true
-  # The Zielpfad measures are OFF here. They are not part of this scenario's programme,
-  # and `all_actions_enabled` would otherwise switch on both members of each mutually
-  # exclusive pair at once. Listed even where `all_actions_enabled` is false, because a
-  # parameter absent from a scenario keeps whatever the previously activated one left
-  # behind.
-  - id: zp_strommix_zielpfad.enabled
-    value: false
-  # Set even where the action is off: the parameter is not customizable, so the loader does not
-  # fold it into any scenario and a scenario that omits it keeps whatever the previously
-  # activated one left behind.
-  - id: zp_strommix_zielpfad.selected_number
-    value: 0
-  - id: zp_fw_mhkw_fossiler_kohlenstoff.enabled
-    value: false
-  - id: zp_wirtschaftsverkehr_elektrisch.enabled
-    value: false
-  - id: zp_industrie_kohleausstieg.enabled
-    value: false
-  - id: kwp_waermewende.enabled
-    value: false
-  - id: knsv_energetische_sanierung_waerme.selected_number
-    value: 0
-  - id: knsv_nutzendenverhalten_waerme.selected_number
-    value: 0
-  - id: knsv_energieeffizienz_gebaeude_strom.selected_number
-    value: 0
-  - id: knsv_nutzendenverhalten_strom.selected_number
-    value: 0
-  - id: knsv_photovoltaik_eigenerzeugung.selected_number
-    value: 0
-  - id: knsv_dekarbonisierung_fernwaerme.selected_number
-    value: 0
-  - id: knsv_fernwaerme_anschluss.selected_number
-    value: 0
-  - id: knsv_dekarbonisierung_strommix.selected_number
-    value: 0
-  - id: knsv_led_strassenbeleuchtung.selected_number
-    value: 0
-  - id: knsv_elektrifizierung_pkw_flotte.selected_number
-    value: 0
-  - id: knsv_alternative_antriebe_nutzfahrzeuge.selected_number
-    value: 0
-  - id: knsv_dienstreisen_vermeiden.selected_number
-    value: 0
-  # - id: knsv_homeoffice.selected_number
-  #   value: 0
-  - id: knsv_papierloses_buero.selected_number
-    value: 0
-  - id: knsv_abfallreduktion.selected_number
-    value: 0
-  # - id: knsv_klimafreundliche_veranstaltungen.selected_number
-  #   value: 0
-  - id: knsv_vegetarische_verpflegung.selected_number
-    value: 0
+# # The IE Leipzig KN-2035 variant: strengthened and additional measures, climate
+# # neutrality in 2035 -- the target the city council actually resolved on. It ends in 2035,
+# # and its 2035 level is held to 2050 rather than extrapolated.
+# #
+# # `all_actions_enabled: false` is the whole point. These paths are the *aggregate outcome* of
+# # the Masterplan package, and the three `mp100_*` actions are individual measures of that same
+# # package -- C 6.1, C 3.1 and C 4.1. Switching both on counts the transport measures twice. The
+# # heat plan is off here for a different reason: it claims the same heat carriers from a newer
+# # source, and which of the two owns the heat layer is a decision the city has not taken.
+# # `kwp` and `mp100_kwp` are where the heat plan lives.
+# - id: ie_kn2035
+#   all_actions_enabled: false
+#   name_de: 'Klimaneutralität-Szenario KN-2035 (Klimaneutralität 2035)'
+#   name_en: 'Climate neutrality scenario KN-2035 (climate neutrality 2035)'
+#   params:
+#   # The national grid mix decarbonises whether or not Mainz does anything, so this one action
+#   # is on in every scenario -- including Business as Usual. Leaving it off here would assert
+#   # that the German grid never cleans up, and, now that it also drives
+#   # `end_energy_emission_factors`, would electrify a whole city onto a grid frozen at its 2024
+#   # factor. It is the only action that is enabled everywhere, and that is the point: what it
+#   # contributes is the part of the reduction the city does not earn.
+#   - id: knsv_dekarbonisierung_strommix.enabled
+#     value: true
+#   # The IE Leipzig paths are deliberately OFF here, exactly as `kwp_waermewende` is, and
+#   # `all_actions_enabled: true` is why they have to be named: it switches on every action,
+#   # which would turn both variants on at once and stack them on the `mp100_*` measures whose
+#   # aggregate outcome they already are. Listed even where `all_actions_enabled` is false,
+#   # because a parameter absent from a scenario keeps whatever the previously activated one
+#   # left behind -- the same reason the `selected_number` block below is spelled out.
+#   - id: ie_mp2050_stationaer.enabled
+#     value: false
+#   - id: ie_mp2050_verkehr.enabled
+#     value: false
+#   - id: ie_kn2035_stationaer.enabled
+#     value: true
+#   - id: ie_kn2035_verkehr.enabled
+#     value: true
+#   # The Zielpfad measures are OFF here. They are not part of this scenario's programme,
+#   # and `all_actions_enabled` would otherwise switch on both members of each mutually
+#   # exclusive pair at once. Listed even where `all_actions_enabled` is false, because a
+#   # parameter absent from a scenario keeps whatever the previously activated one left
+#   # behind.
+#   - id: zp_strommix_zielpfad.enabled
+#     value: false
+#   # Set even where the action is off: the parameter is not customizable, so the loader does not
+#   # fold it into any scenario and a scenario that omits it keeps whatever the previously
+#   # activated one left behind.
+#   - id: zp_strommix_zielpfad.selected_number
+#     value: 0
+#   - id: zp_fw_mhkw_fossiler_kohlenstoff.enabled
+#     value: false
+#   - id: zp_wirtschaftsverkehr_elektrisch.enabled
+#     value: false
+#   - id: zp_industrie_kohleausstieg.enabled
+#     value: false
+#   - id: kwp_waermewende.enabled
+#     value: false
+#   - id: knsv_energetische_sanierung_waerme.selected_number
+#     value: 0
+#   - id: knsv_nutzendenverhalten_waerme.selected_number
+#     value: 0
+#   - id: knsv_energieeffizienz_gebaeude_strom.selected_number
+#     value: 0
+#   - id: knsv_nutzendenverhalten_strom.selected_number
+#     value: 0
+#   - id: knsv_photovoltaik_eigenerzeugung.selected_number
+#     value: 0
+#   - id: knsv_dekarbonisierung_fernwaerme.selected_number
+#     value: 0
+#   - id: knsv_fernwaerme_anschluss.selected_number
+#     value: 0
+#   - id: knsv_dekarbonisierung_strommix.selected_number
+#     value: 0
+#   - id: knsv_led_strassenbeleuchtung.selected_number
+#     value: 0
+#   - id: knsv_elektrifizierung_pkw_flotte.selected_number
+#     value: 0
+#   - id: knsv_alternative_antriebe_nutzfahrzeuge.selected_number
+#     value: 0
+#   - id: knsv_dienstreisen_vermeiden.selected_number
+#     value: 0
+#   # - id: knsv_homeoffice.selected_number
+#   #   value: 0
+#   - id: knsv_papierloses_buero.selected_number
+#     value: 0
+#   - id: knsv_abfallreduktion.selected_number
+#     value: 0
+#   # - id: knsv_klimafreundliche_veranstaltungen.selected_number
+#   #   value: 0
+#   - id: knsv_vegetarische_verpflegung.selected_number
+#     value: 0
 
-# Nothing changes at all: no measures, as in `baseline`, and no decarbonisation of the national
-# electricity mix either. It isolates what the grid path alone contributes to Business as Usual.
-- id: frozen
-  name_de: Alles eingefroren (keine Maßnahme, kein Strommixwandel)
-  name_en: Everything frozen (no measures, no change in the electricity mix)
-  # Listed although no action is enabled here: `selected_number` is no longer customizable, so
-  # the loader does not fold it into any scenario by itself, and a parameter absent from a
-  # scenario keeps whatever the previously activated one left behind.
-  params:
-  # The one difference from `baseline`: the national grid is frozen too, at its 2024 factor.
-  # This is the reference the city asked for on 23.09.2026, so that Business as Usual can be
-  # read as the part of the reduction that comes from the grid alone. No measure electrifies
-  # anything here, so the frozen grid is not multiplied into new electricity demand.
-  - id: knsv_dekarbonisierung_strommix.enabled
-    value: false
-  # The IE Leipzig paths are deliberately OFF here, exactly as `kwp_waermewende` is, and
-  # `all_actions_enabled: true` is why they have to be named: it switches on every action,
-  # which would turn both variants on at once and stack them on the `mp100_*` measures whose
-  # aggregate outcome they already are. Listed even where `all_actions_enabled` is false,
-  # because a parameter absent from a scenario keeps whatever the previously activated one
-  # left behind -- the same reason the `selected_number` block below is spelled out.
-  - id: ie_mp2050_stationaer.enabled
-    value: false
-  - id: ie_mp2050_verkehr.enabled
-    value: false
-  - id: ie_kn2035_stationaer.enabled
-    value: false
-  - id: ie_kn2035_verkehr.enabled
-    value: false
-  # The Zielpfad measures are OFF here. They are not part of this scenario's programme,
-  # and `all_actions_enabled` would otherwise switch on both members of each mutually
-  # exclusive pair at once. Listed even where `all_actions_enabled` is false, because a
-  # parameter absent from a scenario keeps whatever the previously activated one left
-  # behind.
-  - id: zp_strommix_zielpfad.enabled
-    value: false
-  # Set even where the action is off: the parameter is not customizable, so the loader does not
-  # fold it into any scenario and a scenario that omits it keeps whatever the previously
-  # activated one left behind.
-  - id: zp_strommix_zielpfad.selected_number
-    value: 0
-  - id: zp_fw_mhkw_fossiler_kohlenstoff.enabled
-    value: false
-  - id: zp_wirtschaftsverkehr_elektrisch.enabled
-    value: false
-  - id: zp_industrie_kohleausstieg.enabled
-    value: false
-  - id: knsv_energetische_sanierung_waerme.selected_number
-    value: 0
-  - id: knsv_nutzendenverhalten_waerme.selected_number
-    value: 0
-  - id: knsv_energieeffizienz_gebaeude_strom.selected_number
-    value: 0
-  - id: knsv_nutzendenverhalten_strom.selected_number
-    value: 0
-  - id: knsv_photovoltaik_eigenerzeugung.selected_number
-    value: 0
-  - id: knsv_dekarbonisierung_fernwaerme.selected_number
-    value: 0
-  - id: knsv_fernwaerme_anschluss.selected_number
-    value: 0
-  - id: knsv_dekarbonisierung_strommix.selected_number
-    value: 0
-  - id: knsv_led_strassenbeleuchtung.selected_number
-    value: 0
-  - id: knsv_elektrifizierung_pkw_flotte.selected_number
-    value: 0
-  - id: knsv_alternative_antriebe_nutzfahrzeuge.selected_number
-    value: 0
-  - id: knsv_dienstreisen_vermeiden.selected_number
-    value: 0
-  # - id: knsv_homeoffice.selected_number
-  #   value: 0
-  - id: knsv_papierloses_buero.selected_number
-    value: 0
-  - id: knsv_abfallreduktion.selected_number
-    value: 0
-  # - id: knsv_klimafreundliche_veranstaltungen.selected_number
-  #   value: 0
-  - id: knsv_vegetarische_verpflegung.selected_number
-    value: 0
+# # Nothing changes at all: no measures, as in `baseline`, and no decarbonisation of the national
+# # electricity mix either. It isolates what the grid path alone contributes to Business as Usual.
+# - id: frozen
+#   name_de: Alles eingefroren (keine Maßnahme, kein Strommixwandel)
+#   name_en: Everything frozen (no measures, no change in the electricity mix)
+#   # Listed although no action is enabled here: `selected_number` is no longer customizable, so
+#   # the loader does not fold it into any scenario by itself, and a parameter absent from a
+#   # scenario keeps whatever the previously activated one left behind.
+#   params:
+#   # The one difference from `baseline`: the national grid is frozen too, at its 2024 factor.
+#   # This is the reference the city asked for on 23.09.2026, so that Business as Usual can be
+#   # read as the part of the reduction that comes from the grid alone. No measure electrifies
+#   # anything here, so the frozen grid is not multiplied into new electricity demand.
+#   - id: knsv_dekarbonisierung_strommix.enabled
+#     value: false
+#   # The IE Leipzig paths are deliberately OFF here, exactly as `kwp_waermewende` is, and
+#   # `all_actions_enabled: true` is why they have to be named: it switches on every action,
+#   # which would turn both variants on at once and stack them on the `mp100_*` measures whose
+#   # aggregate outcome they already are. Listed even where `all_actions_enabled` is false,
+#   # because a parameter absent from a scenario keeps whatever the previously activated one
+#   # left behind -- the same reason the `selected_number` block below is spelled out.
+#   - id: ie_mp2050_stationaer.enabled
+#     value: false
+#   - id: ie_mp2050_verkehr.enabled
+#     value: false
+#   - id: ie_kn2035_stationaer.enabled
+#     value: false
+#   - id: ie_kn2035_verkehr.enabled
+#     value: false
+#   # The Zielpfad measures are OFF here. They are not part of this scenario's programme,
+#   # and `all_actions_enabled` would otherwise switch on both members of each mutually
+#   # exclusive pair at once. Listed even where `all_actions_enabled` is false, because a
+#   # parameter absent from a scenario keeps whatever the previously activated one left
+#   # behind.
+#   - id: zp_strommix_zielpfad.enabled
+#     value: false
+#   # Set even where the action is off: the parameter is not customizable, so the loader does not
+#   # fold it into any scenario and a scenario that omits it keeps whatever the previously
+#   # activated one left behind.
+#   - id: zp_strommix_zielpfad.selected_number
+#     value: 0
+#   - id: zp_fw_mhkw_fossiler_kohlenstoff.enabled
+#     value: false
+#   - id: zp_wirtschaftsverkehr_elektrisch.enabled
+#     value: false
+#   - id: zp_industrie_kohleausstieg.enabled
+#     value: false
+#   - id: knsv_energetische_sanierung_waerme.selected_number
+#     value: 0
+#   - id: knsv_nutzendenverhalten_waerme.selected_number
+#     value: 0
+#   - id: knsv_energieeffizienz_gebaeude_strom.selected_number
+#     value: 0
+#   - id: knsv_nutzendenverhalten_strom.selected_number
+#     value: 0
+#   - id: knsv_photovoltaik_eigenerzeugung.selected_number
+#     value: 0
+#   - id: knsv_dekarbonisierung_fernwaerme.selected_number
+#     value: 0
+#   - id: knsv_fernwaerme_anschluss.selected_number
+#     value: 0
+#   - id: knsv_dekarbonisierung_strommix.selected_number
+#     value: 0
+#   - id: knsv_led_strassenbeleuchtung.selected_number
+#     value: 0
+#   - id: knsv_elektrifizierung_pkw_flotte.selected_number
+#     value: 0
+#   - id: knsv_alternative_antriebe_nutzfahrzeuge.selected_number
+#     value: 0
+#   - id: knsv_dienstreisen_vermeiden.selected_number
+#     value: 0
+#   # - id: knsv_homeoffice.selected_number
+#   #   value: 0
+#   - id: knsv_papierloses_buero.selected_number
+#     value: 0
+#   - id: knsv_abfallreduktion.selected_number
+#     value: 0
+#   # - id: knsv_klimafreundliche_veranstaltungen.selected_number
+#   #   value: 0
+#   - id: knsv_vegetarische_verpflegung.selected_number
+#     value: 0
