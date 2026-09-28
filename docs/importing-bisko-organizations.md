@@ -7,8 +7,10 @@ already point at municipality nodes.
 ## Import
 
 1. Apply the Paths migrations and run `python -m tools.setup_bisko`. That
-   provisions the BISKO framework, German organization classes, and the `ars`
-   and `ags` identifier namespaces. Repeating setup preserves existing names.
+   provisions the BISKO framework, German organization classes, and the `ars`,
+   `ags`, and `nuts3` identifier namespaces. Repeating setup preserves existing
+   names. Once districts have been imported, setup checks that each has a
+   NUTS3 identifier; if one is missing, complete steps 2 and 3, then rerun setup.
 2. Generate the staged Parquet file from the dated BKG workbook:
 
    ```bash
@@ -24,7 +26,19 @@ already point at municipality nodes.
    ```bash
    python manage.py import_bkg_organizations /tmp/bkg-organizations-2024.parquet --dry-run
    python manage.py import_bkg_organizations /tmp/bkg-organizations-2024.parquet
+   PYTHONPATH=. python tools/setup_bisko.py
    ```
+
+The staged Parquet must include `nuts3`, produced by the updated importer from
+the workbook's district `NUTS` and municipality `NUTS3_CODE` fields. Old Parquet
+files are rejected. The Paths import verifies that each municipality's code
+matches its district and stores one `nuts3` identifier on each Landkreis or
+district-free city. Activation resolves it through the municipality's district
+ancestor and writes the instance's `nuts_code` parameter. A repeat import with
+current administrative information creates only missing identifiers; it does
+not save unchanged organizations. Rerunning setup then reconciles `nuts_code`
+for existing BISKO municipal instances, and a further setup run leaves them
+unchanged.
 
 The command reconciles existing rows by ARS and municipality AGS, preserves
 their UUIDs and instance links, moves them under their BKG parent, and attaches
