@@ -11,11 +11,11 @@ from kausal_common.datasets.models import Dataset
 from datasets.materialization import refresh_dataset_materialization
 from datasets.validation import dump_violations, evaluate_dataset_rules
 from datasets.year_slots import ensure_empty_year
-from frameworks.activation import municipality_nuts3
+from frameworks.bisko.activation import municipality_nuts3
+from frameworks.bisko.quality import provision_bisko_quality_projections
+from frameworks.bisko.weather import WEATHER_DATASET, load_weather_source, seed_weather_defaults
 from frameworks.identity import ensure_municipal_organization
 from frameworks.models import DataQualityLevel, DataQualityScheme, Framework, FrameworkConfig
-from frameworks.quality_provisioning import provision_bisko_quality_projections
-from frameworks.weather import WEATHER_DATASET, load_weather_source, seed_weather_defaults
 from nodes.defs.transform_def import FilterColumnOp
 from nodes.models import DatasetMaterialization, InstanceConfig, NodeInputPortBinding
 from orgs.models import Namespace, OrganizationClass, OrganizationIdentifier

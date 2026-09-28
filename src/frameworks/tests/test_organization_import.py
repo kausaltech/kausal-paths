@@ -26,7 +26,9 @@ from kausal_common.people.models import ObjectRole
 
 from paths.tests.graphql import PathsTestClient
 
-from frameworks.activation import ActivationError, activate_bisko_municipality
+from frameworks.bisko.activation import ActivationError, activate_bisko_municipality
+from frameworks.bisko.provisioning import GERMAN_ORGANIZATION_CLASSES, setup_bisko
+from frameworks.bisko.weather import HEATING_SECTORS, NEUTRAL_SECTORS, WEATHER_DATASET
 from frameworks.conversion import share_template_catalogue
 from frameworks.models import (
     Framework,
@@ -38,10 +40,8 @@ from frameworks.models import (
 )
 from frameworks.organization_access import accessible_organizations, user_can_access_organization
 from frameworks.population import population_aggregates, replace_population_projection
-from frameworks.provisioning import GERMAN_ORGANIZATION_CLASSES, setup_bisko
 from frameworks.roles import framework_admin_role
 from frameworks.tests.factories import FrameworkConfigFactory
-from frameworks.weather import HEATING_SECTORS, NEUTRAL_SECTORS, WEATHER_DATASET
 from nodes.defs.instance_defs import YearsSpec
 from nodes.defs.port_def import InputPortDef
 from nodes.instance_serialization import DatasetMetricSource, build_instance_snapshot
@@ -415,8 +415,8 @@ def test_weather_defaults_seed_on_activation_and_setup_backfills_empty_slot(
         'Year': list(range(1980, 2026)),
         'hdd_eurostat': [500 if year == 2023 else 1000 for year in range(1980, 2026)],
     })
-    monkeypatch.setattr('frameworks.activation.load_weather_source', lambda _framework: (frame, 'test-commit'))
-    monkeypatch.setattr('frameworks.provisioning.load_weather_source', lambda _framework: (frame, 'test-commit'))
+    monkeypatch.setattr('frameworks.bisko.activation.load_weather_source', lambda _framework: (frame, 'test-commit'))
+    monkeypatch.setattr('frameworks.bisko.provisioning.load_weather_source', lambda _framework: (frame, 'test-commit'))
     municipality = OrganizationIdentifier.objects.get(namespace__identifier='ags', identifier='12001001').organization
     config, created = activate_bisko_municipality(framework, municipality)
     assert created
