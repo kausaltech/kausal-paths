@@ -4416,9 +4416,20 @@ params:
   value: false
   is_visible: true
   is_customizable: true
-# Mainz reports 130 GWh of municipal facilities in 1990 falling to zero by the end of the series,
-# and subtracting it never drives GHD negative — consistent with those values sitting inside the
-# GHD residual, as BISKO's Leitfaden describes.
+# No: every source behind mainz/final_energy reports the facilities beside GHD, not inside it.
+#   * 1990-2018, the Klimaschutz-Planer (KSP) export: KSP's own totals are
+#     SUM = GE + HE + IE + KE in all 192 cells where both exist, never GE + HE + IE.
+#   * 2019-2024, the Stadtwerke delivery of 22 June 2026: each sector column sums to its
+#     Gesamtsumme -- district heating (MFW) 2019: 103 814 + 250 236 + 34 058 + 27 155 = 415 263 MWh;
+#     natural gas and electricity likewise to the kWh -- and the EKA-RLP electricity columns
+#     reconcile to their total in extract_bisko._reconcile.
+#   * The 2019-2022 back-casts of the non-grid carriers scale the 2018 KSP figures, so they
+#     inherit the KSP split.
+# It was *yes* until 2026-09-28, on the reasoning that subtracting never drives GHD negative. That
+# test is one-sided -- a negative proves the facilities are outside GHD, the absence of one proves
+# nothing -- and the declaration removed 58-130 GWh a year (1.4-1.9 % of stationary final energy)
+# a second time. The extractors need no change: none of them adds the facilities into GHD or
+# subtracts them out. The rule for every KSP-sourced city is in configs/bisko.yaml.
 
 # The district-heating route is no longer a parameter. BISKO's three Möglichkeiten are chosen per
 # year from what the city has supplied -- plant data, then a declared Table 5 variant, then the
@@ -4431,7 +4442,7 @@ params:
     trade and services sector?
   label_de: Sind die Verbräuche der kommunalen Einrichtungen im Sektor
     GHD/Sonstiges enthalten?
-  value: true
+  value: false
   is_visible: true
   is_customizable: false
 

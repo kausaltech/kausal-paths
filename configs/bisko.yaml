@@ -89,6 +89,22 @@ params:
 # requires it to be subtracted (Prüfschritt 2.1). Declared per city, because only the city knows
 # how its data was delivered; visible so the answer to "how does the tool process the data?" is
 # on screen, and not customizable because it moves the balance.
+#
+# **A city whose energy data comes from a Klimaschutz-Planer (KSP) export declares false.** KSP
+# keeps the Kommunale Einrichtungen as a sector beside GHD -- its own totals are
+# SUM = GE + HE + IE + KE -- and where a city entered a GHD figure containing them, KSP has already
+# taken them out. Checked on 2026-09-28 against all five KSP cities (Augsburg, Bayreuth,
+# Düsseldorf, Mainz, Schwerin): no exception. Test a new export with
+# paths-data/modules/bisko/ksp_municipal_facilities_check.py.
+#
+# The declaration is one constant for the whole series, so the dataset must follow one rule in
+# every year: an extractor that combines sources (KSP for early years, a utility delivery for
+# later ones) has to bring them all to the same convention before upload -- in practice "beside",
+# since that is what KSP delivers. Test a utility delivery by whether its sector columns sum to its
+# own total with or without the facilities. "Subtracting never goes negative" is not a test: it
+# can only ever prove "beside", never "inside".
+#
+# The template stays true: it demonstrates the subtraction, and its placeholder data is not KSP's.
 - id: municipal_facilities_included_in_commerce
   label_en: Energy consumption of municipal facilities is included in the commerce, trade and services sector.
   label_de: Energieverbräuche der kommunalen Einrichtungen sind im Sektor GHD/Sonstiges enthalten.

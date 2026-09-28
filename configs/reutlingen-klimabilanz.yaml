@@ -128,8 +128,10 @@ params:
   value: true
   is_visible: true
   is_customizable: true
-# Reutlingen still runs on Augsburg's energy data (see dataset_replacements above), whose
-# facility column is zero throughout, so this has no effect until Reutlingen's own data arrives.
+# No, following Augsburg: Reutlingen still runs on Augsburg's energy data (see
+# dataset_replacements above), a Klimaschutz-Planer export, which keeps the facilities beside GHD.
+# The facility column is zero, so this changes nothing today. Re-declare it when Reutlingen's own
+# data arrives -- the answer is a property of that delivery, not of this one.
 
 # The district-heating route is no longer a parameter. BISKO's three Möglichkeiten are chosen per
 # year from what the city has supplied -- plant data, then a declared Table 5 variant, then the
@@ -142,7 +144,7 @@ params:
     trade and services sector?
   label_de: Sind die Verbräuche der kommunalen Einrichtungen im Sektor
     GHD/Sonstiges enthalten?
-  value: true
+  value: false
   is_visible: true
   is_customizable: false
 

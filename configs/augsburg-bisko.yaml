@@ -121,9 +121,11 @@ params:
   value: true
   is_visible: true
   is_customizable: true
-# Augsburg's municipal-facility column is zero throughout, so this has no effect on the balance
-# today. Left at the BISKO default so a later delivery carrying real facility data is treated
-# correctly without a config change.
+# No, because augsburg/final_energy is a Klimaschutz-Planer (KSP) export, and KSP keeps the
+# facilities beside GHD: its own totals are SUM = GE + HE + IE + KE, so a GHD figure taken from it
+# already excludes them. The facility column is zero throughout today, so this changes nothing
+# yet; it was *yes* until 2026-09-28, which would have subtracted the first real facility figures
+# a second time. The rule for every KSP-sourced city is in configs/bisko.yaml.
 
 # The district-heating route is no longer a parameter. BISKO's three Möglichkeiten are chosen per
 # year from what the city has supplied -- plant data, then a declared Table 5 variant, then the
@@ -136,7 +138,7 @@ params:
     trade and services sector?
   label_de: Sind die Verbräuche der kommunalen Einrichtungen im Sektor
     GHD/Sonstiges enthalten?
-  value: true
+  value: false
   is_visible: true
   is_customizable: false
 

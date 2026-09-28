@@ -96,9 +96,9 @@ params:
   value: true
   is_visible: true
   is_customizable: true
-# Subtracting Schwerin's facility consumption keeps GHD positive in every year but one (district
-# heating −16.4 GWh, heating electricity −0.8 GWh in a single year), which reads as a one-year
-# data problem rather than as evidence that the delivery already excludes the facilities.
+# No: this runs on schwerin/final_energy, a Klimaschutz-Planer (KSP) export, and KSP keeps the
+# facilities beside GHD -- its own totals are SUM = GE + HE + IE + KE. See schwerin-bisko.yaml for
+# the evidence; changed 2026-09-28 together with it.
 
 # The district-heating route is no longer a parameter. BISKO's three Möglichkeiten are chosen per
 # year from what the city has supplied -- plant data, then a declared Table 5 variant, then the
@@ -109,7 +109,7 @@ params:
 - id: municipal_facilities_included_in_commerce
   label_en: Is the consumption of municipal facilities included in the commerce, trade and services sector?
   label_de: Sind die Verbräuche der kommunalen Einrichtungen im Sektor GHD/Sonstiges enthalten?
-  value: true
+  value: false
   is_visible: true
   is_customizable: false
 

@@ -95,9 +95,21 @@ params:
   value: true
   is_visible: true
   is_customizable: true
-# Subtracting Schwerin's facility consumption keeps GHD positive in every year but one (district
-# heating −16.4 GWh, heating electricity −0.8 GWh in a single year), which reads as a one-year
-# data problem rather than as evidence that the delivery already excludes the facilities.
+# No: schwerin/final_energy is the Klimaschutz-Planer export, and KSP keeps the two sectors
+# disjoint. Its own totals are SUM_<carrier> = GE + HE + IE + KE in every cell where KE is nonzero,
+# never GE + HE + IE, so its GHD figure has the facilities taken out already. Where the city entered
+# a GHD figure that contained them, KSP did the subtraction and the remainder shows it: GE + KE is
+# an exact round number for electricity and natural gas 2021, electricity 2022, natural gas 2023 and
+# liquefied gas 2022-23 (electricity 2021: 36 741.194 + 8 076.806 = 44 818.000). Subtracting again
+# removed 28-35 GWh/a a second time and drove GHD negative in two cells, which then pushed
+# weighted_data_quality_by_energy_carrier above 1.
+#
+# Those two cells are data defects in the export, not artefacts of the subtraction: GHD district
+# heating 2022 is 0 (KSP's own SUM_Fernwaerme drops from 381 to 221 GWh), and municipal heating
+# electricity 2018 is 892 MWh against 76-93 in the neighbouring years. Both are questions for the
+# city, as is electricity 2023, which repeats natural gas 2023 digit for digit. Changed 2026-09-28;
+# the previous reading ("positive in every year but one") took positivity for inclusion, which it
+# cannot show.
 
 # The district-heating route is no longer a parameter. BISKO's three Möglichkeiten are chosen per
 # year from what the city has supplied -- plant data, then a declared Table 5 variant, then the
@@ -108,7 +120,7 @@ params:
 - id: municipal_facilities_included_in_commerce
   label_en: Is the consumption of municipal facilities included in the commerce, trade and services sector?
   label_de: Sind die Verbräuche der kommunalen Einrichtungen im Sektor GHD/Sonstiges enthalten?
-  value: true
+  value: false
   is_visible: true
   is_customizable: false
 
