@@ -37,9 +37,10 @@ district-free city. Activation resolves it through the municipality's district
 ancestor and writes the instance's `nuts_code` parameter. A repeat import with
 current administrative information creates only missing identifiers; it does
 not save unchanged organizations. Rerunning setup then reconciles `nuts_code`
-for existing BISKO municipal instances and fills wholly empty municipal
-`kommune/witterungsbereinigung` datasets. A further setup run leaves them
-unchanged. Weather defaults use the municipality's district NUTS3 Eurostat
+for existing BISKO municipal instances, fills wholly empty municipal
+`kommune/witterungsbereinigung` datasets, and adds missing blank cells for the
+current inventory year. A further setup run leaves them unchanged. Weather
+defaults use the municipality's district NUTS3 Eurostat
 heating-degree-day series from the template's pinned dataset repository:
 the 1980–2014 mean divided by each year's degree days for households, commerce,
 and municipal facilities; industry and transport receive 1. The dataset records
@@ -93,13 +94,22 @@ needs matching accounts there for password login through that provider.
 
 Activation gives the municipality its own `kommune/` datasets against
 the shared BISKO schemas. The weather dataset receives editable regional
-defaults; the other municipal datasets start empty. Editable municipal input
+defaults; other municipal datasets receive blank cells for the current inventory
+year where their schema or the template declares a row layout. Example values
+from the template are never copied. Editable municipal input
 bindings point to those local dataset UUIDs; the `de/` method and reference
 inputs stay shared. It
 sets `ags_number` and `lau_code` from the municipality's AGS, enables account
 management when BISKO enables it, and opens one draft submission for the most
 recent historical year. A draft with empty municipal inputs is deliberately
 incomplete; do not treat template demonstration values as the town's balance.
+
+`instanceEditor.beginInventoryYear(year)` opens the next inventory year, adds
+blank cells to editable instance-owned annual datasets, and advances the
+instance's last historical year. Framework instances also receive a draft
+inventory submission; standalone database-backed instances do not. Existing
+values are retained. Required-combination validation reports missing values in
+the newly represented year; optional inputs can remain blank.
 
 For municipalities activated before local inputs were provisioned, reconcile
 their existing instances without resetting account passwords:

@@ -12,6 +12,8 @@ import pytest
 
 from kausal_common.datasets.tests.factories import DatasetFactory, DatasetMetricFactory
 
+from frameworks.models import Submission
+from frameworks.tests.factories import FrameworkConfigFactory
 from nodes.actions.parent import ParentActionNode
 from nodes.constants import DecisionLevel
 from nodes.defs.action_def import ImpactGraphType, ImpactOverviewSpec
@@ -121,6 +123,43 @@ def gql_client(client, db_instance_config: InstanceConfig) -> PathsTestClient:
     tc = PathsTestClient(client)
     tc.set_instance(db_instance_config)
     return tc
+
+
+BEGIN_INVENTORY_YEAR = gql("""
+mutation BeginInventoryYear($instanceId: ID!, $year: Int!) {
+  instanceEditor(instanceId: $instanceId) {
+    beginInventoryYear(year: $year) {
+      __typename
+      ... on BeginInventoryYearResult { year createdCells submissionId }
+      ... on OperationInfo { messages { message } }
+    }
+  }
+}
+""")
+
+
+@pytest.mark.parametrize('with_framework', [False, True])
+def test_begin_inventory_year_creates_blank_cells_and_optional_submission(
+    gql_client: PathsTestClient, db_instance_config: InstanceConfig, with_framework: bool
+) -> None:
+    dataset = DatasetFactory.create(scope=db_instance_config)
+    assert dataset.schema is not None
+    metric = DatasetMetricFactory.create(schema=dataset.schema)
+    if with_framework:
+        FrameworkConfigFactory.create(instance_config=db_instance_config)
+
+    result = gql_client.query_data(
+        BEGIN_INVENTORY_YEAR,
+        variables={'instanceId': str(db_instance_config.pk), 'year': 2023},
+    )['instanceEditor']['beginInventoryYear']
+    assert result['__typename'] == 'BeginInventoryYearResult', result
+    assert result['year'] == 2023
+    assert result['createdCells'] == 1
+    assert dataset.data_points.get(date='2023-01-01', metric=metric).value is None
+    db_instance_config.refresh_from_db()
+    assert db_instance_config.ensure_spec().years.max_historical == 2023
+    assert bool(result['submissionId']) is with_framework
+    assert Submission.objects.filter(instance_config=db_instance_config, period_start=2023).exists() is with_framework
 
 
 UPDATE_NODE_LAYOUTS = """
