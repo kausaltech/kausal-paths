@@ -6,12 +6,14 @@ from typing import TYPE_CHECKING
 from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
 
+from frameworks.activation import municipality_nuts3
 from frameworks.identity import ensure_municipal_organization
 from frameworks.models import DataQualityLevel, DataQualityScheme, Framework, FrameworkConfig
 from frameworks.quality_provisioning import provision_bisko_quality_projections
 from nodes.defs.transform_def import FilterColumnOp
 from nodes.models import InstanceConfig, NodeInputPortBinding
-from orgs.models import Namespace, OrganizationClass
+from orgs.models import Namespace, OrganizationClass, OrganizationIdentifier
+from params.param import StringParameter
 
 if TYPE_CHECKING:
     from nodes.defs.instance_defs import InstanceModelSpec
@@ -37,7 +39,49 @@ GERMAN_ORGANIZATION_CLASSES = (
 GERMAN_IDENTIFIER_NAMESPACES = (
     ('ars', 'Amtlicher Regionalschlüssel'),
     ('ags', 'Amtlicher Gemeindeschlüssel'),
+    ('nuts3', 'NUTS-3-Region'),
 )
+
+
+def _check_nuts3_identifiers() -> None:
+    districts = OrganizationIdentifier.objects.filter(
+        namespace__identifier='ars',
+        organization__classification__identifier__in=('de_district', 'de_district_free_city'),
+    )
+    missing = districts.exclude(organization__identifiers__namespace__identifier='nuts3')
+    codes = list(missing.values_list('identifier', flat=True)[:6])
+    if codes:
+        raise ValueError(
+            f'{missing.count()} German districts lack NUTS3 identifiers (ARS: {", ".join(codes)}). '
+            'Regenerate the BKG Parquet with the updated kausal-importers and rerun import_bkg_organizations.'
+        )
+
+
+def _reconcile_bisko_nuts_codes(framework: Framework) -> None:
+    configs = FrameworkConfig.objects.filter(
+        framework=framework,
+        instance_config__organization__classification__identifier='de_municipality',
+    ).select_related('instance_config__organization')
+    for config in configs:
+        instance = config.instance_config
+        spec = instance.spec
+        if spec is None:
+            raise ValueError(f'{instance.identifier} has no stored instance spec.')
+        organization = instance.organization
+        assert organization is not None
+        nuts3 = municipality_nuts3(organization)
+        parameter = next((param for param in spec.params if param.local_id == 'nuts_code'), None)
+        if parameter is None:
+            spec.params.append(StringParameter(local_id='nuts_code', label='NUTS-3 code', value=nuts3))
+        elif isinstance(parameter, StringParameter):
+            if parameter.value == nuts3:
+                continue
+            parameter.set(nuts3, notify=False)
+        else:
+            raise ValueError(f'{instance.identifier} has a non-string nuts_code parameter.')
+        instance.spec = spec
+        instance.save(update_fields=['spec'])
+        instance.invalidate_cache()
 
 
 def _remove_passenger_spec_references(spec: InstanceModelSpec) -> bool:
@@ -190,6 +234,8 @@ def setup_bisko(*, template_identifier: str = 'bisko', instance_identifiers: tup
         framework.save(update_fields=['max_user_accounts_per_instance'])
 
     provision_german_organization_catalogue()
+    _check_nuts3_identifiers()
+    _reconcile_bisko_nuts_codes(framework)
 
     scheme, _ = DataQualityScheme.objects.get_or_create(
         framework=framework,

@@ -43,6 +43,7 @@ from nodes.units import unit_registry
 from orgs.import_bkg import import_bkg_organizations
 from orgs.models import Namespace, Organization, OrganizationClass, OrganizationIdentifier
 from orgs.tests.factories import OrganizationFactory
+from params.param import StringParameter
 from users.models import User
 from users.tests.factories import UserFactory
 
@@ -70,6 +71,7 @@ def snapshot(tmp_path: Path) -> Path:
         {
             'ars': ars,
             'ags': ags,
+            'nuts3': f'DE{ars[:2]}{ars[4]}' if len(ars) == 5 else (f'DE{parent[:2]}{parent[4]}' if parent else None),
             'parent_ars': parent,
             'name': name,
             'classification_identifier': classification,
@@ -116,7 +118,7 @@ def test_catalogue_and_import_reuse_existing_municipality(tmp_path: Path) -> Non
     assert set(OrganizationClass.objects.values_list('identifier', flat=True)) >= {
         identifier for identifier, _ in GERMAN_ORGANIZATION_CLASSES
     }
-    assert {'ars', 'ags'} <= set(Namespace.objects.values_list('identifier', flat=True))
+    assert {'ars', 'ags', 'nuts3'} <= set(Namespace.objects.values_list('identifier', flat=True))
     instance = InstanceConfigFactory.create(name='Existing municipality', config_source='database')
     original = instance.organization
     initial_count = Organization.objects.count()
@@ -138,6 +140,64 @@ def test_catalogue_and_import_reuse_existing_municipality(tmp_path: Path) -> Non
     assert not FrameworkConfig.objects.filter(instance_config=instance).exists()
     assert import_bkg_organizations(source, framework=framework).created == 0
     assert Organization.objects.count() == initial_count + 20
+
+
+def test_setup_requires_nuts3_after_organizations_are_imported(tmp_path: Path) -> None:
+    InstanceConfigFactory.create(identifier='bisko', name='BISKO')
+    framework = setup_bisko()
+    import_bkg_organizations(snapshot(tmp_path), framework=framework)
+    district = OrganizationIdentifier.objects.get(namespace__identifier='ars', identifier='12001').organization
+    district.identifiers.get(namespace__identifier='nuts3').delete()
+
+    with pytest.raises(ValueError, match='Regenerate the BKG Parquet'):
+        setup_bisko()
+
+
+def test_import_rejects_old_parquet_without_nuts3(tmp_path: Path) -> None:
+    InstanceConfigFactory.create(identifier='bisko', name='BISKO')
+    framework = setup_bisko()
+    source = snapshot(tmp_path)
+    pl.read_parquet(source).drop('nuts3').write_parquet(source)
+
+    with pytest.raises(ValueError, match='Regenerate the staged Parquet'):
+        import_bkg_organizations(source, framework=framework)
+    assert not OrganizationIdentifier.objects.filter(namespace__identifier='ars').exists()
+
+
+def test_setup_reconciles_existing_municipal_nuts_code_once(tmp_path: Path) -> None:
+    InstanceConfigFactory.create(identifier='bisko', name='BISKO')
+    framework = setup_bisko()
+    import_bkg_organizations(snapshot(tmp_path), framework=framework)
+    municipality = OrganizationIdentifier.objects.get(namespace__identifier='ags', identifier='12001001').organization
+    instance = InstanceConfigFactory.create(name='Municipality', organization=municipality, config_source='database')
+    spec = instance.ensure_spec()
+    spec.params.append(StringParameter(local_id='nuts_code', value='DEA11'))
+    instance.spec = spec
+    instance.save(update_fields=['spec'])
+    FrameworkConfigFactory.create(framework=framework, instance_config=instance)
+
+    setup_bisko()
+    instance.refresh_from_db()
+    assert next(param.value for param in instance.spec.params if param.local_id == 'nuts_code') == 'DE121'
+
+    with patch.object(type(instance), 'save', side_effect=AssertionError('InstanceConfig.save called')):
+        setup_bisko()
+
+
+def test_repeat_import_only_creates_missing_nuts3_identifiers(tmp_path: Path) -> None:
+    InstanceConfigFactory.create(identifier='bisko', name='BISKO')
+    framework = setup_bisko()
+    source = snapshot(tmp_path)
+    import_bkg_organizations(source, framework=framework)
+    district = OrganizationIdentifier.objects.get(namespace__identifier='ars', identifier='12001').organization
+    OrganizationIdentifier.objects.get(namespace__identifier='nuts3', organization=district).delete()
+
+    with patch.object(Organization, 'save', side_effect=AssertionError('Organization.save called')):
+        result = import_bkg_organizations(source, framework=framework)
+
+    assert result.created == result.moved == 0
+    assert result.identifiers_created == 1
+    assert district.identifiers.get(namespace__identifier='nuts3').identifier == 'DE121'
 
 
 def test_nine_delegated_accounts_cover_only_their_subtrees(tmp_path: Path) -> None:
@@ -211,9 +271,10 @@ def test_provision_bisko_test_accounts_is_repeatable(tmp_path: Path, monkeypatch
         assert not config.instance_config.nodes.exists()
         spec = config.instance_config.spec
         assert spec is not None
-        assert {p.local_id: p.value for p in spec.params if p.local_id in ('ags_number', 'lau_code')} == {
+        assert {p.local_id: p.value for p in spec.params if p.local_id in ('ags_number', 'lau_code', 'nuts_code')} == {
             'ags_number': f'{state}001001',
             'lau_code': f'DE_{state}001001',
+            'nuts_code': f'DE{state}1',
         }
         assert spec.features.enable_user_management
         assert Submission.objects.filter(instance_config=config.instance_config, period_start=2023).count() == 1
