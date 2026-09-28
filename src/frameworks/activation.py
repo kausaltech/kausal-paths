@@ -13,6 +13,7 @@ from datasets.snapshot import metric_column_id
 from frameworks import submissions
 from frameworks.models import Framework, FrameworkConfig
 from frameworks.organization_access import organization_is_in_framework
+from frameworks.weather import WEATHER_DATASET, load_weather_source, seed_weather_defaults
 from nodes.instance_serialization import DatasetMetricSource, InputBindingSnapshot, InstanceSnapshot
 from nodes.models import DatasetMaterialization, InputPortBindingSet, InstanceConfig
 from nodes.template_graph import template_snapshot
@@ -45,7 +46,7 @@ def _municipal_spec(snapshot: InstanceSnapshot, framework: Framework, ags: str, 
 
 
 def _ensure_local_inputs(instance: InstanceConfig) -> None:
-    """Give each municipality empty local data slots and replace only local input bindings."""
+    """Give each municipality local input slots, seed weather, and replace local bindings."""
     base = template_snapshot(instance)
     framework = instance.framework_config.framework
     template = framework.template_instance
@@ -60,6 +61,7 @@ def _ensure_local_inputs(instance: InstanceConfig) -> None:
         raise ActivationError(f'Published municipal datasets are missing from the database: {sorted(required - sources.keys())}')
     content_type = ContentType.objects.get_for_model(instance)
     local: dict[str, Dataset] = {}
+    weather_source = None
     for identifier in sorted(required):
         source = sources[identifier]
         if source.schema_id is None:
@@ -72,6 +74,13 @@ def _ensure_local_inputs(instance: InstanceConfig) -> None:
         )
         if dataset.schema_id != source.schema_id or dataset.schema is None:
             raise ActivationError(f'{identifier} uses a different municipal schema; reconcile it explicitly.')
+        if identifier == WEATHER_DATASET and not dataset.data_points.exists():
+            if weather_source is None:
+                weather_source = load_weather_source(framework)
+            organization = instance.organization
+            assert organization is not None
+            frame, revision = weather_source
+            seed_weather_defaults(instance, dataset, frame, nuts3=municipality_nuts3(organization), source_revision=revision)
         if not dataset.data_points.exists():
             materialization = DatasetMaterialization.objects.filter(dataset=dataset).first()
             data = materialization.content.get('data') if materialization is not None else None
