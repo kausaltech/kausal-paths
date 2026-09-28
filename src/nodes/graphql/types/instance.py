@@ -60,7 +60,7 @@ from .graph import (
 )
 from .layout import NodeLayoutType
 from .node import QuantityKindType
-from .problems import DatasetValidationViolationType, InstanceProblemInterface
+from .problems import DatasetPlausibilityFindingType, DatasetValidationViolationType, InstanceProblemInterface
 from .spec import InstanceSpecType, YearsDefType
 
 if TYPE_CHECKING:
@@ -395,6 +395,19 @@ class InstanceEditorFields:
         return [
             DatasetValidationViolationType.from_violation(violation)
             for violation in collect_instance_dataset_violations(root._config)
+        ]
+
+    @sb.field(
+        graphql_type=list[DatasetPlausibilityFindingType],
+        description='Advisory findings in the currently bound datasets; these never block publication.',
+    )
+    @staticmethod
+    def dataset_plausibility_findings(root: 'InstanceEditorFields') -> list[DatasetPlausibilityFindingType]:
+        from datasets.plausibility import collect_instance_dataset_plausibility_findings
+
+        return [
+            DatasetPlausibilityFindingType.from_finding(finding)
+            for finding in collect_instance_dataset_plausibility_findings(root._config)
         ]
 
     @sb.field(

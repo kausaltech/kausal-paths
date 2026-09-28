@@ -23,7 +23,15 @@ from kausal_common.strawberry.permissions import UserPermissionsMixin
 from kausal_common.strawberry.registry import register_strawberry_type
 
 from paths import gql
+from paths.graphql_types import UnitType
 
+from datasets.models import (
+    DatasetMetricPlausibilityRange,
+    PlausibilityAggregation,
+    PlausibilityDenominator,
+    PlausibilityReference,
+    PlausibilitySource,
+)
 from datasets.validation_rules import (
     AllowedCombinationsRule,
     DimensionSumRule,
@@ -42,6 +50,7 @@ from frameworks.models import (
     DataQualityScheme as DataQualitySchemeModel,
     Framework,
 )
+from nodes.units import Unit, unit_registry
 from users.models import User
 from users.schema import UserType
 
@@ -65,13 +74,16 @@ if TYPE_CHECKING:
         DimensionCategory as DimensionCategoryModel,
     )
 
-    from paths.graphql_types import UnitType  # used in lazy strawberry annotations
-
+    from datasets.coordinates import DatasetCoordinateIndex
     from nodes.defs.binding_def import DatasetBindingDef
     from nodes.graphql.types.graph import DatasetExternalRefType, DatasetPortType
     from nodes.graphql.types.metric import DimensionalMetricType
     from nodes.graphql.types.node import QuantityKindType  # used in lazy strawberry annotations
-    from nodes.graphql.types.problems import DatasetValidationViolationType
+    from nodes.graphql.types.problems import (
+        DatasetDimensionCoordinateType,
+        DatasetPlausibilityFindingType,
+        DatasetValidationViolationType,
+    )
     from nodes.metric import DimensionalMetric
 
 
@@ -144,6 +156,104 @@ class MetricValidationRuleType:
         return cls(id=sb.ID(str(obj.uuid)), rule=rule_to_gql(validation_rule_adapter.validate_python(obj.rule)))
 
 
+sb.enum(
+    PlausibilityAggregation,
+    name='PlausibilityAggregation',
+    description='Whether each selected cell is checked, or their sum per year.',
+)
+sb.enum(PlausibilityDenominator, name='PlausibilityDenominator')
+sb.enum(
+    PlausibilityReference,
+    name='PlausibilityReference',
+    description='Whether the bounds apply to the value, or to its ratio to an earlier year.',
+)
+
+
+@sb.type(name='PlausibilitySource', description='Where a set of reference ranges comes from.')
+class PlausibilitySourceType:
+    id: sb.ID
+    identifier: str
+    name: str
+    url: str
+    revision: str
+    method: str
+    is_example: bool = sb.field(description='Local demonstration data, not an empirical benchmark.')
+
+    @classmethod
+    def from_model(cls, obj: PlausibilitySource) -> PlausibilitySourceType:
+        return cls(
+            id=sb.ID(str(obj.uuid)),
+            identifier=obj.identifier,
+            name=obj.name,
+            url=obj.url,
+            revision=obj.revision,
+            method=obj.method,
+            is_example=obj.is_example,
+        )
+
+
+@sb.type(name='DatasetMetricPlausibilityRange')
+class DatasetMetricPlausibilityRangeType:
+    id: sb.ID
+    identifier: str
+    metric_uuid: UUID
+    selection: list[Annotated['DatasetDimensionCoordinateType', sb.lazy('nodes.graphql.types.problems')]] = sb.field(
+        description='Every selected dimension and category; a dimension may appear several times.',
+    )
+    aggregation: PlausibilityAggregation
+    denominator: PlausibilityDenominator
+    reference: PlausibilityReference
+    max_gap_years: int | None = sb.field(description='For a previous-year reference: how far back the earlier value may be.')
+    lower: float
+    upper: float
+    unit: Unit = sb.field(
+        graphql_type=UnitType,
+        description="Unit of the bounds: the metric's unit per denominator, or dimensionless for a ratio.",
+    )
+    first_year: int | None
+    last_year: int | None
+    sample_size: int | None
+    revision: int
+    source: PlausibilitySourceType
+
+    @classmethod
+    def from_model(
+        cls, obj: DatasetMetricPlausibilityRange, coordinate_index: DatasetCoordinateIndex
+    ) -> DatasetMetricPlausibilityRangeType:
+        from nodes.graphql.types.problems import DatasetDimensionCoordinateType
+
+        return cls(
+            id=sb.ID(str(obj.uuid)),
+            identifier=obj.identifier,
+            metric_uuid=obj.metric.uuid,
+            selection=[
+                DatasetDimensionCoordinateType.from_coordinate(coordinate)
+                for coordinate in coordinate_index.resolve_selection(obj.selected_categories())
+            ],
+            aggregation=PlausibilityAggregation(obj.aggregation),
+            denominator=PlausibilityDenominator(obj.denominator),
+            reference=PlausibilityReference(obj.reference),
+            max_gap_years=obj.max_gap_years,
+            lower=obj.lower,
+            upper=obj.upper,
+            unit=obj.bound_unit,
+            first_year=obj.first_year,
+            last_year=obj.last_year,
+            sample_size=obj.sample_size,
+            revision=obj.revision,
+            source=PlausibilitySourceType.from_model(obj.source),
+        )
+
+
+@sb.type(name='ResolvedPlausibilityRange')
+class ResolvedPlausibilityRangeType:
+    """One reference interval expressed in the data point's metric unit."""
+
+    lower: float | None = sb.field(description='Lower input-unit bound; null when population is unavailable.')
+    upper: float | None = sb.field(description='Upper input-unit bound; null when population is unavailable.')
+    reference: DatasetMetricPlausibilityRangeType
+
+
 @register_strawberry_type
 @sb.type(name='DatasetMetric')
 class DatasetMetricType:
@@ -176,7 +286,6 @@ class DatasetMetricType:
     )
     @staticmethod
     def unit_info(root: 'DatasetMetricType') -> Any:
-        from nodes.units import unit_registry
 
         if not root.unit:
             return None
@@ -419,7 +528,36 @@ class DataPointType:
     dimension_categories: list[DatasetDimensionCategoryType]
 
     _model: sb.Private['DataPointModel | None'] = None
+    _dataset: sb.Private[DatasetModel | None] = None
     _comments: sb.Private[list[DataPointCommentModel] | None] = None
+
+    @sb.field(
+        graphql_type=list[ResolvedPlausibilityRangeType],
+        description="Matching reference intervals in this metric's input unit, one entry per source.",
+    )
+    @staticmethod
+    def plausibility_ranges(root: 'DataPointType', info: gql.Info) -> list[ResolvedPlausibilityRangeType]:
+        if root._model is None:
+            return []
+        from datasets.plausibility import DatasetPlausibilityLookup
+
+        point = root._model
+        dataset = root._dataset or point.dataset
+        cache = info.context.dataset_plausibility_lookups
+        if dataset.pk not in cache:
+            cache[dataset.pk] = DatasetPlausibilityLookup(dataset)
+        lookup = cache[dataset.pk]
+        if lookup.coordinate_index is None:
+            return []
+        category_uuids = {str(category.dimension.uuid): str(category.uuid) for category in point.dimension_categories.all()}
+        return [
+            ResolvedPlausibilityRangeType(
+                lower=lower,
+                upper=upper,
+                reference=DatasetMetricPlausibilityRangeType.from_model(rule, lookup.coordinate_index),
+            )
+            for rule, lower, upper in lookup.for_cell(point.metric_id, point.date.year, category_uuids)
+        ]
 
     @sb.field(graphql_type=list[DataPointCommentType], description='Comments attached to this data point, newest first.')
     @staticmethod
@@ -651,6 +789,7 @@ class DatasetType(UserPermissionsMixin):
         result = []
         for data_point in data_points:
             obj = DataPointType.from_model(data_point)
+            obj._dataset = root._model
             obj._comments = comments_by_data_point[data_point.pk]
             result.append(obj)
         return result
@@ -739,6 +878,35 @@ class DatasetType(UserPermissionsMixin):
             DatasetValidationViolationType.from_violation(violation)
             for violation in load_violations(materialization.validation_violations)
         ]
+
+    @sb.field(
+        graphql_type=list[Annotated['DatasetPlausibilityFindingType', sb.lazy('nodes.graphql.types.problems')]],
+        description='Advisory plausibility findings for entered cells; these do not block publication.',
+    )
+    @staticmethod
+    def plausibility_findings(root: 'DatasetType') -> "list['DatasetPlausibilityFindingType']":
+        if root._model is None:
+            return []
+        from datasets.plausibility import evaluate_dataset_plausibility
+        from nodes.graphql.types.problems import DatasetPlausibilityFindingType
+
+        return [DatasetPlausibilityFindingType.from_finding(finding) for finding in evaluate_dataset_plausibility(root._model)]
+
+    @sb.field(
+        description='Applicable advisory reference ranges for this dataset and instance.',
+    )
+    @staticmethod
+    def plausibility_ranges(root: 'DatasetType') -> list[DatasetMetricPlausibilityRangeType]:
+        if root._model is None:
+            return []
+        from datasets.coordinates import DatasetCoordinateIndex
+        from datasets.plausibility import applicable_plausibility_ranges
+
+        ranges = applicable_plausibility_ranges(root._model)
+        if not ranges:
+            return []
+        coordinate_index = DatasetCoordinateIndex(root._model)
+        return [DatasetMetricPlausibilityRangeType.from_model(row, coordinate_index) for row in ranges]
 
     @sb.field(graphql_type=list[Annotated['DatasetPortType', sb.lazy('nodes.graphql.types.graph')]])
     @staticmethod
