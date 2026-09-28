@@ -12,13 +12,22 @@ from django.utils import timezone
 import polars as pl
 import pytest
 
-from kausal_common.datasets.models import Dataset, DatasetSchemaScope
-from kausal_common.datasets.tests.factories import DataPointFactory, DatasetFactory, DatasetMetricFactory, DatasetSchemaFactory
+from kausal_common.datasets.models import Dataset, DatasetSchemaScope, DimensionScope
+from kausal_common.datasets.tests.factories import (
+    DataPointFactory,
+    DatasetFactory,
+    DatasetMetricFactory,
+    DatasetSchemaDimensionFactory,
+    DatasetSchemaFactory,
+    DimensionCategoryFactory,
+    DimensionFactory,
+)
 from kausal_common.people.models import ObjectRole
 
 from paths.tests.graphql import PathsTestClient
 
 from frameworks.activation import ActivationError, activate_bisko_municipality
+from frameworks.conversion import share_template_catalogue
 from frameworks.models import (
     Framework,
     FrameworkConfig,
@@ -32,6 +41,7 @@ from frameworks.population import population_aggregates, replace_population_proj
 from frameworks.provisioning import GERMAN_ORGANIZATION_CLASSES, setup_bisko
 from frameworks.roles import framework_admin_role
 from frameworks.tests.factories import FrameworkConfigFactory
+from frameworks.weather import HEATING_SECTORS, NEUTRAL_SECTORS, WEATHER_DATASET
 from nodes.defs.instance_defs import YearsSpec
 from nodes.defs.port_def import InputPortDef
 from nodes.instance_serialization import DatasetMetricSource, build_instance_snapshot
@@ -363,6 +373,61 @@ def test_activate_bisko_municipality_requires_published_template(tmp_path: Path)
     with pytest.raises(ActivationError, match='Publish the BISKO template'):
         activate_bisko_municipality(framework, municipality)
     assert not FrameworkConfig.objects.filter(framework=framework).exists()
+
+
+def test_weather_defaults_seed_on_activation_and_setup_backfills_empty_slot(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    template = InstanceConfigFactory.create(identifier='bisko', name='BISKO', config_source='database')
+    framework = setup_bisko()
+    import_bkg_organizations(snapshot(tmp_path), framework=framework)
+    publish_bisko_template(framework)
+    schema = DatasetSchemaFactory.create()
+    dimension = DimensionFactory.create(name='Sectors')
+    DatasetSchemaDimensionFactory.create(schema=schema, dimension=dimension)
+    DimensionScope.objects.create(
+        dimension=dimension,
+        scope_content_type=ContentType.objects.get_for_model(template),
+        scope_id=template.pk,
+        identifier='sector',
+    )
+    for identifier in (*HEATING_SECTORS, *NEUTRAL_SECTORS):
+        DimensionCategoryFactory.create(dimension=dimension, identifier=identifier)
+    metric = DatasetMetricFactory.create(schema=schema, name='default', unit='')
+    weather = DatasetFactory.create(scope=template, schema=schema, identifier=WEATHER_DATASET)
+    node = NodeConfigFactory.create(instance=template, identifier='weather_input')
+    assert node.spec is not None
+    port = InputPortDef(
+        id=uuid4(), identifier='weather', unit=unit_registry.parse_units('dimensionless'), binding_owner='instance'
+    )
+    node.spec.input_ports = [port]
+    node.save(update_fields=['spec'])
+    NodeInputPortBinding.objects.create(instance=template, node=node, port_id=port.id, dataset=weather, metric=metric)
+    share_template_catalogue(framework)
+    template.invalidate_cache()
+    publish_template_instance(template)
+    framework.refresh_from_db()
+
+    frame = pl.DataFrame({
+        'nuts': ['DE121'] * 46,
+        'Year': list(range(1980, 2026)),
+        'hdd_eurostat': [500 if year == 2023 else 1000 for year in range(1980, 2026)],
+    })
+    monkeypatch.setattr('frameworks.activation.load_weather_source', lambda _framework: (frame, 'test-commit'))
+    monkeypatch.setattr('frameworks.provisioning.load_weather_source', lambda _framework: (frame, 'test-commit'))
+    municipality = OrganizationIdentifier.objects.get(namespace__identifier='ags', identifier='12001001').organization
+    config, created = activate_bisko_municipality(framework, municipality)
+    assert created
+    local = Dataset.objects.for_instance_config(config.instance_config).get(identifier=WEATHER_DATASET)
+    assert local.data_points.count() == 80
+
+    local.data_points.all().delete()
+    setup_bisko()
+    assert local.data_points.count() == 80
+    point = local.data_points.get(date=date(2023, 1, 1), dimension_categories__identifier='private_households')
+    assert point.value == 2
+    setup_bisko()
+    assert local.data_points.count() == 80
 
 
 def test_activate_framework_organization_is_scoped_and_repeatable(tmp_path: Path, client: Client) -> None:  # noqa: PLR0915

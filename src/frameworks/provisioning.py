@@ -6,10 +6,13 @@ from typing import TYPE_CHECKING
 from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
 
+from kausal_common.datasets.models import Dataset
+
 from frameworks.activation import municipality_nuts3
 from frameworks.identity import ensure_municipal_organization
 from frameworks.models import DataQualityLevel, DataQualityScheme, Framework, FrameworkConfig
 from frameworks.quality_provisioning import provision_bisko_quality_projections
+from frameworks.weather import WEATHER_DATASET, load_weather_source, seed_weather_defaults
 from nodes.defs.transform_def import FilterColumnOp
 from nodes.models import InstanceConfig, NodeInputPortBinding
 from orgs.models import Namespace, OrganizationClass, OrganizationIdentifier
@@ -82,6 +85,33 @@ def _reconcile_bisko_nuts_codes(framework: Framework) -> None:
         instance.spec = spec
         instance.save(update_fields=['spec'])
         instance.invalidate_cache()
+
+
+def _reconcile_bisko_weather_defaults(framework: Framework) -> None:
+    template = framework.template_instance
+    assert template is not None
+    if not Dataset.objects.for_instance_config(template).filter(identifier=WEATHER_DATASET).exists():
+        return
+    configs = FrameworkConfig.objects.filter(
+        framework=framework,
+        instance_config__template_revision__isnull=False,
+        instance_config__organization__classification__identifier='de_municipality',
+    ).select_related('instance_config__organization')
+    empty: list[tuple[InstanceConfig, Dataset]] = []
+    for config in configs:
+        instance = config.instance_config
+        dataset = Dataset.objects.for_instance_config(instance).filter(identifier=WEATHER_DATASET).first()
+        if dataset is None:
+            raise ValueError(f'{instance.identifier} has no municipal weather dataset; reconcile its local inputs first.')
+        if not dataset.data_points.exists():
+            empty.append((instance, dataset))
+    if not empty:
+        return
+    frame, revision = load_weather_source(framework)
+    for instance, dataset in empty:
+        organization = instance.organization
+        assert organization is not None
+        seed_weather_defaults(instance, dataset, frame, nuts3=municipality_nuts3(organization), source_revision=revision)
 
 
 def _remove_passenger_spec_references(spec: InstanceModelSpec) -> bool:
@@ -236,6 +266,7 @@ def setup_bisko(*, template_identifier: str = 'bisko', instance_identifiers: tup
     provision_german_organization_catalogue()
     _check_nuts3_identifiers()
     _reconcile_bisko_nuts_codes(framework)
+    _reconcile_bisko_weather_defaults(framework)
 
     scheme, _ = DataQualityScheme.objects.get_or_create(
         framework=framework,
