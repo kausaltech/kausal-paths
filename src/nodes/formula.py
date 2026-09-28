@@ -305,6 +305,8 @@ class FormulaNode(Node):
         # so it is handled before the eager first-argument evaluation below.
         if func == 'output_with_scenario':
             return self._custom_output_with_scenario(node, varss)
+        if func == 'prefer_by_year' and len(node.args) == 3:
+            return self._custom_prefer_by_year(func, node, varss, None)
 
         # Evaluate first argument
         assert len(node.args) >= 1, f'Function {func} requires at least one argument'
@@ -531,16 +533,21 @@ class FormulaNode(Node):
         assert isinstance(df2, PDF)
         return df1.paths.coalesce_df(df2, how='outer')
 
-    def _custom_prefer_by_year(self, _func: str, node: ast.Call, varss: EvalVars, _df: EvalOutput) -> EvalOutput:
+    def _custom_prefer_by_year(self, _func: str, node: ast.Call, varss: EvalVars, _df: EvalOutput | None) -> EvalOutput:
         assert len(node.args) in (2, 3), 'prefer_by_year(preferred, fallback[, coverage]) takes two or three arguments'
-        preferred = self.eval_tree(node.args[0], varss)
-        fallback = self.eval_tree(node.args[1], varss)
-        assert isinstance(preferred, PDF)
-        assert isinstance(fallback, PDF)
         coverage = None
         if len(node.args) == 3:
             coverage = self.eval_tree(node.args[2], varss)
             assert isinstance(coverage, PDF)
+            # A wholly absent optional source must not be evaluated: it may need
+            # inputs (such as CHP plant parameters) that the city has not supplied.
+            # A null or empty coverage frame is unknown, so keep normal error behavior.
+            if coverage.height and coverage.get_column(VALUE_COLUMN).fill_null(1).eq(0).all():
+                return self.eval_tree(node.args[1], varss)
+        preferred = self.eval_tree(node.args[0], varss)
+        fallback = self.eval_tree(node.args[1], varss)
+        assert isinstance(preferred, PDF)
+        assert isinstance(fallback, PDF)
         return preferred.paths.prefer_by_year(fallback, coverage)
 
     def _custom_max_min(self, func: str, node: ast.Call, varss: EvalVars, _df: EvalOutput) -> EvalOutput:

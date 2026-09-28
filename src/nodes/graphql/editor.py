@@ -51,6 +51,7 @@ from paths import gql
 from paths.identifiers import identifier_or_none
 
 from datasets.materialization import refresh_dataset_materialization
+from datasets.year_slots import ensure_empty_year
 from frameworks.catalogue import dimension_scopes, schema_scopes
 from frameworks.models import Framework
 from nodes.change_ops import gql_change_operation, record_change
@@ -1606,9 +1607,59 @@ class NodeEditorMutation:
 
 
 @sb.type
+class BeginInventoryYearResult:
+    year: int
+    created_cells: int
+    submission_id: sb.ID | None
+
+
+@sb.type
 class InstanceEditorMutation:
     instance: sb.Private[InstanceConfig]
     type Me = InstanceEditorMutation
+
+    @gql.mutation(description='Begin the next historical inventory year and create blank local input cells.')
+    @staticmethod
+    def begin_inventory_year(info: gql.Info, root: sb.Parent[Me], year: int) -> 'BeginInventoryYearResult':
+        from frameworks import submissions
+
+        ic = root.instance
+        ic.ensure_gql_action_allowed(info, 'change')
+        user = _require_user(info)
+        with gql_change_operation(info, ic, action='inventory.year.begin'):
+            ic.refresh_from_db()
+            years = ic.ensure_spec().years
+            current = years.max_historical or years.reference
+            if current is None or year != current + 1:
+                raise GraphQLValidationError(info, f'Expected the year after {current}.')
+            if years.model_end is not None and year > years.model_end:
+                raise GraphQLValidationError(info, f'{year} exceeds the model end year {years.model_end}.')
+
+            sources: dict[str, Dataset] = {}
+            if ic.has_framework_config() and (template := ic.framework_config.framework.template_instance) is not None:
+                sources = {
+                    dataset.identifier: dataset
+                    for dataset in Dataset.objects.for_instance_config(template)
+                    if dataset.identifier is not None
+                }
+            created_cells = 0
+            for dataset in Dataset.objects.for_instance_config(ic).select_related('schema'):
+                prototype = sources.get(dataset.identifier) if dataset.identifier is not None else None
+                created_cells += ensure_empty_year(dataset, year, prototype=prototype)
+
+            ic.update_years(max_historical=year)
+            submission = submissions.create_submission(ic, period_start=year, user=user) if ic.has_framework_config() else None
+            record_change(
+                ic,
+                action='inventory.year.begin',
+                before={'max_historical': current},
+                after={'max_historical': year, 'created_cells': created_cells},
+            )
+        return BeginInventoryYearResult(
+            year=year,
+            created_cells=created_cells,
+            submission_id=sb.ID(str(submission.uuid)) if submission is not None else None,
+        )
 
     @gql.mutation(description='Replace the local bindings of an effective input port; null restores its default.')
     @staticmethod

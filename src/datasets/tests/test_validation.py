@@ -46,6 +46,7 @@ from datasets.validation import (
     evaluate_dataset_rules,
     load_violations,
 )
+from frameworks.tests.factories import FrameworkConfigFactory
 from nodes.defs.instance_defs import InstanceModelSpec, YearsSpec
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory
 from users.tests.factories import UserFactory
@@ -211,6 +212,37 @@ def test_required_combinations_rule_locates_missing_domain_cells(rig):
     assert violation.years == [2021]
     assert violation.categories == {'region': 'b'}
     assert violation.combination_ids == [combo_b.id]
+
+
+def test_required_combinations_resolve_framework_scoped_dimensions(rig):
+    dataset, metric, _cat_a, cat_b = rig
+    fwc = FrameworkConfigFactory.create(instance_config=dataset.scope_instance)
+    scope = DimensionScope.objects.for_instance_config(fwc.instance_config).get(dimension=cat_b.dimension)
+    scope.scope_content_type = ContentType.objects.get_for_model(fwc.framework)
+    scope.scope_id = fwc.framework.pk
+    scope.save(update_fields=['scope_content_type', 'scope_id'])
+    combo = DatasetCategoryCombination(
+        id=uuid4(),
+        identifier='region_b',
+        categories={cat_b.dimension.uuid: cat_b.uuid},
+    )
+    assert dataset.schema is not None
+    dataset.schema.category_domain = DatasetCategoryDomain(combinations=[combo])
+    dataset.schema.save(update_fields=['category_domain'])
+    set_rule(
+        metric,
+        {
+            'kind': 'required_combinations',
+            'enforcement': 'block_publish',
+            'groups': [{'id': 'region_b', 'combinations': [str(combo.id)]}],
+        },
+    )
+    add_point(dataset, metric, 2023, None, cat_b)
+
+    (violation,) = evaluate_dataset_rules(dataset)
+    assert violation.kind == 'required_combinations'
+    assert violation.years == [2023]
+    assert violation.categories == {'region': 'b'}
 
 
 def test_allowed_combinations_rule_rejects_rows_outside_closed_domain(rig):
