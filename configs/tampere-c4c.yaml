@@ -4144,6 +4144,8 @@ actions:
   params:
   - id: from_year
     value: 2028
+    is_customizable: false
+    is_visible: false
   - id: to_value
     value: 30.0
     min_value: 28.0
@@ -4189,6 +4191,8 @@ actions:
   params:
   - id: from_year
     value: 2025
+    is_customizable: false
+    is_visible: false
   - id: to_value
     value: 37.0
     min_value: 15.0
