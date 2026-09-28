@@ -109,7 +109,7 @@ def publish_bisko_template(framework: Framework) -> None:
     reference_port = InputPortDef(id=uuid4(), identifier='reference', unit=unit_registry.parse_units('kt/a'))
     node.spec.input_ports = [local_port, reference_port]
     node.save(update_fields=['spec'])
-    for identifier, port in (('kommune/endenergieverbrauch', local_port), ('de/reference', reference_port)):
+    for identifier, port in (('kommune/testeingabe', local_port), ('de/reference', reference_port)):
         dataset = DatasetFactory.create(scope=template, identifier=identifier)
         assert dataset.schema is not None
         DatasetSchemaScope.objects.create(
@@ -288,7 +288,7 @@ def test_provision_bisko_test_accounts_is_repeatable(tmp_path: Path, monkeypatch
         }
         assert spec.features.enable_user_management
         assert Submission.objects.filter(instance_config=config.instance_config, period_start=2023).count() == 1
-        local = Dataset.objects.for_instance_config(config.instance_config).get(identifier='kommune/endenergieverbrauch')
+        local = Dataset.objects.for_instance_config(config.instance_config).get(identifier='kommune/testeingabe')
         assert local.data_points.filter(date=date(2023, 1, 1), value__isnull=True).exists()
         assert not Dataset.objects.for_instance_config(config.instance_config).filter(identifier='kommune/unused').exists()
         effective = build_instance_snapshot(config.instance_config)
@@ -321,7 +321,7 @@ def test_provision_bisko_test_accounts_is_repeatable(tmp_path: Path, monkeypatch
             assert f'{email} | username={user.username}' in output.getvalue()
 
     town = FrameworkConfig.objects.get(instance_config__identifier='bisko-03001001').instance_config
-    town_dataset = Dataset.objects.for_instance_config(town).get(identifier='kommune/endenergieverbrauch')
+    town_dataset = Dataset.objects.for_instance_config(town).get(identifier='kommune/testeingabe')
     assert town_dataset.schema is not None
     town_metric = town_dataset.schema.metrics.get(name='Value')
     point = town_dataset.data_points.get(metric=town_metric, date=date(2023, 1, 1))
@@ -469,10 +469,10 @@ def test_activate_framework_organization_is_scoped_and_repeatable(tmp_path: Path
           datasetPorts { dataset { id identifier isEditable } }
         } } }
     """)['instance']['editor']
-    local_dataset = next(item for item in editor['datasets'] if item['identifier'] == 'kommune/endenergieverbrauch')
+    local_dataset = next(item for item in editor['datasets'] if item['identifier'] == 'kommune/testeingabe')
     assert local_dataset['isEditable'] is True
     bound = {port['dataset']['identifier']: port['dataset'] for port in editor['datasetPorts']}
-    assert bound['kommune/endenergieverbrauch']['id'] == local_dataset['id']
+    assert bound['kommune/testeingabe']['id'] == local_dataset['id']
     assert bound['de/reference']['isEditable'] is False
     assert (
         gql.query_data(
@@ -481,9 +481,9 @@ def test_activate_framework_organization_is_scoped_and_repeatable(tmp_path: Path
     """,
             variables={'id': local_dataset['id']},
         )['instance']['editor']['dataset']['identifier']
-        == 'kommune/endenergieverbrauch'
+        == 'kommune/testeingabe'
     )
-    local_input = Dataset.objects.for_instance_config(config.instance_config).get(identifier='kommune/endenergieverbrauch')
+    local_input = Dataset.objects.for_instance_config(config.instance_config).get(identifier='kommune/testeingabe')
     assert local_input.schema is not None
     point = gql.query_data(
         """
