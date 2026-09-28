@@ -87,8 +87,10 @@ def seed_weather_defaults(
         for category in dimensions[0].dimension.categories.filter(identifier__in=(*HEATING_SECTORS, *NEUTRAL_SECTORS))
     }
     sectors = (*HEATING_SECTORS, *NEUTRAL_SECTORS)
-    if set(categories) != set(sectors):
-        raise ValueError(f'{instance.identifier}: weather dataset lacks sector categories: {sorted(set(sectors) - categories)}')
+    category_set = set(categories)
+    sector_set = set(sectors)
+    if category_set != sector_set:
+        raise ValueError(f'{instance.identifier}: weather dataset lacks sector categories: {sorted(sector_set - category_set)}')
     metric = dataset.schema.metrics.get(name='default')
     if metric.unit not in ('', 'dimensionless'):
         raise ValueError(f'{instance.identifier}: weather default metric must be dimensionless.')
