@@ -10,7 +10,7 @@ from django.db import transaction
 
 from kausal_common.people.models import ObjectRole
 
-from frameworks.activation import ActivationError, activate_bisko_municipality
+from frameworks.bisko.activation import ActivationError, activate_bisko_municipality
 from frameworks.models import Framework, OrganizationAccessGrant
 from frameworks.organization_access import organization_is_in_framework
 from orgs.models import Organization, OrganizationIdentifier
