@@ -12,9 +12,9 @@ from datasets.materialization import refresh_dataset_materialization
 from datasets.snapshot import metric_column_id
 from datasets.year_slots import ensure_empty_year
 from frameworks import submissions
+from frameworks.bisko.weather import WEATHER_DATASET, load_weather_source, seed_weather_defaults
 from frameworks.models import Framework, FrameworkConfig
 from frameworks.organization_access import organization_is_in_framework
-from frameworks.weather import WEATHER_DATASET, load_weather_source, seed_weather_defaults
 from nodes.instance_serialization import DatasetMetricSource, InputBindingSnapshot, InstanceSnapshot
 from nodes.models import DatasetMaterialization, InputPortBindingSet, InstanceConfig
 from nodes.template_graph import template_snapshot

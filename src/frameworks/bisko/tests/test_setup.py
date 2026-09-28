@@ -10,9 +10,9 @@ import pytest
 
 from kausal_common.datasets.tests.factories import DataPointFactory, DatasetFactory, DatasetMetricFactory, DatasetSchemaFactory
 
+from frameworks.bisko.provisioning import prepare_bisko_template, setup_bisko
 from frameworks.evidence import QUALITY_OF_SPEC_KEY
 from frameworks.models import DataPointEvidence, DataQualityLevel, DataQualityScheme, Framework, FrameworkConfig
-from frameworks.provisioning import prepare_bisko_template, setup_bisko
 from frameworks.tests.factories import FrameworkFactory
 from nodes.defs.transform_def import FilterColumnOp
 from nodes.models import NodeInputPortBinding
