@@ -37,8 +37,14 @@ district-free city. Activation resolves it through the municipality's district
 ancestor and writes the instance's `nuts_code` parameter. A repeat import with
 current administrative information creates only missing identifiers; it does
 not save unchanged organizations. Rerunning setup then reconciles `nuts_code`
-for existing BISKO municipal instances, and a further setup run leaves them
-unchanged.
+for existing BISKO municipal instances and fills wholly empty municipal
+`kommune/witterungsbereinigung` datasets. A further setup run leaves them
+unchanged. Weather defaults use the municipality's district NUTS3 Eurostat
+heating-degree-day series from the template's pinned dataset repository:
+the 1980–2014 mean divided by each year's degree days for households, commerce,
+and municipal facilities; industry and transport receive 1. The dataset records
+the source revision and region. Existing municipal weather values are preserved,
+including partially filled datasets.
 
 The command reconciles existing rows by ARS and municipality AGS, preserves
 their UUIDs and instance links, moves them under their BKG parent, and attaches
@@ -85,9 +91,11 @@ explicit resolution. The password is never printed. The command creates users
 in the Paths database; a deployment using an external identity provider also
 needs matching accounts there for password login through that provider.
 
-Activation gives the municipality its own empty `kommune/` datasets against
-the shared BISKO schemas. Its editable municipal input bindings point to those
-local dataset UUIDs; the `de/` method and reference inputs stay shared. It
+Activation gives the municipality its own `kommune/` datasets against
+the shared BISKO schemas. The weather dataset receives editable regional
+defaults; the other municipal datasets start empty. Editable municipal input
+bindings point to those local dataset UUIDs; the `de/` method and reference
+inputs stay shared. It
 sets `ags_number` and `lau_code` from the municipality's AGS, enables account
 management when BISKO enables it, and opens one draft submission for the most
 recent historical year. A draft with empty municipal inputs is deliberately
