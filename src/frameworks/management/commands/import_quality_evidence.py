@@ -80,7 +80,7 @@ class Command(BaseCommand):
                 transaction.set_rollback(True)
                 self.stdout.write('Dry run: changes rolled back.')
 
-    def _convert(self, dataset: Dataset, options: dict[str, Any]) -> None:  # noqa: C901
+    def _convert(self, dataset: Dataset, options: dict[str, Any]) -> None:  # noqa: C901, PLR0912, PLR0915
         assert dataset.schema is not None
         metrics = list(dataset.schema.metrics.all())
         quality_metric = next(m for m in metrics if m.name == options['quality_metric'])
@@ -128,15 +128,55 @@ class Command(BaseCommand):
                 stats['graded'] += 1
             converted.append(qdp)
 
-        complete = not unmapped and not stats['orphaned']
+        complete = not unmapped and not stats['orphaned'] and not stats['conflicting']
+        # The projection flag lives on the schema's metric, not on this dataset.
+        # A sibling's numeric quality rows would become invisible if only this
+        # dataset were converted. Setup BISKO handles shared schemas as a unit.
+        if self._has_unconverted_siblings(dataset, quality_metric, value_metric, levels):
+            complete = False
+            self.stdout.write(
+                self.style.WARNING('  shared schema has unconverted quality values in other datasets; not projected')
+            )
+        projection_changed = False
         if complete:
-            quality_metric.spec = {**(quality_metric.spec or {}), QUALITY_OF_SPEC_KEY: str(value_metric.uuid)}
-            quality_metric.save(update_fields=['spec'])
+            previous_projection = (quality_metric.spec or {}).get(QUALITY_OF_SPEC_KEY)
+            if previous_projection is not None and previous_projection != str(value_metric.uuid):
+                raise CommandError(f'{dataset.identifier}: quality already projects a different metric.')
+            if previous_projection is None:
+                quality_metric.spec = {**(quality_metric.spec or {}), QUALITY_OF_SPEC_KEY: str(value_metric.uuid)}
+                quality_metric.save(update_fields=['spec'])
+                projection_changed = True
             if options['delete_legacy']:
                 DataPoint.objects.filter(pk__in=[dp.pk for dp in converted]).delete()
                 stats['deleted'] = len(converted)
-        refresh_dataset_materialization(dataset)
+        if projection_changed:
+            for sibling in Dataset.objects.filter(schema=dataset.schema):
+                refresh_dataset_materialization(sibling)
+        else:
+            refresh_dataset_materialization(dataset)
         self._report(dataset, quality_metric, stats, snapped, unmapped, complete=complete)
+
+    def _has_unconverted_siblings(
+        self, dataset: Dataset, quality_metric: DatasetMetric, value_metric: DatasetMetric, levels: list[DataQualityLevel]
+    ) -> bool:
+        siblings = Dataset.objects.filter(schema=dataset.schema).exclude(pk=dataset.pk)
+        for sibling in siblings:
+            points = list(
+                DataPoint.objects
+                .filter(dataset=sibling, metric__in=[quality_metric, value_metric])
+                .select_related('evidence__quality_level')
+                .prefetch_related('dimension_categories')
+            )
+            values = {point_key(point): point for point in points if point.metric_id == value_metric.pk}
+            for point in points:
+                if point.metric_id != quality_metric.pk or point.value is None:
+                    continue
+                level, _ = grade_for(point.value, levels, snap_down=False)
+                target = values.get(point_key(point))
+                evidence = get_evidence(target) if target is not None else None
+                if level is None or evidence is None or evidence.quality_level_id != level.pk:
+                    return True
+        return False
 
     def _report(
         self,
