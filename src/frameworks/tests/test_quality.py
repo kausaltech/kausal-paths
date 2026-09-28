@@ -1,6 +1,7 @@
 from datetime import date
 from decimal import Decimal
 from typing import TYPE_CHECKING
+from uuid import uuid4
 
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
@@ -11,9 +12,13 @@ from kausal_common.datasets.tests.factories import DataPointFactory, DatasetFact
 
 from frameworks.evidence import QUALITY_OF_SPEC_KEY
 from frameworks.models import DataPointEvidence, DataQualityLevel, DataQualityScheme, Framework, FrameworkConfig
-from frameworks.provisioning import setup_bisko
+from frameworks.provisioning import prepare_bisko_template, setup_bisko
 from frameworks.tests.factories import FrameworkFactory
-from nodes.tests.factories import InstanceConfigFactory
+from nodes.defs.transform_def import FilterColumnOp
+from nodes.models import NodeInputPortBinding
+from nodes.scenario import Scenario
+from nodes.tests.factories import InstanceConfigFactory, NodeConfigFactory
+from params.param import StringParameter
 
 if TYPE_CHECKING:
     from nodes.models import InstanceConfig
@@ -50,6 +55,54 @@ def test_setup_is_idempotent_and_keeps_models_and_settings(template: InstanceCon
         ('C', Decimal('0.25')),
         ('D', Decimal(0)),
     ]
+
+
+def test_setup_retires_unused_passenger_input_without_deleting_historical_data(template: InstanceConfig) -> None:
+    node = NodeConfigFactory.create(instance=template, identifier='passenger_kilometers_own')
+    dataset = DatasetFactory.create(scope=template, identifier='kommune/verkehrsleistung_personen')
+    spec = template.ensure_spec()
+    spec.params.append(StringParameter(local_id='municipality_name', value='Düsseldorf'))
+    spec.scenarios.append(
+        Scenario(id='default', name='Default', param_values={'passenger_kilometers_own.formula': 'extend_all(mileage)'})
+    )
+    template.spec = spec
+    template.save(update_fields=['spec'])
+
+    framework = setup_bisko()
+    prepare_bisko_template(framework)
+    prepare_bisko_template(framework)
+
+    assert not template.nodes.filter(pk=node.pk).exists()
+    assert type(dataset).objects.filter(pk=dataset.pk).exists()
+    template.refresh_from_db()
+    assert template.spec is not None
+    assert all(param.local_id != 'municipality_name' for param in template.spec.params)
+    assert 'passenger_kilometers_own.formula' not in template.spec.scenarios[0].param_values
+
+
+def test_setup_removes_name_filter_from_ags_selected_template_input(template: InstanceConfig) -> None:
+    node = NodeConfigFactory.create(instance=template, identifier='vehicle_kilometers_ifeu')
+    dataset = DatasetFactory.create(scope=template, identifier='de/fahrleistung_strassenverkehr')
+    assert dataset.schema is not None
+    metric = DatasetMetricFactory.create(schema=dataset.schema, name='mileage')
+    binding = NodeInputPortBinding.objects.create(
+        instance=template,
+        node=node,
+        port_id=uuid4(),
+        dataset=dataset,
+        metric=metric,
+        transformations=[
+            FilterColumnOp(column='ags', ref='ags_number'),
+            FilterColumnOp(column='municipality', ref='municipality_name'),
+        ],
+    )
+
+    framework = setup_bisko()
+    prepare_bisko_template(framework)
+    prepare_bisko_template(framework)
+
+    binding.refresh_from_db()
+    assert binding.transformations == [FilterColumnOp(column='ags', ref='ags_number'), FilterColumnOp(column='municipality')]
 
 
 def test_setup_attaches_only_explicit_database_instances(template: InstanceConfig) -> None:

@@ -57,6 +57,7 @@ def _setup_graphs(framework: Framework, args: argparse.Namespace) -> None:
         share_template_catalogue,
     )
     from frameworks.identity import ensure_municipal_organization
+    from frameworks.provisioning import prepare_bisko_template
     from nodes.models import InstanceConfig
     from nodes.template_graph import publish_template_instance
 
@@ -69,6 +70,7 @@ def _setup_graphs(framework: Framework, args: argparse.Namespace) -> None:
         share_template_catalogue(framework)
     revision = template.live_revision
     if args.publish:
+        prepare_bisko_template(framework)
         for change in declare_local_data_slots(framework):
             print(change)
         share_template_catalogue(framework)

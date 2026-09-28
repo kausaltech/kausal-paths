@@ -179,6 +179,9 @@ def test_provision_bisko_test_accounts_is_repeatable(tmp_path: Path, monkeypatch
     framework = setup_bisko()
     import_bkg_organizations(snapshot(tmp_path), framework=framework)
     publish_bisko_template(framework)
+    # A retired municipal dataset remains in the template DB for old revisions,
+    # but is absent from the published graph and must not be provisioned locally.
+    DatasetFactory.create(scope=framework.template_instance, identifier='kommune/unused')
     output = StringIO()
 
     call_command('provision_bisko_test_accounts', dry_run=True, stdout=output)
@@ -216,6 +219,7 @@ def test_provision_bisko_test_accounts_is_repeatable(tmp_path: Path, monkeypatch
         assert Submission.objects.filter(instance_config=config.instance_config, period_start=2023).count() == 1
         local = Dataset.objects.for_instance_config(config.instance_config).get(identifier='kommune/endenergieverbrauch')
         assert not local.data_points.exists()
+        assert not Dataset.objects.for_instance_config(config.instance_config).filter(identifier='kommune/unused').exists()
         effective = build_instance_snapshot(config.instance_config)
         local_binding = next(
             b for b in effective.bindings if isinstance(b.source, DatasetMetricSource) and b.source.dataset.startswith('kommune/')
