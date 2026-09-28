@@ -16,7 +16,7 @@ from frameworks.organization_access import organization_is_in_framework
 from nodes.instance_serialization import DatasetMetricSource, InputBindingSnapshot, InstanceSnapshot
 from nodes.models import DatasetMaterialization, InputPortBindingSet, InstanceConfig
 from nodes.template_graph import template_snapshot
-from orgs.models import Organization
+from orgs.models import Organization, OrganizationIdentifier
 from params.param import StringParameter
 
 if TYPE_CHECKING:
@@ -30,10 +30,10 @@ class ActivationError(ValueError):
     pass
 
 
-def _municipal_spec(snapshot: InstanceSnapshot, framework: Framework, ags: str) -> InstanceModelSpec:
+def _municipal_spec(snapshot: InstanceSnapshot, framework: Framework, ags: str, nuts3: str) -> InstanceModelSpec:
     spec = snapshot.spec.model_copy(deep=True)
     spec.features.enable_user_management = framework.enable_user_management
-    for name, value in (('ags_number', ags), ('lau_code', f'DE_{ags}')):
+    for name, value in (('ags_number', ags), ('lau_code', f'DE_{ags}'), ('nuts_code', nuts3)):
         parameter = next((param for param in spec.params if param.local_id == name), None)
         if parameter is None:
             spec.params.append(StringParameter(local_id=name, label=name, value=value))
@@ -117,11 +117,11 @@ def _reconcile_instance(framework: Framework, instance: InstanceConfig, ags: str
     if instance.config_source != 'database':
         raise ActivationError('BISKO municipality must have a database-backed instance.')
     base = template_snapshot(instance)
-    spec = _municipal_spec(base, framework, ags)
+    spec = _municipal_spec(base, framework, ags, municipality_nuts3(instance.organization))
     current = instance.ensure_spec()
     # Preserve local settings and years; repair the municipality identity and licence feature.
     current.features.enable_user_management = spec.features.enable_user_management
-    for name in ('ags_number', 'lau_code'):
+    for name in ('ags_number', 'lau_code', 'nuts_code'):
         value = next(param.value for param in spec.params if param.local_id == name)
         parameter = next((param for param in current.params if param.local_id == name), None)
         if parameter is None:
@@ -154,6 +154,22 @@ def _municipality_ags(framework: Framework, organization: Organization) -> str:
     return ags
 
 
+def municipality_nuts3(organization: Organization) -> str:
+    for ancestor in (organization, *reversed(organization.get_ancestors())):
+        if ancestor.classification is None or ancestor.classification.identifier not in ('de_district', 'de_district_free_city'):
+            continue
+        code = (
+            OrganizationIdentifier.objects
+            .filter(organization=ancestor, namespace__identifier='nuts3')
+            .values_list('identifier', flat=True)
+            .first()
+        )
+        if code is None:
+            raise ActivationError(f'{ancestor.name} has no NUTS3 identifier; rerun the updated BKG organization import.')
+        return code
+    raise ActivationError(f'{organization.name} has no district ancestor with a NUTS3 identifier.')
+
+
 @transaction.atomic
 def activate_bisko_municipality(
     framework: Framework, organization: Organization, *, actor: User | None = None
@@ -161,6 +177,7 @@ def activate_bisko_municipality(
     """Create one local instance pinned to the published BISKO method, or return it."""
     organization = Organization.objects.select_for_update().get(pk=organization.pk)
     ags = _municipality_ags(framework, organization)
+    nuts3 = municipality_nuts3(organization)
 
     existing = list(
         FrameworkConfig.objects.filter(framework=framework, instance_config__organization=organization).select_related(
@@ -202,7 +219,7 @@ def activate_bisko_municipality(
         primary_language='de',
         other_languages=[],
         config_source='database',
-        spec=_municipal_spec(snapshot, framework, ags),
+        spec=_municipal_spec(snapshot, framework, ags, nuts3),
         template_revision=revision,
         created_by=actor,
         last_modified_by=actor,
