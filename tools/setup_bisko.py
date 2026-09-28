@@ -30,8 +30,8 @@ def main() -> None:
     init_django()
     from django.db import transaction
 
-    from frameworks.provisioning import setup_bisko
-    from frameworks.quality_provisioning import provision_bisko_quality_projections
+    from frameworks.bisko.provisioning import setup_bisko
+    from frameworks.bisko.quality import provision_bisko_quality_projections
 
     try:
         with transaction.atomic():
@@ -53,6 +53,7 @@ def main() -> None:
 def _setup_graphs(framework: Framework, args: argparse.Namespace) -> None:
     from kausal_common.datasets.models import Dataset
 
+    from frameworks.bisko.provisioning import prepare_bisko_template
     from frameworks.conversion import (
         convert_to_framework,
         declare_local_data_slots,
@@ -60,7 +61,6 @@ def _setup_graphs(framework: Framework, args: argparse.Namespace) -> None:
         share_template_catalogue,
     )
     from frameworks.identity import ensure_municipal_organization
-    from frameworks.provisioning import prepare_bisko_template
     from nodes.models import InstanceConfig
     from nodes.template_graph import publish_template_instance
 

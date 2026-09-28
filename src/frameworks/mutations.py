@@ -16,7 +16,7 @@ from kausal_common.strawberry.registry import register_strawberry_type
 
 from paths import gql
 
-from frameworks.activation import ActivationError, activate_bisko_municipality
+from frameworks.bisko.activation import ActivationError, activate_bisko_municipality
 from frameworks.models import (
     Framework,
     FrameworkConfig,
