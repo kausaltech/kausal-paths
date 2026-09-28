@@ -23,6 +23,7 @@ import polars as pl
 
 from nodes.constants import YEAR_COLUMN
 
+from .coordinates import DatasetCoordinate, DatasetCoordinateIndex
 from .validation_rules import (
     AllowedCombinationsRule,
     DimensionSumRule,
@@ -66,6 +67,7 @@ class RuleViolation(BaseModel):
     dataset_identifier: str | None = None
     years: list[int] = Field(default_factory=list)
     categories: dict[str, str] = Field(default_factory=dict)
+    coordinates: list[DatasetCoordinate] = Field(default_factory=list)
     combination_ids: list[UUID] = Field(default_factory=list)
     requirement_group: str | None = None
     message: str
@@ -180,9 +182,12 @@ def evaluate_dataset_rules(dataset: Dataset) -> list[RuleViolation]:
                 domain_is_closed,
             )
         )
+    coordinate_index = DatasetCoordinateIndex(dataset) if violations else None
     for found in violations:
         found.dataset_uuid = dataset.uuid
         found.dataset_identifier = dataset.identifier
+        assert coordinate_index is not None
+        found.coordinates = coordinate_index.resolve(found.categories)
     return violations
 
 
