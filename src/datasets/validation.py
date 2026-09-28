@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 from django.conf import settings
+from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.utils import translation
 from django.utils.translation import gettext as _, gettext_noop
@@ -323,21 +324,24 @@ def _evaluate_rule(
 
 
 def _category_domain_coordinates(dataset: Dataset) -> dict[UUID, dict[str, str]]:
-    from kausal_common.datasets.models import DatasetSchemaDimension, DimensionScope
+    from kausal_common.datasets.models import DatasetSchemaDimension
+
+    from frameworks.catalogue import dimension_scopes
 
     schema = dataset.schema
     if schema is None or not schema.category_domain.combinations:
         return {}
     instance = dataset.scope_instance
-    scopes = {
-        scope.dimension.pk: scope
-        for scope in DimensionScope.objects
-        .for_instance_config(instance)
-        .filter(
-            dimension_id__in=schema.dimensions.values_list('dimension_id', flat=True),
-        )
+    local_type_id = ContentType.objects.get_for_model(instance).pk
+    visible_scopes = list(
+        dimension_scopes(instance)
+        .filter(dimension_id__in=schema.dimensions.values_list('dimension_id', flat=True))
         .select_related('dimension')
         .prefetch_related('dimension__categories')
+    )
+    scopes = {
+        scope.dimension.pk: scope
+        for scope in sorted(visible_scopes, key=lambda scope: scope.scope_content_type_id == local_type_id)
     }
     columns = {
         dimension_id: column_name or (scopes[dimension_id].identifier if dimension_id in scopes else None)

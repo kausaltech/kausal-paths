@@ -289,7 +289,7 @@ def test_provision_bisko_test_accounts_is_repeatable(tmp_path: Path, monkeypatch
         assert spec.features.enable_user_management
         assert Submission.objects.filter(instance_config=config.instance_config, period_start=2023).count() == 1
         local = Dataset.objects.for_instance_config(config.instance_config).get(identifier='kommune/endenergieverbrauch')
-        assert not local.data_points.exists()
+        assert local.data_points.filter(date=date(2023, 1, 1), value__isnull=True).exists()
         assert not Dataset.objects.for_instance_config(config.instance_config).filter(identifier='kommune/unused').exists()
         effective = build_instance_snapshot(config.instance_config)
         local_binding = next(
@@ -324,7 +324,9 @@ def test_provision_bisko_test_accounts_is_repeatable(tmp_path: Path, monkeypatch
     town_dataset = Dataset.objects.for_instance_config(town).get(identifier='kommune/endenergieverbrauch')
     assert town_dataset.schema is not None
     town_metric = town_dataset.schema.metrics.get(name='Value')
-    DataPointFactory.create(dataset=town_dataset, metric=town_metric, date=date(2023, 1, 1), value=99)
+    point = town_dataset.data_points.get(metric=town_metric, date=date(2023, 1, 1))
+    point.value = 99
+    point.save(update_fields=['value'])
     override_ids = set(town.binding_overrides.values_list('uuid', flat=True))
     monkeypatch.setenv('BISKO_TEST_ACCOUNT_PASSWORD', 'new-password-123')
     output = StringIO()
@@ -489,7 +491,7 @@ def test_activate_framework_organization_is_scoped_and_repeatable(tmp_path: Path
           instanceEditor(instanceId: $instanceId) {
             datasetEditor(datasetId: $datasetId) {
               createDataPoint(input: {
-                date: "2023-01-01", value: 42, metricId: $metricId, dimensionCategoryIds: []
+                date: "2022-01-01", value: 42, metricId: $metricId, dimensionCategoryIds: []
               }) {
                 __typename
                 ... on DataPoint { id value }
@@ -506,7 +508,7 @@ def test_activate_framework_organization_is_scoped_and_repeatable(tmp_path: Path
         },
     )['instanceEditor']['datasetEditor']['createDataPoint']
     assert point['__typename'] == 'DataPoint'
-    assert list(local_input.data_points.values_list('value', flat=True)) == [42]
+    assert list(local_input.data_points.filter(date=date(2022, 1, 1)).values_list('value', flat=True)) == [42]
     gql.set_instance(None)
 
     admin = UserFactory.create()
