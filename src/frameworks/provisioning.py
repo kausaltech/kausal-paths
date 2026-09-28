@@ -1,14 +1,20 @@
 """Explicit, repeatable provisioning of framework catalogues."""
 
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
+from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
 
 from frameworks.identity import ensure_municipal_organization
 from frameworks.models import DataQualityLevel, DataQualityScheme, Framework, FrameworkConfig
 from frameworks.quality_provisioning import provision_bisko_quality_projections
-from nodes.models import InstanceConfig
+from nodes.defs.transform_def import FilterColumnOp
+from nodes.models import InstanceConfig, NodeInputPortBinding
 from orgs.models import Namespace, OrganizationClass
+
+if TYPE_CHECKING:
+    from nodes.defs.instance_defs import InstanceModelSpec
 
 # Catalogue version, not a claim about a particular certification protocol edition.
 BISKO_QUALITY_VERSION = '1'
@@ -32,6 +38,106 @@ GERMAN_IDENTIFIER_NAMESPACES = (
     ('ars', 'Amtlicher Regionalschlüssel'),
     ('ags', 'Amtlicher Gemeindeschlüssel'),
 )
+
+
+def _remove_passenger_spec_references(spec: InstanceModelSpec) -> bool:
+    changed = False
+    for result in spec.result_excels:
+        if result.node_ids is not None and 'passenger_kilometers_own' in result.node_ids:
+            result.node_ids.remove('passenger_kilometers_own')
+            changed = True
+    for scenario in spec.scenarios:
+        if scenario.param_values.pop('passenger_kilometers_own.formula', None) is not None:
+            changed = True
+    return changed
+
+
+def _remove_unused_template_inputs(template: InstanceConfig) -> None:
+    """
+    Retire the passenger-kilometres display input from the BISKO template.
+
+    Keep its dataset: older published revisions can still refer to it, and
+    deleting the node makes the unbound dataset disappear from new snapshots.
+    """
+    node = template.nodes.filter(identifier='passenger_kilometers_own').first()
+    dependents = InstanceConfig.objects.filter(
+        template_revision__content_type=ContentType.objects.get_for_model(InstanceConfig),
+        template_revision__object_id=str(template.pk),
+    )
+    if node is not None and NodeInputPortBinding.objects.filter(source_node=node).exists():
+        raise ValueError('passenger_kilometers_own feeds another template node; resolve that dependency first.')
+    for instance in dependents:
+        if node is not None:
+            settings = [item for item in instance.node_settings if item.node_uuid != node.uuid]
+            if len(settings) != len(instance.node_settings):
+                instance.node_settings = settings
+                instance.save(update_fields=['node_settings'])
+                instance.invalidate_cache()
+            instance.binding_overrides.filter(node_uuid=node.uuid).delete()
+        instance_spec = instance.spec
+        if instance_spec is not None and _remove_passenger_spec_references(instance_spec):
+            instance.spec = instance_spec
+            instance.save(update_fields=['spec'])
+            instance.invalidate_cache()
+    if node is not None:
+        node.delete()
+        template.invalidate_cache()
+
+    spec = template.spec
+    if spec is None:
+        return
+    changed = _remove_passenger_spec_references(spec)
+    params = [param for param in spec.params if param.local_id != 'municipality_name']
+    if len(params) != len(spec.params):
+        spec.params = params
+        changed = True
+    if changed:
+        template.spec = spec
+        template.save(update_fields=['spec'])
+        template.invalidate_cache()
+
+
+def _remove_redundant_municipality_filters(template: InstanceConfig) -> None:
+    """Remove label filters from the three national inputs already selected by AGS."""
+    identifiers = (
+        'vehicle_kilometers_ifeu',
+        'other_transport_energy_ifeu',
+        'other_transport_energy_availability',
+    )
+    bindings = NodeInputPortBinding.objects.filter(instance=template, node__identifier__in=identifiers)
+    changed = False
+    for binding in bindings:
+        filters = [op for op in binding.transformations if isinstance(op, FilterColumnOp)]
+        name_filters = [op for op in filters if op.column == 'municipality' and op.ref == 'municipality_name']
+        ags_filter = next((op for op in filters if op.column == 'ags' and op.ref == 'ags_number'), None)
+        if name_filters and ags_filter is None:
+            raise ValueError(f'{binding.node.identifier} has a municipality filter without an AGS filter.')
+        if ags_filter is None:
+            continue
+        if name_filters:
+            binding.transformations = [
+                op.model_copy(update={'ref': None}) if op in name_filters else op for op in binding.transformations
+            ]
+        elif not any(op.column == 'municipality' for op in filters):
+            transforms = list(binding.transformations)
+            transforms.insert(transforms.index(ags_filter) + 1, FilterColumnOp(column='municipality'))
+            binding.transformations = transforms
+        else:
+            continue
+        binding.save(update_fields=['transformations'])
+        changed = True
+    if changed:
+        template.invalidate_cache()
+
+
+@transaction.atomic
+def prepare_bisko_template(framework: Framework) -> None:
+    """Reconcile retired BISKO inputs before publishing a new template revision."""
+    template = framework.template_instance
+    if framework.identifier != 'bisko' or template is None:
+        raise ValueError('Expected a BISKO framework with a template instance.')
+    _remove_unused_template_inputs(template)
+    _remove_redundant_municipality_filters(template)
 
 
 def provision_german_organization_catalogue() -> None:
