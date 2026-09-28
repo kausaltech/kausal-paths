@@ -15,6 +15,7 @@ bug and fails loudly instead of degrading into a violation.
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
+from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError as DjangoValidationError
 from pydantic import BaseModel, Field, TypeAdapter
 
@@ -234,21 +235,24 @@ def _evaluate_rule(
 
 
 def _category_domain_coordinates(dataset: Dataset) -> dict[UUID, dict[str, str]]:
-    from kausal_common.datasets.models import DatasetSchemaDimension, DimensionScope
+    from kausal_common.datasets.models import DatasetSchemaDimension
+
+    from frameworks.catalogue import dimension_scopes
 
     schema = dataset.schema
     if schema is None or not schema.category_domain.combinations:
         return {}
     instance = dataset.scope_instance
-    scopes = {
-        scope.dimension_id: scope
-        for scope in DimensionScope.objects
-        .for_instance_config(instance)
-        .filter(
-            dimension_id__in=schema.dimensions.values_list('dimension_id', flat=True),
-        )
+    local_type_id = ContentType.objects.get_for_model(instance).pk
+    visible_scopes = list(
+        dimension_scopes(instance)
+        .filter(dimension_id__in=schema.dimensions.values_list('dimension_id', flat=True))
         .select_related('dimension')
         .prefetch_related('dimension__categories')
+    )
+    scopes = {
+        scope.dimension_id: scope
+        for scope in sorted(visible_scopes, key=lambda scope: scope.scope_content_type_id == local_type_id)
     }
     columns = {
         schema_dimension.dimension_id: schema_dimension.column_name
