@@ -33,18 +33,21 @@ def main() -> None:
     from frameworks.provisioning import setup_bisko
     from frameworks.quality_provisioning import provision_bisko_quality_projections
 
-    with transaction.atomic():
-        framework = setup_bisko(template_identifier=args.template, instance_identifiers=tuple(args.instance))
-        print(
-            f'Framework: {framework.identifier}; template: {args.template}; '
-            'quality scheme: bisko v1 (A/B/C/D); German organization catalogue.'
-        )
-        _setup_graphs(framework, args)
-        # --prepare-from and --publish can create or replace template schemas.
-        provision_bisko_quality_projections(framework)
-        if args.dry_run:
-            transaction.set_rollback(True)
-            print('Dry run: database changes rolled back.')
+    try:
+        with transaction.atomic():
+            framework = setup_bisko(template_identifier=args.template, instance_identifiers=tuple(args.instance))
+            print(
+                f'Framework: {framework.identifier}; template: {args.template}; '
+                'quality scheme: bisko v1 (A/B/C/D); German organization catalogue.'
+            )
+            _setup_graphs(framework, args)
+            # --prepare-from and --publish can create or replace template schemas.
+            provision_bisko_quality_projections(framework)
+            if args.dry_run:
+                transaction.set_rollback(True)
+                print('Dry run: database changes rolled back.')
+    except ValueError as error:
+        parser.exit(2, f'Error: {error}\n')
 
 
 def _setup_graphs(framework: Framework, args: argparse.Namespace) -> None:
