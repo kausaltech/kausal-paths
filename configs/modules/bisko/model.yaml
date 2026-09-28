@@ -3387,7 +3387,6 @@ nodes:
     - column: ags
       ref: ags_number
     - column: municipality
-      ref: municipality_name
   params:
     formula: extend_all(mileage)
 
@@ -3699,7 +3698,6 @@ nodes:
     - column: ags
       ref: ags_number
     - column: municipality
-      ref: municipality_name
   params:
     formula: extend_all(energy)
 
@@ -5704,7 +5702,6 @@ nodes:
     - column: ags
       ref: ags_number
     - column: municipality
-      ref: municipality_name
 
 - id: vehicle_kilometers_own_availability
   is_editable: false
