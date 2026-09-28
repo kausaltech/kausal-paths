@@ -1,3 +1,4 @@
+from datetime import date
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
@@ -6,7 +7,10 @@ from django.db import IntegrityError, transaction
 
 import pytest
 
-from frameworks.models import DataQualityLevel, DataQualityScheme, Framework, FrameworkConfig
+from kausal_common.datasets.tests.factories import DataPointFactory, DatasetFactory, DatasetMetricFactory, DatasetSchemaFactory
+
+from frameworks.evidence import QUALITY_OF_SPEC_KEY
+from frameworks.models import DataPointEvidence, DataQualityLevel, DataQualityScheme, Framework, FrameworkConfig
 from frameworks.provisioning import setup_bisko
 from frameworks.tests.factories import FrameworkFactory
 from nodes.tests.factories import InstanceConfigFactory
@@ -59,6 +63,53 @@ def test_setup_attaches_only_explicit_database_instances(template: InstanceConfi
     municipality.refresh_from_db()
     assert municipality.spec == before
     assert municipality.root_page_id is None
+
+
+@pytest.mark.parametrize('already_projected', [False, True])
+def test_setup_projects_shared_quality_schema_and_preserves_legacy_values(
+    template: InstanceConfig, already_projected: bool
+) -> None:
+    schema = DatasetSchemaFactory.create()
+    value = DatasetMetricFactory.create(schema=schema, name='Value')
+    quality = DatasetMetricFactory.create(schema=schema, name='quality')
+    if already_projected:
+        quality.spec = {QUALITY_OF_SPEC_KEY: str(value.uuid)}
+        quality.save(update_fields=['spec'])
+    template_dataset = DatasetFactory.create(scope=template, schema=schema)
+    municipality = InstanceConfigFactory.create(name='Municipality', config_source='database')
+    municipal_dataset = DatasetFactory.create(scope=municipality, schema=schema)
+    outside = InstanceConfigFactory.create(name='Outside', config_source='database')
+    outside_dataset = DatasetFactory.create(scope=outside, schema=schema)
+    value_point = DataPointFactory.create(dataset=template_dataset, metric=value, date=date(2023, 1, 1), value=10)
+    DataPointFactory.create(dataset=template_dataset, metric=quality, date=date(2023, 1, 1), value=Decimal('0.5'))
+    outside_value = DataPointFactory.create(dataset=outside_dataset, metric=value, date=date(2023, 1, 1), value=20)
+    DataPointFactory.create(dataset=outside_dataset, metric=quality, date=date(2023, 1, 1), value=Decimal('0.25'))
+
+    setup_bisko(instance_identifiers=(municipality.identifier,))
+    quality.refresh_from_db()
+    assert quality.spec[QUALITY_OF_SPEC_KEY] == str(value.uuid)
+    grades = dict(DataQualityLevel.objects.values_list('identifier', 'pk'))
+    assert DataPointEvidence.objects.get(data_point=value_point).quality_level_id == grades['B']
+    assert DataPointEvidence.objects.get(data_point=outside_value).quality_level_id == grades['C']
+    assert not municipal_dataset.data_points.exists()
+
+    setup_bisko(instance_identifiers=(municipality.identifier,))
+    assert DataPointEvidence.objects.filter(data_point__in=[value_point, outside_value]).count() == 2
+
+
+def test_setup_refuses_unmappable_shared_quality_values(template: InstanceConfig) -> None:
+    schema = DatasetSchemaFactory.create()
+    value = DatasetMetricFactory.create(schema=schema, name='Value')
+    quality = DatasetMetricFactory.create(schema=schema, name='quality')
+    dataset = DatasetFactory.create(scope=template, schema=schema)
+    DataPointFactory.create(dataset=dataset, metric=value, date=date(2023, 1, 1), value=10)
+    DataPointFactory.create(dataset=dataset, metric=quality, date=date(2023, 1, 1), value=Decimal('0.2'))
+
+    with pytest.raises(ValueError, match='no unique BISKO grade'):
+        setup_bisko()
+    quality.refresh_from_db()
+    assert QUALITY_OF_SPEC_KEY not in quality.spec
+    assert not DataPointEvidence.objects.exists()
 
 
 def test_setup_rejects_yaml_membership_without_changes(template: InstanceConfig) -> None:
