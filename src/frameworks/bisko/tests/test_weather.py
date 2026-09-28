@@ -16,7 +16,7 @@ from kausal_common.datasets.tests.factories import (
     DimensionFactory,
 )
 
-from frameworks.weather import HEATING_SECTORS, NEUTRAL_SECTORS, regional_weather_factors, seed_weather_defaults
+from frameworks.bisko.weather import HEATING_SECTORS, NEUTRAL_SECTORS, regional_weather_factors, seed_weather_defaults
 from nodes.defs.instance_defs import YearsSpec
 from nodes.models import DatasetMaterialization
 from nodes.tests.factories import InstanceConfigFactory
