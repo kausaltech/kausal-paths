@@ -35,6 +35,7 @@ if TYPE_CHECKING:
     from paths import gql
     from paths.schema import PreviewMode
 
+    from datasets.plausibility import DatasetPlausibilityLookup
     from frameworks.population import PopulationYearIndex
     from nodes.constraints.solver import ConstraintSolveResult
     from nodes.instance import Instance
@@ -297,6 +298,7 @@ class PathsGraphQLContext[InstanceType: Instance | None = Instance | None](Graph
     cache: PathsObjectCache = field(init=False)
     instance_resources: InstanceRequestResources | None = field(init=False, default=None, repr=False)
     organization_population_indexes: dict[tuple[int, int], PopulationYearIndex] = field(default_factory=dict, repr=False)
+    dataset_plausibility_lookups: dict[int, DatasetPlausibilityLookup] = field(default_factory=dict, repr=False)
 
     # Populated by DetermineInstanceContextExtension from @instance / @context
     # directive arguments. Consumed by editing mutations for optimistic
