@@ -7,7 +7,7 @@ from django.db import transaction
 
 from kausal_common.datasets.models import Dataset
 
-from frameworks.activation import ActivationError, activate_bisko_municipality
+from frameworks.bisko.activation import ActivationError, activate_bisko_municipality
 from frameworks.models import Framework, FrameworkConfig
 from nodes.models import InputPortBindingSet
 
