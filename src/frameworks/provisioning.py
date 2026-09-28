@@ -6,6 +6,7 @@ from django.db import transaction
 
 from frameworks.identity import ensure_municipal_organization
 from frameworks.models import DataQualityLevel, DataQualityScheme, Framework, FrameworkConfig
+from frameworks.quality_provisioning import provision_bisko_quality_projections
 from nodes.models import InstanceConfig
 from orgs.models import Namespace, OrganizationClass
 
@@ -112,4 +113,5 @@ def setup_bisko(*, template_identifier: str = 'bisko', instance_identifiers: tup
         instance.refresh_from_db()
         ensure_municipal_organization(instance)
 
+    provision_bisko_quality_projections(framework)
     return framework
