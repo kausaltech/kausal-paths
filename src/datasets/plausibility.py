@@ -9,9 +9,12 @@ from django.db.models import Q
 from pydantic import BaseModel, Field
 
 import polars as pl
+from loguru import logger
+from pint.errors import UndefinedUnitError
 
 from datasets.coordinates import DatasetCoordinate, DatasetCoordinateIndex
 from datasets.models import DatasetMetricPlausibilityRange
+from datasets.plausibility_history import HistoryRange, derive_history_ranges, eligible
 from datasets.validation import RuleViolation, _category_domain_coordinates, evaluate_dataset_rules
 from frameworks.models import OrganizationPopulation
 from nodes.constants import YEAR_COLUMN
@@ -163,6 +166,40 @@ def resolved_bounds(
     return rule.lower * multiplier, rule.upper * multiplier
 
 
+def _load_frame(dataset: Dataset) -> tuple[pl.DataFrame, list[str]]:
+    """Load the dataset's values with its dimension columns as strings, and name those columns."""
+    ppdf = DBDataset.deserialize_df(dataset)
+    frame = pl.DataFrame({col: ppdf.get_column(col) for col in ppdf.columns})
+    dim_cols = [col for col in ppdf.primary_keys if col != YEAR_COLUMN]
+    if dim_cols:
+        frame = frame.with_columns([pl.col(col).cast(pl.Utf8) for col in dim_cols])
+    return frame, dim_cols
+
+
+def _log_unreadable(dataset: Dataset, exc: Exception) -> None:
+    logger.warning(f'No history plausibility ranges for dataset {dataset.uuid}: its units cannot be read ({exc})')
+
+
+def history_ranges(dataset: Dataset, curated: list[DatasetMetricPlausibilityRange] | None = None) -> list[HistoryRange]:
+    """Ranges derived from the dataset's own history, for the metrics no curated cell range covers."""
+    if not eligible(dataset):
+        return []
+    try:
+        frame, dim_cols = _load_frame(dataset)
+    except UndefinedUnitError as exc:
+        _log_unreadable(dataset, exc)
+        return []
+    return derive_history_ranges(
+        dataset, frame, dim_cols, applicable_plausibility_ranges(dataset) if curated is None else curated
+    )
+
+
+def all_plausibility_ranges(dataset: Dataset) -> list[DatasetMetricPlausibilityRange]:
+    """Curated ranges, then those derived from the dataset's history."""
+    curated = applicable_plausibility_ranges(dataset)
+    return [*curated, *(derived.rule for derived in history_ranges(dataset, curated))]
+
+
 @dataclass
 class _Cells:
     """The metric column of one dataset, with the context every rule needs."""
@@ -178,11 +215,7 @@ class _Cells:
 
     @classmethod
     def load(cls, dataset: Dataset, rules: list[DatasetMetricPlausibilityRange]) -> _Cells:
-        ppdf = DBDataset.deserialize_df(dataset)
-        frame = pl.DataFrame({col: ppdf.get_column(col) for col in ppdf.columns})
-        dim_cols = [col for col in ppdf.primary_keys if col != YEAR_COLUMN]
-        if dim_cols:
-            frame = frame.with_columns([pl.col(col).cast(pl.Utf8) for col in dim_cols])
+        frame, dim_cols = _load_frame(dataset)
         return cls(
             dataset=dataset,
             frame=frame,
@@ -320,7 +353,16 @@ def _finding(
     )
 
 
-def _cell_findings(rule: DatasetMetricPlausibilityRange, cells: _Cells) -> list[PlausibilityFinding]:
+def _cell_findings(
+    rule: DatasetMetricPlausibilityRange, cells: _Cells, *, min_reference: float | None = None, positive_only: bool = False
+) -> list[PlausibilityFinding]:
+    """
+    Check each selected cell on its own.
+
+    With ``min_reference``, a previous-year ratio is not judged when the earlier
+    value is below it: a small cell moves erratically in relative terms. With
+    ``positive_only``, a value of zero or below is not judged.
+    """
     frame = cells.selected(rule)
     if frame is None:
         return []
@@ -334,16 +376,51 @@ def _cell_findings(rule: DatasetMetricPlausibilityRange, cells: _Cells) -> list[
             continue
         key = cells.key(categories)
         history.setdefault(key, {})[year] = float(value)
-        entered.append((year, categories, key, float(value)))
-    findings = []
+        if not positive_only or value > 0:
+            entered.append((year, categories, key, float(value)))
+    breaches: list[tuple[int, dict[str, str], tuple[str, ...], _Comparison]] = []
     for year, categories, key, observed in entered:
         if not _in_years(rule, year):
             continue
         comparison = _compare(rule, cells, year, observed, history[key])
         if comparison is None or rule.lower <= comparison.normalized <= rule.upper:
             continue
+        if min_reference is not None and (comparison.reference_value or 0) < min_reference:
+            continue
+        breaches.append((year, categories, key, comparison))
+
+    return _cell_breach_findings(rule, cells, breaches)
+
+
+def _cell_breach_findings(
+    rule: DatasetMetricPlausibilityRange,
+    cells: _Cells,
+    breaches: list[tuple[int, dict[str, str], tuple[str, ...], _Comparison]],
+) -> list[PlausibilityFinding]:
+    """
+    Turn a cell's breaches into findings, tracing a spike back to its year.
+
+    As for sums: of two consecutive ratios of one cell broken in opposite
+    directions, the later is the return from a spike, and names the spike's year.
+    """
+    moves = {(key, year): comparison.normalized > rule.upper for year, _, key, comparison in breaches}
+    findings = []
+    for year, categories, key, comparison in breaches:
+        attribution = None
+        reference_year = comparison.reference_year
+        if reference_year is not None and moves.get((key, reference_year)) == (comparison.normalized < rule.lower):
+            attribution = _attribution(cells, categories, year=year, suspect_year=reference_year, compared_year=reference_year)
         findings.append(
-            _finding(rule, cells, year=year, categories=categories, components=[categories], comparison=comparison, complete=True)
+            _finding(
+                rule,
+                cells,
+                year=year,
+                categories=categories,
+                components=[categories],
+                comparison=comparison,
+                complete=True,
+                attribution=attribution,
+            )
         )
     return findings
 
@@ -497,15 +574,25 @@ def _sum_findings(rule: DatasetMetricPlausibilityRange, cells: _Cells) -> list[P
 def evaluate_dataset_plausibility(dataset: Dataset) -> list[PlausibilityFinding]:
     """Evaluate applicable bands against entered cells, using observed population only."""
     rules = applicable_plausibility_ranges(dataset)
-    if not rules:
+    if not rules and not eligible(dataset):
         return []
-    cells = _Cells.load(dataset, rules)
+    try:
+        cells = _Cells.load(dataset, rules)
+    except UndefinedUnitError as exc:
+        # A curated range is a configured check, and its failure should show; the history
+        # fallback is advisory and must not turn an unreadable dataset into an editor error.
+        if rules:
+            raise
+        _log_unreadable(dataset, exc)
+        return []
     findings: list[PlausibilityFinding] = []
     for rule in rules:
         if rule.aggregation == Range.Aggregation.SUM:
             findings.extend(_sum_findings(rule, cells))
         else:
             findings.extend(_cell_findings(rule, cells))
+    for derived in derive_history_ranges(dataset, cells.frame, cells.dim_cols, rules):
+        findings.extend(_cell_findings(derived.rule, cells, min_reference=derived.min_reference, positive_only=True))
     return findings
 
 
@@ -514,7 +601,10 @@ class DatasetPlausibilityLookup:
 
     def __init__(self, dataset: Dataset):
         self.dataset = dataset
-        self.rules = applicable_plausibility_ranges(dataset)
+        curated = applicable_plausibility_ranges(dataset)
+        derived = history_ranges(dataset, curated)
+        self.rules = [*curated, *(item.rule for item in derived)]
+        self.min_reference = {item.rule.uuid: item.min_reference for item in derived}
         self.coordinate_index = DatasetCoordinateIndex(dataset) if self.rules else None
         self.rules_by_metric: dict[int, list[DatasetMetricPlausibilityRange]] = {}
         for rule in self.rules:
@@ -554,6 +644,8 @@ class DatasetPlausibilityLookup:
                 cell = frozenset(category_uuids.values())
                 earlier = _earlier(rule, year, {y: v for (y, c), v in values.items() if c == cell})
                 earlier_value = earlier[1] if earlier else None
+                if rule.uuid in self.min_reference and (earlier_value or 0) < self.min_reference[rule.uuid]:
+                    continue
             lower, upper = resolved_bounds(rule, self.population.get(year), earlier_value)
             matches.append((rule, lower, upper))
         return matches
