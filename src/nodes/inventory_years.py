@@ -31,11 +31,13 @@ from kausal_common.datasets.models import DataPoint, DataPointComment, Dataset, 
 from datasets.change_snapshots import data_point_snapshot
 from datasets.materialization import refresh_dataset_materialization
 from datasets.year_slots import ensure_empty_year
-from frameworks.models import Submission
+from frameworks.models import DataEvidenceKind, Submission
 from frameworks.models.evidence import DataPointEvidence
 from nodes.change_ops import record_change
 
 if TYPE_CHECKING:
+    from django.db.models import QuerySet
+
     from kausal_common.datasets.models import DatasetQuerySet
 
     from nodes.models import InstanceConfig
@@ -143,8 +145,21 @@ def add_inventory_year(ic: InstanceConfig, year: int) -> AddedYear:
     return AddedYear(year=year, inventory_years=after, created_cells=created_cells)
 
 
+def _year_points(ic: InstanceConfig, year: int) -> QuerySet[DataPoint]:
+    """
+    Select the year's local cells, apart from provider defaults.
+
+    A provider default (such as a seeded weather-correction factor) is the provider's
+    data, not work entered in the year, and it often covers forecast years too; a
+    year's removal neither counts nor deletes it.
+    """
+    return DataPoint.objects.filter(dataset__in=_local_datasets(ic), date__year=year).exclude(
+        evidence__kind=DataEvidenceKind.PROVIDER_DEFAULT
+    )
+
+
 def year_contents(ic: InstanceConfig, year: int) -> YearContents:
-    points = DataPoint.objects.filter(dataset__in=_local_datasets(ic), date__year=year)
+    points = _year_points(ic, year)
     return YearContents(
         year=year,
         values=points.filter(value__isnull=False).count(),
@@ -176,7 +191,7 @@ def remove_inventory_year(ic: InstanceConfig, year: int, *, force: bool) -> Remo
             f'{year} has a submission ({submission.get_status_display().lower()}); a year with a submission cannot be removed.'
         )
 
-    datasets = list(_local_datasets(ic).filter(data_points__date__year=year).distinct())
+    datasets = list(Dataset.objects.filter(pk__in=_year_points(ic, year).values('dataset_id')).select_related('schema'))
     locked = [dataset for dataset in datasets if dataset.schema is None or not dataset.schema.is_editable]
     if locked:
         names = ', '.join(sorted(dataset.identifier or str(dataset.uuid) for dataset in locked))
@@ -189,7 +204,7 @@ def remove_inventory_year(ic: InstanceConfig, year: int, *, force: bool) -> Remo
     deleted_cells = 0
     for candidate in datasets:
         dataset = Dataset.objects.select_for_update().get(pk=candidate.pk)
-        points = dataset.data_points.filter(date__year=year)
+        points = _year_points(ic, year).filter(dataset=dataset)
         worked = points.filter(
             Q(value__isnull=False) | Q(evidence__isnull=False) | Q(comments__isnull=False) | Q(source_references__isnull=False)
         ).distinct()

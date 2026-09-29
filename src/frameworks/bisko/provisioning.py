@@ -14,7 +14,12 @@ from datasets.year_slots import ensure_empty_year
 from frameworks.bisko.activation import municipality_nuts3
 from frameworks.bisko.plausibility import provision_bisko_plausibility_ranges
 from frameworks.bisko.quality import provision_bisko_quality_projections
-from frameworks.bisko.weather import WEATHER_DATASET, load_weather_source, seed_weather_defaults
+from frameworks.bisko.weather import (
+    WEATHER_DATASET,
+    load_weather_source,
+    mark_seeded_weather_defaults,
+    seed_weather_defaults,
+)
 from frameworks.identity import ensure_municipal_organization
 from frameworks.models import DataQualityLevel, DataQualityScheme, Framework, FrameworkConfig
 from nodes.defs.transform_def import FilterColumnOp
@@ -109,6 +114,8 @@ def _reconcile_bisko_weather_defaults(framework: Framework) -> None:
             raise ValueError(f'{instance.identifier} has no municipal weather dataset; reconcile its local inputs first.')
         if not dataset.data_points.exists():
             empty.append((instance, dataset))
+        else:
+            mark_seeded_weather_defaults(dataset)
     if not empty:
         return
     frame, revision = load_weather_source(framework)
