@@ -12,7 +12,7 @@ from django.test import override_settings
 
 import pytest
 
-from kausal_common.datasets.models import DatasetMetricValidationRule, DimensionScope
+from kausal_common.datasets.models import Dataset, DatasetMetricValidationRule, DimensionScope
 from kausal_common.datasets.tests.factories import (
     DataPointFactory,
     DatasetFactory,
@@ -663,3 +663,118 @@ def test_data_point_writes_return_the_whole_datasets_findings(
     )['instanceEditor']['datasetEditor']['deleteDataPoints']
     # The remaining sum is incomplete, so it is only checked against the upper bound, which it is under.
     assert deleted['plausibilityFindings'] == []
+
+
+@pytest.fixture
+def three_regions(rig) -> tuple[Dataset, DatasetMetric, list[DimensionCategory]]:
+    dataset, metric, category_a, category_b = rig
+    category_c = DimensionCategoryFactory.create(dimension=category_a.dimension, identifier='c', label='C')
+    return dataset, metric, [category_a, category_b, category_c]
+
+
+def _series(dataset, metric, categories, values_by_year: dict[int, tuple[float, ...]]) -> None:
+    for year, values in values_by_year.items():
+        for category, value in zip(categories, values, strict=True):
+            _point(dataset, metric, category, value, year=year)
+
+
+def _year_over_year_sum(metric, source, db_instance_config, categories, **fields: Any) -> DatasetMetricPlausibilityRange:
+    values = {'lower': 0.8, 'upper': 1.25} | fields
+    return _range(
+        metric,
+        source,
+        instance_config=db_instance_config,
+        aggregation=Range.Aggregation.SUM,
+        selection=_selection(*categories),
+        reference=Range.Reference.PREVIOUS_YEAR,
+        max_gap_years=1,
+        **values,
+    )
+
+
+def test_a_mistyped_cell_is_named_and_its_spike_traced_back(
+    three_regions, source: PlausibilitySource, db_instance_config: InstanceConfig
+):
+    """A x1000 typo breaks the sum's ratio into and out of its year; both findings name the one cell and year."""
+    dataset, metric, categories = three_regions
+    _year_over_year_sum(metric, source, db_instance_config, categories)
+    _series(dataset, metric, categories, {2022: (10, 10, 10), 2023: (10, 10_000, 10), 2024: (10, 10, 10)})
+
+    into, out_of = sorted(evaluate_dataset_plausibility(dataset), key=lambda finding: finding.years)
+    assert into.years == [2023]
+    assert out_of.years == [2024]
+    assert into.attribution is not None
+    assert out_of.attribution is not None
+    assert into.attribution.categories == out_of.attribution.categories == {'region': 'b'}
+    assert (into.attribution.year, into.attribution.compared_year) == (2023, 2022)
+    # The return to normal points at the spike, not at the correct 2024 value.
+    assert (out_of.attribution.year, out_of.attribution.compared_year) == (2023, 2023)
+    assert 'out of line' in out_of.attribution.message
+
+
+def test_a_breach_several_cells_could_remove_stays_with_the_sum(
+    three_regions, source: PlausibilitySource, db_instance_config: InstanceConfig
+):
+    dataset, metric, categories = three_regions
+    _year_over_year_sum(metric, source, db_instance_config, categories)
+    _series(dataset, metric, categories, {2022: (10, 10, 10), 2023: (13, 13, 13)})
+
+    [finding] = evaluate_dataset_plausibility(dataset)
+    assert finding.normalized == pytest.approx(1.3)
+    assert finding.attribution is None
+
+
+def test_an_absolute_sum_is_attributed_against_the_year_before(
+    three_regions, source: PlausibilitySource, db_instance_config: InstanceConfig
+):
+    dataset, metric, categories = three_regions
+    _range(
+        metric,
+        source,
+        instance_config=db_instance_config,
+        aggregation=Range.Aggregation.SUM,
+        selection=_selection(*categories),
+        lower=0,
+        upper=100,
+    )
+    _series(dataset, metric, categories, {2021: (10, 10_000, 10), 2022: (10, 10, 10), 2023: (10, 10_000, 10)})
+
+    first, later = sorted(evaluate_dataset_plausibility(dataset), key=lambda finding: finding.years)
+    # The first year has nothing to compare with, so it stays with the sum.
+    assert first.years == [2021]
+    assert first.attribution is None
+    assert later.attribution is not None
+    assert (later.attribution.categories, later.attribution.year, later.attribution.compared_year) == (
+        {'region': 'b'},
+        2023,
+        2022,
+    )
+
+
+def test_attribution_is_queryable(
+    three_regions, source: PlausibilitySource, db_instance_config: InstanceConfig, gql_client: PathsTestClient
+):
+    dataset, metric, categories = three_regions
+    _year_over_year_sum(metric, source, db_instance_config, categories)
+    _series(dataset, metric, categories, {2022: (10, 10, 10), 2023: (10, 10_000, 10)})
+
+    payload = gql_client.query_data(
+        """
+        query Plausibility($datasetId: ID!) {
+            instance { editor { dataset(id: $datasetId) {
+                plausibilityFindings {
+                    years
+                    attribution { year comparedYear message coordinates { category categoryUuid } }
+                }
+            } } }
+        }
+        """,
+        variables={'datasetId': str(dataset.uuid)},
+    )
+    [finding] = payload['instance']['editor']['dataset']['plausibilityFindings']
+    assert finding['attribution'] == {
+        'year': 2023,
+        'comparedYear': 2022,
+        'message': 'With its 2022 value, this cell would bring the sum back into range.',
+        'coordinates': [{'category': 'b', 'categoryUuid': str(categories[1].uuid)}],
+    }
