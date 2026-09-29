@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Self
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from kausal_common.i18n.pydantic import (
     I18nBaseModel,
@@ -52,6 +52,36 @@ class YearsSpec(I18nBaseModel):
     This is typically the same as the target year, but may be different if computation
     results are needed beyond the target year.
     """
+
+    skipped: list[int] | None = None
+    """Years inside the historical span that are not inventory years.
+
+    ``None`` means nobody has declared which years of the span are inventory years;
+    ``[]`` means all of them are. This is the inventory calendar, not provenance:
+    it says nothing about whether a year's values are observed, estimated or
+    interpolated. The first and last historical years are inventory years by
+    definition, so a skipped year lies strictly between them.
+    """
+
+    @model_validator(mode='after')
+    def _validate_skipped(self) -> Self:
+        if not self.skipped:
+            return self
+        if self.skipped != sorted(set(self.skipped)):
+            raise ValueError('skipped years must be sorted and unique')
+        if self.min_historical is None or self.max_historical is None:
+            raise ValueError('skipped years need both a first and a last historical year')
+        if not (self.min_historical < self.skipped[0] and self.skipped[-1] < self.max_historical):
+            raise ValueError('skipped years must lie strictly between the first and last historical year')
+        return self
+
+    @property
+    def historical(self) -> list[int] | None:
+        """The inventory years, or ``None`` when they have not been declared."""
+        if self.skipped is None or self.min_historical is None or self.max_historical is None:
+            return None
+        skipped = set(self.skipped)
+        return [year for year in range(self.min_historical, self.max_historical + 1) if year not in skipped]
 
 
 class DatasetRepoSpec(I18nBaseModel):
