@@ -12,6 +12,7 @@ from kausal_common.datasets.models import DataPoint, DataPointDimensionCategory,
 
 from datasets.materialization import refresh_dataset_materialization
 from datasets.placeholders import build_dataset_repo
+from frameworks.models import DataEvidenceKind, DataPointEvidence
 
 if TYPE_CHECKING:
     from frameworks.models import Framework
@@ -113,6 +114,11 @@ def seed_weather_defaults(
         DataPointDimensionCategory(data_point=point, dimension_category=categories[sector])
         for point, (_year, sector) in zip(created, coordinates, strict=True)
     ])
+    # The factors are the provider's, not the municipality's: say so, so that they read as a
+    # default and do not count as work entered in the year.
+    DataPointEvidence.objects.bulk_create([
+        DataPointEvidence(data_point=point, kind=DataEvidenceKind.PROVIDER_DEFAULT) for point in created
+    ])
     dataset.spec = {
         **(dataset.spec or {}),
         'bisko_weather_default': {
@@ -126,3 +132,23 @@ def seed_weather_defaults(
     dataset.save(update_fields=['spec'])
     refresh_dataset_materialization(dataset, touch=False)
     return True
+
+
+def mark_seeded_weather_defaults(dataset: Dataset) -> int:
+    """
+    Give factors seeded before evidence was recorded their provider-default evidence.
+
+    A seeded factor that nobody has touched has no evidence and no last editor; an
+    edit through the editor records its user. Returns how many points were marked.
+    """
+    if 'bisko_weather_default' not in (dataset.spec or {}):
+        return 0
+    untouched = list(
+        dataset.data_points.filter(evidence__isnull=True, last_modified_by__isnull=True).values_list('pk', flat=True)
+    )
+    DataPointEvidence.objects.bulk_create([
+        DataPointEvidence(data_point_id=pk, kind=DataEvidenceKind.PROVIDER_DEFAULT) for pk in untouched
+    ])
+    if untouched:
+        refresh_dataset_materialization(dataset, touch=False)
+    return len(untouched)

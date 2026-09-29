@@ -16,10 +16,18 @@ from kausal_common.datasets.tests.factories import (
     DimensionFactory,
 )
 
-from frameworks.bisko.weather import HEATING_SECTORS, NEUTRAL_SECTORS, regional_weather_factors, seed_weather_defaults
+from frameworks.bisko.weather import (
+    HEATING_SECTORS,
+    NEUTRAL_SECTORS,
+    mark_seeded_weather_defaults,
+    regional_weather_factors,
+    seed_weather_defaults,
+)
+from frameworks.models import DataEvidenceKind, DataPointEvidence
 from nodes.defs.instance_defs import YearsSpec
 from nodes.models import DatasetMaterialization
 from nodes.tests.factories import InstanceConfigFactory
+from users.tests.factories import UserFactory
 
 pytestmark = pytest.mark.django_db
 
@@ -42,7 +50,7 @@ def test_regional_factors_use_fixed_reference_and_require_complete_history() -> 
         regional_weather_factors(incomplete, 'DE405', first_year=2020, last_year=2025)
 
 
-def test_seed_weather_defaults_preserves_municipal_edits() -> None:
+def weather_dataset():
     instance = InstanceConfigFactory.create(name='Weather city', config_source='database')
     spec = instance.ensure_spec()
     spec.years = YearsSpec(reference=2020, min_historical=2020, max_historical=2023, target=2025)
@@ -62,6 +70,11 @@ def test_seed_weather_defaults_preserves_municipal_edits() -> None:
     DatasetMetricFactory.create(schema=schema, name='default', unit='')
     dataset = DatasetFactory.create(scope=instance, schema=schema, identifier='kommune/witterungsbereinigung')
 
+    return instance, dataset
+
+
+def test_seed_weather_defaults_preserves_municipal_edits() -> None:
+    instance, dataset = weather_dataset()
     assert seed_weather_defaults(instance, dataset, degree_days(), nuts3='DE405', source_revision='test-commit')
     assert dataset.data_points.count() == 30
     household = dataset.data_points.get(date=date(2023, 1, 1), dimension_categories__identifier='private_households')
@@ -79,3 +92,24 @@ def test_seed_weather_defaults_preserves_municipal_edits() -> None:
     household.refresh_from_db()
     assert household.value == Decimal('1.7')
     assert dataset.data_points.count() == 30
+
+
+def test_seeded_factors_are_provider_defaults_and_old_seeds_are_marked() -> None:
+    instance, dataset = weather_dataset()
+    assert seed_weather_defaults(instance, dataset, degree_days(), nuts3='DE405', source_revision='test-commit')
+    evidence = DataPointEvidence.objects.filter(data_point__dataset=dataset)
+    assert evidence.count() == 30
+    assert set(evidence.values_list('kind', flat=True)) == {DataEvidenceKind.PROVIDER_DEFAULT}
+    dataset.refresh_from_db()
+    assert mark_seeded_weather_defaults(dataset) == 0
+
+    # As seeded before evidence was recorded, with one factor since edited by a user.
+    evidence.delete()
+    edited = dataset.data_points.get(date=date(2023, 1, 1), dimension_categories__identifier='private_households')
+    edited.value = Decimal('1.7')
+    edited.last_modified_by = UserFactory.create()
+    edited.save(update_fields=['value', 'last_modified_by'])
+
+    assert mark_seeded_weather_defaults(dataset) == 29
+    assert not DataPointEvidence.objects.filter(data_point=edited).exists()
+    assert mark_seeded_weather_defaults(dataset) == 0
