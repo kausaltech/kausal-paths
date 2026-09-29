@@ -126,7 +126,7 @@ class InstanceSuperAdminRole(InstanceGroupMembershipRole, AdminRole['InstanceCon
 class InstanceAdminRole(InstanceGroupMembershipRole, AdminRole['InstanceConfig']):
     id = INSTANCE_ADMIN_ROLE
     name = _('Admin')
-    description = _('Administrative access to the instance without permissions to manage people and organizations')
+    description = _('Full access to the instance, including inviting, suspending and changing the roles of its members')
     group_name = 'Admins'
     instance_group_field_name = 'admin_group'
 
