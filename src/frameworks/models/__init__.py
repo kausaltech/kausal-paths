@@ -47,6 +47,7 @@ from .organizations import (
 from .quality import DataQualityLevel as DataQualityLevel, DataQualityScheme as DataQualityScheme
 from .submission import (
     Submission as Submission,
+    SubmissionEvent as SubmissionEvent,
     SubmissionKind as SubmissionKind,
     SubmissionStatus as SubmissionStatus,
 )
