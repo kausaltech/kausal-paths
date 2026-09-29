@@ -36,6 +36,7 @@ if TYPE_CHECKING:
 
     from nodes.context import Context
     from nodes.datasets import Dataset
+    from nodes.defs.graph import DatasetMeta
     from nodes.defs.node_defs import InputDatasetDef, NodeSpec
     from nodes.defs.transform_def import EdgeTransformOp
     from nodes.edges import Edge
@@ -46,6 +47,7 @@ if TYPE_CHECKING:
     from nodes.models import InstanceConfig
     from nodes.node import Node, NodeMetric
     from nodes.scenario import Scenario
+    from nodes.transforms import QualifierSource
     from nodes.units import Unit
     from params import Parameter
 
@@ -636,6 +638,52 @@ class InstanceLoader:
         }
         return TranslatedString(**langs, default_language=self.default_language)
 
+    @cached_property
+    def _dataset_catalog_by_identifier(self) -> dict[str, DatasetMeta]:
+        return {dataset.identifier: dataset for dataset in self.snapshot.all_datasets() if dataset.identifier is not None}
+
+    @cached_property
+    def _quality_scores(self) -> dict[tuple[str, str], float | None]:
+        return {}
+
+    def _qualifier_source(self, dataset_id: str) -> QualifierSource | None:
+        """
+        Say where a dataset's values get their qualifiers, from its catalog entry.
+
+        The catalog carries both halves: which metric holds another's grades (``quality_of``,
+        from the database), and the dataset's declared default grade, which a module states
+        under ``datasets`` and which an external placeholder carries as well as a stored dataset.
+        """
+        from nodes.transforms import QualifierSource
+
+        meta = self._dataset_catalog_by_identifier.get(dataset_id)
+        if meta is None:
+            return None
+        by_id = meta.metric_by_id
+        quality_columns = {
+            graded.identifier: metric.identifier
+            for metric in meta.metrics
+            if metric.quality_of is not None
+            and metric.identifier is not None
+            and (graded := by_id.get(metric.quality_of)) is not None
+            and graded.identifier is not None
+        }
+        default_quality = None
+        if meta.default_quality is not None:
+            key = (meta.default_quality.scheme, meta.default_quality.level)
+            if key not in self._quality_scores:
+                from frameworks.evidence import resolve_quality_score
+
+                self._quality_scores[key] = resolve_quality_score(*key)
+                if self._quality_scores[key] is None:
+                    self.context.log.warning(
+                        'Dataset %s declares default quality %s/%s, which no quality scheme defines' % (dataset_id, *key)
+                    )
+            default_quality = self._quality_scores[key]
+        if not quality_columns and default_quality is None:
+            return None
+        return QualifierSource(quality_columns=quality_columns, default_quality=default_quality)
+
     def _make_node_datasets(self, config: dict[str, Any], node_class: type[Node], unit: Unit | None) -> list[Dataset]:  # noqa: C901, PLR0912, PLR0915
         from nodes.datasets import DBDataset, DVCDataset, FixedDataset, GenericDataset
         from nodes.defs.node_defs import InputDatasetDef
@@ -745,6 +793,7 @@ class InstanceLoader:
                     ds_obj = GenericDataset.from_def(ds_def, self.context)
                 else:
                     ds_obj = DVCDataset.from_def(ds_def, self.context)
+            ds_obj.qualifier_source = self._qualifier_source(ds_def.id)
             datasets.append(ds_obj)
 
         if 'historical_values' in config or 'forecast_values' in config:
