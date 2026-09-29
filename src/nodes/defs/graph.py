@@ -71,6 +71,15 @@ class DatasetMetricMeta(FrozenGraphModel):
     """Quantity-kind id of what the metric measures; None means any quantity."""
     order: int | None = None
     validation_rules: tuple[ValidationRule, ...] = ()
+    quality_of: UUID | None = None
+    """The metric whose grades this metric holds, as scores; see `frameworks.evidence.QUALITY_OF_SPEC_KEY`."""
+
+
+class QualityLevelKey(FrozenGraphModel):
+    """A framework quality level named by authored identity, so a module can declare it before any database exists."""
+
+    scheme: str
+    level: str
 
 
 class DatasetMeta(FrozenGraphModel):
@@ -85,6 +94,13 @@ class DatasetMeta(FrozenGraphModel):
     revision_id: int | None = None
     category_domain: DatasetCategoryDomain = Field(default_factory=DatasetCategoryDomain)
     category_domain_spec: DatasetCategoryDomainSpec | None = None
+    default_quality: QualityLevelKey | None = None
+    """
+    The grade of every value in the dataset that has no grade of its own.
+
+    A grade that belongs to the kind of data rather than to one figure: BISKO grades the
+    gemeindefeine ifeu defaults B as a class. A value's own evidence overrides it.
+    """
 
     @cached_property
     def metric_by_id(self) -> dict[UUID, DatasetMetricMeta]:
