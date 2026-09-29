@@ -4,7 +4,7 @@ default_language: de
 supported_languages: []
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 843804814636c80bf50bbaa11f23281a277b5150
+  commit: 7a1a9bcb00fe490628dd5801803853cfc1fdbda6
   dvc_remote: kausal-s3
 name_de: Prüfstadt Treibhausgasmonitor
 # A review copy of `schwerin-bisko`, made 2026-09-06 so the BISKO certifier can exercise the tool
@@ -37,6 +37,16 @@ include:
     to: schwerin/historical_emissions
   - from: kommune/verkehrsleistung_personen
     to: schwerin/passenger_kilometers
+  # BISKO Möglichkeit 1, demonstrated for the review: invented plant data for 2023 only -- 650 GWh
+  # of natural gas in a combined cycle plant, electricity fraction 0.40, supply 368.15 K (95 °C) --
+  # so that one year is computed from plant data and the reviewer can watch electricity_fraction
+  # and t_supply move the balance. Every other year stays on Möglichkeit 2. The values are
+  # labelled as invented in each row, and live under `pruefstadt/` so they cannot be mistaken for
+  # Schwerin's. Built by paths-data modules/bisko/pruefstadt_demo/create_pruefstadt_chp_demo.py.
+  - from: kommune/fernwaerme_energieeinsatz
+    to: pruefstadt/fernwaerme_energieeinsatz
+  - from: kommune/kwk_anlagenparameter
+    to: pruefstadt/kwk_anlagenparameter
 
 #//////  Parameters  ////////////////////////////////////////////////////////////////////////////////////////////////////
 params:
@@ -163,6 +173,12 @@ result_excels:
   # Which of BISKO's three Möglichkeiten each year took (1/2/3) -- the answer to Prüfschritt 6.1,
   # per year rather than as a blanket statement about the tool.
   - district_heating_method_in_force
+  # Möglichkeit 1, shown on the 2023 demonstration data: the exergetic split that
+  # electricity_fraction and t_supply decide, the plant-data route's emissions, and which years
+  # the city's plant data covers.
+  - combined_heat_and_power_chp_fraction
+  - district_heating_emissions_exergetic
+  - district_heating_plant_data_availability
   # Prüfschritt 7.1: a Datengüte must be enterable for every input field. The first Prüflauf
   # named the district-heating one as missing; these three are where the grades are shown.
   - district_heating_energy_use_data_quality
