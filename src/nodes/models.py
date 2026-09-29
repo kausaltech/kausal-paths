@@ -1556,10 +1556,11 @@ class InstanceConfig(
             self.save(update_fields=['primary_language', 'other_languages', 'spec', 'yaml_mtime_hash', 'yaml_spec_version'])
         return self.spec
 
-    def update_years(self, **updates: int | None) -> YearsSpec:
+    def update_years(self, **updates: int | list[int] | None) -> YearsSpec:
         """Persist instance-owned year boundaries in the computation spec."""
         spec = self.ensure_spec()
-        years = spec.years.model_copy(update=updates)
+        # Validated rather than copied, so the result cannot leave a skipped year outside the span.
+        years = type(spec.years).model_validate(spec.years.model_dump() | updates)
         self.spec = spec.model_copy(update={'years': years})
         self.save(update_fields=['spec'])
         return years
