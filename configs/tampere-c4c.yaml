@@ -3777,48 +3777,31 @@ nodes:
   input_dimensions: [cost_type, owner, action]
   output_dimensions: [cost_type, owner, action]
 
-# ----- TEMPORARY -------------------------------------------------------------
+# ----- ACTION HELPERS --------------------------------------------------------
 
-- id: reduce_electricity_emission_factors
-  name: Reduce electricity emission factors
-  name_en: Reduce electricity emission factors
-  type: simple.FixedMultiplierNode
+- id: heating_electricity_emission_factor_impact
+  name: Heating electricity emission factor impact
+  name_en: Heating electricity emission factor impact
+  type: formula.FormulaNode
   quantity: emission_factor
   unit: t_co2e/GWh
-  input_dimensions: ['energy_carrier', 'ghg', 'heating']
-  output_dimensions: ['energy_carrier', 'ghg', 'heating']
+  input_dimensions: ['heating', 'energy_carrier', 'ghg', 'scope']
+  output_dimensions: ['heating', 'energy_carrier', 'ghg', 'scope']
   params:
-  - id: multiplier
-    value: 1.0
-    unit: t_co2e/t
+    formula: (emission_factors ** 0) * impact
+  input_datasets:
+  - id: tampere/stationary
+    tags: [emission_factors]
+    column: emission_factor
+    filters:
+    - dimension: energy_carrier
+      categories: ['electricity']
+    - column: sector
+      value: i12
+    - column: cost_type
+    - column: owner
   output_nodes:
   - id: heating_emission_factors
-    to_dimensions:
-    - id: energy_carrier
-    - id: ghg
-    - id: heating
-    - id: scope
-      categories: ['scope2']
-  - id: industrial_electricity_emission_factors
-    from_dimensions:
-    - id: heating
-      categories: ['direct_electric_heat']
-      flatten: true
-    to_dimensions:
-    - id: energy_carrier
-    - id: ghg
-    - id: scope
-      categories: ['scope2']
-  - id: other_electricity_emission_factors
-    from_dimensions:
-    - id: heating
-      categories: ['direct_electric_heat']
-      flatten: true
-    to_dimensions:
-    - id: energy_carrier
-    - id: ghg
-    - id: scope
-      categories: ['scope2']
 
 - id: promoting_walking_and_cycling_mileage
   name: Vaikutus (Suorite)
@@ -6061,34 +6044,49 @@ actions:
       flatten: true
 
 # ----- Parametrit
-- id: shift_to_low_carbon_in_national_electricity_production
-  name: Kansallinen sähköntuotanto puhdistuu
-  name_en: Shift to low-carbon in national electricity production
-  type: gpc.DatasetActionMFM
+- id: parameter_electricity_emission_factor
+  name: Sähkön päästökerroin
+  name_en: Electricity emission factor
+  type: simple.ParameterAction
   group: parameters
-  unit: t/GWh
+  unit: t_co2e/GWh
   quantity: emission_factor
-  input_dimensions: [energy_carrier, ghg, heating]
-  output_dimensions: [energy_carrier, ghg, heating]
+  input_dimensions: []
+  output_dimensions: []
   params:
-  - id: action
-    value: Shift to Low-Carbon in National Electricity Production
-  - id: target_value
-    values:
-      default: 0
-    min_value: -20
-    max_value: 0
-    step: 1
-    unit: t/GWh
-    description: Sähköntuotannon päästökertoimen muutos
-    description_en: Change in electricity production emission factor
-  - id: target_metric
-    value: Value
-  input_datasets:
-  - id: gpc/tampere_simple_actions
-    forecast_from: 2024
+  - id: to_value
+    value: 20.07666
+    min_value: 10.0
+    max_value: 40.0
+    step: 1.0
+    unit: t_co2e/GWh
+    description: Sähkön päästökerroin
+    description_en: Electricity emission factor
+  - id: constant
+    value: -20.07666
+    unit: t_co2e/GWh
+  - id: default_value
+    value: 0.0
+    unit: t_co2e/GWh
   output_nodes:
-  - id: reduce_electricity_emission_factors
+  - id: heating_electricity_emission_factor_impact
+    tags: [impact]
+  - id: industrial_electricity_emission_factors
+    to_dimensions:
+    - id: energy_carrier
+      categories: ['electricity']
+    - id: ghg
+      categories: ['co2e']
+    - id: scope
+      categories: ['scope2']
+  - id: other_electricity_emission_factors
+    to_dimensions:
+    - id: energy_carrier
+      categories: ['electricity']
+    - id: ghg
+      categories: ['co2e']
+    - id: scope
+      categories: ['scope2']
 
 - id: parameter_discount_rate
   name: Diskonttokorko
@@ -6364,8 +6362,6 @@ scenarios:
   - id: change_streetlights_to_led.enabled
     value: true
   - id: energy_efficiency_of_new_construction.enabled
-    value: true
-  - id: shift_to_low_carbon_in_national_electricity_production.enabled
     value: true
   - id: parameter_discount_rate.enabled
     value: true
