@@ -7,6 +7,11 @@ Produce the input in kausal-importers:
 Preview in kausal-paths, then add --apply to persist:
     python manage.py load_bisko_demo /tmp/ksp-dashboards.parquet
 
+For a deployment without the reference instance, export the prior locally:
+    python manage.py load_bisko_demo --export-prior /tmp/mainz-prior.parquet
+Then copy that file to the deployment and use it:
+    python manage.py load_bisko_demo /tmp/ksp-dashboards.parquet --prior /tmp/mainz-prior.parquet --apply
+
 All demo-specific processing lives here so this command can be removed as one file.
 The split uses the local mainz-bisko instance's mainz/final_energy dataset for 2018
 as its prior. Rows before 2000 are excluded. Existing matching demo cells are skipped;
@@ -97,12 +102,60 @@ def mainz_prior() -> dict[tuple[str, str], float]:
         if key in prior or key[0] not in SECTORS or key[1] not in CARRIERS or point.value is None:
             raise ValueError(f'Unexpected Mainz 2018 prior cell {key}')
         prior[key] = float(point.value)
+    validate_prior(prior)
+    return prior
+
+
+def validate_prior(prior: dict[tuple[str, str], float]) -> None:
+    """Require a complete, finite, nonnegative reference grid with some energy."""
     expected = {(sector, carrier) for sector in SECTORS for carrier in CARRIERS}
     if set(prior) != expected:
-        raise ValueError(f'Mainz 2018 prior has {len(prior)} cells, expected {len(expected)}')
+        raise CommandError(f'Prior must contain exactly the {len(expected)} expected sector/carrier cells')
     if any(not math.isfinite(value) or value < 0 for value in prior.values()):
-        raise ValueError('Mainz 2018 prior contains an invalid value')
+        raise CommandError('Prior contains a negative or nonfinite value')
+    if sum(prior.values()) <= 0:
+        raise CommandError('Prior must contain some positive energy')
+
+
+def read_prior(path: Path) -> dict[tuple[str, str], float]:
+    """Read the exported Mainz 2018 grid without accessing the reference instance."""
+    if path.suffix.lower() == '.csv':
+        frame = pl.read_csv(path)
+    elif path.suffix.lower() == '.parquet':
+        frame = pl.read_parquet(path)
+    else:
+        raise CommandError('Prior file must be .csv or .parquet')
+    required = {'sector', 'energy_carrier', 'value_mwh_per_year', 'year', 'unit'}
+    if missing := required - set(frame.columns):
+        raise CommandError(f'Prior file lacks columns: {sorted(missing)}')
+    if set(frame['year']) != {2018} or set(frame['unit']) != {'MWh/a'}:
+        raise CommandError('Prior file must contain the 2018 reference grid in MWh/a')
+    prior: dict[tuple[str, str], float] = {}
+    for sector, carrier, value in frame.select('sector', 'energy_carrier', 'value_mwh_per_year').iter_rows():
+        key = (sector, carrier)
+        if key in prior or value is None:
+            raise CommandError(f'Duplicate or empty prior cell: {key}')
+        prior[key] = float(value)
+    validate_prior(prior)
     return prior
+
+
+def export_prior(path: Path) -> None:
+    """Export only the reference grid; leave demo instances and accounts untouched."""
+    if path.suffix.lower() not in ('.csv', '.parquet'):
+        raise CommandError('Export file must be .csv or .parquet')
+    if path.exists():
+        raise CommandError(f'Refusing to overwrite {path}')
+    prior = mainz_prior()
+    frame = pl.DataFrame([
+        {'sector': sector, 'energy_carrier': carrier, 'value_mwh_per_year': value, 'year': 2018, 'unit': 'MWh/a'}
+        for (sector, carrier), value in sorted(prior.items())
+    ])
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if path.suffix.lower() == '.csv':
+        frame.write_csv(path)
+    else:
+        frame.write_parquet(path)
 
 
 def dashboard_margins(frame: pl.DataFrame) -> tuple[dict[str, float], dict[str, float]]:
@@ -150,7 +203,7 @@ def fit_margins(
     raise ValueError(f'Margin fitting did not converge; residual={error}')
 
 
-def build_cells(frame: pl.DataFrame, *, min_year: int) -> pl.DataFrame:
+def build_cells(frame: pl.DataFrame, *, min_year: int, prior: dict[tuple[str, str], float] | None = None) -> pl.DataFrame:
     required = {'ags', 'year', 'field_key', 'unit', 'value'}
     if missing := required - set(frame.columns):
         raise ValueError(f'Dashboard Parquet lacks columns: {sorted(missing)}')
@@ -160,7 +213,9 @@ def build_cells(frame: pl.DataFrame, *, min_year: int) -> pl.DataFrame:
         raise ValueError('Dashboard Parquet does not contain all three target cities')
     if target.select('ags', 'year', 'field_key').unique().height != target.height:
         raise ValueError('Dashboard Parquet contains duplicate fields')
-    prior = mainz_prior()
+    if prior is None:
+        prior = mainz_prior()
+    validate_prior(prior)
     records: list[dict[str, str | int | float]] = []
     needed = set(SECTORS.values()) | {key for keys in CARRIERS.values() for key in keys}
     for (ars, year), group in target.group_by('ags', 'year'):
@@ -212,7 +267,7 @@ def already_loaded(instance: InstanceConfig, dataset: Dataset, city: pl.DataFram
     return False
 
 
-def load_city(instance: InstanceConfig, city: pl.DataFrame, *, source_digest: str) -> int:
+def load_city(instance: InstanceConfig, city: pl.DataFrame, *, source_digest: str, prior_digest: str | None = None) -> int:
     dataset = Dataset.objects.for_instance_config(instance).get(identifier='kommune/endenergieverbrauch')
     if dataset.schema is None:
         raise ValueError(f'{instance.identifier}: energy dataset has no schema')
@@ -264,7 +319,8 @@ def load_city(instance: InstanceConfig, city: pl.DataFrame, *, source_digest: st
         description=(
             'Synthetic sector-by-carrier cells. Published Klimaschutz-Planer dashboard sector and carrier totals '
             'were fitted using Mainz 2018 as a prior. These are estimates for demonstration, not reported inventory cells. '
-            f'Input Parquet SHA-256: {source_digest}'
+            f'Input Parquet SHA-256: {source_digest}. '
+            + (f'Prior file SHA-256: {prior_digest}' if prior_digest else 'Prior read from local mainz/final_energy 2018.')
         ),
         url='https://dashboard-be.klimaschutz-planer.de/v1/communes',
     )
@@ -293,14 +349,28 @@ class Command(BaseCommand):
     help = 'Load demo energy data and grant test-account access for Osnabrück, Bendorf and Rathenow; dry run by default.'
 
     def add_arguments(self, parser: ArgumentParser) -> None:
-        parser.add_argument('staging_file', type=Path, help='Parquet produced by kausal-importers germany ksp-dashboards.')
+        parser.add_argument('staging_file', nargs='?', type=Path, help='Parquet from kausal-importers germany ksp-dashboards.')
+        parser.add_argument('--prior', type=Path, help='Exported Mainz 2018 CSV or Parquet; bypasses the local Mainz instance.')
+        parser.add_argument('--export-prior', type=Path, help='Export the local Mainz 2018 grid to CSV or Parquet and exit.')
         parser.add_argument('--min-year', type=int, default=2000)
         parser.add_argument('--apply', action='store_true', help='Persist the three demo instances, values and test-user grants.')
 
     def handle(self, *args: Any, **options: Any) -> None:
-        source: Path = options['staging_file']
+        if options['export_prior'] is not None:
+            if options['staging_file'] is not None or options['prior'] is not None or options['apply']:
+                raise CommandError('--export-prior cannot be combined with a staging file, --prior or --apply')
+            export_prior(options['export_prior'])
+            self.stdout.write(f'Exported 60 Mainz 2018 prior cells to {options["export_prior"]}')
+            return
+        if options['staging_file'] is None:
+            raise CommandError('Provide a dashboard Parquet file, or use --export-prior to export the reference grid')
+        self._load_demo(options['staging_file'], options['prior'], min_year=options['min_year'], apply=options['apply'])
+
+    def _load_demo(self, source: Path, prior_path: Path | None, *, min_year: int, apply: bool) -> None:
         source_digest = hashlib.sha256(source.read_bytes()).hexdigest()
-        frame = build_cells(pl.read_parquet(source), min_year=options['min_year'])
+        prior = read_prior(prior_path) if prior_path is not None else mainz_prior()
+        prior_digest = hashlib.sha256(prior_path.read_bytes()).hexdigest() if prior_path is not None else None
+        frame = build_cells(pl.read_parquet(source), min_year=min_year, prior=prior)
         framework = Framework.objects.get(identifier='bisko')
         identifiers = OrganizationIdentifier.objects.filter(
             namespace__identifier='ars',
@@ -327,12 +397,12 @@ class Command(BaseCommand):
             for ars in TARGET_ARS:
                 city = frame.filter(pl.col('ars') == ars)
                 config, created = activate_bisko_municipality(framework, organizations[ars])
-                count = load_city(config.instance_config, city, source_digest=source_digest)
+                count = load_city(config.instance_config, city, source_digest=source_digest, prior_digest=prior_digest)
                 results.append(f'{config.instance_config.identifier}: {count} new estimated cells, created={created}')
                 results.extend(grant_demo_access(framework, organizations[ars], test_users[ars]))
-            if not options['apply']:
+            if not apply:
                 transaction.set_rollback(True)
         for result in results:
             self.stdout.write(result)
-        if not options['apply']:
+        if not apply:
             self.stdout.write('Dry run: all database changes rolled back.')
