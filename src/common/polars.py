@@ -10,6 +10,7 @@ from warnings import deprecated
 import polars as pl
 from polars._utils.parse import parse_into_list_of_expressions
 
+from common.qualifiers import qualified_metric, qualifier_column, qualifier_columns
 from nodes.constants import FORECAST_COLUMN, TIME_INTERVAL, VALUE_COLUMN, YEAR_COLUMN
 from nodes.units import Quantity, Unit, unit_registry
 
@@ -142,6 +143,11 @@ class PathsDataFrame(pl.DataFrame):
     def metric_cols(self) -> list[str]:
         return list(self._units.keys())
 
+    @property
+    def qualifier_cols(self) -> dict[str, str]:
+        """Map each metric column that carries a qualifier to its qualifier column; see `common.qualifiers`."""
+        return qualifier_columns(self.columns, list(self._units.keys()))
+
     def replace_meta(self, meta: DataFrameMeta):
         return self._from_pydf(self._df, meta=meta, source_df=self)
 
@@ -166,6 +172,12 @@ class PathsDataFrame(pl.DataFrame):
         units = dict(meta.units)
         primary_keys = list(meta.primary_keys)
         assert not callable(mapping)
+        # A metric's qualifier is paired by name, so it is renamed along with the metric.
+        quals = self.qualifier_cols
+        mapping = dict(mapping)
+        for old_col, new_col in list(mapping.items()):
+            if old_col in quals and quals[old_col] not in mapping:
+                mapping[quals[old_col]] = qualifier_column(new_col)
         for old_col, new_col in mapping.items():
             if old_col in meta.units:
                 units[new_col] = meta.units[old_col]
@@ -183,6 +195,9 @@ class PathsDataFrame(pl.DataFrame):
     ) -> PathsDataFrame:
         meta = self.get_meta()
         df = super().drop(*columns, strict=strict)
+        orphaned = [qual for metric, qual in self.qualifier_cols.items() if metric not in df.columns and qual in df.columns]
+        if orphaned:
+            df = pl.DataFrame.drop(df, orphaned)
         for col in list(meta.units.keys()):
             if col not in df.columns:
                 del meta.units[col]
@@ -198,12 +213,27 @@ class PathsDataFrame(pl.DataFrame):
                 continue
             output_col = expr.meta_output_name()
             root_cols = expr.meta_root_names()
+            if qualified_metric(output_col) is not None:
+                meta.units.pop(output_col, None)
+                continue
             if output_col in units:
                 meta.units[output_col] = units[output_col]
                 continue
             if len(root_cols) == 1 and root_cols[0] in meta.units:
                 meta.units[output_col] = meta.units[root_cols[0]]
         return meta
+
+    def qualified(self, cols: Sequence[str]) -> list[str]:
+        """
+        Return ``cols`` with the qualifier of every metric among them appended, for a projection that keeps them.
+
+        A projection returns exactly the columns it names, so a qualifier survives one only when
+        asked for: a caller building several frames to stack them must get the same columns from
+        each. See `common.qualifiers`.
+        """
+        quals = self.qualifier_cols
+        extra = [quals[col] for col in cols if col in quals and quals[col] not in cols]
+        return [*cols, *extra]
 
     def select(  # type: ignore[override]
         self,
@@ -232,7 +262,7 @@ class PathsDataFrame(pl.DataFrame):
         cols = [*self._primary_keys, *metric_cols]
         if FORECAST_COLUMN in self.columns:
             cols.append(FORECAST_COLUMN)
-        df = self.select(cols)
+        df = self.select(self.qualified(cols))
         if rename is not None:
             df = df.rename(dict(zip(metric_cols, rename, strict=True)))
         return df
@@ -541,7 +571,10 @@ class PathsDataFrame(pl.DataFrame):
 
         if meta is None:
             meta = self.get_meta()
-        df = super().to_pandas(*args, date_as_object=date_as_object, **kwargs)
+        # Qualifiers stay behind: pandas frames are the legacy path, and nothing there knows them.
+        quals = list(self.qualifier_cols.values())
+        source = pl.DataFrame.drop(self, quals) if quals else self
+        df = pl.DataFrame.to_pandas(source, *args, date_as_object=date_as_object, **kwargs)
         primary_keys = meta.primary_keys if meta else self._primary_keys
         units = meta.units if meta else self._units
         if primary_keys:

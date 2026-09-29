@@ -381,6 +381,28 @@ def _apply_declared_dataset_editability(
         dataset.schema.save(update_fields=['is_editable'])
 
 
+def _apply_declared_default_quality(dataset: DatasetModel, metadata: DatasetMeta) -> None:
+    """
+    Store the dataset's declared default grade, or remove one the declaration no longer names.
+
+    The module is authoritative for the datasets it declares, as for their editability; the
+    difference is that there is no database default to fall back on, so an absent declaration
+    means no default rather than whatever the row holds.
+    """
+    from frameworks.evidence import DEFAULT_QUALITY_SPEC_KEY
+
+    spec = dict(dataset.spec or {})
+    declared = metadata.default_quality.model_dump() if metadata.default_quality is not None else None
+    if spec.get(DEFAULT_QUALITY_SPEC_KEY) == declared:
+        return
+    if declared is None:
+        spec.pop(DEFAULT_QUALITY_SPEC_KEY, None)
+    else:
+        spec[DEFAULT_QUALITY_SPEC_KEY] = declared
+    dataset.spec = spec
+    dataset.save(update_fields=['spec'])
+
+
 def _sync_dataset_metadata_from_snapshot(ic: InstanceConfig, snapshot: InstanceSnapshot) -> None:
     """
     Reconcile schema editability and metric validation rules declared under ``datasets``.
@@ -418,6 +440,7 @@ def _sync_dataset_metadata_from_snapshot(ic: InstanceConfig, snapshot: InstanceS
         if dataset.schema is None:
             raise ValueError(f"dataset '{ds_id}' has no schema")
         _apply_declared_dataset_editability(dataset, ds_meta, declared_schema_editability)
+        _apply_declared_default_quality(dataset, ds_meta)
         domain_changed = _apply_declared_category_domain(
             ic,
             dataset,

@@ -158,6 +158,18 @@ def test_datasets_key_parses_into_typed_catalog_entries():
     with pytest.raises(InstanceParseError, match=r'is_editable.*must be a boolean'):
         parse_instance_snapshot(bad, instance_uuid=instance_uuid)
 
+    assert ds_meta.default_quality is None
+    graded = dict(config)
+    graded['datasets'] = [{'id': 'test/energy', 'default_quality': {'scheme': 'bisko', 'level': 'B'}}]
+    (graded_meta,) = parse_instance_snapshot(graded, instance_uuid=instance_uuid).datasets
+    assert graded_meta.default_quality is not None
+    assert (graded_meta.default_quality.scheme, graded_meta.default_quality.level) == ('bisko', 'B')
+
+    bad = dict(config)
+    bad['datasets'] = [{'id': 'test/energy', 'default_quality': 'B'}]
+    with pytest.raises(InstanceParseError, match='must name a scheme and a level'):
+        parse_instance_snapshot(bad, instance_uuid=instance_uuid)
+
 
 def _action_snapshot(*, params: list[dict[str, Any]] | None = None) -> InstanceSnapshot:
     action: dict[str, Any] = {

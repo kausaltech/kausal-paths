@@ -39,7 +39,7 @@ from nodes.defs.transform_def import (
     with_forecast_from,
 )
 from nodes.exceptions import DatasetError
-from nodes.transforms import PipelineEnv, apply_port_transformations
+from nodes.transforms import PipelineEnv, QualifierSource, apply_port_transformations
 from nodes.units import Unit, unit_registry
 
 from .constants import (
@@ -117,6 +117,8 @@ class Dataset(ABC):
     tags: list[str] = field(default_factory=list)
     transformations: list[PortTransformOp] = field(default_factory=list)
     """The binding's complete ordered transformation recipe."""
+    qualifier_source: QualifierSource | None = None
+    """Where the selected values get their qualifiers; None for a dataset that says nothing about them."""
     df: ppl.PathsDataFrame | None = field(init=False, repr=False, default=None)
     hash: bytes | None = field(init=False, repr=False, default=None)
 
@@ -342,12 +344,16 @@ class DatasetWithFilters(Dataset, ABC):
 
     def pipeline_hash_data(self) -> dict[str, Any]:
         """Return the complete recipe and runtime inputs used to materialize this binding."""
-        return {
+        data: dict[str, Any] = {
             'column': self.column,
             'unit': str(self.unit) if self.unit is not None else None,
             'forecast_from': self.forecast_from,
             'transformations': [op.cache_hash_data(self.context) for op in self.transformations],
         }
+        # Only when set, so the cache keys of datasets without qualifiers stay as they were.
+        if self.qualifier_source is not None:
+            data['qualifiers'] = self.qualifier_source.hash_data()
+        return data
 
     @measure_dataset_call('dataset.filter', capture_df_result=True, capture_df_arg=True)
     def _filter_and_process_df(self, df: ppl.PathsDataFrame, *, prepared_prefix_length: int = 0) -> ppl.PathsDataFrame:
@@ -642,6 +648,7 @@ class DVCDataset(DatasetWithFilters):
             'column': self.column,
             'empty_to_zero': 'empty_to_zero' in self.tags,
             'operations': [op.cache_hash_data(self.context) for op in self.transformations[: self.prepared_prefix_length()]],
+            **({'qualifiers': self.qualifier_source.hash_data()} if self.qualifier_source is not None else {}),
         })
 
     @measure_dataset_call('dataset.prepare', capture_df_result=False)
