@@ -132,7 +132,11 @@ msgstr "Niedrig"
 msgid "Framework admins"
 msgstr "Rahmen-Admins"
 
-#: frameworks/roles.py nodes/roles.py
+#: nodes/roles.py
+msgid "Full access to the instance, including inviting, suspending and changing the roles of its members"
+msgstr "Voller Zugriff auf die Instanz, einschließlich Einladen, Sperren und Ändern der Rollen ihrer Mitglieder"
+
+#: frameworks/roles.py
 msgid "Administrative access to the instance without permissions to manage people and organizations"
 msgstr "Administrativer Zugriff auf die Instanz ohne Berechtigung zur Verwaltung von Personen und Organisationen"
 
