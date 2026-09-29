@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterable
 
     from datasets.coordinates import DatasetCoordinate
-    from datasets.plausibility import PlausibilityFinding
+    from datasets.plausibility import PlausibilityAttribution, PlausibilityFinding
     from datasets.validation import RuleViolation
 
 
@@ -95,6 +95,36 @@ class DatasetValidationViolationType(InstanceProblemInterface, DatasetFindingInt
         )
 
 
+@sb.type(
+    name='PlausibilityAttribution',
+    description=(
+        'The one cell that explains a sum finding: with its value in comparedYear, the sum alone would be back '
+        'in range. Absent when no cell, or more than one, does so on its own.'
+    ),
+)
+class PlausibilityAttributionType:
+    year: int = sb.field(
+        description=(
+            "The year whose value is suspect. Usually the finding's year; for a spike it is the year before, "
+            'and the finding is the return to normal.'
+        )
+    )
+    compared_year: int
+    coordinates: list[DatasetDimensionCoordinateType]
+    combination_ids: list[UUID]
+    message: str = sb.field(description='Untranslated human-readable fallback.')
+
+    @classmethod
+    def from_attribution(cls, attribution: PlausibilityAttribution) -> Self:
+        return cls(
+            year=attribution.year,
+            compared_year=attribution.compared_year,
+            coordinates=[DatasetDimensionCoordinateType.from_coordinate(coordinate) for coordinate in attribution.coordinates],
+            combination_ids=list(attribution.combination_ids),
+            message=attribution.message,
+        )
+
+
 @sb.type(name='DatasetPlausibilityFinding', description='A non-blocking observation outside a reference range.')
 class DatasetPlausibilityFindingType(DatasetFindingInterface):
     code: str
@@ -122,6 +152,9 @@ class DatasetPlausibilityFindingType(DatasetFindingInterface):
     source_revision: str
     rule_revision: int
     is_example: bool
+    attribution: PlausibilityAttributionType | None = sb.field(
+        description='For a sum: the one cell that explains it, when there is one. Group findings by it.'
+    )
 
     @classmethod
     def from_finding(cls, finding: PlausibilityFinding) -> Self:
@@ -155,6 +188,7 @@ class DatasetPlausibilityFindingType(DatasetFindingInterface):
             source_revision=finding.source_revision,
             rule_revision=finding.rule_revision,
             is_example=finding.is_example,
+            attribution=PlausibilityAttributionType.from_attribution(finding.attribution) if finding.attribution else None,
         )
 
 

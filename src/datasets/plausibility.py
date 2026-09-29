@@ -27,6 +27,24 @@ if TYPE_CHECKING:
 Range = DatasetMetricPlausibilityRange
 
 
+class PlausibilityAttribution(BaseModel):
+    """
+    The one cell whose value explains a sum finding.
+
+    A cell explains a sum finding when replacing its value with its value in
+    ``compared_year`` alone brings the sum back into range. A breach that more
+    than one cell could remove on its own is marginal and stays with the sum.
+    """
+
+    year: int
+    """The year whose value is suspect; the year before the finding's own for a spike."""
+    compared_year: int
+    categories: dict[str, str]
+    coordinates: list[DatasetCoordinate]
+    combination_ids: list[UUID] = Field(default_factory=list)
+    message: str
+
+
 class PlausibilityFinding(BaseModel):
     """
     A value, or a sum of values, outside one advisory reference range.
@@ -66,6 +84,7 @@ class PlausibilityFinding(BaseModel):
     rule_revision: int
     is_example: bool
     message: str
+    attribution: PlausibilityAttribution | None = None
 
 
 def _invalid_cell(violations: Iterable[RuleViolation], metric_uuid: UUID, year: int, categories: dict[str, str]) -> bool:
@@ -195,6 +214,9 @@ class _Cells:
     def categories(self, row: dict[str, object]) -> dict[str, str]:
         return {col: str(row[col]) for col in self.dim_cols if row[col] is not None}
 
+    def key(self, categories: dict[str, str]) -> tuple[str, ...]:
+        return tuple(categories.get(col, '') for col in self.dim_cols)
+
     def invalid(self, rule: DatasetMetricPlausibilityRange, year: int, categories: dict[str, str]) -> bool:
         return _invalid_cell(self.violations, rule.metric.uuid, year, categories)
 
@@ -254,6 +276,7 @@ def _finding(
     components: list[dict[str, str]],
     comparison: _Comparison,
     complete: bool,
+    attribution: PlausibilityAttribution | None = None,
 ) -> PlausibilityFinding:
     unit = str(rule.bound_unit)
     value = comparison.normalized
@@ -293,6 +316,7 @@ def _finding(
         rule_revision=rule.revision,
         is_example=rule.source.is_example,
         message=described,
+        attribution=attribution,
     )
 
 
@@ -308,7 +332,7 @@ def _cell_findings(rule: DatasetMetricPlausibilityRange, cells: _Cells) -> list[
         value = row['value']
         if value is None or not math.isfinite(value) or cells.invalid(rule, year, categories):
             continue
-        key = tuple(categories.get(col, '') for col in cells.dim_cols)
+        key = cells.key(categories)
         history.setdefault(key, {})[year] = float(value)
         entered.append((year, categories, key, float(value)))
     findings = []
@@ -329,6 +353,8 @@ class _YearSum:
     total: float
     complete: bool
     components: list[dict[str, str]]
+    values: dict[tuple[str, ...], float | None]
+    """Each selected cell's value by its key; None for an empty cell."""
 
 
 def _year_sums(rule: DatasetMetricPlausibilityRange, cells: _Cells) -> dict[int, _YearSum]:
@@ -351,7 +377,15 @@ def _year_sums(rule: DatasetMetricPlausibilityRange, cells: _Cells) -> dict[int,
         entered = [float(value) for value in values.to_list() if value is not None]
         if not entered or not all(math.isfinite(value) for value in entered):
             continue
-        sums[year_int] = _YearSum(total=math.fsum(entered), complete=values.null_count() == 0, components=components)
+        sums[year_int] = _YearSum(
+            total=math.fsum(entered),
+            complete=values.null_count() == 0,
+            components=components,
+            values={
+                cells.key(categories): None if value is None else float(value)
+                for categories, value in zip(components, values.to_list(), strict=True)
+            },
+        )
     return sums
 
 
@@ -361,34 +395,100 @@ def _fixed_categories(rule: DatasetMetricPlausibilityRange, cells: _Cells) -> di
     return {coordinate.dimension: coordinate.category for coordinate in cells.coordinate_index.resolve_selection(single)}
 
 
+def _within(rule: DatasetMetricPlausibilityRange, normalized: float, complete: bool) -> bool:
+    # An incomplete sum only grows as cells are filled in, so only its upper bound means anything.
+    return normalized <= rule.upper and (not complete or normalized >= rule.lower)
+
+
+def _explaining_cell(
+    rule: DatasetMetricPlausibilityRange,
+    cells: _Cells,
+    sums: dict[int, _YearSum],
+    history: dict[int, float],
+    year: int,
+    comparison: _Comparison,
+) -> tuple[tuple[str, ...], int] | None:
+    """
+    Find the one cell whose value, replaced by its value in the compared year, brings the sum into range.
+
+    The compared year is the reference year of a previous-year range, and the year
+    before for an absolute one. Returns the cell's key and the compared year.
+    """
+    compared_year = comparison.reference_year if rule.reference == Range.Reference.PREVIOUS_YEAR else year - 1
+    current, earlier = sums[year], sums.get(compared_year) if compared_year is not None else None
+    if compared_year is None or earlier is None:
+        return None
+    explaining = []
+    for key, value in current.values.items():
+        replacement = earlier.values.get(key)
+        if value is None or replacement is None or value == replacement:
+            continue
+        counterfactual = _compare(rule, cells, year, current.total - value + replacement, history)
+        if counterfactual is not None and _within(rule, counterfactual.normalized, current.complete):
+            explaining.append(key)
+    return (explaining[0], compared_year) if len(explaining) == 1 else None
+
+
+def _attribution(
+    cells: _Cells, categories: dict[str, str], *, year: int, suspect_year: int, compared_year: int
+) -> PlausibilityAttribution:
+    if suspect_year == year:
+        message = f'With its {compared_year} value, this cell would bring the sum back into range.'
+    else:
+        message = (
+            f'The {suspect_year} value of this cell is out of line with the years around it; '
+            f'the change in {year} is a return to them.'
+        )
+    return PlausibilityAttribution(
+        year=suspect_year,
+        compared_year=compared_year,
+        categories=categories,
+        coordinates=cells.coordinate_index.resolve(categories),
+        combination_ids=cells.combination_ids([categories]),
+        message=message,
+    )
+
+
 def _sum_findings(rule: DatasetMetricPlausibilityRange, cells: _Cells) -> list[PlausibilityFinding]:
     sums = _year_sums(rule, cells)
     # A ratio between partial sums says nothing about either year.
     history = {year: year_sum.total for year, year_sum in sums.items() if year_sum.complete}
     fixed = _fixed_categories(rule, cells)
-    findings = []
+    breaches: list[tuple[int, _Comparison, tuple[tuple[str, ...], int] | None]] = []
     for year, year_sum in sorted(sums.items()):
         if not _in_years(rule, year):
             continue
         if rule.reference == Range.Reference.PREVIOUS_YEAR and not year_sum.complete:
             continue
         comparison = _compare(rule, cells, year, year_sum.total, history)
-        if comparison is None:
+        if comparison is None or _within(rule, comparison.normalized, year_sum.complete):
             continue
-        too_high = comparison.normalized > rule.upper
-        # An incomplete sum only grows as cells are filled in, so only its upper bound means anything.
-        too_low = comparison.normalized < rule.lower and year_sum.complete
-        if not (too_high or too_low):
-            continue
+        breaches.append((year, comparison, _explaining_cell(rule, cells, sums, history, year, comparison)))
+
+    # A spike breaks two consecutive ratios in opposite directions, and both are explained by the same
+    # cell; the later of them is the return to normal, so it points at the spike's year instead.
+    moves = {year: (explained[0], comparison.normalized > rule.upper) for year, comparison, explained in breaches if explained}
+    findings = []
+    for year, comparison, explained in breaches:
+        attribution = None
+        if explained is not None:
+            key, compared_year = explained
+            suspect_year = year
+            earlier = moves.get(compared_year)
+            if rule.reference == Range.Reference.PREVIOUS_YEAR and earlier == (key, comparison.normalized < rule.lower):
+                suspect_year = compared_year
+            categories = next(c for c in sums[year].components if cells.key(c) == key)
+            attribution = _attribution(cells, categories, year=year, suspect_year=suspect_year, compared_year=compared_year)
         findings.append(
             _finding(
                 rule,
                 cells,
                 year=year,
                 categories=fixed,
-                components=year_sum.components,
+                components=sums[year].components,
                 comparison=comparison,
-                complete=year_sum.complete,
+                complete=sums[year].complete,
+                attribution=attribution,
             )
         )
     return findings
