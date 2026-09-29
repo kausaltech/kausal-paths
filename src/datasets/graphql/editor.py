@@ -32,12 +32,12 @@ from kausal_common.users import user_or_bust
 
 from paths import gql
 
+from datasets.change_snapshots import data_point_snapshot
 from datasets.materialization import refresh_dataset_materialization
 from datasets.plausibility import evaluate_dataset_plausibility
 from datasets.validation_rules import ValidationRule, ValidationRuleSpecInput
 from frameworks.evidence import (
     UNCHANGED,
-    evidence_snapshot,
     is_projected_metric,
     resolve_quality_level,
     set_evidence,
@@ -379,21 +379,6 @@ class DatasetEditorMutation:
         validate_evidence(data_point)
 
     @staticmethod
-    def _data_point_snapshot(dp: DataPoint) -> dict[str, Any]:
-        """Lightweight snapshot for change tracking."""
-        # Decimal → float: JSONField can't serialize Decimal natively and
-        # DataPoint values don't need cents-grade precision.
-        return {
-            'uuid': str(dp.uuid),
-            'dataset_uuid': str(dp.dataset.uuid),
-            'date': dp.date.isoformat() if dp.date else None,
-            'value': float(dp.value) if dp.value is not None else None,
-            'metric_uuid': str(dp.metric.uuid) if dp.metric else None,
-            'dimension_category_uuids': [str(cat.uuid) for cat in dp.dimension_categories.all()],
-            'evidence': evidence_snapshot(dp),
-        }
-
-    @staticmethod
     def _require_batch(input: list[Any]) -> None:
         if not input:
             raise ValidationError('At least one data point is required')
@@ -430,7 +415,7 @@ class DatasetEditorMutation:
                         data_point,
                         action='dataset.datapoint.create',
                         before=None,
-                        after=DatasetEditorMutation._data_point_snapshot(data_point),
+                        after=data_point_snapshot(data_point),
                     )
                     created.append(data_point)
                 DatasetEditorMutation._save_dataset(root, info, dataset=dataset)
@@ -486,14 +471,14 @@ class DatasetEditorMutation:
                     if not serializer.is_valid():
                         _raise_serializer_errors(serializer)
 
-                    before = DatasetEditorMutation._data_point_snapshot(data_point)
+                    before = data_point_snapshot(data_point)
                     updated = serializer.save(last_modified_by=user)
                     DatasetEditorMutation._apply_evidence(dataset, updated, item.input, user)
                     record_change(
                         updated,
                         action='dataset.datapoint.update',
                         before=before,
-                        after=DatasetEditorMutation._data_point_snapshot(updated),
+                        after=data_point_snapshot(updated),
                     )
                     updated_data_points.append(updated)
                 DatasetEditorMutation._save_dataset(root, info, dataset=dataset)
@@ -554,7 +539,7 @@ class DatasetEditorMutation:
                     record_change(
                         data_point,
                         action='dataset.datapoint.delete',
-                        before=DatasetEditorMutation._data_point_snapshot(data_point),
+                        before=data_point_snapshot(data_point),
                         after=None,
                     )
                     data_point.delete()
