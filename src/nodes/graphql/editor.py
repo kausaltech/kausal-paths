@@ -51,9 +51,9 @@ from paths import gql
 from paths.identifiers import identifier_or_none
 
 from datasets.materialization import refresh_dataset_materialization
-from datasets.year_slots import ensure_empty_year
 from frameworks.catalogue import dimension_scopes, schema_scopes
 from frameworks.models import Framework
+from nodes import inventory_years
 from nodes.change_ops import gql_change_operation, record_change
 from nodes.constraints.validation import BindingChange, InstanceConstraintError
 from nodes.defs import ActionGroup, FormulaConfig, SimpleConfig
@@ -1607,10 +1607,44 @@ class NodeEditorMutation:
 
 
 @sb.type
-class BeginInventoryYearResult:
+class InventoryYearsChange:
     year: int
+    min_historical: int = sb.field(description='The first historical year after this change.')
+    max_historical: int = sb.field(description='The last historical year after this change.')
+    historical: list[int] = sb.field(description='The inventory years after this change.')
+
+    @staticmethod
+    def fields(year: int, years: inventory_years.InventoryYears) -> dict[str, Any]:
+        return {
+            'year': year,
+            'min_historical': years.min_historical,
+            'max_historical': years.max_historical,
+            'historical': sorted(years.years),
+        }
+
+
+@sb.type
+class AddInventoryYearResult(InventoryYearsChange):
     created_cells: int
-    submission_id: sb.ID | None
+
+
+@sb.type
+class RemoveInventoryYearResult(InventoryYearsChange):
+    deleted_cells: int
+
+
+@sb.type(
+    description=(
+        'The year was not removed because its cells hold entered work. Repeat with force to delete it; '
+        'the counts say what would be lost.'
+    )
+)
+class InventoryYearNotEmpty:
+    year: int
+    values: int = sb.field(description='Cells with a value.')
+    evidence: int = sb.field(description='Cells with an evidence kind or quality grade.')
+    comments: int
+    source_references: int
 
 
 @sb.type
@@ -1618,47 +1652,49 @@ class InstanceEditorMutation:
     instance: sb.Private[InstanceConfig]
     type Me = InstanceEditorMutation
 
-    @gql.mutation(description='Begin the next historical inventory year and create blank local input cells.')
+    @gql.mutation(
+        description=(
+            'Add a historical inventory year and create blank local input cells for it. A year outside the '
+            'historical span widens the span; the years it jumps over are skipped. An added year is checked by '
+            'the dataset rules like any year with data.'
+        )
+    )
     @staticmethod
-    def begin_inventory_year(info: gql.Info, root: sb.Parent[Me], year: int) -> 'BeginInventoryYearResult':
-        from frameworks import submissions
-
+    def add_inventory_year(info: gql.Info, root: sb.Parent[Me], year: int) -> AddInventoryYearResult:
         ic = root.instance
         ic.ensure_gql_action_allowed(info, 'change')
-        user = _require_user(info)
-        with gql_change_operation(info, ic, action='inventory.year.begin'):
-            ic.refresh_from_db()
-            years = ic.ensure_spec().years
-            current = years.max_historical or years.reference
-            if current is None or year != current + 1:
-                raise GraphQLValidationError(info, f'Expected the year after {current}.')
-            if years.model_end is not None and year > years.model_end:
-                raise GraphQLValidationError(info, f'{year} exceeds the model end year {years.model_end}.')
+        with gql_change_operation(info, ic, action='inventory.year.add'):
+            added = inventory_years.add_inventory_year(ic, year)
+        return AddInventoryYearResult(
+            **InventoryYearsChange.fields(added.year, added.inventory_years), created_cells=added.created_cells
+        )
 
-            sources: dict[str, Dataset] = {}
-            if ic.has_framework_config() and (template := ic.framework_config.framework.template_instance) is not None:
-                sources = {
-                    dataset.identifier: dataset
-                    for dataset in Dataset.objects.for_instance_config(template)
-                    if dataset.identifier is not None
-                }
-            created_cells = 0
-            for dataset in Dataset.objects.for_instance_config(ic).select_related('schema'):
-                prototype = sources.get(dataset.identifier) if dataset.identifier is not None else None
-                created_cells += ensure_empty_year(dataset, year, prototype=prototype)
-
-            ic.update_years(max_historical=year)
-            submission = submissions.create_submission(ic, period_start=year, user=user) if ic.has_framework_config() else None
-            record_change(
-                ic,
-                action='inventory.year.begin',
-                before={'max_historical': current},
-                after={'max_historical': year, 'created_cells': created_cells},
+    @gql.mutation(
+        description=(
+            'Remove a historical inventory year and delete its local cells. A year whose cells hold values, '
+            'evidence, comments or source references is left alone unless force is set, and '
+            'InventoryYearNotEmpty says what it holds. An inner year becomes skipped; the first or last year '
+            'shrinks the span to the nearest remaining inventory year. A year with a submission cannot be removed.'
+        )
+    )
+    @staticmethod
+    def remove_inventory_year(
+        info: gql.Info, root: sb.Parent[Me], year: int, force: bool = False
+    ) -> RemoveInventoryYearResult | InventoryYearNotEmpty:
+        ic = root.instance
+        ic.ensure_gql_action_allowed(info, 'change')
+        with gql_change_operation(info, ic, action='inventory.year.remove'):
+            removed = inventory_years.remove_inventory_year(ic, year, force=force)
+        if isinstance(removed, inventory_years.YearContents):
+            return InventoryYearNotEmpty(
+                year=removed.year,
+                values=removed.values,
+                evidence=removed.evidence,
+                comments=removed.comments,
+                source_references=removed.source_references,
             )
-        return BeginInventoryYearResult(
-            year=year,
-            created_cells=created_cells,
-            submission_id=sb.ID(str(submission.uuid)) if submission is not None else None,
+        return RemoveInventoryYearResult(
+            **InventoryYearsChange.fields(removed.year, removed.inventory_years), deleted_cells=removed.deleted_cells
         )
 
     @gql.mutation(description='Replace the local bindings of an effective input port; null restores its default.')
