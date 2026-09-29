@@ -10,6 +10,7 @@ from loguru import logger
 from kausal_common.deployment import env_bool
 
 import common.polars as ppl
+from common import qualifiers
 from nodes.constants import FORECAST_COLUMN, UNCERTAINTY_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from nodes.units import unit_registry
 
@@ -92,8 +93,27 @@ class PathsExt:
     def has_operation(self, op_name: str) -> bool:
         return op_name in self._OPERATION_METHODS
 
+    _FILL_OPERATIONS: ClassVar[frozenset[str]] = frozenset({
+        'add_missing_years',
+        'extend_all',
+        'extend_both_ways',
+        'extend_forecast_values',
+        'extend_to_history',
+        'extend_values',
+        'extrapolate',
+        'fill_metrics_nan_null_zero',
+        'linear_interpolate',
+        'observed_only_extend_all',
+    })
+    """Operations that make values up; their results mark what they made up (``qualifiers.carry_over``)."""
+
     def get_operation(self, op_name: str) -> Callable[..., ppl.PathsDataFrame]:
-        return cast('Callable[..., ppl.PathsDataFrame]', getattr(self, self._OPERATION_METHODS[op_name]))
+        method = cast('Callable[..., ppl.PathsDataFrame]', getattr(self, self._OPERATION_METHODS[op_name]))
+        if op_name == 'empty_to_zero':
+            return lambda df, *args: qualifiers.carry_over(df, method(df, *args), start=True)
+        if op_name in self._FILL_OPERATIONS:
+            return lambda df, *args: qualifiers.carry_over(df, method(df, *args))
+        return method
 
     def to_pandas(self, meta: ppl.DataFrameMeta | None = None) -> pd.DataFrame:
         return self._df.to_pandas(meta=meta)
@@ -386,6 +406,7 @@ class PathsExt:
             .group_by(remaining_keys)
             .agg([
                 *[pl.sum(col).alias(col) for col in sum_cols],
+                *[qualifiers.reduce_sum(metric, qual) for metric, qual in df.qualifier_cols.items()],
                 *fc,
             ])
             .sort(remaining_keys)
@@ -521,6 +542,9 @@ class PathsExt:
             .group_by(remaining_keys)
             .agg([
                 *[pl.mean(col).alias(col) for col in agg_cols],
+                # A mean is a sum scaled by a constant, and the weights of a sum do not change
+                # when every term is scaled by the same constant.
+                *[qualifiers.reduce_sum(metric, qual) for metric, qual in df.qualifier_cols.items()],
                 *fc,
             ])
             .sort(remaining_keys)
@@ -811,11 +835,58 @@ class PathsExt:
         # For addition: how='outer', index_from='left' because we want all rows but not new dimensions
         jdf = df.paths.join_over_index(odf, how=how, index_from='left')
 
-        jdf = jdf.with_columns([(pl.col(val_col).fill_null(0.0) + pl.col(f'{val_col}_right').fill_null(0.0)).alias(val_col)])
+        right_col = f'{val_col}_right'
+        qual_exprs = self._sum_qualifier_exprs(df, odf, val_col, val_col, right_col)
+        jdf = jdf.with_columns([
+            (pl.col(val_col).fill_null(0.0) + pl.col(right_col).fill_null(0.0)).alias(val_col),
+            *qual_exprs,
+        ])
 
         cols = [YEAR_COLUMN, FORECAST_COLUMN, val_col] + df.dim_ids
-        jdf = jdf.select([col for col in cols if col in jdf.columns])
+        jdf = jdf.select(jdf.qualified([col for col in cols if col in jdf.columns]))
         return jdf
+
+    @staticmethod
+    def _joined_qualifiers(
+        left: ppl.PathsDataFrame, right: ppl.PathsDataFrame, metric: str, right_metric: str
+    ) -> tuple[str | None, str | None]:
+        """
+        Name the two sides' qualifiers as they appear once ``left`` and ``right`` are joined.
+
+        Decided from the frames before the join, because the joined frame alone is ambiguous: a
+        join suffixes only a clashing name, so ``Value__qual`` is the right-hand qualifier when the
+        left had none.
+        """
+        left_qual = qualifiers.qualifier_column(metric) if qualifiers.qualifier_column(metric) in left.columns else None
+        right_qual = qualifiers.qualifier_column(right_metric)
+        if right_qual not in right.columns:
+            return left_qual, None
+        if right_qual == left_qual:
+            right_qual = f'{right_qual}_right'
+        return left_qual, right_qual
+
+    def _sum_qualifier_exprs(
+        self, left: ppl.PathsDataFrame, right: ppl.PathsDataFrame, val_col: str, right_metric: str, right_col: str
+    ) -> list[pl.Expr]:
+        """Qualifier of ``left + right``, computed before the values are replaced, if either side has one."""
+        left_qual, right_qual = self._joined_qualifiers(left, right, val_col, right_metric)
+        if left_qual is None and right_qual is None:
+            return []
+        return [qualifiers.combine_sum(qualifiers.qualifier_column(val_col), val_col, left_qual, right_col, right_qual)]
+
+    def _product_qualifier_exprs(self, left: ppl.PathsDataFrame, right: ppl.PathsDataFrame, val_col: str) -> list[pl.Expr]:
+        left_qual, right_qual = self._joined_qualifiers(left, right, val_col, val_col)
+        if left_qual is None and right_qual is None:
+            return []
+        return [qualifiers.combine_product(qualifiers.qualifier_column(val_col), left_qual, right_qual)]
+
+    def _choice_qualifier_exprs(
+        self, left: ppl.PathsDataFrame, right: ppl.PathsDataFrame, out_col: str, right_metric: str, take_left: pl.Expr
+    ) -> list[pl.Expr]:
+        left_qual, right_qual = self._joined_qualifiers(left, right, out_col, right_metric)
+        if left_qual is None and right_qual is None:
+            return []
+        return [qualifiers.choose(qualifiers.qualifier_column(out_col), take_left, left_qual, right_qual)]
 
     def subtract_with_dims(self, odf: ppl.PathsDataFrame, how: Literal['left', 'inner', 'outer'] = 'outer') -> ppl.PathsDataFrame:
         """Subtract two PathsDataFrames with dimension awareness."""
@@ -839,13 +910,14 @@ class PathsExt:
         jdf = df.paths.join_over_index(odf, how=how, index_from='union')
 
         jdf = jdf.with_columns([
-            (pl.col(val_col) * pl.col(f'{val_col}_right')).alias(val_col)  # null factor must give null
+            (pl.col(val_col) * pl.col(f'{val_col}_right')).alias(val_col),  # null factor must give null
+            *self._product_qualifier_exprs(df, odf, val_col),
         ])
 
         new_units = meta.units.copy()
         new_units[val_col] = output_unit
 
-        cols = [FORECAST_COLUMN, val_col] + all_dims
+        cols = [FORECAST_COLUMN, val_col, qualifiers.qualifier_column(val_col)] + all_dims
         jdf = jdf.select([col for col in cols if col in jdf.columns])
 
         new_meta = ppl.DataFrameMeta(primary_keys=all_dims, units=new_units)
@@ -868,12 +940,15 @@ class PathsExt:
 
         jdf = df.paths.join_over_index(odf, how=how, index_from='union')
 
-        jdf = jdf.with_columns([(pl.col(val_col) / pl.col(f'{val_col}_right')).alias(val_col)])
+        jdf = jdf.with_columns([
+            (pl.col(val_col) / pl.col(f'{val_col}_right')).alias(val_col),
+            *self._product_qualifier_exprs(df, odf, val_col),
+        ])
 
         new_units = meta.units.copy()
         new_units[val_col] = output_unit
 
-        cols = [FORECAST_COLUMN, val_col] + all_dims
+        cols = [FORECAST_COLUMN, val_col, qualifiers.qualifier_column(val_col)] + all_dims
         jdf = jdf.select([col for col in cols if col in jdf.columns])
 
         new_meta = ppl.DataFrameMeta(primary_keys=all_dims, units=new_units)
@@ -922,6 +997,10 @@ class PathsExt:
             missing = missing.with_columns(pl.col(FORECAST_COLUMN).fill_null(value=False))
 
         missing = missing.with_columns(pl.lit(fill_value).cast(df.schema[val_col]).alias(val_col))
+        # A category the factor does not speak about has no qualifier: nobody said anything about it.
+        missing = missing.with_columns([
+            pl.lit(None, dtype=qualifiers.QUALIFIER_DTYPE).alias(qual) for qual in df.qualifier_cols.values()
+        ])
         out = pl.concat([pl.DataFrame(df), missing.select(df.columns)], how='vertical')
         return ppl.to_ppdf(out, meta=df.get_meta())
 
@@ -932,9 +1011,10 @@ class PathsExt:
         out_col = df.metric_cols[0]
         input_col = odf.metric_cols[0]
         odf = odf.ensure_unit(input_col, df.get_unit(out_col)).rename({input_col: '_Right'})
+        qual_exprs = self._sum_qualifier_exprs(df, odf, out_col, '_Right', '_Right')
         df = df.paths.join_over_index(odf, how=how)
         expr = (pl.col(out_col).fill_null(0) + pl.col('_Right').fill_null(0)).alias(out_col)
-        df = df.with_columns(expr).drop('_Right')
+        df = df.with_columns(expr, *qual_exprs).drop('_Right')
         return df
 
     # TODO Streamline add_with_dims, multiply_with_dims, add_df, and coalesce_df
@@ -953,11 +1033,13 @@ class PathsExt:
         both_have_forecast = FORECAST_COLUMN in df.columns and FORECAST_COLUMN in odf.columns
         if both_have_forecast:
             odf = odf.rename({FORECAST_COLUMN: '_RightForecast'})
+        qual_exprs = self._choice_qualifier_exprs(df, odf, out_col, '_Right', pl.col(out_col).is_not_null())
         df = df.paths.join_over_index(odf, how=how)
         if debug:
             print(f"In node {id}, column '{out_col}' is prioritised over '_Right' if available.")
             print(df)
         exprs = [pl.coalesce([pl.col(out_col), pl.col('_Right')]).alias(out_col)]
+        exprs.extend(qual_exprs)
         if both_have_forecast:
             # One `with_columns`, so both expressions read the pre-join values of `out_col`:
             # the flag is chosen by which side *supplied* the value, before the value is replaced.
@@ -974,6 +1056,16 @@ class PathsExt:
             df = df.drop('_RightForecast')
         return df
 
+    def _supplied_flags(self, metric_col: str) -> pl.Expr | None:
+        """Return the ``supplied`` field of a metric's qualifier, if the frame has one that says anything."""
+        qual = self._df.qualifier_cols.get(metric_col)
+        if qual is None:
+            return None
+        supplied = pl.col(qual).struct.field(qualifiers.SUPPLIED)
+        if self._df.select(supplied.is_not_null().any()).item() is not True:
+            return None
+        return supplied
+
     def prefer_by_year(self, odf: ppl.PathsDataFrame, coverage: ppl.PathsDataFrame | None = None) -> ppl.PathsDataFrame:
         """
         Take this frame's values for every year it covers, and ``odf``'s values for the years it does not.
@@ -989,19 +1081,24 @@ class PathsExt:
         missing, not something to backfill from the default -- filling it would produce a
         balance that is partly one source and partly the other with no way to tell which.
 
-        ``coverage`` says which years this frame covers, as a frame of flags -- a year is
-        covered when any of its values is non-null and non-zero. **Pass it whenever this frame
-        comes from a dataset binding.** By the time a node's output reaches here it has been
-        through zero-filling, interpolation and extension, so its own values no longer say
-        which years the city actually supplied: an empty template that was zero-filled so the
-        node could compute at all would otherwise claim to cover every year and silence the
-        default entirely. A ``DataAvailabilityNode`` reading the same dataset is the honest
-        answer, because it inspects the dataset before any of that happens -- and it is already
-        the node shown on screen as the city's data availability, so what drives the balance
-        and what is reported as available cannot drift apart.
+        Which years this frame covers is read, in order of preference:
 
-        Without ``coverage``, coverage is read from this frame's own non-null values. That is
-        correct only for a frame whose gaps are still genuine nulls.
+        - from ``coverage``, a frame of flags -- a year is covered when any of its values is
+          non-null and non-zero;
+        - from this frame's qualifier, when it says which values were ``supplied``: a year is
+          covered when any of its values was. Zero-filling, interpolation and extension mark the
+          values they make up (see ``common.qualifiers``), so an empty template zero-filled to
+          make the node compute still covers no year at all;
+        - from this frame's own non-null values, which is correct only for a frame whose gaps
+          are still genuine nulls.
+
+        Without the qualifier a filled frame no longer says which years the city actually
+        supplied, and would claim to cover every year and silence the default entirely. That is
+        what ``coverage`` was for: a ``DataAvailabilityNode`` reading the same dataset, before
+        any of the filling happens.
+
+        The chosen value's qualifier comes with it, so a year served from the default carries
+        the default's grade.
 
         A frame that covers no years yields ``odf`` unchanged. Rows left null by the choice are
         dropped, so a combination with no value behaves the same way as one that was never in
@@ -1019,6 +1116,8 @@ class PathsExt:
                 raise Exception('prefer_by_year() coverage must have a single metric column')
             flag_col = coverage.metric_cols[0]
             covered = coverage.filter(pl.col(flag_col).is_not_null() & (pl.col(flag_col) != 0))[YEAR_COLUMN].unique()
+        elif (supplied := self._supplied_flags(out_col)) is not None:
+            covered = df.filter(supplied.fill_null(value=False))[YEAR_COLUMN].unique()
         else:
             covered = df.filter(pl.col(out_col).is_not_null())[YEAR_COLUMN].unique()
 
@@ -1033,10 +1132,12 @@ class PathsExt:
         both_have_forecast = FORECAST_COLUMN in df.columns and FORECAST_COLUMN in odf.columns
         if both_have_forecast:
             odf = odf.rename({FORECAST_COLUMN: '_FallbackForecast'})
-        df = df.paths.join_over_index(odf, how='outer')
         is_covered = pl.col(YEAR_COLUMN).is_in(covered.implode())
+        qual_exprs = self._choice_qualifier_exprs(df, odf, out_col, '_Fallback', is_covered)
+        df = df.paths.join_over_index(odf, how='outer')
         exprs = [
             pl.when(is_covered).then(pl.col(out_col)).otherwise(pl.col('_Fallback')).alias(out_col),
+            *qual_exprs,
         ]
         if both_have_forecast:
             exprs.append(

@@ -21,13 +21,13 @@ transformation bodies rather than a redesign.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
-from typing import TYPE_CHECKING, NoReturn
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Any, NoReturn
 
 import polars as pl
 from loguru import logger
 
-from common import polars as ppl
+from common import polars as ppl, qualifiers
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from nodes.defs.transform_def import (
     AssignCategoryTransformation,
@@ -62,6 +62,41 @@ if TYPE_CHECKING:
 
 class PipelineError(Exception):
     """A transform operation could not be applied."""
+
+
+@dataclass(frozen=True)
+class QualifierSource:
+    """
+    Where a dataset's values get their qualifiers when a binding selects them (see `common.qualifiers`).
+
+    ``quality_columns`` maps a metric column to the column holding its grades as scores -- the
+    ``quality_of`` projection of the data points' evidence. ``default_quality`` is the score of the
+    dataset's declared default grade, for values that have no grade of their own.
+    """
+
+    quality_columns: dict[str, str] = field(default_factory=dict)
+    default_quality: float | None = None
+
+    def covers(self, column: str) -> bool:
+        return column in self.quality_columns or self.default_quality is not None
+
+    def hash_data(self) -> dict[str, Any]:
+        return {'quality_columns': dict(sorted(self.quality_columns.items())), 'default_quality': self.default_quality}
+
+    def qualifier_expr(self, frame: ppl.PathsDataFrame, column: str) -> pl.Expr:
+        """Build the qualifier of ``column``'s values: its grade where one is known, and whether it was supplied at all."""
+        value = pl.col(column)
+        quality: pl.Expr | None = None
+        quality_col = self.quality_columns.get(column)
+        if quality_col is not None and quality_col in frame.columns:
+            quality = pl.col(quality_col)
+        if self.default_quality is not None:
+            default = pl.lit(self.default_quality, dtype=pl.Float64)
+            quality = default if quality is None else pl.coalesce(quality, default)
+        if quality is not None:
+            # A grade describes a value; an empty cell has none, whatever its dataset's default.
+            quality = pl.when(value.is_not_null()).then(quality).otherwise(pl.lit(None, dtype=pl.Float64))
+        return qualifiers.make(quality=quality, supplied=value.is_not_null())
 
 
 @dataclass
@@ -154,11 +189,11 @@ def apply_operation(  # noqa: C901, PLR0911, PLR0912
         case EnsureUnitOp():
             return _ensure_unit(df, op)
         case InterpolateOp():
-            return interpolate_years(df, env)
+            return qualifiers.carry_over(df, interpolate_years(df, env))
         case BackfillOp():
-            return backfill_leading_values(df)
+            return qualifiers.carry_over(df, backfill_leading_values(df))
         case ExtendOp():
-            return extend_to_end_year(df, env)
+            return qualifiers.carry_over(df, extend_to_end_year(df, env))
         case SelectCategoriesTransformation() | AssignCategoryTransformation() | FlattenTransformation():
             # The legacy edge vocabulary. Edges still apply their own
             # transformations on the producing node, so nothing should reach
@@ -267,13 +302,22 @@ def _select_metric(df: ppl.PathsDataFrame, env: PipelineEnv) -> ppl.PathsDataFra
         env.fail('select_metric has no column to select: the binding names no metric')
     if column not in df.columns:
         env.fail(f"Column '{column}' not found in dataset '{env.source_id}'. Available columns: {', '.join(df.columns)}")
-    df = df.with_columns(pl.col(column).alias(VALUE_COLUMN))
+    exprs = [pl.col(column).alias(VALUE_COLUMN)]
+    value_qual = qualifiers.qualifier_column(VALUE_COLUMN)
+    source = env.dataset.qualifier_source if env.dataset is not None else None
+    if (existing := qualifiers.qualifier_column(column)) in df.columns:
+        exprs.append(pl.col(existing).alias(value_qual))
+    elif source is not None and source.covers(column):
+        exprs.append(source.qualifier_expr(df, column).alias(value_qual))
+    df = df.with_columns(exprs)
     fills_empties = env.dataset is not None and EMPTY_TO_ZERO_TAG in env.dataset.tags
     if not fills_empties:
         df = df.filter(pl.col(VALUE_COLUMN).is_not_null())
     cols = [YEAR_COLUMN, VALUE_COLUMN, *df.dim_ids]
     if FORECAST_COLUMN in df.columns:
         cols.append(FORECAST_COLUMN)
+    if value_qual in df.columns:
+        cols.append(value_qual)
     return ppl.to_ppdf(df.lazy().select(cols).collect(), meta=df.get_meta().select(cols))
 
 
@@ -497,7 +541,7 @@ def _filter_temporal(df: ppl.PathsDataFrame, op: FilterTemporalOp) -> ppl.PathsD
 
 def _ensure_unit(df: ppl.PathsDataFrame, op: EnsureUnitOp) -> ppl.PathsDataFrame:
     for col in df.columns:
-        if col in [FORECAST_COLUMN, YEAR_COLUMN, *df.dim_ids]:
+        if col in [FORECAST_COLUMN, YEAR_COLUMN, *df.dim_ids, *df.qualifier_cols.values()]:
             continue
         if col in df.metric_cols:
             df = df.ensure_unit(col, op.unit)
