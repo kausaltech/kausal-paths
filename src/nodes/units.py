@@ -526,5 +526,6 @@ def add_unit_translations():  # noqa: C901
         set_one(str(definition['unit']), definition['long'], definition.get('short'))
 
     # Special locale-specific customizations
-    loc = Loc('de')
-    loc._data['unit_patterns']['duration-year']['short'] = dict(one='a')
+    for code in ('de', 'de_DE', 'de_CH'):
+        loc = Loc(code)
+        loc._data['unit_patterns']['duration-year']['short'] = dict(one='a')
