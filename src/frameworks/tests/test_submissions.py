@@ -224,3 +224,54 @@ def test_open_submissions_are_hidden_from_readers(client: Client, ic: InstanceCo
     client.logout()
     reader = gql_for(client, ic, superuser=False).query_data('{ instance { submissions { id status } } }')
     assert reader['instance']['submissions'] == [{'id': str(final.uuid), 'status': 'FINAL'}]
+
+
+def test_every_transition_is_an_event_and_notes_are_kept() -> None:
+    ic = make_instance()
+    author, reviewer = UserFactory.create(is_superuser=True), UserFactory.create(is_superuser=True)
+    first = ops.create_submission(ic, period_start=2021, user=author)
+    first = ops.request_review(first, user=author, note='  Ready for a look  ')
+    first = ops.return_to_draft(first, user=reviewer, note='Fernwärme 2021 is missing')
+    first = ops.finalise(ops.request_review(first, user=author), user=reviewer)
+    correction = ops.request_review(ops.create_submission(ic, period_start=2021, user=author), user=author)
+    correction = ops.finalise(correction, user=reviewer)
+
+    history = [(e.from_status, e.to_status, e.actor, e.note) for e in first.events.all()]
+    assert history == [
+        (None, SubmissionStatus.DRAFT, author, ''),
+        (SubmissionStatus.DRAFT, SubmissionStatus.IN_REVIEW, author, 'Ready for a look'),
+        (SubmissionStatus.IN_REVIEW, SubmissionStatus.DRAFT, reviewer, 'Fernwärme 2021 is missing'),
+        (SubmissionStatus.DRAFT, SubmissionStatus.IN_REVIEW, author, ''),
+        (SubmissionStatus.IN_REVIEW, SubmissionStatus.FINAL, reviewer, ''),
+        (SubmissionStatus.FINAL, SubmissionStatus.SUPERSEDED, reviewer, ''),
+    ]
+    assert [e.to_status for e in correction.events.all()] == [
+        SubmissionStatus.DRAFT,
+        SubmissionStatus.IN_REVIEW,
+        SubmissionStatus.FINAL,
+    ]
+
+
+def test_graphql_review_notes_and_who_requested_the_review(client: Client, ic: InstanceConfig) -> None:
+    gql = gql_for(client, ic, superuser=True)
+    sub_id = mutate(gql, ic, 'create(periodStart: 2021) { ... on Submission { id } }')['create']['id']
+    fields = 'status reviewRequestedAt reviewRequestedBy { email } events { fromStatus toStatus note actor { email } }'
+
+    def move(mutation: str, note: str) -> dict[str, Any]:
+        body = f'{mutation}(submissionId: "{sub_id}", note: "{note}") {{ ... on Submission {{ {fields} }} }}'
+        return mutate(gql, ic, body)[mutation]
+
+    requested = move('requestReview', 'Please check GHD')
+    assert requested['status'] == 'IN_REVIEW'
+    assert requested['reviewRequestedAt'] is not None
+    assert requested['events'][-1]['note'] == 'Please check GHD'
+    requester = requested['reviewRequestedBy']['email']
+
+    returned = move('returnToDraft', 'GHD looks low')
+    assert [(e['fromStatus'], e['toStatus'], e['note']) for e in returned['events']] == [
+        (None, 'DRAFT', ''),
+        ('DRAFT', 'IN_REVIEW', 'Please check GHD'),
+        ('IN_REVIEW', 'DRAFT', 'GHD looks low'),
+    ]
+    # The last request stays on record after the submission is sent back.
+    assert returned['reviewRequestedBy']['email'] == requester
