@@ -33,6 +33,7 @@ from kausal_common.users import user_or_bust
 from paths import gql
 
 from datasets.materialization import refresh_dataset_materialization
+from datasets.plausibility import evaluate_dataset_plausibility
 from datasets.validation_rules import ValidationRule, ValidationRuleSpecInput
 from frameworks.evidence import (
     UNCHANGED,
@@ -44,7 +45,7 @@ from frameworks.evidence import (
 )
 from frameworks.models import DataEvidenceKind, Framework
 from nodes.change_ops import gql_change_operation, record_change
-from nodes.graphql.types.problems import DatasetValidationViolationType
+from nodes.graphql.types.problems import DatasetPlausibilityFindingType, DatasetValidationViolationType
 from nodes.models import InstanceConfig
 
 from .types import DataPointCommentType, DataPointType, DatasetMetricType, DatasetSourceReferenceType, MetricValidationRuleType
@@ -92,12 +93,14 @@ class CreateDataPointInput:
     quality_level_id: UUID | None = sb.field(default=None, description="Grade from one of the dataset's quality schemes.")
 
 
-@sb.input
+@sb.input(
+    description=(
+        "Changes to a data point's value and evidence. Its coordinates (date, metric, dimension categories) are "
+        'its identity and cannot be changed; to move a value, delete the data point and create a new one.'
+    )
+)
 class UpdateDataPointInput:
-    date: Maybe[date]
     value: Maybe[float | None]
-    metric_id: Maybe[UUID]
-    dimension_category_ids: Maybe[list[UUID]]
     evidence_kind: Maybe[DataEvidenceKind | None] = sb.field(
         default=None,
         description=(
@@ -116,24 +119,39 @@ class UpdateDataPointItemInput:
     input: UpdateDataPointInput
 
 
+_VIOLATIONS_DESCRIPTION = (
+    'Validation-rule violations of the dataset after this write. These do not undo the write, but they block publication.'
+)
+_PLAUSIBILITY_FINDINGS_DESCRIPTION = (
+    'Advisory plausibility findings of the whole dataset after this write, not only of the written cells: a sum '
+    'or previous-year reference makes one cell affect the findings of others. These do not block publication.'
+)
+
+
+def _resolve_plausibility_findings(
+    root: DataPointsMutationResult | DeleteDataPointsResult,
+) -> list[DatasetPlausibilityFindingType]:
+    return [DatasetPlausibilityFindingType.from_finding(finding) for finding in evaluate_dataset_plausibility(root.dataset)]
+
+
 @sb.type
 class DataPointsMutationResult:
     data_points: list[DataPointType]
-    violations: list[DatasetValidationViolationType] = sb.field(
-        description=(
-            'Validation-rule violations of the dataset after this write. These do not undo the write, but they block publication.'
-        ),
+    violations: list[DatasetValidationViolationType] = sb.field(description=_VIOLATIONS_DESCRIPTION)
+    plausibility_findings: list[DatasetPlausibilityFindingType] = sb.field(
+        resolver=_resolve_plausibility_findings, description=_PLAUSIBILITY_FINDINGS_DESCRIPTION
     )
+    dataset: sb.Private[Dataset]
 
 
 @sb.type
 class DeleteDataPointsResult:
     deleted_data_point_ids: list[sb.ID]
-    violations: list[DatasetValidationViolationType] = sb.field(
-        description=(
-            'Validation-rule violations of the dataset after this write. These do not undo the write, but they block publication.'
-        ),
+    violations: list[DatasetValidationViolationType] = sb.field(description=_VIOLATIONS_DESCRIPTION)
+    plausibility_findings: list[DatasetPlausibilityFindingType] = sb.field(
+        resolver=_resolve_plausibility_findings, description=_PLAUSIBILITY_FINDINGS_DESCRIPTION
     )
+    dataset: sb.Private[Dataset]
 
 
 @sb.input
@@ -305,14 +323,8 @@ class DatasetEditorMutation:
     def _serialize_input(input: CreateDataPointInput | UpdateDataPointInput) -> dict[str, Any]:
         data: dict[str, Any] = {}
         if isinstance(input, UpdateDataPointInput):
-            if _is_maybe_set(input.date):
-                data['date'] = input.date.value.isoformat()
             if _is_maybe_set(input.value):
                 data['value'] = input.value.value
-            if _is_maybe_set(input.metric_id):
-                data['metric'] = str(input.metric_id.value)
-            if _is_maybe_set(input.dimension_category_ids):
-                data['dimension_categories'] = [str(category_id) for category_id in input.dimension_category_ids.value]
             return data
 
         if input.date is not None:
@@ -435,6 +447,7 @@ class DatasetEditorMutation:
         return DataPointsMutationResult(
             data_points=[DataPointType.from_model(data_point) for data_point in created],
             violations=DatasetEditorMutation._current_violations(root),
+            dataset=root.dataset,
         )
 
     @gql.mutation(
@@ -497,6 +510,7 @@ class DatasetEditorMutation:
         return DataPointsMutationResult(
             data_points=[DataPointType.from_model(data_point) for data_point in updated],
             violations=DatasetEditorMutation._current_violations(root),
+            dataset=root.dataset,
         )
 
     @gql.mutation(
@@ -753,6 +767,7 @@ class DatasetEditorMutation:
         return DeleteDataPointsResult(
             deleted_data_point_ids=DatasetEditorMutation._delete_data_points(info, root, data_point_ids),
             violations=DatasetEditorMutation._current_violations(root),
+            dataset=root.dataset,
         )
 
     @gql.mutation(
