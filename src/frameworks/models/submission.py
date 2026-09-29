@@ -13,7 +13,7 @@ from kausal_common.models.uuid import UUIDIdentifiedModel
 if TYPE_CHECKING:
     from wagtail.models import Revision
 
-    from kausal_common.models.types import FK
+    from kausal_common.models.types import FK, RevMany
 
     from nodes.models import InstanceConfig
     from users.models import User
@@ -74,6 +74,7 @@ class Submission(UserModifiableModel, UUIDIdentifiedModel):
     instance_revision_id: int | None
     template_revision_id: int | None
     supersedes_id: int | None
+    events: RevMany[SubmissionEvent]
 
     objects: ClassVar[models.Manager[Submission]]
 
@@ -109,3 +110,31 @@ class Submission(UserModifiableModel, UUIDIdentifiedModel):
     def __str__(self) -> str:
         period = str(self.period_start) if self.period_start == self.period_end else f'{self.period_start}-{self.period_end}'
         return f'{self.instance_config_id} {self.kind} {period} ({self.status})'
+
+
+class SubmissionEvent(UUIDIdentifiedModel):
+    """
+    One move of a submission between statuses: who made it, when, and optionally why.
+
+    The events are the submission's history, so "back to draft because…" is kept
+    rather than overwritten by the next transition. Creation is the event with no
+    ``from_status``. A discarded draft takes its events with it.
+    """
+
+    submission: FK[Submission] = models.ForeignKey(Submission, on_delete=models.CASCADE, related_name='events')
+    from_status = models.CharField(max_length=20, choices=SubmissionStatus.choices, null=True, blank=True)
+    to_status = models.CharField(max_length=20, choices=SubmissionStatus.choices)
+    actor: FK[User | None] = models.ForeignKey('users.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    note = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    submission_id: int
+    actor_id: int | None
+
+    objects: ClassVar[models.Manager[SubmissionEvent]]
+
+    class Meta:
+        ordering = ['submission', 'created_at', 'id']
+
+    def __str__(self) -> str:
+        return f'{self.submission_id}: {self.from_status or "-"} -> {self.to_status}'
