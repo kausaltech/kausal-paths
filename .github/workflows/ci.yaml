@@ -1,5 +1,8 @@
 name: CI
 on: push
+concurrency:
+  group: ${{ github.workflow }}-${{ github.sha }}
+  cancel-in-progress: false
 env:
   PROJECT_ID: paths-backend
 
