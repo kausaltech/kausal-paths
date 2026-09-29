@@ -893,16 +893,19 @@ class DatasetType(UserPermissionsMixin):
         return [DatasetPlausibilityFindingType.from_finding(finding) for finding in evaluate_dataset_plausibility(root._model)]
 
     @sb.field(
-        description='Applicable advisory reference ranges for this dataset and instance.',
+        description=(
+            'Applicable advisory reference ranges for this dataset and instance: the curated ones, then those '
+            'derived from its own history (source dataset-history).'
+        ),
     )
     @staticmethod
     def plausibility_ranges(root: 'DatasetType') -> list[DatasetMetricPlausibilityRangeType]:
         if root._model is None:
             return []
         from datasets.coordinates import DatasetCoordinateIndex
-        from datasets.plausibility import applicable_plausibility_ranges
+        from datasets.plausibility import all_plausibility_ranges
 
-        ranges = applicable_plausibility_ranges(root._model)
+        ranges = all_plausibility_ranges(root._model)
         if not ranges:
             return []
         coordinate_index = DatasetCoordinateIndex(root._model)

@@ -153,7 +153,10 @@ class DatasetPlausibilityFindingType(DatasetFindingInterface):
     rule_revision: int
     is_example: bool
     attribution: PlausibilityAttributionType | None = sb.field(
-        description='For a sum: the one cell that explains it, when there is one. Group findings by it.'
+        description=(
+            'For a sum: the one cell that explains it, when there is one. For a cell: set only when the finding is '
+            'the return from a spike, and names the spike year. Group findings by it.'
+        )
     )
 
     @classmethod
