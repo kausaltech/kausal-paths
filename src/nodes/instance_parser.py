@@ -40,7 +40,7 @@ from nodes.defs import (
     SimpleConfig,
     YearsSpec,
 )
-from nodes.defs.graph import DatasetMeta, DatasetMetricMeta
+from nodes.defs.graph import DatasetMeta, DatasetMetricMeta, QualityLevelKey
 from nodes.defs.instance_defs import ActionGroup, DatasetRepoSpec, InstanceFeatures, InstanceMetadata, InstanceTerms
 from nodes.defs.node_defs import ActionHookDef, NodeSpecExtra
 from nodes.defs.port_def import InputPortDef, OutputPortDef
@@ -338,6 +338,8 @@ class InstanceConfigParser:
         persisted — sync matches datasets and metrics by identifier against
         the rows placeholder sync has minted.
         """
+        from pydantic import ValidationError as PydanticValidationError
+
         entries: list[DatasetMeta] = []
         seen: set[str] = set()
         for ds_conf in self.config.get('datasets', []):
@@ -351,6 +353,14 @@ class InstanceConfigParser:
             if 'is_editable' in ds_conf and not isinstance(is_editable, bool):
                 raise InstanceParseError(f"Dataset '{ds_id}' field 'is_editable' must be a boolean")
             domain_spec = self._parse_category_domain_spec(ds_id, ds_conf)
+            default_quality = None
+            if 'default_quality' in ds_conf:
+                try:
+                    default_quality = QualityLevelKey.model_validate(ds_conf['default_quality'])
+                except PydanticValidationError as error:
+                    raise InstanceParseError(
+                        f"Dataset '{ds_id}' field 'default_quality' must name a scheme and a level: {error}"
+                    ) from error
             combination_ids = {combination.id for combination in domain_spec.combinations} if domain_spec else set()
             metrics = [
                 self._parse_dataset_metric(ds_id, combination_ids, metric_config) for metric_config in ds_conf.get('metrics', [])
@@ -363,6 +373,7 @@ class InstanceConfigParser:
                     is_editable=is_editable,
                     metrics=tuple(metrics),
                     category_domain_spec=domain_spec,
+                    default_quality=default_quality,
                 )
             )
         return entries
