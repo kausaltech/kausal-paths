@@ -959,7 +959,11 @@ class InstanceType:
     def framework_config(self, info: gql.Info) -> FrameworkConfig | None:
         return self._config.cache.framework_config
 
-    @sb.field(description='Active members of this instance. Only visible to instance admins.')
+    @sb.field(
+        description=(
+            'Members of this instance, including suspended ones (their suspendedAt is set). Only visible to instance admins.'
+        )
+    )
     def users(self, info: gql.Info) -> list[InstanceMemberType]:
         if not _instance_admin_allowed(self._config, info):
             return []
