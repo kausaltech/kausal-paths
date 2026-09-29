@@ -3,7 +3,7 @@ default_language: de
 supported_languages: [en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: e112c5202e82092805d6e7ae387c0548c0190bdf
+  commit: 850589d28ad94069e3cf50b2c451b9705f7791fa
   dvc_remote: kausal-s3
 name_de: Treibhausgas-Monitor Mainz
 name_en: GHG Monitor Mainz
@@ -80,10 +80,11 @@ include:
   # resolves.
   # The exergetic (Carnot) allocation BISKO criterion 6 prescribes, on real figures at last:
   # final net CHP electricity against delivered heat, 2021-2024, giving an electricity fraction
-  # of 0.43 / 0.39 / 0.33 / 0.33 where the shared template held a placeholder 0.30. Deliberately
-  # carries no `t_supply` column -- the utility gives 90-115 °C by season rather than a figure,
-  # so it lives as a slider on the node instead. 2019 and 2020 are absent from the delivery and
-  # left for the node to extend. See data/mainz/create_chp_parameters.py.
+  # of 0.43 / 0.39 / 0.33 / 0.33 where the shared template held a placeholder 0.30. The supply
+  # temperature is the midpoint of the 90-115 °C the utility gives by season, 375.65 K, with the
+  # range in each row's comment (since 2026-09-29; before that it was a slider on an overridden
+  # copy of the CHP node). 2019 and 2020 are absent from the delivery and left for the node to
+  # extend. Built by paths-data models/mainz/scripts/create_chp_parameters.py.
   - from: kommune/kwk_anlagenparameter
     to: mainz/kwk_anlagenparameter
   # BISKO Moeglichkeit 3: the declared predominant generation variant, which for Mainz is
@@ -927,36 +928,6 @@ nodes:
     values:
     - year: 2045
       value: 4238618      # 50 % of the 1990 baseline of 8,477,235 MWh/a -- see the note above
-
-# Overrides the module's node of the same id (the include now sets allow_override: true), for
-# one reason only: to point `t_supply` at an instance-level parameter instead of holding a
-# value itself. The scenario editor lists global parameters only -- `params/schema.py` returns
-# `context.global_parameters` -- so a parameter defined on a node never appears there, however
-# customizable it is. A ReferenceParameter bridges that: the node reads the reference, and the
-# target below is what the editor shows and the user drags.
-#
-# Everything else here mirrors modules/bisko/model.yaml. Keep it in step: with
-# allow_override: true the module's version is skipped entirely, so a change there does NOT
-# reach Mainz. The descriptions deliberately stay in the module rather than being duplicated.
-- id: combined_heat_and_power_chp_fraction
-  is_editable: false
-  name_de: Aufteilungsfaktoren der Kraft-Wärme-Kopplung
-  name_en: Combined heat and power allocation fractions
-  description_de: |
-    Siehe modules/bisko/model.yaml für die ausführliche Beschreibung. Hier nur überschrieben,
-    damit die Vorlauftemperatur als Regler im Szenario-Editor erscheint.
-  type: generic.BiskoChpNode
-  quantity: fraction
-  unit: '%'
-  output_dimensions: [energy_carrier]
-  params:
-  - id: t_supply
-    ref: chp_supply_temperature
-  input_datasets:
-  # No `column:` -- ChpNode matches electricity_fraction and t_supply by name against the
-  # dataset's metric columns. Mainz's copy carries only electricity_fraction, so t_supply
-  # falls through to the parameter above.
-  - id: mainz/kwk_anlagenparameter
 
 # --- Indicator nodes -----------------------------------------------------------------
 #
@@ -4310,15 +4281,6 @@ actions:
 #//////  Parameters  ////////////////////////////////////////////////////////////////////////////////////////////////////
 params:
 
-# The target of the ReferenceParameter on combined_heat_and_power_chp_fraction. It lives here,
-# at instance level, because that is the only place the scenario editor looks.
-#
-# The Mainzer Fernwärme gives a range rather than a figure -- "die Vorlauftemperatur beträgt
-# 90-115 °C, je nach Außentemperatur/Jahreszeit" (24.08.2026) -- so the bounds are that range
-# and the default its midpoint. Worth knowing while dragging it: across the whole span the heat
-# share of the exergetic allocation moves about 4 percentage points, where a realistic swing in
-# the electricity fraction moves it by 8. The temperature is the less consequential of the two,
-# which is why the fraction is taken from measured data and only this one is left adjustable.
 # The CO2 price on heating and road fuels from the start of EU ETS2, read by `co2_price_fuels`
 # and `co2_price_fuels_increase`. A parameter rather than an action, because it is an assumption
 # about the frame and not something the city does: as an action it appeared in the impact
@@ -4333,15 +4295,6 @@ params:
   max_value: 250.0
   step: 5.0
   unit: EUR/t_co2e
-  is_customizable: true
-  is_visible: true
-
-- id: chp_supply_temperature
-  label_de: Vorlauftemperatur des Fernwärmenetzes (K)
-  label_en: District heating supply temperature (K)
-  value: 375.65          # 102.5 °C
-  min_value: 363.15      # 90 °C
-  max_value: 388.15      # 115 °C
   is_customizable: true
   is_visible: true
 

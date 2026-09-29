@@ -2649,27 +2649,13 @@ nodes:
   quantity: fraction
   unit: '%'
   output_dimensions: [energy_carrier]
-  # A fallback for the supply temperature, and a slider for it.
-  #
-  # ChpNode resolves each annual input from the first source that has it: a tagged input node,
-  # then a metric column of the dataset, then this parameter. So this is inert for any city
-  # whose dataset carries a `t_supply` column -- which includes every city on the shared
-  # kommune/kwk_anlagenparameter template, where it is 373 K throughout. It only takes effect
-  # where a city deliberately leaves the column out.
-  #
-  # That happens when the heat supplier gives a *range* rather than a figure -- a supply
-  # temperature quoted as 90-115 °C depending on outside temperature and season is typical -- and
-  # a dataset column would have to freeze one value out of it. The bounds below are that range; the
-  # default is its midpoint. Making it adjustable is also honest about how little it matters:
-  # across the whole 90-115 °C span the heat share of the allocation moves about 4 points,
-  # where a realistic swing in the electricity fraction moves it by 8.
-  params:
-  - id: t_supply
-    value: 375.65          # 102.5 °C, the midpoint of 90-115 °C
-    min_value: 363.15      # 90 °C
-    max_value: 388.15      # 115 °C
-    is_customizable: true
-    is_visible: true
+  # No parameters, deliberately: the electricity fraction and the supply temperature come from
+  # the dataset below, one value per year, and nowhere else. Until 2026-09-29 there was also a
+  # `t_supply` slider here, and Bayreuth and Mainz each carried the values as node or global
+  # parameters. That was three ways to state two numbers, the slider was inert wherever the
+  # dataset had the column, and the scenario editor never showed it. Where a heat supplier gives a
+  # range rather than a figure (Mainz: 90-115 °C by season), the dataset carries the midpoint and
+  # the row comment carries the range.
   # One annual row per input. The shared dataset holds placeholders (0.3 and 373 K in every
   # year); a city replaces it with its own via dataset_replacements once the utility delivers,
   # and city admins can edit the values in the admin UI. Series are interpolated over internal
@@ -2685,8 +2671,8 @@ nodes:
   #   input_nodes:
   #   - id: chp_electricity_output_share
   #     tags: [electricity_fraction]
-  # And anything the dataset does not carry falls back to the parameter of the same name, which
-  # is how an instance can supply its two values without a dataset at all.
+  # The dataset must carry both columns: with no parameter to fall back on, a missing one is a
+  # NodeError naming the input.
 
 #//////  Transport  /////////////////////////////////////////////////////////////////////////////////
 
