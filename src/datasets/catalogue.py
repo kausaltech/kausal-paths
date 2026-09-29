@@ -4,7 +4,8 @@ from typing import TYPE_CHECKING
 
 from datasets.snapshot import metric_column_id
 from datasets.validation_rules import validation_rule_adapter
-from nodes.defs.graph import DatasetMeta, DatasetMetricMeta
+from frameworks.evidence import DEFAULT_QUALITY_SPEC_KEY, QUALITY_OF_SPEC_KEY
+from nodes.defs.graph import DatasetMeta, DatasetMetricMeta, QualityLevelKey
 from nodes.snapshot_base import translated_string_from_model
 
 if TYPE_CHECKING:
@@ -35,6 +36,7 @@ def dataset_meta_from_model(
                 # prefetch cache already in rule order.
                 for rule in metric.validation_rules.all()
             ),
+            quality_of=(metric.spec or {}).get(QUALITY_OF_SPEC_KEY),
         )
         for metric in schema.metrics.all()
     )
@@ -50,4 +52,9 @@ def dataset_meta_from_model(
         external_ref=dataset.external_ref,
         revision_id=pinned_revision_id if pinned_revision_id is not None else dataset.latest_revision_id,
         category_domain=schema.category_domain,
+        default_quality=(
+            QualityLevelKey.model_validate(default)
+            if (default := (dataset.spec or {}).get(DEFAULT_QUALITY_SPEC_KEY)) is not None
+            else None
+        ),
     )

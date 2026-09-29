@@ -10,7 +10,7 @@ from django.utils.translation import gettext_lazy as _
 
 import polars as pl
 
-from common import polars as ppl
+from common import polars as ppl, qualifiers
 from nodes.calc import convert_to_co2e, extend_last_historical_value_pl
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN
 from nodes.exceptions import NodeError
@@ -42,6 +42,13 @@ type BinomBothDF = Callable[[PDF, PDF], PDF]
 type BinomLeftDF = Callable[[PDF, Quantity], PDF]
 type BinomBothQuantity = Callable[[Quantity, Quantity], Quantity]
 type BinomRightDF = Callable[[Quantity, PDF], PDF]
+
+
+QUALIFIER_FUNCTIONS = frozenset({qualifiers.QUALITY, qualifiers.GRADED, qualifiers.SUPPLIED})
+"""Formula functions that read one field of a value's qualifier."""
+
+_PASSTHROUGH_FUNCTIONS = frozenset({'convert_gwp', 'zero_fill', 'output_with_scenario'}) | QUALIFIER_FUNCTIONS
+"""Functions whose result has the dimensions of their first argument (and, but for the qualifier ones, its unit)."""
 
 
 class FormulaNode(Node):
@@ -338,6 +345,9 @@ class FormulaNode(Node):
         'prefer_by_year': '_custom_prefer_by_year',
         'max': '_custom_max_min',
         'min': '_custom_max_min',
+        'quality': '_custom_qualifier',
+        'graded': '_custom_qualifier',
+        'supplied': '_custom_qualifier',
         'and': '_custom_and_or',
         'or': '_custom_and_or',
     }
@@ -438,10 +448,10 @@ class FormulaNode(Node):
 
     def _custom_zero_fill(self, _func: str, _node: ast.Call, _varss: EvalVars, df: EvalOutput) -> EvalOutput:
         assert isinstance(df, PDF)
-        df = df.paths.to_wide()
-        meta = df.get_meta()
-        zdf = df.fill_null(0)
-        return ppl.to_ppdf(zdf, meta=meta).paths.to_narrow()
+        wide = df.paths.to_wide()
+        meta = wide.get_meta()
+        zdf = wide.fill_null(0)
+        return qualifiers.carry_over(df, ppl.to_ppdf(zdf, meta=meta).paths.to_narrow())
 
     def _custom_temporal(self, func: str, _node: ast.Call, _varss: EvalVars, df: EvalOutput) -> EvalOutput:
         """Apply a canonical temporal operation, shared with the pipeline executor and binding transformations."""
@@ -451,10 +461,10 @@ class FormulaNode(Node):
             raise NodeError(self, f'{func}() needs a series over years')
         env = PipelineEnv(context=self.context, node=self)
         if func == 'interpolate':
-            return interpolate_years(df, env)
+            return qualifiers.carry_over(df, interpolate_years(df, env))
         if func == 'extend':
-            return extend_to_end_year(df, env)
-        return backfill_leading_values(df)
+            return qualifiers.carry_over(df, extend_to_end_year(df, env))
+        return qualifiers.carry_over(df, backfill_leading_values(df))
 
     def _custom_select_category(self, _func: str, node: ast.Call, _varss: EvalVars, df: EvalOutput) -> EvalOutput:
         """`select_category(x, dimension='category')`, or `dimension=parameter`: the shared `select_category` operation."""
@@ -527,6 +537,22 @@ class FormulaNode(Node):
         assert isinstance(preferred, PDF)
         assert isinstance(fallback, PDF)
         return preferred.paths.prefer_by_year(fallback, coverage)
+
+    def _custom_qualifier(self, func: str, node: ast.Call, _varss: EvalVars, df: EvalOutput) -> EvalOutput:
+        """
+        `quality(x)`, `graded(x)`, `supplied(x)`: one field of ``x``'s qualifier, as a dimensionless value.
+
+        A cell with nothing to say -- ungraded, or from a source that does not say what it
+        supplied -- is left out rather than read as zero. See `common.qualifiers` for the fields.
+        """
+        if not isinstance(df, PDF) or len(node.args) != 1:
+            raise NodeError(self, f'{func}() takes one input')
+        keys = [col for col in (*df.primary_keys, FORECAST_COLUMN) if col in df.columns]
+        meta = ppl.DataFrameMeta(units={VALUE_COLUMN: unit_registry.parse_units('dimensionless')}, primary_keys=df.primary_keys)
+        qual = df.qualifier_cols.get(VALUE_COLUMN)
+        field = pl.col(qual).struct.field(func).cast(pl.Float64) if qual is not None else pl.lit(None, dtype=pl.Float64)
+        out = pl.DataFrame(df).select([*keys, field.alias(VALUE_COLUMN)]).filter(pl.col(VALUE_COLUMN).is_not_null())
+        return ppl.to_ppdf(out, meta=meta)
 
     def _custom_max_min(self, func: str, node: ast.Call, varss: EvalVars, _df: EvalOutput) -> EvalOutput:
         assert len(node.args) == 2, f'{func}(a, b) requires two arguments'
@@ -956,7 +982,9 @@ def analyze_formula_units(  # noqa: C901, PLR0915
                 if first is not None and first.dimensionality != dimensionless.dimensionality:
                     analysis.errors.append("Function 'complement' requires dimensionless units.")
                 return dimensionless
-            if func_name in {'convert_gwp', 'zero_fill', 'output_with_scenario'} or func_name in passthrough:
+            if func_name in QUALIFIER_FUNCTIONS:
+                return dimensionless
+            if func_name in _PASSTHROUGH_FUNCTIONS or func_name in passthrough:
                 return first
             analysis.warnings.append(f"Unknown function '{func_name}' in formula.")
             return first
@@ -1072,7 +1100,7 @@ def analyze_formula_dimensions(  # noqa: C901, PLR0915
                 else:
                     return _require_same(func_name, first, _eval(node.args[1]))
                 return first
-            if func_name in {'convert_gwp', 'zero_fill', 'output_with_scenario'} or func_name in passthrough:
+            if func_name in _PASSTHROUGH_FUNCTIONS or func_name in passthrough:
                 return first
             analysis.warnings.append(f"Unknown function '{func_name}' in formula.")
             return first

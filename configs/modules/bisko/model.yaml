@@ -41,10 +41,17 @@ datasets:
 # A city supersedes these by supplying its own data for a given year: the own-data route wins
 # for every year it covers and the provider default serves the rest (`prefer_by_year`). The
 # provider record itself keeps its value and its provenance in every year.
+#
+# Both are graded B as a class: Methodenpapier Table 1 assigns gemeindefein data the grade of a
+# Hochrechnung regionaler Primärdaten, factor 0,5. The grade belongs to the data rather than to
+# any node that reads it, so it is declared here and every value from these datasets carries it
+# (see `common.qualifiers`).
 - id: de/fahrleistung_strassenverkehr  # ifeu municipality-level road mileage
   is_editable: false
+  default_quality: {scheme: bisko, level: B}
 - id: de/energieverbrauch_uebriger_verkehr            # ifeu rail, inland waterway and aviation energy
   is_editable: false
+  default_quality: {scheme: bisko, level: B}
 - id: demography/population_lau               # Eurostat GISCO population per municipality
   # Locked, and outside `de/`, because it is neither editable nor German-specific: the same
   # 94,000 municipalities serve every European instance, German or not, exactly as
@@ -3100,14 +3107,11 @@ nodes:
     tags: [own]
   - id: vehicle_kilometers_ifeu_by_bus_class
     tags: [ifeu]
-  # Which years the city has actually supplied. It has to come from here rather than from
-  # `own`'s values: that node's binding is zero-filled so it can compute against an empty
-  # template, and a zero is indistinguishable from a reported zero once it is in the frame.
-  # This node reads the dataset before interpolation or zero-filling, so it is the only input
-  # that still knows. It is also the node shown on screen as the city's data availability, so
-  # the balance and the availability report cannot disagree about which years are the city's.
-  - id: vehicle_kilometers_own_availability
-    tags: [coverage]
+  # Which years the city actually supplied comes with `own` itself: its binding is zero-filled so
+  # it can compute against an empty template, and the zero-filling marks the cells it wrote as not
+  # supplied (see `common.qualifiers`), as do the interpolation and extension after it. So the
+  # zeros of an untouched template cover no year, without a separate availability input.
+  # vehicle_kilometers_own_availability still reports the same years, from the same dataset.
   params:
   # Per year, not once for the whole series. A city builds up its own traffic data one
   # reporting year at a time, so the year is the unit of choice: a year the city has supplied
@@ -3120,8 +3124,11 @@ nodes:
   # are reported by vehicle_kilometers_own_availability rather than filled from the default.
   # Mixing the two sources inside one year would produce a mileage figure that is partly the
   # city's and partly the default's, with nothing on screen to say which.
+  #
+  # Each year's Datengüte comes with its value: the city's grades where its own data is in force,
+  # grade B from `de/fahrleistung_strassenverkehr`'s declaration where the default is.
   - id: formula
-    value: prefer_by_year(own, ifeu, coverage)
+    value: prefer_by_year(own, ifeu)
 
 - id: other_transport_energy_own
   is_editable: false
@@ -3220,16 +3227,14 @@ nodes:
     tags: [ifeu]
   - id: other_transport_energy_own
     tags: [own]
-  # See vehicle_kilometers for why coverage comes from the availability node.
-  - id: other_transport_energy_own_availability
-    tags: [coverage]
+  # Which years the city supplied comes with `own`, as in vehicle_kilometers.
   params:
   # Per year, exactly as vehicle_kilometers does; see the reasoning there. Replaced the
   # `use_own_other_transport` toggle on 2026-08-19. Operator data tends to start in a
   # particular year -- the year a transport company began reporting -- which is precisely the
   # case an all-or-nothing switch cannot express.
   - id: formula
-    value: prefer_by_year(own, ifeu, coverage)
+    value: prefer_by_year(own, ifeu)
 
 # - id: other_transport_energy # Extensively heavy dataset with municipality dimension.
 #   name_en: Other transport energy
