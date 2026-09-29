@@ -609,3 +609,57 @@ def test_local_example_seed_is_scoped_and_labelled(rig, db_instance_config: Inst
     assert rule.framework_id is None
     assert rule.source.is_example
     assert evaluate_dataset_plausibility(dataset)[0].is_example
+
+
+def test_data_point_writes_return_the_whole_datasets_findings(
+    rig, source: PlausibilitySource, db_instance_config: InstanceConfig, gql_client: PathsTestClient
+):
+    """A write reports every finding it leaves, including a sum over cells it did not touch."""
+    dataset, metric, category_a, category_b = rig
+    _range(
+        metric,
+        source,
+        instance_config=db_instance_config,
+        aggregation=Range.Aggregation.SUM,
+        selection=_selection(category_a, category_b),
+    )
+    _point(dataset, metric, category_a, 2)
+    point_b = DataPointFactory.create(
+        dataset=dataset,
+        metric=metric,
+        date=datetime.date(2023, 1, 1),
+        value=Decimal(2),
+        dimension_categories=[category_b],
+    )
+    variables = {'instanceId': str(db_instance_config.pk), 'datasetId': str(dataset.uuid)}
+
+    updated = gql_client.query_data(
+        """
+        mutation Update($instanceId: ID!, $datasetId: ID!, $input: [UpdateDataPointItemInput!]!) {
+            instanceEditor(instanceId: $instanceId) { datasetEditor(datasetId: $datasetId) {
+                updateDataPoints(input: $input) {
+                    __typename
+                    ... on DataPointsMutationResult { plausibilityFindings { aggregation years observed } }
+                }
+            } }
+        }
+        """,
+        variables=variables | {'input': [{'dataPointId': str(point_b.uuid), 'input': {'value': 4.0}}]},
+    )['instanceEditor']['datasetEditor']['updateDataPoints']
+    assert updated['plausibilityFindings'] == [{'aggregation': 'SUM', 'years': [2023], 'observed': 6.0}]
+
+    deleted = gql_client.query_data(
+        """
+        mutation Delete($instanceId: ID!, $datasetId: ID!, $ids: [ID!]!) {
+            instanceEditor(instanceId: $instanceId) { datasetEditor(datasetId: $datasetId) {
+                deleteDataPoints(dataPointIds: $ids) {
+                    __typename
+                    ... on DeleteDataPointsResult { plausibilityFindings { observed } }
+                }
+            } }
+        }
+        """,
+        variables=variables | {'ids': [str(point_b.uuid)]},
+    )['instanceEditor']['datasetEditor']['deleteDataPoints']
+    # The remaining sum is incomplete, so it is only checked against the upper bound, which it is under.
+    assert deleted['plausibilityFindings'] == []
