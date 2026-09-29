@@ -12,7 +12,7 @@ from kausal_common.users import user_or_none
 from paths import gql
 
 from frameworks import submissions as ops
-from frameworks.models import Submission, SubmissionKind, SubmissionStatus
+from frameworks.models import Submission, SubmissionEvent, SubmissionKind, SubmissionStatus
 from nodes.graphql.types.constraints import ConstraintViolationsType
 from nodes.graphql.types.problems import DatasetValidationViolationsType
 from nodes.models import InstanceConfig
@@ -22,6 +22,27 @@ if TYPE_CHECKING:
     from paths.types import PathsGQLInfo
 
     from users.schema import UserType
+
+
+@sb.type(name='SubmissionEvent', description='One move of a submission between statuses.')
+class SubmissionEventType:
+    id: sb.ID
+    from_status: SubmissionStatus | None = sb.field(description='Null for the creation of the submission.')
+    to_status: SubmissionStatus
+    actor: User | None = sb.field(graphql_type=Annotated['UserType', sb.lazy('users.schema')] | None)
+    note: str = sb.field(description='Why, when the user said; empty otherwise.')
+    created_at: datetime
+
+    @classmethod
+    def from_model(cls, obj: SubmissionEvent) -> SubmissionEventType:
+        return cls(
+            id=sb.ID(str(obj.uuid)),
+            from_status=SubmissionStatus(obj.from_status) if obj.from_status else None,
+            to_status=SubmissionStatus(obj.to_status),
+            actor=obj.actor,
+            note=obj.note,
+            created_at=obj.created_at,
+        )
 
 
 @register_strawberry_type
@@ -45,9 +66,17 @@ class SubmissionType:
     finalised_at: datetime | None
     finalised_by: User | None = sb.field(graphql_type=Annotated['UserType', sb.lazy('users.schema')] | None)
     supersedes_id: sb.ID | None = sb.field(description='The final submission this one corrects, if any.')
+    events: list[SubmissionEventType] = sb.field(description='Every move between statuses, oldest first.')
+    review_requested_by: User | None = sb.field(
+        graphql_type=Annotated['UserType', sb.lazy('users.schema')] | None,
+        description='Who last moved the submission into review; null if it never was.',
+    )
+    review_requested_at: datetime | None
 
     @classmethod
     def from_model(cls, obj: Submission) -> SubmissionType:
+        events = list(obj.events.select_related('actor'))
+        requested = next((event for event in reversed(events) if event.to_status == SubmissionStatus.IN_REVIEW), None)
         return cls(
             id=sb.ID(str(obj.uuid)),
             kind=SubmissionKind(obj.kind),
@@ -60,6 +89,9 @@ class SubmissionType:
             finalised_at=obj.finalised_at,
             finalised_by=obj.finalised_by,
             supersedes_id=sb.ID(str(obj.supersedes.uuid)) if obj.supersedes is not None else None,
+            events=[SubmissionEventType.from_model(event) for event in events],
+            review_requested_by=requested.actor if requested is not None else None,
+            review_requested_at=requested.created_at if requested is not None else None,
         )
 
 
@@ -107,16 +139,23 @@ class SubmissionMutations:
         )
         return SubmissionType.from_model(obj)
 
-    @gql.mutation(description='Move a draft submission into review.', graphql_type=SubmissionType)
+    @gql.mutation(description='Move a draft submission into review; the note is kept in its events.', graphql_type=SubmissionType)
     @staticmethod
-    def request_review(info: gql.Info, root: sb.Parent[Me], submission_id: sb.ID) -> SubmissionType:
-        obj = ops.request_review(SubmissionMutations._get(info, root, submission_id), user=user_or_none(info.context.user))
+    def request_review(info: gql.Info, root: sb.Parent[Me], submission_id: sb.ID, note: str | None = None) -> SubmissionType:
+        obj = ops.request_review(
+            SubmissionMutations._get(info, root, submission_id), user=user_or_none(info.context.user), note=note or ''
+        )
         return SubmissionType.from_model(obj)
 
-    @gql.mutation(description='Send a submission in review back to draft.', graphql_type=SubmissionType)
+    @gql.mutation(
+        description='Send a submission in review back to draft; the note, saying why, is kept in its events.',
+        graphql_type=SubmissionType,
+    )
     @staticmethod
-    def return_to_draft(info: gql.Info, root: sb.Parent[Me], submission_id: sb.ID) -> SubmissionType:
-        obj = ops.return_to_draft(SubmissionMutations._get(info, root, submission_id), user=user_or_none(info.context.user))
+    def return_to_draft(info: gql.Info, root: sb.Parent[Me], submission_id: sb.ID, note: str | None = None) -> SubmissionType:
+        obj = ops.return_to_draft(
+            SubmissionMutations._get(info, root, submission_id), user=user_or_none(info.context.user), note=note or ''
+        )
         return SubmissionType.from_model(obj)
 
     @gql.mutation(
