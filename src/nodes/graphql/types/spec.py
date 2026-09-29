@@ -8,7 +8,7 @@ TranslatedString fields are flattened to str | None (serialized via str()).
 AnyParameter and unmodeled blobs (input_datasets, dimensions) are exposed as JSON.
 """
 
-from typing import TYPE_CHECKING, Annotated
+from typing import TYPE_CHECKING, Annotated, cast
 from uuid import UUID
 
 import strawberry as sb
@@ -39,7 +39,9 @@ if TYPE_CHECKING:
 
 @pydantic_type(model=YearsSpec, all_fields=True)
 class YearsDefType(StrawberryPydanticType[YearsSpec]):
-    pass
+    @sb.field(description='The inventory years: the historical span without its skipped years. Null until declared.')
+    def historical(self) -> list[int] | None:
+        return cast('YearsSpec', self).historical
 
 
 @pydantic_type(model=DatasetRepoSpec, all_fields=True)
