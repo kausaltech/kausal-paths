@@ -14,7 +14,7 @@ from kausal_common.datasets.tests.factories import DataPointFactory, DatasetFact
 from paths.tests.graphql import PathsTestClient
 
 from frameworks import submissions
-from frameworks.models import Submission
+from frameworks.models import DataEvidenceKind, DataPointEvidence, Submission
 from frameworks.tests.factories import FrameworkConfigFactory
 from nodes.defs.instance_defs import InstanceModelSpec, YearsSpec
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory
@@ -257,3 +257,19 @@ class TestInventoryYears:
         result = _add(gql_client, db_instance_config, 2015)
         assert result['__typename'] == 'OperationInfo'
         assert 'already an inventory year' in result['messages'][0]['message']
+
+
+def test_provider_defaults_neither_block_nor_leave_with_a_year(
+    gql_client: PathsTestClient, db_instance_config: InstanceConfig, dataset: tuple[Dataset, DatasetMetric]
+) -> None:
+    ds, _metric = dataset
+    assert ds.schema is not None
+    _add(gql_client, db_instance_config, 2023)
+    factor = DatasetMetricFactory.create(schema=ds.schema, name='factor', label='Factor', unit='')
+    default = DataPointFactory.create(dataset=ds, metric=factor, date=datetime.date(2023, 1, 1), value=Decimal('1.1'))
+    DataPointEvidence.objects.create(data_point=default, kind=DataEvidenceKind.PROVIDER_DEFAULT)
+
+    removed = _remove(gql_client, db_instance_config, 2023)
+    assert removed['__typename'] == 'RemoveInventoryYearResult', removed
+    assert removed['deletedCells'] == 1
+    assert DataPoint.objects.filter(pk=default.pk).exists()
