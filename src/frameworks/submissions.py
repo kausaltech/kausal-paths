@@ -10,7 +10,7 @@ from django.db.models import Q
 from django.utils import timezone
 from wagtail.actions.publish_revision import PublishPermissionError
 
-from frameworks.models import Submission, SubmissionKind, SubmissionStatus
+from frameworks.models import Submission, SubmissionEvent, SubmissionKind, SubmissionStatus
 from frameworks.models.submission import OPEN_STATUSES
 
 if TYPE_CHECKING:
@@ -66,7 +66,7 @@ def create_submission(
         final = Submission.objects.select_for_update().filter(same_period, status=SubmissionStatus.FINAL).first()
         try:
             with transaction.atomic():
-                return Submission.objects.create(
+                submission = Submission.objects.create(
                     instance_config=ic,
                     kind=kind,
                     period_start=period_start,
@@ -75,27 +75,40 @@ def create_submission(
                     created_by=user,
                     last_modified_by=user,
                 )
+                _record(submission, from_status=None, to_status=SubmissionStatus.DRAFT, user=user)
+                return submission
         except IntegrityError as exc:
             raise SubmissionError('This period already has an open submission') from exc
 
 
-def _transition(submission: Submission, *, allowed_from: tuple[str, ...], to: str, user: User | None) -> Submission:
+def _record(
+    submission: Submission, *, from_status: str | None, to_status: str, user: User | None, note: str = ''
+) -> SubmissionEvent:
+    return SubmissionEvent.objects.create(
+        submission=submission, from_status=from_status, to_status=to_status, actor=user, note=note.strip()
+    )
+
+
+def _transition(
+    submission: Submission, *, allowed_from: tuple[str, ...], to: str, user: User | None, note: str = ''
+) -> Submission:
     with transaction.atomic():
         locked = Submission.objects.select_for_update().get(pk=submission.pk)
         if locked.status not in allowed_from:
             raise SubmissionError(f'A {locked.get_status_display().lower()} submission cannot become {to}')
+        _record(locked, from_status=locked.status, to_status=to, user=user, note=note)
         locked.status = to
         locked.last_modified_by = user
         locked.save(update_fields=['status', 'last_modified_by', 'last_modified_at'])
     return locked
 
 
-def request_review(submission: Submission, *, user: User | None) -> Submission:
-    return _transition(submission, allowed_from=(SubmissionStatus.DRAFT,), to=SubmissionStatus.IN_REVIEW, user=user)
+def request_review(submission: Submission, *, user: User | None, note: str = '') -> Submission:
+    return _transition(submission, allowed_from=(SubmissionStatus.DRAFT,), to=SubmissionStatus.IN_REVIEW, user=user, note=note)
 
 
-def return_to_draft(submission: Submission, *, user: User | None) -> Submission:
-    return _transition(submission, allowed_from=(SubmissionStatus.IN_REVIEW,), to=SubmissionStatus.DRAFT, user=user)
+def return_to_draft(submission: Submission, *, user: User | None, note: str = '') -> Submission:
+    return _transition(submission, allowed_from=(SubmissionStatus.IN_REVIEW,), to=SubmissionStatus.DRAFT, user=user, note=note)
 
 
 def discard(submission: Submission) -> None:
@@ -128,9 +141,13 @@ def finalise(submission: Submission, *, user: User | None) -> Submission:
             raise SubmissionError('Publishing the instance produced no revision')
 
         if locked.supersedes_id is not None:
-            Submission.objects.filter(pk=locked.supersedes_id, status=SubmissionStatus.FINAL).update(
-                status=SubmissionStatus.SUPERSEDED, last_modified_at=timezone.now()
-            )
+            superseded = Submission.objects.filter(pk=locked.supersedes_id, status=SubmissionStatus.FINAL).first()
+            if superseded is not None:
+                Submission.objects.filter(pk=superseded.pk).update(
+                    status=SubmissionStatus.SUPERSEDED, last_modified_at=timezone.now()
+                )
+                _record(superseded, from_status=SubmissionStatus.FINAL, to_status=SubmissionStatus.SUPERSEDED, user=user)
+        _record(locked, from_status=SubmissionStatus.IN_REVIEW, to_status=SubmissionStatus.FINAL, user=user)
         locked.status = SubmissionStatus.FINAL
         locked.instance_revision_id = ic.live_revision_id
         locked.template_revision_id = ic.template_revision_id
