@@ -26,7 +26,7 @@ from kausal_common.datasets.tests.factories import (
 from paths.tests.graphql import PathsTestClient
 
 from datasets.models import DatasetMetricPlausibilityRange, PlausibilitySource
-from datasets.plausibility import evaluate_dataset_plausibility
+from datasets.plausibility import evaluate_dataset_plausibility, history_ranges
 from frameworks.models import OrganizationPopulation
 from frameworks.tests.factories import FrameworkConfigFactory
 from nodes.defs.instance_defs import InstanceModelSpec, YearsSpec
@@ -778,3 +778,129 @@ def test_attribution_is_queryable(
         'message': 'With its 2022 value, this cell would bring the sum back into range.',
         'coordinates': [{'category': 'b', 'categoryUuid': str(categories[1].uuid)}],
     }
+
+
+def _steady_history(dataset, metric, categories, bases: tuple[float, ...], years: range) -> None:
+    """Grow each cell 2% a year, with a small deterministic wobble so the spread is not zero."""
+    for index, year in enumerate(years):
+        wobble = 1 + 0.01 * ((index * 7) % 5 - 2)
+        _series(dataset, metric, categories, {year: tuple(base * 1.02**index * wobble for base in bases)})
+
+
+def test_history_band_catches_a_typo_and_traces_its_spike(three_regions, db_instance_config: InstanceConfig):
+    dataset, metric, categories = three_regions
+    _steady_history(dataset, metric, categories, (100, 50, 80), range(2010, 2021))
+    point = dataset.data_points.get(date__year=2015, dimension_categories=categories[0])
+    point.value = point.value * 1000
+    point.save()
+
+    findings = evaluate_dataset_plausibility(dataset)
+    assert {finding.source_identifier for finding in findings} == {'dataset-history'}
+    into, out_of = sorted(findings, key=lambda finding: finding.years)
+    assert (into.years, into.categories) == ([2015], {'region': 'a'})
+    assert into.attribution is None
+    assert out_of.years == [2016]
+    assert out_of.attribution is not None
+    assert (out_of.attribution.year, out_of.attribution.categories) == (2015, {'region': 'a'})
+
+
+def test_history_band_leaves_small_cells_and_short_histories_alone(three_regions, db_instance_config: InstanceConfig):
+    dataset, metric, categories = three_regions
+    # The third cell is far below 1% of the metric's median value, so its jumps are not judged.
+    _steady_history(dataset, metric, categories[:2], (100, 50), range(2010, 2021))
+    _series(dataset, metric, categories[2:], {year: (0.01 * (1 + year % 3),) for year in range(2010, 2021)})
+    # Twelve ratios are too few for a band.
+    short = DatasetMetricFactory.create(schema=dataset.schema, name='short', label='Short', unit='MWh')
+    _steady_history(dataset, short, categories, (100, 50, 80), range(2010, 2015))
+    assert evaluate_dataset_plausibility(dataset) == []
+
+    [derived] = history_ranges(dataset)
+    assert derived.rule.metric == metric
+    assert derived.rule.lower <= 0.5
+    assert derived.rule.upper >= 2
+    assert derived.rule.sample_size == 20
+
+
+def test_history_band_yields_to_curated_cell_ranges_and_locked_schemas(
+    three_regions, source: PlausibilitySource, db_instance_config: InstanceConfig
+):
+    dataset, metric, categories = three_regions
+    _steady_history(dataset, metric, categories, (100, 50, 80), range(2010, 2021))
+    assert len(history_ranges(dataset)) == 1
+
+    curated = _range(metric, source, instance_config=db_instance_config, lower=0, upper=1_000_000)
+    assert history_ranges(dataset) == []
+    curated.delete()
+
+    assert dataset.schema is not None
+    dataset.schema.is_editable = False
+    dataset.schema.save(update_fields=['is_editable'])
+    dataset.refresh_from_db()
+    assert history_ranges(dataset) == []
+
+
+def test_history_ranges_are_listed_and_resolved_for_a_cell(
+    three_regions, db_instance_config: InstanceConfig, gql_client: PathsTestClient
+):
+    dataset, metric, categories = three_regions
+    _steady_history(dataset, metric, categories, (100, 50, 80), range(2010, 2021))
+
+    payload = gql_client.query_data(
+        """
+        query Plausibility($datasetId: ID!) {
+            instance { editor { dataset(id: $datasetId) {
+                plausibilityRanges { identifier reference aggregation sampleSize source { identifier revision } }
+                dataPoints { date dimensionCategories { uuid } plausibilityRanges { lower upper } }
+            } } }
+        }
+        """,
+        variables={'datasetId': str(dataset.uuid)},
+    )
+    result = payload['instance']['editor']['dataset']
+    assert result['plausibilityRanges'] == [
+        {
+            'identifier': 'dataset-history',
+            'reference': 'PREVIOUS_YEAR',
+            'aggregation': 'CELL',
+            'sampleSize': 30,
+            'source': {'identifier': 'dataset-history', 'revision': 'method-v1'},
+        }
+    ]
+    by_year = {
+        point['date'][:4]: point['plausibilityRanges']
+        for point in result['dataPoints']
+        if point['dimensionCategories'] == [{'uuid': str(categories[0].uuid)}]
+    }
+    # The first year has no earlier value, so no range; later years get one around the year before.
+    assert by_year['2010'] == []
+    [resolved] = by_year['2020']
+    assert resolved['lower'] < 100 * 1.02**9 < resolved['upper']
+
+
+def test_history_band_judges_only_positive_values_and_skips_legacy_grades(three_regions, db_instance_config: InstanceConfig):
+    dataset, metric, categories = three_regions
+    _steady_history(dataset, metric, categories, (100, 50, 80), range(2010, 2021))
+    stopped = dataset.data_points.get(date__year=2020, dimension_categories=categories[1])
+    stopped.value = 0
+    stopped.save()
+    reversed_ = dataset.data_points.get(date__year=2020, dimension_categories=categories[2])
+    reversed_.value = -reversed_.value
+    reversed_.save()
+    grade = DatasetMetricFactory.create(schema=dataset.schema, name='quality', label='Quality', unit='')
+    _series(dataset, grade, categories, {year: (1 + year % 4, 2, 3) for year in range(2010, 2021)})
+
+    assert [derived.rule.metric for derived in history_ranges(dataset)] == [metric]
+    assert evaluate_dataset_plausibility(dataset) == []
+
+
+def test_history_band_skips_datasets_it_cannot_read(three_regions, db_instance_config: InstanceConfig):
+    dataset, metric, categories = three_regions
+    _steady_history(dataset, metric, categories, (100, 50, 80), range(2010, 2021))
+    DatasetMetricFactory.create(schema=dataset.schema, name='unreadable', label='Unreadable', unit='CP')
+
+    assert history_ranges(dataset) == []
+    assert evaluate_dataset_plausibility(dataset) == []
+
+    empty = DatasetFactory.create(schema=DatasetSchemaFactory.create(name='No metrics'), scope=db_instance_config)
+    assert history_ranges(empty) == []
+    assert evaluate_dataset_plausibility(empty) == []
