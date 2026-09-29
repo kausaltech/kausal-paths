@@ -11,5 +11,7 @@ class NodesConfig(AppConfig):
 
         import common  # noqa: F401  # pyright: ignore[reportUnusedImport]
         import nodes.signals  # noqa: F401  # pyright: ignore[reportUnusedImport]
+        from nodes.units import add_unit_translations
 
         on_app_ready()
+        add_unit_translations()
