@@ -1486,15 +1486,15 @@ msgstr "prosentti"
 
 #: nodes/units.py
 msgid "euros"
-msgstr ""
+msgstr "euroa"
 
 #: nodes/units.py
 msgid "thousand euros"
-msgstr ""
+msgstr "tuhatta euroa"
 
 #: nodes/units.py
 msgid "million euros"
-msgstr ""
+msgstr "miljoonaa euroa"
 
 #: nodes/units.py
 msgid "Canadian dollars"
@@ -1514,15 +1514,15 @@ msgstr ""
 
 #: nodes/units.py
 msgid "terawatt hours"
-msgstr ""
+msgstr "terawattituntia"
 
 #: nodes/units.py
 msgid "gigawatt hours"
-msgstr ""
+msgstr "gigawattituntia"
 
 #: nodes/units.py
 msgid "megawatt hour"
-msgstr ""
+msgstr "megawattituntia"
 
 #: nodes/units.py
 msgid "MWh"
@@ -1606,11 +1606,11 @@ msgstr ""
 
 #: nodes/units.py
 msgid "tonnes"
-msgstr ""
+msgstr "tonnia"
 
 #: nodes/units.py
 msgid "megatonnes"
-msgstr ""
+msgstr "megatonnia"
 
 #: nodes/units.py
 msgid "Mt"
@@ -1622,7 +1622,7 @@ msgstr ""
 
 #: nodes/units.py
 msgid "vehicle-km"
-msgstr ""
+msgstr "ajoneuvokilometria"
 
 #: nodes/units.py
 msgid "vkm"
