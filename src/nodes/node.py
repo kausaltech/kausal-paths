@@ -1141,8 +1141,8 @@ class Node:
         if len(df.metric_cols) == 1:
             df = df.rename({df.metric_cols[0]: VALUE_COLUMN})
         df = df.paths._drop_unnecessary_levels(df, context)
-        df = df.paths._add_missing_years(df, context)
-        df = df.paths._extend_values(df, context)
+        df = df.paths.get_operation('add_missing_years')(df, context)
+        df = df.paths.get_operation('extend_values')(df, context)
         return df
 
     def get_input_nodes(self, tag: str | None = None, quantity: str | None = None) -> list[Node]:
