@@ -15,6 +15,8 @@ import pytest
 from common import qualifiers
 from common.polars import DataFrameMeta, to_ppdf
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
+from nodes.simple import SimpleNode
+from nodes.tests.factories import SimpleNodeFactory
 from nodes.transforms import QualifierSource
 from nodes.units import unit_registry
 
@@ -82,6 +84,25 @@ def _qual(df: ppl.PathsDataFrame) -> dict[tuple[int | str, ...], FixtureQualifie
 
 
 class TestPairing:
+    @pytest.mark.parametrize('qualified_side', ['left', 'right', 'both'])
+    def test_joined_qualifiers_follow_their_metric_names(self, qualified_side: str) -> None:
+        left = _frame([(2020, 'gas', 3.0, 1.0, True)], qualified=qualified_side != 'right')
+        right = _frame([(2020, 'gas', 1.0, 0.5, False)], qualified=qualified_side != 'left')
+        joined = left.paths.join_over_index(right)
+        expected = {}
+        if qualified_side != 'right':
+            expected[VALUE_COLUMN] = QUAL
+        if qualified_side != 'left':
+            expected['Value_right'] = 'Value_right__qual'
+        assert joined.qualifier_cols == expected
+        assert joined.metric_cols == [VALUE_COLUMN, 'Value_right']
+        assert 'Value__qual_right' not in joined.columns
+        remaining = joined.drop('Value_right')
+        assert 'Value_right__qual' not in remaining.columns
+        assert remaining.rename({VALUE_COLUMN: 'Energy'}).qualifier_cols == (
+            {'Energy': 'Energy__qual'} if qualified_side != 'right' else {}
+        )
+
     def test_rename_select_and_drop_carry_the_qualifier(self) -> None:
         df = _frame([(2020, 'gas', 1.0, 1.0, True)])
         assert df.qualifier_cols == {VALUE_COLUMN: QUAL}
@@ -173,6 +194,30 @@ class TestProducts:
 
 
 class TestFills:
+    @pytest.mark.parametrize('qualified_side', ['left', 'right', 'both'])
+    def test_gap_filling_carries_the_chosen_source_and_can_be_added_again(self, qualified_side: str) -> None:
+        node = SimpleNodeFactory.create()
+        assert isinstance(node, SimpleNode)
+        calculated = _frame(
+            [(2020, 'gas', 3.0, 1.0, False), (2021, 'gas', None, None, None)],
+            qualified=qualified_side != 'right',
+        )
+        dataset = _frame(
+            [(2020, 'gas', 10.0, 0.5, True), (2021, 'gas', 2.0, 0.5, True)],
+            qualified=qualified_side != 'left',
+        )
+        filled = node._fill_gaps_from_input(calculated, dataset).sort(YEAR_COLUMN)
+        assert filled[VALUE_COLUMN].to_list() == [3.0, 2.0]
+        assert _qual(filled) == {
+            (2020, 'gas'): (
+                {'quality': {'score': 1.0, 'coverage': 1.0}, 'reported': False} if qualified_side != 'right' else None
+            ),
+            (2021, 'gas'): ({'quality': {'score': 0.5, 'coverage': 1.0}, 'reported': True} if qualified_side != 'left' else None),
+        }
+        assert set(filled.columns) == {YEAR_COLUMN, FORECAST_COLUMN, VALUE_COLUMN, 'energy_carrier', QUAL}
+        summed = filled.paths.add_with_dims(dataset).paths.add_with_dims(dataset).sort(YEAR_COLUMN)
+        assert summed[VALUE_COLUMN].to_list() == [23.0, 6.0]
+
     @pytest.mark.parametrize(('end_grade', 'score', 'coverage'), [(1.0, 1.0, 1.0), (0.5, 0.875, 1.0), (None, 1.0, 0.75)])
     def test_interpolation_carries_assessment_mass_using_actual_years(
         self, end_grade: float | None, score: float, coverage: float
