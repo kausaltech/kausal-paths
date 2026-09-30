@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import functools
+import math
 import re
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, TypedDict, cast, overload
 
@@ -1911,23 +1912,24 @@ class ChpNode(GenericNode):
       z_i = 1 / n_i for reference efficiencies n_i (typically 0.4 electricity,
       0.9 heat).
 
-    A plant's operating point moves from year to year, so ``electricity_fraction``,
-    ``t_supply`` and ``t_return`` are resolved per year, each independently from the
-    first source that supplies it:
+    **The method is the only parameter.** It is an agreement about how to share the
+    emissions, and a scenario may reasonably compare two. Everything else describes
+    the physical plant -- its electricity fraction, its supply and return
+    temperatures, the reference efficiencies it is measured against -- and comes from
+    one place only: an input port of the same name, bound to one metric column of a
+    dataset, one value per year::
 
-    1. an input node tagged with the input's name,
-    2. a metric column of that name in the input dataset,
-    3. the constant parameter of that name.
+        input_datasets:
+        - id: kommune/kwk_anlagenparameter
+          column: electricity_fraction
+        - id: kommune/kwk_anlagenparameter
+          column: t_supply
 
-    Sources 1 and 2 carry annual data; they are interpolated across internal gaps,
-    held constant back to the start of history, and held constant forward to the
-    model end year (those forward years marked as forecast). Source 3 is the
-    fallback for a city that has only a single representative value, and gives the
-    same flat series in every year.
-
-    Values may be given in any compatible unit: ``electricity_fraction`` is
-    converted to dimensionless (so a series in per cent works), temperatures to K.
-    A parameter value carries no unit and is read in the canonical unit.
+    The series are interpolated across internal gaps, held constant back to the
+    start of history, and held constant forward to the model end year (those forward
+    years marked as forecast), so a plant described by a single year is a flat line.
+    Values may be given in any compatible unit: fractions and efficiencies are
+    converted to dimensionless (so per cent works), temperatures to K.
     """
 
     METHODS: ClassVar[frozenset[str]] = frozenset({'energy_content', 'work_potential', 'bisko', 'efficiency'})
@@ -1936,28 +1938,54 @@ class ChpNode(GenericNode):
         'electricity_fraction': 'dimensionless',
         't_supply': 'K',
         't_return': 'K',
+        'electricity_reference_efficiency': 'dimensionless',
+        'heat_reference_efficiency': 'dimensionless',
     }
-    """Inputs that may be given as an annual series, and the unit each is converted to."""
+    """Every input the node reads, and the unit it is converted to. Each is an input port of this name."""
 
     METHOD_INPUTS: ClassVar[dict[str, frozenset[str]]] = {
         'energy_content': frozenset({'electricity_fraction'}),
         'work_potential': frozenset({'electricity_fraction', 't_supply', 't_return'}),
         'bisko': frozenset({'electricity_fraction', 't_supply'}),
-        'efficiency': frozenset({'electricity_fraction'}),
+        'efficiency': frozenset({'electricity_fraction', 'electricity_reference_efficiency', 'heat_reference_efficiency'}),
     }
-    """Which annual inputs each method needs. Anything else supplied is unused."""
+    """Which inputs each method needs. Anything else supplied is unused."""
 
     FIXED_METHOD: ClassVar[str | None] = None
     """Set by a subclass that pins the method; then ``method`` is not a parameter."""
 
+    # Not ``required`` although every method needs it: ``get_input()`` would then raise before
+    # ``_legacy_dataset_column()`` could answer for a spec synced before these ports existed.
+    # ``_annual_inputs()`` refuses a missing input itself, naming the port.
+    electricity_fraction_port = InputPortDeclaration(
+        role='electricity_fraction', required=False, label=_('Fraction of electricity in the output energy')
+    )
+    t_supply_port = InputPortDeclaration(
+        role='t_supply', required=False, min_count=0, label=_('Supply temperature of the district heating flow')
+    )
+    t_return_port = InputPortDeclaration(
+        role='t_return', required=False, min_count=0, label=_('Return temperature of the district heating flow')
+    )
+    electricity_reference_efficiency_port = InputPortDeclaration(
+        role='electricity_reference_efficiency',
+        required=False,
+        min_count=0,
+        label=_('Efficiency of producing electricity separately'),
+    )
+    heat_reference_efficiency_port = InputPortDeclaration(
+        role='heat_reference_efficiency', required=False, min_count=0, label=_('Efficiency of producing heat separately')
+    )
+    input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = (
+        electricity_fraction_port,
+        t_supply_port,
+        t_return_port,
+        electricity_reference_efficiency_port,
+        heat_reference_efficiency_port,
+    )
+
     allowed_parameters = [
         *GenericNode.allowed_parameters,
         StringParameter(local_id='method', label=_('Emission splitting method')),
-        NumberParameter(local_id='electricity_fraction', label=_('Fraction of electricity in the output energy')),
-        NumberParameter(local_id='t_supply', label=_('Temperature (in K) of district heating supply flow')),
-        NumberParameter(local_id='t_return', label=_('Temperature (in K) of district heating return flow')),
-        NumberParameter(local_id='electricity_reference_efficiency', label=_('Efficiency of producing electricity separately')),
-        NumberParameter(local_id='heat_reference_efficiency', label=_('Efficiency of producing heat separately')),
     ]
     DEFAULT_OPERATIONS = 'chp_fractions'
 
@@ -1984,20 +2012,18 @@ class ChpNode(GenericNode):
 
         BISKO asks for the exergetic (Carnot) method *with* the return temperature fixed
         at 283 K, which is exactly what the ``bisko`` method is. Plain ``work_potential``
-        also qualifies when its return temperature is that same constant — but not when
-        it is given as an annual series, because a value the standard fixes cannot move
-        from year to year.
+        also qualifies when its return temperature is that same value in every year.
         """
         method = self.allocation_method
         if method == 'bisko':
             return True
         if method != 'work_potential':
             return False
-        if 't_return' in self._series_input_names():
+        series = self._input_series('t_return')
+        if series is None:
             return False
-        raw = self.get_parameter_value('t_return', required=False, units=False)
-        # TODO This should work also with other temperature units than K:
-        return raw is not None and float(raw) == BISKO_T_RETURN  # type: ignore[arg-type]
+        values = series['t_return'].unique().to_list()
+        return len(values) == 1 and math.isclose(values[0], BISKO_T_RETURN)
 
     def _resolve_method(self) -> str:
         if self.FIXED_METHOD is not None:
@@ -2010,76 +2036,82 @@ class ChpNode(GenericNode):
             )
         return method
 
-    def _series_input_names(self) -> set[str]:
-        """Which annual inputs arrive as a series, without computing their values."""
-        names = {name for name in self.ANNUAL_INPUTS if self.get_input_nodes(tag=name)}
-        ds = self.get_input_dataset_pl(required=False)
-        if ds is not None:
-            names |= {col for col in ds.metric_cols if col in self.ANNUAL_INPUTS}
-        return names
+    def _declaration(self, name: str) -> InputPortDeclaration | None:
+        return next((d for d in self.input_port_declarations if d.role == name), None)
 
-    def _dataset_series(self) -> tuple[PathsDataFrame, list[str]] | None:
-        """Read the annual series carried by the input dataset, if there is one."""
-        ds = self.get_input_dataset_pl(required=False)
-        if ds is None:
+    def _supplied_input_names(self) -> set[str]:
+        """Which inputs have a binding, without computing their values."""
+        if self._spec_predates_ports():
+            ds = self.get_input_dataset_pl(required=False)
+            declared = {d.role for d in self.input_port_declarations}
+            return {col for col in ds.metric_cols if col in declared} if ds is not None else set()
+        return {d.role for d in self.input_port_declarations if any(True for _ in self.iter_input_bindings(d))}
+
+    # --- Migration path, to be deleted once every database-sourced BISKO instance is re-synced.
+    #
+    # Until 2026-09-30 the node read its values from dataset columns by name, and the sync gave it
+    # one anonymous port holding every metric. A spec stored before then has no port with a role
+    # here, so the loader delivers no bindings at all. Rather than failing the district heating
+    # of every such instance between the deploy and its sync, the node reads the columns the old
+    # way and says so. It applies only when *no* binding arrived, so it never mixes with ports.
+
+    def _spec_predates_ports(self) -> bool:
+        return not self.runtime_input_bindings and bool(self.input_dataset_instances)
+
+    def _legacy_dataset_column(self, name: str) -> PathsDataFrame | None:
+        if not self._spec_predates_ports():
             return None
-        if ds.dim_ids:
-            raise NodeError(
-                self,
-                'The CHP parameter dataset must be indexed by year alone; got dimension(s) %s. '
-                'Filter or flatten them away before they reach this node.' % ', '.join(sorted(ds.dim_ids)),
-            )
-        known = [col for col in ds.metric_cols if col in self.ANNUAL_INPUTS]
-        if not known:
-            raise NodeError(
-                self,
-                'The CHP parameter dataset has no usable metric column. Expected one or more of %s, got %s.'
-                % (', '.join(sorted(self.ANNUAL_INPUTS)), ', '.join(ds.metric_cols) or 'none'),
-            )
-        return self._as_series_frame(ds, known), known
-
-    def _node_series(self, name: str, already_supplied: set[str]) -> PathsDataFrame | None:
-        """Read the annual series for `name` from an input node tagged with it, if there is one."""
-        nodes = self.get_input_nodes(tag=name)
-        if not nodes:
+        ds = self.get_input_dataset_pl(required=False)
+        if ds is None or name not in ds.metric_cols:
             return None
-        if len(nodes) > 1:
-            raise NodeError(self, "Several input nodes tagged '%s'; expected at most one." % name)
-        if name in already_supplied:
-            raise NodeError(
-                self,
-                "'%s' is supplied both by an input node and by the input dataset; keep only one of them." % name,
-            )
-        node = nodes[0]
-        ndf = node.get_output_pl(target_node=self)
-        if ndf.dim_ids:
-            raise NodeError(
-                self,
-                "Input node '%s' supplying '%s' must have no dimensions; got %s."
-                % (node.id, name, ', '.join(sorted(ndf.dim_ids))),
-            )
-        return self._as_series_frame(ndf.rename({VALUE_COLUMN: name}), [name])
+        self.logger.warning(
+            "Reading '%s' from the dataset by column name: this node's stored spec predates its input "
+            'ports. Run sync_instance_to_db for the instance.',
+            name,
+        )
+        keep = [*ds.primary_keys, name] + ([FORECAST_COLUMN] if FORECAST_COLUMN in ds.columns else [])
+        return ds.select(keep)
 
-    def _annual_inputs(self) -> tuple[PathsDataFrame | None, set[str]]:
-        """Collect the annual series given by the input dataset and by tagged input nodes."""
+    def _input_series(self, name: str) -> PathsDataFrame | None:
+        """Read one input from its port as Year + ``name``, with its forecast flag kept under a unique name."""
+        declaration = self._declaration(name)
+        if declaration is None:
+            return None
+        df = self.get_input(declaration)
+        if df is None:
+            df = self._legacy_dataset_column(name)
+        if df is None:
+            return None
+        if df.dim_ids:
+            raise NodeError(
+                self,
+                "Input '%s' must be indexed by year alone; got dimension(s) %s. "
+                'Filter or flatten them away before they reach this node.' % (name, ', '.join(sorted(df.dim_ids))),
+            )
+        if len(df.metric_cols) != 1:
+            raise NodeError(
+                self,
+                "Input '%s' must deliver exactly one metric column; got %s. Bind one dataset column to the port."
+                % (name, ', '.join(df.metric_cols) or 'none'),
+            )
+        df = df.rename({df.metric_cols[0]: name}).ensure_unit(name, self.ANNUAL_INPUTS[name])
+        if FORECAST_COLUMN not in df.columns:
+            df = df.with_columns(pl.lit(value=False).alias(FORECAST_COLUMN))
+        # Each input keeps its own forecast flag through the join; they are OR-ed afterwards.
+        return df.select([YEAR_COLUMN, name, pl.col(FORECAST_COLUMN).alias('%s__forecast' % name)])
+
+    def _annual_inputs(self, names: set[str]) -> PathsDataFrame:
+        """Join the named input series on the model's year span."""
         parts: list[PathsDataFrame] = []
-        supplied: set[str] = set()
-
-        from_dataset = self._dataset_series()
-        if from_dataset is not None:
-            frame, names = from_dataset
-            parts.append(frame)
-            supplied.update(names)
-
-        for name in self.ANNUAL_INPUTS:
-            frame = self._node_series(name, supplied)
-            if frame is None:
-                continue
-            parts.append(frame)
-            supplied.add(name)
-
-        if not parts:
-            return None, supplied
+        for name in sorted(names):
+            series = self._input_series(name)
+            if series is None:
+                raise NodeError(
+                    self,
+                    "The '%s' method needs %r, which is not supplied. Bind a dataset column to the input port %r."
+                    % (self._resolve_method(), name, name),
+                )
+            parts.append(series)
 
         out = parts[0]
         for part in parts[1:]:
@@ -2088,50 +2120,12 @@ class ChpNode(GenericNode):
         out = out.with_columns(
             pl.any_horizontal([pl.col(col).fill_null(value=False) for col in forecast_cols]).alias(FORECAST_COLUMN)
         ).drop(forecast_cols)
-        return out, supplied
 
-    def _as_series_frame(self, df: PathsDataFrame, cols: list[str]) -> PathsDataFrame:
-        """Reduce a source to Year + the named series, with its forecast flag kept under a unique name."""
-        for col in cols:
-            df = df.ensure_unit(col, self.ANNUAL_INPUTS[col])
-        if FORECAST_COLUMN not in df.columns:
-            df = df.with_columns(pl.lit(value=False).alias(FORECAST_COLUMN))
-        # Each source keeps its own forecast flag through the join; they are OR-ed afterwards.
-        flag = '%s__forecast' % cols[0]
-        return df.select([YEAR_COLUMN, *cols, pl.col(FORECAST_COLUMN).alias(flag)])
-
-    def _year_frame(self, annual: PathsDataFrame | None) -> PathsDataFrame:
-        """Put the annual inputs on the model's year span, or build a bare span if there are none."""
         instance = self.context.instance
-        end_year = instance.model_end_year
         start_year = min(instance.reference_year, instance.minimum_historical_year)
-
-        if annual is None:
-            last_hist = instance.maximum_historical_year or start_year
-            years = range(start_year, end_year + 1)
-            out = PathsDataFrame({YEAR_COLUMN: years})
-            out._units = {}
-            out._primary_keys = [YEAR_COLUMN]
-            return out.with_columns((pl.col(YEAR_COLUMN) > pl.lit(last_hist)).alias(FORECAST_COLUMN))
-
-        out = annual.paths._add_missing_years(annual, self.context)  # interpolate internal gaps
+        out = out.paths._add_missing_years(out, self.context)  # interpolate internal gaps
         out = extend_to_history_pl(out, start_year)  # hold the earliest observation back to the start
-        return extend_last_historical_value_pl(out, end_year)  # hold the latest one forward, as forecast
-
-    def _add_constant_inputs(self, df: PathsDataFrame, names: set[str]) -> PathsDataFrame:
-        """Fill the inputs that were not given as a series from their constant parameter."""
-        for name in sorted(names):
-            raw = self.get_parameter_value(name, required=False, units=False)
-            if raw is None:
-                raise NodeError(
-                    self,
-                    "The '%s' method needs %r, which is not supplied. Give it as an input node tagged '%s', "
-                    'as a metric column of the input dataset, or as the constant parameter %r.'
-                    % (self._resolve_method(), name, name, name),
-                )
-            assert isinstance(raw, (int, float))
-            df = df.with_columns(pl.lit(float(raw)).alias(name)).set_unit(name, self.ANNUAL_INPUTS[name])
-        return df
+        return extend_last_historical_value_pl(out, instance.model_end_year)  # hold the latest one forward, as forecast
 
     def _z_factors(self, df: PathsDataFrame, method: str) -> PathsDataFrame:
         """Add the method-specific weights z_el and z_heat."""
@@ -2151,11 +2145,17 @@ class ChpNode(GenericNode):
                 pl.lit(1.0).alias('z_el'),
                 (pl.lit(1.0) - t_return / pl.col('t_supply')).alias('z_heat'),
             ])
-        n_el = self.get_parameter_value_float('electricity_reference_efficiency', required=True)
-        n_heat = self.get_parameter_value_float('heat_reference_efficiency', required=True)
-        if n_el <= 0 or n_heat <= 0:
-            raise NodeError(self, 'Reference efficiencies must be positive; got %s and %s.' % (n_el, n_heat))
-        return df.with_columns([pl.lit(1.0 / n_el).alias('z_el'), pl.lit(1.0 / n_heat).alias('z_heat')])
+        bad = df.filter((pl.col('electricity_reference_efficiency') <= 0) | (pl.col('heat_reference_efficiency') <= 0))
+        if bad.height:
+            raise NodeError(
+                self,
+                'Reference efficiencies must be positive. They are not in year(s) %s.'
+                % ', '.join(str(y) for y in bad[YEAR_COLUMN].unique().sort()),
+            )
+        return df.with_columns([
+            (pl.lit(1.0) / pl.col('electricity_reference_efficiency')).alias('z_el'),
+            (pl.lit(1.0) / pl.col('heat_reference_efficiency')).alias('z_heat'),
+        ])
 
     def _operation_chp_fractions(self, df: PathsDataFrame | None) -> OperationReturn:
         if df is not None:
@@ -2163,7 +2163,7 @@ class ChpNode(GenericNode):
 
         method = self._resolve_method()
         needed = self.METHOD_INPUTS[method]
-        annual, supplied = self._annual_inputs()
+        supplied = self._supplied_input_names()
 
         unused = supplied - needed
         if method == 'bisko' and 't_return' in unused:
@@ -2180,9 +2180,7 @@ class ChpNode(GenericNode):
                 method,
             )
 
-        out = self._year_frame(annual)
-        out = self._add_constant_inputs(out, set(needed) - supplied)
-        out = out.drop([col for col in unused if col in out.columns])
+        out = self._annual_inputs(set(needed))
 
         bad = out.filter((pl.col('electricity_fraction') < 0.0) | (pl.col('electricity_fraction') > 1.0))
         if bad.height:
@@ -2240,11 +2238,11 @@ class BiskoChpNode(ChpNode):
     BISKO criterion 6 requires the coupled products of combined heat and power to be
     split by the exergetic (Carnot) method, with the district heating return
     temperature fixed at 283 K. Both are properties of the standard rather than of
-    the city, so this class fixes them: ``method``, ``t_return`` and the reference
-    efficiencies are not parameters here, and setting any of them in the config is a
+    the city, so this class fixes them: it has no ``method`` parameter and no ports
+    for the return temperature or the reference efficiencies, so binding one is a
     load-time error rather than a silently different balance. What genuinely varies
     between cities and between years -- the electricity fraction and the supply
-    temperature -- is supplied exactly as in :class:`ChpNode`.
+    temperature -- is bound exactly as in :class:`ChpNode`.
 
     Using this class instead of ``ChpNode`` with ``method: bisko`` puts the
     conformity in the model structure, where a certifier can see it and no scenario
@@ -2255,11 +2253,12 @@ class BiskoChpNode(ChpNode):
 
     FIXED_METHOD = 'bisko'
 
-    allowed_parameters = [
-        p
-        for p in ChpNode.allowed_parameters
-        if p.local_id not in ('method', 't_return', 'electricity_reference_efficiency', 'heat_reference_efficiency')
-    ]
+    t_supply_port = InputPortDeclaration(
+        role='t_supply', required=False, label=_('Supply temperature of the district heating flow')
+    )
+    input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = (ChpNode.electricity_fraction_port, t_supply_port)
+
+    allowed_parameters = [*GenericNode.allowed_parameters]
 
 
 class BiskoExergeticAllocationNode(GenericNode):

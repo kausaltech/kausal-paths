@@ -424,10 +424,8 @@ def _sync_dataset_metadata_from_snapshot(ic: InstanceConfig, snapshot: InstanceS
                 # Same reasoning as the missing-dataset case above, one level down: a module
                 # declares rules for every metric it may read, and an including instance
                 # legitimately carries only a subset. A `dataset_replacements` entry can swap in a
-                # city dataset that deliberately omits a column -- `kommune/kwk_anlagenparameter`
-                # declares `t_supply`, and Mainz replaces it with a dataset that has none, because
-                # its utility gives a range rather than a figure and `ChpNode` falls back to the
-                # node parameter when the column is absent.
+                # city dataset that omits a column the module declares rules for, when no node of
+                # that instance binds it.
                 #
                 # Warning is safe because this declaration is an *edit constraint*, not a binding:
                 # a rule with no metric constrains nothing and cannot leave a dataset wrongly

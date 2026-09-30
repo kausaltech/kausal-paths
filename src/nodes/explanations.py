@@ -257,8 +257,8 @@ NODE_CLASS_DESCRIPTIONS: dict[str, NodeInfo] = {
 
         Those choices belong to the standard rather than to the city, so they cannot be changed here
         or in a scenario. What does vary between cities and between years -- the electricity fraction
-        of the plant's output and the supply temperature of the network -- is given per year, from a
-        dataset, from an input node, or as a single parameter value.
+        of the plant's output and the supply temperature of the network -- is read per year from a
+        dataset, each from its own input port.
         """
         )
     ),
@@ -344,11 +344,11 @@ NODE_CLASS_DESCRIPTIONS: dict[str, NodeInfo] = {
         where n<sub>i</sub> is the reference efficiency for producing the energy type separately.
         Typical values are n<sub>heat</sub> = 0.9, n<sub>electricity</sub> = 0.4.</li></ol>
 
-        A plant does not run the same way every year, so the electricity fraction and the supply and
-        return temperatures are read per year. Each of them comes from an input node tagged with its
-        name, or from a column of that name in the input dataset, or -- if the city has only one
-        representative value rather than a series -- from the parameter of that name. Annual series
-        are interpolated over gaps and held constant beyond the years they cover.
+        The method is the only setting: it is an agreement about how to share the emissions. Everything
+        else describes the physical plant -- the electricity fraction, the supply and return
+        temperatures, the reference efficiencies -- and is read per year from a dataset, each value
+        from the input port of the same name. Annual series are interpolated over gaps and held
+        constant beyond the years they cover, so a plant described by one year is a flat line.
         """
         )
     ),

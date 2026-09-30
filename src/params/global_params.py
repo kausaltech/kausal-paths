@@ -58,17 +58,6 @@ class DiscountRate(NumberGlobalParameter):
     id = 'discount_rate'
 
 
-class ChpSupplyTemperature(NumberGlobalParameter):
-    # District heating supply-flow temperature (K), used by ChpNode's exergetic allocation
-    # (criterion 6). Global rather than node-local because the scenario editor only lists
-    # global_parameters (params/schema.py) -- a node-local NumberParameter never appears there,
-    # however customizable it is set. An instance whose utility supplies a fixed t_supply value
-    # binds it via a dataset column instead and never references this id; it only matters where
-    # a city's own config sets a ReferenceParameter to it, as mainz-bisko.yaml does.
-    name = _('District heating supply temperature')
-    id = 'chp_supply_temperature'
-
-
 class Ets2Co2Price(NumberGlobalParameter):
     # CO2 price on heating and road fuels once EU ETS2 applies (EUR/t CO2). Global rather than an
     # action because it is an assumption about the framework, not a measure: as an action it shows

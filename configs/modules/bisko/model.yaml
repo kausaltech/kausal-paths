@@ -2649,30 +2649,20 @@ nodes:
   quantity: fraction
   unit: '%'
   output_dimensions: [energy_carrier]
-  # No parameters, deliberately: the electricity fraction and the supply temperature come from
-  # the dataset below, one value per year, and nowhere else. Until 2026-09-29 there was also a
-  # `t_supply` slider here, and Bayreuth and Mainz each carried the values as node or global
-  # parameters. That was three ways to state two numbers, the slider was inert wherever the
-  # dataset had the column, and the scenario editor never showed it. Where a heat supplier gives a
-  # range rather than a figure (Mainz: 90-115 °C by season), the dataset carries the midpoint and
-  # the row comment carries the range.
-  # One annual row per input. The shared dataset holds placeholders (0.3 and 373 K in every
-  # year); a city replaces it with its own via dataset_replacements once the utility delivers,
-  # and city admins can edit the values in the admin UI. Series are interpolated over internal
-  # gaps and held constant outside the years they cover.
+  # No parameters: BiskoChpNode fixes the method, and everything else describes the physical
+  # plant, so it comes from the dataset and nowhere else. Each input is its own port, named after
+  # the column bound to it, one value per year: electricity_fraction (dimensionless) and t_supply
+  # (K). Series are interpolated over internal gaps and held constant outside the years they
+  # cover. Where a heat supplier gives a range rather than a figure (Mainz: 90-115 °C by season),
+  # the dataset carries the midpoint and the row comment carries the range.
+  # The shared dataset holds placeholders (0.3 and 373 K in every year); a city replaces it with
+  # its own via dataset_replacements once the utility delivers, and city admins can edit the
+  # values in the admin UI. A missing column is a sync error naming it.
   input_datasets:
-  # No `column:` here, deliberately, unlike the other multi-metric bindings in this module:
-  # ChpNode resolves electricity_fraction, t_supply and t_return by *name* against the
-  # dataset's metric columns, so it needs more than one and ignores the rest. That is also
-  # why adding quality_electricity_fraction / quality_t_supply does not disturb it.
-  - id: kommune/kwk_anlagenparameter   # metric columns: electricity_fraction (dimensionless), t_supply (K)
-  # Either input may instead come from a node that already exists, by tagging the edge with the
-  # input's name — useful where the electricity fraction is derivable rather than reported:
-  #   input_nodes:
-  #   - id: chp_electricity_output_share
-  #     tags: [electricity_fraction]
-  # The dataset must carry both columns: with no parameter to fall back on, a missing one is a
-  # NodeError naming the input.
+  - id: kommune/kwk_anlagenparameter
+    column: electricity_fraction
+  - id: kommune/kwk_anlagenparameter
+    column: t_supply
 
 #//////  Transport  /////////////////////////////////////////////////////////////////////////////////
 
