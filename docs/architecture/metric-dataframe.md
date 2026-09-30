@@ -364,8 +364,15 @@ GraphQL exposes one object per qualifier: a `BooleanQualifierType` with a
 `values` array, or a `CoveredScoreQualifierType` with `scores` and `coverage`
 arrays. Each array aligns exactly with the metric's flattened `values` index;
 construction rejects mismatched lengths and duplicate qualifier identifiers.
-Each object carries its catalog `identifier` and an `id` derived as
-`<DimensionalMetric.id>:<identifier>`, inheriting the metric's identity contract.
+Each qualifier object carries its catalog `identifier`, with no entity ID.
+Metric cubes and qualifier columns are computed values embedded under the
+query field that returned them; clients must disable entity normalization for
+`DimensionalMetricType`, `BooleanQualifierType` and `CoveredScoreQualifierType`.
+`DimensionalMetricType.id` is deprecated and retained temporarily for existing
+clients and internal bookkeeping. It does not distinguish instances or
+calculation variants. Keep instance scoping explicit in client cache field
+keys and represent calculation options as field arguments; parameter changes
+outside those keys require invalidation or refetching.
 No framework-specific fields are hard-coded in the schema. Missing cube cells
 produce null elements. Round trips represent these as unknown struct fields;
 the distinction between an absent struct and an entirely unknown struct is
