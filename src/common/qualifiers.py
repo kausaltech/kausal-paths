@@ -27,7 +27,7 @@ SCORE = 'score'
 COVERAGE = 'coverage'
 REPORTED = 'reported'
 # Change this when either the stored shape or propagation semantics change.
-QUALIFIER_VERSION = 5
+QUALIFIER_VERSION = 6
 
 
 class CoveredScore(TypedDict):
