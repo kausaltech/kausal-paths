@@ -158,18 +158,6 @@ Its value is ``{'scheme': <scheme identifier>, 'level': <level identifier>}``, d
 """
 
 
-def resolve_quality_score(scheme: str, level: str) -> float | None:
-    """Return the score of a quality level named by scheme and level identifier, from the newest scheme version."""
-    found = (
-        DataQualityLevel.objects
-        .filter(scheme__identifier=scheme, identifier=level)
-        .order_by('-scheme__version')
-        .values_list('score', flat=True)
-        .first()
-    )
-    return float(found) if found is not None else None
-
-
 def quality_projections(dataset: Dataset) -> dict[str, str]:
     """Map projected metric UUID -> graded metric UUID, for the metrics of `dataset`'s schema."""
     from kausal_common.datasets.models import DatasetMetric

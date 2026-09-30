@@ -48,10 +48,10 @@ datasets:
 # (see `common.qualifiers`).
 - id: de/fahrleistung_strassenverkehr  # ifeu municipality-level road mileage
   is_editable: false
-  default_quality: {scheme: bisko, level: B}
+  default_quality: {scheme: quality, level: B}
 - id: de/energieverbrauch_uebriger_verkehr            # ifeu rail, inland waterway and aviation energy
   is_editable: false
-  default_quality: {scheme: bisko, level: B}
+  default_quality: {scheme: quality, level: B}
 - id: demography/population_lau               # Eurostat GISCO population per municipality
   # Locked, and outside `de/`, because it is neither editable nor German-specific: the same
   # 94,000 municipalities serve every European instance, German or not, exactly as

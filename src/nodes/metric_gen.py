@@ -9,7 +9,7 @@ from kausal_common.i18n.pydantic import gettext as _
 
 from paths.const import MODEL_CALC_OP
 
-from common import polars as ppl
+from common import polars as ppl, qualifiers
 
 from .actions.action import ActionNode
 from .actions.shift import ShiftAction
@@ -40,6 +40,8 @@ if TYPE_CHECKING:
 
 
 from .metric import (
+    BooleanQualifier,
+    CoveredScoreQualifier,
     DimensionalMetric,
     DimensionKind,
     MetricCategory,
@@ -47,6 +49,7 @@ from .metric import (
     MetricData,
     MetricDimension,
     MetricDimensionGoal,
+    MetricQualifier,
     MetricYearlyGoal,
     NormalizerNode,
 )
@@ -335,37 +338,49 @@ def _generate_output_data(
     if df.paths.index_has_duplicates():
         raise NodeError(node, 'DataFrame index has duplicates')
 
-    forecast_from = df.filter(pl.col(FORECAST_COLUMN).eq(other=True))[YEAR_COLUMN].min()
+    return _indexed_output_data(dims, df, dropped_not_filled=dropped_not_filled)
+
+
+def _metric_qualifiers(df: pl.DataFrame, metric_col: str) -> list[MetricQualifier]:
+    column = qualifiers.qualifier_column(metric_col)
+    if column not in df.columns:
+        return []
+    catalog = qualifiers.QualifierCatalog.from_dtype(df.schema[column])
+    rows = df[column].to_list()
+    result: list[MetricQualifier] = []
+    for definition in catalog.definitions:
+        name = definition.identifier
+        if definition.propagation == qualifiers.Propagation.REPORTED:
+            result.append(BooleanQualifier(identifier=name, values=[q.get(name) if q else None for q in rows]))
+        else:
+            assessments = [(q.get(name) or {}) if q else {} for q in rows]
+            result.append(
+                CoveredScoreQualifier(
+                    identifier=name,
+                    scores=[a.get('score') for a in assessments],
+                    coverage=[a.get('coverage') for a in assessments],
+                )
+            )
+    return result
+
+
+def _indexed_output_data(dims: list[MetricDimension], df: ppl.PathsDataFrame, *, dropped_not_filled: bool = False) -> MetricData:
+    """Join values and qualifiers onto one index, then serialize in the same order."""
+    forecast_from = df.filter(pl.col(FORECAST_COLUMN))[YEAR_COLUMN].min()
     if forecast_from is not None:
         assert isinstance(forecast_from, int)
-
     years = df[YEAR_COLUMN].unique().sort().to_list()
     idx_df = DimensionalMetric.generate_index_df(dims, years)
-
-    # idx_names = [dim.original_id for dim in dims] + [YEAR_COLUMN]
-    # idx_dfs = [pl.LazyFrame(dim.get_original_cat_ids(), schema=[dim.original_id], orient='row') for dim in dims] + [
-    #     pl.LazyFrame(years, schema=['Year']),
-    # ]
-    # idf_lazy = idx_dfs[0]
-    # for d in idx_dfs[1:]:
-    #     idf_lazy = idf_lazy.join(d, how='cross')
-    # idx_df = idf_lazy.collect()
-    # idx_df = idx_df.select(idx_names)
-
     idx_exprs = [pl.col(n).cast(pl.Utf8) if n != YEAR_COLUMN else pl.col(n) for n in idx_df.columns]
-    df = df.select([*idx_exprs, VALUE_COLUMN, FORECAST_COLUMN]).sort(by=idx_exprs)
-    jdf = idx_df.join(df, how='left', on=idx_exprs, validate='1:1')
-    assert len(df.metric_cols) == 1
-    metric_col = df.metric_cols[0]
-    vals: list[float]
+    selected = df.select([*idx_exprs, *df.qualified([VALUE_COLUMN, FORECAST_COLUMN])]).sort(by=idx_exprs)
+    joined = idx_df.join(selected, how='left', on=idx_exprs, validate='1:1')
     if dropped_not_filled:
-        vals = jdf[metric_col].drop_nulls().to_list()
-    else:
-        vals = jdf[metric_col].fill_null(0).to_list()
+        joined = joined.filter(pl.col(VALUE_COLUMN).is_not_null())
     return MetricData(
         years=years,
-        values=vals,
+        values=joined[VALUE_COLUMN].fill_null(0).to_list(),
         forecast_from=forecast_from,
+        qualifiers=_metric_qualifiers(joined, VALUE_COLUMN),
     )
 
 
@@ -409,6 +424,7 @@ def from_node_output_metric(
         name=str(name),
         dimensions=dims,
         values=data.values,
+        qualifiers=data.qualifiers,
         years=data.years,
         forecast_from=data.forecast_from,
         normalized_by=nnode,
@@ -527,6 +543,7 @@ def metric_from_visualization(node: Node, visualization: VisualizationNodeOutput
         name=str(node.name),
         dimensions=dims,
         values=data.values,
+        qualifiers=data.qualifiers,
         years=data.years,
         forecast_from=data.forecast_from,
         stackable=True,
@@ -613,6 +630,7 @@ def from_action_impact(
         name=str(action.name),
         dimensions=dims,
         values=vals,
+        qualifiers=_metric_qualifiers(jdf, col),
         years=years,
         forecast_from=forecast_from,
         stackable=True,  # Stackability checked already.
@@ -713,25 +731,16 @@ def metric_from_dataframe(
 
     dims = _make_dimensions_from_context(context, df, id_prefix=metric_id)
 
-    years = df[YEAR_COLUMN].unique().sort().to_list()
-    idx_df = DimensionalMetric.generate_index_df(dims, years)
-
-    idx_exprs = [pl.col(n).cast(pl.Utf8) if n != YEAR_COLUMN else pl.col(n) for n in idx_df.columns]
-    val_df = df.select([*idx_exprs, VALUE_COLUMN, FORECAST_COLUMN]).sort(by=idx_exprs)
-    jdf = idx_df.join(val_df, how='left', on=idx_exprs, validate='1:1')
-    vals: list[float] = jdf[VALUE_COLUMN].fill_null(0).to_list()
-
-    forecast_from = df.filter(pl.col(FORECAST_COLUMN))[YEAR_COLUMN].min()
-    if forecast_from is not None:
-        assert isinstance(forecast_from, int)
+    data = _indexed_output_data(dims, df)
 
     return DimensionalMetric(
         id=metric_id,
         name=metric_name,
         dimensions=dims,
-        values=vals,
-        years=years,
-        forecast_from=forecast_from,
+        values=data.values,
+        qualifiers=data.qualifiers,
+        years=data.years,
+        forecast_from=data.forecast_from,
         stackable=False,
         goals=[],
         normalized_by=None,
@@ -758,25 +767,17 @@ def metric_from_dataframe_standalone(
 
     dims = _make_dimensions_from_df(df, id_prefix=metric_id)
 
-    years = df[YEAR_COLUMN].unique().sort().to_list()
-    idx_df = DimensionalMetric.generate_index_df(dims, years)
-
-    idx_exprs = [pl.col(n).cast(pl.Utf8) if n != YEAR_COLUMN else pl.col(n) for n in idx_df.columns]
-    val_df = df.select([*idx_exprs, VALUE_COLUMN, FORECAST_COLUMN]).sort(by=idx_exprs)
-    jdf = idx_df.join(val_df, how='left', on=idx_exprs, validate='1:1')
-    vals: list[float] = jdf[VALUE_COLUMN].fill_null(0).to_list()
-
+    data = _indexed_output_data(dims, df)
     if forecast_from is None:
-        forecast_from = df.filter(pl.col(FORECAST_COLUMN))[YEAR_COLUMN].min()
-        if forecast_from is not None:
-            assert isinstance(forecast_from, int)
+        forecast_from = data.forecast_from
 
     return DimensionalMetric(
         id=metric_id,
         name=metric_name,
         dimensions=dims,
-        values=vals,
-        years=years,
+        values=data.values,
+        qualifiers=data.qualifiers,
+        years=data.years,
         forecast_from=forecast_from,
         stackable=False,
         goals=[],
