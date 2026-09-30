@@ -737,6 +737,16 @@ class PathsExt:
         other = qualifiers.align_frame(other, catalog)
         sm = sdf.get_meta()
         om = other.get_meta()
+        # Suffix the metric before its qualifier suffix, so renaming, projection
+        # and dropping still treat the joined columns as a pair. This also applies
+        # when only the right metric has a qualifier.
+        right_qualifiers = {
+            qual: qualifiers.qualifier_column(f'{metric}_right')
+            for metric, qual in other.qualifier_cols.items()
+            if metric in sdf.columns
+        }
+        if right_qualifiers:
+            other = other.rename(right_qualifiers)
         # Join on subset of keys; preserve left key order for deterministic joins and metadata.
         join_on = [col for col in sm.primary_keys if col in om.primary_keys]
         if not len(join_on):  # noqa: PLC1802
@@ -872,16 +882,15 @@ class PathsExt:
         """
         Name the two sides' qualifiers as they appear once ``left`` and ``right`` are joined.
 
-        Decided from the frames before the join, because the joined frame alone is ambiguous: a
-        join suffixes only a clashing name, so ``Value__qual`` is the right-hand qualifier when the
-        left had none.
+        Decided from the frames before the join. A right-hand qualifier follows its
+        metric's joined name, even when the left metric has no qualifier.
         """
         left_qual = qualifiers.qualifier_column(metric) if qualifiers.qualifier_column(metric) in left.columns else None
         right_qual = qualifiers.qualifier_column(right_metric)
         if right_qual not in right.columns:
             return left_qual, None
-        if right_qual == left_qual:
-            right_qual = f'{right_qual}_right'
+        if right_metric in left.columns:
+            right_qual = qualifiers.qualifier_column(f'{right_metric}_right')
         return left_qual, right_qual
 
     def _sum_qualifier_exprs(
