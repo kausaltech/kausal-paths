@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, NoReturn
+from typing import TYPE_CHECKING, NoReturn
 
 import polars as pl
 from loguru import logger
@@ -54,6 +54,8 @@ from nodes.defs.transform_def import (
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
+    from pydantic import JsonValue
+
     from nodes.context import Context
     from nodes.datasets import Dataset
     from nodes.defs.transform_def import PortTransformOp
@@ -78,29 +80,51 @@ class QualifierSource:
     dataset's declared default grade, for values that have no grade of their own.
     """
 
+    catalog: qualifiers.QualifierCatalog = qualifiers.BUILTIN_QUALIFIERS
     quality_columns: dict[str, str] = field(default_factory=dict)
     default_quality: float | None = None
+    quality_identifier: str | None = None
 
     def covers(self, column: str) -> bool:
-        return column in self.quality_columns or self.default_quality is not None
+        return True
 
-    def hash_data(self) -> dict[str, Any]:
-        return {'quality_columns': dict(sorted(self.quality_columns.items())), 'default_quality': self.default_quality}
+    def hash_data(self) -> dict[str, JsonValue]:
+        return {
+            'version': qualifiers.QUALIFIER_VERSION,
+            'catalog': self.catalog.hash_data(),
+            'quality_columns': dict(sorted(self.quality_columns.items())),
+            'default_quality': self.default_quality,
+            'quality_identifier': self.quality_identifier,
+        }
 
     def qualifier_expr(self, frame: ppl.PathsDataFrame, column: str) -> pl.Expr:
-        """Build the qualifier of ``column``'s values: its grade where one is known, and whether it was supplied at all."""
         value = pl.col(column)
-        quality: pl.Expr | None = None
-        quality_col = self.quality_columns.get(column)
-        if quality_col is not None and quality_col in frame.columns:
-            quality = pl.col(quality_col)
-        if self.default_quality is not None:
-            default = pl.lit(self.default_quality, dtype=pl.Float64)
-            quality = default if quality is None else pl.coalesce(quality, default)
-        if quality is not None:
-            # A grade describes a value; an empty cell has none, whatever its dataset's default.
-            quality = pl.when(value.is_not_null()).then(quality).otherwise(pl.lit(None, dtype=pl.Float64))
-        return qualifiers.make(quality=quality, supplied=value.is_not_null())
+        existing = qualifiers.qualifier_column(column)
+        assessments = {}
+        for definition in self.catalog.assessments:
+            assessment = (
+                pl.col(existing).struct.field(definition.identifier)
+                if existing in frame.columns
+                else pl.lit(None, dtype=qualifiers.COVERED_SCORE_DTYPE)
+            )
+            if definition.identifier == self.quality_identifier:
+                score = pl.lit(None, dtype=pl.Float64) if column in self.quality_columns else None
+                quality_col = self.quality_columns.get(column)
+                if quality_col is not None and quality_col in frame.columns and existing not in frame.columns:
+                    score = pl.col(quality_col)
+                if self.default_quality is not None:
+                    default = pl.lit(self.default_quality, dtype=pl.Float64)
+                    score = default if score is None else pl.coalesce(score, default)
+                if score is not None:
+                    score = pl.when(value.is_not_null()).then(score).otherwise(pl.lit(None, dtype=pl.Float64))
+                    fallback = qualifiers.covered_score(score, score.is_not_null().cast(pl.Float64))
+                    assessment = pl.coalesce(assessment, fallback)
+            assessments[definition.identifier] = assessment
+        return qualifiers.make(
+            catalog=self.catalog,
+            assessments=assessments,
+            reported=pl.col(existing).struct.field(qualifiers.REPORTED) if existing in frame.columns else value.is_not_null(),
+        )
 
 
 @dataclass
@@ -193,11 +217,11 @@ def apply_operation(  # noqa: C901, PLR0911, PLR0912
         case EnsureUnitOp():
             return _ensure_unit(df, op)
         case InterpolateOp():
-            return qualifiers.carry_over(df, interpolate_years(df, env))
+            return qualifiers.carry_over(df, interpolate_years(df, env), fill='interpolate')
         case BackfillOp():
-            return qualifiers.carry_over(df, backfill_leading_values(df))
+            return qualifiers.carry_over(df, backfill_leading_values(df), fill='backfill')
         case ExtendOp():
-            return qualifiers.carry_over(df, extend_to_end_year(df, env))
+            return qualifiers.carry_over(df, extend_to_end_year(df, env), fill='extend')
         case SelectCategoriesTransformation() | AssignCategoryTransformation() | FlattenTransformation():
             # The legacy edge vocabulary. Edges still apply their own
             # transformations on the producing node, so nothing should reach
@@ -309,10 +333,9 @@ def _select_metric(df: ppl.PathsDataFrame, env: PipelineEnv) -> ppl.PathsDataFra
     exprs = [pl.col(column).alias(VALUE_COLUMN)]
     value_qual = qualifiers.qualifier_column(VALUE_COLUMN)
     source = env.dataset.qualifier_source if env.dataset is not None else None
-    if (existing := qualifiers.qualifier_column(column)) in df.columns:
-        exprs.append(pl.col(existing).alias(value_qual))
-    elif source is not None and source.covers(column):
-        exprs.append(source.qualifier_expr(df, column).alias(value_qual))
+    if source is None:
+        source = QualifierSource(catalog=env.context.qualifiers)
+    exprs.append(source.qualifier_expr(df, column).alias(value_qual))
     df = df.with_columns(exprs)
     fills_empties = env.dataset is not None and EMPTY_TO_ZERO_TAG in env.dataset.tags
     if not fills_empties:

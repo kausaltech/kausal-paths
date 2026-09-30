@@ -199,7 +199,9 @@ def test_db_dataset_hash_includes_the_shared_binding_pipeline() -> None:
 
 
 def test_db_dataset_reuses_deserialized_dataframe_within_context(monkeypatch: pytest.MonkeyPatch) -> None:
-    context = cast('Context', SimpleNamespace(db_dataset_dfs={}))
+    from common.qualifiers import BUILTIN_QUALIFIERS
+
+    context = cast('Context', SimpleNamespace(db_dataset_dfs={}, qualifiers=BUILTIN_QUALIFIERS))
     db_dataset = cast('DBDatasetModel', SimpleNamespace(pk=1))
     raw_df = ppl.to_ppdf(pl.DataFrame({'Year': [2020], 'Value': [1.0]}))
     calls = 0

@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, cast
 import polars as pl
 import pytest
 
+from common import qualifiers
 from common.polars import DataFrameMeta, to_ppdf
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from nodes.defs.transform_def import (
@@ -56,6 +57,7 @@ def _env(reference_year: int = 2020, target_year: int = 2030, model_end_year: in
                 model_end_year=model_end_year,
             ),
             dimensions={},
+            qualifiers=qualifiers.BUILTIN_QUALIFIERS,
         ),
     )
     return PipelineEnv(context=context)
@@ -85,7 +87,7 @@ def test_select_metric_aliases_the_bound_column_and_narrows_the_frame():
 
     result = _run(_wide_ppdf(), [SelectMetricOp()], env)
 
-    assert result.columns == [YEAR_COLUMN, VALUE_COLUMN]
+    assert result.columns == [YEAR_COLUMN, VALUE_COLUMN, 'Value__qual']
     assert result[VALUE_COLUMN].to_list() == [1.0, 2.0, 3.0]
 
 
@@ -220,7 +222,7 @@ def test_rename_column_runs_before_selection_so_it_can_expose_the_column():
 
     result = _run(df, [RenameColumnOp(column='Vuosi', new_name=YEAR_COLUMN), SelectMetricOp()], env)
 
-    assert result.columns == [YEAR_COLUMN, VALUE_COLUMN]
+    assert result.columns == [YEAR_COLUMN, VALUE_COLUMN, 'Value__qual']
     assert result[YEAR_COLUMN].to_list() == [2020, 2021]
 
 
