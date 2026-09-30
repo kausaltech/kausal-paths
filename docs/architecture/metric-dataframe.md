@@ -298,8 +298,27 @@ All-zero groups have no energy-weighted assessment; do not substitute a
 cell-count average. Signed corrections can cancel values and make magnitude
 weighting depend on grouping; their grading policy must be explicit.
 
+`remove_subset(total, subset)` is an explicit accounting operation for removing
+consumption already included in its parent. It requires matching dimensions,
+compatible units and nonnegative quantities with the subset no larger than the
+parent. Sparse absent or zero subset cells leave the parent assessment unchanged.
+For a positive remainder, fully assessed parent and subset retain the parent's
+score and coverage 1; the subset's grade does not improve or dilute the parent's
+grade. If either contributing assessment is partial or unknown, the remainder's
+assessment is unknown: marginal coverage fractions cannot locate assessed energy
+within the removed subset. A fully removed quantity has no weighted assessment.
+Ordinary subtraction retains the existing magnitude-weighted combination rule.
+
+BISKO uses this operation to separate municipal consumption from GHD. The
+existing global overlap boolean still gates the municipal correction; no new
+cell-level declarations or data-entry fields are required. Heat-pump electricity
+continues to use ordinary subtraction. Dataset cleaning preserves sidecars through
+its legacy wide/narrow interpolation and endpoint extension steps.
+
 Exact constants and unit conversions preserve assessments. A product whose
-assessment follows one designated input carries that input's pair. When both
+assessment follows one designated input carries that input's pair. A factor
+without a score (including a null score with zero coverage) has no separate
+assessment to combine and preserves the sole assessed input. When both
 inputs require assessment, a combination policy is needed: the minimum of
 two coverage fractions is not generally their joint assessed coverage. The
 existing conservative product rule is provisional, not proof of coverage.
