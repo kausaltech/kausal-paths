@@ -112,7 +112,17 @@ class PathsExt:
         if op_name == 'empty_to_zero':
             return lambda df, *args: qualifiers.carry_over(df, method(df, *args), start=True)
         if op_name in self._FILL_OPERATIONS:
-            return lambda df, *args: qualifiers.carry_over(df, method(df, *args))
+            policies = {
+                'linear_interpolate': 'interpolate',
+                'extend_to_history': 'backfill',
+                'extend_forecast_values': 'extend',
+                'extend_values': 'extend',
+                'extend_both_ways': 'both',
+                'extend_all': 'all',
+                'observed_only_extend_all': 'all',
+            }
+            fill = policies.get(op_name, 'zero')
+            return lambda df, *args: qualifiers.carry_over(df, method(df, *args), fill=fill)
         return method
 
     def to_pandas(self, meta: ppl.DataFrameMeta | None = None) -> pd.DataFrame:
@@ -406,7 +416,10 @@ class PathsExt:
             .group_by(remaining_keys)
             .agg([
                 *[pl.sum(col).alias(col) for col in sum_cols],
-                *[qualifiers.reduce_sum(metric, qual) for metric, qual in df.qualifier_cols.items()],
+                *[
+                    qualifiers.reduce_sum(metric, qual, qualifiers.QualifierCatalog.from_dtype(df.schema[qual]))
+                    for metric, qual in df.qualifier_cols.items()
+                ],
                 *fc,
             ])
             .sort(remaining_keys)
@@ -544,7 +557,10 @@ class PathsExt:
                 *[pl.mean(col).alias(col) for col in agg_cols],
                 # A mean is a sum scaled by a constant, and the weights of a sum do not change
                 # when every term is scaled by the same constant.
-                *[qualifiers.reduce_sum(metric, qual) for metric, qual in df.qualifier_cols.items()],
+                *[
+                    qualifiers.reduce_sum(metric, qual, qualifiers.QualifierCatalog.from_dtype(df.schema[qual]))
+                    for metric, qual in df.qualifier_cols.items()
+                ],
                 *fc,
             ])
             .sort(remaining_keys)
@@ -715,7 +731,9 @@ class PathsExt:
         index_from: Literal['left', 'right', 'union'] = 'left',
         nulls_equal: bool = False,
     ) -> ppl.PathsDataFrame:
-        sdf = self._df
+        catalog = qualifiers.catalog_for_frames(self._df, other)
+        sdf = qualifiers.align_frame(self._df, catalog)
+        other = qualifiers.align_frame(other, catalog)
         sm = sdf.get_meta()
         om = other.get_meta()
         # Join on subset of keys; preserve left key order for deterministic joins and metadata.
@@ -872,13 +890,26 @@ class PathsExt:
         left_qual, right_qual = self._joined_qualifiers(left, right, val_col, right_metric)
         if left_qual is None and right_qual is None:
             return []
-        return [qualifiers.combine_sum(qualifiers.qualifier_column(val_col), val_col, left_qual, right_col, right_qual)]
+        return [
+            qualifiers.combine_sum(
+                qualifiers.qualifier_column(val_col),
+                val_col,
+                left_qual,
+                right_col,
+                right_qual,
+                qualifiers.catalog_for_frames(left, right),
+            )
+        ]
 
     def _product_qualifier_exprs(self, left: ppl.PathsDataFrame, right: ppl.PathsDataFrame, val_col: str) -> list[pl.Expr]:
         left_qual, right_qual = self._joined_qualifiers(left, right, val_col, val_col)
         if left_qual is None and right_qual is None:
             return []
-        return [qualifiers.combine_product(qualifiers.qualifier_column(val_col), left_qual, right_qual)]
+        return [
+            qualifiers.combine_product(
+                qualifiers.qualifier_column(val_col), left_qual, right_qual, qualifiers.catalog_for_frames(left, right)
+            )
+        ]
 
     def _choice_qualifier_exprs(
         self, left: ppl.PathsDataFrame, right: ppl.PathsDataFrame, out_col: str, right_metric: str, take_left: pl.Expr
@@ -886,7 +917,11 @@ class PathsExt:
         left_qual, right_qual = self._joined_qualifiers(left, right, out_col, right_metric)
         if left_qual is None and right_qual is None:
             return []
-        return [qualifiers.choose(qualifiers.qualifier_column(out_col), take_left, left_qual, right_qual)]
+        return [
+            qualifiers.choose(
+                qualifiers.qualifier_column(out_col), take_left, left_qual, right_qual, qualifiers.catalog_for_frames(left, right)
+            )
+        ]
 
     def subtract_with_dims(self, odf: ppl.PathsDataFrame, how: Literal['left', 'inner', 'outer'] = 'outer') -> ppl.PathsDataFrame:
         """Subtract two PathsDataFrames with dimension awareness."""
@@ -998,9 +1033,7 @@ class PathsExt:
 
         missing = missing.with_columns(pl.lit(fill_value).cast(df.schema[val_col]).alias(val_col))
         # A category the factor does not speak about has no qualifier: nobody said anything about it.
-        missing = missing.with_columns([
-            pl.lit(None, dtype=qualifiers.QUALIFIER_DTYPE).alias(qual) for qual in df.qualifier_cols.values()
-        ])
+        missing = missing.with_columns([pl.lit(None, dtype=df.schema[qual]).alias(qual) for qual in df.qualifier_cols.values()])
         out = pl.concat([pl.DataFrame(df), missing.select(df.columns)], how='vertical')
         return ppl.to_ppdf(out, meta=df.get_meta())
 
@@ -1056,15 +1089,15 @@ class PathsExt:
             df = df.drop('_RightForecast')
         return df
 
-    def _supplied_flags(self, metric_col: str) -> pl.Expr | None:
-        """Return the ``supplied`` field of a metric's qualifier, if the frame has one that says anything."""
+    def _reported_flags(self, metric_col: str) -> pl.Expr | None:
+        """Return the reporting flag, if the frame has one that says anything."""
         qual = self._df.qualifier_cols.get(metric_col)
         if qual is None:
             return None
-        supplied = pl.col(qual).struct.field(qualifiers.SUPPLIED)
-        if self._df.select(supplied.is_not_null().any()).item() is not True:
+        reported = pl.col(qual).struct.field(qualifiers.REPORTED)
+        if self._df.select(reported.is_not_null().any()).item() is not True:
             return None
-        return supplied
+        return reported
 
     def prefer_by_year(self, odf: ppl.PathsDataFrame, coverage: ppl.PathsDataFrame | None = None) -> ppl.PathsDataFrame:
         """
@@ -1085,7 +1118,7 @@ class PathsExt:
 
         - from ``coverage``, a frame of flags -- a year is covered when any of its values is
           non-null and non-zero;
-        - from this frame's qualifier, when it says which values were ``supplied``: a year is
+        - from this frame's qualifier, when it says which values were ``reported``: a year is
           covered when any of its values was. Zero-filling, interpolation and extension mark the
           values they make up (see ``common.qualifiers``), so an empty template zero-filled to
           make the node compute still covers no year at all;
@@ -1116,8 +1149,8 @@ class PathsExt:
                 raise Exception('prefer_by_year() coverage must have a single metric column')
             flag_col = coverage.metric_cols[0]
             covered = coverage.filter(pl.col(flag_col).is_not_null() & (pl.col(flag_col) != 0))[YEAR_COLUMN].unique()
-        elif (supplied := self._supplied_flags(out_col)) is not None:
-            covered = df.filter(supplied.fill_null(value=False))[YEAR_COLUMN].unique()
+        elif (reported := self._reported_flags(out_col)) is not None:
+            covered = df.filter(reported.fill_null(value=False))[YEAR_COLUMN].unique()
         else:
             covered = df.filter(pl.col(out_col).is_not_null())[YEAR_COLUMN].unique()
 

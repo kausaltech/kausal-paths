@@ -642,10 +642,6 @@ class InstanceLoader:
     def _dataset_catalog_by_identifier(self) -> dict[str, DatasetMeta]:
         return {dataset.identifier: dataset for dataset in self.snapshot.all_datasets() if dataset.identifier is not None}
 
-    @cached_property
-    def _quality_scores(self) -> dict[tuple[str, str], float | None]:
-        return {}
-
     def _qualifier_source(self, dataset_id: str) -> QualifierSource | None:
         """
         Say where a dataset's values get their qualifiers, from its catalog entry.
@@ -658,7 +654,7 @@ class InstanceLoader:
 
         meta = self._dataset_catalog_by_identifier.get(dataset_id)
         if meta is None:
-            return None
+            return QualifierSource(catalog=self.context.qualifiers)
         by_id = meta.metric_by_id
         quality_columns = {
             graded.identifier: metric.identifier
@@ -668,21 +664,28 @@ class InstanceLoader:
             and (graded := by_id.get(metric.quality_of)) is not None
             and graded.identifier is not None
         }
+        catalog = self.context.qualifiers
+        definition = catalog.assessments[0] if len(catalog.assessments) == 1 else None
         default_quality = None
         if meta.default_quality is not None:
-            key = (meta.default_quality.scheme, meta.default_quality.level)
-            if key not in self._quality_scores:
-                from frameworks.evidence import resolve_quality_score
-
-                self._quality_scores[key] = resolve_quality_score(*key)
-                if self._quality_scores[key] is None:
-                    self.context.log.warning(
-                        'Dataset %s declares default quality %s/%s, which no quality scheme defines' % (dataset_id, *key)
-                    )
-            default_quality = self._quality_scores[key]
-        if not quality_columns and default_quality is None:
-            return None
-        return QualifierSource(quality_columns=quality_columns, default_quality=default_quality)
+            scheme_id = meta.default_quality.scheme
+            # Old published dataset specs retain the previous BISKO scheme name.
+            if scheme_id == 'bisko' and any(d.identifier == 'bisko_quality' for d in catalog.assessments):
+                scheme_id = 'quality'
+            matches = [d for d in catalog.assessments if d.scheme_identifier == scheme_id]
+            if len(matches) == 1:
+                definition = matches[0]
+                latest = definition.schemes[-1]
+                levels = {level.identifier: level.score for level in latest.levels}
+                default_quality = levels.get(meta.default_quality.level)
+                if default_quality is None:
+                    raise ValueError(f'Unknown quality level {meta.default_quality.level} for {definition.identifier}')
+        return QualifierSource(
+            catalog=catalog,
+            quality_columns=quality_columns,
+            default_quality=default_quality,
+            quality_identifier=definition.identifier if definition else None,
+        )
 
     def _make_node_datasets(self, config: dict[str, Any], node_class: type[Node], unit: Unit | None) -> list[Dataset]:  # noqa: C901, PLR0912, PLR0915
         from nodes.datasets import DBDataset, DVCDataset, FixedDataset, GenericDataset

@@ -42,6 +42,7 @@ if TYPE_CHECKING:
     from kausal_common.perf.perf_context import PerfAttrs, PerfRunContext, PerfSpanEntry
 
     from common import polars as ppl
+    from common.qualifiers import QualifierCatalog
     from datasets.prepared import PreparedDatasetStore
     from nodes.defs.instance_defs import DatasetRepoSpec
     from nodes.explanations import NodeExplanationSystem
@@ -278,6 +279,12 @@ class Context:
         return self.__str__()
 
     @cached_property
+    def qualifiers(self) -> QualifierCatalog:
+        from frameworks.qualifiers import qualifier_catalog_for_instance
+
+        return qualifier_catalog_for_instance(self.instance.__dict__.get('config'))
+
+    @cached_property
     def instance_hash(self) -> bytes:
         """
         Return the cache identity shared by every node in this context.
@@ -294,6 +301,7 @@ class Context:
         cache_invalidated_at = config.cache_invalidated_at.isoformat() if config is not None else None
         data = {
             'instance_id': self.instance.id,
+            'qualifiers': self.qualifiers.hash_data(),
             'instance_uuid': str(config.uuid) if config is not None else None,
             'cache_invalidated_at': cache_invalidated_at,
             'config_mtime_hash': self.instance.config_mtime_hash,

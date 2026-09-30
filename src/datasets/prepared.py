@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 
 # Bump for changes to source conversion, unit definitions, or IPC interpretation.
 # Individual transformations also contribute their own implementation versions.
-PREPARATION_VERSION = 1
+PREPARATION_VERSION = 2
 
 
 class FrameMetadata(TypedDict):
