@@ -70,6 +70,62 @@ evidence/validation contract. Provisioning grades alone does not make quality
 editable on `DataPoint`, and existing validation violations are not certification
 findings. The detailed evidence design below remains a proposal for that slice.
 
+## Things to fix at a suitable time
+
+The following collection and accounting changes were identified on 30 September
+2026. They are deferred design work, not implemented behavior.
+
+### Separate collection processes and their input responsibilities
+
+Municipal-facility consumption should have its own dataset, maintained by
+municipal energy management, rather than being entered as another sector in
+`kommune/endenergieverbrauch`. The territorial inventory and municipal records
+come through different collection processes and should retain their own
+provenance, cell-level grades, responsible people and submission workflows.
+Use one dataset per collection process; the model can aggregate building or
+facility detail into the required BISKO sector/carrier/year cells.
+
+Separating the datasets does not resolve overlap: a network operator's GHD
+totals may still include municipal consumption. Replace the instance-wide
+`municipal_facilities_included_in_commerce` declaration with a nullable boolean
+qualifier on the supplied GHD cells, provisionally
+`includes_municipal_consumption`. It can vary by carrier and reporting year:
+`true` means deduct the municipal quantity, `false` means already separated,
+and `null` means undeclared. Unknown must not silently become either choice.
+For now the global boolean remains the supported declaration; finer declarations
+are deferred until there is a suitable collection workflow, without adding
+questions to the current data-entry flow. This describes an accounting boundary
+and needs its own propagation and
+reconciliation semantics; the existing `reported` boolean's combination rule
+cannot simply be reused. Mixed inclusive and exclusive source inputs must be
+reconciled before aggregation.
+
+### Keep source construction replaceable, with fixed accounting rules
+
+Review BISKO input ports for instance-owned bindings. In particular, municipal
+consumption may come from an energy-management dataset, a building aggregation
+submodel or carrier-specific calculations. The framework should own the
+reconciliation calculation and port contracts, while an instance chooses the
+compatible sources. Contracts must preserve energy units, year/carrier
+dimensions and assessment/declaration information. Instance-bindable inputs
+already exist; applying that ownership to these ports remains deferred.
+
+Establish separate GHD and municipal baselines before applying actions. An
+action reducing municipal consumption must affect the municipal branch without
+increasing the computed GHD remainder through a repeated baseline deduction.
+
+### Make environmental-heat estimation routes explicit
+
+Allow an instance to compute heat-pump heat from operator electricity data,
+installation counts or building heat-demand models, with source-specific
+assessments. The current correction assumes electrically driven pumps and an
+annual performance factor (JAZ) of 3.2. Its environmental-heat input means heat
+delivered by the pumps, not ambient heat alone. A replacement source must make
+that quantity definition and the performance factor explicit, and keep the
+electricity deduction consistent with the environmental-heat emissions factor.
+Whether reported electricity already includes heat-pump input must also remain
+declared; collection routes can handle that overlap differently.
+
 ## Load-bearing decisions
 
 ### Certification is an assessment, not a calculation node
