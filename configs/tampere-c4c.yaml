@@ -2989,7 +2989,7 @@ nodes:
   - id: transportation_price
     from_dimensions:
     - id: action
-      categories: [change_in_vehicle_propulsion, promoting_walking_and_cycling, tramline_3_construction]
+      categories: [plusbus_investments, promoting_walking_and_cycling, tramline_3_construction]
       flatten: true
     - id: owner
       flatten: true
@@ -3756,6 +3756,50 @@ nodes:
   input_dimensions: []
   output_dimensions: []
 
+- id: plusbus_investments_diesel_bus_mileage
+  name: Vaikutus (Suorite, Dieselbussi)
+  name_en: Impact (Diesel Bus Mileage)
+  type: simple.AdditiveNode
+  quantity: mileage
+  unit: Mvkm/a
+  order: 3
+  is_outcome: true
+  input_dimensions: []
+  output_dimensions: []
+
+- id: plusbus_investments_electric_bus_mileage
+  name: Vaikutus (Suorite, Sähköbussi)
+  name_en: Impact (Electric Bus Mileage)
+  type: simple.AdditiveNode
+  quantity: mileage
+  unit: Mvkm/a
+  order: 4
+  is_outcome: true
+  input_dimensions: []
+  output_dimensions: []
+
+- id: plusbus_investments_plusbus_mileage
+  name: Vaikutus (Suorite, Plusbussi)
+  name_en: Impact (Plusbus Mileage)
+  type: simple.AdditiveNode
+  quantity: mileage
+  unit: Mvkm/a
+  order: 5
+  is_outcome: true
+  input_dimensions: []
+  output_dimensions: []
+
+- id: plusbus_investments_currency
+  name: Vaikutus (Kustannus)
+  name_en: Impact (Costs)
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: EUR/a
+  order: 6
+  is_outcome: true
+  input_dimensions: []
+  output_dimensions: []
+
 - id: tramline_3_construction_car_mileage
   name: Vaikutus (Suorite, Henkilöauto)
   name_en: Impact (Car Mileage)
@@ -4085,7 +4129,6 @@ actions:
     - dimension: action
       categories: [improving_the_service_level_of_public_transport]
     - column: owner
-    - column: ghg
     - column: cost_type
     - column: scope
     - column: energy_carrier
@@ -4117,7 +4160,6 @@ actions:
     - column: sector
     - dimension: action
       categories: [promoting_walking_and_cycling]
-    - column: ghg
     - column: scope
     - column: energy_carrier
   output_metrics:
@@ -4238,7 +4280,6 @@ actions:
     - dimension: action
       categories: [parking_policy_to_support_sustainable_mobility]
     - column: owner
-    - column: ghg
     - column: cost_type
     - column: scope
     - column: energy_carrier
@@ -4253,6 +4294,169 @@ actions:
     to_dimensions:
     - id: action
     - id: vehicle_type
+
+- id: plusbus_investments
+  name: Plusbussi-investoinnit
+  name_en: Plusbus investments
+  type: simple.AdditiveAction
+  group: transportation
+  input_dimensions: [action, cost_type, owner, vehicle_type, energy_carrier, scope]
+  output_dimensions: [action, cost_type, owner, vehicle_type, energy_carrier, scope]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: tampere/transportation_actions
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - dimension: action
+      categories: [plusbus_investments]
+  output_metrics:
+  - id: mileage
+    unit: Mvkm/a
+    quantity: mileage
+  - id: currency
+    unit: EUR/a
+    quantity: currency
+  - id: term
+    unit: a
+    quantity: number
+  output_nodes:
+  - id: bus_kilometers_by_propulsion
+    metrics: [mileage]
+    tags: [additive]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+    - id: scope
+  # - id: transport_kilometer_by_energy_carrier_impacts
+  #   metrics: [mileage]
+  #   from_dimensions:
+  #   - id: cost_type
+  #     flatten: true
+  #   - id: owner
+  #     flatten: true
+  #   - id: scope
+  #     flatten: true
+  #   to_dimensions:
+  #   - id: action
+  #   - id: vehicle_type
+  #   - id: energy_carrier
+  - id: total_costs
+    metrics: [currency]
+    tags: [make_nonnegative]
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: action
+    - id: cost_type
+    - id: owner
+  - id: total_benefits
+    metrics: [currency]
+    tags: [make_nonpositive]
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: action
+    - id: cost_type
+    - id: owner
+  - id: annuitized_costs
+    metrics: [currency, term]
+    from_dimensions:
+    - id: cost_type
+      categories: [investment]
+    - id: vehicle_type
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: action
+    - id: cost_type
+    - id: owner
+  - id: plusbus_investments_diesel_bus_mileage
+    metrics: [mileage]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: vehicle_type
+      categories: [buses]
+      flatten: true
+    - id: energy_carrier
+      categories: [diesel]
+      flatten: true
+    - id: scope
+      flatten: true
+  - id: plusbus_investments_electric_bus_mileage
+    metrics: [mileage]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: vehicle_type
+      categories: [buses]
+      flatten: true
+    - id: energy_carrier
+      categories: [electricity]
+      flatten: true
+    - id: scope
+      flatten: true
+  - id: plusbus_investments_plusbus_mileage
+    metrics: [mileage]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: vehicle_type
+      categories: [plusbuses]
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
+  - id: plusbus_investments_currency
+    metrics: [currency]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: cost_type
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: vehicle_type
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
 
 - id: tramline_3_construction
   name: Ratikan 3 vaihe (2028-2030)
@@ -4270,7 +4474,6 @@ actions:
     - column: sector
     - dimension: action
       categories: [tramline_3_construction]
-    - column: ghg
     - column: energy_carrier
   output_metrics:
   - id: mileage
