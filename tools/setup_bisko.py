@@ -1,7 +1,8 @@
 # ruff: noqa: INP001
-"""Provision BISKO and optionally publish its template or convert existing DB models."""
+"""Provision BISKO, reconcile declared quality defaults and template pins, and optionally convert DB models."""
 
 import argparse
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -38,7 +39,7 @@ def main() -> None:
             framework = setup_bisko(template_identifier=args.template, instance_identifiers=tuple(args.instance))
             print(
                 f'Framework: {framework.identifier}; template: {args.template}; '
-                'quality scheme: bisko v1 (A/B/C/D); German organization catalogue.'
+                'quality scheme: quality v1 (A/B/C/D); German organization catalogue.'
             )
             _setup_graphs(framework, args)
             # --prepare-from and --publish can create or replace template schemas.
@@ -51,9 +52,11 @@ def main() -> None:
 
 
 def _setup_graphs(framework: Framework, args: argparse.Namespace) -> None:
+    from django.conf import settings
+
     from kausal_common.datasets.models import Dataset
 
-    from frameworks.bisko.provisioning import prepare_bisko_template
+    from frameworks.bisko.provisioning import prepare_bisko_template, reconcile_bisko_default_quality
     from frameworks.conversion import (
         convert_to_framework,
         declare_local_data_slots,
@@ -61,9 +64,18 @@ def _setup_graphs(framework: Framework, args: argparse.Namespace) -> None:
         share_template_catalogue,
     )
     from frameworks.identity import ensure_municipal_organization
+    from nodes.defs.graph import QualityLevelKey
+    from nodes.instance_loader import InstanceYAMLConfig
     from nodes.models import InstanceConfig
     from nodes.template_graph import publish_template_instance
 
+    yaml_config = InstanceYAMLConfig.load_for_entrypoint(Path(settings.BASE_DIR) / 'configs/bisko.yaml')
+    assert yaml_config.data is not None
+    defaults = {
+        entry['id']: QualityLevelKey.model_validate(entry['default_quality'])
+        for entry in yaml_config.data.get('datasets', [])
+        if entry.get('default_quality') is not None
+    }
     template = framework.template_instance
     assert template is not None
     if args.prepare_from:
@@ -85,6 +97,7 @@ def _setup_graphs(framework: Framework, args: argparse.Namespace) -> None:
                 for dataset in Dataset.objects.for_instance_config(source)
                 if dataset.identifier and not dataset.identifier.startswith('kommune/')
             }
+        reconcile_bisko_default_quality(framework, defaults, publish=False)
         revision = publish_template_instance(template, reference_data=reference_data)
         print(f'Published template revision {revision.pk}')
     if args.convert and revision is None:
@@ -96,6 +109,12 @@ def _setup_graphs(framework: Framework, args: argparse.Namespace) -> None:
         instance.refresh_from_db()
         org = ensure_municipal_organization(instance)
         print(f'{identifier}: organization {org.name if org else "unchanged (no AGS)"}')
+
+    previous_revision_id = revision.pk if revision is not None else None
+    revision = reconcile_bisko_default_quality(framework, defaults)
+    if revision is not None:
+        action = 'Published' if revision.pk != previous_revision_id else 'Retained'
+        print(f'{action} template revision {revision.pk}; dependent draft pins reconciled.')
 
 
 if __name__ == '__main__':
