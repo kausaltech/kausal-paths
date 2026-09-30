@@ -345,13 +345,11 @@ class MetricData:
 
 
 class BooleanQualifier(BaseModel):
-    id: str = ''
     identifier: str
     values: list[bool | None]
 
 
 class CoveredScoreQualifier(BaseModel):
-    id: str = ''
     identifier: str
     scores: list[float | None]
     coverage: list[float | None]
@@ -383,7 +381,6 @@ class DimensionalMetric(BaseModel):
             arrays = [q.values] if isinstance(q, BooleanQualifier) else [q.scores, q.coverage]
             if any(len(array) != len(self.values) for array in arrays):
                 raise ValueError(f'Qualifier {q.identifier} must align with metric values')
-        self.qualifiers = [q.model_copy(update={'id': f'{self.id}:{q.identifier}'}) for q in self.qualifiers]
         return self
 
     def to_df(self, drop_single_cat_dims: bool = False) -> ppl.PathsDataFrame:
