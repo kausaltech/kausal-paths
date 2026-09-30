@@ -18,6 +18,7 @@ from kausal_common.deployment import get_deployment_build_id
 from kausal_common.logging.errors import capture_error
 
 from common.polars import PathsDataFrame
+from common.qualifiers import QUALIFIER_VERSION
 from nodes.datasets import DVCDataset
 from nodes.exceptions import NodeError, NodeHashingError
 
@@ -309,6 +310,7 @@ class NodeHasher:
         if build_id := get_deployment_build_id():
             hash_part('build_id', '', build_id)
 
+        hash_part('qualifiers', '', str(QUALIFIER_VERSION))
         hash_part('instance', '', self.node.context.instance_hash)
         hash_part('id', '', self.node.id)
         if self.metrics_hash is None:

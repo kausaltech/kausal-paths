@@ -28,6 +28,9 @@ from orgs.models import Namespace, OrganizationClass, OrganizationIdentifier
 from params.param import StringParameter
 
 if TYPE_CHECKING:
+    from wagtail.models import Revision
+
+    from nodes.defs.graph import QualityLevelKey
     from nodes.defs.instance_defs import InstanceModelSpec
 
 # Catalogue version, not a claim about a particular certification protocol edition.
@@ -313,7 +316,7 @@ def setup_bisko(*, template_identifier: str = 'bisko', instance_identifiers: tup
 
     scheme, _ = DataQualityScheme.objects.get_or_create(
         framework=framework,
-        identifier='bisko',
+        identifier='quality',
         version=BISKO_QUALITY_VERSION,
         defaults={'name': 'BISKO Datengüte'},
     )
@@ -342,3 +345,58 @@ def setup_bisko(*, template_identifier: str = 'bisko', instance_identifiers: tup
     provision_bisko_quality_projections(framework)
     provision_bisko_plausibility_ranges(framework)
     return framework
+
+
+@transaction.atomic
+def reconcile_bisko_default_quality(
+    framework: Framework,
+    defaults: dict[str, QualityLevelKey],
+    *,
+    publish: bool = True,
+) -> Revision | None:
+    """Reconcile declared grades and release them once to template-dependent drafts."""
+    from frameworks.evidence import DEFAULT_QUALITY_SPEC_KEY
+    from nodes.instance_serialization import InstanceSnapshot, build_instance_snapshot
+    from nodes.template_graph import publish_template_instance
+
+    template = framework.template_instance
+    if framework.identifier != 'bisko' or template is None:
+        raise ValueError('Expected a BISKO framework with a template instance.')
+    template = InstanceConfig.objects.select_for_update().get(pk=template.pk)
+    datasets = list(Dataset.objects.for_instance_config(template).filter(identifier__in=defaults).select_for_update())
+    expected = {}
+    for dataset in datasets:
+        assert dataset.identifier is not None
+        default = defaults[dataset.identifier]
+        expected[dataset.uuid] = default
+        spec = dict(dataset.spec or {})
+        declared = default.model_dump()
+        if spec.get(DEFAULT_QUALITY_SPEC_KEY) != declared:
+            spec[DEFAULT_QUALITY_SPEC_KEY] = declared
+            dataset.spec = spec
+            dataset.save(update_fields=['spec'])
+    revision = template.live_revision
+    if not publish or not expected:
+        return revision
+    # Unused declarations do not belong to the release; avoid republishing for them.
+    current_ids = {d.id for d in build_instance_snapshot(template).all_datasets()}
+    expected = {key: value for key, value in expected.items() if key in current_ids}
+    if not expected:
+        return revision
+    released = {}
+    if revision is not None:
+        snapshot = InstanceSnapshot.from_serialized_data(revision.content['model_snapshot']['structured'])
+        released = {d.id: d.default_quality for d in snapshot.all_datasets()}
+    stale_pins = (
+        InstanceConfig.objects
+        .filter(
+            framework_config__framework=framework,
+            template_revision__object_id=str(template.pk),
+            template_revision__content_type=ContentType.objects.get_for_model(InstanceConfig),
+        )
+        .exclude(template_revision=revision)
+        .exists()
+    )
+    if revision is None or any(released.get(key) != value for key, value in expected.items()) or stale_pins:
+        return publish_template_instance(template)
+    return revision

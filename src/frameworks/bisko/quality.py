@@ -41,7 +41,7 @@ def provision_bisko_quality_projections(framework: Framework) -> None:
         schema__metrics__name='quality',
     )
     schema_ids = set(scoped.values_list('schema_id', flat=True)) - {None}
-    levels = list(DataQualityLevel.objects.filter(scheme__framework=framework, scheme__identifier='bisko', scheme__version='1'))
+    levels = list(DataQualityLevel.objects.filter(scheme__framework=framework, scheme__identifier='quality', scheme__version='1'))
     by_score: dict[Decimal, list[DataQualityLevel]] = defaultdict(list)
     for level in levels:
         by_score[level.score].append(level)

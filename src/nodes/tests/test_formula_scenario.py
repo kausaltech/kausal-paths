@@ -7,7 +7,7 @@ import pytest
 
 from kausal_common.i18n.pydantic import TranslatedString
 
-from common import polars as ppl
+from common import polars as ppl, qualifiers
 from common.polars import DataFrameMeta, to_ppdf
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from nodes.edges import Edge
@@ -40,6 +40,13 @@ class _ParamMultiplierNode(Node):
         meta = DataFrameMeta(units={VALUE_COLUMN: unit_registry.parse_units('kWh')}, primary_keys=[YEAR_COLUMN])
         pdf = to_ppdf(df, meta)
         return pdf.with_columns((pl.col(VALUE_COLUMN) * multiplier).alias(VALUE_COLUMN))
+
+
+class _QualifiedNode(_ParamMultiplierNode):
+    def compute(self) -> PathsDataFrame:
+        return (
+            super().compute().with_columns(qualifiers.make(quality=pl.lit(0.5), reported=pl.lit(value=True)).alias('Value__qual'))
+        )
 
 
 def _make_context(identifier: str) -> Context:
@@ -104,3 +111,15 @@ def test_output_with_scenario_rejects_unknown_node_reference():
 
     with pytest.raises(NodeError, match='must be a reference to an input node'):
         target.compute()
+
+
+@pytest.mark.parametrize(('function', 'expected'), [('quality', 0.5), ('graded', 1.0), ('reported', 1.0)])
+def test_formula_reads_nested_assessment_and_reporting(function: str, expected: float) -> None:
+    context = _make_context(f'qualifier-{function}')
+    source = _make_node(context, _QualifiedNode, 'source')
+    source.add_parameter(NumberParameter(local_id='multiplier', value=1.0))
+    context.add_node(source)
+    target = _make_node(context, FormulaNode, 'target', unit='dimensionless', quantity='fraction')
+    target.parameters['formula'] = StringParameter(local_id='formula', value=f'{function}(source)')
+    _connect(source, target)
+    assert _first_value(target.compute()) == expected

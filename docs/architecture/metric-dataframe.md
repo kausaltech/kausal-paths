@@ -194,15 +194,232 @@ implicitly row-level. For example:
 This avoids ambiguity when one metric in a row is interpolated and another
 is not.
 
-The concrete storage inside a qualifier column is left open for now. A
-`Struct` dtype is a plausible option because it keeps related qualifier
-fields together without creating many top-level columns.
+The first implementation uses a Polars `Struct` column. Related fields
+stay together without creating many top-level columns.
 
 At this stage, the important design choice is not the exact storage type
 but the explicit pairing:
 
 - a metric column may have one qualifier column
 - that qualifier column belongs to that metric
+
+### First implementation in PathsDataFrame
+
+Commit `735203b7` introduced qualifier columns before the wrapper migration.
+The pairing is currently by name (`<metric>__qual`), with three flat fields:
+`quality` (score), `graded` (assessment coverage), and `supplied` (source
+presence). Rename and drop carry the pairing; projections preserve it only
+when explicitly requested through `PathsDataFrame.qualified()`.
+
+Bindings attach grades from the evidence-owned `quality_of` projection or a
+declared dataset default. The two ifeu transport datasets declare BISKO B.
+Generic sums weight grades by value magnitude; products retain the sole
+qualifier or conservatively combine both; choices carry the selected value's
+qualifier. Fill operations rejoin qualifiers by key and mark created cells.
+`prefer_by_year` can use the source-presence flag rather than a separate
+availability input. Caches can store the structs without a separate metadata
+registry; pandas conversion deliberately omits them.
+
+This first version reduces `supplied` with OR for sums and erases the grade
+of all filled cells. Neither rule is the final contract below. Qualifiers
+were not exposed through dimensional GraphQL metrics in this commit, and
+the BISKO quality and availability reporting nodes were retained.
+
+### Runtime qualifier catalog
+
+`Context.qualifiers` resolves the catalog once per runtime context. It contains
+always-on built-ins (`reported` initially), plus the quality schemes of the
+instance's framework, including framework templates. Instances without a
+framework have only the built-ins. No customized qualifier selection is
+persisted in `InstanceModelSpec` at this stage.
+
+Scheme fields are named `<framework.identifier>_<scheme.identifier>`: the
+BISKO framework's scheme is named `quality`, so its field is `bisko_quality`.
+A data migration renames the previous `bisko` scheme without changing scheme
+or level UUIDs. Historical payload readers accept its previous name explicitly.
+
+The catalog groups versions of a scheme into one named field, retaining each
+version's exact grade UUIDs and scores. The most recently created scheme version
+supplies dataset defaults; version strings are labels, not assumed to sort
+numerically or lexically. Frameworks and scheme families never share a global
+identifier-only grade lookup. Catalog names, propagation mechanisms, versions
+and grade scores participate in cache identity. Reconstruct the runtime context
+when the framework vocabulary changes.
+
+Fixed propagation mechanisms and typed payloads live in `common.qualifiers`;
+`frameworks.qualifiers` projects the ORM schemes into the catalog. A context
+constructs one Polars struct dtype from those definitions. Generic dataframe
+operations resolve the fixed mechanisms from the typed payloads and preserve
+all named fields, without accessing the ORM or requiring parallel node chains.
+
+Database and published-payload readers attach assessments from evidence by
+cell key and grade identity. The legacy numeric `quality_of` projection remains
+for existing calculations; it must not assign a score to an unrelated scheme.
+Evidence currently stores one quality level per data point. The catalog can
+carry several schemes, but this change does not add multiple simultaneous
+evidence assessments for the same source cell.
+
+### Covered assessments
+
+A quantitative assessment and its coverage are one entity. The covered-assessment shape is:
+
+```text
+Energy__qual:
+  bisko_quality:
+    score: 0.75
+    coverage: 0.60
+  reported: true
+```
+
+`bisko_quality.score` is the mean score within the assessed portion;
+`bisko_quality.coverage` is the fraction of the declared weighting basis assessed.
+An assessed source cell has coverage 1, including a BISKO D cell whose score
+is zero. An explicitly unassessed cell has coverage 0 and no score. A missing
+assessment record means the assessment is unknown. Zero coverage implies no
+score, and an undefined weighting denominator yields an undefined assessment.
+
+Another quantitative qualifier can use the same covered-score shape with
+its own coverage. The coverages need not describe the same contributions.
+Shared arithmetic does not impose a universal propagation rule: each
+assessment must state its weighting basis and combination semantics.
+
+For positive additive energy flows, let `w_i = abs(value_i)`, `g_i` be coverage
+and `q_i` score. Reduce the pair atomically:
+
+```text
+coverage = sum(w_i * g_i) / sum(w_i)
+score = sum(w_i * g_i * q_i) / sum(w_i * g_i)
+```
+
+An unassessed contribution participates in the total weight. Thus 60 MWh
+graded A plus 40 MWh unassessed has score 1 and coverage 0.6. `score * coverage`
+is a possible whole-balance reporting convention, not another assigned grade.
+All-zero groups have no energy-weighted assessment; do not substitute a
+cell-count average. Signed corrections can cancel values and make magnitude
+weighting depend on grouping; their grading policy must be explicit.
+
+Exact constants and unit conversions preserve assessments. A product whose
+assessment follows one designated input carries that input's pair. When both
+inputs require assessment, a combination policy is needed: the minimum of
+two coverage fractions is not generally their joint assessed coverage. The
+existing conservative product rule is provisional, not proof of coverage.
+
+### Reported data
+
+Use `reported`, a nullable boolean, to exercise boolean qualifier propagation:
+
+> True when all contributing source cells contain reported values; false when
+> any required contribution was filled, interpolated or extended; null when
+> this is unknown.
+
+Reported zero is true. Calculations from reported inputs remain true; exact
+constants and unit conversions are neutral. Sums and data-dependent products
+use three-valued AND: false dominates, otherwise unknown remains unknown.
+An absent side of an outer join contributes nothing and is neutral, whereas
+a present value with unknown reporting status contributes unknown. Choices
+carry the selected value's flag.
+
+This does not identify who reported the data: provider defaults can be
+reported too. Nor does it certify that all required cells exist. Mandatory
+category/year grids must still be checked before reduction.
+
+Transport source selection asks whether *any* original cell was reported in a
+year. Evaluate that question before aggregation, or pass explicit coverage
+from that boundary. An AND-reduced reporting flag cannot recover it. Preserve
+the existing per-year source choices during migration.
+
+### Derivation and assessment are independent
+
+BISKO grades describe data origin, including estimates derived from regional
+primary data. The Methodenpapier (July 2024, section 3.4) does not prescribe
+blanket grade erasure for interpolation. The Klimaschutz-Planer handbook's
+chimney-sweep section explicitly recommends interpolation between observations
+collected every two or three years.
+
+An approved derivation can produce an assessed value with `reported=false`.
+Its method must explicitly preserve, replace or invalidate the assessment;
+neither retaining A nor erasing every grade is a universal rule. Linear
+interpolation now interpolates coverage and `score * coverage` using
+actual year distances, then divides to recover the assessed score. It preserves
+matching endpoint assessments and leaves entirely unassessed endpoints
+unassessed. Backfilling and constant extension copy the endpoint assessment.
+All created cells have `reported=false`. Structural zero-fill and unsupported
+extrapolation do not invent assessments. Each category is handled independently.
+
+### Current implementation after the qualifier refinement
+
+The refinement implements named covered assessments such as
+`bisko_quality: {score, coverage}` and nullable
+`reported`, three-valued AND for reporting status, and undefined energy-weighted
+assessments for all-zero groups. `quality(x)` and `graded(x)` read the sole
+assessment's nested
+score and coverage; when several schemes are available, give the field name
+explicitly, e.g. `quality(x, 'bisko_quality')`. `reported(x)` replaces
+`supplied(x)`. Existing formula names
+for quality and coverage remain stable. The legacy `make(supplied=...)`
+construction keyword is accepted temporarily; the stored shape is always new.
+
+A single indexing helper serializes dimensional values and qualifiers together;
+GraphQL exposes one object per qualifier: a `BooleanQualifierType` with a
+`values` array, or a `CoveredScoreQualifierType` with `scores` and `coverage`
+arrays. Each array aligns exactly with the metric's flattened `values` index;
+construction rejects mismatched lengths and duplicate qualifier identifiers.
+Each object carries its catalog `identifier` and an `id` derived as
+`<DimensionalMetric.id>:<identifier>`, inheriting the metric's identity contract.
+No framework-specific fields are hard-coded in the schema. Missing cube cells
+produce null elements. Round trips represent these as unknown struct fields;
+the distinction between an absent struct and an entirely unknown struct is
+not exposed. Coverage zero remains distinct from unknown coverage. Data Studio
+reads computed assessments from final energy, shows coverage beside grades,
+and uses it in weighted scores and improvement ranking. Source provenance still
+comes from entry evidence, and grade-distribution buckets for blended scores
+remain approximate. Cache format/semantics versions invalidate old structs.
+
+The wrapper migration, further product grading policies, and
+removal of BISKO reporting nodes are subsequent steps, not implemented by this
+refinement. Products keep the provisional rule described above. Required grids
+and source-route reports remain
+in the BISKO graph while those contracts are migrated.
+
+### GraphQL, Data Studio and BISKO migration
+
+Expose typed qualifiers alongside `DimensionalMetric.values`, aligned to the
+same dimension/year index. Missing combinations rendered as zero retain
+unknown qualifiers. Preserve that alignment in every metric serialization
+path, including inputs and visualizations.
+
+Data Studio should read computed quality from the final-energy values and
+display both score and coverage, while data entry continues to edit evidence.
+Do not round a blended score into an assigned class or count the unassessed
+portion as fully graded. Exact A/B/C/D distributions require more information
+than a mean and coverage; provenance/source-route reporting also needs more
+than `reported`.
+
+Replace duplicate BISKO quality chains with projections of the energy
+qualifiers after comparing the grading of entered inventory versus corrected
+results. Migrate reporting consumers before deleting their node IDs. Replace
+availability plumbing with input-cell qualifiers only when required grids,
+reported zeros, wholly absent categories, and per-year transport choices
+remain covered. Energy-weighted assessment coverage cannot replace a check
+that every mandatory input has a grade, especially for zero-valued cells.
+
+Before rolling out the Data Studio consumer, refresh saved graph/catalog
+metadata through the normal configuration publishing workflow. Older saved
+instances can lack both `default_quality` and `quality_of` metadata even when
+the current module YAML declares them. Local verification encountered a saved
+configuration with no assessed final-energy scores while its current YAML
+configuration did carry assessments. Absent metadata must not be repaired by
+guessing grades in the UI.
+
+`python -m tools.setup_bisko --dry-run` previews the BISKO repair; omit
+`--dry-run` to apply it. Setup reads declared defaults from the current BISKO
+YAML, merges them into matching template dataset metadata, and publishes a
+corrected template revision when its released catalog differs or a member's
+pin is stale. The existing publisher advances dependent drafts atomically and
+checks for new constraint conflicts. Repeated setup retains the revision when
+those declarations and pins already match. Explicit `--publish` still requests
+a new full release. Unpinned instances remain standalone, and already published
+municipal balance snapshots remain historical snapshots.
 
 
 ## Dimensions vs Qualifiers
