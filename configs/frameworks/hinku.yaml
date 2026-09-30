@@ -598,7 +598,7 @@ nodes:
   name: Laidunnuksen päästöt
   output_nodes: [livestock_emissions]
   params:
-    sector: Maatalous|Maatalous|Maatalous|Kotieläimet|Laidunnus+HINKU
+    sector: Maatalous|Maatalous|Maatalous|Peltoviljely|Laidunnus+HINKU
   input_nodes: [all_alas_emissions]
   type: finland.syke.AlasEmissions
 - id: manure_treatment_emissions
