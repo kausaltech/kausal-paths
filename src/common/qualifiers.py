@@ -27,7 +27,7 @@ SCORE = 'score'
 COVERAGE = 'coverage'
 REPORTED = 'reported'
 # Change this when either the stored shape or propagation semantics change.
-QUALIFIER_VERSION = 3
+QUALIFIER_VERSION = 5
 
 
 class CoveredScore(TypedDict):
@@ -310,6 +310,44 @@ def combine_sum(
     return pl.struct(fields).alias(out)
 
 
+def remove_subset(
+    out: str,
+    total_value: str,
+    total_qual: str | None,
+    subset_value: str,
+    subset_qual: str | None,
+    catalog: QualifierCatalog,
+) -> pl.Expr:
+    """
+    Keep the parent's assessment for a fully assessed sector separation.
+
+    Partial assessments do not determine the assessed share of the remainder.
+    A zero/absent subset changes nothing; a zero remainder has no weighted grade.
+    """
+    fields = []
+    unchanged = pl.col(subset_value).fill_null(0.0) == 0
+    remaining = pl.col(total_value) - pl.col(subset_value).fill_null(0.0)
+    for definition in catalog.definitions:
+        parent = _field(total_qual, definition)
+        child = _field(subset_qual, definition)
+        if definition.propagation == Propagation.REPORTED:
+            expr = pl.when(unchanged).then(parent).otherwise(parent & child)
+        else:
+            score, coverage, _reported = _fields(total_qual, definition.identifier)
+            _child_score, child_coverage, _reported = _fields(subset_qual, definition.identifier)
+            known = (coverage == 1) & (child_coverage == 1) & (remaining > 0)
+            expr = (
+                pl
+                .when(unchanged)
+                .then(parent)
+                .when(known)
+                .then(covered_score(score, pl.lit(1.0)))
+                .otherwise(pl.lit(None, dtype=COVERED_SCORE_DTYPE))
+            )
+        fields.append(expr.alias(definition.identifier))
+    return pl.struct(fields).alias(out)
+
+
 def combine_product(out: str, left_qual: str | None, right_qual: str | None, catalog: QualifierCatalog) -> pl.Expr:
     """Carry a sole assessment; retain the provisional conservative product policy."""
     fields = []
@@ -320,7 +358,14 @@ def combine_product(out: str, left_qual: str | None, right_qual: str | None, cat
         else:
             score = pl.min_horizontal(left.struct.field(SCORE), right.struct.field(SCORE))
             coverage = pl.min_horizontal(left.struct.field(COVERAGE), right.struct.field(COVERAGE))
-            expr = pl.when(left.is_null()).then(right).when(right.is_null()).then(left).otherwise(covered_score(score, coverage))
+            expr = (
+                pl
+                .when(left.struct.field(SCORE).is_null())
+                .then(right)
+                .when(right.struct.field(SCORE).is_null())
+                .then(left)
+                .otherwise(covered_score(score, coverage))
+            )
         fields.append(expr.alias(d.identifier))
     return pl.struct(fields).alias(out)
 
@@ -345,9 +390,9 @@ def _fill_score(value: str, qual: str, definition: QualifierDefinition, fill: st
     endpoint = pl.col(value).is_not_null() & pl.col(qual).is_not_null()
     covered = pl.when(endpoint).then(coverage.fill_null(0.0))
     numerator = pl.when(endpoint).then(coverage.fill_null(0.0) * score.fill_null(0.0))
-    if fill in {'interpolate', 'all'}:
+    if fill in {'interpolate', 'interpolate_backfill', 'all'}:
         covered, numerator = covered.interpolate_by('Year'), numerator.interpolate_by('Year')
-    if fill in {'backfill', 'both', 'all'}:
+    if fill in {'backfill', 'interpolate_backfill', 'both', 'all'}:
         covered, numerator = covered.backward_fill(), numerator.backward_fill()
     if fill in {'extend', 'both', 'all'}:
         covered, numerator = covered.forward_fill(), numerator.forward_fill()

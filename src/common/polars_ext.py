@@ -114,6 +114,7 @@ class PathsExt:
         if op_name in self._FILL_OPERATIONS:
             policies = {
                 'linear_interpolate': 'interpolate',
+                'add_missing_years': 'interpolate_backfill',
                 'extend_to_history': 'backfill',
                 'extend_forecast_values': 'extend',
                 'extend_values': 'extend',
@@ -927,6 +928,44 @@ class PathsExt:
         """Subtract two PathsDataFrames with dimension awareness."""
         odf_neg = odf.multiply_quantity(VALUE_COLUMN, unit_registry.parse_expression('-1 * dimensionless'))
         return self._df.paths.add_with_dims(odf_neg, how=how)
+
+    def remove_subset(self, subset: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        """Remove a declared included quantity, preserving the parent's source grade."""
+        total = self._df
+        if len(total.metric_cols) != 1 or len(subset.metric_cols) != 1:
+            raise ValueError('remove_subset requires one metric on each side')
+        metric = total.metric_cols[0]
+        if subset.metric_cols[0] != metric or set(total.dim_ids) != set(subset.dim_ids):
+            raise ValueError('remove_subset requires matching metric columns and dimensions')
+        subset = subset.ensure_unit(metric, total.get_unit(metric))
+        joined = total.paths.join_over_index(subset, how='outer', index_from='left')
+        right = f'{metric}_right'
+        left_value, right_value = pl.col(metric), pl.col(right).fill_null(0.0)
+        if joined.filter(
+            (left_value < 0)
+            | (right_value < 0)
+            | (right_value > left_value)
+            | (left_value.is_null() & (right_value != 0))
+            | left_value.is_nan()
+            | right_value.is_nan()
+        ).height:
+            raise ValueError('remove_subset requires nonnegative quantities and a subset no larger than its parent')
+        left_qual, right_qual = self._joined_qualifiers(total, subset, metric, metric)
+        expressions = []
+        if left_qual is not None or right_qual is not None:
+            expressions.append(
+                qualifiers.remove_subset(
+                    qualifiers.qualifier_column(metric),
+                    metric,
+                    left_qual,
+                    right,
+                    right_qual,
+                    qualifiers.catalog_for_frames(total, subset),
+                )
+            )
+        joined = joined.with_columns((left_value - right_value).alias(metric), *expressions)
+        cols = [YEAR_COLUMN, FORECAST_COLUMN, metric, *total.dim_ids]
+        return joined.select(joined.qualified([col for col in cols if col in joined.columns]))
 
     def multiply_with_dims(self, odf: ppl.PathsDataFrame, how: Literal['left', 'inner', 'outer'] = 'inner') -> ppl.PathsDataFrame:
         """Multiply two PathsDataFrames, handling dimensions and units properly."""

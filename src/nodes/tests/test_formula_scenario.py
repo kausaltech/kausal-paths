@@ -123,3 +123,45 @@ def test_formula_reads_nested_assessment_and_reporting(function: str, expected: 
     target.parameters['formula'] = StringParameter(local_id='formula', value=f'{function}(source)')
     _connect(source, target)
     assert _first_value(target.compute()) == expected
+
+
+def test_remove_subset_formula_and_analysis() -> None:
+    from nodes.formula import analyze_formula_dimensions, analyze_formula_units
+
+    context = _make_context('remove-subset')
+    target = _make_node(context, FormulaNode, 'target')
+    for name, value in [('total', 100.0), ('subset', 20.0)]:
+        source = _make_node(context, _QualifiedNode, name)
+        source.add_parameter(NumberParameter(local_id='multiplier', value=value))
+        context.add_node(source)
+        _connect(source, target)
+    target.parameters['formula'] = StringParameter(local_id='formula', value='remove_subset(total, subset)')
+    result = target.compute()
+    assert _first_value(result) == 80.0
+    assert result['Value__qual'][0]['quality'] == {'score': 0.5, 'coverage': 1.0}
+    dims = analyze_formula_dimensions('remove_subset(total, subset)', {'total': {'sector'}, 'subset': {'sector'}})
+    assert dims.dims == {'sector'}
+    assert not dims.errors
+    assert not dims.warnings
+    units = analyze_formula_units(
+        'remove_subset(total, subset)', {'total': unit_registry.parse_units('kWh'), 'subset': unit_registry.parse_units('kWh')}
+    )
+    assert units.unit == unit_registry.parse_units('kWh')
+    assert not units.errors
+    assert not units.warnings
+
+
+def test_dataset_cleaning_preserves_endpoint_grades_and_interpolates_coverage(monkeypatch: pytest.MonkeyPatch) -> None:
+    context = _make_context('qualified-cleaning')
+    node = _make_node(context, _ParamMultiplierNode, 'source')
+    frame = to_ppdf(
+        pl.DataFrame({'Year': [2020, 2022], 'energy_carrier': ['gas', 'gas'], 'Value': [10.0, 20.0]}),
+        meta=DataFrameMeta(units={'Value': unit_registry.parse_units('kWh')}, primary_keys=['Year', 'energy_carrier']),
+    ).with_columns(qualifiers.make(quality=pl.lit(1.0), reported=pl.lit(value=True)).alias('Value__qual'))
+    monkeypatch.setattr(node, 'get_input_dataset_pl', lambda **_kwargs: frame)
+    result = node.get_cleaned_dataset()
+    assert result is not None
+    original = result.filter(pl.col('Year') == 2020)['Value__qual'][0]
+    interpolated = result.filter(pl.col('Year') == 2021)['Value__qual'][0]
+    assert original == {'reported': True, 'quality': {'score': 1.0, 'coverage': 1.0}}
+    assert interpolated == {'reported': False, 'quality': {'score': 1.0, 'coverage': 1.0}}

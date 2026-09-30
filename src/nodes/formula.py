@@ -328,6 +328,7 @@ class FormulaNode(Node):
 
     _CUSTOM_FUNC_HANDLERS: dict[str, str] = {
         'convert_gwp': '_custom_convert_gwp',
+        'remove_subset': '_custom_remove_subset',
         'sum_dim': '_custom_sum_dim',
         'sum_into_cat': '_custom_sum_into_cat',
         'prod_dim': '_custom_prod_dim',
@@ -359,6 +360,14 @@ class FormulaNode(Node):
         if method_name is None:
             raise NotImplementedError(f'Unknown function: {func}')
         return getattr(self, method_name)(func, node, varss, df)
+
+    def _custom_remove_subset(self, _func: str, node: ast.Call, varss: EvalVars, df: EvalOutput) -> EvalOutput:
+        if len(node.args) != 2 or node.keywords:
+            raise NodeError(self, 'remove_subset(total, subset) requires two dataframe arguments')
+        subset = self.eval_tree(node.args[1], varss)
+        if not isinstance(df, PDF) or not isinstance(subset, PDF):
+            raise NodeError(self, 'remove_subset(total, subset) requires two dataframe arguments')
+        return df.paths.remove_subset(subset)
 
     def _custom_output_with_scenario(self, node: ast.Call, varss: EvalVars) -> EvalOutput:
         """Handle output_with_scenario(node, 'scenario_id'); the node reference is not evaluated eagerly."""
@@ -1007,7 +1016,7 @@ def analyze_formula_units(  # noqa: C901, PLR0915
                 # The third argument is a frame of availability flags, so it carries no unit of
                 # its own and must not be merged into the result's.
                 return _merge_compatible('prefer_by_year', first, _eval(node.args[1]))
-            if func_name in ('max', 'min', 'and', 'or'):
+            if func_name in ('max', 'min', 'and', 'or', 'remove_subset'):
                 if len(node.args) != 2:
                     analysis.warnings.append(f'{func_name}(a, b) requires two arguments.')
                 else:
@@ -1137,7 +1146,7 @@ def analyze_formula_dimensions(  # noqa: C901, PLR0915
                     analysis.warnings.append('prefer_by_year(preferred, fallback[, coverage]) takes two or three arguments.')
                     return first
                 return _require_same('prefer_by_year', first, _eval(node.args[1]))
-            if func_name in ('max', 'min', 'and', 'or'):
+            if func_name in ('max', 'min', 'and', 'or', 'remove_subset'):
                 if len(node.args) != 2:
                     analysis.warnings.append(f'{func_name}(a, b) requires two arguments.')
                 else:
