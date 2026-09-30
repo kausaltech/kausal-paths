@@ -228,7 +228,77 @@ def test_quality_scores_have_database_constraints(template: InstanceConfig, scor
 
 def test_quality_versions_can_coexist(template: InstanceConfig) -> None:
     scheme = setup_bisko().quality_schemes.get()
-    newer = DataQualityScheme.objects.create(framework=scheme.framework, identifier='bisko', version='2', name='New scale')
+    newer = DataQualityScheme.objects.create(framework=scheme.framework, identifier='quality', version='2', name='New scale')
     DataQualityLevel.objects.create(scheme=newer, identifier='B', name='B', score=Decimal('0.75'))
     assert scheme.levels.get(identifier='B').score == Decimal('0.5')
     assert newer.levels.get(identifier='B').score == Decimal('0.75')
+
+
+def test_default_quality_release_is_idempotent_and_advances_members() -> None:  # noqa: PLR0915
+    from frameworks.bisko.provisioning import reconcile_bisko_default_quality
+    from nodes.defs.graph import QualityLevelKey
+    from nodes.defs.port_def import InputPortDef
+    from nodes.instance_serialization import InstanceSnapshot, build_instance_snapshot
+    from nodes.template_graph import publish_template_instance
+    from nodes.units import unit_registry
+
+    template = InstanceConfigFactory.create(identifier='bisko', name='Method', config_source='database')
+    node = NodeConfigFactory.create(instance=template, identifier='ifeu')
+    assert node.spec is not None
+    port = InputPortDef(id=uuid4(), identifier='input', unit=unit_registry.parse_units('kt/a'))
+    node.spec.input_ports = [port]
+    node.save(update_fields=['spec'])
+    dataset = DatasetFactory.create(
+        scope=template,
+        identifier='de/fahrleistung_strassenverkehr',
+        is_external_placeholder=True,
+        external_ref={'dataset_id': 'de/fahrleistung_strassenverkehr'},
+        spec={'preserved': True},
+    )
+    assert dataset.schema is not None
+    metric = DatasetMetricFactory.create(schema=dataset.schema, name='Value', unit='kt/a')
+    NodeInputPortBinding.objects.create(instance=template, node=node, port_id=port.id, dataset=dataset, metric=metric)
+    framework = FrameworkFactory.create(identifier='bisko', template_instance=template)
+    old = publish_template_instance(template)
+    members = [InstanceConfigFactory.create(name=f'Member {i}', config_source='database') for i in range(2)]
+    for member in members:
+        FrameworkConfig.objects.create(framework=framework, instance_config=member)
+        member.template_revision = old
+        member.save(update_fields=['template_revision'])
+    unpinned = InstanceConfigFactory.create(name='Standalone member', config_source='database')
+    FrameworkConfig.objects.create(framework=framework, instance_config=unpinned)
+    assert dataset.identifier is not None
+    unused = DatasetFactory.create(scope=template, identifier='unused/default')
+    defaults = {
+        dataset.identifier: QualityLevelKey(scheme='quality', level='B'),
+        'unused/default': QualityLevelKey(scheme='quality', level='B'),
+    }
+    # Also repair releases where the row was already updated but the publication was missed.
+    reconcile_bisko_default_quality(framework, defaults, publish=False)
+    new = reconcile_bisko_default_quality(framework, defaults)
+    assert new is not None
+    assert new.pk != old.pk
+    dataset.refresh_from_db()
+    assert dataset.spec == {'preserved': True, 'default_quality': {'scheme': 'quality', 'level': 'B'}}
+    unused.refresh_from_db()
+    assert unused.spec['default_quality'] == {'scheme': 'quality', 'level': 'B'}
+    assert InstanceSnapshot.from_serialized_data(old.content['model_snapshot']['structured']).datasets[0].default_quality is None
+    for member in members:
+        member.refresh_from_db()
+        assert member.template_revision_id == new.pk
+        assert build_instance_snapshot(member).datasets[0].default_quality == defaults[dataset.identifier]
+    unpinned.refresh_from_db()
+    assert unpinned.template_revision_id is None
+    repeated = reconcile_bisko_default_quality(framework, defaults)
+    assert repeated is not None
+    assert repeated.pk == new.pk
+    # A member left behind on an older release is advanced on the next run too.
+    members[0].template_revision = old
+    members[0].save(update_fields=['template_revision'])
+    advanced = reconcile_bisko_default_quality(framework, defaults)
+    members[0].refresh_from_db()
+    assert advanced is not None
+    assert members[0].template_revision_id == advanced.pk
+    final = reconcile_bisko_default_quality(framework, defaults)
+    assert final is not None
+    assert final.pk == advanced.pk

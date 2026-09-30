@@ -5,13 +5,16 @@ from collections import Counter
 from dataclasses import dataclass, field
 from enum import Enum
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Literal, TypedDict, cast
+from typing import TYPE_CHECKING, Any, Literal, Self, TypedDict, cast
 
 import strawberry as sb
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 import numpy as np
+import polars as pl
 import sentry_sdk
+
+from common import polars as ppl, qualifiers
 
 from .constants import (
     BASELINE_VALUE_COLUMN,
@@ -32,9 +35,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     import pint
-    import polars as pl
 
-    from common import polars as ppl
     from nodes.context import Context
     from nodes.datasets import Dataset as RuntimeDataset
     from nodes.defs.port_def import OutputPortDef
@@ -77,10 +78,6 @@ class Metric:
 
     @staticmethod
     def from_node(node: Node, goal_id: str | None = None) -> Metric | None:  # noqa: C901, PLR0912
-        import polars as pl
-
-        from common import polars as ppl
-
         try:
             m = node.get_default_output_metric()
         except Exception:
@@ -344,6 +341,23 @@ class MetricData:
     forecast_from: int | None
     years: list[int]
     values: list[float]
+    qualifiers: list[MetricQualifier] = field(default_factory=list)
+
+
+class BooleanQualifier(BaseModel):
+    id: str = ''
+    identifier: str
+    values: list[bool | None]
+
+
+class CoveredScoreQualifier(BaseModel):
+    id: str = ''
+    identifier: str
+    scores: list[float | None]
+    coverage: list[float | None]
+
+
+MetricQualifier = BooleanQualifier | CoveredScoreQualifier
 
 
 class DimensionalMetric(BaseModel):
@@ -351,6 +365,7 @@ class DimensionalMetric(BaseModel):
     name: str
     dimensions: list[MetricDimension]
     values: list[float]
+    qualifiers: list[MetricQualifier] = Field(default_factory=list)
     years: list[int]
     stackable: bool
     forecast_from: int | None
@@ -359,14 +374,42 @@ class DimensionalMetric(BaseModel):
     unit: Unit
     measure_datapoint_years: list[int] = Field(default_factory=list)
 
+    @model_validator(mode='after')
+    def validate_qualifiers(self) -> Self:
+        identifiers = [q.identifier for q in self.qualifiers]
+        if len(set(identifiers)) != len(identifiers):
+            raise ValueError('Metric qualifier identifiers must be unique')
+        for q in self.qualifiers:
+            arrays = [q.values] if isinstance(q, BooleanQualifier) else [q.scores, q.coverage]
+            if any(len(array) != len(self.values) for array in arrays):
+                raise ValueError(f'Qualifier {q.identifier} must align with metric values')
+        self.qualifiers = [q.model_copy(update={'id': f'{self.id}:{q.identifier}'}) for q in self.qualifiers]
+        return self
+
     def to_df(self, drop_single_cat_dims: bool = False) -> ppl.PathsDataFrame:
-        import polars as pl
-
-        from common import polars as ppl
-
         idx_df = self.generate_index_df(self.dimensions, self.years)
         data = pl.DataFrame(self.values, schema=[VALUE_COLUMN])
         df = pl.concat([idx_df, data], how='horizontal')
+        if self.qualifiers:
+            catalog = qualifiers.QualifierCatalog(
+                tuple(
+                    qualifiers.QualifierDefinition(
+                        q.identifier,
+                        qualifiers.Propagation.REPORTED
+                        if isinstance(q, BooleanQualifier)
+                        else qualifiers.Propagation.COVERED_SCORE,
+                    )
+                    for q in self.qualifiers
+                )
+            )
+            columns: dict[str, list[bool | None] | list[dict[str, float | None]]] = {
+                q.identifier: q.values
+                if isinstance(q, BooleanQualifier)
+                else [{'score': score, 'coverage': coverage} for score, coverage in zip(q.scores, q.coverage, strict=True)]
+                for q in self.qualifiers
+            }
+            rows = [{name: column[i] for name, column in columns.items()} for i in range(len(self.values))]
+            df = df.with_columns(pl.Series(qualifiers.qualifier_column(VALUE_COLUMN), rows, dtype=catalog.dtype))
         casts = []
         for dim in self.dimensions:
             casts.append(pl.col(dim.original_id).cast(pl.Categorical))  # noqa: PERF401

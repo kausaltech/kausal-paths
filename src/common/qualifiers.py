@@ -1,60 +1,167 @@
 """
-Per-metric qualifier columns: what is known about one metric value at one data point.
+Per-metric assessments and reporting status, carried with values.
 
-A qualifier describes a value without being part of it. It is not a dimension (it is not in
-the key) and not a metric (nothing adds it up as a quantity); see
-``docs/architecture/metric-dataframe.md``. The metric column ``Value`` is qualified by the
-Struct column ``Value__qual``, and the pairing is the name: renaming or dropping a metric takes
-its qualifier with it. A projection keeps it only when asked (``PathsDataFrame.qualified``),
-because a projection promises exactly the columns it names. Where a helper drops it, the value
-simply arrives unqualified -- nobody has said anything about it -- which is the safe direction.
-
-The Struct has one fixed shape, so frames from different sources concatenate and join without
-reconciling schemas. A null field means *nobody has said*, which is never the same as a low
-grade or a filled value:
-
-- ``quality``: the grade of the value as a score from 0 to 1 (a framework quality level's
-  ``score``). Null where the value is ungraded.
-- ``graded``: the share of the value's magnitude that carries a grade -- 1 or 0 for a single
-  cell, a fraction once cells are added up. It is what keeps an aggregate honest about the part
-  nobody graded: ``quality`` is the grade of the graded part, ``quality * graded`` the grade of
-  the whole with the ungraded part counted as the lowest grade.
-- ``supplied``: whether the value came from its source rather than from an operation that made
-  it up -- zero-filling, interpolation, extension. It is how a consumer can still tell which
-  years a city actually reported once the frame has been filled so it computes.
-
-Each field states its own rules for the three things generic operations do to values, so the
-operations stay mechanical:
-
-- **Adding** values up, over a dimension or across two frames: ``quality`` and ``graded`` are
-  means weighted by the magnitude of each value, ``supplied`` is true when any part was. This
-  is the Methodenpapier's arithmetic for a Datengüte: each component weighted by its share.
-- **Multiplying or dividing**: a factor with no qualifier leaves the other side's qualifier as it
-  is. Where both sides have one, ``quality`` and ``graded`` take the lower and ``supplied`` needs
-  both.
-- **Choosing** one side's value (``coalesce_df``, ``prefer_by_year``): the qualifier follows the
-  chosen value.
-
-Filling marks what it filled; see ``carry_over``.
+The metric/qualifier pairing belongs to the dataframe contract. Covered scores
+are reduced as a pair; their weighting and combination rules belong to the
+assessment. Reporting status is independent of grading and uses three-valued
+AND over contributing data. See docs/architecture/metric-dataframe.md.
 """
 
-from typing import TYPE_CHECKING
+from dataclasses import dataclass
+from enum import StrEnum
+from typing import TYPE_CHECKING, TypedDict
 
 import polars as pl
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
+    from pydantic import JsonValue
+
     from common.polars import PathsDataFrame
 
 
 QUALIFIER_SUFFIX = '__qual'
-
 QUALITY = 'quality'
-GRADED = 'graded'
-SUPPLIED = 'supplied'
+SCORE = 'score'
+COVERAGE = 'coverage'
+REPORTED = 'reported'
+# Change this when either the stored shape or propagation semantics change.
+QUALIFIER_VERSION = 3
 
-QUALIFIER_DTYPE = pl.Struct({QUALITY: pl.Float64, GRADED: pl.Float64, SUPPLIED: pl.Boolean})
+
+class CoveredScore(TypedDict):
+    score: float | None
+    coverage: float | None
+
+
+COVERED_SCORE_DTYPE = pl.Struct({SCORE: pl.Float64, COVERAGE: pl.Float64})
+
+
+class Propagation(StrEnum):
+    REPORTED = 'reported'
+    COVERED_SCORE = 'covered_score'
+
+
+@dataclass(frozen=True)
+class QualityLevelDefinition:
+    uuid: str
+    identifier: str
+    score: float
+
+
+@dataclass(frozen=True)
+class QualitySchemeDefinition:
+    uuid: str
+    version: str
+    levels: tuple[QualityLevelDefinition, ...]
+
+
+@dataclass(frozen=True)
+class QualifierDefinition:
+    identifier: str
+    propagation: Propagation
+    schemes: tuple[QualitySchemeDefinition, ...] = ()
+    scheme_identifier: str | None = None
+
+    @property
+    def dtype(self) -> pl.DataType:
+        return pl.Boolean() if self.propagation == Propagation.REPORTED else COVERED_SCORE_DTYPE
+
+    def hash_data(self) -> dict[str, JsonValue]:
+        return {
+            'identifier': self.identifier,
+            'scheme_identifier': self.scheme_identifier,
+            'propagation': self.propagation,
+            'schemes': [
+                {
+                    'uuid': s.uuid,
+                    'version': s.version,
+                    'levels': [[level.uuid, level.identifier, level.score] for level in s.levels],
+                }
+                for s in self.schemes
+            ],
+        }
+
+
+@dataclass(frozen=True)
+class QualifierCatalog:
+    definitions: tuple[QualifierDefinition, ...] = ()
+
+    def __post_init__(self) -> None:
+        names = [d.identifier for d in self.definitions]
+        if len(names) != len(set(names)):
+            raise ValueError('Qualifier identifiers must be unique')
+
+    def __getitem__(self, identifier: str) -> QualifierDefinition:
+        for definition in self.definitions:
+            if definition.identifier == identifier:
+                return definition
+        raise KeyError(identifier)
+
+    @property
+    def dtype(self) -> pl.Struct:
+        return pl.Struct({d.identifier: d.dtype for d in self.definitions})
+
+    @property
+    def assessments(self) -> tuple[QualifierDefinition, ...]:
+        return tuple(d for d in self.definitions if d.propagation == Propagation.COVERED_SCORE)
+
+    def hash_data(self) -> list[JsonValue]:
+        return [d.hash_data() for d in self.definitions]
+
+    @classmethod
+    def from_dtype(cls, dtype: pl.DataType) -> QualifierCatalog:
+        """Resolve the fixed propagation mechanisms encoded by a qualifier payload."""
+        if not isinstance(dtype, pl.Struct):
+            raise TypeError('A qualifier column must be a Struct')
+        definitions = []
+        for field in dtype.fields:
+            if field.name == REPORTED and field.dtype == pl.Boolean:
+                mechanism = Propagation.REPORTED
+            elif field.dtype == COVERED_SCORE_DTYPE:
+                mechanism = Propagation.COVERED_SCORE
+            else:
+                raise ValueError(f'Unknown qualifier payload: {field}')
+            definitions.append(QualifierDefinition(field.name, mechanism))
+        return cls(tuple(definitions))
+
+
+BUILTIN_QUALIFIERS = QualifierCatalog((QualifierDefinition(REPORTED, Propagation.REPORTED),))
+# Only built-ins are global; quality fields come from Context.qualifiers.
+QUALIFIER_DTYPE = BUILTIN_QUALIFIERS.dtype
+
+
+def catalog_for_frames(*frames: PathsDataFrame) -> QualifierCatalog:
+    definitions: dict[str, QualifierDefinition] = {}
+    for frame in frames:
+        for col in frame.qualifier_cols.values():
+            for definition in QualifierCatalog.from_dtype(frame.schema[col]).definitions:
+                previous = definitions.get(definition.identifier)
+                if previous is not None and previous.propagation != definition.propagation:
+                    raise ValueError(f'Conflicting qualifier {definition.identifier}')
+                definitions[definition.identifier] = definition
+    return QualifierCatalog(tuple(definitions.values()))
+
+
+def align_frame(frame: PathsDataFrame, catalog: QualifierCatalog) -> PathsDataFrame:
+    expressions = []
+    for col in frame.qualifier_cols.values():
+        if frame.schema[col] == catalog.dtype:
+            continue
+        present = {d.identifier for d in QualifierCatalog.from_dtype(frame.schema[col]).definitions}
+        expressions.append(
+            pl
+            .struct([
+                (pl.col(col).struct.field(d.identifier) if d.identifier in present else pl.lit(None, dtype=d.dtype)).alias(
+                    d.identifier
+                )
+                for d in catalog.definitions
+            ])
+            .cast(catalog.dtype)
+            .alias(col)
+        )
+    return frame.with_columns(expressions) if expressions else frame
 
 
 def qualifier_column(metric_col: str) -> str:
@@ -62,125 +169,203 @@ def qualifier_column(metric_col: str) -> str:
 
 
 def qualified_metric(col: str) -> str | None:
-    """Return the metric column a qualifier column belongs to, or None if ``col`` is not one."""
     if not col.endswith(QUALIFIER_SUFFIX) or col == QUALIFIER_SUFFIX:
         return None
     return col[: -len(QUALIFIER_SUFFIX)]
 
 
-def make(quality: pl.Expr | None = None, supplied: pl.Expr | None = None) -> pl.Expr:
-    """Build a cell-level qualifier: ``graded`` follows from whether ``quality`` is set."""
-    q = quality.cast(pl.Float64) if quality is not None else pl.lit(None, dtype=pl.Float64)
-    s = supplied.cast(pl.Boolean) if supplied is not None else pl.lit(None, dtype=pl.Boolean)
+def covered_score(score: pl.Expr, coverage: pl.Expr) -> pl.Expr:
+    """Construct an assessment atomically; no assessed weight means no score."""
     return pl.struct(
-        q.alias(QUALITY),
-        pl.when(q.is_null()).then(pl.lit(0.0)).otherwise(pl.lit(1.0)).alias(GRADED),
-        s.alias(SUPPLIED),
+        pl.when(coverage > 0).then(score).otherwise(pl.lit(None, dtype=pl.Float64)).cast(pl.Float64).alias(SCORE),
+        coverage.cast(pl.Float64).alias(COVERAGE),
     )
 
 
-FILLED = pl.struct(
-    pl.lit(None, dtype=pl.Float64).alias(QUALITY),
-    pl.lit(0.0).alias(GRADED),
-    pl.lit(value=False).alias(SUPPLIED),
-)
-"""The qualifier of a value an operation made up: ungraded, and not supplied."""
+def make(
+    quality: pl.Expr | None = None,
+    reported: pl.Expr | None = None,
+    *,
+    supplied: pl.Expr | None = None,
+    catalog: QualifierCatalog | None = None,
+    assessments: dict[str, pl.Expr] | None = None,
+) -> pl.Expr:
+    """
+    Construct a source qualifier in the resolved model catalog.
+
+    ``quality`` and ``supplied`` support the previous construction API; runtime
+    bindings use named assessments and an explicit catalog.
+    """
+    if supplied is not None:
+        if reported is not None:
+            raise ValueError('Specify reported, not both reported and supplied')
+        reported = supplied
+    assessments = dict(assessments or {})
+    if quality is not None:
+        q = quality.cast(pl.Float64)
+        assessments[QUALITY] = covered_score(q, q.is_not_null().cast(pl.Float64))
+    if catalog is None:
+        catalog = QualifierCatalog((
+            *BUILTIN_QUALIFIERS.definitions,
+            *(QualifierDefinition(name, Propagation.COVERED_SCORE) for name in assessments),
+        ))
+    fields = []
+    for definition in catalog.definitions:
+        if definition.propagation == Propagation.REPORTED:
+            expr = reported if reported is not None else pl.lit(None, dtype=pl.Boolean)
+        else:
+            expr = assessments.get(definition.identifier, pl.lit(None, dtype=COVERED_SCORE_DTYPE))
+        fields.append(expr.alias(definition.identifier))
+    return pl.struct(fields).cast(catalog.dtype)
 
 
-def _fields(qual: str | None) -> tuple[pl.Expr, pl.Expr, pl.Expr, pl.Expr]:
-    """Return (present, quality, graded, supplied) for a qualifier column that may be absent."""
+def _fields(qual: str | None, name: str = QUALITY) -> tuple[pl.Expr, pl.Expr, pl.Expr]:
     if qual is None:
-        null_f = pl.lit(None, dtype=pl.Float64)
-        return pl.lit(value=False), null_f, pl.lit(0.0), pl.lit(None, dtype=pl.Boolean)
+        return pl.lit(None, dtype=pl.Float64), pl.lit(0.0), pl.lit(None, dtype=pl.Boolean)
     col = pl.col(qual)
-    quality = col.struct.field(QUALITY)
-    graded = pl.when(quality.is_null()).then(pl.lit(0.0)).otherwise(col.struct.field(GRADED).fill_null(0.0))
-    return col.is_not_null(), quality, graded, col.struct.field(SUPPLIED)
+    assessment = col.struct.field(name)
+    score = assessment.struct.field(SCORE)
+    coverage = pl.when(score.is_null()).then(0.0).otherwise(assessment.struct.field(COVERAGE).fill_null(0.0))
+    return score, coverage, col.struct.field(REPORTED)
 
 
 def _weight(value: str) -> pl.Expr:
     return pl.col(value).cast(pl.Float64).abs().fill_nan(0.0).fill_null(0.0)
 
 
-def _nan_to_null(expr: pl.Expr) -> pl.Expr:
-    return pl.when(expr.is_nan()).then(pl.lit(None, dtype=pl.Float64)).otherwise(expr)
+def _reported_all(reported: pl.Expr) -> pl.Expr:
+    """Reduce reporting flags without discarding unknown contributions."""
+    return (
+        pl
+        .when((reported == False).any())  # noqa: E712
+        .then(pl.lit(value=False))
+        .when((reported.len() == 0) | reported.is_null().any())
+        .then(pl.lit(None, dtype=pl.Boolean))
+        .otherwise(reported.all())
+    )
 
 
-def reduce_sum(value: str, qual: str) -> pl.Expr:
+def _reduce_score(value: str, qual: str, name: str) -> pl.Expr:
     """
-    Aggregate expression for the qualifier of a sum over a group.
+    Energy-weighted assessment and reporting status of contributing cells.
 
-    Where every value in the group is zero there is nothing to weight by, and the fields fall
-    back to plain means over the group: the zero-filled cells of an empty template are exactly
-    that case, and weighting would turn their grades into 0/0.
+    Reported zeros count for reporting status. Null values do not contribute.
+    An all-zero group has no energy-weighted assessment.
     """
-    _present, q, g, s = _fields(qual)
+    q, g, _r = _fields(qual, name)
     w = _weight(value)
     wg = w * g
-    q0 = q.fill_null(0.0)
-    quality = pl.when(wg.sum() > 0).then((wg * q0).sum() / wg.sum()).otherwise(_nan_to_null((g * q0).sum() / g.sum()))
-    graded = pl.when(w.sum() > 0).then(wg.sum() / w.sum()).otherwise(g.mean())
-    supplied = pl.when(s.is_not_null().any()).then(s.any()).otherwise(pl.lit(None, dtype=pl.Boolean))
-    return pl.struct(quality.alias(QUALITY), graded.alias(GRADED), supplied.alias(SUPPLIED)).alias(qual)
+    coverage = pl.when(w.sum() > 0).then(wg.sum() / w.sum()).otherwise(pl.lit(None, dtype=pl.Float64))
+    score = pl.when(wg.sum() > 0).then((wg * q.fill_null(0.0)).sum() / wg.sum()).otherwise(pl.lit(None, dtype=pl.Float64))
+    return covered_score(score, coverage).alias(name)
 
 
-def combine_sum(out: str, left_value: str, left_qual: str | None, right_value: str, right_qual: str | None) -> pl.Expr:
-    """Row-wise qualifier of ``left + right``, both sides already joined into one frame."""
-    lp, lq, lg, ls = _fields(left_qual)
-    rp, rq, rg, rs = _fields(right_qual)
-    # A side that is absent from the row (an outer join's other half) adds nothing and weighs
-    # nothing. A side that is present but unqualified still weighs its value, ungraded.
-    lw = pl.when(pl.col(left_value).is_null()).then(pl.lit(0.0)).otherwise(_weight(left_value))
-    rw = pl.when(pl.col(right_value).is_null()).then(pl.lit(0.0)).otherwise(_weight(right_value))
+def _combine_score(left_value: str, left_qual: str | None, right_value: str, right_qual: str | None, name: str) -> pl.Expr:
+    """Assessment of a sum; absent outer-join sides contribute nothing."""
+    lq, lg, _lr = _fields(left_qual, name)
+    rq, rg, _rr = _fields(right_qual, name)
+    lw = _weight(left_value)
+    rw = _weight(right_value)
     lwg, rwg = lw * lg, rw * rg
-    lq0, rq0 = lq.fill_null(0.0), rq.fill_null(0.0)
-    unweighted_g = lg + rg
-    quality = (
+    coverage = pl.when(lw + rw > 0).then((lwg + rwg) / (lw + rw)).otherwise(pl.lit(None, dtype=pl.Float64))
+    score = (
         pl
         .when(lwg + rwg > 0)
-        .then((lwg * lq0 + rwg * rq0) / (lwg + rwg))
-        .when(unweighted_g > 0)
-        .then((lg * lq0 + rg * rq0) / unweighted_g)
+        .then((lwg * lq.fill_null(0.0) + rwg * rq.fill_null(0.0)) / (lwg + rwg))
         .otherwise(pl.lit(None, dtype=pl.Float64))
     )
-    sides = lp.cast(pl.Float64) + rp.cast(pl.Float64)
-    graded = (
-        pl
-        .when(lw + rw > 0)
-        .then((lwg + rwg) / (lw + rw))
-        .when(sides > 0)
-        .then((pl.when(lp).then(lg).otherwise(0.0) + pl.when(rp).then(rg).otherwise(0.0)) / sides)
-        .otherwise(pl.lit(None, dtype=pl.Float64))
-    )
-    supplied = pl.when(ls.is_null()).then(rs).when(rs.is_null()).then(ls).otherwise(ls | rs)
-    return pl.struct(quality.alias(QUALITY), graded.alias(GRADED), supplied.alias(SUPPLIED)).alias(out)
+    return covered_score(score, coverage).alias(name)
 
 
-def combine_product(out: str, left_qual: str | None, right_qual: str | None) -> pl.Expr:
-    """Row-wise qualifier of ``left * right`` or ``left / right``."""
-    if left_qual is None or right_qual is None:
-        only = left_qual or right_qual
-        assert only is not None
-        return pl.col(only).alias(out)
-    lp, lq, lg, ls = _fields(left_qual)
-    rp, rq, rg, rs = _fields(right_qual)
-    supplied = pl.when(ls.is_null()).then(rs).when(rs.is_null()).then(ls).otherwise(ls & rs)
-    combined = pl.struct(
-        pl.min_horizontal(lq, rq).alias(QUALITY),
-        pl.min_horizontal(lg, rg).alias(GRADED),
-        supplied.alias(SUPPLIED),
-    )
-    return pl.when(lp & rp).then(combined).when(lp).then(pl.col(left_qual)).otherwise(pl.col(right_qual)).alias(out)
+def _field(qual: str | None, definition: QualifierDefinition) -> pl.Expr:
+    return pl.col(qual).struct.field(definition.identifier) if qual else pl.lit(None, dtype=definition.dtype)
 
 
-def choose(out: str, take_left: pl.Expr, left_qual: str | None, right_qual: str | None) -> pl.Expr:
-    """Row-wise qualifier of a value chosen from one side: it follows the chosen value."""
-    left = pl.col(left_qual) if left_qual is not None else pl.lit(None, dtype=QUALIFIER_DTYPE)
-    right = pl.col(right_qual) if right_qual is not None else pl.lit(None, dtype=QUALIFIER_DTYPE)
+def reduce_sum(value: str, qual: str, catalog: QualifierCatalog) -> pl.Expr:
+    return pl.struct([
+        _reported_all(pl.col(qual).struct.field(REPORTED).filter(pl.col(value).is_not_null())).alias(REPORTED)
+        if d.propagation == Propagation.REPORTED
+        else _reduce_score(value, qual, d.identifier)
+        for d in catalog.definitions
+    ]).alias(qual)
+
+
+def combine_sum(
+    out: str,
+    left_value: str,
+    left_qual: str | None,
+    right_value: str,
+    right_qual: str | None,
+    catalog: QualifierCatalog,
+) -> pl.Expr:
+    fields = []
+    for definition in catalog.definitions:
+        if definition.propagation == Propagation.REPORTED:
+            left = pl.when(pl.col(left_value).is_null()).then(pl.lit(value=True)).otherwise(_field(left_qual, definition))
+            right = pl.when(pl.col(right_value).is_null()).then(pl.lit(value=True)).otherwise(_field(right_qual, definition))
+            expr = left & right
+        else:
+            expr = _combine_score(left_value, left_qual, right_value, right_qual, definition.identifier)
+        fields.append(expr.alias(definition.identifier))
+    return pl.struct(fields).alias(out)
+
+
+def combine_product(out: str, left_qual: str | None, right_qual: str | None, catalog: QualifierCatalog) -> pl.Expr:
+    """Carry a sole assessment; retain the provisional conservative product policy."""
+    fields = []
+    for d in catalog.definitions:
+        left, right = _field(left_qual, d), _field(right_qual, d)
+        if d.propagation == Propagation.REPORTED:
+            expr = left & right
+        else:
+            score = pl.min_horizontal(left.struct.field(SCORE), right.struct.field(SCORE))
+            coverage = pl.min_horizontal(left.struct.field(COVERAGE), right.struct.field(COVERAGE))
+            expr = pl.when(left.is_null()).then(right).when(right.is_null()).then(left).otherwise(covered_score(score, coverage))
+        fields.append(expr.alias(d.identifier))
+    return pl.struct(fields).alias(out)
+
+
+def choose(
+    out: str,
+    take_left: pl.Expr,
+    left_qual: str | None,
+    right_qual: str | None,
+    catalog: QualifierCatalog,
+) -> pl.Expr:
+    left = pl.col(left_qual) if left_qual is not None else pl.lit(None, dtype=catalog.dtype)
+    right = pl.col(right_qual) if right_qual is not None else pl.lit(None, dtype=catalog.dtype)
     return pl.when(take_left).then(left).otherwise(right).alias(out)
 
 
-def carry_over(before: PathsDataFrame, after: PathsDataFrame, *, start: bool = False) -> PathsDataFrame:
+def _fill_score(value: str, qual: str, definition: QualifierDefinition, fill: str, dims: list[str]) -> pl.Expr:
+    assessment = pl.col(qual).struct.field(definition.identifier)
+    score = assessment.struct.field(SCORE)
+    coverage = assessment.struct.field(COVERAGE)
+    # A real endpoint without an assessment has zero assessed weight.
+    endpoint = pl.col(value).is_not_null() & pl.col(qual).is_not_null()
+    covered = pl.when(endpoint).then(coverage.fill_null(0.0))
+    numerator = pl.when(endpoint).then(coverage.fill_null(0.0) * score.fill_null(0.0))
+    if fill in {'interpolate', 'all'}:
+        covered, numerator = covered.interpolate_by('Year'), numerator.interpolate_by('Year')
+    if fill in {'backfill', 'both', 'all'}:
+        covered, numerator = covered.backward_fill(), numerator.backward_fill()
+    if fill in {'extend', 'both', 'all'}:
+        covered, numerator = covered.forward_fill(), numerator.forward_fill()
+    if fill == 'zero':
+        covered, numerator = pl.lit(0.0), pl.lit(0.0)
+    if dims:
+        covered, numerator = covered.over(dims), numerator.over(dims)
+    return covered_score(numerator / covered, covered)
+
+
+def carry_over(
+    before: PathsDataFrame,
+    after: PathsDataFrame,
+    *,
+    start: bool = False,
+    catalog: QualifierCatalog | None = None,
+    fill: str = 'zero',
+) -> PathsDataFrame:
     """
     Give the result of a fill operation the qualifiers of the frame it filled.
 
@@ -188,18 +373,23 @@ def carry_over(before: PathsDataFrame, after: PathsDataFrame, *, start: bool = F
     drops every column it does not know. Rather than teaching each of them about qualifiers,
     the qualifiers are carried over afterwards by key: a cell that held a value before keeps its
     qualifier, and a cell that did not -- a new row, or a null that is now a number -- is marked
-    ``FILLED``.
+    not reported. The assessment policy is selected by the fill mechanism.
 
-    ``start`` makes a qualifier for a frame that had none, recording only what was supplied.
+    ``start`` makes a qualifier for a frame that had none, recording only what was reported.
     ``empty_to_zero`` needs it: a zero it wrote is otherwise indistinguishable from a zero
     someone reported, which is the one thing a consumer choosing between sources has to know.
     Other fills only keep a record that already exists, so a frame nobody qualified stays as
     light as it was.
     """
+    catalog = catalog or catalog_for_frames(before)
+    if not catalog.definitions:
+        catalog = BUILTIN_QUALIFIERS
     metrics = [m for m in after.metric_cols if m in before.columns]
     quals = {m: qualifier_column(m) for m in metrics if qualifier_column(m) in before.columns}
     if not quals and start:
-        before = before.with_columns([make(supplied=pl.col(m).is_not_null()).alias(qualifier_column(m)) for m in metrics])
+        before = before.with_columns([
+            make(reported=pl.col(m).is_not_null(), catalog=catalog).alias(qualifier_column(m)) for m in metrics
+        ])
         quals = {m: qualifier_column(m) for m in metrics}
     if not quals:
         return after
@@ -213,15 +403,25 @@ def carry_over(before: PathsDataFrame, after: PathsDataFrame, *, start: bool = F
     source = pl.DataFrame(before).select([
         *[pl.col(key).cast(carried.schema[key]) for key in keys],
         *[
-            pl.when(pl.col(m).is_not_null()).then(pl.col(q)).otherwise(pl.lit(None, dtype=QUALIFIER_DTYPE)).alias(q)
+            pl.when(pl.col(m).is_not_null()).then(pl.col(q)).otherwise(pl.lit(None, dtype=catalog.dtype)).alias(q)
             for m, q in quals.items()
         ],
     ])
     joined = carried.join(source, on=keys, how='left', nulls_equal=True)
-    joined = joined.with_columns([
-        pl.when(pl.col(q).is_null() & pl.col(m).is_not_null()).then(FILLED).otherwise(pl.col(q)).alias(q)
-        for m, q in quals.items()
-    ])
+    joined = joined.sort(keys)
+    dims = [k for k in keys if k != 'Year']
+    for m, q in quals.items():
+        fields = []
+        for d in catalog.definitions:
+            if d.propagation == Propagation.REPORTED:
+                expr = pl.lit(value=False)
+            else:
+                expr = _fill_score(m, q, d, fill, dims)
+            fields.append(expr.alias(d.identifier))
+        filled = pl.struct(fields).cast(catalog.dtype)
+        joined = joined.with_columns(
+            pl.when(pl.col(q).is_null() & pl.col(m).is_not_null()).then(filled).otherwise(pl.col(q)).alias(q)
+        )
     return ppl.to_ppdf(joined, meta=meta)
 
 

@@ -7,7 +7,7 @@ rather than disappearing, a factor with no grade leaves the activity's grade alo
 an operation made up is marked as such.
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypedDict
 
 import polars as pl
 import pytest
@@ -22,6 +22,18 @@ if TYPE_CHECKING:
     from common import polars as ppl
 
 pytestmark = pytest.mark.django_db
+
+
+class FixtureQualifier(TypedDict):
+    quality: qualifiers.CoveredScore | None
+    reported: bool | None
+
+
+TEST_CATALOG = qualifiers.QualifierCatalog((
+    *qualifiers.BUILTIN_QUALIFIERS.definitions,
+    qualifiers.QualifierDefinition('quality', qualifiers.Propagation.COVERED_SCORE),
+))
+
 
 QUAL = qualifiers.qualifier_column(VALUE_COLUMN)
 
@@ -49,13 +61,19 @@ def _frame(rows: list[Row], unit: str = 'MWh/a', *, qualified: bool = True) -> p
         },
     )
     if qualified:
-        df = df.with_columns(qualifiers.make(quality=pl.col('_q'), supplied=pl.col('_s')).alias(QUAL))
+        df = df.with_columns(
+            qualifiers.make(
+                catalog=TEST_CATALOG,
+                assessments={'quality': qualifiers.covered_score(pl.col('_q'), pl.col('_q').is_not_null().cast(pl.Float64))},
+                reported=pl.col('_s'),
+            ).alias(QUAL)
+        )
     df = df.drop('_q', '_s')
     meta = DataFrameMeta(units={VALUE_COLUMN: unit_registry.parse_units(unit)}, primary_keys=[YEAR_COLUMN, 'energy_carrier'])
     return to_ppdf(df, meta)
 
 
-def _qual(df: ppl.PathsDataFrame) -> dict[tuple[int, ...], dict[str, object]]:
+def _qual(df: ppl.PathsDataFrame) -> dict[tuple[int | str, ...], FixtureQualifier]:
     keys = [col for col in df.primary_keys if col != YEAR_COLUMN]
     return {
         (row[YEAR_COLUMN], *(row[k] for k in keys)): row[QUAL]
@@ -79,29 +97,49 @@ class TestPairing:
 
 
 class TestSums:
+    @pytest.mark.parametrize(
+        ('left', 'right', 'expected'),
+        [(True, True, True), (True, False, False), (True, None, None), (False, None, False), (None, None, None)],
+    )
+    def test_reporting_requires_all_contributions(self, left: bool | None, right: bool | None, expected: bool | None) -> None:
+        # Zero has no grading weight, but remains a contributing reported cell.
+        frame = _frame([(2020, 'gas', 10.0, 1.0, left), (2020, 'oil', 0.0, None, right)])
+        reduced = frame.paths.sum_over_dims('energy_carrier')
+        assert reduced[QUAL][0]['reported'] is expected
+        pair = _frame([(2020, 'gas', 10.0, 1.0, left)]).paths.add_with_dims(_frame([(2020, 'gas', 0.0, None, right)]))
+        assert pair[QUAL][0]['reported'] is expected
+
+    def test_positive_sums_preserve_assessment_through_multiple_reductions(self) -> None:
+        frame = _frame([(2020, 'gas', 6.0, 1.0, True), (2020, 'oil', 4.0, None, False)])
+        first = frame.paths.sum_over_dims('energy_carrier')
+        more = _frame([(2020, 'gas', 10.0, 0.5, True)]).paths.sum_over_dims('energy_carrier')
+        result = first.paths.add_with_dims(more)
+        assert result[QUAL][0]['quality'] == {'score': 11 / 16, 'coverage': 0.8}
+        assert result[QUAL][0]['reported'] is False
+
     def test_the_grade_of_a_sum_is_weighted_by_magnitude(self) -> None:
         """Methodenpapier §3.4: each component's grade weighted by its share."""
         df = _frame([(2020, 'gas', 3.0, 1.0, True), (2020, 'oil', 1.0, 0.0, True)])
         out = df.paths.sum_over_dims('energy_carrier')
-        assert out[QUAL].to_list() == [{'quality': 0.75, 'graded': 1.0, 'supplied': True}]
+        assert out[QUAL].to_list() == [{'quality': {'score': 0.75, 'coverage': 1.0}, 'reported': True}]
 
     def test_an_ungraded_part_lowers_the_graded_share_not_the_grade(self) -> None:
         df = _frame([(2020, 'gas', 3.0, 1.0, True), (2020, 'oil', 1.0, 0.0, True), (2020, 'coal', 4.0, None, True)])
         out = df.paths.sum_over_dims('energy_carrier')
-        assert out[QUAL].to_list() == [{'quality': 0.75, 'graded': 0.5, 'supplied': True}]
+        assert out[QUAL].to_list() == [{'quality': {'score': 0.75, 'coverage': 0.5}, 'reported': True}]
 
-    def test_zeros_have_nothing_to_weight_by_and_fall_back_to_a_plain_mean(self) -> None:
+    def test_zero_group_has_no_energy_weighted_assessment(self) -> None:
         df = _frame([(2020, 'gas', 0.0, 1.0, False), (2020, 'oil', 0.0, 0.5, False)])
         out = df.paths.sum_over_dims('energy_carrier')
-        assert out[QUAL].to_list() == [{'quality': 0.75, 'graded': 1.0, 'supplied': False}]
+        assert out[QUAL].to_list() == [{'quality': {'score': None, 'coverage': None}, 'reported': False}]
 
     def test_adding_frames_weights_the_same_way(self) -> None:
         left = _frame([(2020, 'gas', 3.0, 1.0, True)])
         right = _frame([(2020, 'gas', 1.0, 0.0, False), (2021, 'gas', 2.0, 0.5, True)])
         out = left.paths.add_with_dims(right)
         assert _qual(out) == {
-            (2020, 'gas'): {'quality': 0.75, 'graded': 1.0, 'supplied': True},
-            (2021, 'gas'): {'quality': 0.5, 'graded': 1.0, 'supplied': True},
+            (2020, 'gas'): {'quality': {'score': 0.75, 'coverage': 1.0}, 'reported': False},
+            (2021, 'gas'): {'quality': {'score': 0.5, 'coverage': 1.0}, 'reported': True},
         }
 
     @pytest.mark.parametrize('qualified_side', ['left', 'right'])
@@ -111,7 +149,7 @@ class TestSums:
         ungraded = _frame([(2020, 'gas', 3.0, None, None)], qualified=False)
         left, right = (graded, ungraded) if qualified_side == 'left' else (ungraded, graded)
         out = left.paths.add_with_dims(right)
-        assert _qual(out) == {(2020, 'gas'): {'quality': 1.0, 'graded': 0.25, 'supplied': True}}
+        assert _qual(out) == {(2020, 'gas'): {'quality': {'score': 1.0, 'coverage': 0.25}, 'reported': None}}
 
 
 class TestProducts:
@@ -119,26 +157,59 @@ class TestProducts:
         activity = _frame([(2020, 'gas', 10.0, 0.5, True)], unit='Mvkm/a')
         factor = _frame([(2020, 'gas', 0.3, None, None)], unit='MWh/vkm', qualified=False)
         out = activity.paths.multiply_with_dims(factor)
-        assert _qual(out) == {(2020, 'gas'): {'quality': 0.5, 'graded': 1.0, 'supplied': True}}
+        assert _qual(out) == {(2020, 'gas'): {'quality': {'score': 0.5, 'coverage': 1.0}, 'reported': None}}
 
     def test_a_graded_factor_on_the_right_keeps_its_grade(self) -> None:
         share = _frame([(2020, 'gas', 0.5, None, None)], unit='dimensionless', qualified=False)
         activity = _frame([(2020, 'gas', 10.0, 0.5, True)], unit='Mvkm/a')
         out = share.paths.multiply_with_dims(activity)
-        assert _qual(out) == {(2020, 'gas'): {'quality': 0.5, 'graded': 1.0, 'supplied': True}}
+        assert _qual(out) == {(2020, 'gas'): {'quality': {'score': 0.5, 'coverage': 1.0}, 'reported': None}}
 
     def test_two_graded_factors_take_the_lower_grade(self) -> None:
         left = _frame([(2020, 'gas', 10.0, 1.0, True)])
         right = _frame([(2020, 'gas', 2.0, 0.25, False)], unit='dimensionless')
         out = left.paths.multiply_with_dims(right)
-        assert _qual(out) == {(2020, 'gas'): {'quality': 0.25, 'graded': 1.0, 'supplied': False}}
+        assert _qual(out) == {(2020, 'gas'): {'quality': {'score': 0.25, 'coverage': 1.0}, 'reported': False}}
 
 
 class TestFills:
+    @pytest.mark.parametrize(('end_grade', 'score', 'coverage'), [(1.0, 1.0, 1.0), (0.5, 0.875, 1.0), (None, 1.0, 0.75)])
+    def test_interpolation_carries_assessment_mass_using_actual_years(
+        self, end_grade: float | None, score: float, coverage: float
+    ) -> None:
+        before = _frame([(2020, 'gas', 10.0, 1.0, True), (2024, 'gas', 30.0, end_grade, True)])
+        after = _frame(
+            [(2020, 'gas', 10.0, None, None), (2021, 'gas', 15.0, None, None), (2024, 'gas', 30.0, None, None)], qualified=False
+        )
+        result = qualifiers.carry_over(before, after, fill='interpolate')
+        assert _qual(result)[(2021, 'gas')] == {'quality': {'score': score, 'coverage': coverage}, 'reported': False}
+        assert _qual(result)[(2020, 'gas')]['reported'] is True
+
+    @pytest.mark.parametrize(('fill', 'year'), [('backfill', 2019), ('extend', 2021)])
+    def test_constant_fill_preserves_assessment_and_marks_it_not_reported(self, fill: str, year: int) -> None:
+        before = _frame([(2020, 'gas', 10.0, 0.5, True)])
+        after = _frame([(year, 'gas', 10.0, None, None), (2020, 'gas', 10.0, None, None)], qualified=False)
+        result = qualifiers.carry_over(before, after, fill=fill)
+        assert _qual(result)[(year, 'gas')] == {'quality': {'score': 0.5, 'coverage': 1.0}, 'reported': False}
+
+    def test_interpolation_does_not_invent_an_assessment_or_cross_categories(self) -> None:
+        before = _frame([
+            (2020, 'gas', 10.0, None, True),
+            (2022, 'gas', 20.0, None, True),
+            (2020, 'oil', 10.0, 1.0, True),
+            (2022, 'oil', 20.0, 1.0, True),
+        ])
+        after = _frame(
+            [(year, carrier, 15.0, None, None) for year in (2020, 2021, 2022) for carrier in ('gas', 'oil')], qualified=False
+        )
+        result = qualifiers.carry_over(before, after, fill='interpolate')
+        assert _qual(result)[(2021, 'gas')]['quality'] == {'score': None, 'coverage': 0.0}
+        assert _qual(result)[(2021, 'oil')]['quality'] == {'score': 1.0, 'coverage': 1.0}
+
     def test_empty_to_zero_marks_what_it_filled(self) -> None:
         df = _frame([(2020, 'gas', 5.0, None, None), (2021, 'oil', None, None, None)], qualified=False)
         out = df.paths.get_operation('empty_to_zero')(df, None)
-        supplied = {key: qual['supplied'] for key, qual in _qual(out).items()}
+        supplied = {key: qual['reported'] for key, qual in _qual(out).items()}
         assert supplied == {(2020, 'gas'): True, (2020, 'oil'): False, (2021, 'gas'): False, (2021, 'oil'): False}
 
     def test_other_fills_keep_a_record_but_do_not_start_one(self) -> None:
@@ -147,6 +218,13 @@ class TestFills:
 
 
 class TestChoosingASource:
+    def test_partial_reported_year_uses_own_data_without_filling_from_default(self) -> None:
+        own = _frame([(2020, 'gas', 0.0, 1.0, True), (2020, 'oil', 0.0, None, False)])
+        default = _frame([(2020, 'gas', 9.0, 0.5, True), (2020, 'oil', 8.0, 0.5, True)])
+        result = own.paths.prefer_by_year(default)
+        assert result[VALUE_COLUMN].to_list() == [0.0, 0.0]
+        assert _qual(result)[(2020, 'oil')]['reported'] is False
+
     def test_a_zero_filled_template_covers_no_year(self) -> None:
         """The zero a fill wrote is not a zero the city reported, so the default stands."""
         template = _frame([(2021, 'gas', None, None, None)], qualified=False)
@@ -161,8 +239,8 @@ class TestChoosingASource:
         out = own.paths.prefer_by_year(default)
         assert dict(zip(out[YEAR_COLUMN], out[VALUE_COLUMN], strict=True)) == {2021: 7.0, 2022: 10.0}
         assert _qual(out) == {
-            (2021, 'gas'): {'quality': 0.5, 'graded': 1.0, 'supplied': True},
-            (2022, 'gas'): {'quality': 1.0, 'graded': 1.0, 'supplied': True},
+            (2021, 'gas'): {'quality': {'score': 0.5, 'coverage': 1.0}, 'reported': True},
+            (2022, 'gas'): {'quality': {'score': 1.0, 'coverage': 1.0}, 'reported': True},
         }
 
 
@@ -186,25 +264,31 @@ class TestSources:
         )
         return to_ppdf(df, meta)
 
-    def _qualifiers(self, source: QualifierSource) -> list[dict[str, object]]:
+    def _qualifiers(self, source: QualifierSource) -> list[FixtureQualifier]:
         df = self._dataset_frame()
         return df.select(source.qualifier_expr(df, 'mileage').alias('q'))['q'].to_list()
 
     def test_a_cell_grade_comes_from_its_evidence_projection(self) -> None:
-        assert self._qualifiers(QualifierSource(quality_columns={'mileage': 'quality'})) == [
-            {'quality': 1.0, 'graded': 1.0, 'supplied': True},
-            {'quality': None, 'graded': 0.0, 'supplied': True},
-            {'quality': None, 'graded': 0.0, 'supplied': False},
+        assert self._qualifiers(
+            QualifierSource(catalog=TEST_CATALOG, quality_identifier='quality', quality_columns={'mileage': 'quality'})
+        ) == [
+            {'quality': {'score': 1.0, 'coverage': 1.0}, 'reported': True},
+            {'quality': {'score': None, 'coverage': 0.0}, 'reported': True},
+            {'quality': {'score': None, 'coverage': 0.0}, 'reported': False},
         ]
 
     def test_the_dataset_default_grades_what_evidence_does_not_and_never_an_empty_cell(self) -> None:
-        source = QualifierSource(quality_columns={'mileage': 'quality'}, default_quality=0.5)
-        assert [q['quality'] for q in self._qualifiers(source)] == [1.0, 0.5, None]
+        source = QualifierSource(
+            catalog=TEST_CATALOG, quality_identifier='quality', quality_columns={'mileage': 'quality'}, default_quality=0.5
+        )
+        assert [q['quality']['score'] for q in self._qualifiers(source) if q['quality'] is not None] == [1.0, 0.5, None]
 
     def test_a_missing_projection_column_reads_as_ungraded(self) -> None:
         """An ungraded dataset has no projected column at all, which must not break the binding."""
-        source = QualifierSource(quality_columns={'mileage': 'grades_nobody_entered'})
-        assert [q['graded'] for q in self._qualifiers(source)] == [0.0, 0.0, 0.0]
+        source = QualifierSource(
+            catalog=TEST_CATALOG, quality_identifier='quality', quality_columns={'mileage': 'grades_nobody_entered'}
+        )
+        assert [q['quality']['coverage'] for q in self._qualifiers(source) if q['quality'] is not None] == [0.0, 0.0, 0.0]
 
 
 @pytest.mark.parametrize('metric', ['Value', 'Energy'])
