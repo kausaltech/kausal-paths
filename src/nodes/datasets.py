@@ -28,7 +28,7 @@ from kausal_common.deployment import get_deployment_build_id
 from kausal_common.logging.errors import capture_error
 from kausal_common.perf.perf_context import PerfKind, estimate_size_bytes
 
-from common import polars as ppl
+from common import polars as ppl, qualifiers
 from nodes.defs.transform_def import (
     TEMPORAL_FILL_KINDS,
     ExtendOp,
@@ -181,6 +181,7 @@ class Dataset(ABC):
             type(self)._class_hash = class_hash
         d = {
             'id': self.id,
+            'qualifier_version': qualifiers.QUALIFIER_VERSION,
             'transformations': [op.cache_hash_data(self.context) for op in self.transformations],
         }
         if build_id := get_deployment_build_id():
@@ -1097,6 +1098,14 @@ class SerializedDBDataset(DatasetWithFilters):
         assert self.payload_ref is not None
         assert self.payload_store is not None
         df = self.payload_store.get_dataframe(self.payload_ref).copy()
+        from datasets.snapshot import DataPointEvidenceSnapshot
+        from frameworks.qualifiers import attach_evidence_qualifiers
+
+        evidence = [
+            DataPointEvidenceSnapshot.model_validate(item)
+            for item in self.payload_store.get_content(self.payload_ref).get('evidence', [])
+        ]
+        df = attach_evidence_qualifiers(df, evidence, self.context.qualifiers, portable=True)
         df = self._filter_and_process_df(df)
         df = self.after_transformations(df)
         self.df = df
@@ -1165,6 +1174,11 @@ class DBDataset(DatasetWithFilters):
             df = self.deserialize_df(ds_obj)
             self.context.db_dataset_dfs[ds_obj.pk] = df
         df = df.copy()
+        from datasets.transfer import export_dataset_evidence
+        from frameworks.qualifiers import attach_evidence_qualifiers
+
+        evidence = export_dataset_evidence(ds_obj) if self.context.qualifiers.assessments else []
+        df = attach_evidence_qualifiers(df, evidence, self.context.qualifiers)
         df = self._filter_and_process_df(df)
         df = self.after_transformations(df)
         self.df = df

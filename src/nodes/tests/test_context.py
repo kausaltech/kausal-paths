@@ -34,6 +34,9 @@ def test_context_activate_scenario_sets_active_scenario(context: Context, scenar
 
 
 def _set_cache_identity(instance: Instance, *, invalidated_at: datetime) -> None:
+    from common.qualifiers import BUILTIN_QUALIFIERS
+
+    instance.context.__dict__['qualifiers'] = BUILTIN_QUALIFIERS
     instance.__dict__['config'] = SimpleNamespace(
         uuid=UUID('3a45b35f-bb52-4145-bb8f-f6d506689246'),
         cache_invalidated_at=invalidated_at,

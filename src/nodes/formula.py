@@ -44,7 +44,7 @@ type BinomBothQuantity = Callable[[Quantity, Quantity], Quantity]
 type BinomRightDF = Callable[[Quantity, PDF], PDF]
 
 
-QUALIFIER_FUNCTIONS = frozenset({qualifiers.QUALITY, qualifiers.GRADED, qualifiers.SUPPLIED})
+QUALIFIER_FUNCTIONS = frozenset({qualifiers.QUALITY, 'graded', qualifiers.REPORTED})
 """Formula functions that read one field of a value's qualifier."""
 
 _PASSTHROUGH_FUNCTIONS = frozenset({'convert_gwp', 'zero_fill', 'output_with_scenario'}) | QUALIFIER_FUNCTIONS
@@ -347,7 +347,7 @@ class FormulaNode(Node):
         'min': '_custom_max_min',
         'quality': '_custom_qualifier',
         'graded': '_custom_qualifier',
-        'supplied': '_custom_qualifier',
+        'reported': '_custom_qualifier',
         'and': '_custom_and_or',
         'or': '_custom_and_or',
     }
@@ -461,10 +461,10 @@ class FormulaNode(Node):
             raise NodeError(self, f'{func}() needs a series over years')
         env = PipelineEnv(context=self.context, node=self)
         if func == 'interpolate':
-            return qualifiers.carry_over(df, interpolate_years(df, env))
+            return qualifiers.carry_over(df, interpolate_years(df, env), fill='interpolate')
         if func == 'extend':
-            return qualifiers.carry_over(df, extend_to_end_year(df, env))
-        return qualifiers.carry_over(df, backfill_leading_values(df))
+            return qualifiers.carry_over(df, extend_to_end_year(df, env), fill='extend')
+        return qualifiers.carry_over(df, backfill_leading_values(df), fill='backfill')
 
     def _custom_select_category(self, _func: str, node: ast.Call, _varss: EvalVars, df: EvalOutput) -> EvalOutput:
         """`select_category(x, dimension='category')`, or `dimension=parameter`: the shared `select_category` operation."""
@@ -540,17 +540,36 @@ class FormulaNode(Node):
 
     def _custom_qualifier(self, func: str, node: ast.Call, _varss: EvalVars, df: EvalOutput) -> EvalOutput:
         """
-        `quality(x)`, `graded(x)`, `supplied(x)`: one field of ``x``'s qualifier, as a dimensionless value.
+        `quality(x)`, `graded(x)`, `reported(x)`: one field of ``x``'s qualifier, as a dimensionless value.
 
         A cell with nothing to say -- ungraded, or from a source that does not say what it
         supplied -- is left out rather than read as zero. See `common.qualifiers` for the fields.
         """
-        if not isinstance(df, PDF) or len(node.args) != 1:
-            raise NodeError(self, f'{func}() takes one input')
+        if not isinstance(df, PDF) or len(node.args) not in (1, 2):
+            raise NodeError(self, f'{func}() takes an input and an optional qualifier identifier')
         keys = [col for col in (*df.primary_keys, FORECAST_COLUMN) if col in df.columns]
         meta = ppl.DataFrameMeta(units={VALUE_COLUMN: unit_registry.parse_units('dimensionless')}, primary_keys=df.primary_keys)
         qual = df.qualifier_cols.get(VALUE_COLUMN)
-        field = pl.col(qual).struct.field(func).cast(pl.Float64) if qual is not None else pl.lit(None, dtype=pl.Float64)
+        if qual is None:
+            field = pl.lit(None, dtype=pl.Float64)
+        elif func == qualifiers.REPORTED:
+            field = pl.col(qual).struct.field(qualifiers.REPORTED).cast(pl.Float64)
+        else:
+            definitions = qualifiers.QualifierCatalog.from_dtype(df.schema[qual]).assessments
+            if len(node.args) == 2:
+                identifier = node.args[1]
+                if not isinstance(identifier, ast.Constant) or not isinstance(identifier.value, str):
+                    raise NodeError(self, 'Qualifier identifier must be a string literal')
+                definitions = tuple(d for d in definitions if d.identifier == identifier.value)
+                if not definitions:
+                    raise NodeError(self, f'Unknown quality qualifier {identifier.value}')
+            if len(definitions) > 1:
+                raise NodeError(self, f'{func}() requires an explicit qualifier identifier when several schemes are available')
+            if not definitions:
+                field = pl.lit(None, dtype=pl.Float64)
+            else:
+                assessment = pl.col(qual).struct.field(definitions[0].identifier)
+                field = assessment.struct.field(qualifiers.SCORE if func == 'quality' else qualifiers.COVERAGE)
         out = pl.DataFrame(df).select([*keys, field.alias(VALUE_COLUMN)]).filter(pl.col(VALUE_COLUMN).is_not_null())
         return ppl.to_ppdf(out, meta=meta)
 

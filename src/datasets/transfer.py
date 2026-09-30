@@ -131,7 +131,16 @@ def _import_dataset_evidence(
         level = None
         ref = ev.quality_level
         if ref is not None:
-            level = by_uuid.get(ref.uuid) or by_identity.get((ref.scheme, ref.scheme_version, ref.level))
+            scheme_identifier = ref.scheme
+            if scheme_identifier == 'bisko':
+                # The UUID path preserves deployed evidence; this alias only
+                # restores portable payloads written before the scheme rename.
+                from frameworks.evidence import framework_for_dataset
+
+                framework = framework_for_dataset(dataset)
+                if framework is not None and framework.identifier == 'bisko':
+                    scheme_identifier = 'quality'
+            level = by_uuid.get(ref.uuid) or by_identity.get((scheme_identifier, ref.scheme_version, ref.level))
             if level is None:
                 logger.warning(
                     'Dropping unresolvable quality level %s/%s/%s on dataset %s'
