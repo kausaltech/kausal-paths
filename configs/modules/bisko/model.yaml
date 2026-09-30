@@ -1390,7 +1390,7 @@ nodes:
     # on their own sector's -- so (data - municipal - heat_pumps) * correction would square it
     # on them. The description's "applied to all three" is therefore true of the result, and
     # this is where it stops being applied a second time.
-    formula: data * correction - municipal - heat_pumps
+    formula: remove_subset(data * correction, municipal) - heat_pumps
 
 - id: heat_pump_electricity_in_electricity
   is_editable: false

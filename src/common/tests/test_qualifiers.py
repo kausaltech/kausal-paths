@@ -295,3 +295,65 @@ class TestSources:
 def test_qualifier_column_names_round_trip(metric: str) -> None:
     assert qualifiers.qualified_metric(qualifiers.qualifier_column(metric)) == metric
     assert qualifiers.qualified_metric(metric) is None
+
+
+class TestRemoveSubset:
+    def test_remainder_keeps_parent_grade_instead_of_mixing_subset_grade(self) -> None:
+        total = _frame([(2020, 'gas', 100.0, 0.25, True), (2020, 'oil', 50.0, 0.0, True)])
+        subset = _frame([(2020, 'gas', 20.0, 1.0, True)])
+        out = total.paths.remove_subset(subset)
+        assert out.filter(pl.col('energy_carrier') == 'gas')['Value'][0] == 80.0
+        assert _qual(out) == {
+            (2020, 'gas'): {'quality': {'score': 0.25, 'coverage': 1.0}, 'reported': True},
+            (2020, 'oil'): {'quality': {'score': 0.0, 'coverage': 1.0}, 'reported': True},
+        }
+        general = total.paths.subtract_with_dims(subset)
+        assessment = _qual(general)[(2020, 'gas')]['quality']
+        assert assessment is not None
+        assert assessment['score'] == pytest.approx(0.375)
+
+    @pytest.mark.parametrize('coverage', [0.0, 0.5])
+    def test_partial_subset_does_not_invent_remainder_coverage(self, coverage: float) -> None:
+        total = _frame([(2020, 'gas', 100.0, 1.0, True)])
+        subset = _frame([(2020, 'gas', 20.0, 0.5, True)]).with_columns(
+            qualifiers.make(
+                catalog=TEST_CATALOG,
+                reported=pl.lit(value=True),
+                assessments={'quality': qualifiers.covered_score(pl.lit(0.5), pl.lit(coverage))},
+            ).alias(QUAL)
+        )
+        assert _qual(total.paths.remove_subset(subset))[(2020, 'gas')]['quality'] is None
+
+    def test_zero_subset_preserves_partial_parent_and_zero_remainder_has_no_grade(self) -> None:
+        total = _frame([(2020, 'gas', 100.0, 0.5, True)])
+        zero = _frame([(2020, 'gas', 0.0, None, False)])
+        assert _qual(total.paths.remove_subset(zero)) == _qual(total)
+        assert _qual(total.paths.remove_subset(total))[(2020, 'gas')]['quality'] is None
+
+    @pytest.mark.parametrize(('total_value', 'subset_value'), [(10.0, 20.0), (10.0, -1.0), (-1.0, 0.0)])
+    def test_invalid_subset_is_rejected(self, total_value: float, subset_value: float) -> None:
+        total = _frame([(2020, 'gas', total_value, 1.0, True)])
+        subset = _frame([(2020, 'gas', subset_value, 1.0, True)])
+        with pytest.raises(ValueError, match='nonnegative'):
+            total.paths.remove_subset(subset)
+
+    def test_subset_without_parent_is_rejected(self) -> None:
+        total = _frame([(2020, 'gas', 10.0, 1.0, True)])
+        subset = _frame([(2020, 'oil', 1.0, 1.0, True)])
+        with pytest.raises(ValueError, match='subset no larger'):
+            total.paths.remove_subset(subset)
+
+
+def test_unassessed_factor_with_explicit_zero_coverage_is_neutral_for_product() -> None:
+    activity = _frame([(2020, 'gas', 10.0, 1.0, True)])
+    factor = _frame([(2020, 'gas', 2.0, None, False)], unit='dimensionless').with_columns(
+        qualifiers.make(
+            catalog=TEST_CATALOG,
+            reported=pl.lit(value=False),
+            assessments={'quality': qualifiers.covered_score(pl.lit(None, dtype=pl.Float64), pl.lit(0.0))},
+        ).alias(QUAL)
+    )
+    assert _qual(activity.paths.multiply_with_dims(factor))[(2020, 'gas')]['quality'] == {
+        'score': 1.0,
+        'coverage': 1.0,
+    }
