@@ -1954,11 +1954,10 @@ class ChpNode(GenericNode):
     FIXED_METHOD: ClassVar[str | None] = None
     """Set by a subclass that pins the method; then ``method`` is not a parameter."""
 
-    # Not ``required`` although every method needs it: ``get_input()`` would then raise before
-    # ``_legacy_dataset_column()`` could answer for a spec synced before these ports existed.
-    # ``_annual_inputs()`` refuses a missing input itself, naming the port.
+    consumes_all_inputs_through_ports = True
+
     electricity_fraction_port = InputPortDeclaration(
-        role='electricity_fraction', required=False, label=_('Fraction of electricity in the output energy')
+        role='electricity_fraction', label=_('Fraction of electricity in the output energy')
     )
     t_supply_port = InputPortDeclaration(
         role='t_supply', required=False, min_count=0, label=_('Supply temperature of the district heating flow')
@@ -2041,36 +2040,7 @@ class ChpNode(GenericNode):
 
     def _supplied_input_names(self) -> set[str]:
         """Which inputs have a binding, without computing their values."""
-        if self._spec_predates_ports():
-            ds = self.get_input_dataset_pl(required=False)
-            declared = {d.role for d in self.input_port_declarations}
-            return {col for col in ds.metric_cols if col in declared} if ds is not None else set()
         return {d.role for d in self.input_port_declarations if any(True for _ in self.iter_input_bindings(d))}
-
-    # --- Migration path, to be deleted once every database-sourced BISKO instance is re-synced.
-    #
-    # Until 2026-09-30 the node read its values from dataset columns by name, and the sync gave it
-    # one anonymous port holding every metric. A spec stored before then has no port with a role
-    # here, so the loader delivers no bindings at all. Rather than failing the district heating
-    # of every such instance between the deploy and its sync, the node reads the columns the old
-    # way and says so. It applies only when *no* binding arrived, so it never mixes with ports.
-
-    def _spec_predates_ports(self) -> bool:
-        return not self.runtime_input_bindings and bool(self.input_dataset_instances)
-
-    def _legacy_dataset_column(self, name: str) -> PathsDataFrame | None:
-        if not self._spec_predates_ports():
-            return None
-        ds = self.get_input_dataset_pl(required=False)
-        if ds is None or name not in ds.metric_cols:
-            return None
-        self.logger.warning(
-            "Reading '%s' from the dataset by column name: this node's stored spec predates its input "
-            'ports. Run sync_instance_to_db for the instance.',
-            name,
-        )
-        keep = [*ds.primary_keys, name] + ([FORECAST_COLUMN] if FORECAST_COLUMN in ds.columns else [])
-        return ds.select(keep)
 
     def _input_series(self, name: str) -> PathsDataFrame | None:
         """Read one input from its port as Year + ``name``, with its forecast flag kept under a unique name."""
@@ -2078,8 +2048,6 @@ class ChpNode(GenericNode):
         if declaration is None:
             return None
         df = self.get_input(declaration)
-        if df is None:
-            df = self._legacy_dataset_column(name)
         if df is None:
             return None
         if df.dim_ids:
@@ -2253,9 +2221,7 @@ class BiskoChpNode(ChpNode):
 
     FIXED_METHOD = 'bisko'
 
-    t_supply_port = InputPortDeclaration(
-        role='t_supply', required=False, label=_('Supply temperature of the district heating flow')
-    )
+    t_supply_port = InputPortDeclaration(role='t_supply', label=_('Supply temperature of the district heating flow'))
     input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = (ChpNode.electricity_fraction_port, t_supply_port)
 
     allowed_parameters = [*GenericNode.allowed_parameters]

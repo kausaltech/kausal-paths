@@ -10,7 +10,6 @@ from kausal_common.i18n.pydantic import TranslatedString
 
 from common.polars import DataFrameMeta, to_ppdf
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
-from nodes.datasets import Dataset
 from nodes.dimensions import Dimension, DimensionCategory
 from nodes.edges import Edge
 from nodes.exceptions import NodeError
@@ -22,8 +21,6 @@ from nodes.units import unit_registry
 from params.param import StringParameter
 
 if TYPE_CHECKING:
-    from typing import Any
-
     from common.polars import PathsDataFrame
     from nodes.context import Context
 
@@ -51,20 +48,6 @@ class _Series:
     values: list[float]
     years: list[int]
     unit: str | None = None
-
-
-@dataclass
-class _FixedDataset(Dataset):
-    """A dataset returning a caller-supplied PathsDataFrame. Test-only."""
-
-    fixed_df: PathsDataFrame | None = None
-
-    def load_internal(self) -> PathsDataFrame:
-        assert self.fixed_df is not None
-        return self.fixed_df
-
-    def hash_data(self) -> dict[str, Any]:
-        return {'id': self.id}
 
 
 class _FixedOutputNode(Node):
@@ -251,7 +234,7 @@ def test_the_electricity_fraction_is_always_required():
     context = _make_context('chp-no-fraction')
     node = _make_chp_node(context, method='energy_content')
 
-    with pytest.raises(NodeError, match="input port 'electricity_fraction'"):
+    with pytest.raises(NodeError, match="'electricity_fraction' has no bindings"):
         node.compute()
 
 
@@ -699,39 +682,3 @@ def test_the_consumption_input_must_be_a_single_series():
 
     with pytest.raises(NodeError, match='must be a single series'):
         gate.compute()
-
-
-# --------------------------------------------------------------------------------------
-# Migration path for specs synced before the input ports existed (delete with the shim)
-# --------------------------------------------------------------------------------------
-
-
-def _plant_dataset(context: Context) -> _FixedDataset:
-    df = _series_df(
-        {'electricity_fraction': [0.3], 't_supply': [373.0]},
-        years=[2018],
-        units={'electricity_fraction': 'dimensionless', 't_supply': 'K'},
-    )
-    return _FixedDataset(id='chp_parameters', context=context, fixed_df=df)
-
-
-def test_a_spec_that_predates_the_ports_reads_the_dataset_by_column_name():
-    """Between a deploy and the instance's re-sync the loader delivers no bindings at all."""
-    context = _make_context('chp-legacy-spec')
-    legacy = _make_chp_node(context, cls=BiskoChpNode)
-    legacy.input_dataset_instances.append(_plant_dataset(context))
-    ported = _make_chp_node(
-        _make_context('chp-ported-spec'), cls=BiskoChpNode, inputs={'electricity_fraction': 0.3, 't_supply': 373.0}
-    )
-
-    assert _heat_by_year(legacy.compute()) == pytest.approx(_heat_by_year(ported.compute()))
-
-
-def test_the_migration_path_never_mixes_with_ports():
-    """Once any binding arrives, the dataset columns are not consulted."""
-    context = _make_context('chp-legacy-mixed')
-    node = _make_chp_node(context, cls=BiskoChpNode, inputs={'t_supply': 373.0})
-    node.input_dataset_instances.append(_plant_dataset(context))
-
-    with pytest.raises(NodeError, match="input port 'electricity_fraction'"):
-        node.compute()
