@@ -161,14 +161,19 @@ class SimpleNode(Node):
         if data_df is None:
             return df
 
+        return self._fill_gaps_from_input(df, data_df)
+
+    def _fill_gaps_from_input(self, df: ppl.PathsDataFrame, data_df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
         meta = df.get_meta()
+        qualifier_exprs = {
+            metric: df.paths._choice_qualifier_exprs(df, data_df, metric, metric, pl.col(metric).is_not_null())
+            for metric in meta.metric_cols
+        }
         df = df.paths.join_over_index(data_df, how='outer')
         for metric_col in meta.metric_cols:
-            right = '%s_right' % metric_col  # FIXME Not clear that the right column has same metric name as left
+            right = f'{metric_col}_right'
             df = df.ensure_unit(right, meta.units[metric_col])
-            df = df.with_columns([
-                pl.col(metric_col).fill_null(pl.col(right)),
-            ]).drop(right)
+            df = df.with_columns(pl.col(metric_col).fill_null(pl.col(right)), *qualifier_exprs[metric_col]).drop(right)
         return df
 
     def maybe_drop_nulls(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
@@ -474,15 +479,6 @@ afterwards instead, replacing it wherever the tagged node has a value and leavin
                 Operand(df=value, role='additive', source_id=binding.source_id or str(binding.id), kind=binding.source_kind)
             )
         return operands, dataset_values, skipped
-
-    def _fill_gaps_from_input(self, df: ppl.PathsDataFrame, data_df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
-        meta = df.get_meta()
-        df = df.paths.join_over_index(data_df, how='outer')
-        for metric_col in meta.metric_cols:
-            right = f'{metric_col}_right'
-            df = df.ensure_unit(right, meta.units[metric_col])
-            df = df.with_columns(pl.col(metric_col).fill_null(pl.col(right))).drop(right)
-        return df
 
     def compute(self) -> ppl.PathsDataFrame:  # noqa: C901
         metric = self.get_parameter_value_str('metric', required=False)
