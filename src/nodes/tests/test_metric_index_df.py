@@ -75,10 +75,7 @@ def test_qualifiers_follow_values_through_dense_index_and_round_trip() -> None:
     assert len(metric.values) == 4
     assert len(metric.qualifiers) == 2
     for q in metric.qualifiers:
-        assert q.id == f'test:{q.identifier}'
         assert len(q.values if isinstance(q, BooleanQualifier) else q.scores) == 4
-    other = DimensionalMetric.model_validate({**metric.model_dump(), 'id': 'other'})
-    assert {q.id for q in metric.qualifiers}.isdisjoint(q.id for q in other.qualifiers)
     restored = metric.to_df()
     rows = {(r['sector'], r['Year']): r for r in restored.to_dicts()}
     assert rows[('transport', 2021)]['Value'] == 0
@@ -129,7 +126,7 @@ def test_qualifier_contract_is_validated(invalid: str) -> None:
         DimensionalMetric.model_validate(payload)
 
 
-def test_graphql_qualifier_columns_have_metric_scoped_ids(client: Client, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_graphql_qualifier_columns_are_embedded_values(client: Client, monkeypatch: pytest.MonkeyPatch) -> None:
     from paths.tests.graphql import PathsTestClient
 
     from nodes.tests.factories import InstanceConfigFactory, InstanceFactory, NodeFactory
@@ -157,8 +154,8 @@ def test_graphql_qualifier_columns_have_metric_scoped_ids(client: Client, monkey
                     id values
                     qualifiers {
                         __typename
-                        ... on BooleanQualifierType { id identifier values }
-                        ... on CoveredScoreQualifierType { id identifier scores coverage }
+                        ... on BooleanQualifierType { identifier values }
+                        ... on CoveredScoreQualifierType { identifier scores coverage }
                     }
                 }
             }
@@ -170,10 +167,8 @@ def test_graphql_qualifier_columns_have_metric_scoped_ids(client: Client, monkey
     columns = {q['identifier']: q for q in output['qualifiers']}
     assert columns['quality'] == {
         '__typename': 'CoveredScoreQualifierType',
-        'id': f'{node.id}:quality',
         'identifier': 'quality',
         'scores': [1.0, 0.0],
         'coverage': [1.0, 1.0],
     }
-    assert columns['reported']['id'] == f'{node.id}:reported'
     assert columns['reported']['values'] == [True, True]
