@@ -118,7 +118,6 @@ class NormalizerNodeType:
 @register_strawberry_type
 @sb.experimental.pydantic.type(model=BooleanQualifier)
 class BooleanQualifierType:
-    id: sb.ID
     identifier: sb.auto
     values: sb.auto
 
@@ -126,7 +125,6 @@ class BooleanQualifierType:
 @register_strawberry_type
 @sb.experimental.pydantic.type(model=CoveredScoreQualifier)
 class CoveredScoreQualifierType:
-    id: sb.ID
     identifier: sb.auto
     scores: sb.auto
     coverage: sb.auto
@@ -135,7 +133,9 @@ class CoveredScoreQualifierType:
 @register_strawberry_type
 @sb.experimental.pydantic.type(model=DimensionalMetric)
 class DimensionalMetricType:
-    id: sb.ID
+    id: sb.ID = sb.field(
+        deprecation_reason='Computed result without entity identity. Cache under the parent field; do not normalize by id.'
+    )
     name: sb.auto
     dimensions: sb.auto
     values: sb.auto
