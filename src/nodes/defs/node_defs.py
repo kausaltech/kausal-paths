@@ -135,6 +135,8 @@ class InputDatasetDef(I18nBaseModel):
     model_config = ConfigDict(extra='forbid')
 
     id: DatasetIdentifier
+    binding_owner: Literal['framework', 'instance'] = 'framework'
+    """Ownership of the input port's bindings, independent of the dataset schema."""
     tags: list[str] = Field(default_factory=list)
     interpolate: bool | None = None
     """
@@ -557,6 +559,16 @@ class NodeSpec(I18nBaseModel):
     def output_port_by_identifier(self) -> dict[str, OutputPortDef]:
         """Output ports that have a human-readable identifier, keyed by it."""
         return {port.identifier: port for port in self.output_ports if port.identifier is not None}
+
+    @model_validator(mode='after')
+    def validate_input_requirements(self) -> NodeSpec:
+        input_ids = {port.id for port in self.input_ports}
+        for port in self.input_ports:
+            if port.validation is not None:
+                for dependency in (port.validation.required_if_positive, port.validation.combinations_from_positive):
+                    if dependency is not None and dependency not in input_ids:
+                        raise ValueError(f'Input port {port.id} validation references unknown input port {dependency}')
+        return self
 
     @model_validator(mode='after')
     def validate_port_identifiers(self) -> NodeSpec:

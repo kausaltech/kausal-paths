@@ -44,6 +44,7 @@ from nodes.node import Node
 from nodes.normalization import Normalization
 from nodes.quantities import get_registry as get_quantity_registry
 from nodes.units import Unit
+from nodes.value_validation import collect_instance_value_violations
 from pages.models import ActionListPage
 from users.models import User
 
@@ -60,7 +61,12 @@ from .graph import (
 )
 from .layout import NodeLayoutType
 from .node import QuantityKindType
-from .problems import DatasetPlausibilityFindingType, DatasetValidationViolationType, InstanceProblemInterface
+from .problems import (
+    DatasetPlausibilityFindingType,
+    DatasetValidationViolationType,
+    InstanceProblemInterface,
+    NodeValueValidationViolationType,
+)
 from .spec import InstanceSpecType, YearsDefType
 
 if TYPE_CHECKING:
@@ -414,7 +420,7 @@ class InstanceEditorFields:
         graphql_type=list[InstanceProblemInterface],
         description=(
             'Everything standing between this draft and publication: structural '
-            'constraint conflicts and dataset validation-rule violations, as one list.'
+            'constraint conflicts, dataset validation rules and delivered input-value contracts, as one list.'
         ),
     )
     @staticmethod
@@ -429,7 +435,15 @@ class InstanceEditorFields:
             DatasetValidationViolationType.from_violation(violation)
             for violation in collect_instance_dataset_violations(root._config)
         ]
-        return conflicts + violations
+        graph = info.context.require_instance_graph(root._config, source=root._source)
+        values: list[InstanceProblemInterface] = []
+        if any(port.validation is not None for node in graph.nodes for port in node.spec.input_ports):
+            instance = info.context.require_instance(root._config, source=root._source)
+            values = [
+                NodeValueValidationViolationType.from_violation(violation)
+                for violation in collect_instance_value_violations(instance)
+            ]
+        return conflicts + violations + values
 
     @sb.field(
         graphql_type=list[Annotated['InstanceChangeOperationType', sb.lazy('nodes.graphql.types.change_history')]],
