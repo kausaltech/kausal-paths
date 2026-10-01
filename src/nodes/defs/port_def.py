@@ -12,6 +12,7 @@ from paths.identifiers import MixedCaseIdentifier
 from paths.refs import DimensionRef, NodeRef, QuantityKindRef, UniqueList
 
 from nodes.units import Unit
+from nodes.value_validation import ValueContract
 
 if TYPE_CHECKING:
     from django.utils.functional import Promise
@@ -158,6 +159,8 @@ class InputPortDef(I18nBaseModel):
     required_dimensions: UniqueList[DimensionRef] = Field(default_factory=list)
     binding_owner: Literal['framework', 'instance'] = 'framework'
     """In a framework release, who may replace the bindings. Local-node inputs remain instance-owned."""
+    validation: ValueContract | None = None
+    """Consumer-owned requirements on the delivered dataset or upstream-node value."""
 
     # These are used only temporarily at export time to store the node reference and metric ID.
     _from_node: NodeRef | None = PrivateAttr(default=None)

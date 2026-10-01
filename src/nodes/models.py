@@ -442,7 +442,7 @@ def make_empty_instance_spec() -> InstanceModelSpec:
     return InstanceModelSpec()
 
 
-YAML_SPEC_VERSION = 4
+YAML_SPEC_VERSION = 5
 """Version of the lightweight YAML-to-InstanceModelSpec materialization."""
 
 
@@ -1119,6 +1119,21 @@ class InstanceConfig(
             # Dataset validation rules gate publication the same way: the
             # violations were just re-evaluated by the refresh above.
             require_valid_dataset_rules(materializations.values())
+            from nodes.instance_graph_cache import get_instance_graph
+            from nodes.value_validation import InstanceValueValidationError, collect_instance_value_violations
+
+            graph = get_instance_graph(locked, PreferredInstanceSource.DRAFT)
+            if any(port.validation is not None for node in graph.nodes for port in node.spec.input_ports):
+                # A fresh draft runtime avoids validating a cached output or cleaning a shared instance.
+                from nodes.instance_loader import InstanceLoader
+
+                instance = InstanceLoader.from_snapshot(build_instance_snapshot(locked), instance_config=locked).instance
+                try:
+                    value_violations = collect_instance_value_violations(instance)
+                    if value_violations:
+                        raise InstanceValueValidationError(value_violations)
+                finally:
+                    instance.clean()
 
             dataset_ct = ContentType.objects.get_for_model(DatasetModel, for_concrete_model=False)
             now = timezone.now()

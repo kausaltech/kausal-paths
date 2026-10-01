@@ -28,7 +28,7 @@ pytestmark = pytest.mark.django_db
 
 class FixtureQualifier(TypedDict):
     quality: qualifiers.CoveredScore | None
-    reported: bool | None
+    reported: qualifiers.ReportingStatus | None
 
 
 TEST_CATALOG = qualifiers.QualifierCatalog((
@@ -126,9 +126,9 @@ class TestSums:
         # Zero has no grading weight, but remains a contributing reported cell.
         frame = _frame([(2020, 'gas', 10.0, 1.0, left), (2020, 'oil', 0.0, None, right)])
         reduced = frame.paths.sum_over_dims('energy_carrier')
-        assert reduced[QUAL][0]['reported'] is expected
+        assert reduced[QUAL][0]['reported']['all'] is expected
         pair = _frame([(2020, 'gas', 10.0, 1.0, left)]).paths.add_with_dims(_frame([(2020, 'gas', 0.0, None, right)]))
-        assert pair[QUAL][0]['reported'] is expected
+        assert pair[QUAL][0]['reported']['all'] is expected
 
     def test_positive_sums_preserve_assessment_through_multiple_reductions(self) -> None:
         frame = _frame([(2020, 'gas', 6.0, 1.0, True), (2020, 'oil', 4.0, None, False)])
@@ -136,31 +136,31 @@ class TestSums:
         more = _frame([(2020, 'gas', 10.0, 0.5, True)]).paths.sum_over_dims('energy_carrier')
         result = first.paths.add_with_dims(more)
         assert result[QUAL][0]['quality'] == {'score': 11 / 16, 'coverage': 0.8}
-        assert result[QUAL][0]['reported'] is False
+        assert result[QUAL][0]['reported']['all'] is False
 
     def test_the_grade_of_a_sum_is_weighted_by_magnitude(self) -> None:
         """Methodenpapier §3.4: each component's grade weighted by its share."""
         df = _frame([(2020, 'gas', 3.0, 1.0, True), (2020, 'oil', 1.0, 0.0, True)])
         out = df.paths.sum_over_dims('energy_carrier')
-        assert out[QUAL].to_list() == [{'quality': {'score': 0.75, 'coverage': 1.0}, 'reported': True}]
+        assert out[QUAL].to_list() == [{'quality': {'score': 0.75, 'coverage': 1.0}, 'reported': {'any': True, 'all': True}}]
 
     def test_an_ungraded_part_lowers_the_graded_share_not_the_grade(self) -> None:
         df = _frame([(2020, 'gas', 3.0, 1.0, True), (2020, 'oil', 1.0, 0.0, True), (2020, 'coal', 4.0, None, True)])
         out = df.paths.sum_over_dims('energy_carrier')
-        assert out[QUAL].to_list() == [{'quality': {'score': 0.75, 'coverage': 0.5}, 'reported': True}]
+        assert out[QUAL].to_list() == [{'quality': {'score': 0.75, 'coverage': 0.5}, 'reported': {'any': True, 'all': True}}]
 
     def test_zero_group_has_no_energy_weighted_assessment(self) -> None:
         df = _frame([(2020, 'gas', 0.0, 1.0, False), (2020, 'oil', 0.0, 0.5, False)])
         out = df.paths.sum_over_dims('energy_carrier')
-        assert out[QUAL].to_list() == [{'quality': {'score': None, 'coverage': None}, 'reported': False}]
+        assert out[QUAL].to_list() == [{'quality': {'score': None, 'coverage': None}, 'reported': {'any': False, 'all': False}}]
 
     def test_adding_frames_weights_the_same_way(self) -> None:
         left = _frame([(2020, 'gas', 3.0, 1.0, True)])
         right = _frame([(2020, 'gas', 1.0, 0.0, False), (2021, 'gas', 2.0, 0.5, True)])
         out = left.paths.add_with_dims(right)
         assert _qual(out) == {
-            (2020, 'gas'): {'quality': {'score': 0.75, 'coverage': 1.0}, 'reported': False},
-            (2021, 'gas'): {'quality': {'score': 0.5, 'coverage': 1.0}, 'reported': True},
+            (2020, 'gas'): {'quality': {'score': 0.75, 'coverage': 1.0}, 'reported': {'any': True, 'all': False}},
+            (2021, 'gas'): {'quality': {'score': 0.5, 'coverage': 1.0}, 'reported': {'any': True, 'all': True}},
         }
 
     @pytest.mark.parametrize('qualified_side', ['left', 'right'])
@@ -170,7 +170,9 @@ class TestSums:
         ungraded = _frame([(2020, 'gas', 3.0, None, None)], qualified=False)
         left, right = (graded, ungraded) if qualified_side == 'left' else (ungraded, graded)
         out = left.paths.add_with_dims(right)
-        assert _qual(out) == {(2020, 'gas'): {'quality': {'score': 1.0, 'coverage': 0.25}, 'reported': None}}
+        assert _qual(out) == {
+            (2020, 'gas'): {'quality': {'score': 1.0, 'coverage': 0.25}, 'reported': {'any': True, 'all': None}}
+        }
 
 
 class TestProducts:
@@ -178,19 +180,21 @@ class TestProducts:
         activity = _frame([(2020, 'gas', 10.0, 0.5, True)], unit='Mvkm/a')
         factor = _frame([(2020, 'gas', 0.3, None, None)], unit='MWh/vkm', qualified=False)
         out = activity.paths.multiply_with_dims(factor)
-        assert _qual(out) == {(2020, 'gas'): {'quality': {'score': 0.5, 'coverage': 1.0}, 'reported': None}}
+        assert _qual(out) == {(2020, 'gas'): {'quality': {'score': 0.5, 'coverage': 1.0}, 'reported': {'any': True, 'all': None}}}
 
     def test_a_graded_factor_on_the_right_keeps_its_grade(self) -> None:
         share = _frame([(2020, 'gas', 0.5, None, None)], unit='dimensionless', qualified=False)
         activity = _frame([(2020, 'gas', 10.0, 0.5, True)], unit='Mvkm/a')
         out = share.paths.multiply_with_dims(activity)
-        assert _qual(out) == {(2020, 'gas'): {'quality': {'score': 0.5, 'coverage': 1.0}, 'reported': None}}
+        assert _qual(out) == {(2020, 'gas'): {'quality': {'score': 0.5, 'coverage': 1.0}, 'reported': {'any': True, 'all': None}}}
 
     def test_two_graded_factors_take_the_lower_grade(self) -> None:
         left = _frame([(2020, 'gas', 10.0, 1.0, True)])
         right = _frame([(2020, 'gas', 2.0, 0.25, False)], unit='dimensionless')
         out = left.paths.multiply_with_dims(right)
-        assert _qual(out) == {(2020, 'gas'): {'quality': {'score': 0.25, 'coverage': 1.0}, 'reported': False}}
+        assert _qual(out) == {
+            (2020, 'gas'): {'quality': {'score': 0.25, 'coverage': 1.0}, 'reported': {'any': True, 'all': False}}
+        }
 
 
 class TestFills:
@@ -210,9 +214,15 @@ class TestFills:
         assert filled[VALUE_COLUMN].to_list() == [3.0, 2.0]
         assert _qual(filled) == {
             (2020, 'gas'): (
-                {'quality': {'score': 1.0, 'coverage': 1.0}, 'reported': False} if qualified_side != 'right' else None
+                {'quality': {'score': 1.0, 'coverage': 1.0}, 'reported': {'any': False, 'all': False}}
+                if qualified_side != 'right'
+                else None
             ),
-            (2021, 'gas'): ({'quality': {'score': 0.5, 'coverage': 1.0}, 'reported': True} if qualified_side != 'left' else None),
+            (2021, 'gas'): (
+                {'quality': {'score': 0.5, 'coverage': 1.0}, 'reported': {'any': True, 'all': True}}
+                if qualified_side != 'left'
+                else None
+            ),
         }
         assert set(filled.columns) == {YEAR_COLUMN, FORECAST_COLUMN, VALUE_COLUMN, 'energy_carrier', QUAL}
         summed = filled.paths.add_with_dims(dataset).paths.add_with_dims(dataset).sort(YEAR_COLUMN)
@@ -227,15 +237,21 @@ class TestFills:
             [(2020, 'gas', 10.0, None, None), (2021, 'gas', 15.0, None, None), (2024, 'gas', 30.0, None, None)], qualified=False
         )
         result = qualifiers.carry_over(before, after, fill='interpolate')
-        assert _qual(result)[(2021, 'gas')] == {'quality': {'score': score, 'coverage': coverage}, 'reported': False}
-        assert _qual(result)[(2020, 'gas')]['reported'] is True
+        assert _qual(result)[(2021, 'gas')] == {
+            'quality': {'score': score, 'coverage': coverage},
+            'reported': {'any': False, 'all': False},
+        }
+        assert _qual(result)[(2020, 'gas')]['reported']['all'] is True
 
     @pytest.mark.parametrize(('fill', 'year'), [('backfill', 2019), ('extend', 2021)])
     def test_constant_fill_preserves_assessment_and_marks_it_not_reported(self, fill: str, year: int) -> None:
         before = _frame([(2020, 'gas', 10.0, 0.5, True)])
         after = _frame([(year, 'gas', 10.0, None, None), (2020, 'gas', 10.0, None, None)], qualified=False)
         result = qualifiers.carry_over(before, after, fill=fill)
-        assert _qual(result)[(year, 'gas')] == {'quality': {'score': 0.5, 'coverage': 1.0}, 'reported': False}
+        assert _qual(result)[(year, 'gas')] == {
+            'quality': {'score': 0.5, 'coverage': 1.0},
+            'reported': {'any': False, 'all': False},
+        }
 
     def test_interpolation_does_not_invent_an_assessment_or_cross_categories(self) -> None:
         before = _frame([
@@ -254,7 +270,7 @@ class TestFills:
     def test_empty_to_zero_marks_what_it_filled(self) -> None:
         df = _frame([(2020, 'gas', 5.0, None, None), (2021, 'oil', None, None, None)], qualified=False)
         out = df.paths.get_operation('empty_to_zero')(df, None)
-        supplied = {key: qual['reported'] for key, qual in _qual(out).items()}
+        supplied = {key: qual['reported']['all'] for key, qual in _qual(out).items()}
         assert supplied == {(2020, 'gas'): True, (2020, 'oil'): False, (2021, 'gas'): False, (2021, 'oil'): False}
 
     def test_other_fills_keep_a_record_but_do_not_start_one(self) -> None:
@@ -268,7 +284,7 @@ class TestChoosingASource:
         default = _frame([(2020, 'gas', 9.0, 0.5, True), (2020, 'oil', 8.0, 0.5, True)])
         result = own.paths.prefer_by_year(default)
         assert result[VALUE_COLUMN].to_list() == [0.0, 0.0]
-        assert _qual(result)[(2020, 'oil')]['reported'] is False
+        assert _qual(result)[(2020, 'oil')]['reported']['all'] is False
 
     def test_a_zero_filled_template_covers_no_year(self) -> None:
         """The zero a fill wrote is not a zero the city reported, so the default stands."""
@@ -284,8 +300,8 @@ class TestChoosingASource:
         out = own.paths.prefer_by_year(default)
         assert dict(zip(out[YEAR_COLUMN], out[VALUE_COLUMN], strict=True)) == {2021: 7.0, 2022: 10.0}
         assert _qual(out) == {
-            (2021, 'gas'): {'quality': {'score': 0.5, 'coverage': 1.0}, 'reported': True},
-            (2022, 'gas'): {'quality': {'score': 1.0, 'coverage': 1.0}, 'reported': True},
+            (2021, 'gas'): {'quality': {'score': 0.5, 'coverage': 1.0}, 'reported': {'any': True, 'all': True}},
+            (2022, 'gas'): {'quality': {'score': 1.0, 'coverage': 1.0}, 'reported': {'any': True, 'all': True}},
         }
 
 
@@ -317,9 +333,9 @@ class TestSources:
         assert self._qualifiers(
             QualifierSource(catalog=TEST_CATALOG, quality_identifier='quality', quality_columns={'mileage': 'quality'})
         ) == [
-            {'quality': {'score': 1.0, 'coverage': 1.0}, 'reported': True},
-            {'quality': {'score': None, 'coverage': 0.0}, 'reported': True},
-            {'quality': {'score': None, 'coverage': 0.0}, 'reported': False},
+            {'quality': {'score': 1.0, 'coverage': 1.0}, 'reported': {'any': True, 'all': True}},
+            {'quality': {'score': None, 'coverage': 0.0}, 'reported': {'any': True, 'all': True}},
+            {'quality': {'score': None, 'coverage': 0.0}, 'reported': {'any': False, 'all': False}},
         ]
 
     def test_the_dataset_default_grades_what_evidence_does_not_and_never_an_empty_cell(self) -> None:
@@ -349,8 +365,8 @@ class TestRemoveSubset:
         out = total.paths.remove_subset(subset)
         assert out.filter(pl.col('energy_carrier') == 'gas')['Value'][0] == 80.0
         assert _qual(out) == {
-            (2020, 'gas'): {'quality': {'score': 0.25, 'coverage': 1.0}, 'reported': True},
-            (2020, 'oil'): {'quality': {'score': 0.0, 'coverage': 1.0}, 'reported': True},
+            (2020, 'gas'): {'quality': {'score': 0.25, 'coverage': 1.0}, 'reported': {'any': True, 'all': True}},
+            (2020, 'oil'): {'quality': {'score': 0.0, 'coverage': 1.0}, 'reported': {'any': True, 'all': True}},
         }
         general = total.paths.subtract_with_dims(subset)
         assessment = _qual(general)[(2020, 'gas')]['quality']
@@ -402,3 +418,12 @@ def test_unassessed_factor_with_explicit_zero_coverage_is_neutral_for_product() 
         'score': 1.0,
         'coverage': 1.0,
     }
+
+
+@pytest.mark.parametrize(
+    ('left', 'right', 'expected'),
+    [(True, False, True), (True, None, True), (False, None, None), (False, False, False), (None, None, None)],
+)
+def test_reporting_any_survives_reduction(left: bool | None, right: bool | None, expected: bool | None) -> None:
+    frame = _frame([(2020, 'gas', 10.0, None, left), (2020, 'oil', 0.0, None, right)])
+    assert frame.paths.sum_over_dims('energy_carrier')[QUAL][0]['reported']['any'] is expected

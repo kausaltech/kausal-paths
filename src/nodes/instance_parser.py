@@ -53,6 +53,7 @@ from nodes.instance_serialization import (
     NodeSnapshot,
 )
 from nodes.units import Unit, unit_registry
+from nodes.value_validation import ValueContract
 from nodes.visualizations import NodeVisualizations
 from nodes.yaml_port_refs import YamlPortReferenceCatalog
 
@@ -1179,6 +1180,7 @@ class InstanceConfigParser:
                             fallback_id,
                         ),
                         identifier=identifier,
+                        binding_owner=ds_def.binding_owner,
                         unit=metric.unit if metric is not None else ds_def.unit,
                         quantity=metric.quantity if metric is not None else None,
                     )
@@ -1481,6 +1483,42 @@ class InstanceConfigParser:
         description = _make_trans_string(config, 'description')
 
         uuid = self._node_uuid(parsed.identifier, config.get('uuid'))
+        for selector, contract in config.get('input_validation', {}).items():
+            matches = [port for port in parsed.input_ports if selector in (port.identifier, port.role)]
+            if not matches:
+                dataset_ports = self._build_dataset_input_ports(parsed)
+                offset = 0
+                matching_ids: set[UUID] = set()
+                for dataset in parsed.dataset_defs:
+                    count = len(self._dataset_binding_columns(parsed, dataset))
+                    if selector == dataset.id or selector in dataset.tags:
+                        matching_ids.update(port.id for port in dataset_ports[offset : offset + count])
+                    offset += count
+                matches = [port for port in parsed.input_ports if port.id in matching_ids]
+            if not matches:
+                # Legacy authoring names its operands through binding tags.
+                candidates = [
+                    port for port in parsed.input_ports if port._from_node is not None and str(port._from_node) == selector
+                ]
+                matches = candidates
+            if len(matches) != 1:
+                raise InstanceParseError(
+                    f'{parsed.identifier}: input validation selector {selector!r} matches {len(matches)} ports'
+                )
+            index = parsed.input_ports.index(matches[0])
+            contract_data = dict(contract)
+            for condition_field in ('required_if_positive', 'combinations_from_positive'):
+                condition = contract_data.get(condition_field)
+                if condition is not None:
+                    condition_ports = [
+                        port
+                        for port in parsed.input_ports
+                        if str(condition) in (str(port.id), port.identifier, port.role, str(port._from_node))
+                    ]
+                    if len(condition_ports) != 1:
+                        raise InstanceParseError(f'{parsed.identifier}: conditional input validation must name one input port')
+                    contract_data[condition_field] = condition_ports[0].id
+            parsed.input_ports[index] = matches[0].model_copy(update={'validation': ValueContract.model_validate(contract_data)})
         spec = NodeSpec(
             type_config=type_config,
             input_ports=parsed.input_ports,

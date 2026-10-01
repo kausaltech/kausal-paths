@@ -222,6 +222,7 @@ def test_collect_problems_uses_loaded_graph_and_observed_profiles(monkeypatch: p
     monkeypatch.setattr(test_instance, 'resolve_instance_source', lambda *_args: source)
     monkeypatch.setattr(test_instance, 'collect_instance_dataset_violations', collect_violations)
     monkeypatch.setattr(test_instance, 'solve_instance_constraints', solve_constraints)
+    monkeypatch.setattr(test_instance, 'collect_instance_value_violations', lambda _instance: [])
 
     problems = Command().collect_problems(config, instance)
 
