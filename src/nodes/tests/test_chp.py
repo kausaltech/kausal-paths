@@ -65,8 +65,11 @@ def _make_context(identifier: str) -> Context:
     return instance.context
 
 
-def _series_df(columns: dict[str, list[float]], years: list[int], units: dict[str, str]) -> PathsDataFrame:
-    df = pl.DataFrame({YEAR_COLUMN: years, **columns}).with_columns(pl.lit(value=False).alias(FORECAST_COLUMN))
+def _series_df(columns: dict[str, list[float | None]], years: list[int], units: dict[str, str]) -> PathsDataFrame:
+    df = pl.DataFrame({YEAR_COLUMN: pl.Series(years, dtype=pl.Int64), **columns}).with_columns(
+        *[pl.col(col).cast(pl.Float64) for col in columns],
+        pl.lit(value=False).alias(FORECAST_COLUMN),
+    )
     meta = DataFrameMeta(
         units={col: unit_registry.parse_units(unit) for col, unit in units.items()},
         primary_keys=[YEAR_COLUMN],
@@ -235,12 +238,143 @@ def test_supplying_an_input_twice_is_an_error():
         node.compute()
 
 
-def test_a_missing_input_names_all_three_ways_of_supplying_it():
+def test_a_missing_input_produces_a_typed_empty_output() -> None:
     context = _make_context('chp-missing')
     node = _make_chp_node(context, params={'method': 'bisko', 'electricity_fraction': 0.3})
 
-    with pytest.raises(NodeError, match="'t_supply'"):
+    df = node.compute()
+
+    assert df.is_empty()
+    assert df.primary_keys == [YEAR_COLUMN, 'energy_carrier']
+    assert df.metric_cols == [VALUE_COLUMN]
+    assert df.get_unit(VALUE_COLUMN) == unit_registry.dimensionless
+    assert df.schema[YEAR_COLUMN] == pl.Int64
+    assert df.schema[VALUE_COLUMN] == pl.Float64
+    assert FORECAST_COLUMN in df.columns
+
+
+@pytest.mark.parametrize('empty_rows', [False, True])
+def test_blank_parameter_dataset_does_not_invent_zero_kelvin(*, empty_rows: bool) -> None:
+    context = _make_context('chp-blank')
+    node = _make_chp_node(context, cls=BiskoChpNode, params={'t_supply': 375.65})
+    _attach_dataset(
+        node,
+        _series_df(
+            {'electricity_fraction': [] if empty_rows else [None], 't_supply': [] if empty_rows else [None]},
+            years=[] if empty_rows else [2023],
+            units={'electricity_fraction': 'dimensionless', 't_supply': 'K'},
+        ),
+    )
+
+    assert node.compute().is_empty()
+
+
+def test_no_annual_or_parameter_values_produces_empty_output() -> None:
+    node = _make_chp_node(_make_context('chp-no-inputs'), cls=BiskoChpNode)
+
+    assert node.compute().is_empty()
+
+
+@pytest.mark.parametrize('method', ['energy_content', 'work_potential', 'bisko', 'efficiency'])
+def test_all_methods_accept_absent_inputs(method: str) -> None:
+    node = _make_chp_node(_make_context('chp-empty-method'), params={'method': method})
+
+    assert node.compute().is_empty()
+
+
+def test_empty_tagged_input_node_produces_empty_allocation() -> None:
+    node = _make_chp_node(_make_context('chp-empty-edge'), cls=BiskoChpNode, params={'t_supply': 373.0})
+    _attach_series_node(
+        node,
+        'empty_electricity_share',
+        _series_df({VALUE_COLUMN: []}, years=[], units={VALUE_COLUMN: 'dimensionless'}),
+        tag='electricity_fraction',
+    )
+
+    assert node.compute().is_empty()
+
+
+def test_reported_zero_electricity_share_is_a_valid_heat_only_split() -> None:
+    node = _make_chp_node(
+        _make_context('chp-zero-share'),
+        cls=BiskoChpNode,
+        params={'electricity_fraction': 0.0, 't_supply': 373.0},
+    )
+
+    assert all(value == pytest.approx(1.0) for value in _heat_by_year(node.compute()).values())
+
+
+@pytest.mark.parametrize(('name', 'value'), [('electricity_fraction', float('nan')), ('t_supply', float('inf'))])
+def test_nonfinite_parameters_are_rejected(name: str, value: float) -> None:
+    params: dict[str, float | str] = {'electricity_fraction': 0.3, 't_supply': 373.0, name: value}
+    node = _make_chp_node(_make_context('chp-nonfinite'), cls=BiskoChpNode, params=params)
+
+    with pytest.raises(NodeError, match='must be finite'):
         node.compute()
+
+
+def test_explicit_parameters_supply_blank_series_cells() -> None:
+    node = _make_chp_node(
+        _make_context('chp-blank-fallback'),
+        cls=BiskoChpNode,
+        params={'electricity_fraction': 0.3, 't_supply': 373.0},
+    )
+    _attach_dataset(
+        node,
+        _series_df(
+            {'electricity_fraction': [0.4, None], 't_supply': [None, None]},
+            years=[2017, 2018],
+            units={'electricity_fraction': 'dimensionless', 't_supply': 'K'},
+        ),
+    )
+
+    heat = _heat_by_year(node.compute())
+
+    assert heat[2017] == pytest.approx(_expected_heat_fraction(0.4, 373.0))
+    assert heat[2018] == pytest.approx(_expected_heat_fraction(0.3, 373.0))
+
+
+def test_explicitly_incomplete_year_stays_missing_while_omitted_year_is_interpolated() -> None:
+    node = _make_chp_node(_make_context('chp-incomplete-year'), cls=BiskoChpNode)
+    _attach_dataset(
+        node,
+        _series_df(
+            {'electricity_fraction': [0.3, None, 0.4], 't_supply': [373.0, 373.0, 373.0]},
+            years=[2016, 2017, 2019],
+            units={'electricity_fraction': 'dimensionless', 't_supply': 'K'},
+        ),
+    )
+
+    heat = _heat_by_year(node.compute())
+
+    assert 2017 not in heat
+    assert heat[2016] == pytest.approx(_expected_heat_fraction(0.3, 373.0))
+    assert heat[2018] == pytest.approx(_expected_heat_fraction(0.3 + 0.1 * 2 / 3, 373.0))
+    assert heat[END_YEAR] == pytest.approx(_expected_heat_fraction(0.4, 373.0))
+
+
+def test_invalid_supplied_temperature_is_rejected_even_when_fraction_is_missing() -> None:
+    node = _make_chp_node(_make_context('chp-incomplete-invalid'), cls=BiskoChpNode)
+    _attach_dataset(
+        node,
+        _series_df(
+            {'electricity_fraction': [None], 't_supply': [273.0]},
+            years=[2018],
+            units={'electricity_fraction': 'dimensionless', 't_supply': 'K'},
+        ),
+    )
+
+    with pytest.raises(NodeError, match='must exceed the return temperature'):
+        node.compute()
+
+
+def test_missing_reference_efficiency_keeps_allocation_missing() -> None:
+    node = _make_chp_node(
+        _make_context('chp-missing-efficiency'),
+        params={'method': 'efficiency', 'electricity_fraction': 0.3, 'heat_reference_efficiency': 0.9},
+    )
+
+    assert node.compute().is_empty()
 
 
 def test_a_fraction_outside_zero_to_one_is_an_error():

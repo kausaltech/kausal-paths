@@ -1919,11 +1919,12 @@ class ChpNode(GenericNode):
     2. a metric column of that name in the input dataset,
     3. the constant parameter of that name.
 
-    Sources 1 and 2 carry annual data; they are interpolated across internal gaps,
+    Sources 1 and 2 carry annual data; they are interpolated across omitted years,
     held constant back to the start of history, and held constant forward to the
     model end year (those forward years marked as forecast). Source 3 is the
-    fallback for a city that has only a single representative value, and gives the
-    same flat series in every year.
+    fallback for missing input values. Explicitly blank annual cells remain missing
+    unless a parameter supplies a fallback. Years without all required inputs have
+    no allocation output; a wholly absent input produces a typed empty output.
 
     Values may be given in any compatible unit: ``electricity_fraction`` is
     converted to dimensionless (so a series in per cent works), temperatures to K.
@@ -2106,7 +2107,7 @@ class ChpNode(GenericNode):
         end_year = instance.model_end_year
         start_year = min(instance.reference_year, instance.minimum_historical_year)
 
-        if annual is None:
+        if annual is None or annual.is_empty():
             last_hist = instance.maximum_historical_year or start_year
             years = range(start_year, end_year + 1)
             out = PathsDataFrame({YEAR_COLUMN: years})
@@ -2116,21 +2117,32 @@ class ChpNode(GenericNode):
 
         out = annual.paths._add_missing_years(annual, self.context)  # interpolate internal gaps
         out = extend_to_history_pl(out, start_year)  # hold the earliest observation back to the start
-        return extend_last_historical_value_pl(out, end_year)  # hold the latest one forward, as forecast
+        out = extend_last_historical_value_pl(out, end_year, zero_fill_missing=False)
+        # An explicitly blank cell is not an omitted year to interpolate. Keep it
+        # missing so output validation can detect an incomplete operating point.
+        return out.with_columns([
+            pl
+            .when(pl.col(YEAR_COLUMN).is_in(annual.filter(pl.col(col).is_null())[YEAR_COLUMN].implode()))
+            .then(pl.lit(None, dtype=pl.Float64))
+            .otherwise(pl.col(col))
+            .alias(col)
+            for col in annual.metric_cols
+        ])
 
     def _add_constant_inputs(self, df: PathsDataFrame, names: set[str]) -> PathsDataFrame:
-        """Fill the inputs that were not given as a series from their constant parameter."""
+        """Resolve parameter fallbacks without turning absent inputs into zeros."""
         for name in sorted(names):
             raw = self.get_parameter_value(name, required=False, units=False)
             if raw is None:
-                raise NodeError(
-                    self,
-                    "The '%s' method needs %r, which is not supplied. Give it as an input node tagged '%s', "
-                    'as a metric column of the input dataset, or as the constant parameter %r.'
-                    % (self._resolve_method(), name, name, name),
-                )
-            assert isinstance(raw, (int, float))
-            df = df.with_columns(pl.lit(float(raw)).alias(name)).set_unit(name, self.ANNUAL_INPUTS[name])
+                if name in df.columns:
+                    continue
+                expr = pl.lit(None, dtype=pl.Float64)
+            else:
+                assert isinstance(raw, (int, float))
+                expr = pl.col(name).fill_null(float(raw)) if name in df.columns else pl.lit(float(raw))
+            df = df.with_columns(expr.alias(name))
+            if name not in df.metric_cols:
+                df = df.set_unit(name, self.ANNUAL_INPUTS[name])
         return df
 
     def _z_factors(self, df: PathsDataFrame, method: str) -> PathsDataFrame:
@@ -2151,11 +2163,18 @@ class ChpNode(GenericNode):
                 pl.lit(1.0).alias('z_el'),
                 (pl.lit(1.0) - t_return / pl.col('t_supply')).alias('z_heat'),
             ])
-        n_el = self.get_parameter_value_float('electricity_reference_efficiency', required=True)
-        n_heat = self.get_parameter_value_float('heat_reference_efficiency', required=True)
-        if n_el <= 0 or n_heat <= 0:
-            raise NodeError(self, 'Reference efficiencies must be positive; got %s and %s.' % (n_el, n_heat))
-        return df.with_columns([pl.lit(1.0 / n_el).alias('z_el'), pl.lit(1.0 / n_heat).alias('z_heat')])
+        weights = []
+        for name, column in [('electricity_reference_efficiency', 'z_el'), ('heat_reference_efficiency', 'z_heat')]:
+            raw = self.get_parameter_value(name, required=False, units=False)
+            if raw is None:
+                weight = pl.lit(None, dtype=pl.Float64)
+            else:
+                assert isinstance(raw, (int, float))
+                if not np.isfinite(raw) or raw <= 0:
+                    raise NodeError(self, 'Reference efficiencies must be positive; got %s=%s.' % (name, raw))
+                weight = pl.lit(1.0 / raw)
+            weights.append(weight.alias(column))
+        return df.with_columns(weights)
 
     def _operation_chp_fractions(self, df: PathsDataFrame | None) -> OperationReturn:
         if df is not None:
@@ -2181,8 +2200,16 @@ class ChpNode(GenericNode):
             )
 
         out = self._year_frame(annual)
-        out = self._add_constant_inputs(out, set(needed) - supplied)
+        out = self._add_constant_inputs(out, set(needed))
         out = out.drop([col for col in unused if col in out.columns])
+
+        invalid = out.filter(pl.any_horizontal([pl.col(name).is_not_null() & ~pl.col(name).is_finite() for name in needed]))
+        if invalid.height:
+            raise NodeError(
+                self,
+                'CHP inputs must be finite; invalid values in year(s) %s.'
+                % ', '.join(str(year) for year in invalid[YEAR_COLUMN].unique().sort()),
+            )
 
         bad = out.filter((pl.col('electricity_fraction') < 0.0) | (pl.col('electricity_fraction') > 1.0))
         if bad.height:
@@ -2226,7 +2253,7 @@ class ChpNode(GenericNode):
             .drop(drops)
             .add_to_index('energy_carrier')
         )
-        return df_el.paths.concat_vertical(df_heat)
+        return df_el.paths.concat_vertical(df_heat).filter(pl.col(VALUE_COLUMN).is_not_null())
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
