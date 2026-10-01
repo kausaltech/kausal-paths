@@ -3,7 +3,7 @@ default_language: de
 supported_languages: [en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 843804814636c80bf50bbaa11f23281a277b5150
+  commit: 93b4c72d53037fd5922595638ea493bc3397f66c
   dvc_remote: kausal-s3
 name_de: Bayreuth Treibhausgas-Monitor
 name_en: Bayreuth Greenhouse Gas Monitor
@@ -16,6 +16,8 @@ minimum_historical_year: 1990
 maximum_historical_year: 2023
 emission_unit: kt_co2e/a
 features:
+  show_significant_digits: 4
+  maximum_fraction_digits: 4
   baseline_visible_in_graphs: true
   use_datasets_from_db: true
   show_explanations: true
@@ -31,6 +33,19 @@ include:
     to: bayreuth/historical_emissions
   - from: kommune/verkehrsleistung_personen
     to: bayreuth/passenger_kilometers
+  # BISKO Moeglichkeit 3: the declared predominant generation variant, Erdgas BHKW, from
+  # 2020 on, instead of the 260 g/kWh standard factor. The plant data would support
+  # Moeglichkeit 1 but lacks the supply temperature, and generated heat falls short of
+  # delivered heat. Built by paths-data models/bayreuth/scripts/create_fernwaerme_variante.py.
+  - from: kommune/fernwaerme_erzeugungsvariante
+    to: bayreuth/fernwaerme_erzeugungsvariante
+  # Bayreuth's own degree-day ratio from Eurostat (NUTS DE242, the city itself), replacing
+  # the shipped Potsdam placeholder (IDR-1313). Reference: the 1980-2014 mean, 3473 HDD,
+  # the same rule the BISKO framework seeds municipalities with, so the values do not change
+  # when Bayreuth moves to the framework. Only read when weather correction is switched on,
+  # which BISKO does not permit. Built by kausal-paths data/weather/create_degree_day_factors.py.
+  - from: kommune/witterungsbereinigung
+    to: bayreuth/witterungsbereinigung
 
 
 # Viridis Color Palette
@@ -206,52 +221,53 @@ category_overrides:
     ebikes_escooters:
       order: 3
     motorcycles:
-      color: *viridis15_3    # personal: motorcycles
+      color: *viridis15_10   # private (blue): motorcycles
       order: 4
     passenger_cars:
-      color: *viridis15_4    # personal: passenger cars (PKW)
+      color: *viridis15_11   # private (blue): passenger cars (PKW)
       order: 5
     cars_and_motorcycles:
-      color: *viridis15_5    # personal: PKW + Motorisierte Zweiräder (combined)
+      color: *viridis15_12   # private (blue): PKW + Motorisierte Zweiräder (combined)
       order: 6
     tram:
-      color: *viridis15_6    # public: tram (Straßenbahn)
+      color: *viridis15_6    # public (green, IDR-1306): tram (Straßenbahn)
       order: 7
     local_buses:
-      color: *viridis15_8    # public: local buses (LinienBus)
+      color: *viridis15_5    # public (green, IDR-1306): local buses (LinienBus)
       order: 8
       label_de: "LinienBus"
     buses:
-      color: *viridis15_9    # public: buses (generic)
+      color: *viridis15_4    # public (green, IDR-1306): buses (generic)
       order: 9
       label_de: "Busse"
       label_en: "Buses"
     local_trains:
-      color: *viridis15_10   # public: local trains (SPNV)
+      color: *viridis15_7    # public (green, IDR-1306): local trains (SPNV)
       order: 10
     coach_buses:
-      color: *viridis15_11   # public: coach buses (Reisebus/Fernbus)
+      color: *viridis15_3    # public (green, IDR-1306): coach buses (Reisebus/Fernbus)
       order: 11
       label_en: "Coach buses"
     long_distance_trains:
-      color: *viridis15_12   # public: long-distance trains (SPFV)
+      color: *viridis15_8    # public (green, IDR-1306): long-distance trains (SPFV)
       order: 12
     trains:
-      color: *viridis15_13   # public: trains (generic / Züge)
+      color: *viridis15_8    # public (green, IDR-1306): trains (generic / Züge)
       order: 13
       label_de: "Züge"
       label_en: "Trains"
     vans:
-      color: *viridis15_14   # freight: light commercial vehicles (LNF)
+      color: *viridis15_14   # freight (purple): light commercial vehicles (LNF)
       order: 14
     trucks:
-      color: *viridis15_15   # freight: trucks (LKW)
+      color: *viridis15_15   # freight (purple): trucks (LKW)
       order: 15
     heavy_commercial:
       order: 16
     working_machines:
       order: 17
     cargo_trains:
+      color: *viridis15_13   # freight (purple): cargo trains
       order: 18
     inland_waterway_shipping_cargo:
       order: 19
@@ -275,6 +291,40 @@ category_overrides:
       order: 26
     total:
       order: 27
+
+dimensions:
+
+# The land-use classes of the city's own sink estimate (workbook sheet *Senken*): each
+# sink is an area times a maximum specific sink. Bayreuth's own classes, so they live
+# here rather than in the BISKO module.
+- id: land_use
+  label_de: Flächennutzung
+  label_en: Land use
+  categories:
+  - id: forest
+    label_de: Wald
+    label_en: Forest
+    color: '#1fa187'
+    order: 1
+  - id: agricultural_land
+    label_de: Agrarflächen (Acker und Grünland)
+    label_en: Agricultural land (arable and grassland)
+    color: '#4ac16d'
+    order: 2
+  - id: recreational_areas
+    label_de: Erholungsflächen
+    label_en: Recreational areas
+    help_text_de: Parks, Sportplätze, Bolzplätze, Spielplätze, Kleingartenanlagen
+    help_text_en: Parks, sports grounds, playgrounds, allotment gardens
+    color: '#a0da39'
+    order: 3
+  - id: other_green_space
+    label_de: Sonstige Grünflächen
+    label_en: Other green space
+    help_text_de: Friedhöfe, Ruderalflächen, Brachflächen
+    help_text_en: Cemeteries, ruderal and fallow land
+    color: '#d0e11c'
+    order: 4
 
 #//////  Parameters  ////////////////////////////////////////////////////////////////////////////////////////////////////
 params:
@@ -334,7 +384,12 @@ params:
   label_de: Nationale Emissionsfaktoren statt lokal hinterlegter nutzen (BISKO-konform). Betrifft alle
     vier Faktortabellen — Endenergie (inkl. Bundesstrommix), Erzeugung, Fernwärme und Faktoren
     ohne Brennstoffinput.
-  value: false
+  # true since 2026-10-01 (IDR-1315). It was false from the first config, copied from Mainz,
+  # which made `has_national_electricity_emission_factors` fail in every year. The local
+  # tables equal the national ones through 2023 -- net emissions are identical 1990-2023 --
+  # but stop there, so 2024 carried 453 g/kWh for electricity instead of the 2024
+  # Bundesstrommix, 420.
+  value: true
   is_visible: false
   is_customizable: true
 # Bayreuth's four BISKO sectors are disjoint as delivered, so there is nothing to subtract. The
@@ -465,6 +520,44 @@ nodes:
   - id: sector_index
   - id: weather_correction
 
+# Sinks are the city's own estimate: area per land-use class times a maximum specific
+# sink, both from the workbook sheet *Senken*, kept as the two raw inputs so the city can
+# edit an area without recomputing the sink. From 2010 on; the city asked for 1990 to be
+# left out, and 2011-2018 are interpolated.
+- id: sink_land_area
+  is_editable: false
+  name_de: Fläche der Senken
+  name_en: Sink land area
+  type: generic.GenericNode
+  quantity: area
+  unit: ha
+  input_dimensions: [land_use]
+  output_dimensions: [land_use]
+  input_datasets:
+  - id: bayreuth/sinks_by_land_use
+    column: area
+  output_nodes:
+  - id: sinks
+
+- id: sink_factor
+  is_editable: false
+  name_de: Spezifische Senke
+  name_en: Specific sink
+  description_de: Maximale spezifische Senke je Hektar, aus einem angenommenen maximalen
+    Netto-Ökosystemaustausch (NEE) der jeweiligen Flächennutzung.
+  description_en: Maximum sink per hectare, from an assumed maximum net ecosystem exchange
+    (NEE) for each land use.
+  type: generic.GenericNode
+  quantity: emission_factor
+  unit: t_co2e/ha/a
+  input_dimensions: [land_use]
+  output_dimensions: [land_use]
+  input_datasets:
+  - id: bayreuth/sinks_by_land_use
+    column: sink_factor
+  output_nodes:
+  - id: sinks
+
 - id: sinks
   is_editable: false
   name_de: Senken
@@ -472,15 +565,17 @@ nodes:
   type: generic.GenericNode
   quantity: emissions
   unit: kt_co2e/a
-  input_dimensions: [sector]
-  output_dimensions: [sector]
+  input_dimensions: [land_use]
+  output_dimensions: [land_use]
   color: *viridis_green  # subsector card color: sinks (matches sector "sinks" in outcome graph)
-  input_datasets:
-  - id: bayreuth/sinks
   output_nodes:
   - id: net_emissions
+    from_dimensions:
+    - id: land_use
+      flatten: true
     to_dimensions:
     - id: sector
+      categories: [sinks]
     - id: energy_carrier
       categories: [not_defined]
 
@@ -551,9 +646,14 @@ nodes:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   is_outcome: true
+  # The city's Zielpfad neu gesamt (workbook sheet Zielpfad neu THG, column K) is a path
+  # for emissions without the sinks: a straight line from the 2024 balance to 27,392.93 t
+  # in 2040, which is the city's 2024 sink, so the net is zero. The goal sits here rather
+  # than on a separate gross node so the outcome page keeps its main goal; the label says
+  # what it measures. The points before 2024 are the 2021 linear target path.
   goals: # Node copied here to make goals possible.
-  - label_de: Ursprünglicher Zielpfad 2022
-    label_en: Original path 2
+  - label_de: Zielpfad ohne Senken
+    label_en: Target path excluding sinks
     default: true
     linear_interpolation: true
     is_main_goal: true
@@ -567,7 +667,7 @@ nodes:
     - year: 2030
       value: 358.44735
     - year: 2040
-      value: 0
+      value: 27.39293333
 
 - id: heating_emissions
   is_editable: false
@@ -717,19 +817,28 @@ actions:
 - id: emission_reduction_heating_natural_gas
   name_en: Emission reduction action - heating (natural gas)
   name_de: Emissionsreduktionsmaßnahme – Wärme (Erdgas)
-  # Reduction is split across the 3 fossil/high-emission heating carriers
-  # only (natural gas, heating oil, district/local heating -- ~98% of
-  # heating_emissions), proportional to their 2024 baseline shares. The
-  # already-low-carbon carriers (biomass, solar thermal, environmental
-  # heat, ...) are left on their own trend, since a heating decarbonization
-  # program targets fossil heating, not existing renewables. This also
-  # means no single real carrier is ever forced below zero.
+  # The five Zielpfad actions read bayreuth/zielpfad_massnahmen: per year 2025-2040,
+  # the city's Zielpfad neu for the sector minus the model's BAU, so that with every
+  # action on each sector follows the city's path (IDR-1309). Built by paths-data
+  # models/bayreuth/scripts/create_zielpfad_massnahmen.py from a BAU export
+  # (export_bau.py); both are re-run whenever the BAU moves. The heating gap is
+  # split across the 3 fossil/network carriers only (natural gas, heating oil,
+  # district/local heating), in proportion to each one's BAU in that year. The
+  # low-carbon carriers (biomass, solar thermal, environmental heat, ...) stay on
+  # their own trend, since a heating decarbonisation programme targets fossil
+  # heating, and no carrier is forced below zero.
   type: simple.AdditiveAction
   quantity: emissions
   unit: kt_co2e/a
-  historical_values: [[1990, 0.0]]
-  forecast_values: [[2023, 0.0], [2030, -76.351161], [2040, -92.723343]]
-  input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - id: bayreuth/zielpfad_massnahmen
+    column: emissions
+    forecast_from: 2025
+    filters:
+    - column: sector
+      value: heating
+    - column: energy_carrier
+      value: natural_gas
   output_nodes:
   - id: heating_emissions
     to_dimensions:
@@ -744,9 +853,15 @@ actions:
   type: simple.AdditiveAction
   quantity: emissions
   unit: kt_co2e/a
-  historical_values: [[1990, 0.0]]
-  forecast_values: [[2023, 0.0], [2030, -28.855236], [2040, -35.042741]]
-  input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - id: bayreuth/zielpfad_massnahmen
+    column: emissions
+    forecast_from: 2025
+    filters:
+    - column: sector
+      value: heating
+    - column: energy_carrier
+      value: heating_oil
   output_nodes:
   - id: heating_emissions
     to_dimensions:
@@ -761,9 +876,15 @@ actions:
   type: simple.AdditiveAction
   quantity: emissions
   unit: kt_co2e/a
-  historical_values: [[1990, 0.0]]
-  forecast_values: [[2023, 0.0], [2030, -7.969062], [2040, -9.677889]]
-  input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - id: bayreuth/zielpfad_massnahmen
+    column: emissions
+    forecast_from: 2025
+    filters:
+    - column: sector
+      value: heating
+    - column: energy_carrier
+      value: district_and_local_heating
   output_nodes:
   - id: heating_emissions
     to_dimensions:
@@ -778,9 +899,15 @@ actions:
   type: simple.AdditiveAction
   quantity: emissions
   unit: kt_co2e/a
-  historical_values: [[1990, 0.0]]
-  forecast_values: [[2024, 0.0], [2040, -105.28]]
-  input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - id: bayreuth/zielpfad_massnahmen
+    column: emissions
+    forecast_from: 2025
+    filters:
+    - column: sector
+      value: electricity
+    - column: energy_carrier
+      value: electricity
   output_nodes:
   - id: electricity_emissions
     to_dimensions:
@@ -795,9 +922,15 @@ actions:
   type: simple.AdditiveAction
   quantity: emissions
   unit: kt_co2e/a
-  historical_values: [[1990, 0.0]]
-  forecast_values: [[2023, 0.0], [2030, -7],[2040, -94.558731]]
-  input_dataset_processors: [LinearInterpolation]
+  input_datasets:
+  - id: bayreuth/zielpfad_massnahmen
+    column: emissions
+    forecast_from: 2025
+    filters:
+    - column: sector
+      value: transport
+    - column: energy_carrier
+      value: total
   output_nodes:
   - id: transport_emissions
     tags: [splittee]
