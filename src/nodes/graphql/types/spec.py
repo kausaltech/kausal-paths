@@ -110,6 +110,7 @@ class InputPortType(StrawberryPydanticType[InputPortDef]):
     multi: auto
     paired_output_port_id: auto
     binding_owner: str
+    validation: JSON | None = None
     _definition_editable: sb.Private[bool] = True
     _mutation_editable: sb.Private[bool | None] = None
     required_dimensions: list[DimensionRef]
@@ -163,6 +164,7 @@ class InputPortType(StrawberryPydanticType[InputPortDef]):
             multi=spec.multi,
             paired_output_port_id=spec.paired_output_port_id,
             binding_owner=spec.binding_owner,
+            validation=cast('JSON', spec.validation.model_dump(mode='json')) if spec.validation else None,
             required_dimensions=spec.required_dimensions,
             bindings=bindings,
         )

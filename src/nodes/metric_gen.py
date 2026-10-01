@@ -40,7 +40,6 @@ if TYPE_CHECKING:
 
 
 from .metric import (
-    BooleanQualifier,
     CoveredScoreQualifier,
     DimensionalMetric,
     DimensionKind,
@@ -52,6 +51,8 @@ from .metric import (
     MetricQualifier,
     MetricYearlyGoal,
     NormalizerNode,
+    ReportingQualifier,
+    SourcesQualifier,
 )
 
 if TYPE_CHECKING:
@@ -351,7 +352,12 @@ def _metric_qualifiers(df: pl.DataFrame, metric_col: str) -> list[MetricQualifie
     for definition in catalog.definitions:
         name = definition.identifier
         if definition.propagation == qualifiers.Propagation.REPORTED:
-            result.append(BooleanQualifier(identifier=name, values=[q.get(name) if q else None for q in rows]))
+            reporting = [(q.get(name) or {}) if q else {} for q in rows]
+            result.append(
+                ReportingQualifier(identifier=name, any=[r.get('any') for r in reporting], all=[r.get('all') for r in reporting])
+            )
+        elif definition.propagation == qualifiers.Propagation.SOURCES:
+            result.append(SourcesQualifier(identifier=name, sources=[q.get(name) if q else None for q in rows]))
         else:
             assessments = [(q.get(name) or {}) if q else {} for q in rows]
             result.append(

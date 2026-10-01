@@ -587,3 +587,15 @@ def test_quantity_mismatch_on_same_shape_rule() -> None:
     result = graph.solve_constraints()
     conflict = next(c for c in result.conflicts if c.code == 'quantity_mismatch')
     assert all(origin.kind == 'declaration' for origin in conflict.origins)
+
+
+def test_empty_observed_metric_does_not_contradict_a_category_filter() -> None:
+    graph, sector, dataset, metric, _port = _dataset_graph(filter_categories=['industry'])
+    profile = DatasetShapeProfile(
+        dataset_id=dataset.id,
+        metric_id=metric.id,
+        categories_by_dimension={sector.id: frozenset()},
+        has_datapoints=False,
+        source_version='empty',
+    )
+    assert 'disjoint_category_filter' not in _codes(graph.solve_constraints(profiles={(dataset.id, metric.id): profile}))

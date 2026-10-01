@@ -71,6 +71,7 @@ from nodes.models import InstanceConfig, NodeConfig, NodeInputPortBinding, NodeL
 from nodes.node import Node
 from nodes.template_graph import replace_input_port_bindings
 from nodes.units import unit_registry
+from nodes.value_validation import InstanceValueValidationError
 from params.param import BoolParameter, NumberParameter, StringParameter
 
 from .types.constraints import ConstraintConflictType, ConstraintViolationsType, conflicts_for_node
@@ -79,7 +80,7 @@ from .types.graph import ActionGroupType, NodeEdgeType
 from .types.instance import InstanceType
 from .types.layout import NodeLayoutType, UpdateNodeLayoutsResult
 from .types.node import AnyNodeType, NodeInterface
-from .types.problems import DatasetValidationViolationsType
+from .types.problems import DatasetValidationViolationsType, NodeValueValidationViolationsType
 from .types.scenario import ScenarioType
 from .types.spec import InputPortType, OutputPortType
 from .types.transformations import EdgeTransformationInput, edge_transformations_from_input
@@ -2626,16 +2627,19 @@ class InstanceEditorMutation:
     @gql.mutation(
         description=(
             'Publish the current model state as a new revision. '
-            'A draft with structural constraint conflicts or dataset validation-rule '
+            'A draft with structural constraint conflicts, input-value contract or dataset validation-rule '
             'violations cannot be published; the blocking problems are returned instead.'
         ),
-        graphql_type=InstanceType | ConstraintViolationsType | DatasetValidationViolationsType,
+        graphql_type=InstanceType
+        | ConstraintViolationsType
+        | DatasetValidationViolationsType
+        | NodeValueValidationViolationsType,
     )
     @staticmethod
     def publish_model_instance(
         info: gql.Info,
         instance_id: sb.ID,
-    ) -> InstanceType | ConstraintViolationsType | DatasetValidationViolationsType:
+    ) -> InstanceType | ConstraintViolationsType | DatasetValidationViolationsType | NodeValueValidationViolationsType:
         from datasets.validation import InstanceDatasetValidationError
 
         ic = _get_instance_config(info, instance_id)
@@ -2645,6 +2649,8 @@ class InstanceEditorMutation:
         user = getattr(info.context, 'user', None)
         try:
             ic.publish_instance(user=user)
+        except InstanceValueValidationError as error:
+            return NodeValueValidationViolationsType.from_violations(error.violations)
         except InstanceConstraintError as error:
             return ConstraintViolationsType.from_conflicts(error.conflicts)
         except InstanceDatasetValidationError as error:

@@ -660,7 +660,7 @@ def _apply_transform_forward(constraint: TransformConstraint, store: FactStore) 
                 if step.selection is not None and known is not None:
                     known_categories, known_origin = known
                     kept = known_categories - step.selection if step.exclude else known_categories & step.selection
-                    if not kept:
+                    if known_categories and not kept:
                         store.add_conflict(
                             'disjoint_category_filter',
                             f'Filter on dimension {store.describe(step.dimension_id)} keeps no observed category',

@@ -4,7 +4,7 @@ Per-metric assessments and reporting status, carried with values.
 The metric/qualifier pairing belongs to the dataframe contract. Covered scores
 are reduced as a pair; their weighting and combination rules belong to the
 assessment. Reporting status is independent of grading and uses three-valued
-AND over contributing data. See docs/architecture/metric-dataframe.md.
+OR for any and AND for all contributing data. See docs/architecture/metric-dataframe.md.
 """
 
 from dataclasses import dataclass
@@ -26,13 +26,24 @@ QUALITY = 'quality'
 SCORE = 'score'
 COVERAGE = 'coverage'
 REPORTED = 'reported'
+ANY = 'any'
+ALL = 'all'
+SOURCES = 'sources'
 # Change this when either the stored shape or propagation semantics change.
-QUALIFIER_VERSION = 6
+QUALIFIER_VERSION = 7
 
 
 class CoveredScore(TypedDict):
     score: float | None
     coverage: float | None
+
+
+class ReportingStatus(TypedDict):
+    any: bool | None
+    all: bool | None
+
+
+REPORTING_DTYPE = pl.Struct({ANY: pl.Boolean, ALL: pl.Boolean})
 
 
 COVERED_SCORE_DTYPE = pl.Struct({SCORE: pl.Float64, COVERAGE: pl.Float64})
@@ -41,6 +52,7 @@ COVERED_SCORE_DTYPE = pl.Struct({SCORE: pl.Float64, COVERAGE: pl.Float64})
 class Propagation(StrEnum):
     REPORTED = 'reported'
     COVERED_SCORE = 'covered_score'
+    SOURCES = 'sources'
 
 
 @dataclass(frozen=True)
@@ -66,7 +78,11 @@ class QualifierDefinition:
 
     @property
     def dtype(self) -> pl.DataType:
-        return pl.Boolean() if self.propagation == Propagation.REPORTED else COVERED_SCORE_DTYPE
+        if self.propagation == Propagation.REPORTED:
+            return REPORTING_DTYPE
+        if self.propagation == Propagation.SOURCES:
+            return pl.List(pl.String)
+        return COVERED_SCORE_DTYPE
 
     def hash_data(self) -> dict[str, JsonValue]:
         return {
@@ -117,8 +133,10 @@ class QualifierCatalog:
             raise TypeError('A qualifier column must be a Struct')
         definitions = []
         for field in dtype.fields:
-            if field.name == REPORTED and field.dtype == pl.Boolean:
+            if field.name == REPORTED and field.dtype == REPORTING_DTYPE:
                 mechanism = Propagation.REPORTED
+            elif field.name == SOURCES and field.dtype == pl.List(pl.String):
+                mechanism = Propagation.SOURCES
             elif field.dtype == COVERED_SCORE_DTYPE:
                 mechanism = Propagation.COVERED_SCORE
             else:
@@ -187,6 +205,7 @@ def make(
     reported: pl.Expr | None = None,
     *,
     supplied: pl.Expr | None = None,
+    reporting: pl.Expr | None = None,
     catalog: QualifierCatalog | None = None,
     assessments: dict[str, pl.Expr] | None = None,
 ) -> pl.Expr:
@@ -212,7 +231,13 @@ def make(
     fields = []
     for definition in catalog.definitions:
         if definition.propagation == Propagation.REPORTED:
-            expr = reported if reported is not None else pl.lit(None, dtype=pl.Boolean)
+            expr = (
+                reporting
+                if reporting is not None
+                else reported_status(reported if reported is not None else pl.lit(None, dtype=pl.Boolean))
+            )
+        elif definition.propagation == Propagation.SOURCES:
+            expr = pl.lit(None, dtype=definition.dtype)
         else:
             expr = assessments.get(definition.identifier, pl.lit(None, dtype=COVERED_SCORE_DTYPE))
         fields.append(expr.alias(definition.identifier))
@@ -231,6 +256,28 @@ def _fields(qual: str | None, name: str = QUALITY) -> tuple[pl.Expr, pl.Expr, pl
 
 def _weight(value: str) -> pl.Expr:
     return pl.col(value).cast(pl.Float64).abs().fill_nan(0.0).fill_null(0.0)
+
+
+def reported_status(value: pl.Expr) -> pl.Expr:
+    return pl.struct(value.alias(ANY), value.alias(ALL)).cast(REPORTING_DTYPE)
+
+
+def combine_reported(left: pl.Expr, right: pl.Expr) -> pl.Expr:
+    return pl.struct(
+        (left.struct.field(ANY) | right.struct.field(ANY)).alias(ANY),
+        (left.struct.field(ALL) & right.struct.field(ALL)).alias(ALL),
+    ).cast(REPORTING_DTYPE)
+
+
+def _reported_any(value: pl.Expr) -> pl.Expr:
+    return (
+        pl
+        .when(value.any())
+        .then(pl.lit(value=True))
+        .when(value.is_null().any())
+        .then(pl.lit(None, dtype=pl.Boolean))
+        .otherwise(pl.lit(value=False))
+    )
 
 
 def _reported_all(reported: pl.Expr) -> pl.Expr:
@@ -283,8 +330,22 @@ def _field(qual: str | None, definition: QualifierDefinition) -> pl.Expr:
 
 def reduce_sum(value: str, qual: str, catalog: QualifierCatalog) -> pl.Expr:
     return pl.struct([
-        _reported_all(pl.col(qual).struct.field(REPORTED).filter(pl.col(value).is_not_null())).alias(REPORTED)
+        pl.struct(
+            _reported_any(pl.col(qual).struct.field(REPORTED).struct.field(ANY).filter(pl.col(value).is_not_null())).alias(ANY),
+            _reported_all(pl.col(qual).struct.field(REPORTED).struct.field(ALL).filter(pl.col(value).is_not_null())).alias(ALL),
+        ).alias(REPORTED)
         if d.propagation == Propagation.REPORTED
+        else pl
+        .col(qual)
+        .struct.field(d.identifier)
+        .filter(pl.col(value).is_not_null())
+        .explode()
+        .drop_nulls()
+        .unique()
+        .sort()
+        .implode()
+        .alias(d.identifier)
+        if d.propagation == Propagation.SOURCES
         else _reduce_score(value, qual, d.identifier)
         for d in catalog.definitions
     ]).alias(qual)
@@ -301,9 +362,21 @@ def combine_sum(
     fields = []
     for definition in catalog.definitions:
         if definition.propagation == Propagation.REPORTED:
-            left = pl.when(pl.col(left_value).is_null()).then(pl.lit(value=True)).otherwise(_field(left_qual, definition))
-            right = pl.when(pl.col(right_value).is_null()).then(pl.lit(value=True)).otherwise(_field(right_qual, definition))
-            expr = left & right
+            left = (
+                pl
+                .when(pl.col(left_value).is_null())
+                .then(pl.struct(pl.lit(value=False).alias(ANY), pl.lit(value=True).alias(ALL)))
+                .otherwise(_field(left_qual, definition))
+            )
+            right = (
+                pl
+                .when(pl.col(right_value).is_null())
+                .then(pl.struct(pl.lit(value=False).alias(ANY), pl.lit(value=True).alias(ALL)))
+                .otherwise(_field(right_qual, definition))
+            )
+            expr = combine_reported(left, right)
+        elif definition.propagation == Propagation.SOURCES:
+            expr = combine_sources(_field(left_qual, definition), _field(right_qual, definition))
         else:
             expr = _combine_score(left_value, left_qual, right_value, right_qual, definition.identifier)
         fields.append(expr.alias(definition.identifier))
@@ -331,7 +404,9 @@ def remove_subset(
         parent = _field(total_qual, definition)
         child = _field(subset_qual, definition)
         if definition.propagation == Propagation.REPORTED:
-            expr = pl.when(unchanged).then(parent).otherwise(parent & child)
+            expr = pl.when(unchanged).then(parent).otherwise(combine_reported(parent, child))
+        elif definition.propagation == Propagation.SOURCES:
+            expr = pl.when(unchanged).then(parent).otherwise(combine_sources(parent, child))
         else:
             score, coverage, _reported = _fields(total_qual, definition.identifier)
             _child_score, child_coverage, _reported = _fields(subset_qual, definition.identifier)
@@ -354,7 +429,9 @@ def combine_product(out: str, left_qual: str | None, right_qual: str | None, cat
     for d in catalog.definitions:
         left, right = _field(left_qual, d), _field(right_qual, d)
         if d.propagation == Propagation.REPORTED:
-            expr = left & right
+            expr = combine_reported(left, right)
+        elif d.propagation == Propagation.SOURCES:
+            expr = combine_sources(left, right)
         else:
             score = pl.min_horizontal(left.struct.field(SCORE), right.struct.field(SCORE))
             coverage = pl.min_horizontal(left.struct.field(COVERAGE), right.struct.field(COVERAGE))
@@ -459,7 +536,9 @@ def carry_over(
         fields = []
         for d in catalog.definitions:
             if d.propagation == Propagation.REPORTED:
-                expr = pl.lit(value=False)
+                expr = reported_status(pl.lit(value=False))
+            elif d.propagation == Propagation.SOURCES:
+                expr = pl.lit(None, dtype=d.dtype)
             else:
                 expr = _fill_score(m, q, d, fill, dims)
             fields.append(expr.alias(d.identifier))
@@ -474,3 +553,26 @@ def qualifier_columns(columns: Sequence[str], metric_cols: Sequence[str]) -> dic
     """Map each metric in ``metric_cols`` that has a qualifier in ``columns`` to that qualifier."""
     present = set(columns)
     return {m: qualifier_column(m) for m in metric_cols if qualifier_column(m) in present}
+
+
+def combine_sources(left: pl.Expr, right: pl.Expr) -> pl.Expr:
+    return (
+        pl
+        .concat_list(left.fill_null(pl.lit([], dtype=pl.List(pl.String))), right.fill_null(pl.lit([], dtype=pl.List(pl.String))))
+        .list.unique()
+        .list.sort()
+    )
+
+
+def with_selected_source(frame: PathsDataFrame, source_uuid: str) -> PathsDataFrame:
+    definitions = {d.identifier: d for d in catalog_for_frames(frame).definitions}
+    definitions.setdefault(REPORTED, BUILTIN_QUALIFIERS[REPORTED])
+    definitions[SOURCES] = QualifierDefinition(SOURCES, Propagation.SOURCES)
+    catalog = QualifierCatalog(tuple(definitions.values()))
+    column = qualifier_column(frame.metric_cols[0])
+    if column not in frame.columns:
+        frame = frame.with_columns(make(catalog=catalog).alias(column))
+    else:
+        frame = align_frame(frame, catalog)
+    source = pl.lit([source_uuid], dtype=pl.List(pl.String))
+    return frame.with_columns(pl.col(column).struct.with_fields(source.alias(SOURCES)).alias(column))

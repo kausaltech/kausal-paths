@@ -116,11 +116,19 @@ class QualifierSource:
                     fallback = qualifiers.covered_score(score, score.is_not_null().cast(pl.Float64))
                     assessment = pl.coalesce(assessment, fallback)
             assessments[definition.identifier] = assessment
-        return qualifiers.make(
+        result = qualifiers.make(
             catalog=self.catalog,
             assessments=assessments,
-            reported=pl.col(existing).struct.field(qualifiers.REPORTED) if existing in frame.columns else value.is_not_null(),
+            reported=value.is_not_null(),
+            reporting=pl.col(existing).struct.field(qualifiers.REPORTED) if existing in frame.columns else None,
         )
+        if existing in frame.columns:
+            for definition in self.catalog.definitions:
+                if definition.propagation == qualifiers.Propagation.SOURCES:
+                    result = result.struct.with_fields(
+                        pl.col(existing).struct.field(definition.identifier).alias(definition.identifier)
+                    )
+        return result
 
 
 @dataclass
@@ -290,6 +298,8 @@ def extend_to_end_year(df: ppl.PathsDataFrame, env: PipelineEnv) -> ppl.PathsDat
 
     if FORECAST_COLUMN not in df.columns:
         df = df.with_columns(pl.lit(value=False).alias(FORECAST_COLUMN))
+    if df.is_empty():
+        return df
     return extend_last_historical_value_pl(df, env.context.instance.model_end_year)
 
 

@@ -8,7 +8,6 @@ from kausal_common.strawberry.registry import register_strawberry_type
 
 from nodes import visualizations as viz
 from nodes.metric import (
-    BooleanQualifier,
     CoveredScoreQualifier,
     DimensionalMetric,
     Metric,
@@ -18,6 +17,8 @@ from nodes.metric import (
     MetricDimensionGoal,
     MetricYearlyGoal,
     NormalizerNode,
+    ReportingQualifier,
+    SourcesQualifier,
     YearlyValue,
 )
 
@@ -116,10 +117,11 @@ class NormalizerNodeType:
 
 
 @register_strawberry_type
-@sb.experimental.pydantic.type(model=BooleanQualifier)
-class BooleanQualifierType:
+@sb.experimental.pydantic.type(model=ReportingQualifier)
+class ReportingQualifierType:
     identifier: sb.auto
-    values: sb.auto
+    any: sb.auto
+    all: sb.auto
 
 
 @register_strawberry_type
@@ -131,6 +133,13 @@ class CoveredScoreQualifierType:
 
 
 @register_strawberry_type
+@sb.experimental.pydantic.type(model=SourcesQualifier)
+class SourcesQualifierType:
+    identifier: sb.auto
+    sources: sb.auto
+
+
+@register_strawberry_type
 @sb.experimental.pydantic.type(model=DimensionalMetric)
 class DimensionalMetricType:
     id: sb.ID = sb.field(
@@ -139,7 +148,9 @@ class DimensionalMetricType:
     name: sb.auto
     dimensions: sb.auto
     values: sb.auto
-    qualifiers: list[Annotated[BooleanQualifierType | CoveredScoreQualifierType, sb.union('MetricQualifier')]]
+    qualifiers: list[
+        Annotated[ReportingQualifierType | CoveredScoreQualifierType | SourcesQualifierType, sb.union('MetricQualifier')]
+    ]
     years: sb.auto
     stackable: sb.auto
     forecast_from: sb.auto

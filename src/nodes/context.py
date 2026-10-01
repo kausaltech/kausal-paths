@@ -21,7 +21,7 @@ from kausal_common.perf.perf_context import PerfContext, PerfKind, estimate_size
 
 from paths.const import MODEL_CACHE_OP, MODEL_CALC_OP
 
-from common import base32_crockford
+from common import base32_crockford, qualifiers
 from common.cache import Cache
 from nodes.exceptions import ParameterError
 
@@ -302,6 +302,7 @@ class Context:
         data = {
             'instance_id': self.instance.id,
             'qualifiers': self.qualifiers.hash_data(),
+            'qualifier_version': qualifiers.QUALIFIER_VERSION,
             'instance_uuid': str(config.uuid) if config is not None else None,
             'cache_invalidated_at': cache_invalidated_at,
             'config_mtime_hash': self.instance.config_mtime_hash,
