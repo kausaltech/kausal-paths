@@ -1365,11 +1365,11 @@ actions:
       amounts:
       - year: 2026
         amount: 0
-      - year: 2034
+      - year: 2039
         amount: 0
-      - year: 2035
+      - year: 2040
         amount: 100
-      - year: 2036
+      - year: 2041
         amount: 0
 
 - id: install_ccs_sludge_incineration
@@ -1391,11 +1391,11 @@ actions:
       amounts:
       - year: 2026
         amount: 0
-      - year: 2028
+      - year: 2037
         amount: 0
-      - year: 2029
+      - year: 2038
         amount: 100
-      - year: 2030
+      - year: 2039
         amount: 0
 
 - id: ccs_biogas_processing
@@ -1407,7 +1407,7 @@ actions:
   parent: install_waste_treatment_ccs
   unit: '%'
   output_nodes: [biogas_processing_ccs_share]
-  forecast_values: [[2029, 100]]
+  forecast_values: [[2038, 100]]
 
 - id: import_biogas_emission_accounting_agreement
   group: other
