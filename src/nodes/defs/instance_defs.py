@@ -108,6 +108,7 @@ class InstanceResultExcelSpec(I18nBaseModel):
     node_ids: list[str] | None = None
     action_ids: list[str] | None = None
     format: str = 'long'
+    include_qualifiers: bool = False
 
 
 class InstanceTerms(I18nBaseModel):

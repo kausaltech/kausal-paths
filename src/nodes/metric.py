@@ -344,9 +344,10 @@ class MetricData:
     qualifiers: list[MetricQualifier] = field(default_factory=list)
 
 
-class BooleanQualifier(BaseModel):
+class ReportingQualifier(BaseModel):
     identifier: str
-    values: list[bool | None]
+    any: list[bool | None]
+    all: list[bool | None]
 
 
 class CoveredScoreQualifier(BaseModel):
@@ -355,7 +356,12 @@ class CoveredScoreQualifier(BaseModel):
     coverage: list[float | None]
 
 
-MetricQualifier = BooleanQualifier | CoveredScoreQualifier
+class SourcesQualifier(BaseModel):
+    identifier: str
+    sources: list[list[str] | None]
+
+
+MetricQualifier = ReportingQualifier | CoveredScoreQualifier | SourcesQualifier
 
 
 class DimensionalMetric(BaseModel):
@@ -378,7 +384,12 @@ class DimensionalMetric(BaseModel):
         if len(set(identifiers)) != len(identifiers):
             raise ValueError('Metric qualifier identifiers must be unique')
         for q in self.qualifiers:
-            arrays = [q.values] if isinstance(q, BooleanQualifier) else [q.scores, q.coverage]
+            if isinstance(q, ReportingQualifier):
+                arrays = [q.any, q.all]
+            elif isinstance(q, SourcesQualifier):
+                arrays = [q.sources]
+            else:
+                arrays = [q.scores, q.coverage]
             if any(len(array) != len(self.values) for array in arrays):
                 raise ValueError(f'Qualifier {q.identifier} must align with metric values')
         return self
@@ -393,15 +404,21 @@ class DimensionalMetric(BaseModel):
                     qualifiers.QualifierDefinition(
                         q.identifier,
                         qualifiers.Propagation.REPORTED
-                        if isinstance(q, BooleanQualifier)
+                        if isinstance(q, ReportingQualifier)
+                        else qualifiers.Propagation.SOURCES
+                        if isinstance(q, SourcesQualifier)
                         else qualifiers.Propagation.COVERED_SCORE,
                     )
                     for q in self.qualifiers
                 )
             )
-            columns: dict[str, list[bool | None] | list[dict[str, float | None]]] = {
-                q.identifier: q.values
-                if isinstance(q, BooleanQualifier)
+            columns: dict[str, list[dict[str, bool | None]] | list[dict[str, float | None]] | list[list[str] | None]] = {
+                q.identifier: [
+                    {'any': any_reported, 'all': all_reported} for any_reported, all_reported in zip(q.any, q.all, strict=True)
+                ]
+                if isinstance(q, ReportingQualifier)
+                else q.sources
+                if isinstance(q, SourcesQualifier)
                 else [{'score': score, 'coverage': coverage} for score, coverage in zip(q.scores, q.coverage, strict=True)]
                 for q in self.qualifiers
             }

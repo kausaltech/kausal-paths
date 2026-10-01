@@ -1142,7 +1142,7 @@ class PathsExt:
         qual = self._df.qualifier_cols.get(metric_col)
         if qual is None:
             return None
-        reported = pl.col(qual).struct.field(qualifiers.REPORTED)
+        reported = pl.col(qual).struct.field(qualifiers.REPORTED).struct.field(qualifiers.ANY)
         if self._df.select(reported.is_not_null().any()).item() is not True:
             return None
         return reported

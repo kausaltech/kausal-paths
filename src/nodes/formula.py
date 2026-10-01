@@ -5,6 +5,7 @@ import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal, NamedTuple, TypeVar, cast
+from uuid import NAMESPACE_URL, uuid5
 
 from django.utils.translation import gettext_lazy as _
 
@@ -15,12 +16,15 @@ from nodes.calc import convert_to_co2e, extend_last_historical_value_pl
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from nodes.exceptions import NodeError
 from nodes.units import Quantity, QuantityType, Unit, unit_registry
+from nodes.value_validation import collect_instance_value_violations
 from params.param import BoolParameter, NumberParameter, StringParameter
 
 from .node import Node
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Iterable, Iterator
+
+    from polars.datatypes.classes import DataTypeClass
 
 PDF = ppl.PathsDataFrame
 type EvalConst = float
@@ -44,10 +48,12 @@ type BinomBothQuantity = Callable[[Quantity, Quantity], Quantity]
 type BinomRightDF = Callable[[Quantity, PDF], PDF]
 
 
-QUALIFIER_FUNCTIONS = frozenset({qualifiers.QUALITY, 'graded', qualifiers.REPORTED})
-"""Formula functions that read one field of a value's qualifier."""
+QUALIFIER_FUNCTIONS = frozenset({'qualifier', 'has_source', 'valid_inputs'})
+"""Formula functions that project assessments, provenance or validation as dimensionless values."""
 
-_PASSTHROUGH_FUNCTIONS = frozenset({'convert_gwp', 'zero_fill', 'from_year', 'output_with_scenario'}) | QUALIFIER_FUNCTIONS
+_PASSTHROUGH_FUNCTIONS = (
+    frozenset({'convert_gwp', 'zero_fill', 'from_year', 'output_with_scenario', 'with_qualifier'}) | QUALIFIER_FUNCTIONS
+)
 """Functions whose result has the dimensions of their first argument (and, but for the qualifier ones, its unit)."""
 
 
@@ -310,6 +316,8 @@ class FormulaNode(Node):
 
         # output_with_scenario's node argument must not be evaluated under the active scenario,
         # so it is handled before the eager first-argument evaluation below.
+        if func == 'valid_inputs':
+            return self._custom_valid_inputs(node, varss)
         if func == 'output_with_scenario':
             return self._custom_output_with_scenario(node, varss)
         if func == 'prefer_by_year' and len(node.args) == 3:
@@ -347,9 +355,9 @@ class FormulaNode(Node):
         'prefer_by_year': '_custom_prefer_by_year',
         'max': '_custom_max_min',
         'min': '_custom_max_min',
-        'quality': '_custom_qualifier',
-        'graded': '_custom_qualifier',
-        'reported': '_custom_qualifier',
+        'qualifier': '_custom_qualifier',
+        'with_qualifier': '_custom_with_qualifier',
+        'has_source': '_custom_has_source',
         'and': '_custom_and_or',
         'or': '_custom_and_or',
     }
@@ -360,6 +368,34 @@ class FormulaNode(Node):
         if method_name is None:
             raise NotImplementedError(f'Unknown function: {func}')
         return getattr(self, method_name)(func, node, varss, df)
+
+    def _custom_valid_inputs(self, node: ast.Call, varss: EvalVars) -> PDF:
+        if len(node.args) != 1 or node.keywords or not isinstance(node.args[0], ast.Name):
+            raise NodeError(self, 'valid_inputs(consumer) requires one named input node')
+        consumer = varss.nodes.get(node.args[0].id)
+        if consumer is None or consumer.runtime_node_meta is None:
+            raise NodeError(self, 'valid_inputs() requires a graph node with input contracts')
+        if not any(port.validation is not None for port in consumer.runtime_node_meta.spec.input_ports):
+            raise NodeError(self, 'valid_inputs() consumer has no input contracts')
+        graph = self.context.instance_graph
+        if graph is None:
+            raise NodeError(self, 'valid_inputs() requires an instance graph')
+        years = graph.spec.years.historical
+        if years is None:
+            instance = self.context.instance
+            years = list(
+                range(instance.minimum_historical_year, (instance.maximum_historical_year or instance.reference_year) + 1)
+            )
+        problems = collect_instance_value_violations(self.context.instance, node_uuid=consumer.runtime_node_meta.id)
+        failed = {year for problem in problems for year in problem.years}
+        frame = pl.DataFrame({
+            YEAR_COLUMN: years,
+            VALUE_COLUMN: [float(year not in failed) for year in years],
+            FORECAST_COLUMN: [False] * len(years),
+        })
+        return ppl.to_ppdf(
+            frame, meta=ppl.DataFrameMeta(primary_keys=[YEAR_COLUMN], units={VALUE_COLUMN: unit_registry.dimensionless})
+        )
 
     def _custom_remove_subset(self, _func: str, node: ast.Call, varss: EvalVars, df: EvalOutput) -> EvalOutput:
         if len(node.args) != 2 or node.keywords:
@@ -562,47 +598,133 @@ class FormulaNode(Node):
             # inputs (such as CHP plant parameters) that the city has not supplied.
             # A null or empty coverage frame is unknown, so keep normal error behavior.
             if coverage.height and coverage.get_column(VALUE_COLUMN).fill_null(1).eq(0).all():
-                return self.eval_tree(node.args[1], varss)
+                fallback = self.eval_tree(node.args[1], varss)
+                assert isinstance(fallback, PDF)
+                return self._selected_source(fallback, node.args[1], varss)
         preferred = self.eval_tree(node.args[0], varss)
         fallback = self.eval_tree(node.args[1], varss)
         assert isinstance(preferred, PDF)
         assert isinstance(fallback, PDF)
+        preferred = self._selected_source(preferred, node.args[0], varss)
+        fallback = self._selected_source(fallback, node.args[1], varss)
         return preferred.paths.prefer_by_year(fallback, coverage)
 
-    def _custom_qualifier(self, func: str, node: ast.Call, _varss: EvalVars, df: EvalOutput) -> EvalOutput:
-        """
-        `quality(x)`, `graded(x)`, `reported(x)`: one field of ``x``'s qualifier, as a dimensionless value.
+    def _source_uuid(self, node: Node) -> str:
+        if node.runtime_node_meta is not None:
+            return str(node.runtime_node_meta.id)
+        return str(uuid5(NAMESPACE_URL, f'{self.context.instance.id}:{node.id}'))
 
-        A cell with nothing to say -- ungraded, or from a source that does not say what it
-        supplied -- is left out rather than read as zero. See `common.qualifiers` for the fields.
-        """
-        if not isinstance(df, PDF) or len(node.args) not in (1, 2):
-            raise NodeError(self, f'{func}() takes an input and an optional qualifier identifier')
-        keys = [col for col in (*df.primary_keys, FORECAST_COLUMN) if col in df.columns]
-        meta = ppl.DataFrameMeta(units={VALUE_COLUMN: unit_registry.parse_units('dimensionless')}, primary_keys=df.primary_keys)
-        qual = df.qualifier_cols.get(VALUE_COLUMN)
-        if qual is None:
-            field = pl.lit(None, dtype=pl.Float64)
-        elif func == qualifiers.REPORTED:
-            field = pl.col(qual).struct.field(qualifiers.REPORTED).cast(pl.Float64)
+    def _selected_source(self, value: PDF, expression: ast.AST, varss: EvalVars) -> PDF:
+        if isinstance(expression, ast.Name) and expression.id in varss.nodes:
+            return qualifiers.with_selected_source(value, self._source_uuid(varss.nodes[expression.id]))
+        return value
+
+    def _custom_has_source(self, _func: str, node: ast.Call, varss: EvalVars, df: EvalOutput) -> EvalOutput:
+        if not isinstance(df, PDF) or len(node.args) != 2 or not isinstance(node.args[1], ast.Name):
+            raise NodeError(self, 'has_source(value, source) requires a value and a named input node')
+        source = varss.nodes.get(node.args[1].id)
+        if source is None:
+            raise NodeError(self, 'has_source() source must name an input node')
+        column = df.qualifier_cols.get(VALUE_COLUMN)
+        if column is None or qualifiers.SOURCES not in {d.identifier for d in qualifiers.catalog_for_frames(df).definitions}:
+            flag = pl.lit(None, dtype=pl.Float64)
         else:
-            definitions = qualifiers.QualifierCatalog.from_dtype(df.schema[qual]).assessments
-            if len(node.args) == 2:
-                identifier = node.args[1]
-                if not isinstance(identifier, ast.Constant) or not isinstance(identifier.value, str):
-                    raise NodeError(self, 'Qualifier identifier must be a string literal')
-                definitions = tuple(d for d in definitions if d.identifier == identifier.value)
-                if not definitions:
-                    raise NodeError(self, f'Unknown quality qualifier {identifier.value}')
-            if len(definitions) > 1:
-                raise NodeError(self, f'{func}() requires an explicit qualifier identifier when several schemes are available')
-            if not definitions:
-                field = pl.lit(None, dtype=pl.Float64)
-            else:
-                assessment = pl.col(qual).struct.field(definitions[0].identifier)
-                field = assessment.struct.field(qualifiers.SCORE if func == 'quality' else qualifiers.COVERAGE)
-        out = pl.DataFrame(df).select([*keys, field.alias(VALUE_COLUMN)]).filter(pl.col(VALUE_COLUMN).is_not_null())
-        return ppl.to_ppdf(out, meta=meta)
+            flag = pl.col(column).struct.field(qualifiers.SOURCES).list.contains(self._source_uuid(source)).cast(pl.Float64)
+        keys = [key for key in (*df.primary_keys, FORECAST_COLUMN) if key in df.columns]
+        return ppl.to_ppdf(
+            pl.DataFrame(df).select([*keys, flag.alias(VALUE_COLUMN)]),
+            meta=ppl.DataFrameMeta(
+                primary_keys=df.primary_keys,
+                units={VALUE_COLUMN: unit_registry.dimensionless},
+            ),
+        )
+
+    def _qualifier_path(self, selector: ast.AST, frame: PDF) -> tuple[tuple[str, ...], pl.DataType | DataTypeClass]:
+        path: list[str] = []
+        while isinstance(selector, ast.Attribute):
+            path.append(selector.attr)
+            selector = selector.value
+        if not isinstance(selector, ast.Name):
+            raise NodeError(self, 'A qualifier selector must be a catalog field path, such as reported.any')
+        path.append(selector.id)
+        path.reverse()
+        definitions = {definition.identifier: definition for definition in self.context.qualifiers.definitions}
+        definitions.update({definition.identifier: definition for definition in qualifiers.catalog_for_frames(frame).definitions})
+        definition = definitions.get(path[0])
+        if definition is None:
+            raise NodeError(self, f'Unknown qualifier {path[0]!r}')
+        dtype = definition.dtype
+        for part in path[1:]:
+            if not isinstance(dtype, pl.Struct) or part not in {field.name for field in dtype.fields}:
+                raise NodeError(self, f'Unknown qualifier field {".".join(path)!r}')
+            dtype = next(field.dtype for field in dtype.fields if field.name == part)
+        return tuple(path), dtype
+
+    def _custom_qualifier(self, _func: str, node: ast.Call, _varss: EvalVars, df: EvalOutput) -> EvalOutput:
+        if not isinstance(df, PDF) or len(node.args) != 2 or node.keywords:
+            raise NodeError(self, 'qualifier(value, field.path) requires a value and a qualifier selector')
+        path, dtype = self._qualifier_path(node.args[1], df)
+        keys = [col for col in (*df.primary_keys, FORECAST_COLUMN) if col in df.columns]
+        qual = df.qualifier_cols.get(VALUE_COLUMN)
+        if qual is None or path[0] not in {d.identifier for d in qualifiers.catalog_for_frames(df).definitions}:
+            expression = pl.lit(None, dtype=dtype)
+        else:
+            expression = pl.col(qual)
+            for part in path:
+                expression = expression.struct.field(part)
+        if dtype == pl.Boolean:
+            expression = expression.cast(pl.Float64)
+        out = pl.DataFrame(df).select([*keys, expression.alias(VALUE_COLUMN)])
+        return ppl.to_ppdf(
+            out,
+            meta=ppl.DataFrameMeta(
+                units={VALUE_COLUMN: unit_registry.dimensionless},
+                primary_keys=df.primary_keys,
+            ),
+        )
+
+    def _custom_with_qualifier(self, _func: str, node: ast.Call, varss: EvalVars, df: EvalOutput) -> EvalOutput:
+        if not isinstance(df, PDF) or len(node.args) != 3 or node.keywords:
+            raise NodeError(self, 'with_qualifier(value, field.path, replacement) requires three arguments')
+        path, dtype = self._qualifier_path(node.args[1], df)
+        replacement = self.eval_tree(node.args[2], varss)
+        if not isinstance(replacement, PDF) or replacement.paths.index_has_duplicates():
+            raise NodeError(self, 'A qualifier replacement must have an unambiguous coordinate index')
+        if not set(replacement.primary_keys).issubset(df.primary_keys):
+            raise NodeError(self, 'Reduce replacement dimensions explicitly before assigning a qualifier')
+        replacement_dtype = replacement.schema[VALUE_COLUMN]
+        if replacement_dtype != dtype and not (dtype == pl.Boolean and replacement_dtype.is_numeric()):
+            raise NodeError(self, f'Qualifier {".".join(path)} requires {dtype}, got {replacement_dtype}')
+        definitions = {d.identifier: d for d in self.context.qualifiers.definitions}
+        definitions.update({d.identifier: d for d in qualifiers.catalog_for_frames(df).definitions})
+        catalog = qualifiers.QualifierCatalog(tuple(definitions.values()))
+        column = qualifiers.qualifier_column(VALUE_COLUMN)
+        if column not in df.columns:
+            df = df.with_columns(pl.lit(None, dtype=catalog.dtype).alias(column))
+        else:
+            df = qualifiers.align_frame(df, catalog)
+        keys = replacement.primary_keys
+        source = pl.DataFrame(replacement).select([
+            *[pl.col(key).cast(df.schema[key]) for key in keys],
+            pl.col(VALUE_COLUMN).cast(dtype).alias('_QualifierReplacement'),
+        ])
+        joined = pl.DataFrame(df).join(source, on=keys, how='left', nulls_equal=True)
+
+        def replace_field(expression: pl.Expr, current_dtype: pl.DataType | DataTypeClass, remaining: tuple[str, ...]) -> pl.Expr:
+            if not remaining:
+                return pl.col('_QualifierReplacement')
+            assert isinstance(current_dtype, pl.Struct)
+            return pl.struct([
+                (
+                    replace_field(expression.struct.field(field.name), field.dtype, remaining[1:])
+                    if field.name == remaining[0]
+                    else expression.struct.field(field.name)
+                ).alias(field.name)
+                for field in current_dtype.fields
+            ]).cast(current_dtype)
+
+        joined = joined.with_columns(replace_field(pl.col(column), catalog.dtype, path).alias(column))
+        return ppl.to_ppdf(joined.drop('_QualifierReplacement'), meta=df.get_meta())
 
     def _custom_max_min(self, func: str, node: ast.Call, varss: EvalVars, _df: EvalOutput) -> EvalOutput:
         assert len(node.args) == 2, f'{func}(a, b) requires two arguments'
@@ -688,6 +810,11 @@ class FormulaNode(Node):
         def visit(node: ast.AST) -> None:
             if isinstance(node, ast.Name) and node.id in varss.nodes:
                 used_names.add(node.id)
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id in {'qualifier', 'with_qualifier'}:
+                visit(node.args[0])
+                if node.func.id == 'with_qualifier' and len(node.args) > 2:
+                    visit(node.args[2])
+                return
             for child in ast.iter_child_nodes(node):
                 visit(child)
 
@@ -756,6 +883,8 @@ class FormulaNode(Node):
 
         df = self.eval_tree(tree, varss)
         assert isinstance(df, PDF)
+        if not df.schema[VALUE_COLUMN].is_numeric():
+            raise NodeError(self, 'A formula output must be numeric; select a qualifier leaf rather than a struct')
         df = df.ensure_unit(VALUE_COLUMN, self.get_default_output_metric().unit)
         extend = self.get_parameter_value('extend_last_historical_value', required=False)
         if extend:
@@ -1134,6 +1263,8 @@ def analyze_formula_dimensions(  # noqa: C901, PLR0915
                     return set(d for d in first if d != dim)
                 analysis.errors.append(f'{func_name} expects a dimension name as second argument.')
                 return first
+            if func_name == 'valid_inputs':
+                return set()
             if func_name == 'sum_into_cat':
                 return first
             if func_name == 'coalesce':

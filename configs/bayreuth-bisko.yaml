@@ -430,12 +430,12 @@ result_excels:
     https://docs.google.com/spreadsheets/d/13URk1zrbyu5Dyjw-w7tIiaAlrERNul-L/export?format=xlsx
   name_de: Stadtspezifische Werte aus BISKO-Datensätzen und anderen Quellen
   name_en: City-specific values from BISKO datasets and elsewhere
+  include_qualifiers: true
   node_ids:
   - weather_correction
   - final_energy_use
   - total_final_energy_use          # criterion 2.1: energy by sector incl. transport
   - municipal_facilities_energy_in_commerce  # criterion 2.1: the KE/GHD double-count correction
-  - final_energy_use_data_quality
   - total_weighted_data_quality     # criterion 7.2: Datengüte of the whole balance
   # - final_municipal_facilities_energy_use_by_type
   # - municipal_fleet_energy
@@ -454,9 +454,6 @@ result_excels:
   - district_heating_method_in_force
   # Prüfschritt 7.1: a Datengüte must be enterable for every input field. The first Prüflauf
   # named the district-heating one as missing; these three are where the grades are shown.
-  - district_heating_energy_use_data_quality
-  - vehicle_kilometers_own_data_quality
-  - other_transport_energy_own_data_quality
   - road_transport_energy_by_road_type  # 2.3: the road-typing view itself; was in no config
   - vehicle_kilometers_own          # 2.3: the own-data mileage route, road-typed
   - other_transport_energy_own      # 1.5: where a city enters rail/water/air consumption
@@ -466,17 +463,9 @@ result_excels:
   - road_transport_activity_source_in_force
   - road_transport_energy_method_in_force
   - other_transport_energy_source_in_force
-  - transport_energy_own_availability
   - passenger_kilometers_own        # the pkm/vkm distinction the certifier asked about
   # "Visuelles Ausweisen als Pflichtfeld waere hilfreich" -- raised under 1.2, 1.4 and 1.5.
   # These show which required cell is missing rather than a bare 0.
-  - final_energy_use_availability
-  - other_transport_energy_availability
-  - vehicle_kilometers_own_availability
-
-
-
-#//////  Nodes  ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 nodes:
 

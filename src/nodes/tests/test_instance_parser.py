@@ -517,3 +517,36 @@ def test_a_dataset_port_without_an_authored_unit_still_takes_the_nodes_unit():
     })
 
     assert list(units.values()) == ['GWh/a']
+
+
+def test_yaml_dataset_binding_ownership_and_value_contract_are_persisted_on_the_port() -> None:
+    snapshot = parse_instance_snapshot(
+        {
+            'id': 'owned-data',
+            'name': 'Owned data',
+            'owner': 'Test',
+            'default_language': 'en',
+            'reference_year': 2020,
+            'minimum_historical_year': 2020,
+            'target_year': 2030,
+            'nodes': [
+                {
+                    'id': 'consumer',
+                    'name': 'Consumer',
+                    'type': 'simple.AdditiveNode',
+                    'quantity': 'energy',
+                    'unit': 'kWh',
+                    'input_datasets': [{'id': 'test/activity', 'column': 'Value', 'tags': ['data'], 'binding_owner': 'instance'}],
+                    'input_validation': {'data': {'combinations': [{'categories': {}}]}},
+                }
+            ],
+        },
+        instance_uuid=uuid4(),
+    )
+    spec = snapshot.nodes[0].spec
+    assert spec is not None
+    (port,) = spec.input_ports
+    assert port.binding_owner == 'instance'
+    assert port.validation is not None
+    assert port.validation.combinations[0].categories == {}
+    assert spec.model_dump(mode='json')['input_ports'][0]['validation']['combinations'] == [{'categories': {}, 'qualifiers': {}}]
