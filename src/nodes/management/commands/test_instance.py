@@ -7,11 +7,12 @@ import sys
 import time
 import tracemalloc
 from collections import Counter, defaultdict
+from dataclasses import asdict
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
 from django.core.management.base import BaseCommand, CommandError
-from pydantic import BaseModel, Field, PrivateAttr
+from pydantic import BaseModel, Field, JsonValue, PrivateAttr, TypeAdapter
 
 import loguru
 import polars as pl
@@ -26,16 +27,21 @@ from kausal_common.logging.errors import print_exception
 from kausal_common.logging.warnings import register_warning_handler
 from kausal_common.perf.perf_context import estimate_size_bytes
 
+from datasets.materialization import collect_instance_dataset_violations
 from frameworks.models import Framework
 from nodes.constants import FORECAST_COLUMN, YEAR_COLUMN
+from nodes.constraints.validation import solve_instance_constraints
 from nodes.datasets import JSONDataset
 from nodes.exceptions import NodeError
-from nodes.models import InstanceConfig
+from nodes.instance_graph_cache import get_instance_graph, resolve_instance_source
+from nodes.models import InstanceConfig, PreferredInstanceSource
 
 if TYPE_CHECKING:
     from django.core.management.base import CommandParser
 
+    from datasets.validation import RuleViolation
     from nodes.actions.action import ActionNode
+    from nodes.constraints.values import ConstraintConflict
     from nodes.context import Context
     from nodes.instance import Instance
     from nodes.node import Node
@@ -112,8 +118,39 @@ class NodeDetail(BaseModel):
         self.failure_at = reason
 
 
-type InstanceFailReason = Literal['init', 'nodes']
+type InstanceFailReason = Literal['init', 'nodes', 'problems']
 type ScenarioId = Literal['default', 'baseline']
+
+
+class ProblemDetail(BaseModel):
+    kind: Literal['constraint_conflict', 'dataset_validation_violation']
+    code: str
+    message: str
+    severity: Literal['error', 'warning']
+    details: dict[str, JsonValue]
+
+    @classmethod
+    def from_conflict(cls, conflict: ConstraintConflict) -> ProblemDetail:
+        details = TypeAdapter(dict[str, JsonValue]).validate_json(json.dumps(asdict(conflict), default=str))
+        # BindingValue and DatasetSourceValue have identical fields; retain their distinct identities.
+        details['value_kind'] = type(conflict.value).__name__ if conflict.value is not None else None
+        origins = details['origins']
+        assert isinstance(origins, list)
+        details['origins'] = sorted(origins, key=lambda origin: json.dumps(origin, sort_keys=True))
+        return cls(kind='constraint_conflict', code=conflict.code, message=conflict.message, severity='error', details=details)
+
+    @classmethod
+    def from_violation(cls, violation: RuleViolation) -> ProblemDetail:
+        return cls(
+            kind='dataset_validation_violation',
+            code=violation.kind,
+            message=violation.message,
+            severity='error' if violation.enforcement == 'block_edit' else 'warning',
+            details=TypeAdapter(dict[str, JsonValue]).validate_json(violation.model_dump_json()),
+        )
+
+    def comparison_key(self) -> str:
+        return json.dumps(self.model_dump(mode='json'), sort_keys=True)
 
 
 class InstanceDetail(BaseModel):
@@ -121,6 +158,7 @@ class InstanceDetail(BaseModel):
     failure_at: InstanceFailReason | None = None
     nodes: list[NodeDetail] = Field(default_factory=list)
     baseline_nodes: list[NodeDetail] = Field(default_factory=list)
+    problems: list[ProblemDetail] = Field(default_factory=list)
 
     _active_scenario_id: ScenarioId = PrivateAttr(default='default')
 
@@ -229,6 +267,7 @@ class Command(BaseCommand):
 
     store: bool
     compare: bool
+    ignore_fixed_problems: bool = False
     spec_only: bool
     dry_run: bool
     logger: loguru.Logger
@@ -275,10 +314,15 @@ class Command(BaseCommand):
             default=None,
         )
         parser.add_argument(
+            '--ignore-fixed-problems',
+            action='store_true',
+            help='With --compare, allow recorded validation problems to disappear; new or changed problems still fail',
+        )
+        parser.add_argument(
             '--spec-only',
             dest='spec_only',
             action='store_true',
-            help='Only initialize each instance; skip output comparison and node execution',
+            help='Initialize and check validation problems; skip output comparison and node execution',
         )
         parser.add_argument(
             '--smoke-test',
@@ -1104,6 +1148,43 @@ class Command(BaseCommand):
             )
             self.rss_prev_bytes = after_trim_rss
 
+    def collect_problems(self, ic: InstanceConfig, instance: Instance) -> list[ProblemDetail]:
+        source = resolve_instance_source(ic, PreferredInstanceSource.DRAFT)
+        graph = instance.context.instance_graph
+        if graph is None:
+            graph = get_instance_graph(ic, PreferredInstanceSource.DRAFT, resolved_source=source)
+        violations = collect_instance_dataset_violations(ic)
+        result = solve_instance_constraints(ic, graph, source)
+        problems = [ProblemDetail.from_conflict(conflict) for conflict in result.conflicts]
+        problems.extend(ProblemDetail.from_violation(violation) for violation in violations)
+        return sorted(problems, key=ProblemDetail.comparison_key)
+
+    def check_problems(self, logger: loguru.Logger, instance_id: str, problems: list[ProblemDetail]) -> bool:
+        logger.info('Validation problems for {instance_id}: {count}', instance_id=instance_id, count=len(problems))
+        for problem in problems:
+            logger.warning(
+                f'{problem.severity} [{problem.code}] {problem.message}\n{json.dumps(problem.details, indent=2, sort_keys=True)}'
+            )
+        details = self.state.add_instance(instance_id)
+        if not self.compare:
+            details.problems = problems
+            return True
+        reference = Counter(problem.comparison_key() for problem in details.problems)
+        current = Counter(problem.comparison_key() for problem in problems)
+        added = current - reference
+        removed = reference - current
+        if added or (removed and not self.ignore_fixed_problems):
+            logger.error(
+                'Validation problems differ from reference: {added} added, {removed} removed',
+                added=sum(added.values()),
+                removed=sum(removed.values()),
+            )
+            for label, differences in [('Added', added), ('Removed', removed)]:
+                for problem_json, count in differences.items():
+                    logger.error('{label} ({count}): {problem}', label=label, count=count, problem=problem_json)
+            return False
+        return True
+
     def check_instance(self, ic: InstanceConfig):  # noqa: PLR0915
         logger = self.logger.bind(instance_id=ic.identifier)
         logger.info('Checking instance %s' % ic.identifier)
@@ -1120,6 +1201,7 @@ class Command(BaseCommand):
         instance_details = self.state.add_instance(instance_id)
         try:
             instance = ic.get_instance()
+            problems = self.collect_problems(ic, instance)
         except Exception as e:
             logger.error('Error initializing instance %s' % instance_id)
             print_exception(e)
@@ -1130,11 +1212,11 @@ class Command(BaseCommand):
             return False
 
         if self.spec_only:
-            self.state.mark_success(instance)
-            self.save_state()
+            succeeded = self.check_problems(logger, instance_id, problems)
+            self.record_instance_result(instance, None if succeeded else 'problems')
             logger.info('Cleaning instance')
             instance.clean()
-            return True
+            return succeeded
 
         ctx = instance.context
         ctx.cache.clear()
@@ -1153,15 +1235,17 @@ class Command(BaseCommand):
                     self.dump_scenario_manifest(instance)
                 instance_details.set_active_scenario_id('default')
 
+        problems_succeeded = self.check_problems(logger, instance_id, problems)
         if True:
             logger.info('Cleaning instance')
             instance.clean()
 
-        if succeeded:
-            self.state.mark_success(instance)
+        failure: InstanceFailReason | None
+        if succeeded and problems_succeeded:
+            failure = None
         else:
-            self.state.mark_failed(instance_id, 'nodes')
-        self.save_state()
+            failure = 'problems' if succeeded else 'nodes'
+        self.record_instance_result(instance, failure)
 
         baseline_scenario = None
         ctx = None  # type: ignore[assignment]
@@ -1171,7 +1255,14 @@ class Command(BaseCommand):
         self.maybe_log_new_objects(instance_id, before_object_ids)
         self.maybe_log_tracemalloc(instance_id, before_snapshot)
         self.maybe_log_rss(instance_id, before_rss)
-        return succeeded
+        return succeeded and problems_succeeded
+
+    def record_instance_result(self, instance: Instance, failure: InstanceFailReason | None) -> None:
+        if failure is None:
+            self.state.mark_success(instance)
+        else:
+            self.state.mark_failed(instance.id, failure)
+        self.save_state()
 
     def handle(self, *args, **options):  # noqa: C901, PLR0912, PLR0915
         instance_ids = options['instances']
@@ -1204,6 +1295,7 @@ class Command(BaseCommand):
         else:
             self.compare = bool(options['compare'])
         self.spec_only = bool(options['spec_only'])
+        self.ignore_fixed_problems = bool(options['ignore_fixed_problems'])
         self.dry_run = bool(options['dry_run'])
         self.include_impacts = bool(options['include_impacts'])
         smoke_test = bool(options['smoke_test'])
