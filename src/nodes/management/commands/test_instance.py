@@ -35,6 +35,7 @@ from nodes.datasets import JSONDataset
 from nodes.exceptions import NodeError
 from nodes.instance_graph_cache import get_instance_graph, resolve_instance_source
 from nodes.models import InstanceConfig, PreferredInstanceSource
+from nodes.value_validation import collect_instance_value_violations
 
 if TYPE_CHECKING:
     from django.core.management.base import CommandParser
@@ -123,7 +124,7 @@ type ScenarioId = Literal['default', 'baseline']
 
 
 class ProblemDetail(BaseModel):
-    kind: Literal['constraint_conflict', 'dataset_validation_violation']
+    kind: Literal['constraint_conflict', 'dataset_validation_violation', 'node_value_validation_violation']
     code: str
     message: str
     severity: Literal['error', 'warning']
@@ -1157,6 +1158,16 @@ class Command(BaseCommand):
         result = solve_instance_constraints(ic, graph, source)
         problems = [ProblemDetail.from_conflict(conflict) for conflict in result.conflicts]
         problems.extend(ProblemDetail.from_violation(violation) for violation in violations)
+        problems.extend(
+            ProblemDetail(
+                kind='node_value_validation_violation',
+                code=violation.code,
+                message=violation.message,
+                severity='error',
+                details=TypeAdapter(dict[str, JsonValue]).validate_json(violation.model_dump_json()),
+            )
+            for violation in collect_instance_value_violations(instance)
+        )
         return sorted(problems, key=ProblemDetail.comparison_key)
 
     def check_problems(self, logger: loguru.Logger, instance_id: str, problems: list[ProblemDetail]) -> bool:

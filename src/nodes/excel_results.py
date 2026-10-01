@@ -6,6 +6,7 @@ from io import BytesIO
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar
 
+import polars as pl
 import requests
 from loguru import logger
 from openpyxl import Workbook, load_workbook
@@ -18,6 +19,7 @@ from kausal_common.i18n.pydantic import I18nBaseModel, I18nStringInstance
 
 from paths.const import MODEL_CALC_OP
 
+from common import qualifiers
 from nodes.constants import BASELINE_SCENARIO, FORECAST_COLUMN, IMPACT_COLUMN, IMPACT_GROUP, VALUE_COLUMN, YEAR_COLUMN
 from nodes.defs.instance_defs import InstanceResultExcelSpec
 
@@ -81,6 +83,7 @@ class InstanceResultExcel(I18nBaseModel):
     node_ids: list[str] | None = None
     action_ids: list[str] | None = None
     format: str = 'long'
+    include_qualifiers: bool = False
 
     _created_sheet_names: ClassVar = (DATA_SHEET_NAME, PARAM_SHEET_NAME)
 
@@ -103,7 +106,28 @@ class InstanceResultExcel(I18nBaseModel):
                 if action_id not in actions:
                     raise KeyError(f'Action {action_id} not found.')
 
-    def _output_node_long(  # noqa: PLR0913, PLR0917
+    @staticmethod
+    def _qualifier_expressions(context: Context, df: ppl.PathsDataFrame) -> list[pl.Expr]:
+        expressions: list[pl.Expr] = []
+        column = df.qualifier_cols.get(VALUE_COLUMN)
+        fields = {d.identifier for d in qualifiers.catalog_for_frames(df).definitions}
+        for definition in context.qualifiers.definitions:
+            for field in definition.dtype.fields if isinstance(definition.dtype, pl.Struct) else []:
+                expr = (
+                    pl.col(column).struct.field(definition.identifier).struct.field(field.name)
+                    if column and definition.identifier in fields
+                    else pl.lit(None)
+                )
+                expressions.append(expr.alias(f'{definition.identifier}.{field.name}'))
+        sources = (
+            pl.col(column).struct.field(qualifiers.SOURCES).list.join('; ')
+            if column and qualifiers.SOURCES in fields
+            else pl.lit(None, dtype=pl.String)
+        )
+        expressions.append(sources.alias(qualifiers.SOURCES))
+        return expressions
+
+    def _output_node_long(  # noqa: C901, PLR0913, PLR0917
         self,
         context: Context,
         wb: Workbook,
@@ -117,8 +141,6 @@ class InstanceResultExcel(I18nBaseModel):
         actions: list[ActionNode],
         aseq: bool,
     ) -> None:
-        import polars as pl
-
         logger.info('Outputting node %s' % node.id)
         if df.dim_ids:
             df = df.with_columns([pl.col(dim_id).cast(pl.String) for dim_id in df.dim_ids])
@@ -142,6 +164,9 @@ class InstanceResultExcel(I18nBaseModel):
             else:
                 cols.append(pl.lit(None).alias(dim_id))
 
+        if self.include_qualifiers:
+            cols.extend(self._qualifier_expressions(context, df))
+
         arange = range(len(actions))
         for i in arange:
             if aseq:
@@ -159,6 +184,8 @@ class InstanceResultExcel(I18nBaseModel):
             df = df.paths.join_over_index(adf, how='left', index_from='left')
             cols.append(pl.col(act_col))
 
+        if df.is_empty():
+            return
         start_row = sheet.max_row + 1
 
         df = df.select(cols)
@@ -183,8 +210,6 @@ class InstanceResultExcel(I18nBaseModel):
         dim_ids: list[str],
         cols: list[str],
     ) -> None:
-        import polars as pl
-
         logger.info('Outputting node %s' % node.id)
         if df.dim_ids:
             df = df.with_columns([pl.col(dim_id).cast(pl.String) for dim_id in df.dim_ids])
@@ -440,6 +465,18 @@ class InstanceResultExcel(I18nBaseModel):
             for act in actions:
                 cols.append('Impact_%s' % act.id)
 
+        if self.include_qualifiers:
+            if self.format != 'long':
+                raise ValueError('Qualifier export requires long format')
+            qualifier_cols = [
+                f'{definition.identifier}.{field.name}'
+                for definition in context.qualifiers.definitions
+                if isinstance(definition.dtype, pl.Struct)
+                for field in definition.dtype.fields
+            ]
+            # Qualifiers accompany the value before the per-action columns.
+            offset = len(fixed_cols) + len(dims)
+            cols[offset:offset] = [*qualifier_cols, qualifiers.SOURCES]
         ds.append(cols)
 
         for idx, col in enumerate(cols):

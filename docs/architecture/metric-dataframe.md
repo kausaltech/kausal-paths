@@ -268,7 +268,7 @@ Energy__qual:
   bisko_quality:
     score: 0.75
     coverage: 0.60
-  reported: true
+  reported: {any: true, all: true}
 ```
 
 `bisko_quality.score` is the mean score within the assessed portion;
@@ -325,27 +325,20 @@ existing conservative product rule is provisional, not proof of coverage.
 
 ### Reported data
 
-Use `reported`, a nullable boolean, to exercise boolean qualifier propagation:
+`reported` is a struct with two nullable booleans. `reported.any` is true
+when at least one contributing source cell contains a reported value;
+`reported.all` is true when every contributing source cell does. Reported
+zeroes count as source cells. Reductions use three-valued OR for `any` and
+AND for `all`: true dominates OR, false dominates AND, and otherwise unknown
+remains unknown. Scalar constants and unit conversions are neutral. An absent
+side of an outer sum contributes nothing; a present value with unknown
+reporting status contributes unknown. Choices carry the selected pair.
 
-> True when all contributing source cells contain reported values; false when
-> any required contribution was filled, interpolated or extended; null when
-> this is unknown.
-
-Reported zero is true. Calculations from reported inputs remain true; exact
-constants and unit conversions are neutral. Sums and data-dependent products
-use three-valued AND: false dominates, otherwise unknown remains unknown.
-An absent side of an outer join contributes nothing and is neutral, whereas
-a present value with unknown reporting status contributes unknown. Choices
-carry the selected value's flag.
-
-This does not identify who reported the data: provider defaults can be
-reported too. Nor does it certify that all required cells exist. Mandatory
-category/year grids must still be checked before reduction.
-
-Transport source selection asks whether *any* original cell was reported in a
-year. Evaluate that question before aggregation, or pass explicit coverage
-from that boundary. An AND-reduced reporting flag cannot recover it. Preserve
-the existing per-year source choices during migration.
+These flags do not identify who reported the data: provider defaults can be
+reported too. Nor do they certify that all required cells exist. Mandatory
+category/year grids must be checked against explicit requirements.
+Transport source selection reads `reported.any`, including after aggregation;
+`reported.all` separately describes how much of the result was reported.
 
 ### Derivation and assessment are independent
 
@@ -355,43 +348,86 @@ blanket grade erasure for interpolation. The Klimaschutz-Planer handbook's
 chimney-sweep section explicitly recommends interpolation between observations
 collected every two or three years.
 
-An approved derivation can produce an assessed value with `reported=false`.
+An approved derivation can produce an assessed value with `reported={any: false, all: false}`.
 Its method must explicitly preserve, replace or invalidate the assessment;
 neither retaining A nor erasing every grade is a universal rule. Linear
 interpolation now interpolates coverage and `score * coverage` using
 actual year distances, then divides to recover the assessed score. It preserves
 matching endpoint assessments and leaves entirely unassessed endpoints
 unassessed. Backfilling and constant extension copy the endpoint assessment.
-All created cells have `reported=false`. Structural zero-fill and unsupported
+All created cells have `reported={any: false, all: false}`. Structural zero-fill and unsupported
 extrapolation do not invent assessments. Each category is handled independently.
 
 ### Current implementation after the qualifier refinement
 
-The refinement implements named covered assessments such as
-`bisko_quality: {score, coverage}` and nullable
-`reported`, three-valued AND for reporting status, and undefined energy-weighted
-assessments for all-zero groups. `quality(x)` and `graded(x)` read the sole
-assessment's nested
-score and coverage; when several schemes are available, give the field name
-explicitly, e.g. `quality(x, 'bisko_quality')`. `reported(x)` replaces
-`supplied(x)`. Existing formula names
-for quality and coverage remain stable. The legacy `make(supplied=...)`
-construction keyword is accepted temporarily; the stored shape is always new.
+Values carry named covered assessments such as
+`bisko_quality: {score, coverage}` and nullable reporting flags
+`reported: {any, all}`. Source leaves set both reporting flags together. Reductions
+use three-valued OR for `any` and AND for `all`, including reported zeroes.
+Temporal fills set both flags false; scalar constants leave qualifiers unchanged.
 
-A single indexing helper serializes dimensional values and qualifiers together;
-GraphQL exposes one object per qualifier: a `BooleanQualifierType` with a
-`values` array, or a `CoveredScoreQualifierType` with `scores` and `coverage`
-arrays. Each array aligns exactly with the metric's flattened `values` index;
-construction rejects mismatched lengths and duplicate qualifier identifiers.
-Each qualifier object carries its catalog `identifier`, with no entity ID.
-Metric cubes and qualifier columns are computed values embedded under the
-query field that returned them; clients must disable entity normalization for
-`DimensionalMetricType`, `BooleanQualifierType` and `CoveredScoreQualifierType`.
-`DimensionalMetricType.id` is deprecated and retained temporarily for existing
-clients and internal bookkeeping. It does not distinguish instances or
-calculation variants. Keep instance scoping explicit in client cache field
-keys and represent calculation options as field arguments; parameter changes
-outside those keys require invalidation or refetching.
+Formula selectors resolve against the qualifier catalog:
+
+```python
+qualifier(energy, bisko_quality.score)
+qualifier(energy, bisko_quality.coverage)
+qualifier(energy, reported.any)
+with_qualifier(activity * factors, reported, qualifier(activity, reported))
+```
+
+The selector is a field path, not an evaluated expression. A whole struct can be
+assigned, or a single field. Assignment joins by the replacement's coordinate
+keys and broadcasts over additional result dimensions. Extra replacement
+dimensions require explicit reduction. Assignment never creates result rows.
+The old `quality()`, `graded()` and `reported()` formula functions are removed.
+
+`prefer_by_year(preferred, fallback[, coverage])` selects whole years. Without an
+explicit coverage input it uses `reported.any`, then non-null values on
+unqualified inputs. Typed empty frames are valid inputs. An explicit coverage
+input can keep an incomplete route selected even when its computed frame is
+empty; this must produce a validation problem rather than silently taking a
+fallback. Named branch selections attach node UUIDs in a `sources` qualifier;
+`has_source(selected, branch)` projects that decision without computing branch.
+Reductions retain the union of the selected sources.
+
+A single indexing helper serializes values and qualifiers together. GraphQL
+exposes `ReportingQualifierType` with aligned `any` and `all` arrays,
+`CoveredScoreQualifierType` with `scores` and `coverage`, and
+`SourcesQualifierType` with `sources`. Construction rejects mismatched lengths
+and duplicate qualifier identifiers. These computed objects are embedded
+values; client caches disable entity normalization for them and for
+`DimensionalMetricType`. Long Excel exports can include qualifier leaves on the
+same rows with `include_qualifiers: true`.
+
+BISKO municipal dataset bindings declare `binding_owner: instance` in YAML.
+The resulting input ports allow a municipality to replace a dataset with a
+calculation node while retaining the consumer contract.
+
+Consumer input ports may declare a `validation` contract with required coordinate
+combinations, qualifier bounds and value bounds. Validation reads the delivered
+value after binding transformations, using the same runtime binding adapter for
+datasets and node outputs. The inventory calendar is independent of output
+rows: a dropped null, absent category or entirely absent year cannot satisfy a
+requirement. An `active` contract checks an optional route only in inventory
+years with reported data. A `required_if_positive` port UUID makes a dependency
+required only in years where that other input has positive values; BISKO uses
+this for emission factors in years with district-heating consumption.
+`combinations_from_positive` derives the required factor coordinates from another
+input's positive activity cells, projected onto the factor's dimensions. This
+catches a missing fuel factor even when other plant components produce a result.
+`max_rows` limits declared variants to one per year. Zero is a value; NaN and infinity are missing.
+`valid_inputs(consumer)` projects these checks into annual flags.
+Publication, `modelInstance.problems`, and `test_instance` expose the same
+consumer contract violations. Structural filtering of an empty observation set
+is allowed; completeness belongs to the value contract.
+
+BISKO selects district-heating factors in order plant (1), declared variant (3),
+standard (2), then multiplies consumption by the selected factor. Plant emissions
+explicitly take their reporting qualifier from plant activity. Method reports
+project selected source UUIDs. Quality and availability are read from the energy
+values and their qualifiers, rather than duplicate numeric-quality or
+availability computation branches.
+
 No framework-specific fields are hard-coded in the schema. Missing cube cells
 produce null elements. Round trips represent these as unknown struct fields;
 the distinction between an absent struct and an entirely unknown struct is

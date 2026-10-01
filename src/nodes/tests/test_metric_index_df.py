@@ -15,7 +15,7 @@ from nodes.tests.factories import InstanceConfigFactory, InstanceFactory
 
 
 from common import polars as ppl, qualifiers
-from nodes.metric import BooleanQualifier, CoveredScoreQualifier, DimensionalMetric, MetricCategory, MetricDimension
+from nodes.metric import CoveredScoreQualifier, DimensionalMetric, MetricCategory, MetricDimension, ReportingQualifier
 from nodes.metric_gen import _indexed_output_data, metric_from_dataframe_standalone
 from nodes.units import unit_registry
 
@@ -124,18 +124,19 @@ def test_qualifiers_follow_values_through_dense_index_and_round_trip() -> None:
     assert len(metric.values) == 4
     assert len(metric.qualifiers) == 2
     for q in metric.qualifiers:
-        assert len(q.values if isinstance(q, BooleanQualifier) else q.scores) == 4
+        assert isinstance(q, (ReportingQualifier, CoveredScoreQualifier))
+        assert len(q.all if isinstance(q, ReportingQualifier) else q.scores) == 4
     restored = metric.to_df()
     rows = {(r['sector'], r['Year']): r for r in restored.to_dicts()}
     assert rows[('transport', 2021)]['Value'] == 0
     assert rows[('transport', 2021)]['Value__qual'] == {
         'quality': {'score': 0.5, 'coverage': 1.0},
-        'reported': True,
+        'reported': {'any': True, 'all': True},
     }
     # A serializer-created zero is not a reported zero or a grade D.
     assert rows[('industry', 2021)]['Value'] == 0
     assert rows[('industry', 2021)]['Value__qual'] == {
-        'reported': None,
+        'reported': {'any': None, 'all': None},
         'quality': {'score': None, 'coverage': None},
     }
 
@@ -153,8 +154,8 @@ def test_dropped_values_also_drop_their_qualifier_slots() -> None:
     assessment = next(q for q in data.qualifiers if isinstance(q, CoveredScoreQualifier))
     assert assessment.scores == [0.0]
     assert assessment.coverage == [1.0]
-    reporting = next(q for q in data.qualifiers if isinstance(q, BooleanQualifier))
-    assert reporting.values == [True]
+    reporting = next(q for q in data.qualifiers if isinstance(q, ReportingQualifier))
+    assert reporting.all == [True]
 
 
 @pytest.mark.parametrize('invalid', ['length', 'coverage_length', 'duplicate'])
@@ -203,7 +204,7 @@ def test_graphql_qualifier_columns_are_embedded_values(client: Client, monkeypat
                     id values
                     qualifiers {
                         __typename
-                        ... on BooleanQualifierType { identifier values }
+                        ... on ReportingQualifierType { identifier any all }
                         ... on CoveredScoreQualifierType { identifier scores coverage }
                     }
                 }
@@ -220,4 +221,17 @@ def test_graphql_qualifier_columns_are_embedded_values(client: Client, monkeypat
         'scores': [1.0, 0.0],
         'coverage': [1.0, 1.0],
     }
-    assert columns['reported']['values'] == [True, True]
+    assert columns['reported']['all'] == [True, True]
+
+
+def test_selected_sources_follow_values_through_dense_index_and_round_trip() -> None:
+    frame = ppl.to_ppdf(
+        pl.DataFrame({'Year': [2020], 'Value': [12.0], 'sector': ['transport']}),
+        meta=ppl.DataFrameMeta(units={'Value': unit_registry.parse_units('MWh/a')}, primary_keys=['Year', 'sector']),
+    )
+    frame = qualifiers.with_selected_source(frame, 'chosen-node-uuid')
+    reduced = frame.paths.sum_over_dims('sector')
+    assert reduced['Value__qual'][0]['sources'] == ['chosen-node-uuid']
+    metric = metric_from_dataframe_standalone(frame, 'Value', metric_id='selected', metric_name='Selected')
+    restored = metric.to_df()
+    assert restored['Value__qual'][0]['sources'] == ['chosen-node-uuid']
