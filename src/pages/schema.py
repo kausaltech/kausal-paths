@@ -11,6 +11,7 @@ from paths.graphql_helpers import ensure_instance
 from nodes.models import InstanceConfig
 from nodes.schema import NodeType
 from pages.page_interface import PageInterface
+from pages.url_paths import to_url_path
 
 from .models import OutcomePage, PathsPage
 from .perms import PagePermissionPolicy
@@ -85,14 +86,13 @@ class Query:
     @staticmethod
     def resolve_page(query, info: GQLInstanceInfo, path: str, **kwargs) -> Page | None:
         qs = Query.resolve_pages(query, info, **kwargs)
-        if not path.endswith('/'):
-            path = path + '/'
-        # Prepend the url_path of the translated root page
         instance_config = InstanceConfig.objects.get(identifier=info.context.instance.id)
         root_page = instance_config.get_translated_root_page()
-        path = root_page.url_path.rstrip('/') + path
+        # Inverse of `PathsPage.resolve_url_path`, which handed this path out; both take the
+        # prefix from the root page's `url_path`. See `pages.url_paths`.
+        url_path = to_url_path(path, root_page.url_path)
         for page in qs:
-            if page.url_path == path:
+            if page.url_path == url_path:
                 return page
         return None
 
