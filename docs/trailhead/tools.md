@@ -548,16 +548,32 @@ workflow:
 ## test_instance
 
 Validates that instances can initialize and compute correctly from
-their current config source (YAML or DB).
+their current config source (YAML or DB). After testing each instance,
+prints its structural constraint conflicts and dataset validation-rule
+violations, including their locations and provenance. These problems are
+recorded in each instance's `problems` list in `state.json`.
+
+`--compare` fails if problems are added, removed, or changed, regardless
+of whether the reference instance failed computation. Problem order does
+not matter. `--ignore-fixed-problems` allows removals, while additions and
+changes still fail. Older reference files without `problems` are treated
+as having no recorded problems; store a fresh reference to capture existing
+ones. Existing problems alone do not fail a `--store` run.
 
 ```bash
-# Dry run (no state comparison, just init + compute)
+# Dry run (compares against the reference without updating state)
 python manage.py test_instance --state-dir model-outputs/ --dry-run
+
+# Record outputs and validation problems
+python manage.py test_instance INSTANCE_ID --store --state-dir model-outputs/
+
+# Compare while allowing validation problems to be fixed
+python manage.py test_instance INSTANCE_ID --compare --ignore-fixed-problems --state-dir model-outputs/
 
 # Start from a specific instance, if previous run was interrupted. Tolerate some failures.
 ... test_instance ... --start-from longmont --maxfail 5
 
-# Spec-only mode (only tests initialization, not computation)
+# Spec-only mode (initialization and validation problems, without computation)
 ... test_instance ... --spec-only
 ```
 
