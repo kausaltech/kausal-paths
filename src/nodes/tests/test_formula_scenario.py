@@ -55,7 +55,7 @@ def _make_context(identifier: str) -> Context:
     return instance.context
 
 
-def _make_node(context: Context, cls: type[Node], identifier: str, unit: str = 'kWh', quantity: str = 'energy') -> Node:
+def _make_node[T: Node](context: Context, cls: type[T], identifier: str, unit: str = 'kWh', quantity: str = 'energy') -> T:
     return cls(
         id=identifier,
         context=context,
@@ -113,14 +113,14 @@ def test_output_with_scenario_rejects_unknown_node_reference():
         target.compute()
 
 
-@pytest.mark.parametrize(('function', 'expected'), [('quality', 0.5), ('graded', 1.0), ('reported', 1.0)])
+@pytest.mark.parametrize(('function', 'expected'), [('quality.score', 0.5), ('quality.coverage', 1.0), ('reported.all', 1.0)])
 def test_formula_reads_nested_assessment_and_reporting(function: str, expected: float) -> None:
-    context = _make_context(f'qualifier-{function}')
+    context = _make_context('qualifier-reader')
     source = _make_node(context, _QualifiedNode, 'source')
     source.add_parameter(NumberParameter(local_id='multiplier', value=1.0))
     context.add_node(source)
     target = _make_node(context, FormulaNode, 'target', unit='dimensionless', quantity='fraction')
-    target.parameters['formula'] = StringParameter(local_id='formula', value=f'{function}(source)')
+    target.parameters['formula'] = StringParameter(local_id='formula', value=f'qualifier(source, {function})')
     _connect(source, target)
     assert _first_value(target.compute()) == expected
 
@@ -163,5 +163,96 @@ def test_dataset_cleaning_preserves_endpoint_grades_and_interpolates_coverage(mo
     assert result is not None
     original = result.filter(pl.col('Year') == 2020)['Value__qual'][0]
     interpolated = result.filter(pl.col('Year') == 2021)['Value__qual'][0]
-    assert original == {'reported': True, 'quality': {'score': 1.0, 'coverage': 1.0}}
-    assert interpolated == {'reported': False, 'quality': {'score': 1.0, 'coverage': 1.0}}
+    assert original == {'reported': {'any': True, 'all': True}, 'quality': {'score': 1.0, 'coverage': 1.0}}
+    assert interpolated == {'reported': {'any': False, 'all': False}, 'quality': {'score': 1.0, 'coverage': 1.0}}
+
+
+class _FrameNode(Node):
+    frame: PathsDataFrame
+
+    def compute(self) -> PathsDataFrame:
+        return self.frame
+
+
+def _reporting_frame(values: list[float], flags: list[bool], *, year: int = 2020) -> PathsDataFrame:
+    frame = pl.DataFrame(
+        {YEAR_COLUMN: [year] * len(values), VALUE_COLUMN: values, FORECAST_COLUMN: [False] * len(values)},
+        schema={YEAR_COLUMN: pl.Int64, VALUE_COLUMN: pl.Float64, FORECAST_COLUMN: pl.Boolean},
+    )
+    return to_ppdf(
+        frame.with_columns(qualifiers.make(reported=pl.lit(pl.Series(flags, dtype=pl.Boolean))).alias('Value__qual')),
+        meta=DataFrameMeta(units={VALUE_COLUMN: unit_registry.parse_units('kWh')}, primary_keys=[YEAR_COLUMN]),
+    )
+
+
+def test_with_qualifier_assigns_reporting_from_activity() -> None:
+    context = _make_context('assign-reporting')
+    target = _make_node(context, FormulaNode, 'target')
+    for name, value, flag in [('activity', 12.0, True), ('factor', 2.0, False)]:
+        source = _make_node(context, _FrameNode, name, unit='kWh' if name == 'activity' else 'dimensionless')
+        assert isinstance(source, _FrameNode)
+        source.frame = _reporting_frame([value], [flag])
+        if name == 'factor':
+            source.frame = source.frame.set_unit(VALUE_COLUMN, 'dimensionless', force=True)
+        context.add_node(source)
+        _connect(source, target)
+    target.parameters['formula'] = StringParameter(
+        local_id='formula', value='with_qualifier(activity * factor, reported, qualifier(activity, reported))'
+    )
+    result = target.compute()
+    assert result[VALUE_COLUMN].to_list() == [24.0]
+    assert result['Value__qual'][0]['reported'] == {'any': True, 'all': True}
+    target.parameters['formula'].set(
+        'with_qualifier(with_qualifier(activity * factor, reported, qualifier(activity, reported)), '
+        'reported.all, qualifier(factor, reported.all))'
+    )
+    assert target.compute()['Value__qual'][0]['reported'] == {'any': True, 'all': False}
+
+
+@pytest.mark.parametrize('selector', ['missing', 'reported.missing', '"reported"'])
+def test_qualifier_rejects_unknown_or_expression_selector(selector: str) -> None:
+    context = _make_context('invalid-qualifier')
+    target = _make_node(context, FormulaNode, 'target', unit='dimensionless', quantity='fraction')
+    source = _make_node(context, _QualifiedNode, 'source')
+    source.add_parameter(NumberParameter(local_id='multiplier', value=1.0))
+    context.add_node(source)
+    _connect(source, target)
+    target.parameters['formula'] = StringParameter(local_id='formula', value=f'qualifier(source, {selector})')
+    with pytest.raises(NodeError, match='qualifier'):
+        target.compute()
+
+
+def test_prefer_by_year_accepts_empty_route_and_tracks_the_chosen_source() -> None:
+    context = _make_context('empty-route')
+    target = _make_node(context, FormulaNode, 'target')
+    for name, values in [('plant', []), ('standard', [260.0])]:
+        source = _make_node(context, _FrameNode, name)
+        assert isinstance(source, _FrameNode)
+        source.frame = _reporting_frame(values, [False] * len(values))
+        context.add_node(source)
+        _connect(source, target)
+    target.parameters['formula'] = StringParameter(local_id='formula', value='prefer_by_year(plant, standard)')
+    result = target.compute()
+    assert result[VALUE_COLUMN].to_list() == [260.0]
+    assert result['Value__qual'][0]['sources'] == [target._source_uuid(context.get_node('standard'))]
+    assert (
+        _first_value(
+            target.evaluate_formula('has_source(prefer_by_year(plant, standard), standard)', target._collect_eval_vars())
+        )
+        == 1.0
+    )
+
+
+def test_reported_activity_keeps_empty_plant_route_selected() -> None:
+    context = _make_context('incomplete-route')
+    target = _make_node(context, FormulaNode, 'target')
+    for name, values, flags in [('plant', [], []), ('standard', [260.0], [False]), ('activity', [1.0], [True])]:
+        source = _make_node(context, _FrameNode, name)
+        assert isinstance(source, _FrameNode)
+        source.frame = _reporting_frame(values, flags)
+        context.add_node(source)
+        _connect(source, target)
+    target.parameters['formula'] = StringParameter(
+        local_id='formula', value='prefer_by_year(plant, standard, qualifier(activity, reported.any))'
+    )
+    assert target.compute().is_empty()

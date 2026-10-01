@@ -16,6 +16,7 @@ from frameworks.tests.factories import FrameworkConfigFactory, FrameworkFactory
 from nodes.defs.instance_defs import InstanceModelSpec, YearsSpec
 from nodes.models import InstanceConfig
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory
+from nodes.value_validation import InstanceValueValidationError
 from orgs.models import Organization
 from params.param import StringParameter
 from users.tests.factories import UserFactory
@@ -186,7 +187,20 @@ def mutate(gql: PathsTestClient, ic: InstanceConfig, body: str) -> dict[str, Any
     return gql.query_data(MUTATE % body, variables={'id': ic.identifier})['instanceEditor']['submissions']
 
 
-def test_graphql_lifecycle_and_blocked_finalisation(client: Client, ic: InstanceConfig, monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize(
+    ('error_class', 'typename'),
+    [
+        (InstanceDatasetValidationError, 'DatasetValidationViolations'),
+        (InstanceValueValidationError, 'NodeValueValidationViolations'),
+    ],
+)
+def test_graphql_lifecycle_and_blocked_finalisation(
+    client: Client,
+    ic: InstanceConfig,
+    monkeypatch: pytest.MonkeyPatch,
+    error_class: type[InstanceDatasetValidationError | InstanceValueValidationError],
+    typename: str,
+) -> None:
     gql = gql_for(client, ic, superuser=True)
     created = mutate(gql, ic, 'create(periodStart: 2021) { ... on Submission { id status periodEnd } }')['create']
     assert created['status'] == 'DRAFT'
@@ -195,11 +209,11 @@ def test_graphql_lifecycle_and_blocked_finalisation(client: Client, ic: Instance
     mutate(gql, ic, 'requestReview(submissionId: "%s") { __typename }' % sub_id)
 
     def refuse(self: InstanceConfig, user: Any = None) -> None:
-        raise InstanceDatasetValidationError([])
+        raise error_class([])
 
     monkeypatch.setattr(InstanceConfig, 'publish_instance', refuse)
     result = mutate(gql, ic, 'finalise(submissionId: "%s") { __typename }' % sub_id)['finalise']
-    assert result['__typename'] == 'DatasetValidationViolations'
+    assert result['__typename'] == typename
     assert Submission.objects.get(uuid=sub_id).status == SubmissionStatus.IN_REVIEW
 
     monkeypatch.undo()

@@ -38,6 +38,8 @@ if TYPE_CHECKING:
 # v5: canonical edge order is creation (pk) order, not NodeEdge.Meta ordering;
 #     binding positions built from a snapshot change accordingly.
 # v7: a dataset input port takes the dataset's authored unit before the node's own.
+
+# v7: input ports carry delivered-value contracts and their port dependencies.
 INSTANCE_GRAPH_FORMAT_VERSION = 7
 
 
