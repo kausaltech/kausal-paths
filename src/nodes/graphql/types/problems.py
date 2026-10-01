@@ -24,6 +24,7 @@ if TYPE_CHECKING:
     from datasets.coordinates import DatasetCoordinate
     from datasets.plausibility import PlausibilityAttribution, PlausibilityFinding
     from datasets.validation import RuleViolation
+    from nodes.value_validation import ValueValidationViolation
 
 
 @sb.enum(name='ProblemSeverity', description='How a problem or advisory finding is presented.')
@@ -37,6 +38,39 @@ class InstanceProblemInterface:
     code: str = sb.field(description='Machine-readable problem kind.')
     message: str = sb.field(description='Untranslated human-readable fallback.')
     severity: ProblemSeverity
+
+
+@sb.type(name='NodeValueCoordinate')
+class NodeValueCoordinateType:
+    dimension: str
+    category: str
+
+
+@sb.type(
+    name='NodeValueValidationViolation', description='A delivered node or dataset value violates its consuming port contract.'
+)
+class NodeValueValidationViolationType(InstanceProblemInterface):
+    node_uuid: UUID
+    port_uuid: UUID
+    binding_uuid: UUID | None
+    years: list[int]
+    categories: list[NodeValueCoordinateType]
+
+    @classmethod
+    def from_violation(cls, violation: ValueValidationViolation) -> Self:
+        return cls(
+            code=violation.code,
+            message=violation.message,
+            severity=ProblemSeverity.ERROR,
+            node_uuid=violation.node_uuid,
+            port_uuid=violation.port_uuid,
+            binding_uuid=violation.binding_uuid,
+            years=violation.years,
+            categories=[
+                NodeValueCoordinateType(dimension=dimension, category=category)
+                for dimension, category in violation.categories.items()
+            ],
+        )
 
 
 @sb.type(name='DatasetDimensionCoordinate', description='One dimension and category in a dataset finding.')
@@ -208,3 +242,14 @@ class DatasetValidationViolationsType:
     @classmethod
     def from_violations(cls, violations: Iterable[RuleViolation]) -> Self:
         return cls(violations=[DatasetValidationViolationType.from_violation(violation) for violation in violations])
+
+
+@sb.type(
+    name='NodeValueValidationViolations', description='Publication was refused because delivered values violate input contracts.'
+)
+class NodeValueValidationViolationsType:
+    violations: list[NodeValueValidationViolationType]
+
+    @classmethod
+    def from_violations(cls, violations: list[ValueValidationViolation]) -> Self:
+        return cls(violations=[NodeValueValidationViolationType.from_violation(v) for v in violations])

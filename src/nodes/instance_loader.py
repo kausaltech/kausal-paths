@@ -1399,7 +1399,9 @@ class InstanceLoader:
                     continue
                 raise
             target = runtime_by_uuid.get(target_meta.id)
-            if target is None or not target.input_port_declarations:
+            if target is None or (
+                not target.input_port_declarations and not any(p.validation for p in target_meta.spec.input_ports)
+            ):
                 # Unmigrated classes keep using the legacy edge/dataset views,
                 # whose persisted port UUIDs need not match the exported spec.
                 continue
@@ -1410,6 +1412,14 @@ class InstanceLoader:
                     continue
                 raise
             role = target_meta.role_for_input_port(target_port)
+            validation_dependencies = {
+                dependency
+                for port in target_meta.spec.input_ports
+                if port.validation is not None
+                for dependency in (port.validation.required_if_positive, port.validation.combinations_from_positive)
+            }
+            if role is None and (target_port.validation is not None or target_port.id in validation_dependencies):
+                role = target_port.role or str(target_port.id)
             if role is None:
                 self._report_unresolved_binding(definition, target=target, target_meta=target_meta, target_port=target_port)
                 continue

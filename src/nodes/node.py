@@ -1292,7 +1292,7 @@ class Node:
         # dimension filtering and the output-dimension assertion see the correct
         # (narrowed) dimension set.
         for dim_col in list(df.dim_ids):
-            if df[dim_col].null_count() == df[dim_col].len():
+            if len(df) > 0 and df[dim_col].null_count() == df[dim_col].len():
                 df = df.drop(dim_col)
 
         try:
