@@ -37,7 +37,8 @@ if TYPE_CHECKING:
 
 # v5: canonical edge order is creation (pk) order, not NodeEdge.Meta ordering;
 #     binding positions built from a snapshot change accordingly.
-INSTANCE_GRAPH_FORMAT_VERSION = 6
+# v7: input ports carry delivered-value contracts and their port dependencies.
+INSTANCE_GRAPH_FORMAT_VERSION = 7
 
 
 class InstanceGraphDiagnostic(FrozenGraphModel):

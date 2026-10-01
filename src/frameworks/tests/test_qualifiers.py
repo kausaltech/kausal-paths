@@ -30,7 +30,7 @@ def test_catalog_is_scoped_and_includes_template_and_member_instances() -> None:
     FrameworkConfigFactory.create(framework=framework, instance_config=member)
     catalog = qualifier_catalog_for_framework(framework)
     assert [d.identifier for d in catalog.definitions] == ['reported', 'bisko_quality']
-    assert catalog.dtype == pl.Struct({'reported': pl.Boolean, 'bisko_quality': qualifiers.COVERED_SCORE_DTYPE})
+    assert catalog.dtype == pl.Struct({'reported': qualifiers.REPORTING_DTYPE, 'bisko_quality': qualifiers.COVERED_SCORE_DTYPE})
     assert qualifier_catalog_for_instance(member) == catalog
     assert qualifier_catalog_for_instance(template) == catalog
     assert qualifier_catalog_for_instance(None) == qualifiers.BUILTIN_QUALIFIERS
@@ -152,4 +152,4 @@ def test_each_named_assessment_reduces_its_own_coverage() -> None:
     result = frame.paths.sum_over_dims('carrier')['Value__qual'][0]
     assert result['bisko_quality'] == {'score': 0.5, 'coverage': 0.75}
     assert result['bisko_completeness'] == {'score': 0.25, 'coverage': 0.25}
-    assert result['reported'] is True
+    assert result['reported']['all'] is True

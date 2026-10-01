@@ -14,8 +14,9 @@ from paths import gql
 from frameworks import submissions as ops
 from frameworks.models import Submission, SubmissionEvent, SubmissionKind, SubmissionStatus
 from nodes.graphql.types.constraints import ConstraintViolationsType
-from nodes.graphql.types.problems import DatasetValidationViolationsType
+from nodes.graphql.types.problems import DatasetValidationViolationsType, NodeValueValidationViolationsType
 from nodes.models import InstanceConfig
+from nodes.value_validation import InstanceValueValidationError
 from users.models import User
 
 if TYPE_CHECKING:
@@ -163,18 +164,23 @@ class SubmissionMutations:
             'Finalise a submission in review: publish the instance and pin the published revision. '
             'If publication is blocked, the blocking problems are returned and the submission stays in review.'
         ),
-        graphql_type=SubmissionType | ConstraintViolationsType | DatasetValidationViolationsType,
+        graphql_type=SubmissionType
+        | ConstraintViolationsType
+        | DatasetValidationViolationsType
+        | NodeValueValidationViolationsType,
     )
     @staticmethod
     def finalise(
         info: gql.Info, root: sb.Parent[Me], submission_id: sb.ID
-    ) -> SubmissionType | ConstraintViolationsType | DatasetValidationViolationsType:
+    ) -> SubmissionType | ConstraintViolationsType | DatasetValidationViolationsType | NodeValueValidationViolationsType:
         from datasets.validation import InstanceDatasetValidationError
         from nodes.constraints.validation import InstanceConstraintError
 
         submission = SubmissionMutations._get(info, root, submission_id)
         try:
             obj = ops.finalise(submission, user=user_or_none(info.context.user))
+        except InstanceValueValidationError as error:
+            return NodeValueValidationViolationsType.from_violations(error.violations)
         except InstanceConstraintError as error:
             return ConstraintViolationsType.from_conflicts(error.conflicts)
         except InstanceDatasetValidationError as error:
