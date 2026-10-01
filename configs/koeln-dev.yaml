@@ -757,19 +757,6 @@ nodes:
   - id: no_correction_value
     value: 0.0
 
-- id: sector_index
-  name_de: Sektorenindex
-  name_en: Sector index
-  type: generic.GenericNode
-  quantity: ratio
-  unit: dimensionless
-  input_dimensions: [sector]
-  output_dimensions: [sector]
-  input_datasets:
-  - id: koeln/sector_index
-  params:
-    operations: get_single_dataset,extend_to_history
-
 - id: end_energy_emission_factors
   name_de: Endenergie Emissionsfaktoren
   name_en: End energy emission factors

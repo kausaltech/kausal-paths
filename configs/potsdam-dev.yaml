@@ -369,18 +369,6 @@ nodes:
   params:
     operations: multiply,drop_nans,drop_infs
 
-- id: sector_index
-  name: Sektor Index
-  name_en: Sector index
-  type: generic.GenericNode
-  quantity: ratio
-  unit: dimensionless
-  input_dimensions: [sector, energy_carrier]
-  output_dimensions: [sector, energy_carrier]
-  input_datasets:
-  - id: potsdam/sector_index
-    column: sector_index
-
 - id: scenario_emissions_data
   name: Masterplan-Szenario Emissionen Daten
   name_en: Masterplan scenario emissions data

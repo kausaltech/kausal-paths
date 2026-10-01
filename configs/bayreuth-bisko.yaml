@@ -3,7 +3,7 @@ default_language: de
 supported_languages: [en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 93b4c72d53037fd5922595638ea493bc3397f66c
+  commit: d4b1fa170a2cc9f9e047b4dc2a331aee174a070a
   dvc_remote: kausal-s3
 name_de: Bayreuth Treibhausgas-Monitor
 name_en: Bayreuth Greenhouse Gas Monitor
@@ -392,13 +392,11 @@ params:
   value: true
   is_visible: false
   is_customizable: true
-# Bayreuth's four BISKO sectors are disjoint as delivered, so there is nothing to subtract. The
-# dataset carries two breakdowns of the same energy: by BISKO sector and by electricity/heating.
-# For 2023 industry + households + GHD + municipal facilities = 1,317,879 MWh and
-# electricity + heating = 1,317,879 MWh exactly, which is only possible if the 27.4 GWh of
-# municipal facilities sits outside the GHD figure rather than inside it.
-# The correction is also unwired here: final_energy_use below flattens the sector column away and
-# rebuilds the axis from sector_index, so the model has no BISKO sector split to correct.
+# Bayreuth's four BISKO sectors are disjoint as delivered, so there is nothing to subtract: for 2023
+# industry + households + GHD + municipal facilities = 1,317,879 MWh, the city's total, which is only
+# possible if the 27.4 GWh of municipal facilities sits outside the GHD figure rather than inside it.
+# (An earlier version of bayreuth/final_energy carried the same energy a second time as Wärme/Strom
+# totals; it was rebuilt from the KSP export on 2026-10-01 with the BISKO sectors only.)
 
 # The district-heating route is no longer a parameter. BISKO's three Möglichkeiten are chosen per
 # year from what the city has supplied -- plant data, then a declared Table 5 variant, then the
@@ -481,44 +479,6 @@ result_excels:
 #//////  Nodes  ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 nodes:
-
-- id: sector_index   # Translates BISKO categories to Wärme/Strom/Verkehr sectors. TRUE for any allowed combi of sector and energy carrier
-  is_editable: false
-  name_de: Sektor Index
-  name_en: Sector index
-  type: generic.GenericNode
-  quantity: ratio
-  unit: dimensionless
-  input_dimensions: [sector, energy_carrier]
-  output_dimensions: [sector, energy_carrier]
-  input_datasets:
-  - id: de/sektorzuordnung
-    forecast_from: 2025
-    tags: [extend_all]
-
-- id: final_energy_use
-  is_editable: false
-  name_de: Endenergie
-  name_en: Final energy use
-  type: generic.GenericNode
-  quantity: energy
-  unit: MWh/a
-  input_dimensions: [sector, energy_carrier]
-  output_dimensions: [sector, energy_carrier]
-  input_datasets:
-  - id: bayreuth/final_energy
-    tags: [non_additive]
-    column: Value
-    filters:
-    - column: energy_carrier
-      value: not_defined
-      exclude: true
-      drop_col: false
-    - dimension: sector
-      flatten: true
-  input_nodes:
-  - id: sector_index
-  - id: weather_correction
 
 # Sinks are the city's own estimate: area per land-use class times a maximum specific
 # sink, both from the workbook sheet *Senken*, kept as the two raw inputs so the city can
@@ -681,9 +641,19 @@ nodes:
   input_dimensions: [energy_carrier, sector]  # switched around dimensions, because in Outcome page it shows the first listed dimension when "drilling down" 
   output_dimensions: [energy_carrier, sector]
   input_nodes:
+  # Bayreuth's Wärme/Strom split is a carrier split: Wärme is every stationary carrier that is not
+  # electricity. The BISKO sectors are summed here, so the module's final_energy_use and
+  # stationary_emissions keep them (and apply their deductions) without a Bayreuth override.
   - id: stationary_emissions
     tags: [emissions]
     from_dimensions:
+    - id: sector
+      flatten: true
+    - id: energy_carrier
+      categories: [electricity, photovoltaic, hydropower, wind]
+      exclude: true
+    to_dimensions:
+    - id: energy_carrier
     - id: sector
       categories: [heating]
   output_nodes:
@@ -722,8 +692,15 @@ nodes:
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_nodes:
+  # Strom: the electricity carriers, summed over the BISKO sectors (see heating_emissions).
   - id: stationary_emissions
     from_dimensions:
+    - id: sector
+      flatten: true
+    - id: energy_carrier
+      categories: [electricity, photovoltaic, hydropower, wind]
+    to_dimensions:
+    - id: energy_carrier
     - id: sector
       categories: [electricity]
   output_nodes:
