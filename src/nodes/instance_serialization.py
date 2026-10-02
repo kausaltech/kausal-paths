@@ -1013,9 +1013,11 @@ def _check_spec_is_not_yaml_minimal(ic: InstanceConfig, nodes: list[NodeSnapshot
     as ``NodeError: Dimension <x> not found``. Say what is actually wrong instead.
 
     An instance whose nodes are all dimensionless is left alone: an empty catalogue is correct
-    there, and this must not become a reason to refuse a model that would load fine.
+    there, and this must not become a reason to refuse a model that would load fine. So is one
+    that inherits from a template: its local spec is sparse by design, and the dimensions arrive
+    with the template when the snapshot is composed.
     """
-    if ic.spec is None or ic.spec.dimensions:
+    if ic.spec is None or ic.spec.dimensions or ic.template_revision_id is not None:
         return
     wanted = next(
         (
