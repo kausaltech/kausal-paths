@@ -52,3 +52,4 @@ celerybeat-schedule
 /__generated__
 mise.local.toml
 /docs/wip/
+/scratchpad/
