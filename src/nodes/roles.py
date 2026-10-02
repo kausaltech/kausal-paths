@@ -3,7 +3,12 @@ from __future__ import annotations
 from abc import ABCMeta
 from typing import TYPE_CHECKING
 
+from django.contrib.auth.models import Permission
+from django.db import transaction
 from django.utils.translation import gettext_lazy as _
+from wagtail.models import GroupPagePermission
+
+from loguru import logger
 
 from kausal_common.models.roles import (
     ALL_MODEL_PERMS,
@@ -24,6 +29,7 @@ from paths.const import (
 
 if TYPE_CHECKING:
     from django.contrib.auth.models import Group
+    from wagtail.models import Page
     from wagtail.models.sites import Site
 
     from nodes.models import InstanceConfig
@@ -68,7 +74,41 @@ class InstanceGroupMembershipRole(InstanceFieldGroupRole['InstanceConfig'], meta
         return '%s %s' % (obj.name, self.group_name)
 
     def get_instance_site(self, obj: InstanceConfig) -> Site | None:
+        # Instances are no longer routed through Wagtail sites, so the base class's site-based
+        # page permission handling is bypassed; see `_update_permissions`.
         return None
+
+    def _update_permissions(self, obj: InstanceConfig, group: Group) -> None:
+        self._update_model_perms(group)
+        if obj.root_page is not None:
+            self._update_root_page_perms(group, list(obj.root_page.get_translations(inclusive=True)))
+
+    @transaction.atomic
+    def _update_root_page_perms(self, group: Group, root_pages: list[Page]) -> None:
+        """
+        Grant the role's page permissions on the instance's root pages, one per locale.
+
+        A translated root page is a sibling of the primary one, not a descendant, so it would not
+        inherit permissions granted on the primary root page alone. The group's existing rows on
+        these pages are replaced when they differ from what the role should have.
+        """
+        perms = list(
+            Permission.objects.filter(
+                content_type__app_label='wagtailcore',
+                content_type__model='page',
+                codename__in=self.page_perms,
+            )
+        )
+        existing = GroupPagePermission.objects.filter(group=group, page__in=root_pages)
+        old = set(existing.values_list('page_id', 'permission_id'))
+        new = {(page.pk, perm.pk) for page in root_pages for perm in perms}
+        if old == new:
+            return
+        logger.info('Setting new %s page permissions' % str(group))
+        existing.delete()
+        GroupPagePermission.objects.bulk_create(
+            GroupPagePermission(group=group, page=page, permission=perm) for page in root_pages for perm in perms
+        )
 
 
 class InstanceSuperAdminRole(InstanceGroupMembershipRole, AdminRole['InstanceConfig']):

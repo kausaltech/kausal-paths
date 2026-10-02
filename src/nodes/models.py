@@ -1829,11 +1829,12 @@ class InstanceConfig(
         return home_page
 
     def create_default_content(self):
-        self.create_or_update_instance_groups()
         root_page = self._create_default_pages()
         if self.root_page is None:
             self.root_page = root_page
             self.save(update_fields=['root_page'])
+        # The groups' page permissions are granted on the root page, so it has to exist first.
+        self.create_or_update_instance_groups()
 
     def create_or_update_instance_groups(self):
         pp = self.permission_policy()
