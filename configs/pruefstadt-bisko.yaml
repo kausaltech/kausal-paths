@@ -175,11 +175,9 @@ result_excels:
   # per year rather than as a blanket statement about the tool.
   - district_heating_method_in_force
   # Möglichkeit 1, shown on the 2023 demonstration data: the exergetic split that
-  # electricity_fraction and t_supply decide, the plant-data route's emissions, and which years
-  # the city's plant data covers.
+  # electricity_fraction and t_supply decide, and the plant-data route's emissions.
   - combined_heat_and_power_chp_fraction
   - district_heating_emissions_exergetic
-  - district_heating_plant_data_availability
   # Prüfschritt 7.1: a Datengüte must be enterable for every input field. The first Prüflauf
   # named the district-heating one as missing; these three are where the grades are shown.
   - road_transport_energy_by_road_type  # 2.3: the road-typing view itself; was in no config
