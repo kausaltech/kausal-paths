@@ -4,7 +4,7 @@ default_language: de
 supported_languages: [en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 508c60da55f4ae36597a79ddee7f9c739756e10a
+  commit: 2ce1d2c008e5f10c78c2c394a9e8823cba6081c8
   dvc_remote: kausal-s3
 name: Treibhausgas-Monitor (Entwurf)
 owner: Stadt Potsdam
@@ -60,6 +60,16 @@ params:
   value: true
   is_customizable: true
   is_visible: true
+# NUTS-3, not NUTS-2: Potsdam is a Kreisfreie Stadt, so DE404 *is* the city. Do not use DE40E,
+# Potsdam-Mittelmark, which surrounds it.
+# Read by `data/weather/create_degree_day_factors.py`, which picks the city's column out of the
+# European degree-day table. No node reads it.
+- id: nuts_code
+  label_en: NUTS-3 code
+  label_de: NUTS-3-Code
+  value: DE404
+  is_customizable: false
+  is_visible: false
 
 action_groups:
 - id: stationary
@@ -282,10 +292,13 @@ nodes:
   unit: dimensionless
   input_dimensions: [sector]
   output_dimensions: [sector]
+  # The standard Eurostat factors for NUTS DE404, reference 1980-2014, built in
+  # paths-data/models/potsdam (decision 5). The last value carries through the forecast on
+  # purpose, as in every city. potsdam-gpc still reads the city's table, potsdam/witterungsbereinigung.
   input_datasets:
-  - id: potsdam/witterungsbereinigung
+  - id: potsdam/witterungsbereinigung_eurostat
     forecast_from: 2024
-    column: witterungsbereinigung
+    column: default
   params:
   - id: operations
     value: get_single_dataset,do_correction
