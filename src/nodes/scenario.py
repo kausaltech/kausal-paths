@@ -231,17 +231,6 @@ class CustomScenario(Scenario):
         # that type; it is not a constructor.
         return list(self._storage.get_customized_param_values())
 
-    def _touched_params(self) -> list[Parameter]:
-        # Activating applies the base first, so its parameters move too. Read the ids
-        # rather than `get_param_values()`, which drops invalid entries from the session
-        # as a side effect.
-        params = self.resolve_base()._touched_params()
-        for param_id in self.get_customized_param_ids():
-            param = self.context.get_parameter(param_id, required=False)
-            if param is not None:
-                params.append(param)
-        return params
-
     def activate(self):
         self.resolve_base().activate()
         for param, val in self.get_param_values():
