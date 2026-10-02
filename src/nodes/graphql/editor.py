@@ -18,7 +18,7 @@ from django.db.models import ProtectedError, Q
 from django.utils.module_loading import import_string
 from django.utils.translation import get_language
 from graphql import GraphQLError
-from pydantic import ValidationError as PydanticValidationError
+from pydantic import JsonValue, ValidationError as PydanticValidationError
 from strawberry import Maybe, auto
 
 from kausal_common.datasets.models import (
@@ -69,7 +69,8 @@ from nodes.instance_graph import NodeEditContext, NodeMeta
 from nodes.instance_serialization import InputBindingSnapshot, NodePortSource
 from nodes.models import InstanceConfig, NodeConfig, NodeInputPortBinding, NodeLayout, NodeLayoutSource, PreferredInstanceSource
 from nodes.node import Node
-from nodes.template_graph import replace_input_port_bindings
+from nodes.parameter_values import set_scenario_parameter
+from nodes.template_graph import replace_input_port_bindings, upgrade_template_instance
 from nodes.units import unit_registry
 from nodes.value_validation import InstanceValueValidationError
 from params.param import BoolParameter, NumberParameter, StringParameter
@@ -400,6 +401,7 @@ class SimpleConfigInput(StrawberryPydanticType[SimpleConfig]):
 
 @pydantic_input(model=ActionConfig)
 class ActionConfigInput(StrawberryPydanticType[ActionConfig]):
+    formula: auto
     node_class: str
     decision_level: auto
     group: auto
@@ -1140,6 +1142,7 @@ def _normalize_param_config(raw_param: dict[str, Any]) -> dict[str, Any]:
     for camel, snake in (
         ('isCustomized', 'is_customized'),
         ('isCustomizable', 'is_customizable'),
+        ('owner', 'owner'),
         ('isVisible', 'is_visible'),
         ('minValue', 'min_value'),
         ('maxValue', 'max_value'),
@@ -2608,6 +2611,51 @@ class InstanceEditorMutation:
                 target_uuid=group.uuid,
             )
         _invalidate_action_group_runtime(info, ic)
+
+    @gql.mutation(description='Set a persisted municipal parameter value; omit scenarioId for the municipal default.')
+    @staticmethod
+    def set_instance_parameter(
+        info: gql.Info,
+        root: sb.Parent[Me],
+        parameter_id: str,
+        value: sb.scalars.JSON | None = None,
+        scenario_id: str | None = None,
+        reset: bool = False,
+    ) -> InstanceType:
+        ic = root.instance
+        with gql_change_operation(info, ic, action='instance.parameter.set'):
+            ic.refresh_from_db(fields=['spec'])
+            before = ic.ensure_spec().model_dump(mode='json')
+            set_scenario_parameter(
+                ic,
+                parameter_id,
+                cast('JsonValue', value),
+                scenario_id=scenario_id,
+                reset=reset,
+                user=_require_user(info),
+            )
+            ic.refresh_from_db(fields=['spec'])
+            record_change(ic, action='instance.parameter.set', before=before, after=ic.ensure_spec().model_dump(mode='json'))
+        return _resolve_model_instance(info, ic, refresh=True)
+
+    @gql.mutation(
+        description='Upgrade the draft to the published framework template, preserving its published instance revision.'
+    )
+    @staticmethod
+    def upgrade_framework_template(info: gql.Info, root: sb.Parent[Me]) -> InstanceType:
+        ic = root.instance
+        if not ic.has_framework_config():
+            raise GraphQLValidationError(info, 'Instance has no framework')
+        template = ic.framework_config.framework.template_instance
+        if template is None or template.live_revision is None:
+            raise GraphQLValidationError(info, 'Framework has no published template')
+        with gql_change_operation(info, ic, action='instance.template.upgrade'):
+            before = {'template_revision': ic.template_revision_id}
+            upgrade_template_instance(ic, template.live_revision, user=_require_user(info))
+            record_change(
+                ic, action='instance.template.upgrade', before=before, after={'template_revision': template.live_revision_id}
+            )
+        return _resolve_model_instance(info, ic, refresh=True)
 
     @gql.mutation(description='Create a new scenario')
     @staticmethod

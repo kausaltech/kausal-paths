@@ -37,6 +37,7 @@ class Scenario(I18nBaseModel):
     all_actions_enabled: bool = False
     is_selectable: bool = True
     param_values: dict[ParameterGlobalId, Any] = Field(default_factory=dict)
+    parameter_types: dict[ParameterGlobalId, str] = Field(default_factory=dict)
     actual_historical_years: list[int] | None = None
 
     _context: 'Context | None' = PrivateAttr(default=None)
@@ -72,29 +73,28 @@ class Scenario(I18nBaseModel):
 
     @contextmanager
     def override(self, set_active: bool = False) -> Generator[None]:
-        old_vals: dict[str, Any] = {}
-
-        old_scenario = self.context.active_scenario
-
-        for param, _ in self.get_param_values():
-            old_vals[param.global_id] = param.value
-
-        self.activate()
-        if set_active:
-            self.context.active_scenario = self
-
-        yield
-
-        if set_active:
-            self.context.active_scenario = old_scenario
-
-        for param_id, val in old_vals.items():
-            param = self.context.get_parameter(param_id)
-            param.set(val)
+        old_values = {
+            parameter.global_id: (parameter.value, parameter.is_customized) for parameter in self.context.get_all_parameters()
+        }
+        active_scenario = self.context.active_scenario
+        try:
+            self.activate()
+            if set_active:
+                self.context.active_scenario = self
+            yield
+        finally:
+            if set_active:
+                self.context.active_scenario = active_scenario
+            for identifier, (value, customized) in old_values.items():
+                parameter = self.context.get_parameter(identifier)
+                parameter.restore_value(value)
+                parameter.is_customized = customized
 
     def activate(self):
         """Reset each parameter in the context to its setting for this scenario if it has one."""
 
+        for parameter in self.context.get_all_parameters():
+            parameter.reset_to_configured_value()
         for param, val in self.get_param_values():
             param.reset_to_scenario_setting(self, val)
 

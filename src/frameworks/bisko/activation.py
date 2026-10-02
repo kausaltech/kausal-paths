@@ -15,6 +15,7 @@ from frameworks import submissions
 from frameworks.bisko.weather import WEATHER_DATASET, load_weather_source, seed_weather_defaults
 from frameworks.models import Framework, FrameworkConfig
 from frameworks.organization_access import organization_is_in_framework
+from nodes.defs.instance_defs import InstanceModelSpec
 from nodes.instance_serialization import DatasetMetricSource, InputBindingSnapshot, InstanceSnapshot
 from nodes.models import DatasetMaterialization, InputPortBindingSet, InstanceConfig
 from nodes.template_graph import template_snapshot
@@ -24,7 +25,8 @@ from params.param import StringParameter
 if TYPE_CHECKING:
     from uuid import UUID
 
-    from nodes.defs.instance_defs import InstanceModelSpec
+    from pydantic import JsonValue
+
     from users.models import User
 
 
@@ -33,16 +35,16 @@ class ActivationError(ValueError):
 
 
 def _municipal_spec(snapshot: InstanceSnapshot, framework: Framework, ags: str, nuts3: str) -> InstanceModelSpec:
-    spec = snapshot.spec.model_copy(deep=True)
+    spec = InstanceModelSpec(years=snapshot.spec.years.model_copy(deep=True))
     spec.features.enable_user_management = framework.enable_user_management
-    for name, value in (('ags_number', ags), ('lau_code', f'DE_{ags}'), ('nuts_code', nuts3)):
-        parameter = next((param for param in spec.params if param.local_id == name), None)
-        if parameter is None:
-            spec.params.append(StringParameter(local_id=name, label=name, value=value))
-        elif isinstance(parameter, StringParameter):
-            parameter.set(value, notify=False)
-        else:
-            raise ActivationError(f'BISKO parameter {name} is not a string parameter.')
+    default = next((scenario for scenario in snapshot.spec.scenarios if scenario.default), None)
+    values: dict[str, JsonValue] = {'ags_number': ags, 'lau_code': f'DE_{ags}', 'nuts_code': nuts3}
+    declared_ids = {parameter.local_id for parameter in snapshot.spec.params}
+    for name in values.keys() - declared_ids:
+        spec.params.append(StringParameter(local_id=name, value=str(values.pop(name))))
+    override = spec.local_scenario(default.id if default is not None else 'default')
+    override.param_values = values
+    override.parameter_types = dict.fromkeys(values, 'string')
     return spec
 
 
@@ -134,16 +136,17 @@ def _reconcile_instance(framework: Framework, instance: InstanceConfig, ags: str
     spec = _municipal_spec(base, framework, ags, municipality_nuts3(instance.organization))
     current = instance.ensure_spec()
     # Preserve local settings and years; repair the municipality identity and licence feature.
-    current.features.enable_user_management = spec.features.enable_user_management
-    for name in ('ags_number', 'lau_code', 'nuts_code'):
-        value = next(param.value for param in spec.params if param.local_id == name)
-        parameter = next((param for param in current.params if param.local_id == name), None)
-        if parameter is None:
-            current.params.append(StringParameter(local_id=name, label=name, value=value))
-        elif isinstance(parameter, StringParameter):
-            parameter.set(value, notify=False)
+    current.features.enable_user_management = framework.enable_user_management
+    for parameter in spec.params:
+        existing = next((p for p in current.params if p.local_id == parameter.local_id), None)
+        if existing is None:
+            current.params.append(parameter)
         else:
-            raise ActivationError(f'BISKO parameter {name} is not a string parameter.')
+            existing.set(parameter.value, notify=False)
+    for values in spec.scenarios:
+        override = current.local_scenario(values.id)
+        override.param_values.update(values.param_values)
+        override.parameter_types.update(values.parameter_types)
     instance.spec = current
     instance.save(update_fields=['spec'])
     _ensure_local_inputs(instance)

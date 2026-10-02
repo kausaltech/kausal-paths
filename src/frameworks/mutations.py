@@ -320,8 +320,12 @@ class FrameworkMutation:
 
             spec = ic.spec
             assert spec is not None
-            features = spec.features.model_copy(update={'enable_user_management': fw.enable_user_management})
-            ic.spec = spec.model_copy(update={'features': features})
+            if ic.template_revision_id is not None:
+                spec.features.enable_user_management = fw.enable_user_management
+                ic.spec = spec
+            else:
+                features = spec.features.model_copy(update={'enable_user_management': fw.enable_user_management})
+                ic.spec = spec.model_copy(update={'features': features})
             ic.save(update_fields=['spec'])
 
             ic.refresh_from_db()

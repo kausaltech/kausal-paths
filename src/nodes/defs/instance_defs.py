@@ -3,7 +3,16 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Self
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    PrivateAttr,
+    SerializerFunctionWrapHandler,
+    field_validator,
+    model_serializer,
+    model_validator,
+)
 
 from kausal_common.i18n.pydantic import (
     I18nBaseModel,
@@ -238,6 +247,57 @@ class InstanceModelSpec(I18nBaseModel):
     """Sample only every Nth year in computations (0 = no sampling)."""
     # Raw dimension configs — will be properly modeled later
     dimensions: list[dict[str, Any]] = Field(default_factory=list)
+
+    @model_validator(mode='before')
+    @classmethod
+    def upgrade_legacy_overrides(cls, data: Any) -> Any:
+        """Read old sparse definitions without retaining their overrides container."""
+        if not isinstance(data, dict) or 'overrides' not in data:
+            return data
+        data = dict(data)
+        overrides = data.pop('overrides') or {}
+        for field in ('terms', 'theme_identifier', 'sample_size'):
+            if overrides.get(field) is not None:
+                data[field] = overrides[field]
+        data['features'] = {**data.get('features', {}), **overrides.get('features', {})}
+        scenarios = list(data.get('scenarios', []))
+        for identifier, values in overrides.get('scenarios', {}).items():
+            scenarios.append({'id': identifier, 'name': '', **values})
+        data['scenarios'] = scenarios
+        return data
+
+    _is_composed: bool = PrivateAttr(default=False)
+
+    @property
+    def is_composed(self) -> bool:
+        return self._is_composed
+
+    @model_serializer(mode='wrap')
+    def serialize_definition(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        """Preserve scalar and nested-field presence across database and snapshot round trips."""
+        data = handler(self)
+        if self._is_composed:
+            return data
+        for field in ('dataset_repo', 'theme_identifier', 'sample_size'):
+            if field not in self.model_fields_set:
+                data.pop(field, None)
+        for field in ('features', 'terms'):
+            value = getattr(self, field)
+            if field not in data:
+                continue
+            if value.model_fields_set or field in self.model_fields_set:
+                data[field] = {name: item for name, item in data[field].items() if name in value.model_fields_set}
+            else:
+                data.pop(field, None)
+        return data
+
+    def local_scenario(self, identifier: str) -> Scenario:
+        """Get or create an inherited scenario's sparse local parameter entry."""
+        scenario = next((item for item in self.scenarios if item.id == identifier), None)
+        if scenario is None:
+            scenario = Scenario(id=identifier, name='')
+            self.scenarios.append(scenario)
+        return scenario
 
 
 class InstanceMetadata(I18nBaseModel):

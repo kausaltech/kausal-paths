@@ -3730,24 +3730,27 @@ nodes:
     Fahrleistung desselben Jahres auf die Straßenkategorien verteilt. Die Höhe stammt vollständig
     von der Kommune; entlehnt wird nur die Straßentypisierung, denn Prüfschritt 2.3 verlangt
     Straßenkategorien und eine gemessene Verbrauchszahl trägt keine.
-  type: simple.MultiplicativeNode2
+  type: formula.FormulaNode
   quantity: energy
   unit: MWh/a
   input_dimensions: [vehicle_type, road_type, energy_carrier]
   output_dimensions: [vehicle_type, road_type, energy_carrier]
   input_nodes:
-  # non_additive, or MultiplicativeNode2 makes this an addend rather than a factor: with no tag
-  # the role is inferred from the unit, and MWh/a matches this node's own unit. The product would
-  # then be the shares alone, with the energy added to it.
   - id: transport_energy_own
-    tags: [non_additive]
+    tags: [activity]
     to_dimensions:
     - id: vehicle_type
     - id: energy_carrier
   - id: road_type_shares_of_mileage
+    tags: [shares]
     to_dimensions:
     - id: vehicle_type
     - id: road_type
+  params:
+    # The reporting status is the consumption's. A product combines reporting like a sum, so
+    # without this the reported mileage shares would mark an absent consumption figure as
+    # reported, and road_transport_energy_by_road_type would prefer it over the computed route.
+    formula: with_qualifier(activity * shares, reported, qualifier(activity, reported))
 
 - id: road_transport_energy_by_road_type
   is_editable: false
