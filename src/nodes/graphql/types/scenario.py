@@ -121,6 +121,12 @@ class ActionImpactType:
     action: Annotated['ActionNodeType', sb.lazy('nodes.schema')]
     value: float
     year: int
+    is_enabled: bool = sb.field(
+        description=(
+            'Whether the action is enabled in the scenario this impact was computed in. Use this '
+            'rather than `action.isEnabled`, which reports the scenario the visitor has active.'
+        ),
+    )
 
 
 @sb.type

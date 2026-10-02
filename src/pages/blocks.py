@@ -169,11 +169,34 @@ class CategoryBreakdownBlock(blocks.StructBlock):
     ]
 
 
+def admin_instance_scenario_choices() -> list[tuple[str, str]]:
+    """
+    Return the scenarios of the instance being edited in the admin, as block choices.
+
+    The custom scenario is left out: it is each visitor's own, so a block set to it would
+    show something different to everyone. Outside an admin request there is no instance
+    to ask, and an empty list only matters to form rendering and validation, which do not
+    happen there.
+    """
+    from paths.context import realm_context
+
+    if not realm_context.is_set():
+        return []
+    context = realm_context.get().realm.get_instance().context
+    return [
+        (scenario.id, str(scenario.name)) for scenario in context.scenarios.values() if scenario is not context.custom_scenario
+    ]
+
+
 @register_streamfield_block
 class ActionImpactBlock(blocks.StructBlock):
     title = blocks.CharBlock()
-    # TODO: scenario_id should be a choice block. Need to implement some way of getting the choices.
-    scenario_id = blocks.CharBlock(required=True)
+    scenario_id = blocks.ChoiceBlock(
+        # Wagtail evaluates callable choices at render time; the stubs only admit a static list.
+        choices=admin_instance_scenario_choices,  # type: ignore[arg-type]
+        label=_('Scenario'),
+        help_text=_('Show the impact of each action as computed in this scenario, whichever scenario the visitor has selected.'),
+    )
 
     graphql_fields = [
         GraphQLString('title', required=True),
@@ -376,23 +399,37 @@ class DashboardCardBlock(blocks.StructBlock):
         return result
 
     def scenario_action_impacts(self, info: GQLInstanceInfo, values: dict) -> Iterable[ScenarioActionImpacts]:
-        """Return the impact of each action in the node's target year for each scenario."""
+        """
+        Return the impact of each action in the node's target year, per scenario.
+
+        Only the scenarios an `action_impact` visualization of this card names are computed:
+        each one is a full set of model runs, and nothing else reads this field.
+
+        Each scenario is computed isolated from the visitor's session, so the chart shows
+        the scenario its editor chose and does not move when the visitor edits parameters.
+        Whether an action is enabled is reported per entry for the same reason --
+        `action.isEnabled` is resolved after this returns, in the visitor's scenario.
+        """
         from nodes.schema import ScenarioActionImpacts
 
         node = self.node(info, values)
         target_year = node.get_target_year()
         if target_year is None:
             raise ValueError('Node has no target year')
-        return [
-            ScenarioActionImpacts(
-                scenario=cast('ScenarioType', scenario),
-                impacts=[self._impact_for_action(action, node, target_year) for action in node.context.get_actions()],
-            )
-            for scenario in node.context.scenarios.values()
-        ]
+        context = node.context
+        scenario_ids = {child.value['scenario_id'] for child in values['visualizations'] if child.block_type == 'action_impact'}
+        result = []
+        for scenario_id in sorted(scenario_ids):
+            scenario = context.scenarios.get(scenario_id)
+            if scenario is None:
+                continue
+            with scenario.override(set_active=True, isolated=True):
+                impacts = [self._impact_for_action(action, node, target_year) for action in context.get_actions()]
+            result.append(ScenarioActionImpacts(scenario=cast('ScenarioType', scenario), impacts=impacts))
+        return result
 
     def _dimensional_metric(self, node: Node, scenario: Scenario | None = None) -> DimensionalMetric:
-        context = scenario.override() if scenario else nullcontext()
+        context = scenario.override(isolated=True) if scenario else nullcontext()
         with context:
             dm = DimensionalMetric.from_node(node)
         if not dm:
@@ -461,4 +498,5 @@ class DashboardCardBlock(blocks.StructBlock):
             action=cast('ActionNodeType', action),
             value=df.item(0, VALUE_COLUMN),
             year=year,
+            is_enabled=action.is_enabled(),
         )

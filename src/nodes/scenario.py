@@ -71,26 +71,45 @@ class Scenario(I18nBaseModel):
         return None
 
     @contextmanager
-    def override(self, set_active: bool = False) -> Generator[None]:
-        old_vals: dict[str, Any] = {}
+    def override(self, set_active: bool = False, isolated: bool = False) -> Generator[None]:
+        """
+        Activate this scenario for the duration of the block, then put every parameter back.
 
+        A scenario sets only what it names, so by default a parameter it does not name keeps
+        the value it has now -- in a request where the visitor has edited it, the visitor's
+        value. `isolated=True` activates the default scenario first, which resets every
+        customizable parameter, so the result is this scenario as a fresh request computes
+        it. That is what a view meant to show a fixed scenario needs, such as a dashboard
+        that must not follow the visitor's own edits.
+        """
+        default = self.context.get_default_scenario() if isolated else None
+        touched = self._touched_params()
+        if default is not None:
+            touched += default._touched_params()
+        # `reset_to_scenario_setting` clears `is_customized`, so it is restored along with
+        # the value; otherwise an override inside a request would make the visitor's own
+        # edits stop reporting themselves as customized.
+        old_vals = {param.global_id: (param, param.value, param.is_customized) for param in touched}
         old_scenario = self.context.active_scenario
 
-        for param, _ in self.get_param_values():
-            old_vals[param.global_id] = param.value
-
+        if default is not None and default is not self:
+            default.activate()
         self.activate()
         if set_active:
             self.context.active_scenario = self
 
-        yield
+        try:
+            yield
+        finally:
+            if set_active:
+                self.context.active_scenario = old_scenario
+            for param, val, is_customized in old_vals.values():
+                param.set(val)
+                param.is_customized = is_customized
 
-        if set_active:
-            self.context.active_scenario = old_scenario
-
-        for param_id, val in old_vals.items():
-            param = self.context.get_parameter(param_id)
-            param.set(val)
+    def _touched_params(self) -> list[Parameter]:
+        """Return the parameters `activate()` may change, so `override()` can restore them."""
+        return [param for param, _ in self.get_param_values()]
 
     def activate(self):
         """Reset each parameter in the context to its setting for this scenario if it has one."""
@@ -213,6 +232,17 @@ class CustomScenario(Scenario):
         # `ParameterGlobalId` is an annotated `str` alias, so the keys are already of
         # that type; it is not a constructor.
         return list(self._storage.get_customized_param_values())
+
+    def _touched_params(self) -> list[Parameter]:
+        # Activating applies the base first, so its parameters move too. Read the ids
+        # rather than `get_param_values()`, which drops invalid entries from the session
+        # as a side effect.
+        params = self.resolve_base()._touched_params()
+        for param_id in self.get_customized_param_ids():
+            param = self.context.get_parameter(param_id, required=False)
+            if param is not None:
+                params.append(param)
+        return params
 
     def activate(self):
         self.resolve_base().activate()
