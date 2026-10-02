@@ -19,7 +19,7 @@ dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: 84228c0284ca88912e48d695a4e3e4068c91c578
   dvc_remote: kausal-s3
-name: Klima-Monitor-Potsdam
+name: Treibhausgas-Monitor
 owner: Stadt Potsdam
 theme_identifier: de-potsdam
 target_year: 2045
@@ -34,6 +34,9 @@ features:
   baseline_visible_in_graphs: true
   use_datasets_from_db: true
   show_explanations: false
+terms:
+  custom_scenario: Eigenes Szenario
+  custom_scenario_en: My own scenario
 
 include:
 - file: frameworks/standard_dims.yaml

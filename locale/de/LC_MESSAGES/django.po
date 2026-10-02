@@ -2195,6 +2195,18 @@ msgid "Visualize the impact of actions in a scenario"
 msgstr "Visualisiere die Auswirkungen von Maßnahmen in einem Szenario"
 
 #: pages/blocks.py
+msgid "Scenario"
+msgstr "Szenario"
+
+#: pages/blocks.py
+msgid ""
+"Show the impact of each action as computed in this scenario, whichever "
+"scenario the visitor has selected."
+msgstr ""
+"Zeige die Auswirkung jeder Maßnahme in diesem Szenario, unabhängig davon, "
+"welches Szenario auf der Website gerade ausgewählt ist."
+
+#: pages/blocks.py
 msgid "This object does not correspond to a node."
 msgstr "Dieses Objekt entspricht keinem Knoten."
 
