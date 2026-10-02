@@ -287,20 +287,28 @@ def test_filter_column_matches_a_string_parameter_by_spelling():
     assert result[VALUE_COLUMN].to_list() == [1.0]
 
 
-def test_filtering_everything_away_is_an_error():
-    """An empty result means the configuration is wrong, and silence would hide it."""
+def test_a_filter_that_keeps_nothing_returns_a_typed_empty_frame():
+    """
+    No rows is a result: the data has nothing in the selected categories.
+
+    A category the dimension does not declare is a configuration error, but that is
+    caught statically (`unknown_category_reference`), not by looking at the data.
+    """
     df = to_ppdf(
         pl.DataFrame({YEAR_COLUMN: [2020], 'sector': ['a'], VALUE_COLUMN: [1.0]}),
         DataFrameMeta(units={VALUE_COLUMN: unit_registry.parse_units('kt/a')}, primary_keys=[YEAR_COLUMN, 'sector']),
     )
 
-    with pytest.raises(Exception, match='Nothing left after filter_dimension'):
-        _run(df, [FilterDimensionOp(dimension='sector', categories=['nonexistent'])])
+    result = _run(df, [FilterDimensionOp(dimension='sector', categories=['b'], flatten=True)])
+
+    assert len(result) == 0
+    assert VALUE_COLUMN in result.metric_cols
+    assert 'sector' not in result.columns
 
 
 def test_operations_pass_an_already_empty_frame_through():
     """
-    Only the operation that empties a frame is a configuration error.
+    An empty frame stays empty and keeps its shape through later operations.
 
     Metric selection can legitimately empty a frame before dimension ops run;
     the edge runtime relies on assignment passing that emptiness through.
