@@ -47,7 +47,7 @@ from nodes.defs.port_def import InputPortDef
 from nodes.instance_serialization import DatasetMetricSource, build_instance_snapshot
 from nodes.membership import retention_date
 from nodes.models import InstanceMemberAssignment, NodeInputPortBinding
-from nodes.template_graph import publish_template_instance
+from nodes.template_graph import publish_template_instance, upgrade_template_instance
 from nodes.tests.factories import InstanceConfigFactory, NodeConfigFactory
 from nodes.units import unit_registry
 from orgs.import_bkg import import_bkg_organizations
@@ -344,6 +344,10 @@ def test_provision_bisko_test_accounts_is_repeatable(tmp_path: Path, monkeypatch
     template.nodes.filter(identifier='bisko_shared').update(name='Updated BISKO method')
     template.publish_instance()
     instance = FrameworkConfig.objects.get(instance_config__identifier='bisko-03001001').instance_config
+    instance.refresh_from_db()
+    assert instance.template_revision_id == earlier_revision_id
+    assert template.live_revision is not None
+    upgrade_template_instance(instance, template.live_revision)
     instance.refresh_from_db()
     assert instance.template_revision_id != earlier_revision_id
     assert [str(node.name) for node in build_instance_snapshot(instance).nodes] == ['Updated BISKO method']

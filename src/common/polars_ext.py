@@ -34,6 +34,21 @@ type DF = ppl.PathsDataFrame | pl.DataFrame
 ENABLE_DF_HOTPATH_VALIDATION = env_bool('ENABLE_DF_HOTPATH_VALIDATION', default=False)
 
 
+def _with_shared_qualifiers(left: ppl.PathsDataFrame, right: ppl.PathsDataFrame) -> tuple[ppl.PathsDataFrame, ppl.PathsDataFrame]:
+    """Give each side the other's qualifier columns, unassessed, so rows of an unqualified frame stack as asserting nothing."""
+    catalog = qualifiers.catalog_for_frames(left, right)
+    if not catalog.definitions:
+        return left, right
+
+    def complete(frame: ppl.PathsDataFrame, other: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        missing = [qual for metric, qual in other.qualifier_cols.items() if metric in frame.columns and qual not in frame.columns]
+        if missing:
+            frame = frame.with_columns([qualifiers.make(catalog=catalog).alias(qual) for qual in missing])
+        return qualifiers.align_frame(frame, catalog)
+
+    return complete(left, right), complete(right, left)
+
+
 @pl.api.register_dataframe_namespace('paths')
 class PathsExt:
     _df: ppl.PathsDataFrame
@@ -1278,7 +1293,7 @@ class PathsExt:
         return jdf
 
     def concat_vertical(self, other: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
-        df = self._df
+        df, other = _with_shared_qualifiers(self._df, other)
         df_cols = set(df.columns)
         other_cols = set(other.columns)
         if df_cols != other_cols:

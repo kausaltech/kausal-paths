@@ -67,7 +67,7 @@ def _setup_graphs(framework: Framework, args: argparse.Namespace) -> None:
     from nodes.defs.graph import QualityLevelKey
     from nodes.instance_loader import InstanceYAMLConfig
     from nodes.models import InstanceConfig
-    from nodes.template_graph import publish_template_instance
+    from nodes.template_graph import publish_template_instance, upgrade_template_instance
 
     yaml_config = InstanceYAMLConfig.load_for_entrypoint(Path(settings.BASE_DIR) / 'configs/bisko.yaml')
     assert yaml_config.data is not None
@@ -113,6 +113,13 @@ def _setup_graphs(framework: Framework, args: argparse.Namespace) -> None:
     previous_revision_id = revision.pk if revision is not None else None
     revision = reconcile_bisko_default_quality(framework, defaults)
     if revision is not None:
+        dependents = InstanceConfig.objects.filter(
+            template_revision__object_id=str(template.pk),
+            template_revision__content_type_id=revision.content_type_id,
+        ).exclude(template_revision=revision)
+        for dependent in dependents:
+            upgrade_template_instance(dependent, revision)
+            print(f'{dependent.identifier}: upgraded to template revision {revision.pk}')
         action = 'Published' if revision.pk != previous_revision_id else 'Retained'
         print(f'{action} template revision {revision.pk}; dependent draft pins reconciled.')
 

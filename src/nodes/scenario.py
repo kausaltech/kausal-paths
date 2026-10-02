@@ -37,6 +37,7 @@ class Scenario(I18nBaseModel):
     all_actions_enabled: bool = False
     is_selectable: bool = True
     param_values: dict[ParameterGlobalId, Any] = Field(default_factory=dict)
+    parameter_types: dict[ParameterGlobalId, str] = Field(default_factory=dict)
     actual_historical_years: list[int] | None = None
 
     _context: 'Context | None' = PrivateAttr(default=None)
@@ -73,47 +74,44 @@ class Scenario(I18nBaseModel):
     @contextmanager
     def override(self, set_active: bool = False, isolated: bool = False) -> Generator[None]:
         """
-        Activate this scenario for the duration of the block, then put every parameter back.
+        Evaluate this scenario for the duration of the block, then put every parameter back.
 
-        A scenario sets only what it names, so by default a parameter it does not name keeps
-        the value it has now -- in a request where the visitor has edited it, the visitor's
-        value. `isolated=True` activates the default scenario first, which resets every
-        customizable parameter, so the result is this scenario as a fresh request computes
-        it. That is what a view meant to show a fixed scenario needs, such as a dashboard
-        that must not follow the visitor's own edits.
+        The scenario is activated as usual, so another scenario's deviations do not carry
+        into it. By default the visitor's own edits do: a parameter the visitor customized
+        and this scenario does not name keeps the visitor's value, which is what a comparison
+        needs -- an action's impact against the baseline must not also contain the visitor's
+        other edits. `isolated=True` leaves them out, for a view meant to show the scenario as
+        configured, such as a dashboard card that must not follow the visitor.
         """
-        default = self.context.get_default_scenario() if isolated else None
-        touched = self._touched_params()
-        if default is not None:
-            touched += default._touched_params()
-        # `reset_to_scenario_setting` clears `is_customized`, so it is restored along with
-        # the value; otherwise an override inside a request would make the visitor's own
-        # edits stop reporting themselves as customized.
-        old_vals = {param.global_id: (param, param.value, param.is_customized) for param in touched}
-        old_scenario = self.context.active_scenario
-
-        if default is not None and default is not self:
-            default.activate()
-        self.activate()
-        if set_active:
-            self.context.active_scenario = self
-
+        old_values = {
+            parameter.global_id: (parameter.value, parameter.is_customized) for parameter in self.context.get_all_parameters()
+        }
+        active_scenario = self.context.active_scenario
         try:
+            self.activate()
+            if not isolated:
+                named = {param.global_id for param, _ in self.get_param_values()}
+                for identifier, (value, customized) in old_values.items():
+                    if customized and identifier not in named:
+                        parameter = self.context.get_parameter(identifier)
+                        parameter.restore_value(value)
+                        parameter.is_customized = True
+            if set_active:
+                self.context.active_scenario = self
             yield
         finally:
             if set_active:
-                self.context.active_scenario = old_scenario
-            for param, val, is_customized in old_vals.values():
-                param.set(val)
-                param.is_customized = is_customized
-
-    def _touched_params(self) -> list[Parameter]:
-        """Return the parameters `activate()` may change, so `override()` can restore them."""
-        return [param for param, _ in self.get_param_values()]
+                self.context.active_scenario = active_scenario
+            for identifier, (value, customized) in old_values.items():
+                parameter = self.context.get_parameter(identifier)
+                parameter.restore_value(value)
+                parameter.is_customized = customized
 
     def activate(self):
-        """Reset each parameter in the context to its setting for this scenario if it has one."""
+        """Restore every parameter's configured value, then apply this scenario's own values."""
 
+        for parameter in self.context.get_all_parameters():
+            parameter.reset_to_configured_value()
         for param, val in self.get_param_values():
             param.reset_to_scenario_setting(self, val)
 

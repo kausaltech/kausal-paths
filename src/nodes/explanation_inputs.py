@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING, Any
 
 from nodes.constants import VALUE_COLUMN
 from nodes.defs.binding_def import EdgeBindingDef
+from nodes.defs.node_defs import ActionConfig, FormulaConfig
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
@@ -57,6 +58,7 @@ class ExplainedEdge:
 class ExplainedNode:
     id: str
     node_class: str = ''
+    formula: str | None = None
     """Dotted class path; the rules only ever look at the class name."""
     unit: str | None = None
     """Unit of the node's single output; ``None`` for multi-output nodes."""
@@ -138,6 +140,7 @@ def explained_node_from_meta(meta: NodeMeta, datasets: Sequence[InputDatasetDef]
     return ExplainedNode(
         id=meta.identifier,
         node_class=meta.node_class_path,
+        formula=spec.type_config.formula if isinstance(spec.type_config, FormulaConfig | ActionConfig) else None,
         unit=unit,
         quantity=quantity,
         tags=tuple(spec.extra.tags),

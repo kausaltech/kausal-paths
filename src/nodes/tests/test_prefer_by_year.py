@@ -17,12 +17,12 @@ from kausal_common.i18n.pydantic import TranslatedString
 
 from common.polars import DataFrameMeta, to_ppdf
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
+from nodes.defs.node_defs import FormulaConfig, NodeSpec
 from nodes.edges import Edge
 from nodes.formula import FormulaNode
 from nodes.node import Node
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory
 from nodes.units import unit_registry
-from params.param import StringParameter
 
 if TYPE_CHECKING:
     from common import polars as ppl
@@ -195,7 +195,7 @@ def test_formula_node_prefers_own_years_over_the_default():
         unit=unit_registry.parse_units('MWh/a'),
         quantity='energy',
     )
-    target.parameters['formula'] = StringParameter(local_id='formula', value='prefer_by_year(own_data, default_data)')
+    target._spec = NodeSpec(type_config=FormulaConfig(formula='prefer_by_year(own_data, default_data)'))
     own_data = _fixed_node(context, 'own_data', [(2022, 500.0), (2023, 550.0)])
     default_data = _fixed_node(context, 'default_data', [(2020, 100.0), (2021, 110.0), (2022, 120.0), (2023, 130.0)])
     _connect(own_data, target)
@@ -278,7 +278,7 @@ def test_formula_node_three_argument_form_matches_the_documented_example():
         unit=unit_registry.parse_units('MWh/a'),
         quantity='energy',
     )
-    target.parameters['formula'] = StringParameter(local_id='formula', value='prefer_by_year(own, default, coverage)')
+    target._spec = NodeSpec(type_config=FormulaConfig(formula='prefer_by_year(own, default, coverage)'))
     own = _fixed_node(context, 'own', [(2020, 0.0), (2021, 0.0), (2022, 500.0)])
     default = _fixed_node(context, 'default', [(2020, 100.0), (2021, 110.0), (2022, 120.0)])
     coverage = _FixedOutputNode(
@@ -307,7 +307,7 @@ def test_formula_skips_unavailable_preferred_branch_only_when_coverage_is_zero(
         unit=unit_registry.parse_units('MWh/a'),
         quantity='energy',
     )
-    target.parameters['formula'] = StringParameter(local_id='formula', value='prefer_by_year(own, default, coverage)')
+    target._spec = NodeSpec(type_config=FormulaConfig(formula='prefer_by_year(own, default, coverage)'))
     own = _fixed_node(context, 'own', [(2023, 1.0)])
     fallback = _fixed_node(context, 'default', [(2023, 5.0)])
     coverage = _FixedOutputNode(

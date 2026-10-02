@@ -15,7 +15,9 @@ from frameworks.models import FrameworkConfig
 from frameworks.tests.factories import FrameworkFactory
 from nodes.defs.port_def import InputPortDef
 from nodes.instance_serialization import InputBindingSnapshot, InstanceSnapshot, NodePortSource, build_instance_snapshot
-from nodes.template_graph import publish_template_instance, replace_input_port_bindings
+from nodes.models import InputPortBindingSet
+from nodes.template_graph import publish_template_instance, replace_input_port_bindings, upgrade_template_instance
+from nodes.template_settings import InheritedNodeSettings
 from nodes.tests.factories import InstanceConfigFactory, NodeConfigFactory
 from nodes.units import unit_registry
 from users.tests.factories import UserFactory
@@ -95,6 +97,72 @@ def test_release_is_immutable_and_nodes_are_copied_per_instance(
     assert template is not None
     template.nodes.update(name='Changed after release')
     assert str(build_instance_snapshot(dependent_instance).nodes[0].name) == str(release.snapshot.nodes[0].name)
+
+
+@pytest.mark.parametrize('retain_local_dependency', [False, True])
+def test_template_retirement_reconciles_targets_atomically(
+    release: TemplateEdition,
+    dependent_instance: InstanceConfig,
+    retain_local_dependency: bool,
+) -> None:
+    template = release.framework.template_instance
+    assert template is not None
+    retired = template.nodes.get()
+    surviving = NodeConfigFactory.create(instance=template, identifier='surviving')
+    old = publish_edition(release.framework)
+    upgrade_template_instance(dependent_instance, old.revision)
+    dependent_instance.refresh_from_db()
+    shared = next(node for node in old.snapshot.nodes if node.uuid == retired.uuid)
+    assert shared.spec is not None
+    dependent_instance.node_settings = [
+        InheritedNodeSettings(node_uuid=retired.uuid),
+        InheritedNodeSettings(node_uuid=surviving.uuid),
+    ]
+    dependent_instance.save(update_fields=['node_settings'])
+    retired_override = InputPortBindingSet.objects.create(
+        instance=dependent_instance, node_uuid=retired.uuid, port_uuid=shared.spec.input_ports[0].id, bindings=[]
+    )
+    local = NodeConfigFactory.create(instance=dependent_instance, identifier='local')
+    assert local.spec is not None
+    port = InputPortDef(id=uuid4(), unit=unit_registry.parse_units('kt/a'))
+    local.spec.input_ports = [port]
+    local.save(update_fields=['spec'])
+    bindings = (
+        [
+            InputBindingSnapshot(
+                uuid=uuid4(),
+                node_id=local.uuid,
+                port_id=port.id,
+                position=0,
+                source=NodePortSource(node_id=retired.uuid, port_id=shared.spec.output_ports[0].id),
+            )
+        ]
+        if retain_local_dependency
+        else []
+    )
+    local_override = InputPortBindingSet.objects.create(
+        instance=dependent_instance, node_uuid=local.uuid, port_uuid=port.id, bindings=bindings
+    )
+    old_content = old.revision.content
+    retired.delete()
+    template.invalidate_cache()
+    new = publish_edition(release.framework)
+    dependent_instance.refresh_from_db()
+    assert dependent_instance.template_revision_id == old.revision.pk
+    upgrade_template_instance(dependent_instance, new.revision)
+    dependent_instance.refresh_from_db()
+    assert dependent_instance.template_revision_id == new.revision.pk
+    assert [item.node_uuid for item in dependent_instance.node_settings] == [surviving.uuid]
+    assert not InputPortBindingSet.objects.filter(pk=retired_override.pk).exists()
+    snapshot = build_instance_snapshot(dependent_instance)
+    assert bool(snapshot.composition_errors) == retain_local_dependency
+    if retain_local_dependency:
+        with pytest.raises(ValidationError, match='output outside the effective graph'):
+            dependent_instance.publish_instance()
+    assert {node.uuid for node in snapshot.nodes} == {surviving.uuid, local.uuid}
+    assert InputPortBindingSet.objects.get(pk=local_override.pk).bindings == bindings
+    old.revision.refresh_from_db()
+    assert old.revision.content == old_content
 
 
 def test_conversion_adopts_framework_owned_bindings(
@@ -243,6 +311,7 @@ def test_publication_retains_framework_data_revision(
     )
     template.invalidate_cache()
     edition = publish_edition(release.framework)
+    upgrade_template_instance(dependent_instance, edition.revision)
     dependent_instance.refresh_from_db()
     pin = edition.snapshot.dataset_revisions[0]
     with dataset_change(dataset):
@@ -357,12 +426,16 @@ def test_template_edits_wait_for_publication(release: TemplateEdition, dependent
     assert str(build_instance_snapshot(dependent_instance).nodes[0].name) == str(original.name)
     template.publish_instance()
     dependent_instance.refresh_from_db()
+    assert dependent_instance.template_revision_id == release.revision.pk
+    assert template.live_revision is not None
+    upgrade_template_instance(dependent_instance, template.live_revision)
+    dependent_instance.refresh_from_db()
     assert dependent_instance.template_revision_id == template.live_revision_id
     assert dependent_instance.template_revision_id != release.revision.pk
     assert str(build_instance_snapshot(dependent_instance).nodes[0].name) == 'Updated method'
 
 
-def test_incompatible_template_publication_rolls_back_all_drafts(
+def test_template_publication_leaves_dependent_drafts_pinned(
     release: TemplateEdition,
     dependent_instance: InstanceConfig,
 ) -> None:
@@ -391,14 +464,18 @@ def test_incompatible_template_publication_rolls_back_all_drafts(
     node.spec.input_ports = []
     node.save(update_fields=['spec'])
     template.invalidate_cache()
-    with pytest.raises(ValueError, match='missing port'):
-        template.publish_instance()
+    template.publish_instance()
     template.refresh_from_db()
     dependent_instance.refresh_from_db()
     other.refresh_from_db()
-    assert template.live_revision_id == release.revision.pk
+    assert template.live_revision_id != release.revision.pk
     assert dependent_instance.template_revision_id == release.revision.pk
     assert other.template_revision_id == release.revision.pk
+    assert template.live_revision is not None
+    upgrade_template_instance(other, template.live_revision)
+    other.refresh_from_db()
+    assert other.template_revision_id == template.live_revision_id
+    assert not other.binding_overrides.exists()
 
 
 def test_editor_computes_definition_and_binding_permissions(
@@ -456,6 +533,8 @@ def test_template_publication_preserves_local_publication(
     template.nodes.update(name='New template edition')
     template.invalidate_cache()
     template.publish_instance()
+    assert template.live_revision is not None
+    upgrade_template_instance(dependent_instance, template.live_revision)
     dependent_instance.refresh_from_db()
     published.refresh_from_db()
     assert dependent_instance.live_revision_id == published.pk
@@ -721,6 +800,8 @@ def test_inherited_binding_query_count_does_not_grow(
                 NodeInputPortBinding.objects.create(instance=template, node=node, port_id=port.id, dataset=dataset, metric=metric)
         template.invalidate_cache()
         template.publish_instance()
+        assert template.live_revision is not None
+        upgrade_template_instance(dependent_instance, template.live_revision)
         dependent_instance.refresh_from_db()
         for override in overrides:
             override.save()
@@ -793,7 +874,8 @@ def test_identical_local_copies_of_template_datasets_are_removed(
                 instance=template, node=node, port_id=node.spec.input_ports[1].id, position=0, dataset=dataset, metric=metric
             )
     template.invalidate_cache()
-    publish_edition(release.framework)
+    edition = publish_edition(release.framework)
+    upgrade_template_instance(dependent_instance, edition.revision)
     dependent_instance.refresh_from_db()
 
     assert remove_superseded_datasets(dependent_instance) == (['reference'] if removed else [])
@@ -823,6 +905,7 @@ def test_local_data_slot_copy_is_kept_even_when_identical(release: TemplateEditi
                 instance=template, node=node, port_id=node.spec.input_ports[0].id, position=0, dataset=dataset, metric=metric
             )
     template.invalidate_cache()
-    publish_edition(release.framework)
+    edition = publish_edition(release.framework)
+    upgrade_template_instance(dependent_instance, edition.revision)
     dependent_instance.refresh_from_db()
     assert remove_superseded_datasets(dependent_instance) == []

@@ -994,6 +994,8 @@ class ValidationRule(ABC):
         """Validate the node's typed description."""
 
     def get_param(self, node: ExplainedNode, param_id: str) -> str:
+        if param_id == 'formula' and node.formula is not None:
+            return node.formula
         param = node.param(param_id)
         if param is None:
             return ''

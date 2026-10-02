@@ -10,13 +10,14 @@ from kausal_common.i18n.pydantic import TranslatedString
 from common import polars as ppl, qualifiers
 from common.polars import DataFrameMeta, to_ppdf
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
+from nodes.defs.node_defs import FormulaConfig, NodeSpec
 from nodes.edges import Edge
 from nodes.exceptions import NodeError
 from nodes.formula import FormulaNode
 from nodes.node import Node
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory, ScenarioFactory
 from nodes.units import unit_registry
-from params.param import NumberParameter, StringParameter
+from params.param import NumberParameter
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -91,7 +92,7 @@ def test_output_with_scenario_uses_named_scenario_not_active_one():
     context.add_scenario(other_scenario)
 
     target = _make_node(context, FormulaNode, 'target')
-    target.parameters['formula'] = StringParameter(local_id='formula', value="output_with_scenario(source, 'other')")
+    target._spec = NodeSpec(type_config=FormulaConfig(formula="output_with_scenario(source, 'other')"))
     _connect(source, target)
 
     result = target.compute()
@@ -107,7 +108,7 @@ def test_output_with_scenario_rejects_unknown_node_reference():
     context = _make_context('output-with-scenario-bad-node')
 
     target = _make_node(context, FormulaNode, 'target')
-    target.parameters['formula'] = StringParameter(local_id='formula', value="output_with_scenario(missing, 'default')")
+    target._spec = NodeSpec(type_config=FormulaConfig(formula="output_with_scenario(missing, 'default')"))
 
     with pytest.raises(NodeError, match='must be a reference to an input node'):
         target.compute()
@@ -120,7 +121,7 @@ def test_formula_reads_nested_assessment_and_reporting(function: str, expected: 
     source.add_parameter(NumberParameter(local_id='multiplier', value=1.0))
     context.add_node(source)
     target = _make_node(context, FormulaNode, 'target', unit='dimensionless', quantity='fraction')
-    target.parameters['formula'] = StringParameter(local_id='formula', value=f'qualifier(source, {function})')
+    target._spec = NodeSpec(type_config=FormulaConfig(formula=f'qualifier(source, {function})'))
     _connect(source, target)
     assert _first_value(target.compute()) == expected
 
@@ -135,7 +136,7 @@ def test_remove_subset_formula_and_analysis() -> None:
         source.add_parameter(NumberParameter(local_id='multiplier', value=value))
         context.add_node(source)
         _connect(source, target)
-    target.parameters['formula'] = StringParameter(local_id='formula', value='remove_subset(total, subset)')
+    target._spec = NodeSpec(type_config=FormulaConfig(formula='remove_subset(total, subset)'))
     result = target.compute()
     assert _first_value(result) == 80.0
     assert result['Value__qual'][0]['quality'] == {'score': 0.5, 'coverage': 1.0}
@@ -196,14 +197,14 @@ def test_with_qualifier_assigns_reporting_from_activity() -> None:
             source.frame = source.frame.set_unit(VALUE_COLUMN, 'dimensionless', force=True)
         context.add_node(source)
         _connect(source, target)
-    target.parameters['formula'] = StringParameter(
-        local_id='formula', value='with_qualifier(activity * factor, reported, qualifier(activity, reported))'
+    target._spec = NodeSpec(
+        type_config=FormulaConfig(formula='with_qualifier(activity * factor, reported, qualifier(activity, reported))')
     )
     result = target.compute()
     assert result[VALUE_COLUMN].to_list() == [24.0]
     assert result['Value__qual'][0]['reported'] == {'any': True, 'all': True}
-    target.parameters['formula'].set(
-        'with_qualifier(with_qualifier(activity * factor, reported, qualifier(activity, reported)), '
+    target.spec.type_config = FormulaConfig(
+        formula='with_qualifier(with_qualifier(activity * factor, reported, qualifier(activity, reported)), '
         'reported.all, qualifier(factor, reported.all))'
     )
     assert target.compute()['Value__qual'][0]['reported'] == {'any': True, 'all': False}
@@ -217,7 +218,7 @@ def test_qualifier_rejects_unknown_or_expression_selector(selector: str) -> None
     source.add_parameter(NumberParameter(local_id='multiplier', value=1.0))
     context.add_node(source)
     _connect(source, target)
-    target.parameters['formula'] = StringParameter(local_id='formula', value=f'qualifier(source, {selector})')
+    target._spec = NodeSpec(type_config=FormulaConfig(formula=f'qualifier(source, {selector})'))
     with pytest.raises(NodeError, match='qualifier'):
         target.compute()
 
@@ -231,7 +232,7 @@ def test_prefer_by_year_accepts_empty_route_and_tracks_the_chosen_source() -> No
         source.frame = _reporting_frame(values, [False] * len(values))
         context.add_node(source)
         _connect(source, target)
-    target.parameters['formula'] = StringParameter(local_id='formula', value='prefer_by_year(plant, standard)')
+    target._spec = NodeSpec(type_config=FormulaConfig(formula='prefer_by_year(plant, standard)'))
     result = target.compute()
     assert result[VALUE_COLUMN].to_list() == [260.0]
     assert result['Value__qual'][0]['sources'] == [target._source_uuid(context.get_node('standard'))]
@@ -252,7 +253,7 @@ def test_reported_activity_keeps_empty_plant_route_selected() -> None:
         source.frame = _reporting_frame(values, flags)
         context.add_node(source)
         _connect(source, target)
-    target.parameters['formula'] = StringParameter(
-        local_id='formula', value='prefer_by_year(plant, standard, qualifier(activity, reported.any))'
+    target._spec = NodeSpec(
+        type_config=FormulaConfig(formula='prefer_by_year(plant, standard, qualifier(activity, reported.any))')
     )
     assert target.compute().is_empty()
