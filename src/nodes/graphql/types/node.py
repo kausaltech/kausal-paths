@@ -776,7 +776,10 @@ class NodeInterface(UserPermissionsMixin):
 
         try:
             ret = DimensionalMetric.from_node(root, extra_scenarios=extra_scenarios)
-        except Exception:
+        except Exception as e:
+            # The field answers null rather than an error, so the client never sees
+            # this; without the capture it reaches Sentry only as a breadcrumb.
+            sentry_sdk.capture_exception(e)
             context.log.exception('Exception while resolving metric_dim for node %s' % root.id)
             return None
         return ret
