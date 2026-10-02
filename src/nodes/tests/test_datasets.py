@@ -7,6 +7,8 @@ from typing import TYPE_CHECKING, cast
 import polars as pl
 import pytest
 
+from kausal_common.datasets.tests.factories import DatasetFactory, DatasetMetricFactory, DatasetSchemaFactory
+
 from common import polars as ppl
 from nodes.datasets import DBDataset, DVCDataset
 from nodes.defs.transform_def import AssignDimensionOp, FilterColumnOp, InterpolateOp, RemapLegacyYearsOp
@@ -272,3 +274,16 @@ def test_dvc_dataset_keeps_a_metric_that_happens_to_be_called_description() -> N
     out = DVCDataset._drop_reserved_columns(df)
 
     assert 'description' in out.columns
+
+
+def test_a_db_dataset_without_data_points_reads_as_typed_empty_metric_columns() -> None:
+    schema = DatasetSchemaFactory.create()
+    for name in ('default', 'quality'):
+        DatasetMetricFactory.create(schema=schema, name=name, unit='dimensionless')
+    dataset = DatasetFactory.create(schema=schema, identifier='kommune/unfilled')
+
+    df = DBDataset.deserialize_df(dataset)
+
+    assert df.is_empty()
+    assert sorted(df.metric_cols) == ['default', 'quality']
+    assert all(df.schema[name] == pl.Float64 for name in df.metric_cols)
