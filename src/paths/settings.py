@@ -241,6 +241,7 @@ TEMPLATES = [
                 'wagtail.contrib.settings.context_processors.settings',
                 'admin_site.context_processors.sentry',
                 'admin_site.context_processors.i18n',
+                'admin_site.context_processors.active_instance',
             ],
         },
     },

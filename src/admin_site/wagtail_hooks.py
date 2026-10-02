@@ -76,8 +76,13 @@ class InstanceChooserMenu(Menu):
             icon_name = ''
             if instance == realm_context.get().realm:
                 icon_name = 'tick-inverse'
-            text = instance.name or instance.identifier
-            item = InstanceItem(text, url, icon_name=icon_name)
+            # Many instances share a name and put the city in the logo instead, so the
+            # identifier goes on a second line to tell them apart. The sidebar renders the
+            # label as plain text; `admin-styles.css` makes the newline break.
+            text = instance.identifier
+            if instance.name and instance.name != instance.identifier:
+                text = f'{instance.name}\n({instance.identifier})'
+            item = InstanceItem(text, url, icon_name=icon_name, classname='instance-chooser-item')
             items.append(item)
         return items
 

@@ -3,4 +3,11 @@
 
 {% block branding_logo %}
     <img src="{% static 'images/kausal-avatar-dark-green.svg' %}" alt="Kausal Logo" width="80" />
+    {% if active_instance %}
+        {# The identifier too: many instances share a name, as in the instance chooser #}
+        <div class="active-instance-info">
+            <span class="active-instance-name">{{ active_instance.name_i18n }}</span>
+            <span class="active-instance-identifier">({{ active_instance.identifier }})</span>
+        </div>
+    {% endif %}
 {% endblock %}
