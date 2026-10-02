@@ -169,6 +169,13 @@ def _contract_requirements(
     return requirements
 
 
+def _describe_categories(categories: dict[str, str]) -> str:
+    """Name a required combination for a message; a year-level requirement names none."""
+    if not categories:
+        return ''
+    return ' for ' + ', '.join(f'{dimension}={category}' for dimension, category in categories.items())
+
+
 def validate_value_contract(
     df: PathsDataFrame,
     contract: ValueContract,
@@ -195,7 +202,7 @@ def validate_value_contract(
             rows = candidates.filter(pl.col(YEAR_COLUMN) == year)
             failures: list[tuple[str, str]] = []
             if rows.is_empty():
-                failures.append(('missing_required_value', 'No value for the required combination'))
+                failures.append(('missing_required_value', 'No value'))
             else:
                 for path, requirement in combination.qualifiers.items():
                     satisfied = _qualifier_satisfies(rows, path, requirement)
@@ -208,7 +215,7 @@ def validate_value_contract(
                         port_uuid=port_uuid,
                         binding_uuid=binding_uuid,
                         code=code,
-                        message=f'{message} in {year}: {combination.categories}',
+                        message=f'{message} in {year}{_describe_categories(combination.categories)}',
                         years=[year],
                         categories=combination.categories,
                         enforcement=contract.effective_enforcement,
