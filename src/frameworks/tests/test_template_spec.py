@@ -283,6 +283,47 @@ def test_data_migration_preserves_publications_and_removes_copies(
     assert revision.content == before
 
 
+def test_upgrade_retires_the_local_entry_of_a_removed_scenario(
+    municipal: tuple[InstanceConfig, InstanceConfig, User],
+) -> None:
+    template, municipality, user = municipal
+    set_scenario_parameter(municipality, 'weather_correction', value=False, scenario_id='weather', user=user)
+    municipality.refresh_from_db()
+    municipality.ensure_spec().scenarios.append(Scenario(id='local', name='Local', param_values={'weather_correction': True}))
+    municipality.save(update_fields=['spec'])
+    template.ensure_spec().scenarios = [s for s in template.ensure_spec().scenarios if s.id != 'weather']
+    template.save(update_fields=['spec'])
+    template.invalidate_cache()
+    upgrade_template_instance(municipality, publish_template_instance(template))
+    municipality.refresh_from_db()
+    assert 'weather' not in {s.id for s in municipality.ensure_spec().scenarios}
+    # The instance's own scenario is a declaration, not an override, and stays.
+    assert {s.id for s in build_instance_snapshot(municipality).spec.scenarios} == {'default', 'local'}
+
+
+def test_data_migration_converts_yaml_mirrors_and_reports_the_ones_it_cannot(capsys: pytest.CaptureFixture[str]) -> None:
+    mirrors = {}
+    for identifier, params in (('mirrored', [StringParameter(local_id='formula', value='1')]), ('broken', [])):
+        instance = InstanceConfigFactory.create(identifier=identifier, name=identifier, owner='Test', config_source='yaml')
+        node = NodeConfigFactory.create(instance=instance, identifier='outcome')
+        node_spec = node.spec
+        assert node_spec is not None
+        node_spec.type_config = SimpleConfig(node_class='formula.FormulaNode')
+        node_spec.params = params
+        node.spec = node_spec
+        node.save(update_fields=['spec'])
+        mirrors[identifier] = node
+    migration = import_module('nodes.migrations.0082_sparse_template_specs')
+    migration.migrate_specs(apps, connection.schema_editor())
+    converted = type(mirrors['mirrored']).objects.with_spec().get(pk=mirrors['mirrored'].pk)
+    assert converted.spec is not None
+    assert converted.spec.type_config == FormulaConfig(formula='1')
+    untouched = type(mirrors['broken']).objects.with_spec().get(pk=mirrors['broken'].pk)
+    assert untouched.spec is not None
+    assert untouched.spec.type_config == SimpleConfig(node_class='formula.FormulaNode')
+    assert 'broken: database copy not migrated' in capsys.readouterr().out
+
+
 def test_migration_retires_stale_copied_report_contents(municipal: tuple[InstanceConfig, InstanceConfig, User]) -> None:
     template, municipality, _ = municipal
     base = build_instance_snapshot(template)
