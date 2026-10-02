@@ -380,6 +380,10 @@ def upgrade_template_instance(instance: InstanceConfig, revision: Revision, *, u
     old_params = parameters_by_id(previous.spec, previous.nodes)
     new_params = parameters_by_id(candidate.spec, candidate.nodes)
     new_params.update(parameters_by_id(spec, local_nodes))
+    # A local entry for an inherited scenario holds only values for it, so it goes with the scenario;
+    # left behind, it would read as a new local scenario without a name.
+    retired = {scenario.id for scenario in previous.spec.scenarios} - {scenario.id for scenario in candidate.spec.scenarios}
+    spec.scenarios = [override for override in spec.scenarios if override.id not in retired]
     for override in spec.scenarios:
         for identifier in list(override.param_values):
             parameter = new_params.get(identifier)
