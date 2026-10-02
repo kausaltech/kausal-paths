@@ -1319,6 +1319,11 @@ class DBDataset(DatasetWithFilters):
             df = df.group_by(uniq_cols).first()
 
         df = df.pivot(on='metric', index=[YEAR_COLUMN, *dim_ids], values='value')  # noqa: PD010
+        # A metric without data points gets no pivot column, but it is still part of the
+        # schema: a dataset nobody has filled in yet reads as typed, empty columns.
+        missing = [m['name'] for m in ds.metrics if m['name'] not in df.columns]  # type: ignore
+        if missing:
+            df = df.with_columns([pl.lit(None, dtype=pl.Float64).alias(name) for name in missing])
 
         if include_data_point_primary_keys and id_map is not None:
             id_pivoted = id_map.pivot(on='metric_name', on_columns=[YEAR_COLUMN, *dim_ids], values='id')  # noqa: PD010
