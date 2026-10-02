@@ -38,3 +38,19 @@ def test_a_dimensionless_model_is_not_refused():
     ic.spec = make_minimal_instance_spec(instance)
 
     _check_spec_is_not_yaml_minimal(ic, [_node_snapshot_stub(), _node_snapshot_stub(input_dims=[])])
+
+
+@pytest.mark.django_db
+def test_a_template_derived_spec_is_not_refused():
+    """A template follower stores a sparse spec on purpose; its dimensions come from the template."""
+    from nodes.instance_serialization import _check_spec_is_not_yaml_minimal
+    from nodes.models import InstanceConfig, make_minimal_instance_spec
+    from nodes.tests.factories import InstanceConfigFactory, InstanceFactory
+
+    template = InstanceConfigFactory.create(name='Template')
+    revision = template.save_revision()
+    instance = InstanceFactory.create()
+    ic: InstanceConfig = InstanceConfigFactory.create(identifier=instance.id, instance=instance, template_revision=revision)
+    ic.spec = make_minimal_instance_spec(instance)
+
+    _check_spec_is_not_yaml_minimal(ic, [_node_snapshot_stub(output_dims=['sector'])])
