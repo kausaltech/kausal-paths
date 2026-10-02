@@ -130,6 +130,11 @@ class NodeStatusError:
 DEBUG_NODE_EXCEPTIONS = env_bool('DEBUG_NODE_EXCEPTIONS', default=False)
 
 
+def _failure_message(e: Exception) -> str:
+    # A wrapping NodeError says where; the reason is in its cause.
+    return f'{e}: {e.__cause__}' if isinstance(e, NodeError) and e.__cause__ is not None else str(e)
+
+
 def post_mortem_possibly(e: Exception):
     global DEBUG_NODE_EXCEPTIONS  # noqa: PLW0603
     if DEBUG_NODE_EXCEPTIONS:
@@ -770,6 +775,11 @@ class Node:
             return NodeKind.FORMULA
         return NodeKind.SIMPLE
 
+    @classmethod
+    def parameters_for_spec(cls, spec: NodeSpec) -> list[Parameter]:
+        """Return authored parameters and any defaults the behavior synthesizes."""
+        return list(spec.params)
+
     def add_parameter(self, param: Parameter[Any]) -> None:
         if param.local_id in self.parameters:
             msg = f'Local parameter {param.local_id} already defined for node {self.id}'
@@ -1400,6 +1410,13 @@ class Node:
         if dim_ids != node_dims and not getattr(self, 'allow_unknown_dimensions', None):
             raise NodeError(self, 'Output has unknown dimensions: %s (expecting %s)' % (', '.join(dim_ids), ', '.join(node_dims)))
 
+    def _failed_earlier_error(self, target_node: Node | None = None) -> NodeError:
+        """Report a memoized failure with the reason it was recorded with, whichever consumer asks first."""
+        msg = 'This node failed earlier in this computation run'
+        if self.status_errors:
+            msg += ' (%s)' % self.status_errors[0].message.removeprefix(f'Node {self.id}: ')
+        return NodeError(self, msg, event='compute', target_node=target_node)
+
     def mark_status(self, status: NodeStatus, error: NodeStatusError | None = None) -> None:
         """
         Record the node's status, only ever moving toward failure.
@@ -1462,13 +1479,13 @@ class Node:
                     own_error = first_failure and bool(e.event_chain) and e.event_chain[0].node is self
                     self.mark_status(
                         NodeStatus.FAILED,
-                        NodeStatusError(phase=NodeErrorPhase.COMPUTATION, message=str(e)) if own_error else None,
+                        NodeStatusError(phase=NodeErrorPhase.COMPUTATION, message=_failure_message(e)) if own_error else None,
                     )
                     e.add_node_event(self, event='get_output', target_node=target_node)
                     raise
                 self.mark_status(
                     NodeStatus.FAILED,
-                    NodeStatusError(phase=NodeErrorPhase.COMPUTATION, message=str(e)) if first_failure else None,
+                    NodeStatusError(phase=NodeErrorPhase.COMPUTATION, message=_failure_message(e)) if first_failure else None,
                 )
                 raise NodeComputationError(self, 'Error getting output', event='get_output', target_node=target_node) from e
 
@@ -1524,7 +1541,7 @@ class Node:
         if not self.hooks:
             return self.get_output_pl()
         if self.status is NodeStatus.FAILED:
-            raise NodeError(self, 'This node failed earlier in this computation run', event='compute')
+            raise self._failed_earlier_error()
         use_cache = not (self.disable_cache or self.context.skip_cache)
         cache_res = self.hasher.get_cached_base_output() if use_cache else None
         if cache_res is not None and cache_res.is_hit and cache_res.obj is not None:
@@ -1542,7 +1559,7 @@ class Node:
     ) -> tuple[ppl.PathsDataFrame, CacheResult[ppl.PathsDataFrame] | None]:
         if self.status is NodeStatus.FAILED:
             # Memoized failure: a node that already failed in this run is not recomputed.
-            raise NodeError(self, 'This node failed earlier in this computation run', event='compute', target_node=target_node)
+            raise self._failed_earlier_error(target_node)
 
         use_cache = not (self.disable_cache or self.context.skip_cache)
         cache_res = None

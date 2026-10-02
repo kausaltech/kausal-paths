@@ -9,6 +9,7 @@ from django.db import transaction
 
 from loguru import logger
 
+from nodes.instance_serialization import build_instance_snapshot
 from orgs.models import Namespace, Organization, OrganizationIdentifier
 
 if TYPE_CHECKING:
@@ -32,7 +33,7 @@ def ags_namespace() -> Namespace:
 
 def ags_from_parameters(ic: InstanceConfig) -> str | None:
     """Read the AGS from the instance's `ags_number` parameter, the only place it lives before provisioning."""
-    spec = ic.ensure_spec()
+    spec = build_instance_snapshot(ic).spec if ic.template_revision_id is not None else ic.ensure_spec()
     for param in spec.params:
         if param.local_id == AGS_PARAMETER and param.value:
             return str(param.value)

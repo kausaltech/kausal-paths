@@ -80,6 +80,10 @@ class ReferenceParameter[ValueT = Any, SetValueT = ValueT](Parameter[ValueT, Set
         self._target = target
         target._subscription_params.append(self)
 
+    def restore_value(self, value: ValueT | None) -> None:
+        # The target parameter restores its own state; the reference stays intact.
+        return
+
     def clean(self, value: Any) -> Any:
         raise NotImplementedError()
 

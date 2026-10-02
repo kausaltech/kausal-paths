@@ -37,7 +37,7 @@ class FormulaAction(ActionNode, FormulaNode):
     allowed_parameters = [*ActionNode.allowed_parameters, *FormulaNode.allowed_parameters]
 
     def _formula_names(self) -> set[str]:
-        formula = self.get_parameter_value_str('formula', required=False)
+        formula = self.formula
         if not formula:
             return set()
         tree = ast.parse(formula, '<string>', mode='eval')

@@ -1223,6 +1223,7 @@ actions:
     tags: [other_node, nand]
   params:
     sector: Growth increase due to protection
+    enabled: false
 
 - id: reduce_forestry_production
   name_en: Reduce forestry production
@@ -1274,11 +1275,6 @@ scenarios:
   name_fi: Aktiivinen
   name_en: Active
   all_actions_enabled: true
-  params:
-  - id: protect_the_forest.enabled
-    value: false
-  - id: who_pays_for_wood_emissions.selected_number
-    value: 0
 
 - id: industry_pays_co2
   name_fi: Metsäteollisuus maksaa CO2

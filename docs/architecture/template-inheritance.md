@@ -13,18 +13,34 @@ their own live nodes, datasets, and input selections. Template draft edits do
 not affect them.
 
 `InstanceConfig.publish_instance()` recognizes templates and delegates to
-`publish_template_instance()`. Publication locks the template and its dependent
-instances, freezes the template graph and reference datasets, and composes and
-validates every dependent draft against that revision. Missing targets, cycles,
-or newly introduced structural conflicts abort the transaction. Existing draft
-conflicts do not prevent an otherwise compatible template update. The template
-revision and all dependent draft pointers advance together.
+`publish_template_instance()`. It freezes the template graph, declarations, and
+reference datasets without moving any municipal draft pin. A municipality
+advances separately through `upgrade_template_instance()` or the editor's
+`upgradeFrameworkTemplate` mutation, which selects the current published template.
 
-A dependent instance's publication stores the complete effective snapshot, including
-its selected template revision and dataset pins. Subsequent template publication
-changes that dependent instance's draft only; its existing public snapshot is unchanged.
-Dependent instance publication acquires the template lock before the dependent instance lock,
-matching the template publisher's lock order.
+An upgrade retires settings whose nodes or ports disappeared and parameter values
+whose declaration disappeared, changed type, or became framework-owned. Other
+conflicts do not block the upgrade. A stale or cyclic binding remains stored for repair;
+the effective draft omits the invalid binding and exposes `editor.compositionErrors`.
+Publication refuses these errors, structural conflicts, and invalid report or
+scenario references. Changes to bounds that invalidate a local parameter value
+also leave the draft unpublishable.
+
+A dependent instance's publication stores its local authoring inputs: spec,
+nodes, ordinary bindings, inherited-node settings, and port binding selections.
+It also freezes the selected template revision, a portable content hash, and
+local dataset pins. Runtime loading composes these inputs with that exact
+revision; neither instance's live draft participates. Relational template pins
+protect revisions needed by historical municipal publications. The template hash
+covers declarations and dataset content hashes, excluding database-local payload
+revision IDs, so it remains stable across imports. Instance publication acquires
+the template lock before the dependent instance lock.
+
+`restore_revision()` restores the local model definition and template pin.
+`revert_to_published()` uses the current published revision. Nodes absent from the
+restored definition become stale; dataset bodies retain their independent draft
+state. Older flattened snapshots are adapted back into local authoring inputs at
+the restore boundary, without rewriting historical revision content.
 
 Template publication validates calculation structure, but does not require empty
 local reporting slots to represent completed local reporting. This is not a
@@ -52,8 +68,94 @@ emission factor may therefore come from a dataset or from a local
 calculation node. Inherited outputs may feed local nodes. The composed graph
 must remain acyclic and satisfy the port contracts.
 
-`InstanceConfig.node_settings` retains permitted local goals, layout, and
-customizable parameter selections without duplicating shared node definitions.
+`InstanceConfig.node_settings` retains permitted local goals, layout, and parameter
+source links without duplicating shared node definitions. Legacy value selections
+are migrated into sparse municipal default-scenario overrides. Parameter ownership
+is independent of visitor customization.
+
+## Instance declarations and parameter defaults
+
+A municipal `InstanceModelSpec` contains local declarations and local years.
+Its global parameter IDs must be disjoint from the template's IDs. Reports,
+pages, impact overviews, normalizations, action groups, and scenarios inherit
+from the pinned revision; local declarations append without shadowing inherited
+identities. Reports currently use their translated name as identity; groups use
+UUIDs, and the other declarations use their existing identifiers.
+
+There is one `InstanceModelSpec` type for standalone definitions, sparse municipal
+definitions, and effective runtime compositions. Municipal lists contain additions;
+an empty list adds nothing. Local declarations cannot shadow template identities.
+Years remain wholly local. `dataset_repo` must be absent or `None` in a dependent
+instance and always comes from the template.
+
+`features`, `terms`, `theme_identifier`, and `sample_size` may be overridden directly.
+Serialization preserves explicit field presence, including individual feature and
+term fields: omission inherits, while an explicit `False`, `0`, or `None` retains
+its meaning. Local scenarios with inherited IDs contain only parameter values and
+their declared types; composition retains the template's scenario metadata. A
+scenario with a new ID is an ordinary local declaration and must have a name.
+
+Composition returns a separate spec marked by a private runtime flag.
+`InstanceSpecField` rejects storing that object in `InstanceConfig.spec`, including
+queryset updates and bulk writes. Snapshot serialization remains permitted.
+Export/import accepts authoring snapshots rather than composed runtime snapshots.
+The flag is intentionally a runtime guard: converting to ordinary JSON and
+reconstructing a spec loses it, so persistence paths must always use local inputs.
+
+`InstanceSnapshot.provenance` maps declaration and value paths to their authoring
+instance UUID and, for inherited items, template revision and content hash.
+Parameter declarations and scenario values have separate origins.
+`parameter_value_origin()` follows municipal-default fallback for scenarios that
+omit a parameter. Provenance is computed during composition rather than stored
+as tags on every item.
+
+`InstanceExport` contains the local authoring snapshot and, for dependent instances,
+a nested `template` export of the pinned edition. Its dataset bodies come from
+the pinned publication payloads, including frozen external input declarations,
+rather than current template draft data. Import verifies template and payload
+hashes, reuses a matching edition or installs the bundled edition, and remaps
+revision IDs. An installed template belongs to the destination organization.
+Existing template drafts are not published or replaced by importing another
+edition.
+
+A parameter's `owner` is `framework` or `instance` (the default). The template
+owns inherited declarations in both cases; ownership controls whether municipal
+administrators can persist values. `is_customizable` controls ephemeral visitor
+edits. A framework-owned declaration is injected unchanged, and local values
+cannot override it. References preserve ownership; persisting a reference value
+edits its target parameter and checks the target's ownership too.
+
+For parameter values, composition applies:
+
+1. The parameter's declared default.
+2. A municipal default stored in the local default scenario's `param_values`.
+3. An explicit value in the selected scenario.
+4. An ephemeral visitor override.
+
+Municipal defaults also become runtime parameter defaults. Thus a weather-corrected
+scenario can name only `weather_correction`, retaining the municipality's other
+settings. Scenarios no longer automatically capture every customizable parameter.
+A scenario's default values contain only deliberate deviations, and changing a
+municipal value back to the inherited value removes the local entry.
+
+Use `instanceEditor.setInstanceParameter(parameterId, value, scenarioId, reset)`.
+Omit `scenarioId` to edit municipal defaults; `reset: true` removes a local entry.
+The mutation requires instance change permission, honors locks and draft versions,
+records an audit operation, and validates the value. Editor reads use the effective
+spec, while persistence retains only local declarations and overrides.
+
+Formula nodes read `FormulaConfig.formula`; formula actions read
+`ActionConfig.formula`. Formulas are calculation definitions, never runtime
+parameters or scenario values. YAML adapters still accept the legacy formula
+parameter spelling. Migration 0082 converts existing database specs, and snapshot
+version 13 adapts old published snapshots without rewriting revision content.
+Migration 0083 removes the earlier overrides container and retains historical
+template pins; snapshot version 14 introduces sparse authoring snapshots.
+Captured default-scenario formulas are removed from live specs even when stale.
+Genuinely different named-scenario formulas require explicit migration rather
+than being silently discarded. Copied reports are retired by declaration identity even when
+their old contents reference removed nodes. Independent local declarations and
+parameter values are retained.
 
 ## Editor API
 

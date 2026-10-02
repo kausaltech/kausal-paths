@@ -34,6 +34,7 @@ from nodes.constants import VALUE_COLUMN, DecisionLevel
 from nodes.defs import (
     ActionConfig,
     DatasetPortSpec,
+    FormulaConfig,
     InputDatasetDef,
     InstanceModelSpec,
     NodeSpec,
@@ -45,6 +46,7 @@ from nodes.defs.instance_defs import ActionGroup, DatasetRepoSpec, InstanceFeatu
 from nodes.defs.node_defs import ActionHookDef, NodeSpecExtra
 from nodes.defs.port_def import InputPortDef, OutputPortDef
 from nodes.dimensions import Dimension
+from nodes.formula import FormulaNode
 from nodes.goals import NodeGoals
 from nodes.instance_serialization import (
     DatasetPortSnapshot,
@@ -58,7 +60,7 @@ from nodes.visualizations import NodeVisualizations
 from nodes.yaml_port_refs import YamlPortReferenceCatalog
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator, Sequence
+    from collections.abc import Sequence
 
     from nodes.defs.transform_def import EdgeTransformOp
     from nodes.node import Node, NodeMetric
@@ -183,6 +185,7 @@ class _ParsedNode:
     internal_dims: set[str] = field(default_factory=set)
     # Populated in the params pass:
     params: list[Parameter] = field(default_factory=list)
+    formula: str | None = None
     # Populated in the edge/port pass:
     edges: list[_ParsedEdge] = field(default_factory=list)
     input_ports: list[InputPortDef] = field(default_factory=list)
@@ -639,10 +642,10 @@ class InstanceConfigParser:
                 scenario.param_values[pc['id']] = param.clean(pc['value'])
             for global_id, value in self._scenario_values.get(scenario_id, []):
                 scenario.param_values[global_id] = value
-            # Mirror ActionNode.on_scenario_created: every action's 'enabled'
-            # parameter participates in every scenario.
+            # Every other scenario deviates through its 'all_actions_enabled'; the default
+            # scenario's flag is already the declared value (`_ensure_enabled_param`).
             for parsed_node in self.nodes.values():
-                if not parsed_node.is_action:
+                if not parsed_node.is_action or scenario.default:
                     continue
                 enabled_gid = f'{parsed_node.identifier}.enabled'
                 if enabled_gid not in scenario.param_values:
@@ -656,28 +659,7 @@ class InstanceConfigParser:
         if default_scenario is None:
             raise InstanceParseError('Default scenario not defined')
 
-        for global_id, param in self._iter_params_with_global_ids():
-            if not param.is_customizable:
-                continue
-            if global_id in default_scenario.param_values:
-                continue
-            default_scenario.param_values[global_id] = param.value
-
-        # The loader activates the default scenario at the end of init, so the
-        # exported parameter *values* reflect it. Mirror the activation.
-        for global_id, value in default_scenario.param_values.items():
-            param = self._find_param(global_id)
-            param.value = param.clean(value) if value is not None else None
-
         return scenarios
-
-    def _iter_params_with_global_ids(self) -> Iterator[tuple[str, Parameter]]:
-        yield from self.global_params.items()
-        for parsed in self.nodes.values():
-            for p in parsed.params:
-                yield f'{parsed.identifier}.{p.local_id}', p
-
-    # -- emission sectors -------------------------------------------------------
 
     def _expanded_emission_sector_configs(self) -> list[dict[str, Any]]:
         config = self.config
@@ -891,10 +873,12 @@ class InstanceConfigParser:
         parsed.dataset_defs = defs
         parsed.has_fixed_dataset = 'historical_values' in config or 'forecast_values' in config
 
-    def _parse_node_params(self, parsed: _ParsedNode) -> None:  # noqa: C901, PLR0912
+    def _parse_node_params(self, parsed: _ParsedNode) -> None:  # noqa: C901, PLR0912, PLR0915
         """Mirror ``_make_node_params``."""
         from params.param import ReferenceParameter
 
+        if issubclass(parsed.node_class, FormulaNode):
+            parsed.formula = parsed.config.get('formula')
         params = parsed.config.get('params', [])
         if not params:
             return
@@ -904,6 +888,11 @@ class InstanceConfigParser:
         for pc_orig in params:
             pc = dict(pc_orig)
             param_id = pc.pop('id')
+            if param_id == 'formula' and issubclass(parsed.node_class, FormulaNode):
+                if pc.get('values') or pc.get('ref'):
+                    raise InstanceParseError('A formula belongs to the node definition, not a parameter or scenario')
+                parsed.formula = pc['value']
+                continue
             param_obj = class_allowed.get(param_id)
             if param_obj is None:
                 raise InstanceParseError(f'Node {parsed.identifier}: parameter {param_id} not allowed by node class')
@@ -927,6 +916,7 @@ class InstanceConfigParser:
                     )
                 ref_param = ReferenceParameter(
                     local_id=param_obj.local_id,
+                    owner=pc.get('owner', param_obj.owner),
                     label=param_obj.label,
                     target_id=ref,
                 )
@@ -957,9 +947,10 @@ class InstanceConfigParser:
 
     def _ensure_enabled_param(self, parsed: _ParsedNode) -> None:
         """Mirror ``ActionNode.finalize_init``: every action carries an 'enabled' parameter."""
-        from nodes.actions.action import ENABLED_PARAM_ID
+        from nodes.actions.action import ENABLED_BY_DEFAULT, ENABLED_PARAM_ID
 
         param = next((p for p in parsed.params if p.local_id == ENABLED_PARAM_ID), None)
+        enabled = self._default_actions_enabled()
         if param is None:
             for proto in getattr(parsed.node_class, 'allowed_parameters', []):
                 if proto.local_id == ENABLED_PARAM_ID:
@@ -967,14 +958,25 @@ class InstanceConfigParser:
             else:
                 raise InstanceParseError(f"Node {parsed.identifier}: 'enabled' is missing from allowed parameters")
             param = proto.copy()
-            param.mark_implicit()
+            # Only a parameter equal to what the action synthesizes can stay implicit;
+            # any other value is a declaration and must reach the spec.
+            if enabled == ENABLED_BY_DEFAULT:
+                param.mark_implicit()
             parsed.params.append(param)
         # EnabledParam.set_node applies the instance's custom label, when set.
         enabled_label = self._terms.enabled_label
         if enabled_label:
             param.label = enabled_label
         if param.value is None:
-            param.value = param.clean(False)  # noqa: FBT003
+            # A declared value is the default scenario's value, so the default
+            # scenario's `all_actions_enabled` declares it rather than overriding it.
+            param.value = param.clean(enabled)
+
+    def _default_actions_enabled(self) -> bool:
+        for scenario_config in self.config.get('scenarios', []):
+            if scenario_config.get('default', False):
+                return bool(scenario_config.get('all_actions_enabled', False))
+        return False
 
     # -- edges & ports -------------------------------------------------------------
 
@@ -1370,10 +1372,15 @@ class InstanceConfigParser:
 
     # -- snapshot assembly -------------------------------------------------------------
 
-    def _parse_type_config(self, parsed: _ParsedNode) -> ActionConfig | SimpleConfig:
+    def _parse_type_config(self, parsed: _ParsedNode) -> ActionConfig | SimpleConfig | FormulaConfig:
         """Derive the node's type configuration from its class and action settings."""
         kls = parsed.node_class
         node_class = f'{kls.__module__}.{kls.__qualname__}'
+        if issubclass(kls, FormulaNode) and parsed.formula is None:
+            raise InstanceParseError(f'Node {parsed.identifier}: formula is required')
+        if not parsed.is_action and issubclass(kls, FormulaNode):
+            assert parsed.formula is not None
+            return FormulaConfig(formula=parsed.formula)
         if not parsed.is_action:
             return SimpleConfig(node_class=node_class)
 
@@ -1398,6 +1405,7 @@ class InstanceConfigParser:
         if no_effect_value is None:
             no_effect_value = getattr(parsed.node_class, 'no_effect_value', None)
         return ActionConfig(
+            formula=parsed.formula,
             decision_level=decision_level,
             group=self._action_group_uuid(group) if group is not None else None,
             parent=config.get('parent'),
