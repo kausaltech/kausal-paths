@@ -458,6 +458,7 @@ class ActionConfig(BaseModel):
     """Type-specific config for action nodes."""
 
     kind: Literal[NodeKind.ACTION] = NodeKind.ACTION
+    formula: str | None = None
     node_class: str
     decision_level: DecisionLevel | None = None
     group: ActionGroupRef | None = None

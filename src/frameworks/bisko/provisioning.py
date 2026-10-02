@@ -24,6 +24,7 @@ from frameworks.identity import ensure_municipal_organization
 from frameworks.models import DataQualityLevel, DataQualityScheme, Framework, FrameworkConfig
 from nodes.defs.transform_def import FilterColumnOp
 from nodes.models import DatasetMaterialization, InstanceConfig, NodeInputPortBinding
+from nodes.template_graph import template_snapshot
 from orgs.models import Namespace, OrganizationClass, OrganizationIdentifier
 from params.param import StringParameter
 
@@ -85,15 +86,24 @@ def _reconcile_bisko_nuts_codes(framework: Framework) -> None:
         organization = instance.organization
         assert organization is not None
         nuts3 = municipality_nuts3(organization)
-        parameter = next((param for param in spec.params if param.local_id == 'nuts_code'), None)
-        if parameter is None:
-            spec.params.append(StringParameter(local_id='nuts_code', label='NUTS-3 code', value=nuts3))
-        elif isinstance(parameter, StringParameter):
-            if parameter.value == nuts3:
+        if instance.template_revision_id is not None and not any(p.local_id == 'nuts_code' for p in spec.params):
+            base = template_snapshot(instance)
+            default = next((scenario for scenario in base.spec.scenarios if scenario.default), None)
+            override = spec.local_scenario(default.id if default is not None else 'default')
+            if override.param_values.get('nuts_code') == nuts3:
                 continue
-            parameter.set(nuts3, notify=False)
+            override.param_values['nuts_code'] = nuts3
+            override.parameter_types['nuts_code'] = 'string'
         else:
-            raise ValueError(f'{instance.identifier} has a non-string nuts_code parameter.')
+            parameter = next((param for param in spec.params if param.local_id == 'nuts_code'), None)
+            if parameter is None:
+                spec.params.append(StringParameter(local_id='nuts_code', label='NUTS-3 code', value=nuts3))
+            elif isinstance(parameter, StringParameter):
+                if parameter.value == nuts3:
+                    continue
+                parameter.set(nuts3, notify=False)
+            else:
+                raise ValueError(f'{instance.identifier} has a non-string nuts_code parameter.')
         instance.spec = spec
         instance.save(update_fields=['spec'])
         instance.invalidate_cache()
@@ -387,16 +397,6 @@ def reconcile_bisko_default_quality(
     if revision is not None:
         snapshot = InstanceSnapshot.from_serialized_data(revision.content['model_snapshot']['structured'])
         released = {d.id: d.default_quality for d in snapshot.all_datasets()}
-    stale_pins = (
-        InstanceConfig.objects
-        .filter(
-            framework_config__framework=framework,
-            template_revision__object_id=str(template.pk),
-            template_revision__content_type=ContentType.objects.get_for_model(InstanceConfig),
-        )
-        .exclude(template_revision=revision)
-        .exists()
-    )
-    if revision is None or any(released.get(key) != value for key, value in expected.items()) or stale_pins:
+    if revision is None or any(released.get(key) != value for key, value in expected.items()):
         return publish_template_instance(template)
     return revision

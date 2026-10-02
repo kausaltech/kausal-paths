@@ -313,6 +313,8 @@ class NodeHasher:
         hash_part('qualifiers', '', str(QUALIFIER_VERSION))
         hash_part('instance', '', self.node.context.instance_hash)
         hash_part('id', '', self.node.id)
+        if self.node.has_spec:
+            hash_part('type_config', '', self.node.spec.type_config.model_dump_json())
         if self.metrics_hash is None:
             metrics_hash = b''
             for m in self.node.output_metrics.values():

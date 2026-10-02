@@ -33,7 +33,7 @@ class ProblemSeverity(Enum):
     WARNING = 'warning'
 
 
-@sb.interface(name='InstanceProblem', description='One problem that blocks publication of the instance draft.')
+@sb.interface(name='InstanceProblem', description='One problem that blocks publication or submission of the instance draft.')
 class InstanceProblemInterface:
     code: str = sb.field(description='Machine-readable problem kind.')
     message: str = sb.field(description='Untranslated human-readable fallback.')
@@ -46,6 +46,18 @@ class NodeValueCoordinateType:
     category: str
 
 
+@sb.enum(
+    name='NodeValueEnforcement',
+    description=(
+        'BLOCK_PUBLISH violations mean the computed result would be wrong and block publication; '
+        'BLOCK_SUBMISSION violations mean it is not certifiable and block only a submission.'
+    ),
+)
+class NodeValueEnforcement(Enum):
+    BLOCK_PUBLISH = 'block_publish'
+    BLOCK_SUBMISSION = 'block_submission'
+
+
 @sb.type(
     name='NodeValueValidationViolation', description='A delivered node or dataset value violates its consuming port contract.'
 )
@@ -55,13 +67,15 @@ class NodeValueValidationViolationType(InstanceProblemInterface):
     binding_uuid: UUID | None
     years: list[int]
     categories: list[NodeValueCoordinateType]
+    enforcement: NodeValueEnforcement
 
     @classmethod
     def from_violation(cls, violation: ValueValidationViolation) -> Self:
         return cls(
             code=violation.code,
             message=violation.message,
-            severity=ProblemSeverity.ERROR,
+            severity=ProblemSeverity.ERROR if violation.enforcement == 'block_publish' else ProblemSeverity.WARNING,
+            enforcement=NodeValueEnforcement(violation.enforcement),
             node_uuid=violation.node_uuid,
             port_uuid=violation.port_uuid,
             binding_uuid=violation.binding_uuid,

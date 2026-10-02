@@ -208,7 +208,9 @@ def test_graphql_lifecycle_and_blocked_finalisation(
     sub_id = created['id']
     mutate(gql, ic, 'requestReview(submissionId: "%s") { __typename }' % sub_id)
 
-    def refuse(self: InstanceConfig, user: Any = None) -> None:
+    def refuse(self: InstanceConfig, user: Any = None, *, require_submittable: bool = False) -> None:
+        # A submission holds the draft to the submission tier as well as the publication tier.
+        assert require_submittable
         raise error_class([])
 
     monkeypatch.setattr(InstanceConfig, 'publish_instance', refuse)
@@ -289,3 +291,37 @@ def test_graphql_review_notes_and_who_requested_the_review(client: Client, ic: I
     ]
     # The last request stays on record after the submission is sent back.
     assert returned['reviewRequestedBy']['email'] == requester
+
+
+# --- recorded history ---
+
+
+def test_history_records_valued_years_without_a_submission() -> None:
+    from datetime import date
+    from io import StringIO
+
+    from django.core.management import call_command
+
+    from kausal_common.datasets.tests.factories import DataPointFactory, DatasetFactory
+
+    ic = make_instance()
+    dataset = DatasetFactory.create(scope=ic, identifier='kommune/endenergieverbrauch')
+    for year, value in ((2005, 1), (2015, 1), (2016, None), (2018, 1), (2021, 1)):
+        DataPointFactory.create(dataset=dataset, metric__schema=dataset.schema, date=date(year, 1, 1), value=value)
+    open_draft = ops.create_submission(ic, period_start=2021, user=None)
+
+    out = StringIO()
+    call_command('record_inventory_history', ic.identifier, '--note', 'Imported', '--apply', stdout=out)
+
+    # 2005 is before the historical span, 2016 has no value, 2021 is already open.
+    recorded = Submission.objects.filter(instance_config=ic).exclude(pk=open_draft.pk)
+    assert sorted(recorded.values_list('period_start', 'status')) == [
+        (2015, SubmissionStatus.FINAL),
+        (2018, SubmissionStatus.FINAL),
+    ]
+    assert all(s.events.filter(to_status=SubmissionStatus.IN_REVIEW, note='Imported').exists() for s in recorded)
+    open_draft.refresh_from_db()
+    assert open_draft.status == SubmissionStatus.DRAFT
+
+    call_command('record_inventory_history', ic.identifier, '--note', 'Imported', '--apply', stdout=out)
+    assert recorded.count() == 2

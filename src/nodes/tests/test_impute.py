@@ -10,6 +10,7 @@ from kausal_common.i18n.pydantic import TranslatedString
 from common import polars as ppl
 from common.polars import DataFrameMeta, to_ppdf
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
+from nodes.defs.node_defs import FormulaConfig, NodeSpec
 from nodes.dimensions import Dimension, DimensionCategory
 from nodes.edges import Edge
 from nodes.exceptions import NodeError
@@ -145,7 +146,7 @@ def test_multiplicative_node_impute_overlays_and_falls_back():
 def test_formula_node_impute_overlays_and_falls_back():
     context = _make_context('formula-impute')
     target = _make_node(context, FormulaNode, 'target')
-    target.parameters['formula'] = StringParameter(local_id='formula', value='node_a')
+    target._spec = NodeSpec(type_config=FormulaConfig(formula='node_a'))
     node_a = _make_fixed_node(context, 'node_a', [(2020, 1.0, False), (2021, 1.0, False)])
     impute_source = _make_fixed_node(context, 'impute_source', [(2020, 99.0, False)])
 

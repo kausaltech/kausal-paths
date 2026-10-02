@@ -63,7 +63,7 @@ params:
 - id: statistical_correction
   label_en: Statistical correction
   label_fi: Tilastollinen korjaus
-  value: true
+  value: false
   is_visible: false
   is_customizable: true
 - id: measure_data_override
@@ -1113,17 +1113,12 @@ scenarios:
   params:
   - id: show_scenario_impacts
     value: false
-  - id: statistical_correction
-    value: false
 
 - id: default
   default: true
   name: Aktiivinen toimenpideohjelma
   name_en: Action Plan
   all_actions_enabled: true
-  params:
-  - id: statistical_correction
-    value: false
 
 - id: progress_tracking
   name: Progress tracking

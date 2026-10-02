@@ -2,7 +2,7 @@
 
 from datetime import date
 from decimal import Decimal
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 import polars as pl
@@ -113,8 +113,8 @@ def test_zero_activity_requires_a_grade_but_does_not_turn_grade_d_into_missing()
     assert [p[0] for p in _problems(frame, contract)] == ['required_qualifier', 'required_qualifier']
 
 
-def test_computed_binding_is_validated_after_its_dimension_transformation() -> None:
-    config = {
+def _computed_binding_config() -> dict[str, Any]:
+    return {
         'id': 'value-contract',
         'name': 'Value contract',
         'owner': 'Test',
@@ -154,18 +154,49 @@ def test_computed_binding_is_validated_after_its_dimension_transformation() -> N
             },
         ],
     }
-    snapshot = parse_instance_snapshot(config, instance_uuid=uuid4())
+
+
+def test_computed_binding_is_validated_after_its_dimension_transformation() -> None:
+    snapshot = parse_instance_snapshot(_computed_binding_config(), instance_uuid=uuid4())
     loader = InstanceLoader(snapshot=snapshot)
     consumer = loader.context.get_node('consumer')
     assert len(consumer.runtime_input_bindings) == 1
     with loader.context.run():
-        problems = collect_instance_value_violations(loader.instance)
+        problems = collect_instance_value_violations(loader.instance, undeclared='evaluate')
     assert {(p.code, tuple(p.years), p.categories['carrier']) for p in problems} == {
         ('missing_required_value', (2020,), 'electricity'),
         ('missing_required_value', (2021,), 'electricity'),
     }
     assert consumer.runtime_node_meta is not None
     assert all(p.node_uuid == consumer.runtime_node_meta.id for p in problems)
+
+
+def test_undeclared_calendar_is_reported_once_but_evaluated_for_the_model() -> None:
+    loader = InstanceLoader(snapshot=parse_instance_snapshot(_computed_binding_config(), instance_uuid=uuid4()))
+    with loader.context.run():
+        reported = collect_instance_value_violations(loader.instance)
+        evaluated = collect_instance_value_violations(loader.instance, undeclared='evaluate')
+    assert [(p.code, p.years, p.enforcement) for p in reported] == [
+        ('inventory_years_undeclared', [2020, 2021], 'block_submission')
+    ]
+    assert {p.code for p in evaluated} == {'missing_required_value'}
+
+
+def test_tier_follows_what_the_contract_guards() -> None:
+    frame = _frame([(2020, 'gas', -1.0)])
+    static = ValueContract(min=0, combinations=[RequiredValueCombination(categories={'carrier': 'oil'})])
+    assert [
+        (p.code, p.enforcement) for p in validate_value_contract(frame, static, [2020], node_uuid=uuid4(), port_uuid=uuid4())
+    ] == [
+        ('missing_required_value', 'block_submission'),
+        ('value_range', 'block_publish'),
+    ]
+    # A factor missing for reported activity is a wrong result, not an incomplete one.
+    factors = ValueContract(combinations_from_positive=uuid4())
+    problems = validate_value_contract(
+        _frame([]), factors, [2020], node_uuid=uuid4(), port_uuid=uuid4(), required_values=_frame([(2020, 'gas', 1.0)])
+    )
+    assert [(p.code, p.enforcement) for p in problems] == [('missing_required_value', 'block_publish')]
 
 
 @pytest.mark.parametrize('value', [None, Decimal(0)])
@@ -207,12 +238,16 @@ def test_publication_validates_delivered_dataset_values_atomically(value: Decima
     NodeInputPortBinding.objects.create(instance=config, node=node, port_id=port_id, dataset=dataset, metric=metric)
     if value is None:
         with pytest.raises(InstanceValueValidationError) as error:
-            config.publish_instance()
-        assert [p.code for p in error.value.violations] == ['missing_required_value']
+            config.publish_instance(require_submittable=True)
+        assert [(p.code, p.enforcement) for p in error.value.violations] == [('missing_required_value', 'block_submission')]
         config.refresh_from_db()
         assert config.live_revision_id is None
         dataset.refresh_from_db()
         assert dataset.latest_revision_id is None
+        # An incomplete inventory is still a correct draft.
+        config.publish_instance()
+        config.refresh_from_db()
+        assert config.live_revision_id is not None
     else:
         config.publish_instance()
         config.refresh_from_db()

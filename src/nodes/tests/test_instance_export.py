@@ -93,9 +93,9 @@ def test_from_serialized_data_runs_snapshot_upgraders(db_instance: InstanceConfi
     seen: list[int] = []
     original = InstanceSnapshot.from_serialized_data.__func__  # type: ignore[attr-defined]
 
-    def spy(cls, data):
+    def spy(cls, data, *, compose=True):
         seen.append(data['schema_version'])
-        return original(cls, data)
+        return original(cls, data, compose=compose)
 
     monkeypatch.setattr(InstanceSnapshot, 'from_serialized_data', classmethod(spy))
 
