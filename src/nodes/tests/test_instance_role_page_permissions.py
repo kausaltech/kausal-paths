@@ -12,8 +12,10 @@ silently stopped writing page permissions, so a group created after that change 
 members were refused on every page in the admin.
 """
 
+from io import StringIO
 from typing import TYPE_CHECKING
 
+from django.core.management import CommandError, call_command
 from wagtail.models import PAGE_PERMISSION_TYPES, GroupPagePermission, Locale, Page
 
 import pytest
@@ -134,3 +136,26 @@ def test_default_content_grants_admin_page_permissions(instance_config: Instance
     assert ic.root_page is not None
     assert _page_perm_codenames(ic.admin_group, ic.root_page) == ALL_PAGE_PERMS
     assert _page_perm_codenames(ic.super_admin_group, ic.root_page) == ALL_PAGE_PERMS
+
+
+def test_update_command_backfills_existing_groups(translated_instance: tuple[InstanceConfig, Page, Page, Page]) -> None:
+    """Groups created while no page permissions were written get them from the backfill command."""
+    ic, root, _child, spanish_root = translated_instance
+    ic.create_or_update_instance_groups()
+    ic.refresh_from_db()
+    GroupPagePermission.objects.all().delete()
+
+    out = StringIO()
+    call_command('update_instance_role_groups', '--dry-run', stdout=out)
+    assert not GroupPagePermission.objects.exists()
+    assert f'{ic.identifier}: page permission rows +' in out.getvalue()
+
+    call_command('update_instance_role_groups', ic.identifier, stdout=StringIO())
+    for group in (ic.admin_group, ic.super_admin_group):
+        assert _page_perm_codenames(group, root) == ALL_PAGE_PERMS
+        assert _page_perm_codenames(group, spanish_root) == ALL_PAGE_PERMS
+
+
+def test_update_command_rejects_unknown_instances() -> None:
+    with pytest.raises(CommandError, match='no-such-instance'):
+        call_command('update_instance_role_groups', 'no-such-instance', stdout=StringIO())
