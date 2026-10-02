@@ -199,6 +199,19 @@ def test_tier_follows_what_the_contract_guards() -> None:
     assert [(p.code, p.enforcement) for p in problems] == [('missing_required_value', 'block_publish')]
 
 
+def test_a_conditional_contract_can_declare_that_it_only_blocks_submission() -> None:
+    """Heat output missing for plant fuel input sends the year to a fallback route; the result is not wrong."""
+    contract = ValueContract(required_if_positive=uuid4(), enforcement='block_submission')
+    problems = validate_value_contract(
+        _frame([]),
+        contract.model_copy(update={'combinations': [RequiredValueCombination(categories={'carrier': 'gas'})]}),
+        [2020],
+        node_uuid=uuid4(),
+        port_uuid=uuid4(),
+    )
+    assert [(p.code, p.enforcement) for p in problems] == [('missing_required_value', 'block_submission')]
+
+
 @pytest.mark.parametrize('value', [None, Decimal(0)])
 def test_publication_validates_delivered_dataset_values_atomically(value: Decimal | None) -> None:
     instance = InstanceFactory.create()
