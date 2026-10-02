@@ -291,6 +291,15 @@ class TestFills:
         supplied = {key: _reported(qual)['all'] for key, qual in _qual(out).items()}
         assert supplied == {(2020, 'gas'): True, (2020, 'oil'): False, (2021, 'gas'): False, (2021, 'oil'): False}
 
+    @pytest.mark.parametrize('qualified', [False, True])
+    def test_empty_to_zero_keeps_the_columns_of_a_frame_without_rows(self, *, qualified: bool) -> None:
+        # A dataset nobody has filled in yet: the wide round trip would leave no metric column.
+        df = _frame([], qualified=qualified)
+        out = df.paths.get_operation('empty_to_zero')(df, None)
+        assert out.is_empty()
+        assert out.metric_cols == [VALUE_COLUMN]
+        assert out.primary_keys == df.primary_keys
+
     def test_other_fills_keep_a_record_but_do_not_start_one(self) -> None:
         df = _frame([(2020, 'gas', 5.0, None, None)], qualified=False)
         assert qualifiers.carry_over(df, df) is df
