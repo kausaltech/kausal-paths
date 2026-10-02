@@ -376,6 +376,7 @@ def upgrade_template_instance(instance: InstanceConfig, revision: Revision, *, u
             port = next((port for port in node.spec.input_ports if port.id == binding.port_uuid), None)
             if port is None or port.binding_owner != 'instance':
                 binding.delete()
+    _bind_inputs_to_own_datasets(instance, candidate)
     spec = instance.ensure_spec()
     old_params = parameters_by_id(previous.spec, previous.nodes)
     new_params = parameters_by_id(candidate.spec, candidate.nodes)
@@ -394,6 +395,52 @@ def upgrade_template_instance(instance: InstanceConfig, revision: Revision, *, u
     instance.spec = spec
     instance.save(update_fields=['template_revision', 'node_settings', 'spec'])
     instance.invalidate_cache()
+
+
+def _bind_inputs_to_own_datasets(instance: InstanceConfig, template: InstanceSnapshot) -> None:
+    """
+    Point every instance-owned input that reads a dataset the instance holds its own copy of at that copy.
+
+    An instance overrides the inputs that existed when it was set up. A new template revision
+    may read the same dataset from another port -- a plant parameter split into one port per
+    column, say -- and that port would still read the template's copy, so one dataset would
+    be read from two rows, which composition refuses.
+    """
+    own = {
+        dataset.identifier: dataset
+        for dataset in Dataset.objects.for_instance_config(instance).select_related('schema')
+        if dataset.identifier
+    }
+    overridden = {(override.node_uuid, override.port_uuid) for override in instance.binding_overrides.all()}
+    nodes = {node.uuid: node for node in template.nodes}
+    by_port: dict[tuple[UUID, UUID], list[InputBindingSnapshot]] = {}
+    for binding in template.bindings:
+        by_port.setdefault((binding.node_id, binding.port_id), []).append(binding)
+    for (node_uuid, port_uuid), bindings in by_port.items():
+        node = nodes.get(node_uuid)
+        port = next((p for p in node.spec.input_ports if p.id == port_uuid), None) if node and node.spec else None
+        if (node_uuid, port_uuid) in overridden or port is None or port.binding_owner != 'instance':
+            continue
+        sources = [binding.dataset_source for binding in bindings]
+        if not any(
+            source is not None and source.dataset in own and source.dataset_uuid != own[source.dataset].uuid for source in sources
+        ):
+            continue
+        replacement = []
+        for binding, source in zip(bindings, sources, strict=True):
+            local = own.get(source.dataset) if source is not None else None
+            if source is None or local is None or local.uuid == source.dataset_uuid:
+                replacement.append(binding)
+                continue
+            assert local.schema is not None
+            metric = local.schema.metrics.filter(name=source.metric).first()
+            if metric is None:
+                raise ValidationError(
+                    f'{local.identifier} has no metric {source.metric} for {node.identifier if node else node_uuid}'
+                )
+            update = {'dataset_uuid': local.uuid, 'metric_uuid': metric.uuid, 'dataset_revision': None}
+            replacement.append(binding.model_copy(update={'source': source.model_copy(update=update)}))
+        InputPortBindingSet.objects.create(instance=instance, node_uuid=node_uuid, port_uuid=port_uuid, bindings=replacement)
 
 
 def build_local_nodes(instance: InstanceConfig) -> list[NodeSnapshot]:
