@@ -234,7 +234,7 @@ def test_quality_versions_can_coexist(template: InstanceConfig) -> None:
     assert newer.levels.get(identifier='B').score == Decimal('0.75')
 
 
-def test_default_quality_release_is_idempotent_and_advances_members() -> None:  # noqa: PLR0915
+def test_default_quality_release_is_idempotent_and_keeps_member_pins() -> None:  # noqa: PLR0915
     from frameworks.bisko.provisioning import reconcile_bisko_default_quality
     from nodes.defs.graph import QualityLevelKey
     from nodes.defs.port_def import InputPortDef
@@ -285,20 +285,21 @@ def test_default_quality_release_is_idempotent_and_advances_members() -> None:  
     assert InstanceSnapshot.from_serialized_data(old.content['model_snapshot']['structured']).datasets[0].default_quality is None
     for member in members:
         member.refresh_from_db()
-        assert member.template_revision_id == new.pk
-        assert build_instance_snapshot(member).datasets[0].default_quality == defaults[dataset.identifier]
+        assert member.template_revision_id == old.pk
+        assert build_instance_snapshot(member).datasets[0].default_quality is None
     unpinned.refresh_from_db()
     assert unpinned.template_revision_id is None
     repeated = reconcile_bisko_default_quality(framework, defaults)
     assert repeated is not None
     assert repeated.pk == new.pk
-    # A member left behind on an older release is advanced on the next run too.
+    # A member left on an older release does not trigger another template publication.
     members[0].template_revision = old
     members[0].save(update_fields=['template_revision'])
     advanced = reconcile_bisko_default_quality(framework, defaults)
     members[0].refresh_from_db()
     assert advanced is not None
-    assert members[0].template_revision_id == advanced.pk
+    assert members[0].template_revision_id == old.pk
+    assert advanced.pk == new.pk
     final = reconcile_bisko_default_quality(framework, defaults)
     assert final is not None
     assert final.pk == advanced.pk

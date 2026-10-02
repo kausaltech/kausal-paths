@@ -1163,7 +1163,7 @@ class Command(BaseCommand):
                 kind='node_value_validation_violation',
                 code=violation.code,
                 message=violation.message,
-                severity='error',
+                severity='error' if violation.enforcement == 'block_publish' else 'warning',
                 details=TypeAdapter(dict[str, JsonValue]).validate_json(violation.model_dump_json()),
             )
             for violation in collect_instance_value_violations(instance)

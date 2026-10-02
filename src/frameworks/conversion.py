@@ -26,11 +26,13 @@ from frameworks.models import FrameworkConfig
 from nodes.defs.port_def import InputPortDef
 from nodes.instance_graph import build_instance_graph
 from nodes.instance_serialization import InputBindingSnapshot, InstanceSnapshot, build_instance_snapshot
+from nodes.legacy_specs import local_spec_from_template, migrate_inherited_node_settings
 from nodes.models import InputPortBindingSet, NodeConfig, NodeInputPortBinding
 from nodes.template_reference_data import remap_json
 from nodes.template_settings import InheritedNodeSettings
 from nodes.units import unit_registry
 from pages.models import OutcomePage
+from params.base import ParameterOwner
 
 if TYPE_CHECKING:
     from pydantic import JsonValue
@@ -366,11 +368,11 @@ def _node_settings(original: NodeSnapshot, shared: NodeSnapshot) -> InheritedNod
         if base is None:
             raise ValueError(f'Unknown shared parameter {original.identifier}/{parameter.local_id}')
         if parameter.type == 'reference' and base.type != 'reference':
-            if not base.is_customizable:
+            if base.owner == ParameterOwner.FRAMEWORK:
                 raise ValueError('Cannot override a fixed framework parameter')
             settings.parameter_sources[parameter.local_id] = parameter.target_id
         elif parameter.model_dump().get('value') != base.model_dump().get('value'):
-            if not base.is_customizable:
+            if base.owner == ParameterOwner.FRAMEWORK:
                 raise ValueError('Cannot override a fixed framework parameter')
             settings.parameter_values[parameter.local_id] = parameter.model_dump().get('value')
     return settings
@@ -611,9 +613,10 @@ def convert_to_framework(instance: InstanceConfig, framework: Framework, revisio
             instance_config=instance,
             organization_name=instance.organization.name,
         )
+        instance.spec = local_spec_from_template(instance.ensure_spec(), base)
         instance.template_revision = revision
-        instance.node_settings = settings
-        instance.save(update_fields=['template_revision', 'node_settings'])
+        instance.node_settings = migrate_inherited_node_settings(instance.spec, settings, base)
+        instance.save(update_fields=['template_revision', 'node_settings', 'spec'])
         adopted_framework_bindings = _convert_bindings(instance, before, base, identities)
         NodeInputPortBinding.objects.filter(instance=instance).delete()
         shared_rows = instance.nodes.filter(identifier__in=shared)

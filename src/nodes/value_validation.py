@@ -20,6 +20,18 @@ if TYPE_CHECKING:
     from nodes.node import Node
 
 
+type ValueEnforcement = Literal['block_publish', 'block_submission']
+"""
+What a violation blocks.
+
+``block_publish`` means the computed result would be wrong: a value that could not be
+computed, one out of range, two rows where one is allowed, or an activity without the
+factor it needs. ``block_submission`` means the result is not certifiable: a required
+combination or quality grade is missing, or no inventory years have been declared. A
+draft with such problems still publishes; a submission refuses it.
+"""
+
+
 class QualifierRequirement(BaseModel):
     model_config = ConfigDict(extra='forbid', frozen=True)
 
@@ -58,6 +70,19 @@ class ValueContract(BaseModel):
             raise ValueError('Minimum must not exceed maximum')
         return self
 
+    @property
+    def enforcement(self) -> ValueEnforcement:
+        """
+        The tier of this contract's completeness and quality requirements.
+
+        A contract conditioned on another input's positive values requires a factor for
+        reported activity, and activity without its factor is a wrong result, not an
+        incomplete one.
+        """
+        if self.required_if_positive is not None or self.combinations_from_positive is not None:
+            return 'block_publish'
+        return 'block_submission'
+
 
 class ValueValidationViolation(BaseModel):
     node_uuid: UUID
@@ -67,6 +92,11 @@ class ValueValidationViolation(BaseModel):
     message: str
     years: list[int]
     categories: dict[str, str] = Field(default_factory=dict)
+    enforcement: ValueEnforcement = 'block_publish'
+
+
+def publication_blockers(violations: list[ValueValidationViolation]) -> list[ValueValidationViolation]:
+    return [violation for violation in violations if violation.enforcement == 'block_publish']
 
 
 def _qualifier_satisfies(rows: pl.DataFrame, path: str, requirement: QualifierRequirement) -> bool:
@@ -176,6 +206,7 @@ def validate_value_contract(
                         message=f'{message} in {year}: {combination.categories}',
                         years=[year],
                         categories=combination.categories,
+                        enforcement=contract.enforcement,
                     )
                 )
     problems.extend(_bounds_violations(df, contract, years, node_uuid=node_uuid, port_uuid=port_uuid, binding_uuid=binding_uuid))
@@ -233,14 +264,25 @@ def _positive_input_years(target: Node, port_id: UUID, years: list[int]) -> list
     return sorted(active.intersection(years))
 
 
-def collect_instance_value_violations(instance: Instance, *, node_uuid: UUID | None = None) -> list[ValueValidationViolation]:  # noqa: C901, PLR0912
-    """Read consumer-owned contracts through the graph's dataset-or-edge binding abstraction."""
+def collect_instance_value_violations(  # noqa: C901, PLR0912
+    instance: Instance, *, node_uuid: UUID | None = None, undeclared: Literal['report', 'evaluate'] = 'report'
+) -> list[ValueValidationViolation]:
+    """
+    Read consumer-owned contracts through the graph's dataset-or-edge binding abstraction.
+
+    Without a declared inventory calendar, an inventory contract's own requirements cannot
+    be checked year by year: ``report`` replaces them with one ``inventory_years_undeclared``
+    problem per port, while ``evaluate`` checks them over the whole historical span. The
+    model computes with ``evaluate`` (`valid_inputs`), so declaring a calendar changes what
+    is reported, not what was computed before it. Publication-tier checks run either way.
+    """
     ctx = instance.context
     graph = ctx.instance_graph
     if graph is None:
         return []
     years_spec = graph.spec.years
     historical = years_spec.historical
+    calendar_undeclared = historical is None and undeclared == 'report'
     years = (
         historical
         if historical is not None
@@ -299,6 +341,25 @@ def collect_instance_value_violations(instance: Instance, *, node_uuid: UUID | N
                 value = values[0]
                 for additional in values[1:]:
                     value = value.paths.add_with_dims(additional, how='outer')
+                if (
+                    calendar_undeclared
+                    and port.validation.years == 'inventory'
+                    and port.validation.enforcement == 'block_submission'
+                ):
+                    problems.append(
+                        ValueValidationViolation(
+                            node_uuid=meta.id,
+                            port_uuid=port.id,
+                            code='inventory_years_undeclared',
+                            message='No inventory years have been declared, so the required values cannot be checked',
+                            years=years,
+                            enforcement='block_submission',
+                        )
+                    )
+                    problems.extend(
+                        _bounds_violations(value, port.validation, years, node_uuid=meta.id, port_uuid=port.id, binding_uuid=None)
+                    )
+                    continue
                 required_years = years
                 required_values = None
                 try:

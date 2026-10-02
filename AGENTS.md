@@ -141,10 +141,11 @@ Three co-existing translation mechanisms (django-modeltrans, Wagtail locales,
 [`docs/architecture/i18n.md`](docs/architecture/i18n.md) for the full picture.
 
 #### Scenarios
-Activating a scenario resets the parameters it names; what it *omits* matters as much.
+Activating a scenario restores configured defaults, then applies the parameters it names.
 The custom scenario is a diff plus a base, and the base is whichever scenario the user
-branched from. A non-customizable parameter is not folded into the default scenario by
-the loader, so a scenario can only set what it names. See
+branched from. Scenarios store deliberate deviations; parameters are not automatically
+folded into the default scenario. Municipal defaults apply before selected-scenario values.
+See
 [`docs/architecture/scenarios.md`](docs/architecture/scenarios.md).
 
 #### Permission Policies

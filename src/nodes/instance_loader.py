@@ -875,6 +875,7 @@ class InstanceLoader:
                     continue
                 ref_param = ReferenceParameter(
                     local_id=param_obj.local_id,
+                    owner=pc.get('owner', param_obj.owner),
                     label=param_obj.label,
                     target_id=target.global_id,
                 )
@@ -1570,12 +1571,8 @@ class InstanceLoader:
         if default_scenario is None:
             raise Exception('Default scenario not defined')
 
-        for param in self.context.get_all_parameters():
-            if not param.is_customizable:
-                continue
-            if default_scenario.has_parameter(param):
-                continue
-            default_scenario.add_parameter(param, param.value)
+        for parameter in self.context.get_all_parameters():
+            parameter.capture_default_value()
 
         custom_scenario = CustomScenario(
             id='custom',
@@ -1650,6 +1647,7 @@ class InstanceLoader:
         instance_config: InstanceConfig | None = None,
     ) -> Self:
         """Build the runtime natively from an ``InstanceSnapshot`` (typed specs, no YAML dicts)."""
+        snapshot = snapshot.resolve()
         payload_refs = None
         if published:
             from datasets.payloads import DatasetPayloadRef

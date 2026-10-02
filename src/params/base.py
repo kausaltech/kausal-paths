@@ -1,8 +1,10 @@
 import json
 from abc import ABC, abstractmethod
 from contextlib import contextmanager
+from enum import StrEnum
 from typing import TYPE_CHECKING, Any, Self, cast
 
+import strawberry as sb
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
 
 from kausal_common.i18n.pydantic import I18nBaseModel, I18nString, TranslatedString
@@ -26,6 +28,12 @@ def parameter[PT: Parameter[Any, Any]](cls: type[PT]) -> type[PT]:
     return cls
 
 
+@sb.enum
+class ParameterOwner(StrEnum):
+    FRAMEWORK = 'framework'
+    INSTANCE = 'instance'
+
+
 class Parameter[ValueT = Any, SetValueT = ValueT](I18nBaseModel, ABC):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
@@ -34,6 +42,9 @@ class Parameter[ValueT = Any, SetValueT = ValueT](I18nBaseModel, ABC):
 
     label: I18nString | None = None
     description: I18nString | None = None
+
+    owner: ParameterOwner = ParameterOwner.INSTANCE
+    """Authority for persisted values; independent of visitor customization."""
 
     is_customized: bool = False
     is_customizable: bool = True
@@ -53,6 +64,8 @@ class Parameter[ValueT = Any, SetValueT = ValueT](I18nBaseModel, ABC):
     """The context to which this parameter is bound."""
 
     _hash: str | None = PrivateAttr(default=None)
+    _configured_value: ValueT | None = PrivateAttr(default=None)
+    _default_captured: bool = PrivateAttr(default=False)
 
     _is_implicit: bool = PrivateAttr(default=False)
     """Whether node behavior synthesized this parameter rather than configuration authoring it."""
@@ -151,6 +164,26 @@ class Parameter[ValueT = Any, SetValueT = ValueT](I18nBaseModel, ABC):
 
     def is_value_equal(self, value: Any) -> bool:
         return self.value == value
+
+    def restore_value(self, value: ValueT | None) -> None:
+        """Restore previously validated state, including an unset optional value."""
+        previous = self.value
+        self.value = value
+        if not self.is_value_equal(previous):
+            self.notify_change()
+
+    def reset_to_configured_value(self) -> None:
+        if self._default_captured:
+            self.restore_value(self._configured_value)
+        self.is_customized = False
+
+    def capture_default_value(self) -> None:
+        self._configured_value = self.value
+        self._default_captured = True
+
+    @property
+    def configured_value(self) -> ValueT | None:
+        return self._configured_value if self._default_captured else self.value
 
     def calculate_hash(self) -> str:
         h = self._hash

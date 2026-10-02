@@ -103,6 +103,18 @@ class TestPairing:
             {'Energy': 'Energy__qual'} if qualified_side != 'right' else {}
         )
 
+    @pytest.mark.parametrize('qualified_side', ['left', 'right'])
+    def test_stacking_with_one_qualified_side_leaves_the_other_unassessed(self, qualified_side: str) -> None:
+        left = _frame([(2020, 'gas', 3.0, 1.0, True)], qualified=qualified_side == 'left')
+        right = _frame([(2021, 'gas', 1.0, 1.0, True)], qualified=qualified_side == 'right')
+        stacked = left.paths.concat_vertical(right)
+        assert stacked.qualifier_cols == {VALUE_COLUMN: QUAL}
+        assessed, unassessed = (2020, 2021) if qualified_side == 'left' else (2021, 2020)
+        rows = _qual(stacked)
+        assert rows[assessed, 'gas']['quality'] == {'score': 1.0, 'coverage': 1.0}
+        assert rows[unassessed, 'gas']['quality'] is None
+        assert rows[unassessed, 'gas']['reported'] == {'any': None, 'all': None}
+
     def test_rename_select_and_drop_carry_the_qualifier(self) -> None:
         df = _frame([(2020, 'gas', 1.0, 1.0, True)])
         assert df.qualifier_cols == {VALUE_COLUMN: QUAL}

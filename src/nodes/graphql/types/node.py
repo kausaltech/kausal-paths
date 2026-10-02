@@ -95,6 +95,7 @@ class QuantityKindType:
 
 @pydantic_type(model=ActionConfig)
 class ActionConfigType:
+    formula: sb.auto
     node_class: sb.auto
     decision_level: sb.auto
     group: sb.auto

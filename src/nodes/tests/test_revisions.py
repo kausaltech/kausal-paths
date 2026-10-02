@@ -2340,7 +2340,7 @@ def test_a_v11_snapshot_upgrades_with_no_node_owned_datasets(empty_db_instance: 
         del node['datasets']
 
     upgraded = InstanceSnapshot.from_serialized_data(data)
-    assert upgraded.schema_version == SNAPSHOT_SCHEMA_VERSION == 12
+    assert upgraded.schema_version == SNAPSHOT_SCHEMA_VERSION == 14
     assert [node.datasets for node in upgraded.nodes] == [[]]
 
 
