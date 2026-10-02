@@ -1,4 +1,11 @@
-"""Retire copied template specs and formula parameters without rewriting published revisions."""
+"""
+Retire copied template specs and formula parameters without rewriting published revisions.
+
+YAML-sourced instances are migrated too: they run from their YAML, but their database copy is
+what `--source db`, `copy_instance --mode yaml` and a later switch to the database load, and an
+unmigrated copy no longer builds. A copy the upgrader refuses is reported for re-syncing instead
+of stopping the migration, since `sync_instance_to_db` rebuilds it from the YAML anyway.
+"""
 
 from typing import cast
 
@@ -14,9 +21,7 @@ def migrate_specs(apps, schema_editor):
 
     InstanceConfigModel = apps.get_model('nodes', 'InstanceConfig')
     NodeConfig = apps.get_model('nodes', 'NodeConfig')
-    for instance_untyped in (
-        InstanceConfigModel.objects.using(schema_editor.connection.alias).filter(config_source='database').iterator()
-    ):
+    for instance_untyped in InstanceConfigModel.objects.using(schema_editor.connection.alias).iterator():
         instance = cast('InstanceConfig', instance_untyped)
         if instance.spec is None:
             continue
@@ -27,7 +32,13 @@ def migrate_specs(apps, schema_editor):
             if node.spec is not None
         ]
         payload = {'spec': spec, 'nodes': nodes}
-        upgrade_formula_specs_v13(payload, discard_captured_defaults=True)
+        try:
+            upgrade_formula_specs_v13(payload, discard_captured_defaults=True)
+        except ValueError as error:
+            if instance.config_source == 'database':
+                raise
+            print(f'\n  {instance.identifier}: database copy not migrated ({error}); re-sync it with sync_instance_to_db')
+            continue
         for node in nodes:
             NodeConfig.objects.using(schema_editor.connection.alias).filter(
                 instance=instance,
