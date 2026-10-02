@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import date
-from functools import lru_cache
 from typing import TYPE_CHECKING
 
 from django.contrib.contenttypes.models import ContentType
@@ -15,6 +14,7 @@ from rich import print
 from kausal_common.datasets.models import (
     DataPoint,
     DataPointComment,
+    DataPointDimensionCategory,
     Dataset,
     DatasetMetric,
     DatasetSchema,
@@ -56,6 +56,8 @@ if TYPE_CHECKING:
 # nodes.constants, which is also what `upload_new_dataset` writes by, what `export_dataset`
 # joins on, and what `DVCDataset` drops on load. They used to be copied here and there with
 # a "must match" comment; one definition is what actually makes them match.
+
+BULK_BATCH_SIZE = 2000
 
 
 def source_target(fields: dict[str, str | None]) -> str:
@@ -380,27 +382,36 @@ def _parse_column_dimension_mappings(values: list[str]) -> dict[str, str]:
     return mappings
 
 
-@lru_cache
-def get_dimension(instance_config: InstanceConfig, identifier: str) -> Dimension:
-    scope = DimensionScope.objects.get(
-        scope_content_type=ContentType.objects.get_for_model(instance_config),
-        scope_id=instance_config.pk,
-        identifier=identifier,
-    )
-    return scope.dimension
+class CategoryLookup:
+    """
+    The instance's dimension categories by identifier, each dimension loaded on first use.
 
+    One query per dimension an import touches, rather than one per cell. Built per import,
+    not cached at module level: the categories it serves can be created by the same run.
+    """
 
-@lru_cache
-def get_dimension_category(instance_config: InstanceConfig, dimension_identifier: str, identifier: str) -> DimensionCategory:
-    dimension = get_dimension(instance_config, dimension_identifier)
-    return DimensionCategory.objects.get(dimension=dimension, identifier=identifier)
+    def __init__(self, instance_config: InstanceConfig):
+        self.instance_config = instance_config
+        self.by_dimension: dict[str, dict[str, DimensionCategory]] = {}
+
+    def get(self, dimension_identifier: str, identifier: str) -> DimensionCategory:
+        categories = self.by_dimension.get(dimension_identifier)
+        if categories is None:
+            scope = DimensionScope.objects.get(
+                scope_content_type=ContentType.objects.get_for_model(self.instance_config),
+                scope_id=self.instance_config.pk,
+                identifier=dimension_identifier,
+            )
+            categories = {category.identifier: category for category in scope.dimension.categories.all() if category.identifier}
+            self.by_dimension[dimension_identifier] = categories
+        category = categories.get(identifier)
+        if category is None:
+            raise DimensionCategory.DoesNotExist(f"Dimension category '{identifier}' not found in {dimension_identifier}")
+        return category
 
 
 class Command(BaseCommand):
     help = 'Create a dataset in DB based on a DVC dataset'
-
-    # Map dimension identifiers to a dict mapping dimension category identifiers to DimensionCategory instances
-    dimension_categories: dict[str, dict[str, DimensionCategory]] = {}
 
     def add_arguments(self, parser):
         parser.add_argument('instance', metavar='INSTANCE_ID', type=str, nargs=1)
@@ -773,8 +784,9 @@ class Command(BaseCommand):
             result[name] = ResolvedSource(source=source, target=source_target(fields))
         return result
 
-    def link_data_point_sources(self, data_point: DataPoint, source_cell: str, data_sources: dict[str, ResolvedSource]) -> None:
-        """Link data_point to each DataSource named in source_cell (SOURCE_NAME_SEPARATOR-joined for >1 citation)."""
+    def resolve_data_point_sources(self, source_cell: str, data_sources: dict[str, ResolvedSource]) -> list[DataSource]:
+        """Resolve the DataSources named in source_cell (SOURCE_NAME_SEPARATOR-joined for >1 citation)."""
+        sources: list[DataSource] = []
         for name in source_cell.split(SOURCE_NAME_SEPARATOR):
             resolved = data_sources.get(name)
             if resolved is None:
@@ -785,8 +797,9 @@ class Command(BaseCommand):
                 # one. `build_sources_metadata` rejects this combination at upload time, so
                 # reaching here means hand-edited metadata.
                 print(f"Source '{name}' is declared dataset-level but cited by a row; not linking it to the data point.")
-            else:
-                DatasetSourceReference.objects.create(data_point=data_point, data_source=resolved.source)
+            elif resolved.source not in sources:
+                sources.append(resolved.source)
+        return sources
 
     def sync_dataset_source_references(self, dataset: Dataset, data_sources: dict[str, ResolvedSource]) -> None:
         """
@@ -804,12 +817,10 @@ class Command(BaseCommand):
         if names or deleted:
             print(f'Dataset-level sources: {", ".join(names) if names else "(none)"}')
 
-    def create_data_point_comments(self, data_point: DataPoint, comment_cell: str) -> None:
-        """Create one DataPointComment per note in comment_cell (COMMENT_SEPARATOR-joined for >1)."""
-        for part in comment_cell.split(COMMENT_SEPARATOR):
-            text = part.strip()
-            if text:
-                DataPointComment.objects.create(data_point=data_point, text=text)
+    @staticmethod
+    def comment_texts(comment_cell: str) -> list[str]:
+        """Split comment_cell (COMMENT_SEPARATOR-joined for >1) into one note per DataPointComment."""
+        return [text for part in comment_cell.split(COMMENT_SEPARATOR) if (text := part.strip())]
 
     def create_data_points(
         self,
@@ -851,12 +862,35 @@ class Command(BaseCommand):
                 f"Use 'Comment' only, joining several notes with '{COMMENT_SEPARATOR}'."
             )
         comment_col = comment_cols[0] if comment_cols else None
-        num_created = 0
+        categories = CategoryLookup(instance_config)
+        # Everything is written in one bulk insert per table, because row-at-a-time ORM writes
+        # cost several round trips per cell: an 8000-cell dataset took most of a minute.
+        data_points: list[DataPoint] = []
+        point_categories: list[list[DimensionCategory]] = []
+        point_sources: list[list[DataSource]] = []
+        point_comments: list[list[str]] = []
+        sources_by_cell: dict[str, list[DataSource]] = {}
         for row in table['data']:
-            year_val = row['Year']
-            year = date(year=year_val, month=1, day=1)
+            year = date(year=row['Year'], month=1, day=1)
+            row_categories: list[DimensionCategory] = []
+            for column in meta.dim_ids:
+                dim_cat_identifier = row[column]
+                if not dim_cat_identifier:
+                    continue
+                try:
+                    cat = categories.get(column_dimensions.get(column, column), dim_cat_identifier)
+                except DimensionCategory.DoesNotExist:
+                    print(f"Dimension category '{dim_cat_identifier}' not found. Did you run --update-instance?")
+                    raise
+                if cat not in row_categories:
+                    row_categories.append(cat)
+            source_cell = row.get(source_col) if source_col else None
+            if source_cell and source_cell not in sources_by_cell:
+                sources_by_cell[source_cell] = self.resolve_data_point_sources(source_cell, data_sources)
+            row_sources = sources_by_cell[source_cell] if source_cell else []
+            comment_cell = row.get(comment_col) if comment_col else None
+            row_comments = self.comment_texts(comment_cell) if comment_cell else []
             for metric_identifier, metric in metrics.items():
-                value = row[metric_identifier]
                 # A valueless cell is created as a DataPoint with a null value rather than
                 # skipped. `DataPoint.value` is nullable, GraphQL types it `float | None`, and
                 # DataAvailabilityNode tests `is_not_null()` — so an empty cell reads as
@@ -865,27 +899,37 @@ class Command(BaseCommand):
                 # link and its comment, which is why BISKO template datasets had to ship
                 # zeros: a pre-filled 0 is indistinguishable from a municipality-confirmed 0,
                 # and the certifier's Pruefschritt 1.4 tests exactly that.
-                data_point = DataPoint.objects.create(
-                    dataset=dataset,
-                    date=year,
-                    metric=metric,
-                    value=value,
-                )
-                num_created += 1
-                for column in meta.dim_ids:
-                    dimension_identifier = column_dimensions.get(column, column)
-                    dim_cat_identifier = row[column]
-                    if dim_cat_identifier:
-                        try:
-                            cat = get_dimension_category(instance_config, dimension_identifier, dim_cat_identifier)
-                        except DimensionCategory.DoesNotExist:
-                            print(f"Dimension category '{dim_cat_identifier}' not found. Did you run --update-instance?")
-                            raise
-                        data_point.dimension_categories.add(cat)
-                if source_col and row.get(source_col):
-                    self.link_data_point_sources(data_point, row[source_col], data_sources)
-                if comment_col and row.get(comment_col):
-                    self.create_data_point_comments(data_point, row[comment_col])
+                data_points.append(DataPoint(dataset=dataset, date=year, metric=metric, value=row[metric_identifier]))
+                point_categories.append(row_categories)
+                point_sources.append(row_sources)
+                point_comments.append(row_comments)
+
+        DataPoint.objects.bulk_create(data_points, batch_size=BULK_BATCH_SIZE)
+        DataPointDimensionCategory.objects.bulk_create(
+            [
+                DataPointDimensionCategory(data_point=data_point, dimension_category=cat)
+                for data_point, cats in zip(data_points, point_categories, strict=True)
+                for cat in cats
+            ],
+            batch_size=BULK_BATCH_SIZE,
+        )
+        DatasetSourceReference.objects.bulk_create(
+            [
+                DatasetSourceReference(data_point=data_point, data_source=source)
+                for data_point, sources in zip(data_points, point_sources, strict=True)
+                for source in sources
+            ],
+            batch_size=BULK_BATCH_SIZE,
+        )
+        DataPointComment.objects.bulk_create(
+            [
+                DataPointComment(data_point=data_point, text=text)
+                for data_point, texts in zip(data_points, point_comments, strict=True)
+                for text in texts
+            ],
+            batch_size=BULK_BATCH_SIZE,
+        )
+        num_created = len(data_points)
         print(f'Created {num_created} data points')
 
     def rename_value_columns(self, df: ppl.PathsDataFrame):
