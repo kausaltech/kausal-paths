@@ -21,6 +21,9 @@ features:
   baseline_visible_in_graphs: true
   use_datasets_from_db: true
   show_explanations: true
+terms:
+  custom_scenario: Eigenes Szenario
+  custom_scenario_en: My own scenario
 
 include:
 - file: frameworks/standard_dims.yaml

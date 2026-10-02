@@ -1449,7 +1449,7 @@ class InstanceLoader:
 
         custom_scenario = CustomScenario(
             id='custom',
-            name=_('Custom'),
+            name=self.snapshot.spec.terms.custom_scenario or _('Custom'),
             base_scenario=default_scenario,
         )
 

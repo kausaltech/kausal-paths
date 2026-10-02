@@ -89,6 +89,8 @@ class InstanceTerms(I18nBaseModel):
 
     action: TranslatedString | None = None
     enabled_label: TranslatedString | None = None
+    custom_scenario: TranslatedString | None = None
+    """Name of the visitor's own, editable scenario (the one with id `custom`)."""
 
 
 class InstanceFeatures(BaseModel):
