@@ -147,7 +147,10 @@ def grade_demo_cells(dataset: Dataset) -> int:
     changed: list[DataPointEvidence] = []
     for item in evidence:
         categories = {category.dimension.name: category.identifier for category in item.data_point.dimension_categories.all()}
-        level = levels[demo_grade(categories['Sektoren'], categories['Energieträger'])]
+        sector, carrier = categories.get('Sektoren'), categories.get('Energieträger')
+        if sector is None or carrier is None:
+            raise ValueError(f'{dataset.identifier}: demo cell has no sector or carrier')
+        level = levels[demo_grade(sector, carrier)]
         if item.quality_level_id != level.pk:
             item.quality_level = level
             item.last_modified_at = now

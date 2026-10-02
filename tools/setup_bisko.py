@@ -115,7 +115,7 @@ def _setup_graphs(framework: Framework, args: argparse.Namespace) -> None:
     if revision is not None:
         dependents = InstanceConfig.objects.filter(
             template_revision__object_id=str(template.pk),
-            template_revision__content_type_id=revision.content_type_id,
+            template_revision__content_type=revision.content_type,
         ).exclude(template_revision=revision)
         for dependent in dependents:
             upgrade_template_instance(dependent, revision)
