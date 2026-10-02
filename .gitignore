@@ -51,3 +51,4 @@ celerybeat-schedule
 /.devstate
 /__generated__
 mise.local.toml
+/docs/wip/
