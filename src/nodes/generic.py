@@ -1925,9 +1925,12 @@ class ChpNode(GenericNode):
         - id: kommune/kwk_anlagenparameter
           column: t_supply
 
-    The series are interpolated across internal gaps, held constant back to the
+    The series are interpolated across omitted years, held constant back to the
     start of history, and held constant forward to the model end year (those forward
     years marked as forecast), so a plant described by a single year is a flat line.
+    An explicitly blank cell is not an omitted year: it stays missing, and so does the
+    allocation for that year. A port bound to a dataset without any values -- a plant
+    the city has not described yet -- gives an empty allocation rather than an error.
     Values may be given in any compatible unit: fractions and efficiencies are
     converted to dimensionless (so per cent works), temperatures to K.
     """
@@ -2071,6 +2074,7 @@ class ChpNode(GenericNode):
     def _annual_inputs(self, names: set[str]) -> PathsDataFrame:
         """Join the named input series on the model's year span."""
         parts: list[PathsDataFrame] = []
+        blank_years: dict[str, pl.Series] = {}
         for name in sorted(names):
             series = self._input_series(name)
             if series is None:
@@ -2079,6 +2083,9 @@ class ChpNode(GenericNode):
                     "The '%s' method needs %r, which is not supplied. Bind a dataset column to the input port %r."
                     % (self._resolve_method(), name, name),
                 )
+            if series.filter(pl.col(name).is_not_null()).is_empty():
+                return self._empty_annual_inputs(names)
+            blank_years[name] = series.filter(pl.col(name).is_null())[YEAR_COLUMN]
             parts.append(series)
 
         out = parts[0]
@@ -2093,7 +2100,29 @@ class ChpNode(GenericNode):
         start_year = min(instance.reference_year, instance.minimum_historical_year)
         out = out.paths._add_missing_years(out, self.context)  # interpolate internal gaps
         out = extend_to_history_pl(out, start_year)  # hold the earliest observation back to the start
-        return extend_last_historical_value_pl(out, instance.model_end_year)  # hold the latest one forward, as forecast
+        # Hold the latest one forward, as forecast; a missing temperature must not become 0 K.
+        out = extend_last_historical_value_pl(out, instance.model_end_year, zero_fill_missing=False)
+        # An explicitly blank cell is not an omitted year to interpolate: keep it missing,
+        # so the year has no allocation instead of one from a made-up operating point.
+        return out.with_columns([
+            pl
+            .when(pl.col(YEAR_COLUMN).is_in(years.implode()))
+            .then(pl.lit(None, dtype=pl.Float64))
+            .otherwise(pl.col(name))
+            .alias(name)
+            for name, years in blank_years.items()
+            if not years.is_empty()
+        ])
+
+    def _empty_annual_inputs(self, names: set[str]) -> PathsDataFrame:
+        """Return a typed frame with no years, for inputs that are bound but hold no values."""
+        out = PathsDataFrame(
+            {YEAR_COLUMN: pl.Series([], dtype=pl.Int64), FORECAST_COLUMN: pl.Series([], dtype=pl.Boolean)}
+            | {name: pl.Series([], dtype=pl.Float64) for name in sorted(names)}
+        )
+        out._primary_keys = [YEAR_COLUMN]
+        out._units = {name: unit_registry.parse_units(self.ANNUAL_INPUTS[name]) for name in sorted(names)}
+        return out
 
     def _z_factors(self, df: PathsDataFrame, method: str) -> PathsDataFrame:
         """Add the method-specific weights z_el and z_heat."""
@@ -2150,6 +2179,14 @@ class ChpNode(GenericNode):
 
         out = self._annual_inputs(set(needed))
 
+        invalid = out.filter(pl.any_horizontal([pl.col(name).is_not_null() & ~pl.col(name).is_finite() for name in needed]))
+        if invalid.height:
+            raise NodeError(
+                self,
+                'CHP inputs must be finite; invalid values in year(s) %s.'
+                % ', '.join(str(year) for year in invalid[YEAR_COLUMN].unique().sort()),
+            )
+
         bad = out.filter((pl.col('electricity_fraction') < 0.0) | (pl.col('electricity_fraction') > 1.0))
         if bad.height:
             raise NodeError(
@@ -2192,7 +2229,8 @@ class ChpNode(GenericNode):
             .drop(drops)
             .add_to_index('energy_carrier')
         )
-        return df_el.paths.concat_vertical(df_heat)
+        # A year missing a required input has no allocation.
+        return df_el.paths.concat_vertical(df_heat).filter(pl.col(VALUE_COLUMN).is_not_null())
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
