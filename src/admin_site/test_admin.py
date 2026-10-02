@@ -386,9 +386,11 @@ def test_instance_chooser_omits_hidden_instances(rf) -> None:
 
     labels = _chooser_labels(admin, visible_a, rf)
 
-    assert 'Visible A' in labels
-    assert 'Visible B' in labels
-    assert 'Hidden One' not in labels
+    assert 'Visible A\n(visible-a)' in labels
+    assert 'Visible B\n(visible-b)' in labels
+    # Match the identifier anywhere in a label: comparing against a whole label would pass
+    # whatever the label format is, and so would not notice the hidden instance at all.
+    assert not any('hidden-one' in label for label in labels)
 
 
 def test_instance_chooser_keeps_active_hidden_instance(rf) -> None:
@@ -400,8 +402,21 @@ def test_instance_chooser_keeps_active_hidden_instance(rf) -> None:
 
     labels = _chooser_labels(admin, hidden, rf)
 
-    assert 'Hidden' in labels
-    assert 'Visible' in labels
+    assert 'Hidden\n(hidden)' in labels
+    assert 'Visible\n(visible)' in labels
+
+
+def test_instance_chooser_label_shows_identifier_once(rf) -> None:
+    # The name and the identifier on two lines, since many instances share a name; an
+    # instance without a name of its own is labelled by the identifier alone, not twice.
+    admin = UserFactory.create(is_staff=True, is_superuser=True)
+    named = InstanceConfigFactory.create(identifier='named', name='Named')
+    InstanceConfigFactory.create(identifier='same', name='same')
+
+    labels = _chooser_labels(admin, named, rf)
+
+    assert 'Named\n(named)' in labels
+    assert 'same' in labels
 
 
 def test_hidden_instance_still_reachable() -> None:
