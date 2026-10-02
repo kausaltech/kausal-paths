@@ -203,11 +203,10 @@ result_excels:
   # Möglichkeit 1, shown on the 2021-2023 test plant: the exergetic split that
   # electricity_fraction, t_supply and t_return decide, the plant-specific emission factor with
   # losses (the figure to compare with the certifier's spreadsheet, F45), the plant-data route's
-  # emissions, and which years the city's plant data covers.
+  # emissions.
   - combined_heat_and_power_chp_fraction
   - district_heating_emission_factor_exergetic
   - district_heating_emissions_exergetic
-  - district_heating_plant_data_availability
   # Prüfschritt 7.1: a Datengüte must be enterable for every input field. The first Prüflauf
   # named the district-heating one as missing; these three are where the grades are shown.
   - road_transport_energy_by_road_type  # 2.3: the road-typing view itself; was in no config
