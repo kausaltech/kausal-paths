@@ -55,6 +55,8 @@ from users.tests.factories import UserFactory
 if TYPE_CHECKING:
     from django.test import Client
 
+    from kausal_common.datasets.models import Dataset
+
     from nodes.models import InstanceConfig
     from users.models import User
 
@@ -720,6 +722,50 @@ def test_export_uses_pinned_template_dataset_body_and_import_remaps_payload_revi
     assert effective.template_content_hash == content_hash
     assert isinstance(effective.bindings[0].source, DatasetMetricSource)
     assert effective.bindings[0].source.dataset_revision == pin.revision_id
+
+
+def test_upgrade_points_new_instance_owned_ports_at_the_instances_own_copy(
+    municipal: tuple[InstanceConfig, InstanceConfig, User],
+) -> None:
+    template, municipality, _ = municipal
+    node = template.nodes.get_queryset().with_spec().get()
+    assert node.spec is not None
+    unit = node.spec.output_ports[0].unit
+    schema = DatasetSchemaFactory.create()
+    metrics = {name: DatasetMetricFactory.create(schema=schema, name=name, unit=str(unit)) for name in ('first', 'second')}
+
+    def plant_parameters(scope: InstanceConfig) -> Dataset:
+        return DatasetFactory.create(
+            schema=schema,
+            scope_content_type=ContentType.objects.get_for_model(type(scope)),
+            scope_id=scope.pk,
+            identifier='kommune/plant',
+        )
+
+    shared, own = plant_parameters(template), plant_parameters(municipality)
+    first = InputPortDef(id=uuid4(), unit=unit, binding_owner='instance')
+    node.spec.input_ports = [first]
+    node.save(update_fields=['spec'])
+    NodeInputPortBinding.objects.create(instance=template, node=node, port_id=first.id, dataset=shared, metric=metrics['first'])
+    upgrade_template_instance(municipality, publish_template_instance(template))
+    assert municipality.binding_overrides.get().port_uuid == first.id
+
+    # The next revision reads the same dataset from a second port, as a split into one port per column does.
+    node = template.nodes.get_queryset().with_spec().get()
+    assert node.spec is not None
+    second = InputPortDef(id=uuid4(), unit=unit, binding_owner='instance')
+    node.spec.input_ports = [first, second]
+    node.save(update_fields=['spec'])
+    NodeInputPortBinding.objects.create(instance=template, node=node, port_id=second.id, dataset=shared, metric=metrics['second'])
+    template.invalidate_cache()
+    upgrade_template_instance(municipality, publish_template_instance(template))
+    municipality.refresh_from_db()
+
+    sources = {binding.port_id: binding.source for binding in build_instance_snapshot(municipality).bindings}
+    assert {source.dataset_uuid for source in sources.values() if isinstance(source, DatasetMetricSource)} == {own.uuid}
+    second_source = sources[second.id]
+    assert isinstance(second_source, DatasetMetricSource)
+    assert second_source.metric_uuid == metrics['second'].uuid
 
 
 def test_export_import_retains_inherited_sources_for_local_nodes(
