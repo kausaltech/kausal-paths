@@ -7,6 +7,7 @@ from uuid import UUID, uuid4, uuid5
 
 from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
+from django.db.models.functions import ExtractYear
 from wagtail.models import Revision
 
 from kausal_common.datasets.models import (
@@ -590,7 +591,58 @@ def _convert_bindings(
 
 
 @transaction.atomic
-def convert_to_framework(instance: InstanceConfig, framework: Framework, revision: Revision) -> dict[str, int]:
+def infer_inventory_years(instance: InstanceConfig, snapshot: InstanceSnapshot) -> list[int] | None:
+    """
+    Read an undeclared instance's skipped years from the data behind its inventory contracts.
+
+    A year of the historical span is an inventory year when an instance-owned dataset bound
+    to a port with an inventory-year contract has a value in it. Only those inputs say what
+    the city has inventoried: the local copies of the factor tables hold a value in every
+    year, and would make every year look like one.
+
+    Returns the skipped years, or ``None`` when there is nothing to infer from. The first and
+    last historical years are inventory years by definition, so the span is kept as declared
+    even when an edge year holds no data; the caller reports that rather than moving it.
+    """
+    years = instance.ensure_spec().years
+    if years.min_historical is None or years.max_historical is None:
+        return None
+    contract_ports = {
+        (node.uuid, port.id)
+        for node in snapshot.nodes
+        if node.spec is not None
+        for port in node.spec.input_ports
+        if port.binding_owner == 'instance' and port.validation is not None and port.validation.years == 'inventory'
+    }
+    sources = [
+        (binding.source.dataset_uuid, binding.source.metric_uuid)
+        for binding in snapshot.bindings
+        if (binding.node_id, binding.port_id) in contract_ports and binding.source.kind == 'dataset'
+    ]
+    observed: set[int] = set()
+    for dataset_uuid, metric_uuid in sources:
+        if dataset_uuid is None or metric_uuid is None:
+            continue
+        observed.update(
+            DataPoint.objects
+            .filter(
+                dataset__uuid=dataset_uuid,
+                metric__uuid=metric_uuid,
+                value__isnull=False,
+                date__year__gte=years.min_historical,
+                date__year__lte=years.max_historical,
+            )
+            .annotate(year=ExtractYear('date'))
+            .values_list('year', flat=True)
+            .distinct()
+        )
+    if not observed:
+        return None
+    inventory = observed | {years.min_historical, years.max_historical}
+    return [year for year in range(years.min_historical, years.max_historical + 1) if year not in inventory]
+
+
+def convert_to_framework(instance: InstanceConfig, framework: Framework, revision: Revision) -> dict[str, int | list[int] | None]:
     """Adopt shared identities and remove copied nodes, preserving local bindings and data."""
     if instance.config_source != 'database':
         raise ValueError('Sync and verify the database-backed instance before converting it')
@@ -644,10 +696,18 @@ def convert_to_framework(instance: InstanceConfig, framework: Framework, revisio
             refresh_dataset_materialization(dataset, touch=False)
         instance.refresh_from_db()
         effective = build_instance_snapshot(instance)
+        inferred_skipped = None
+        if instance.ensure_spec().years.skipped is None:
+            inferred_skipped = infer_inventory_years(instance, effective)
+            if inferred_skipped is not None:
+                instance.update_years(skipped=inferred_skipped)
+                effective = build_instance_snapshot(instance)
 
         build_instance_graph(effective)
         instance.invalidate_cache()
         return {
+            # None: the calendar was declared already, or there was nothing to infer it from.
+            'inferred_skipped_years': inferred_skipped,
             'shared_nodes': count,
             'local_nodes': instance.nodes.count(),
             'binding_overrides': instance.binding_overrides.count(),
