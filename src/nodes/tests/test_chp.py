@@ -47,7 +47,8 @@ INPUT_UNITS = {
 class _Series:
     """An input given as an annual series rather than a single year."""
 
-    values: list[float]
+    values: list[float | None]
+    """A None is an explicitly blank cell, not an omitted year."""
     years: list[int]
     unit: str | None = None
 
@@ -69,8 +70,11 @@ def _make_context(identifier: str) -> Context:
     return instance.context
 
 
-def _series_df(columns: dict[str, list[float]], years: list[int], units: dict[str, str]) -> PathsDataFrame:
-    df = pl.DataFrame({YEAR_COLUMN: years, **columns}).with_columns(pl.lit(value=False).alias(FORECAST_COLUMN))
+def _series_df(columns: dict[str, list[float | None]], years: list[int], units: dict[str, str]) -> PathsDataFrame:
+    df = pl.DataFrame({
+        YEAR_COLUMN: years,
+        **{col: pl.Series(values, dtype=pl.Float64) for col, values in columns.items()},
+    }).with_columns(pl.lit(value=False).alias(FORECAST_COLUMN))
     meta = DataFrameMeta(
         units={col: unit_registry.parse_units(unit) for col, unit in units.items()},
         primary_keys=[YEAR_COLUMN],
@@ -915,3 +919,64 @@ def test_a_bisko_node_without_a_return_temperature_binding_has_no_split():
     node = _make_chp_node(context, cls=BiskoChpNode, inputs={'electricity_fraction': 0.3, 't_supply': 373.0})
 
     assert node.compute().height == 0
+
+
+# --- missing and invalid inputs ------------------------------------------------
+
+
+def test_a_bound_input_without_values_gives_a_typed_empty_allocation():
+    # A plant the city has not described yet: the port is bound, the dataset is blank.
+    context = _make_context('chp-blank-input')
+    node = _make_chp_node(
+        context,
+        method='bisko',
+        inputs={'electricity_fraction': 0.3, 't_supply': _Series([None, None], [2017, 2018]), 't_return': T_RETURN},
+    )
+
+    df = node.compute()
+
+    assert df.is_empty()
+    assert df.primary_keys == [YEAR_COLUMN, 'energy_carrier']
+    assert df.metric_cols == [VALUE_COLUMN]
+    assert df.get_unit(VALUE_COLUMN) == unit_registry.dimensionless
+
+
+def test_explicitly_blank_and_omitted_years_have_no_allocation():
+    context = _make_context('chp-blank-year')
+    node = _make_chp_node(
+        context,
+        method='bisko',
+        inputs={
+            'electricity_fraction': _Series([0.3, 0.3, 0.3], [2014, 2016, 2018]),
+            't_supply': _Series([360.0, None, 380.0], [2014, 2016, 2018]),
+            't_return': _Series([T_RETURN, T_RETURN, T_RETURN], [2014, 2016, 2018]),
+        },
+    )
+
+    heat = _heat_by_year(node.compute())
+
+    assert 2016 not in heat
+    assert 2015 not in heat
+    assert heat[2014] == pytest.approx(_expected_heat_fraction(0.3, 360.0))
+    # The blank year is not taken as 0 K, which would fail the supply/return check.
+    assert heat[2030] == pytest.approx(_expected_heat_fraction(0.3, 380.0))
+
+
+def test_a_reported_zero_electricity_share_is_a_heat_only_split():
+    context = _make_context('chp-heat-only')
+    node = _make_chp_node(context, method='bisko', inputs={'electricity_fraction': 0.0, 't_supply': 363.15, 't_return': T_RETURN})
+
+    heat = _heat_by_year(node.compute())
+    assert heat
+    assert all(value == pytest.approx(1.0) for value in heat.values())
+
+
+@pytest.mark.parametrize(('name', 'value'), [('electricity_fraction', float('nan')), ('t_supply', float('inf'))])
+def test_nonfinite_inputs_are_rejected(name: str, value: float):
+    context = _make_context('chp-nonfinite')
+    inputs: dict[str, float | _Series] = {'electricity_fraction': 0.3, 't_supply': 363.15, 't_return': T_RETURN}
+    inputs[name] = value
+    node = _make_chp_node(context, method='bisko', inputs=inputs)
+
+    with pytest.raises(NodeError, match='must be finite'):
+        node.compute()

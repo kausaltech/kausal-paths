@@ -2206,6 +2206,14 @@ class ChpNode(GenericNode):
 
         out = self._annual_inputs(set(needed))
 
+        invalid = out.filter(pl.any_horizontal([pl.col(name).is_not_null() & ~pl.col(name).is_finite() for name in needed]))
+        if invalid.height:
+            raise NodeError(
+                self,
+                'CHP inputs must be finite; invalid values in year(s) %s.'
+                % ', '.join(str(year) for year in invalid[YEAR_COLUMN].unique().sort()),
+            )
+
         bad = out.filter((pl.col('electricity_fraction') < 0.0) | (pl.col('electricity_fraction') > 1.0))
         if bad.height:
             raise NodeError(
@@ -2248,7 +2256,8 @@ class ChpNode(GenericNode):
             .drop(drops)
             .add_to_index('energy_carrier')
         )
-        return df_el.paths.concat_vertical(df_heat)
+        # A year missing a required input has no allocation.
+        return df_el.paths.concat_vertical(df_heat).filter(pl.col(VALUE_COLUMN).is_not_null())
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
