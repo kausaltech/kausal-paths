@@ -122,7 +122,9 @@ class GenericNode(SimpleNode):
         out = df if df is not None else dfs.pop()
         out = out.paths._add_missing_years(out, self.context)
         for d in dfs:
-            out = out.select(d.columns)
+            # Align to the other dataset's columns; each side keeps its own qualifiers, which may be absent.
+            qualifiers = set(d.qualifier_cols.values())
+            out = out.select(out.qualified([col for col in d.columns if col not in qualifiers]))
             di = d.paths._add_missing_years(d, self.context)
             out = out.paths.add_with_dims(di)
         assert isinstance(out, PathsDataFrame)
@@ -227,7 +229,9 @@ class GenericNode(SimpleNode):
             return df
         out = df if df is not None else dfs.pop()
         for d in dfs:
-            out = out.select(d.columns)
+            # Align to the other dataset's columns; each side keeps its own qualifiers, which may be absent.
+            qualifiers = set(d.qualifier_cols.values())
+            out = out.select(out.qualified([col for col in d.columns if col not in qualifiers]))
             # Earlier datasets fill gaps only — drop rows whose index already exists in out # TODO Check logic!
             primary_keys = out.primary_keys
             d_meta = d.get_meta()

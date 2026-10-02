@@ -22,7 +22,7 @@ from django.contrib.contenttypes.fields import GenericRelation
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.postgres.expressions import ArraySubquery
 from django.contrib.postgres.fields import ArrayField
-from django.core.exceptions import ObjectDoesNotExist
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import models, transaction
 from django.db.models import F, OuterRef, Q
 from django.db.models.expressions import DatabaseDefault
@@ -58,7 +58,7 @@ from kausal_common.datasets.models import (
 )
 from kausal_common.deployment.http import get_request_wildcard_domains
 from kausal_common.i18n.helpers import convert_language_code
-from kausal_common.i18n.pydantic import get_modeltrans_attrs_from_str
+from kausal_common.i18n.pydantic import get_modeltrans_attrs_from_str, set_i18n_context
 from kausal_common.models.modification_tracking import UserModifiableModel
 from kausal_common.models.permission_policy import (
     ModelPermissionPolicy,
@@ -87,12 +87,14 @@ from frameworks.models import Framework
 from nodes.defs import DatasetBindingDef, EdgeBindingDef, InstanceModelSpec, NodeSpec, YearsSpec
 from nodes.defs.instance_defs import ActionGroup, InstanceFeatures, InstanceMetadata
 from nodes.defs.transform_def import StoredPortTransformOp
+from nodes.fields import InstanceSpecField
 from nodes.instance_graph import NodeEditContext, NodeMeta
 from nodes.instance_serialization import (
     InputBindingSnapshot,
     NodeSnapshot,
 )
 from nodes.template_settings import InheritedNodeSettings
+from nodes.template_spec import validate_spec_references
 from orgs.models import Organization
 from pages.blocks import CardListBlock
 
@@ -442,7 +444,7 @@ def make_empty_instance_spec() -> InstanceModelSpec:
     return InstanceModelSpec()
 
 
-YAML_SPEC_VERSION = 5
+YAML_SPEC_VERSION = 6
 """Version of the lightweight YAML-to-InstanceModelSpec materialization."""
 
 
@@ -592,7 +594,7 @@ class InstanceConfig(
         choices=[('yaml', 'YAML'), ('database', 'Database')],
         default='yaml',
     )
-    spec = SchemaField(schema=InstanceModelSpec, null=True, blank=True)
+    spec = InstanceSpecField(schema=InstanceModelSpec, null=True, blank=True)
 
     viewer_group: FK[Group | None] = models.ForeignKey(
         Group,
@@ -942,6 +944,14 @@ class InstanceConfig(
             self.yaml_mtime_hash = instance.config_mtime_hash
             self.yaml_spec_version = YAML_SPEC_VERSION
 
+    @transaction.atomic
+    @copy_signature(RevisionMixin.save_revision)
+    def save_revision(self, *args, **kwargs) -> Revision[Self]:
+        revision = super().save_revision(*args, **kwargs)
+        if self.template_revision_id is not None:
+            InstanceRevisionTemplatePin.objects.create(instance_revision=revision, template_revision_id=self.template_revision_id)
+        return revision
+
     def serializable_data(self) -> dict[str, Any]:
         """
         Revision payload for a DB-sourced InstanceConfig.
@@ -968,7 +978,7 @@ class InstanceConfig(
             'config_source': self.config_source,
         }
         if self.config_source == 'database':
-            snapshot = build_instance_snapshot(self, self._publication_dataset_revision_pins)
+            snapshot = build_instance_snapshot(self, self._publication_dataset_revision_pins, compose=False)
             data['model_snapshot'] = {
                 'schema_version': SNAPSHOT_SCHEMA_VERSION,
                 'structured': snapshot.model_dump(mode='json'),
@@ -1057,8 +1067,13 @@ class InstanceConfig(
             ).exists()
         )
 
-    def publish_instance(self, user: User | None = None) -> None:  # noqa: PLR0915
-        """Atomically publish the model and immutable revisions of its DB datasets."""
+    def publish_instance(self, user: User | None = None, *, require_submittable: bool = False) -> None:  # noqa: C901, PLR0912, PLR0915
+        """
+        Atomically publish the model and immutable revisions of its DB datasets.
+
+        Value violations of the submission tier surface in the editor but do not block an
+        ordinary publication; `require_submittable` makes them block it, for a submission.
+        """
         from wagtail.actions.publish_revision import PublishPermissionError
         from wagtail.models import Revision
 
@@ -1076,6 +1091,9 @@ class InstanceConfig(
             lock_template_for_publication(self.pk)
             locked = InstanceConfig.objects.select_for_update().get(pk=self.pk)
             effective_snapshot = build_instance_snapshot(locked)
+            if effective_snapshot.composition_errors:
+                raise ValidationError(effective_snapshot.composition_errors)
+            validate_spec_references(effective_snapshot.spec, effective_snapshot.nodes)
             inherited_ids = {pin.dataset_uuid for pin in effective_snapshot.dataset_revisions}
             dataset_ids = list(
                 DatasetModel.objects
@@ -1120,7 +1138,11 @@ class InstanceConfig(
             # violations were just re-evaluated by the refresh above.
             require_valid_dataset_rules(materializations.values())
             from nodes.instance_graph_cache import get_instance_graph
-            from nodes.value_validation import InstanceValueValidationError, collect_instance_value_violations
+            from nodes.value_validation import (
+                InstanceValueValidationError,
+                collect_instance_value_violations,
+                publication_blockers,
+            )
 
             graph = get_instance_graph(locked, PreferredInstanceSource.DRAFT)
             if any(port.validation is not None for node in graph.nodes for port in node.spec.input_ports):
@@ -1130,6 +1152,8 @@ class InstanceConfig(
                 instance = InstanceLoader.from_snapshot(build_instance_snapshot(locked), instance_config=locked).instance
                 try:
                     value_violations = collect_instance_value_violations(instance)
+                    if not require_submittable:
+                        value_violations = publication_blockers(value_violations)
                     if value_violations:
                         raise InstanceValueValidationError(value_violations)
                 finally:
@@ -1213,10 +1237,25 @@ class InstanceConfig(
             self.live_revision_id = locked.live_revision_id
             self.cache_invalidated_at = locked.cache_invalidated_at
 
+    def restore_revision(self, revision: Revision[InstanceConfig]) -> None:
+        """Restore the editable model definition and template pin from an instance revision."""
+        from nodes.instance_serialization import InstanceSnapshot
+        from nodes.snapshot_restore import restore_instance_definition
+
+        if revision.content_type.pk != ContentType.objects.get_for_model(type(self)).pk or revision.object_id != str(self.pk):
+            raise ValueError('Revision belongs to another instance')
+        metadata = revision.content['model_snapshot']['structured'].get('metadata', {})
+        with set_i18n_context(
+            metadata.get('primary_language', self.primary_language), metadata.get('other_languages', self.other_languages)
+        ):
+            snapshot = InstanceSnapshot.from_serialized_data(revision.content['model_snapshot']['structured'], compose=False)
+            restore_instance_definition(self, snapshot)
+
     def revert_to_published(self) -> None:
-        """Restore draft state from the published revision snapshot."""
-        # TODO: Rewrite for spec-based storage
-        raise NotImplementedError('revert_to_published needs rewriting for spec-based storage')
+        """Restore the published model definition; datasets retain their independent draft state."""
+        if self.live_revision is None:
+            raise ValueError('Instance has no published revision')
+        self.restore_revision(cast('Revision[InstanceConfig]', self.live_revision))
 
     def _complete_legacy_snapshot_content(self, snapshot: InstanceSnapshot) -> None:
         """
@@ -2766,6 +2805,22 @@ class DatasetMaterialization(models.Model):
 
     def __str__(self) -> str:
         return f'{self.dataset_id} @ {self.generation}'
+
+
+class InstanceRevisionTemplatePin(models.Model):
+    """Keep the template revision needed to reconstruct an authored instance revision."""
+
+    instance_revision = models.OneToOneField(
+        'wagtailcore.Revision', on_delete=models.CASCADE, related_name='instance_template_pin'
+    )
+    template_revision = models.ForeignKey(
+        'wagtailcore.Revision', on_delete=models.PROTECT, related_name='dependent_instance_pins'
+    )
+    instance_revision_id: int
+    template_revision_id: int
+
+    def __str__(self) -> str:
+        return f'{self.instance_revision_id} inherits {self.template_revision_id}'
 
 
 class InstanceRevisionDatasetPin(models.Model):

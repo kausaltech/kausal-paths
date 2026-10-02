@@ -230,7 +230,7 @@ def test_the_formula_as_a_pipeline_computes_the_same_effect() -> None:
     ctx = _context(_relative_config(_relative()))
     action = ctx.get_action('relative')
     scope = FormulaScope.for_node_spec(action.spec, hook_targets=[hook.target.id for hook in action.hook_targets])
-    formula = action.get_parameter_value_str('formula')
+    formula = action.formula
     pipeline = compile_formula(formula, scope)
     assert render_pipeline(pipeline, scope) == formula + '\n'
     with ctx.run():
