@@ -63,6 +63,8 @@ class ValueContract(BaseModel):
     max_rows: int | None = Field(default=None, ge=1)
     min: float | None = None
     max: float | None = None
+    enforcement: ValueEnforcement | None = None
+    """The tier of the completeness requirements, when the derived one does not fit; see `effective_enforcement`."""
 
     @model_validator(mode='after')
     def validate_bounds(self) -> ValueContract:
@@ -71,14 +73,17 @@ class ValueContract(BaseModel):
         return self
 
     @property
-    def enforcement(self) -> ValueEnforcement:
+    def effective_enforcement(self) -> ValueEnforcement:
         """
         The tier of this contract's completeness and quality requirements.
 
-        A contract conditioned on another input's positive values requires a factor for
-        reported activity, and activity without its factor is a wrong result, not an
-        incomplete one.
+        Unless declared, a contract conditioned on another input's positive values blocks
+        publication: it usually requires a factor for reported activity, and activity
+        without its factor is a wrong result, not an incomplete one. A condition whose
+        absence only sends the model down a fallback route declares ``block_submission``.
         """
+        if self.enforcement is not None:
+            return self.enforcement
         if self.required_if_positive is not None or self.combinations_from_positive is not None:
             return 'block_publish'
         return 'block_submission'
@@ -206,7 +211,7 @@ def validate_value_contract(
                         message=f'{message} in {year}: {combination.categories}',
                         years=[year],
                         categories=combination.categories,
-                        enforcement=contract.enforcement,
+                        enforcement=contract.effective_enforcement,
                     )
                 )
     problems.extend(_bounds_violations(df, contract, years, node_uuid=node_uuid, port_uuid=port_uuid, binding_uuid=binding_uuid))
@@ -344,7 +349,7 @@ def collect_instance_value_violations(  # noqa: C901, PLR0912
                 if (
                     calendar_undeclared
                     and port.validation.years == 'inventory'
-                    and port.validation.enforcement == 'block_submission'
+                    and port.validation.effective_enforcement == 'block_submission'
                 ):
                     problems.append(
                         ValueValidationViolation(

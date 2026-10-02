@@ -4691,6 +4691,17 @@ nodes:
       flatten: true
   params:
     formula: sum_dim(sum_dim(emissions, energy_carrier), per_what_energy) / sum_dim(heat, energy_carrier)
+  input_validation:
+    # Möglichkeit 1 needs the network's heat output beside its fuel input. A year with fuel
+    # input and no heat output has no factor here, so `district_heating_emission_factor` serves
+    # it from the variant or the standard factor: a correct balance on another route, which is
+    # why the gap blocks submission and not publication. Any heat row satisfies it, since the
+    # formula only needs the total.
+    district_heating_energy_use:
+      required_if_positive: district_heating_emissions_exergetic
+      combinations:
+      - categories: {}
+      enforcement: block_submission
 - id: district_heating_emission_factor_standard
   is_editable: false
   name_en: Standard district heating emission factor
