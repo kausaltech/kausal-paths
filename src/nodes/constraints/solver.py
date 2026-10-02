@@ -658,15 +658,12 @@ def _apply_transform_forward(constraint: TransformConstraint, store: FactStore) 
                     return False  # facts beyond a misapplied filter would be guesses
                 known = categories.get(step.dimension_id)
                 if step.selection is not None and known is not None:
-                    known_categories, known_origin = known
+                    # Known categories are observed ones, so a filter keeping none of them
+                    # describes the data, not the model: the value is empty, which is a
+                    # result. A category the dimension does not declare is the model's
+                    # error, reported statically as `unknown_category_reference`.
+                    known_categories, _known_origin = known
                     kept = known_categories - step.selection if step.exclude else known_categories & step.selection
-                    if known_categories and not kept:
-                        store.add_conflict(
-                            'disjoint_category_filter',
-                            f'Filter on dimension {store.describe(step.dimension_id)} keeps no observed category',
-                            constraint.target,
-                            (origin, known_origin),
-                        )
                     categories[step.dimension_id] = (kept, origin)
                 elif step.selection is None:
                     categories.pop(step.dimension_id, None)

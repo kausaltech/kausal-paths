@@ -439,8 +439,9 @@ def _dataset_graph(filter_categories: list[str]):
     return graph, sector, dataset, metric, dataset_port
 
 
-def test_disjoint_category_filter_against_observed_profile() -> None:
-    graph, sector, dataset, metric, _dataset_port = _dataset_graph(filter_categories=['transport'])
+def test_a_filter_keeping_no_observed_category_is_not_a_conflict() -> None:
+    """Observed data with nothing in the selected categories yields an empty value, not a contradiction."""
+    graph, sector, dataset, metric, dataset_port = _dataset_graph(filter_categories=['transport'])
     industry = sector.categories[0]
     profile = DatasetShapeProfile(
         dataset_id=dataset.id,
@@ -451,12 +452,13 @@ def test_disjoint_category_filter_against_observed_profile() -> None:
     )
 
     result = graph.solve_constraints(profiles={(dataset.id, metric.id): profile})
-    conflict = next(c for c in result.conflicts if c.code == 'disjoint_category_filter')
-    kinds = {origin.kind for origin in conflict.origins}
-    assert kinds == {'transformation', 'dataset_profile'}
+    assert not result.conflicts
+    assert result.shapes[BindingValue(dataset_port.uuid)].categories[sector.id] == frozenset()
 
-    # Without a profile the observed categories are unknown, and unknown never conflicts.
-    assert 'disjoint_category_filter' not in _codes(graph.solve_constraints())
+
+def test_a_filter_on_an_undeclared_category_is_a_static_conflict() -> None:
+    graph, _sector, _dataset, _metric, _dataset_port = _dataset_graph(filter_categories=['nonexistent'])
+    assert 'unknown_category_reference' in _codes(graph.solve_constraints())
 
 
 def test_overlapping_category_filter_is_clean_and_narrows_the_value() -> None:

@@ -205,13 +205,13 @@ def apply_operation(  # noqa: C901, PLR0911, PLR0912
         case SetForecastFromOp():
             return _set_forecast_from(df, op)
         case FilterColumnOp():
-            return _guard_not_empty(_filter_column(df, op, env), df, op, env)
+            return _filter_column(df, op, env)
         case FilterDimensionOp():
-            return _guard_not_empty(_filter_dimension(df, op, env), df, op, env)
+            return _filter_dimension(df, op, env)
         case AssignDimensionOp():
-            return _guard_not_empty(_assign_dimension(df, op, env), df, op, env)
+            return _assign_dimension(df, op, env)
         case RenameItemOp():
-            return _guard_not_empty(_rename_item(df, op, env), df, op, env)
+            return _rename_item(df, op, env)
         case TagOperationOp():
             return _tag_operation(df, op, env)
         case FilterTemporalOp():
@@ -233,25 +233,6 @@ def apply_operation(  # noqa: C901, PLR0911, PLR0912
             raise env.error(
                 f'Transformation {op.kind!r} belongs to the edge vocabulary and is not executable on a dataset binding'
             )
-
-
-def _guard_not_empty(
-    df: ppl.PathsDataFrame,
-    before: ppl.PathsDataFrame,
-    op: PortTransformOp,
-    env: PipelineEnv,
-) -> ppl.PathsDataFrame:
-    """
-    Fail when an operation filtered everything away: that is a configuration error, not a result.
-
-    An operation that *received* an empty frame removed nothing — emptiness
-    flows through. Edges rely on this: metric selection can legitimately
-    empty a frame before the dimension ops run.
-    """
-    if len(df) == 0 and len(before) > 0:
-        logger.error('Nothing left after {} on {}; input was:\n{}', op.kind, env.source_id, before)
-        env.fail(f'Nothing left after {op.kind}. See the original frame in the log.')
-    return df
 
 
 def interpolate_years(df: ppl.PathsDataFrame, env: PipelineEnv) -> ppl.PathsDataFrame:
