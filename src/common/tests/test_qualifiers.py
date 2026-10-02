@@ -75,6 +75,12 @@ def _frame(rows: list[Row], unit: str = 'MWh/a', *, qualified: bool = True) -> p
     return to_ppdf(df, meta)
 
 
+def _reported(qual: FixtureQualifier) -> qualifiers.ReportingStatus:
+    reported = qual['reported']
+    assert reported is not None
+    return reported
+
+
 def _qual(df: ppl.PathsDataFrame) -> dict[tuple[int | str, ...], FixtureQualifier]:
     keys = [col for col in df.primary_keys if col != YEAR_COLUMN]
     return {
@@ -253,7 +259,7 @@ class TestFills:
             'quality': {'score': score, 'coverage': coverage},
             'reported': {'any': False, 'all': False},
         }
-        assert _qual(result)[(2020, 'gas')]['reported']['all'] is True
+        assert _reported(_qual(result)[(2020, 'gas')])['all'] is True
 
     @pytest.mark.parametrize(('fill', 'year'), [('backfill', 2019), ('extend', 2021)])
     def test_constant_fill_preserves_assessment_and_marks_it_not_reported(self, fill: str, year: int) -> None:
@@ -282,7 +288,7 @@ class TestFills:
     def test_empty_to_zero_marks_what_it_filled(self) -> None:
         df = _frame([(2020, 'gas', 5.0, None, None), (2021, 'oil', None, None, None)], qualified=False)
         out = df.paths.get_operation('empty_to_zero')(df, None)
-        supplied = {key: qual['reported']['all'] for key, qual in _qual(out).items()}
+        supplied = {key: _reported(qual)['all'] for key, qual in _qual(out).items()}
         assert supplied == {(2020, 'gas'): True, (2020, 'oil'): False, (2021, 'gas'): False, (2021, 'oil'): False}
 
     def test_other_fills_keep_a_record_but_do_not_start_one(self) -> None:
@@ -296,7 +302,7 @@ class TestChoosingASource:
         default = _frame([(2020, 'gas', 9.0, 0.5, True), (2020, 'oil', 8.0, 0.5, True)])
         result = own.paths.prefer_by_year(default)
         assert result[VALUE_COLUMN].to_list() == [0.0, 0.0]
-        assert _qual(result)[(2020, 'oil')]['reported']['all'] is False
+        assert _reported(_qual(result)[(2020, 'oil')])['all'] is False
 
     def test_a_zero_filled_template_covers_no_year(self) -> None:
         """The zero a fill wrote is not a zero the city reported, so the default stands."""
