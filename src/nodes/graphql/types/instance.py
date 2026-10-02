@@ -346,16 +346,24 @@ class InstanceEditorFields:
 
     @sb.field(graphql_type=Annotated[InstanceSpecType | None, sb.lazy('nodes.schema_spec')])
     @staticmethod
-    def spec(root: 'InstanceEditorFields') -> InstanceModelSpec | None:
-        return root._config.spec
+    def spec(root: 'InstanceEditorFields', info: gql.Info) -> InstanceModelSpec | None:
+        if root._config.template_revision_id is None and root._source in (None, PreferredInstanceSource.DRAFT):
+            return root._config.spec
+        return info.context.require_instance_graph(root._config, source=root._source).spec
+
+    @sb.field
+    @staticmethod
+    def composition_errors(root: 'InstanceEditorFields', info: gql.Info) -> list[str]:
+        return list(info.context.require_instance_graph(root._config, source=root._source).composition_errors)
 
     @sb.field(graphql_type=list[ActionGroupType])
     @staticmethod
-    def action_groups(root: 'InstanceEditorFields') -> list[ActionGroupType]:
-        spec = root._config.spec
-        if spec is None:
-            return []
-        return action_group_types(list(spec.action_groups))
+    def action_groups(root: 'InstanceEditorFields', info: gql.Info) -> list[ActionGroupType]:
+        if root._config.template_revision_id is None and root._source in (None, PreferredInstanceSource.DRAFT):
+            spec = root._config.spec
+        else:
+            spec = info.context.require_instance_graph(root._config, source=root._source).spec
+        return action_group_types(list(spec.action_groups)) if spec is not None else []
 
     @sb.field(graphql_type=list[NodeEdgeType])
     @staticmethod

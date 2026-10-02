@@ -18,6 +18,7 @@ from . import (
     StringParameter,
     ValidationError,
 )
+from .base import ParameterOwner
 
 if TYPE_CHECKING:
     from paths.graphql_types import UnitType
@@ -31,7 +32,7 @@ def _resolve_default_value(info: gql.Info, root: Parameter[Any, Any]) -> Any:
     context = get_instance_context(info)
     scenario: Scenario = context.get_default_scenario()
     if not scenario.has_parameter(root):
-        return None
+        return root.configured_value
     return scenario.get_parameter_value(root)
 
 
@@ -91,6 +92,7 @@ def _get_parameter_value_for_mutation(
 @sb.interface
 class ParameterInterface:
     local_id: sb.ID | None
+    owner: ParameterOwner
     is_customized: bool
     is_customizable: bool
 

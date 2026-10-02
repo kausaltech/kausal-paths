@@ -37,6 +37,7 @@ if typing.TYPE_CHECKING:
 
     from nodes.context import Context
     from nodes.defs.instance_defs import ActionGroup
+    from nodes.defs.node_defs import NodeSpec
     from nodes.units import Unit
     from params import Parameter
 
@@ -44,6 +45,8 @@ if typing.TYPE_CHECKING:
 
 
 ENABLED_PARAM_ID = 'enabled'
+ENABLED_BY_DEFAULT = True
+"""Synthesized value of an action's 'enabled' parameter: the action is part of the default scenario."""
 
 
 class EnabledParam(BoolParameter):
@@ -94,6 +97,14 @@ class ActionNode(Node):
             ]
         super().__init_subclass__()
 
+    @classmethod
+    def parameters_for_spec(cls, spec: NodeSpec) -> list[Parameter]:
+        parameters = super().parameters_for_spec(spec)
+        if not any(parameter.local_id == ENABLED_PARAM_ID for parameter in parameters):
+            prototype = next(parameter for parameter in cls.allowed_parameters if parameter.local_id == ENABLED_PARAM_ID)
+            parameters.append(prototype.copy(value=ENABLED_BY_DEFAULT))
+        return parameters
+
     def finalize_init(self):
         if hasattr(self, 'enabled_param'):
             # Init already called
@@ -114,7 +125,7 @@ class ActionNode(Node):
         assert isinstance(param, BoolParameter)
         assert param._node == self
         if param.value is None:
-            param.set(False, notify=False)
+            param.set(ENABLED_BY_DEFAULT, notify=False)
         self.enabled_param = param
 
     def is_enabled(self) -> bool:
@@ -247,7 +258,9 @@ class ActionNode(Node):
 
     def on_scenario_created(self, scenario):
         super().on_scenario_created(scenario)
-        if not scenario.has_parameter(self.enabled_param):
+        # The declared value is the default scenario's value; other scenarios deviate
+        # from it through `all_actions_enabled`.
+        if not scenario.default and not scenario.has_parameter(self.enabled_param):
             scenario.add_parameter(self.enabled_param, scenario.all_actions_enabled)
 
     def _get_value_of_information(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:

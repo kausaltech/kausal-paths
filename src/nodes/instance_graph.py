@@ -258,6 +258,7 @@ class InstanceGraph(FrozenGraphModel):
     copy_of_id: UUID | None = None
     metadata: InstanceMetadata
     spec: InstanceModelSpec
+    composition_errors: tuple[str, ...] = ()
     nodes: tuple[NodeMeta, ...] = ()
     bindings: tuple[GraphBinding, ...] = ()
     dimensions: tuple[DimensionMeta, ...] = ()
@@ -638,6 +639,7 @@ def build_instance_graph(
 ) -> InstanceGraph:
     """Normalize one structural snapshot into the canonical UUID graph."""
 
+    snapshot = snapshot.resolve()
     dimensions = tuple(snapshot.dimensions) or legacy_dimensions
     datasets = tuple(snapshot.all_datasets()) or legacy_datasets
     _require_owned_datasets_bound_by_owner(snapshot)
@@ -760,6 +762,7 @@ def build_instance_graph(
         copy_of_id=UUID(snapshot.copy_of) if snapshot.copy_of is not None else None,
         metadata=snapshot.metadata,
         spec=snapshot.spec,
+        composition_errors=tuple(snapshot.composition_errors),
         nodes=tuple(nodes),
         bindings=tuple(bindings),
         dimensions=dimensions,

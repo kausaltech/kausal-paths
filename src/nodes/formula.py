@@ -14,10 +14,11 @@ import polars as pl
 from common import polars as ppl, qualifiers
 from nodes.calc import convert_to_co2e, extend_last_historical_value_pl
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
+from nodes.defs.node_defs import ActionConfig, FormulaConfig
 from nodes.exceptions import NodeError
 from nodes.units import Quantity, QuantityType, Unit, unit_registry
 from nodes.value_validation import collect_instance_value_violations
-from params.param import BoolParameter, NumberParameter, StringParameter
+from params.param import BoolParameter, NumberParameter
 
 from .node import Node
 
@@ -63,11 +64,22 @@ class FormulaNode(Node):
         'afterwards, replacing it wherever the tagged node has a value.'
     )
     allowed_parameters = [
-        StringParameter(local_id='formula'),
         BoolParameter(local_id='extend_last_historical_value'),
         BoolParameter(local_id='condition'),
         NumberParameter(local_id='constant', label=_('Constant value to add to the formula'), is_customizable=True),
     ]
+
+    def __post_init__(self) -> None:
+        if self.has_spec:
+            # A formula action also needs an expression before it can enter the runtime.
+            _ = self.formula
+
+    @property
+    def formula(self) -> str:
+        config = self.spec.type_config
+        if not isinstance(config, FormulaConfig | ActionConfig) or config.formula is None:
+            raise NodeError(self, 'FormulaNode requires FormulaConfig')
+        return config.formula
 
     # Use varss instead of vars for variables to avoid shadowing.
     def eval_expression(self, expr: ast.Expression, varss: EvalVars) -> EvalOutput:
@@ -383,7 +395,10 @@ class FormulaNode(Node):
             years = list(
                 range(instance.minimum_historical_year, (instance.maximum_historical_year or instance.reference_year) + 1)
             )
-        problems = collect_instance_value_violations(self.context.instance, node_uuid=consumer.runtime_node_meta.id)
+        # Both tiers count: an input that misses a submission requirement is still not a valid input.
+        problems = collect_instance_value_violations(
+            self.context.instance, node_uuid=consumer.runtime_node_meta.id, undeclared='evaluate'
+        )
         failed = {year for problem in problems for year in problem.years}
         frame = pl.DataFrame({
             YEAR_COLUMN: years,
@@ -531,7 +546,7 @@ class FormulaNode(Node):
 
     def referenced_global_parameters(self) -> list[str]:
         """Global parameters the formula selects categories by: the node depends on them."""
-        formula = self.get_parameter_value_str('formula', required=False)
+        formula = self.formula
         if not formula:
             return []
         names: list[str] = []
@@ -853,7 +868,7 @@ class FormulaNode(Node):
 
     def compute(self) -> PDF:
         varss = self._collect_eval_vars()
-        formula = self.get_parameter_value_str('formula')
+        formula = self.formula
         tree = ast.parse(formula, '<string>', mode='eval')
         used_node_names = self._collect_used_node_names(tree, varss)
 

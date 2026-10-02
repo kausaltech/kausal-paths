@@ -123,8 +123,9 @@ def finalise(submission: Submission, *, user: User | None) -> Submission:
     """
     Freeze a submission in review by publishing the instance and pinning that revision.
 
-    Publication failures (structural conflicts, dataset validation violations)
-    propagate unchanged and leave the submission in review. A superseded final
+    Publication failures (structural conflicts, dataset validation violations, and value
+    violations of both the publication and the submission tier) propagate unchanged and
+    leave the submission in review. A superseded final
     submission gives way in the same transaction.
     """
     with transaction.atomic():
@@ -133,7 +134,7 @@ def finalise(submission: Submission, *, user: User | None) -> Submission:
             raise SubmissionError('Only a submission in review can be finalised')
         ic = locked.instance_config
         try:
-            ic.publish_instance(user=user)
+            ic.publish_instance(user=user, require_submittable=True)
         except PublishPermissionError as exc:
             raise PermissionDenied('Finalising requires permission to publish the instance') from exc
         ic.refresh_from_db(fields=['live_revision', 'template_revision'])

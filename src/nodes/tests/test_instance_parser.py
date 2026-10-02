@@ -171,7 +171,7 @@ def test_datasets_key_parses_into_typed_catalog_entries():
         parse_instance_snapshot(bad, instance_uuid=instance_uuid)
 
 
-def _action_snapshot(*, params: list[dict[str, Any]] | None = None) -> InstanceSnapshot:
+def _action_snapshot(*, params: list[dict[str, Any]] | None = None, default_actions_enabled: bool = True) -> InstanceSnapshot:
     action: dict[str, Any] = {
         'id': 'action',
         'type': 'simple.AdditiveAction',
@@ -191,6 +191,10 @@ def _action_snapshot(*, params: list[dict[str, Any]] | None = None) -> InstanceS
             'reference_year': 2020,
             'minimum_historical_year': 2010,
             'actions': [action],
+            'scenarios': [
+                {'id': 'default', 'name': 'Default', 'default': True, 'all_actions_enabled': default_actions_enabled},
+                {'id': 'baseline', 'name': 'Baseline'},
+            ],
         },
         instance_uuid=uuid4(),
     )
@@ -201,7 +205,16 @@ def test_implicit_action_enabled_parameter_is_not_persisted():
 
     assert snapshot.nodes[0].spec is not None
     assert snapshot.nodes[0].spec.params == []
-    assert snapshot.spec.scenarios[0].param_values == {'action.enabled': False}
+    assert snapshot.spec.scenarios[0].param_values == {}
+    assert snapshot.spec.scenarios[1].param_values == {'action.enabled': False}
+
+
+def test_default_scenario_disabling_actions_declares_enabled_parameter():
+    snapshot = _action_snapshot(default_actions_enabled=False)
+
+    assert snapshot.nodes[0].spec is not None
+    assert [(param.local_id, param.value) for param in snapshot.nodes[0].spec.params] == [('enabled', False)]
+    assert snapshot.spec.scenarios[0].param_values == {}
 
 
 def test_authored_action_enabled_parameter_is_persisted():
@@ -496,3 +509,26 @@ def test_yaml_dataset_binding_ownership_and_value_contract_are_persisted_on_the_
     assert port.validation is not None
     assert port.validation.combinations[0].categories == {}
     assert spec.model_dump(mode='json')['input_ports'][0]['validation']['combinations'] == [{'categories': {}, 'qualifiers': {}}]
+
+
+def test_default_scenario_does_not_rewrite_parameter_declarations() -> None:
+    snapshot = parse_instance_snapshot(
+        {
+            'id': 'sparse-defaults',
+            'name': 'Sparse defaults',
+            'owner': 'Owner',
+            'default_language': 'en',
+            'reference_year': 2020,
+            'minimum_historical_year': 2020,
+            'target_year': 2030,
+            'params': [{'id': 'local_factor', 'type': 'number', 'value': 2}],
+            'scenarios': [
+                {'id': 'default', 'name': 'Default', 'default': True, 'params': [{'id': 'local_factor', 'value': 4}]},
+                {'id': 'other', 'name': 'Other'},
+            ],
+        },
+        instance_uuid=uuid4(),
+    )
+    assert snapshot.spec.params[0].value == 2
+    assert snapshot.spec.scenarios[0].param_values == {'local_factor': 4}
+    assert snapshot.spec.scenarios[1].param_values == {}
