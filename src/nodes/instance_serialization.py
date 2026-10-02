@@ -22,9 +22,10 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, Literal, Self, cast
 from uuid import UUID, uuid3
 
+from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, PrivateAttr, field_validator
 
 from markdown_it import MarkdownIt
 
@@ -34,7 +35,7 @@ from kausal_common.i18n.pydantic import (
 )
 
 from datasets.catalogue import dataset_meta_from_model
-from datasets.snapshot import DatasetSnapshot, metric_column_id
+from datasets.snapshot import DatasetMetricSnapshot, DatasetSnapshot, metric_column_id
 from datasets.transfer import import_instance_datasets
 from nodes.defs.graph import (
     DatasetMeta,
@@ -44,6 +45,8 @@ from nodes.defs.graph import (
 from nodes.defs.instance_defs import InstanceMetadata, InstanceModelSpec
 from nodes.defs.node_defs import DatasetPortSpec, NodeSpec
 from nodes.defs.transform_def import EdgeTransformOp, PortTransformOp
+from nodes.goals import NodeGoals
+from nodes.legacy_specs import upgrade_formula_specs_v13
 from nodes.page_snapshot import PageSnapshot
 from nodes.snapshot_base import ModelSnapshot, apply_translated, translated_string_from_model
 
@@ -52,6 +55,7 @@ if TYPE_CHECKING:
 
     from django.contrib.contenttypes.models import ContentType
     from django.db.models import QuerySet
+    from wagtail.models import Revision
 
     from kausal_common.datasets.models import (
         Dataset as DatasetModel,
@@ -84,7 +88,9 @@ if TYPE_CHECKING:
 #   v12: ``NodeSnapshot.datasets`` holds the catalog entries of the datasets a
 #        node owns; ``InstanceSnapshot.datasets`` keeps the instance's own. Older
 #        snapshots have no node-owned datasets, so the default ``[]`` upgrades them.
-SNAPSHOT_SCHEMA_VERSION = 12
+#   v13: formulas belong to type_config; scenarios carry only authored deviations.
+#   v14: revisions retain local authoring inputs, a verified template pin and local selections.
+SNAPSHOT_SCHEMA_VERSION = 14
 
 _MARKDOWN = MarkdownIt('commonmark', {'html': True})
 
@@ -106,6 +112,22 @@ class NodeLayoutSnapshot(ModelSnapshot['NodeLayout']):
     @classmethod
     def from_model(cls, obj: NodeLayout) -> Self:
         return cls(x=obj.x, y=obj.y, source=cast("Literal['auto', 'user']", obj.source))
+
+
+class InheritedNodeSettings(BaseModel):
+    """Local selections for inherited nodes, retained in authoring snapshots."""
+
+    node_uuid: UUID
+    goals: NodeGoals | None = None
+    layout: NodeLayoutSnapshot | None = None
+    parameter_values: dict[str, bool | float | str | None] = Field(default_factory=dict)
+    parameter_sources: dict[str, str] = Field(default_factory=dict)
+
+
+class InputBindingOverrideSnapshot(BaseModel):
+    node_uuid: UUID
+    port_uuid: UUID
+    bindings: list['InputBindingSnapshot'] = Field(default_factory=list)
 
 
 class NodeSnapshot(ModelSnapshot['NodeConfig']):
@@ -791,6 +813,14 @@ class DatasetRevisionPinSnapshot(BaseModel):
     forecast_from: int | None = None
 
 
+class DefinitionOrigin(BaseModel):
+    """The authoring instance and pinned revision supplying a declaration or value."""
+
+    instance_uuid: UUID
+    revision_id: int | None = None
+    content_hash: str | None = None
+
+
 class InstanceSnapshot(BaseModel):
     """
     Structural state of an instance; unit of revisioning.
@@ -814,6 +844,13 @@ class InstanceSnapshot(BaseModel):
     dimensions: list[DimensionMeta] = Field(default_factory=list)
     datasets: list[DatasetMeta] = Field(default_factory=list)
     template_revision_id: int | None = None
+    template_content_hash: str | None = None
+    snapshot_kind: Literal['authored', 'composed', 'legacy'] = 'authored'
+    node_settings: list[InheritedNodeSettings] = Field(default_factory=list)
+    binding_overrides: list[InputBindingOverrideSnapshot] = Field(default_factory=list)
+    _template: 'InstanceSnapshot | None' = PrivateAttr(default=None)
+    _provenance: dict[str, 'DefinitionOrigin'] = PrivateAttr(default_factory=dict)
+    composition_errors: list[str] = Field(default_factory=list)
 
     model_config = {'arbitrary_types_allowed': True}
 
@@ -833,12 +870,35 @@ class InstanceSnapshot(BaseModel):
         """Bindings with per-port positions, assigned at snapshot production."""
         return [(binding, binding.position) for binding in self.bindings]
 
+    @property
+    def provenance(self) -> dict[str, DefinitionOrigin]:
+        return dict(self._provenance)
+
+    def parameter_value_origin(self, identifier: str, scenario_id: str) -> DefinitionOrigin | None:
+        """Resolve the origin of a scenario's value, including its municipal-default fallback."""
+        return self._provenance.get(
+            f'scenarios/{scenario_id}/param_values/{identifier}',
+            self._provenance.get(f'parameter_defaults/{identifier}'),
+        )
+
+    def resolve(self, template: InstanceSnapshot | None = None) -> Self:
+        """Compose frozen authoring inputs without consulting either instance's live draft."""
+        if self.snapshot_kind != 'authored' or self.template_revision_id is None:
+            return self
+        # template_graph imports these snapshot types.
+        from nodes.template_graph import resolve_template_snapshot
+
+        return cast('Self', resolve_template_snapshot(self, template=template))
+
     @classmethod
-    def from_serialized_data(cls, data: dict[str, Any]) -> Self:
+    def from_serialized_data(cls, data: dict[str, Any], *, compose: bool = True) -> Self:
         """Load persisted snapshot data, upgrading older node metadata and references."""
         schema_version = data.get('schema_version', 1)
         if schema_version >= SNAPSHOT_SCHEMA_VERSION:
-            return cls.model_validate(data)
+            snapshot = cls.model_validate(data)
+            if snapshot.snapshot_kind == 'composed':
+                snapshot.spec._is_composed = True
+            return snapshot.resolve() if compose else snapshot
 
         data = deepcopy(data)
         nodes = data.get('nodes', [])
@@ -854,7 +914,11 @@ class InstanceSnapshot(BaseModel):
         if schema_version < 11:
             _upgrade_bindings_v11(data)
 
+        if schema_version < 13:
+            upgrade_formula_specs_v13(data)
+
         data['schema_version'] = SNAPSHOT_SCHEMA_VERSION
+        data['snapshot_kind'] = 'legacy'
         return cls.model_validate(data)
 
 
@@ -894,6 +958,7 @@ class InstanceExport(BaseModel):
 
     schema_version: int = SNAPSHOT_SCHEMA_VERSION
     instance: InstanceSnapshot
+    template: 'InstanceExport | None' = None
     datasets: list[DatasetSnapshot] = Field(default_factory=list)
     # Wagtail page tree, for verification only (not used on import — pages are
     # copied/restored via Wagtail's own machinery). Node references are by identifier.
@@ -927,7 +992,7 @@ class InstanceExport(BaseModel):
         data = dict(data)
         instance_data = data.get('instance')
         if isinstance(instance_data, dict):
-            data['instance'] = InstanceSnapshot.from_serialized_data(instance_data)
+            data['instance'] = InstanceSnapshot.from_serialized_data(instance_data, compose=False)
         return cls.model_validate(data)
 
 
@@ -976,6 +1041,8 @@ def _check_spec_is_not_yaml_minimal(ic: InstanceConfig, nodes: list[NodeSnapshot
 def build_instance_snapshot(
     ic: InstanceConfig,
     dataset_revision_pins: dict[int, DatasetRevisionPinSnapshot] | None = None,
+    *,
+    compose: bool = True,
 ) -> InstanceSnapshot:
     """
     Structural snapshot of a DB-sourced InstanceConfig.
@@ -1055,7 +1122,8 @@ def build_instance_snapshot(
     if ic.template_revision_id is not None:
         from nodes.template_graph import compose_template_snapshot
 
-        return compose_template_snapshot(ic, snapshot, dataset_revision_pins=dataset_revision_pins)
+        authored = compose_template_snapshot(ic, snapshot, dataset_revision_pins=dataset_revision_pins, compose=False)
+        return authored.resolve() if compose else authored
     return snapshot
 
 
@@ -1206,13 +1274,37 @@ def export_instance(ic: InstanceConfig, *, exported_from: str | None = None) -> 
 
     from nodes.page_snapshot import build_instance_page_snapshots
 
-    snapshot = build_instance_snapshot(ic)
+    snapshot = build_instance_snapshot(ic, compose=False)
 
     ic_ct = ContentType.objects.get_for_model(ic)
-    datasets = [DatasetSnapshot.from_model(ds, ic) for ds in _datasets_for_instance_export(ic, ic_ct)]
+    from kausal_common.datasets.models import Dataset as DatasetModel
 
+    source_datasets = {item.uuid: item for item in _datasets_for_instance_export(ic, ic_ct)}
+    source_datasets.update({
+        item.uuid: item
+        for item in DatasetModel.objects.filter(
+            uuid__in=[dataset.id for node in snapshot.nodes for dataset in node.datasets],
+        )
+    })
+    datasets = [DatasetSnapshot.from_model(ds, ic) for ds in source_datasets.values()]
+
+    template_export = None
+    if snapshot.template_revision_id is not None:
+        from wagtail.models import Revision
+
+        from nodes.template_graph import template_snapshot
+
+        base = template_snapshot(ic)
+        pinned_bodies = Revision.objects.in_bulk([pin.revision_id for pin in base.dataset_revisions])
+        template_export = InstanceExport(
+            instance=base,
+            datasets=_template_dataset_bodies(base, pinned_bodies),
+            exported_at=timezone.now(),
+            exported_from=exported_from,
+        )
     return InstanceExport(
         instance=snapshot,
+        template=template_export,
         datasets=datasets,
         pages=build_instance_page_snapshots(ic),
         exported_at=timezone.now(),
@@ -1224,6 +1316,40 @@ def export_instance(ic: InstanceConfig, *, exported_from: str | None = None) -> 
 # ---------------------------------------------------------------------------
 # Import (from_dict)
 # ---------------------------------------------------------------------------
+
+
+def _template_dataset_bodies(base: InstanceSnapshot, revisions: dict[int, Revision]) -> list[DatasetSnapshot]:
+    bodies = {
+        pin.dataset_uuid: DatasetSnapshot.model_validate(revisions[pin.revision_id].content) for pin in base.dataset_revisions
+    }
+    dimensions = {item.id: item.identifier for item in base.dimensions}
+    for dataset in base.all_datasets():
+        if dataset.id in bodies:
+            continue
+        bodies[dataset.id] = DatasetSnapshot(
+            identifier=dataset.identifier,
+            is_external_placeholder=dataset.is_external_placeholder,
+            external_ref=dataset.external_ref,
+            is_editable=dataset.is_editable if dataset.is_editable is not None else True,
+            dimensions=[dimensions[item] for item in dataset.declared_dimension_ids],
+            category_domain=dataset.category_domain,
+            metrics=[
+                DatasetMetricSnapshot(
+                    identifier=item.identifier or str(item.id),
+                    unit=item.unit,
+                    label=(
+                        item.label
+                        if isinstance(item.label, TranslatedString)
+                        else TranslatedString(str(item.label), default_language=base.metadata.primary_language)
+                        if item.label is not None
+                        else None
+                    ),
+                    quantity=item.quantity,
+                )
+                for item in dataset.metrics
+            ],
+        )
+    return list(bodies.values())
 
 
 def _import_dimensions(
@@ -1320,6 +1446,8 @@ def import_instance_edges_and_ports(
 def _import_nodes(
     ic: InstanceConfig,
     export: InstanceExport,
+    *,
+    preserve_uuids: bool = False,
 ) -> dict[UUID, NodeConfig]:
     """Create NodeConfig objects. Returns UUID → NodeConfig map."""
     from nodes.models import NodeConfig, NodeLayout, NodeLayoutSource
@@ -1337,6 +1465,7 @@ def _import_nodes(
         apply_translated(fields, i18n_dict, n.description, 'description', primary_lang)
         apply_translated(fields, i18n_dict, n.goal, 'goal', primary_lang)
 
+        fields.update({'uuid': n.uuid} if preserve_uuids else {})
         nc = NodeConfig.objects.create(
             instance=ic,
             identifier=n.identifier,
@@ -1442,7 +1571,143 @@ def _import_bindings(
     NodeInputPortBinding.objects.bulk_create(rows)
 
 
-def import_instance(ic: InstanceConfig, export: InstanceExport, framework_config: FrameworkConfig | None = None) -> None:
+def _import_template_revision(export: InstanceExport, *, organization_id: int) -> int | None:
+    from django.contrib.contenttypes.models import ContentType
+    from wagtail.models import Revision
+
+    from nodes.models import InstanceConfig
+    from nodes.template_graph import snapshot_content_hash
+
+    snapshot = export.instance
+    if snapshot.snapshot_kind != 'authored' or snapshot.template_revision_id is None:
+        return None
+    if export.template is None:
+        revision = Revision.objects.get(pk=snapshot.template_revision_id)
+        base = InstanceSnapshot.from_serialized_data(revision.content['model_snapshot']['structured'], compose=False)
+        if snapshot_content_hash(base) != snapshot.template_content_hash:
+            raise ValueError('Template export is required to import this pinned revision')
+        return revision.pk
+    base = export.template.instance
+    if snapshot_content_hash(base) != snapshot.template_content_hash:
+        raise ValueError('Bundled template does not match the pinned content hash')
+    ct = ContentType.objects.get_for_model(InstanceConfig)
+    template = InstanceConfig.objects.filter(uuid=base.metadata.uuid).first()
+    installed_template = template is None
+    if template is not None:
+        for revision in Revision.objects.filter(content_type=ct, object_id=str(template.pk)):
+            payload = (revision.content.get('model_snapshot') or {}).get('structured')
+            if (
+                payload
+                and snapshot_content_hash(InstanceSnapshot.from_serialized_data(payload, compose=False))
+                == snapshot.template_content_hash
+            ):
+                return revision.pk
+    else:
+        template = InstanceConfig.objects.create(
+            uuid=base.metadata.uuid,
+            organization_id=organization_id,
+            identifier=base.metadata.identifier,
+            name=str(base.metadata.name),
+            primary_language=base.metadata.primary_language,
+            other_languages=base.metadata.other_languages,
+            config_source='database',
+            spec=base.spec,
+        )
+        import_instance(template, export.template, preserve_node_uuids=True)
+    base = _import_template_dataset_pins(template, export.template)
+    snapshot.template_content_hash = snapshot_content_hash(base)
+    revision = Revision.objects.create(
+        content_type=ct,
+        base_content_type=ct,
+        object_id=str(template.pk),
+        object_str=template.identifier,
+        content={
+            'pk': template.pk,
+            'identifier': template.identifier,
+            'config_source': 'database',
+            'model_snapshot': {'schema_version': SNAPSHOT_SCHEMA_VERSION, 'structured': base.model_dump(mode='json')},
+        },
+    )
+
+    from kausal_common.datasets.models import Dataset
+
+    from nodes.models import InstanceRevisionDatasetPin
+
+    datasets = {
+        dataset.uuid: dataset for dataset in Dataset.objects.filter(uuid__in=[pin.dataset_uuid for pin in base.dataset_revisions])
+    }
+    InstanceRevisionDatasetPin.objects.bulk_create([
+        InstanceRevisionDatasetPin(
+            instance_config=template,
+            instance_revision=revision,
+            dataset=datasets[pin.dataset_uuid],
+            dataset_revision_id=pin.revision_id,
+            dataset_uuid=pin.dataset_uuid,
+            identifier=pin.identifier,
+            forecast_from=pin.forecast_from,
+            shape_profiles=None,
+        )
+        for pin in base.dataset_revisions
+    ])
+    if installed_template:
+        type(template).objects.filter(pk=template.pk).update(live_revision=revision, latest_revision=revision, live=True)
+    return revision.pk
+
+
+def _import_template_dataset_pins(template: InstanceConfig, export: InstanceExport) -> InstanceSnapshot:
+    from django.contrib.contenttypes.models import ContentType
+    from wagtail.models import Revision
+
+    from kausal_common.datasets.models import Dataset
+
+    from datasets.materialization import hash_dataset_content
+
+    base = export.instance.model_copy(deep=True)
+    # Dataset UUIDs in the frozen catalog must address imported bodies on this backend.
+    catalog = {item.identifier: item for item in base.all_datasets()}
+    for dataset in Dataset.objects.for_instance_config(template):
+        meta = catalog.get(dataset.identifier)
+        if meta is not None and dataset.uuid != meta.id:
+            if Dataset.objects.filter(uuid=meta.id).exists():
+                raise ValueError('Imported template dataset UUID conflicts with an existing dataset')
+            Dataset.objects.filter(pk=dataset.pk).update(uuid=meta.id)
+    pins = []
+    for pin in base.dataset_revisions:
+        dataset = Dataset.objects.get(uuid=pin.dataset_uuid)
+        body = next(item for item in export.datasets if item.identifier == pin.identifier)
+        if hash_dataset_content(body.model_dump(mode='json', exclude_unset=True)) != pin.content_hash:
+            raise ValueError('Bundled template dataset does not match its pinned content hash')
+        revision = Revision.objects.create(
+            content_type=ContentType.objects.get_for_model(Dataset),
+            base_content_type=ContentType.objects.get_for_model(Dataset),
+            object_id=str(dataset.pk),
+            object_str=pin.identifier or str(pin.dataset_uuid),
+            content=body.model_dump(mode='json', exclude_unset=True),
+        )
+        pins.append(pin.model_copy(update={'revision_id': revision.pk}))
+    base = base.model_copy(update={'dataset_revisions': pins})
+    # Revision IDs are database-local. Retarget both the catalogs and input payload references.
+    ids = {pin.dataset_uuid: pin.revision_id for pin in pins}
+    base.datasets = [item.model_copy(update={'revision_id': ids.get(item.id, item.revision_id)}) for item in base.datasets]
+    for node in base.nodes:
+        node.datasets = [item.model_copy(update={'revision_id': ids.get(item.id, item.revision_id)}) for item in node.datasets]
+    base.bindings = [
+        item.model_copy(update={'source': item.source.model_copy(update={'dataset_revision': ids[item.source.dataset_uuid]})})
+        if isinstance(item.source, DatasetMetricSource) and item.source.dataset_uuid in ids
+        else item
+        for item in base.bindings
+    ]
+    return base
+
+
+@transaction.atomic
+def import_instance(
+    ic: InstanceConfig,
+    export: InstanceExport,
+    framework_config: FrameworkConfig | None = None,
+    *,
+    preserve_node_uuids: bool = False,
+) -> None:
     """
     Populate an InstanceConfig with computation model objects from an InstanceExport.
 
@@ -1452,6 +1717,9 @@ def import_instance(ic: InstanceConfig, export: InstanceExport, framework_config
     from django.contrib.contenttypes.models import ContentType
 
     ic_ct = ContentType.objects.get_for_model(ic)
+    if export.instance.snapshot_kind == 'composed':
+        raise ValueError('Import requires an authoring snapshot, not a composed runtime model')
+    template_revision_id = _import_template_revision(export, organization_id=ic.organization_id)
 
     # Store the computation spec. Copy the template's language metadata onto
     # the InstanceConfig row so i18n-bearing data (ActionGroup names, etc.)
@@ -1463,7 +1731,9 @@ def import_instance(ic: InstanceConfig, export: InstanceExport, framework_config
     ic.primary_language = meta.primary_language
     ic.other_languages = list(meta.other_languages)
     ic.config_source = 'database'
-    update_fields = ['spec', 'primary_language', 'other_languages', 'config_source']
+    ic.template_revision_id = template_revision_id
+    ic.node_settings = export.instance.node_settings
+    update_fields = ['spec', 'primary_language', 'other_languages', 'config_source', 'template_revision', 'node_settings']
 
     # Owner display name comes from the template (or the framework org) and is
     # written to the column; the instance keeps its own name.
@@ -1515,7 +1785,86 @@ def import_instance(ic: InstanceConfig, export: InstanceExport, framework_config
     datasets_by_id = {ds.identifier: ds for ds in datasets if ds.identifier is not None}
 
     # Nodes
-    nodes_by_uuid = _import_nodes(ic, export)
+    nodes_by_uuid = _import_nodes(ic, export, preserve_uuids=preserve_node_uuids)
+
+    _import_dataset_ownership(ic, export.instance, nodes_by_uuid, datasets_by_id)
 
     # Input bindings (edges and dataset ports)
     _import_bindings(ic, export, nodes_by_uuid, datasets_by_id)
+    if template_revision_id is not None:
+        _import_binding_overrides(ic, export.instance, nodes_by_uuid, datasets_by_id)
+
+
+def _import_dataset_ownership(
+    ic: InstanceConfig,
+    snapshot: InstanceSnapshot,
+    nodes_by_uuid: dict[UUID, NodeConfig],
+    datasets_by_id: dict[str, DatasetModel],
+) -> None:
+    from django.contrib.contenttypes.models import ContentType
+
+    from nodes.models import NodeConfig
+
+    node_ct = ContentType.objects.get_for_model(NodeConfig)
+    for node in snapshot.nodes:
+        for owned in node.datasets:
+            dataset = datasets_by_id.get(owned.identifier) if owned.identifier is not None else None
+            if dataset is not None:
+                type(dataset).objects.filter(pk=dataset.pk).update(
+                    scope_content_type=node_ct, scope_id=nodes_by_uuid[node.uuid].pk
+                )
+
+
+def _import_binding_overrides(
+    ic: InstanceConfig,
+    snapshot: InstanceSnapshot,
+    nodes_by_uuid: dict[UUID, NodeConfig],
+    datasets_by_id: dict[str, DatasetModel],
+) -> None:
+    from nodes.models import InputPortBindingSet
+
+    def remap_node(identifier: UUID) -> UUID:
+        node = nodes_by_uuid.get(identifier)
+        return node.uuid if node is not None else identifier
+
+    selections = list(snapshot.binding_overrides)
+    inherited_ports = {
+        (binding.node_id, binding.port_id)
+        for binding in snapshot.bindings
+        if isinstance(binding.source, NodePortSource) and binding.source.node_id not in nodes_by_uuid
+    }
+    selections.extend(
+        InputBindingOverrideSnapshot(
+            node_uuid=node_id,
+            port_uuid=port_id,
+            bindings=[item for item in snapshot.bindings if (item.node_id, item.port_id) == (node_id, port_id)],
+        )
+        for node_id, port_id in inherited_ports
+    )
+    from nodes.models import NodeInputPortBinding
+    from nodes.template_graph import template_snapshot
+
+    pins = {pin.dataset_uuid: pin.revision_id for pin in template_snapshot(ic).dataset_revisions}
+    for override in selections:
+        bindings = []
+        for item in override.bindings:
+            source = item.source
+            if isinstance(source, NodePortSource):
+                source = source.model_copy(update={'node_id': remap_node(source.node_id)})
+            else:
+                dataset = datasets_by_id.get(source.dataset)
+                if dataset is not None:
+                    assert dataset.schema is not None
+                    metric = dataset.schema.metrics.get(name=source.metric)
+                    source = source.model_copy(
+                        update={'dataset_uuid': dataset.uuid, 'metric_uuid': metric.uuid, 'dataset_revision': None}
+                    )
+            if isinstance(source, DatasetMetricSource) and source.dataset_uuid in pins:
+                source = source.model_copy(update={'dataset_revision': pins[source.dataset_uuid]})
+            bindings.append(item.model_copy(update={'node_id': remap_node(item.node_id), 'source': source}))
+        NodeInputPortBinding.objects.filter(
+            instance=ic, node__uuid=remap_node(override.node_uuid), port_id=override.port_uuid
+        ).delete()
+        InputPortBindingSet.objects.create(
+            instance=ic, node_uuid=remap_node(override.node_uuid), port_uuid=override.port_uuid, bindings=bindings
+        )

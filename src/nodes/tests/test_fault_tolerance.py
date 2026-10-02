@@ -37,6 +37,13 @@ class _BoomNode(SimpleNode):
         raise NodeError(self, 'boom')
 
 
+class _PreconditionNode(SimpleNode):
+    """A node whose computation fails with an ordinary exception, as library code does."""
+
+    def compute(self):
+        raise ValueError('subset larger than its parent')
+
+
 class AdditiveNodeFactory(NodeFactory):
     class Meta:
         model = AdditiveNode
@@ -51,6 +58,13 @@ class BoomNodeFactory(NodeFactory):
         model = _BoomNode
 
     id = Sequence(lambda i: f'boom{i}')
+
+
+class PreconditionNodeFactory(NodeFactory):
+    class Meta:
+        model = _PreconditionNode
+
+    id = Sequence(lambda i: f'precondition{i}')
 
 
 def _leaf(context: Context) -> AdditiveNode:
@@ -148,6 +162,19 @@ def test_failure_is_memoized_not_recomputed(context):
             boom.get_output_pl()
     # The failing compute() ran only once; later pulls short-circuit on FAILED status.
     assert boom.compute_calls == 1
+
+
+def test_memoized_failure_keeps_its_reason(context):
+    node = PreconditionNodeFactory.create(context=context)
+    with pytest.raises(NodeError):
+        node.get_output_pl()
+    # The wrapping error only says where; the recorded reason is its cause.
+    assert node.status_errors[0].message.endswith('Error computing node: subset larger than its parent')
+    with pytest.raises(NodeError) as excinfo:
+        node.get_output_pl()
+    assert str(excinfo.value) == (
+        f'Node {node.id}: This node failed earlier in this computation run (Error computing node: subset larger than its parent)'
+    )
 
 
 def test_downstream_cascade_has_no_own_error(context):

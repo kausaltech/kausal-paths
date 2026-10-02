@@ -3,12 +3,13 @@
 *Produced by Claude Opus 5.0 on 2026-09-18.*
 *Responsible: Jouni Tuomisto.*
 
-A scenario is a set of parameter values. Activating one walks its `param_values` and
-resets each named parameter to the value the scenario gives it (`Scenario.activate`,
+A scenario is a set of parameter values. Activating one restores configured parameter
+defaults, then walks its `param_values` and sets each named parameter to the value
+the scenario gives it (`Scenario.activate`,
 `src/nodes/scenario.py`). **A scenario sets only what it names.**
 
-That is safe rather than dangerous, because the context is rebuilt on every request (see
-below), so each request starts from the parameters' config defaults. The rule that
+Scenario activation restores configured defaults, including municipal defaults, so
+omitted parameters cannot retain a deviation from the previously active scenario. The rule that
 follows is worth stating exactly, because the intuition that values "carry over" is
 wrong:
 
@@ -16,11 +17,10 @@ wrong:
   scenarios cannot change it, and nothing unexpected happens.
 * A parameter **some scenarios name and others do not** is its config default in the ones
   that do not. Still nothing unexpected on a plain scenario switch.
-* The loader folds every *customizable* parameter into the default scenario
-  (`src/nodes/instance_loader.py`), capturing the value it has at load time — i.e. the
-  config default. So for the default scenario, "named" and "not named" are the same
-  value. On `mainz-bisko`, `weather_correction` is named by the default scenario with
-  `False`, which is exactly its config default.
+* The default scenario names only deliberate deviations from configured defaults.
+  The loader does not copy customizable parameters into its `param_values`. A
+  parameter such as `weather_correction` can therefore remain at its declared
+  default without an entry in the default scenario.
 * **The one place two scenarios' values meet inside a single request is the custom
   scenario**, which activates a base and then applies a diff. That is where a parameter
   differing *between* scenarios could produce a value belonging to a scenario the visitor
@@ -76,11 +76,12 @@ silently discard a saved branch, so keep it that way.
 
 ### A hidden parameter is a scenario's property, not a node's
 
-`is_customizable: false` does two things: `setParameter` refuses the parameter
-(`src/params/schema.py`), and the loader stops folding its value into the default
-scenario (`src/nodes/instance_loader.py`). The second is easy to miss, and it means a
-scenario can only set what it **names**: a non-customizable parameter no scenario names
-sits at its config default in every scenario, and no scenario can move it.
+`is_customizable: false` makes `setParameter` refuse ephemeral visitor edits
+(`src/params/schema.py`). It does not govern municipal administrator edits: the
+separate `owner` field controls persisted local values. No parameter is automatically
+folded into the default scenario. A scenario sets only what it **names**; omitted
+parameters use configured defaults, including municipal defaults composed from
+local default-scenario overrides. See [template inheritance](template-inheritance.md).
 
 So a parameter that selects between published variants — the case this was built for is
 `selected_number` with `select_variant` — has to be named by every scenario that needs a
@@ -118,9 +119,11 @@ The objection above is about a *design* that does not exist, and it is worth say
 the runtime does not produce the same effect by accident.
 
 `InstanceConfig.enter_instance_context` calls `_initialize_instance` on every request
-(`src/nodes/models.py`); the `_pytest_instances` reuse path is test-only. So each request
-builds a fresh `Instance`, `Context` and parameter set, with every parameter at its
-**config default**, and then activates the scenario the session names. A parameter value
+(`src/nodes/models.py`); the `_pytest_instances` reuse path is test-only. Each request
+builds a fresh `Instance`, `Context` and parameter set. Scenario
+activation also explicitly restores configured defaults before applying the
+scenario, so the loader's initial default-scenario activation cannot leak into
+another scenario. A parameter value
 therefore cannot survive a scenario switch in memory.
 
 Checked against `mainz-bisko`, where `weather_correction` is a customizable global
@@ -135,13 +138,17 @@ parameter that no scenario names in YAML:
 So what a parameter outside scenarios would introduce is genuinely new, not a formalisation
 of something already happening.
 
-**A word of warning about testing this.** `tools/debug_instance` holds a single
-long-lived context, so calling `ctx.activate_scenario(...)` several times in one `-c`
-script models something the web app never does: values set by an earlier activation
-persist into the next one. A sequence of scenario switches written that way will show
-leaks that do not exist in the product. Anything about cross-request behaviour has to be
-checked through separate GraphQL requests -- which is what
-`src/params/tests/test_custom_scenario_base.py` does.
+**Switching versus evaluating.** Activation is a switch: it restores configured
+defaults first, so a long-lived context behaves like a fresh request on each
+activation. `Scenario.override()` is an evaluation: it activates the scenario the same
+way, so another scenario's deviations do not carry into it, but by default it then
+reapplies the visitor's own edits (customized parameters) that the scenario does not
+name -- which is what an action's impact against the baseline needs.
+`override(isolated=True)` leaves them out, for views that must show the scenario as
+configured, such as a dashboard card. Either way it saves and restores every
+parameter, including the ones the scenario omits. Session
+branching still needs request-level tests because its overrides live in session
+storage.
 
 ## What is not built yet
 
