@@ -164,6 +164,12 @@ class ActionImpactFromBaseline(BoolGlobalParameter):
     value = False
 
 
+class ActionDelay(NumberGlobalParameter):
+    name = _('Delay of all actions (years)')
+    description = _('How many years later than planned every action takes effect')
+    id = 'action_delay'
+
+
 class ScenarioName(StringGlobalParameter):
     name = _('Scanario name')
     id = 'scenario_name'

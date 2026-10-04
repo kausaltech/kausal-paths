@@ -1468,7 +1468,7 @@ class Node:
 
         if cache_res is None or not cache_res.is_hit:
             try:
-                df = self.compute()
+                df = self.compute_output()
             except Exception as e:
                 post_mortem_possibly(e)
                 if not isinstance(e, NodeError):
@@ -1574,6 +1574,16 @@ class Node:
 
     def compute(self) -> pd.DataFrame | ppl.PathsDataFrame:
         raise Exception('Implement in subclass')
+
+    def compute_output(self) -> pd.DataFrame | ppl.PathsDataFrame:
+        """
+        Compute the node's output as the rest of the graph sees it.
+
+        This is `compute()` plus any post-processing a base class applies to every
+        subclass, such as the time shift of a delayed action. Subclasses implement
+        `compute()`; override this only to add such cross-cutting behaviour.
+        """
+        return self.compute()
 
     def input_port_multiplicity_hint(
         self,

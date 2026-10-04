@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from cmath import nan
 from typing import TYPE_CHECKING, Any, ClassVar, cast
 
 from django.utils.translation import gettext_lazy as _
@@ -374,26 +373,18 @@ class CumulativeAdditiveAction(ActionNode):
 class LinearCumulativeAdditiveAction(CumulativeAdditiveAction):
     allowed_parameters = CumulativeAdditiveAction.allowed_parameters + [
         NumberParameter(local_id='target_year_level'),
-        NumberParameter(
-            local_id='action_delay',
-            label=_('Years of delay (a)'),
-        ),
         NumberParameter(local_id='multiplier'),
     ]
 
     explanation = _("""Cumulative additive action where a yearly target is set and the effect is linear.
     This can be modified with these parameters:
     target_year_level is the value to be reached at the target year.
-    action_delay is the year when the implementation of the action starts.
     multiplier scales the size of the impact (useful between scenarios).
     """)
 
     def compute_effect(self):
         df = self.get_input_dataset()
         start_year = df.index.min()
-        delay = self.get_parameter_value_float('action_delay', required=False)
-        if delay is not None:
-            start_year = start_year + int(delay)
         target_year = self.get_target_year()
         df = df.reindex(range(start_year, target_year + 1))
         df[FORECAST_COLUMN] = True
@@ -403,8 +394,6 @@ class LinearCumulativeAdditiveAction(CumulativeAdditiveAction):
             if set(df.columns) != {VALUE_COLUMN, FORECAST_COLUMN}:
                 raise NodeError(self, 'target_year_level parameter can only be used with single-value nodes')
             df.loc[target_year, VALUE_COLUMN] = target_year_level
-            if delay is not None:
-                df.loc[range(start_year + 1, target_year), VALUE_COLUMN] = nan
 
         for col in df.columns:
             if col == FORECAST_COLUMN:

@@ -1617,13 +1617,13 @@ actions:
   quantity: number
   unit: pcs
   group: other
-  forecast_values: [[2022, 0], [2023, 0], [2024, 0], [2025, 0], [2026, 0], [2027,
-      0], [2028, 0], [2029, 0], [2030, 0]]
+  # Only the start is given: the years up to target_year_level are interpolated.
+  forecast_values: [[2022, 0]]
   output_nodes:
   - forest_sink
   params:
   - id: action_delay
-    description: How many years until the action starts
+    description: How many years later the planting starts and finishes
     values:
       default: 0
     min_value: 0

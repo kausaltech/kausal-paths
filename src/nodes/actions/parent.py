@@ -7,7 +7,7 @@ import polars as pl
 from nodes.constants import IMPACT_COLUMN, IMPACT_GROUP
 from nodes.exceptions import NodeError
 
-from .action import ActionNode
+from .action import ACTION_DELAY_PARAM_ID, ActionNode
 
 if TYPE_CHECKING:
     import networkx as nx
@@ -64,6 +64,14 @@ class ParentActionNode(ActionNode):
             for action in self.subactions:
                 action.enabled_param.set(param.get())
         return super().notify_parameter_change(param)
+
+    def get_delay_years(self) -> int:
+        # The output is the impact of the subactions, which apply their own delays,
+        # so shifting it here would delay them twice.
+        own = self.get_parameter_value(ACTION_DELAY_PARAM_ID, required=False)
+        if own:
+            raise NodeError(self, f'Set {ACTION_DELAY_PARAM_ID} on the subactions, not on a parent action')
+        return 0
 
     def compute_effect(self) -> ppl.PathsDataFrame:
         if self.unit is None:

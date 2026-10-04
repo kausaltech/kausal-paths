@@ -63,9 +63,35 @@ ENABLED_PARAM = EnabledParam(
     is_customizable=True,
 )
 
+ACTION_DELAY_PARAM_ID = 'action_delay'
+
+# The same id names both the global parameter, which delays every action, and the
+# per-action parameter, which delays one. An action's delay is the sum of the two.
+ACTION_DELAY_PARAM = NumberParameter(
+    local_id=ACTION_DELAY_PARAM_ID,
+    label=_('Delay (years)'),
+    description=_('How many years later than planned the action takes effect'),
+    min_value=0,
+    step=1,
+    is_customizable=True,
+)
+
+
+# The same rule as `last_historical_year()` in `nodes.hooks` on the action-hooks work
+# (feat/data-studio-backend), so a delay and a hook agree on where the future starts.
+# Replace this with an import of that function once it is on main.
+def _last_historical_year(node: Node, df: ppl.PathsDataFrame) -> int | None:
+    """Return the instance's last historical year, or else the last non-forecast year of `df`."""
+    year = node.context.instance.maximum_historical_year
+    if year is not None:
+        return year
+    if FORECAST_COLUMN not in df.columns:
+        return None
+    return df.filter(~pl.col(FORECAST_COLUMN))[YEAR_COLUMN].max()  # type: ignore[return-value]
+
 
 class ActionNode(Node):
-    global_parameters = ['action_impact_from_baseline']
+    global_parameters = ['action_impact_from_baseline', ACTION_DELAY_PARAM_ID]
     decision_level: DecisionLevel = DecisionLevel.MUNICIPALITY
     group: ActionGroup | None = None
     parent_action: ParentActionNode | None = None
@@ -77,21 +103,23 @@ class ActionNode(Node):
     enabled_param: BoolParameter
     allowed_parameters: ClassVar[Sequence[Parameter]] = [
         ENABLED_PARAM,
+        ACTION_DELAY_PARAM,
         NumberParameter(local_id='multiplier', label=_('Multiplies the output'), is_customizable=True),
         BoolParameter(local_id='allow_null_categories', description=_('Allow null dimension categories'), is_customizable=False),
     ]
 
     def __init_subclass__(cls) -> None:
-        """Ensure the 'enabled' parameter is allowed for all action classes."""
-        for p in cls.allowed_parameters:
-            if p.local_id == ENABLED_PARAM_ID:
-                break
-        else:
-            # No 'enabled' parameter in allowed_parameters - add it here.
-            cls.allowed_parameters = [
-                ENABLED_PARAM,
-                *cls.allowed_parameters,
-            ]
+        """Ensure every action class allows the 'enabled' and 'action_delay' parameters and sees the action global parameters."""
+        allowed_ids = {p.local_id for p in cls.allowed_parameters}
+        if ENABLED_PARAM_ID not in allowed_ids:
+            cls.allowed_parameters = [ENABLED_PARAM, *cls.allowed_parameters]
+        if ACTION_DELAY_PARAM_ID not in allowed_ids:
+            cls.allowed_parameters = [*cls.allowed_parameters, ACTION_DELAY_PARAM]
+        # Mixins such as GenericNode bring their own global_parameters, which
+        # shadow ours in the MRO. Every action must still see the action ones.
+        missing = [p for p in ActionNode.global_parameters if p not in cls.global_parameters]
+        if missing:
+            cls.global_parameters = [*cls.global_parameters, *missing]
         super().__init_subclass__()
 
     def finalize_init(self):
@@ -149,6 +177,88 @@ class ActionNode(Node):
         if isinstance(df, pd.DataFrame):
             df = ppl.from_pandas(df)
         return df
+
+    def get_delay_years(self) -> int:
+        """Return how many years this action's effect is postponed: the global delay plus its own."""
+        total = 0.0
+        for value in (
+            self.get_global_parameter_value(ACTION_DELAY_PARAM_ID, required=False),
+            self.get_parameter_value(ACTION_DELAY_PARAM_ID, required=False),
+        ):
+            if value is None:
+                continue
+            if not isinstance(value, int | float):
+                raise NodeError(self, f'{ACTION_DELAY_PARAM_ID} must be a number, not {value!r}')
+            total += value
+        if total < 0 or total != int(total):
+            raise NodeError(self, f'Action delay must be a whole number of years >= 0, not {total}')
+        return int(total)
+
+    def compute_output(self) -> pd.DataFrame | ppl.PathsDataFrame:
+        df = super().compute_output()
+        delay = self.get_delay_years()
+        if delay == 0 or not self.is_enabled():
+            return df
+        if isinstance(df, pd.DataFrame):
+            df = ppl.from_pandas(df)
+        return self._delay_effect(df, self._compute_disabled_output(), delay)
+
+    def _compute_disabled_output(self) -> ppl.PathsDataFrame:
+        param = self.enabled_param
+        was_enabled = self.is_enabled()
+        param.set(False)
+        try:
+            df = self.compute()
+        finally:
+            param.set(was_enabled)
+        if isinstance(df, pd.DataFrame):
+            df = ppl.from_pandas(df)
+        return df
+
+    def _delay_effect(self, edf: ppl.PathsDataFrame, ddf: ppl.PathsDataFrame, delay: int) -> ppl.PathsDataFrame:
+        """
+        Postpone the action's effect by `delay` years.
+
+        The effect is the difference between the enabled and the disabled output, so
+        this works whether the action emits a delta, a factor or a level. Historical
+        years are left alone. In a forecast year t the output is the disabled value
+        plus the effect from year t - delay; while that year is still historical, the
+        effect stays at its last historical value, so progress already made is kept
+        but goes no further during the delay. With no historical year at all, the
+        whole output is forecast and simply shifts.
+        """
+        last_hist = _last_historical_year(self, edf)
+        if last_hist is None:
+            last_hist = edf[YEAR_COLUMN].min() - 1  # type: ignore[operator]
+
+        meta = edf.get_meta()
+        dims = edf.dim_ids
+        keys = [YEAR_COLUMN, *dims]
+        metrics = edf.metric_cols
+        if set(ddf.primary_keys) != set(keys) or set(ddf.metric_cols) != set(metrics) or len(ddf) != len(edf):
+            raise NodeError(self, 'Cannot delay the action: its output has a different shape when disabled')
+        for m in metrics:
+            ddf = ddf.ensure_unit(m, edf.get_unit(m))
+
+        year_dtype = edf.schema[YEAR_COLUMN]
+        off = pl.DataFrame(ddf).select([*keys, *[pl.col(m).alias(f'{m}:off') for m in metrics]])
+        df = pl.DataFrame(edf).join(off, on=keys, how='left', nulls_equal=True)
+        delta = df.select([
+            pl.col(YEAR_COLUMN).alias('_source_year'),
+            *dims,
+            *[(pl.col(m) - pl.col(f'{m}:off')).alias(f'{m}:delta') for m in metrics],
+        ])
+        is_forecast_year = pl.col(YEAR_COLUMN) > last_hist
+        source_year = pl.max_horizontal(pl.col(YEAR_COLUMN) - delay, pl.lit(last_hist))
+        df = df.with_columns(
+            pl.when(is_forecast_year).then(source_year).otherwise(pl.col(YEAR_COLUMN)).cast(year_dtype).alias('_source_year')
+        )
+        df = df.join(delta, on=['_source_year', *dims], how='left', nulls_equal=True)
+        df = df.with_columns([
+            pl.when(is_forecast_year).then(pl.col(f'{m}:off') + pl.col(f'{m}:delta').fill_null(0.0)).otherwise(pl.col(m)).alias(m)
+            for m in metrics
+        ])
+        return ppl.to_ppdf(df.select(edf.columns), meta=meta)
 
     def compute_impact(self, target_node: Node, force_from_baseline: bool | None = None) -> ppl.PathsDataFrame:  # noqa: PLR0915
         if force_from_baseline is not None:
