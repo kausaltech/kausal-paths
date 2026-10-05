@@ -86,8 +86,8 @@ def test_dataset_provenance_round_trip():
     assert new_comment.text == 'looks off'
     assert new_comment.is_review is True
     assert new_comment.review_state == DataPointCommentReviewState.UNRESOLVED
-    assert new_comment.created_by_id == author.pk  # resolved from uuid
-    assert new_comment.last_modified_by_id == author.pk
+    assert new_comment.created_by == author  # resolved from uuid
+    assert new_comment.last_modified_by == author
 
 
 def test_dataset_provenance_unknown_user_uuid_is_dropped():
@@ -110,4 +110,33 @@ def test_dataset_provenance_unknown_user_uuid_is_dropped():
 
     new_comment = DataPointComment.objects.get(data_point__dataset=new_ds)
     assert new_comment.text == 'note'
-    assert new_comment.created_by_id is None
+    assert new_comment.created_by is None
+
+
+def test_empty_cells_survive_the_round_trip():
+    """A template's empty cells are data points with a null value, and the copy keeps them."""
+    from nodes.models import DatasetMaterialization
+
+    src = InstanceConfigFactory.create(name='tmpl-src', config_source='database')
+    ct = ContentType.objects.get_for_model(src)
+    schema = DatasetSchemaFactory.create()
+    metric = DatasetMetricFactory.create(schema=schema, label='Value')
+    template = DatasetFactory.create(schema=schema, scope_content_type=ct, scope_id=src.pk, identifier='tmpl/empty')
+    for year in (2022, 2023):
+        DataPointFactory.create(dataset=template, metric=metric, date=date(year, 1, 1), value=None)
+    mixed_schema = DatasetSchemaFactory.create()
+    mixed_metric = DatasetMetricFactory.create(schema=mixed_schema, label='Value')
+    mixed = DatasetFactory.create(schema=mixed_schema, scope_content_type=ct, scope_id=src.pk, identifier='tmpl/mixed')
+    DataPointFactory.create(dataset=mixed, metric=mixed_metric, date=date(2022, 1, 1), value=Decimal(5))
+    DataPointFactory.create(dataset=mixed, metric=mixed_metric, date=date(2023, 1, 1), value=None)
+
+    dst = InstanceConfigFactory.create(name='tmpl-dst', config_source='database')
+    dst_ct = ContentType.objects.get_for_model(dst)
+    new_template = _import_dataset(dst, DatasetSnapshot.from_model_for_instance(template, src), dst_ct, {})
+    new_mixed = _import_dataset(dst, DatasetSnapshot.from_model_for_instance(mixed, src), dst_ct, {})
+
+    assert sorted(new_template.data_points.values_list('date__year', 'value')) == [(2022, None), (2023, None)]
+    assert sorted(new_mixed.data_points.values_list('date__year', 'value')) == [(2022, Decimal(5)), (2023, None)]
+    # The runtime reads the materialized payload; a template copied without its cells had none.
+    materialization = DatasetMaterialization.objects.get(dataset=new_template)
+    assert materialization.content.get('data') is not None

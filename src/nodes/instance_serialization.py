@@ -1907,9 +1907,13 @@ def _import_data_points(
         cat_key = tuple(sorted(row_cat_ids))
 
         for metric_id, metric in metrics_by_id.items():
-            value = row.get(metric_columns[metric_id])
-            if value is None:
+            column = metric_columns[metric_id]
+            if column not in row:
                 continue
+            # An empty cell is kept as a null-valued data point, as `load_dvc_dataset` creates
+            # it: a template dataset is all empty cells, and dropping them leaves a dataset with
+            # no data points and so no payload, which the runtime cannot load.
+            value = row[column]
             dp_idx = len(data_points)
             data_points.append(
                 DataPoint(
