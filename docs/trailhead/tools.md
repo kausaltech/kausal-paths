@@ -544,6 +544,46 @@ workflow:
 2. `python manage.py sync_instance_to_db --all`
 3. Verify with `test_instance`
 
+### A sync writes the draft; the public site serves the published revision
+
+Once a database-sourced instance has been published, every request without a
+`preview` argument — every anonymous visitor — is served its **live revision**
+(`_resolve_preview_source` in `paths/schema_context.py`), a frozen snapshot of the
+model at publication. A sync rewrites the spec, nodes and bindings, which is the
+**draft**, so nothing it changes is public until the instance is published again,
+from the model editor or with `InstanceConfig.publish_instance()`. Before
+then, it looks as if the sync did nothing — new scenario names, new years and new
+nodes all stay invisible.
+
+The sync marks the instance `has_unpublished_changes` so the editor offers the
+publish. It does so on every sync, including one that changed nothing. Check which
+case you are in before blaming the sync:
+
+```bash
+python manage.py shell_plus --quiet-load -c "ic=InstanceConfig.objects.get(identifier='<instance>'); print(ic.live_revision_id, ic.has_unpublished_changes, ic.spec.years.model_dump())"
+```
+
+A `live_revision_id` with the new values in the spec means: publish. `None` means
+the draft is what is served, and the cause is elsewhere.
+
+### What a sync does not overwrite: the instance name and owner
+
+The sync **seeds** `name` and `owner` from the YAML only where the database holds
+no value (`InstanceConfig.update_identity_metadata`), so that names edited in the
+admin survive. A changed `name_*` in the YAML therefore never reaches an instance
+that already has a name.
+
+`load_nodes.py -i <instance> --update-instance` does not help either: `-i` loads
+a database-sourced instance from the database, so the name it writes back is the
+one it just read. Point it at the file instead, which overwrites name and owner
+and leaves the spec of a database-sourced instance alone:
+
+```bash
+python load_nodes.py -c configs/<instance>.yaml --update-instance
+```
+
+Or edit the name in the admin. Either way, publish afterwards.
+
 
 ## test_instance
 
@@ -635,6 +675,64 @@ python manage.py copy_instance zuerich zuerich-copy --dry-run
   datasets, pages and Site (delete the `configs/<dst>.yaml` file and the
   `configs/<dst>/` fragment directory too for a yaml-mode copy).
 
+### After the copy
+
+`copy_instance` is not the whole setup of a new instance. Three things follow it.
+
+- **Run `load_nodes.py -i <dst> --update-instance --update-nodes`** (preview the
+  node part with `--update-nodes --dry-run`). In yaml mode the node rows come
+  only from the source's DB mirror, so any node or dimension that the copy's own
+  YAML adds gets no row, and so it cannot be edited or chosen in a page. The
+  command also creates no role groups. Leave out `--overwrite` so the admin
+  texts copied from the source are kept. Re-running the default-content step is
+  safe: the copied root page's slug is already `<dst>`, so no pages are duplicated.
+- **Warm the copy's DVC inputs:** `python manage.py compute_instances <dst> --warm-dvc-cache`
+  on each backend pod. At startup a pod warms only instances marked in customer
+  use, so a fresh copy that reads any dataset from DVC does its first clone and
+  fetch inside a web request, which can outlast the gateway (a 502). If the fetch
+  hangs, use [*When a DVC fetch hangs*](../data-management.md).
+- **Expect a spurious `invalid_rule` finding** on every copied dataset whose schema
+  declares a category domain (the BISKO `kommune/*` datasets do). The snapshot
+  carries the domain compiled to the source's dimension and category UUIDs, while
+  the import mints new dimensions, so no combination resolves. It does not affect
+  computation. Open: the snapshot should carry the domain by identifier and
+  compile it against the target, as `_apply_declared_category_domain` does on sync.
+
+Copies made before `dcf9594a` (October 2026) have one more defect: the import
+dropped null-valued data points, so a template dataset (all empty cells) arrived
+with **no** points, and every computation failed with `Dataset <id> has no
+serialized dataframe payload`. `dataset_inventory <dst>` shows such rows as `0`
+points against a populated DVC side. For a yaml-sourced copy, delete them
+(`delete_dataset <dst> <ids> --clear-bindings --ignore-configs --apply --dump-to DIR`)
+and the runtime reads them from DVC. For a database-sourced copy, re-import them
+with `load_dvc_dataset <dst> <ids> --force` instead.
+
+### A variant of an instance: include it rather than copy it
+
+When a second instance is the first one plus additions (a development variant,
+an instance carrying extra analyses), let its YAML take the source's dimensions,
+nodes and actions by `include` instead of holding a copy:
+
+```yaml
+include:
+- file: <source>.yaml
+  allow_override: false   # a clashing id is an error, not a silent replacement
+- file: modules/...       # the source's own includes, repeated
+```
+
+Then the variant's file holds only what it adds. Three limits:
+- **Includes are not recursive**, so the source's own include list, including its
+  `dataset_replacements`, has to be repeated.
+- **An include carries dimensions, nodes, actions and dataset metadata only.** The
+  header, `params`, `scenarios`, `pages`, `action_groups`, `impact_overviews` and
+  `result_excels` stay copies, to be kept in step by hand.
+- **A database-sourced source is followed through its YAML, not its database**, so
+  admin edits to the source do not reach the variant.
+
+Set `allow_override: true` only when a node is meant to differ, and say so at that
+node. Never run `sync_instance_to_db` on such a variant: it would make it
+database-sourced and freeze the include into a snapshot.
+
 ### Copying a yaml-backed instance into production
 
 A yaml-backed copy needs its `configs/<dst>.yaml` committed to the repo and
@@ -695,6 +793,8 @@ Then run what it prints, which is this sequence:
 2. `load_dvc_dataset <instance> <datasets> --force`
 3. `sync_instance_to_db <instance>`
 4. `dataset_status <instance> --stale-only` again, which should now be quiet.
+5. Publish, if the instance has ever been published: until then visitors keep
+   seeing the old revision (see *A sync writes the draft* above).
 
 Check the pin before starting. `dataset_status` prints it, and for a DB-sourced
 instance it is the DB spec's pin, which lags the YAML until step 3 — so a first
