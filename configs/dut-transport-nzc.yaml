@@ -4,7 +4,7 @@ supported_languages: [en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   dvc_remote: kausal-s3
-  commit: 9e9c2483ba4459868b35f3a763a0b97c30753cae
+  commit: ed78d2d5522af1da60bb05a56cf90e534724ac7e
 theme_identifier: default
 name: 'DUT: Liikennetoimenpiteitä terveys- ja ilmastohyötyjen edistämiseksi'
 name_en: 'DUT: Transport actions to promote health and climate benefits'
@@ -885,7 +885,7 @@ nodes:
     - id: energy_carrier
     - id: sector
 
-- id: emissions_from_other_sectors
+- id: emissions_from_other_sectors  # Overrides nzc.yaml without the net_emissions edge: the model is transport-only
   name_en: Emissions from other sectors
   name_fi: Päästöt muilta sektoreilta
   type: generic.GenericNode
@@ -893,6 +893,10 @@ nodes:
   unit: kt/a
   input_dimensions: [cost_type, scope, ghg]
   output_dimensions: [cost_type, scope, ghg]
+  input_datasets:
+  - id: nzc/other_sectors
+    tags: [city_data]
+    column: emissions_from_other_sectors
 
 - id: waste_emissions
   name_en: Waste emissions
@@ -974,6 +978,7 @@ actions:
   input_datasets:
   - id: nzc/other_actions
     column: reduced_co2e_emissions_committed_by_industry_agricu
+    tags: [city_data]
 
 - id: a51_increase_waste_recycling
   name: 5.1 Increase waste recycling
@@ -984,6 +989,7 @@ actions:
   input_datasets:
   - id: nzc/other_actions
     column: reduced_co2e_emissions_committed_by_industry_agricu
+    tags: [city_data]
 
 - id: a34_decarbonising_heat_generation  # TODO Add 20 a lifetime
   name: 3.4 Decarbonising heating generation
@@ -994,6 +1000,7 @@ actions:
   input_datasets:
   - id: nzc/other_actions
     column: reduced_co2e_emissions_committed_by_industry_agricu
+    tags: [city_data]
 
 - id: a32_new_building_improvements
   name: 3.2 New building shares improvement
@@ -1005,6 +1012,7 @@ actions:
   input_datasets:
   - id: nzc/other_actions
     column: reduced_co2e_emissions_committed_by_industry_agricu
+    tags: [city_data]
 
 - id: a33_do_efficient_appliances
   name: 3.3 Do efficient lighting & appliances renovation
@@ -1068,6 +1076,7 @@ actions:
   input_datasets:
   - id: nzc/other_actions
     column: reduced_co2e_emissions_committed_by_industry_agricu
+    tags: [city_data]
 
 pages:
 - id: home
