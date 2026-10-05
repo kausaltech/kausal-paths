@@ -13,7 +13,7 @@ target_year: 2040
 model_end_year: 2040
 reference_year: 2010
 minimum_historical_year: 2010
-maximum_historical_year: 2023
+maximum_historical_year: 2024
 emission_unit: kt_co2e/a
 features:
   show_significant_digits: 4
@@ -612,8 +612,8 @@ nodes:
   # than on a separate gross node so the outcome page keeps its main goal; the label says
   # what it measures. The points before 2024 are the 2021 linear target path.
   goals: # Node copied here to make goals possible.
-  - label_de: Zielpfad ohne Senken
-    label_en: Target path excluding sinks
+  - label_de: Netto-Emissionen ohne Senken
+    label_en: Net emissions excluding sinks
     default: true
     linear_interpolation: true
     is_main_goal: true
@@ -771,6 +771,42 @@ nodes:
       value: 129.515252358829
     - year: 2040
       value: 0.997659614111337
+
+# The inventory in the BISKO sectors. Bayreuth's own Wärme/Strom/Verkehr split above is by
+# carrier, but the sums agree exactly: stationary plus transport is net_emissions without
+# the sinks in every year. Inventory years only; bring_to_maximum_historical_year keeps
+# 2024 whole where parts of it (GHD, Verkehr, district heating) are still model estimates.
+- id: bisko_sector_emissions
+  is_editable: false
+  name_de: Emissionen nach BISKO-Sektoren
+  name_en: Emissions by BISKO sector
+  description_de: Die Treibhausgasbilanz nach den Sektoren der Bilanzierungs-Systematik
+    Kommunal (BISKO) -- private Haushalte, Gewerbe/Handel/Dienstleistungen (GHD), Industrie,
+    kommunale Einrichtungen und Verkehr --, ohne Senken. Für 2024 liegen noch nicht alle
+    Daten vor; dort sind GHD, Verkehr, Fernwärme und ein Teil von Erdgas und Heizöl
+    Schätzungen des Modells.
+  description_en: The greenhouse gas inventory by the sectors of the German municipal
+    accounting standard BISKO (Bilanzierungs-Systematik Kommunal) -- private households,
+    commerce, trade and services (GHD), industry, municipal facilities and transport --,
+    without sinks. Not all data for 2024 are available yet; there, commerce, transport,
+    district heating and part of natural gas and heating oil are model estimates.
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_nodes:
+  - id: stationary_emissions
+    tags: [bring_to_maximum_historical_year, inventory_only]
+  - id: transport_emissions
+    tags: [bring_to_maximum_historical_year, inventory_only]
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+    - id: sector
+      categories: [transport]
 
 
 
