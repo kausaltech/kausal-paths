@@ -25,10 +25,6 @@ terms:
   custom_scenario: Eigenes Szenario
   custom_scenario_en: My own scenario
 
-include:
-- file: frameworks/standard_dims.yaml
-  allow_override: true
-
 impact_overviews:
 
 - graph_type: simple_effect
@@ -38,7 +34,8 @@ impact_overviews:
   label_en: ProPotsdam CO₂ Emissions (District Heating)
 
 - graph_type: cost_efficiency
-  effect_node: net_emissions
+  # Not net_emissions: the ProPotsdam actions have no effect on it. See emission_reductions.
+  effect_node: emission_reductions
   effect_unit: kt
   cost_node: pro_potsdam_cold_rent
   cost_unit: MEUR
@@ -56,7 +53,20 @@ impact_overviews:
 
 params:
 - id: weather_correction
-  label_de: Witterungsbereinigung durchführen?
+  label_de: Wärmeverbrauch witterungsbereinigt (auf ein Normaljahr umgerechnet)
+  label_en: Weather-corrected heat use (converted to an average year)
+  # The UI shows only the label of a switch, not its description, so the label has to explain
+  # itself. The description is for the API and for a UI that shows it later.
+  description_de: Ein kalter Winter erhöht den Heizenergieverbrauch, ein milder senkt ihn. Ist
+    der Schalter an, wird der Wärmeverbrauch jedes Jahres auf ein durchschnittliches Wetterjahr
+    umgerechnet, damit sich die Jahre vergleichen lassen. Grundlage sind die Heizgradtage für
+    Potsdam von Eurostat, verglichen mit dem Mittel der Jahre 1980–2014. Strom und Verkehr
+    werden nicht bereinigt, und die Emissionen der Vergangenheit bleiben unverändert.
+  description_en: A cold winter raises heating energy use and a mild one lowers it. When the
+    switch is on, each year's heat use is converted to an average weather year so that the
+    years can be compared. The basis is Eurostat's heating degree days for Potsdam, compared
+    with the 1980–2014 average. Electricity and transport are not corrected, and past emissions
+    stay unchanged.
   value: true
   is_customizable: true
   is_visible: true
@@ -122,6 +132,148 @@ action_groups:
   color: '#2E4BC6'
 
 dimensions:
+# Copied from frameworks/standard_dims.yaml on 5 Oct 2026, with only the categories Potsdam's data
+# and config use, and no longer included: Potsdam's labels, help texts and colours are its own.
+- id: cost_type
+  label_en: Cost Type
+  label_de: Kostenart
+  categories:
+  - id: energy_costs
+    label_en: Energy Costs
+    label_de: Energiekosten
+  - id: rent
+    label_en: Rent
+    label_de: Miete
+
+- id: energy_carrier
+  label_en: Energy carrier
+  label_de: Energieträger
+  help_text_de: Die Energie nach Brennstoff oder Versorgungsart. Fernwärme und Nahwärme kommen aus
+    Wärmenetzen, und ihre Emissionen hängen davon ab, womit das Netz die Wärme erzeugt.
+    Umweltwärme ist die Wärme, die Wärmepumpen aus Luft, Boden oder Wasser gewinnen; den Strom
+    dafür zeigt der Heizstrom.
+  help_text_en: Energy by fuel or type of supply. District heating and local heating networks
+    supply heat through a network, and their emissions depend on what the network makes the heat
+    from. Environmental heat is the heat that heat pumps take from air, ground or water; the
+    electricity they use is shown as heating electricity.
+  categories:
+  - id: petrol
+    label_en: Petrol
+    label_de: Benzin
+    aliases: [benzin_fossil, benzin, gasoline]
+    color: '#B71C1C'
+  - id: bio_petrol
+    label_en: Bio petrol
+    label_de: Biobenzin
+    aliases: [benzin_biogen, biobenzin]
+    color: '#4A7C1F'
+  - id: diesel
+    label_en: Diesel
+    label_de: Diesel
+    aliases: [diesel_fossil]
+    color: '#8B0000'
+  - id: biodiesel
+    label_en: Biodiesel
+    label_de: Diesel biogen
+    aliases: [diesel_biogen]
+    color: '#386113'
+  - id: heating_oil
+    label_en: Heating oil
+    label_de: Heizöl
+    aliases: [heizol]
+    color: '#7B1A00'
+  - id: natural_gas
+    label_en: Natural gas
+    label_de: Erdgas
+    aliases: [gas, erdgas]
+    color: '#1A5276'
+  - id: lpg
+    label_en: LPG (Liquefied petroleum gas)
+    label_de: LPG
+    color: '#BF4500'
+  - id: cng_fossil
+    label_en: CNG fossil
+    label_de: CNG fossil
+    color: '#154360'
+  - id: biogas
+    label_en: Biogas
+    label_de: Biogas
+    aliases: [biogas]
+    color: '#0D6B4D'
+  - id: hard_coal
+    label_en: Hard coal
+    label_de: Steinkohle
+    aliases: [kohle, steinkohle]
+    color: '#2C2C2C'
+  - id: biomass
+    label_en: Biomass
+    label_de: Biomasse
+    aliases: [biomasse]
+    color: '#2E7D32'
+  - id: electricity
+    label_en: Electricity
+    label_de: Strom
+    aliases: [strom, electric]
+    color: '#1565C0'
+  - id: driving_electricity
+    label_en: Driving electricity
+    label_de: Fahrstrom
+    aliases: [fahrstrom, strom_fahrstrom]
+    color: '#5C6BC0'
+  - id: heating_electricity
+    label_en: Heating electricity
+    label_de: Heizstrom
+    aliases: [heizstrom]
+    color: '#6A1B9A'
+  - id: district_heating
+    label_en: District heating
+    label_de: Fernwärme
+    aliases: [fernwarme]
+    color: '#922B00'
+  - id: local_heating
+    label_en: Local heating
+    label_de: Nahwärme
+    aliases: [nahwarme]
+    color: '#A33300'
+  - id: solar_thermal
+    label_en: Solar thermal
+    label_de: Solarthermie
+    aliases: [solarthermie]
+    color: '#BF5C00'
+  - id: environmental_heat
+    label_en: Environmental heat / Heat pump
+    label_de: Umweltwärme
+    aliases: [umweltwarme]
+    color: '#006D6D'
+  - id: hydrogen
+    label_en: Hydrogen
+    label_de: Wasserstoff
+    aliases: [wasserstoff]
+    color: '#007A8A'
+
+- id: sector
+  label_en: Sector
+  label_de: Sektoren
+  help_text_de: Die Sektoren des Masterplans 100% Klimaschutz, Wärme, Strom und Verkehr. Der Strom
+    für Heizungen und Wärmepumpen (Heizstrom) zählt zur Wärme, der Strom für Elektrofahrzeuge
+    (Fahrstrom) zum Verkehr.
+  help_text_en: The sectors of the Master Plan 100% Climate Protection, heat, electricity and
+    transport. Electricity for heating and heat pumps counts as heat, and electricity for
+    electric vehicles as transport.
+  categories:
+  - id: transport
+    label_en: Transport
+    label_de: Verkehr
+    aliases: [verkehr, Mobilität]
+    color: '#5341a4' # IKKA colors from https://koeln-klima-copy1.watch-test.kausal.tech/thg
+  - id: electricity
+    label_en: Electricity
+    label_de: Strom
+    aliases: [strom]
+  - id: heating
+    label_en: Heating
+    label_de: Wärme
+    aliases: [warme]
 
 - id: decision
   label_en: Decision
@@ -232,23 +384,6 @@ dimensions:
 
 emission_sectors:
 
-- id: net_emissions
-  name: Netto-Emissionen
-  name_en: Net emissions
-  is_outcome: true
-  goals:
-  - label_de: Ziel Netto-Emissionen
-    default: true
-    is_main_goal: true
-    linear_interpolation: true
-    values:
-    - year: 2030
-      value: 483.061
-    - year: 2040
-      value: 296.472
-    - year: 2045
-      value: 118.335
-
 - id: electricity_emissions
   name: Strom-Emissionen
   name_en: Electricity emissions
@@ -283,6 +418,33 @@ emission_sectors:
       categories: [transport]
 
 nodes:
+
+# A GenericNode, not an emission sector: the parser makes every emission sector a SectorEmissions
+# node, and an AdditiveNode with several input nodes gets an implicit "Sektoren" dimension of its
+# inputs in the UI. Beside the explicit `sector` dimension that was two "Sektoren" selectors with
+# the same content (edit request row 6, 27 Aug 2026). The sector nodes below still name it with
+# `part_of`, and GenericNode adds them because their units match.
+- id: net_emissions
+  name: Netto-Emissionen
+  name_en: Net emissions
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  is_outcome: true
+  goals:
+  - label_de: Ziel Netto-Emissionen
+    default: true
+    is_main_goal: true
+    linear_interpolation: true
+    values:
+    - year: 2030
+      value: 483.061
+    - year: 2040
+      value: 296.472
+    - year: 2045
+      value: 118.335
 
 - id: weather_correction
   name: Witterungsbereinigung
@@ -608,8 +770,25 @@ nodes:
     - id: sector
       categories: [heating]
       flatten: true
-  output_nodes: # TODO This causes double counting but is still kept for illustratibe purposes.
+  # No edge to net_emissions: these emissions are already part of heating_emissions (district
+  # heating), so the edge counted them twice, 18 kt in 2023. This node is an outcome on its own.
+
+# The effect node of the cost-efficiency overview, not an inventory: it counts the ProPotsdam
+# district heating emissions twice, once in net_emissions and once on their own. That is
+# deliberate. The ProPotsdam actions reach only pro_potsdam_emissions and the Masterplan actions
+# only net_emissions, so each action's effect shows here. The district heating actions reach both,
+# and their effect here is the sum of the two.
+- id: emission_reductions
+  name: Emissionsminderung (Stadt und ProPotsdam)
+  name_en: Emission reductions (city and ProPotsdam)
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_nodes:
   - id: net_emissions
+  - id: pro_potsdam_emissions
     to_dimensions:
     - id: sector
       categories: [heating]
@@ -1214,46 +1393,94 @@ pages:
 
 scenarios:
 
+# Names and descriptions revised for the city's edit requests of 27 Aug 2026 (rows 9 and 18).
+# The two "nur" scenarios are subsets of the Masterplan, so that the list nests:
+# Trend > nur Energieeinsparung > nur erneuerbare Energieversorgung > Masterplan > Masterplan + KWP.
+# The UI does not show scenario descriptions yet; the names must carry the meaning on their own.
+
 - id: baseline
-  name: Business as Usual
-  # name_en: Business as Usual
+  name: Trend ohne weitere Maßnahmen
+  name_en: Trend without further measures
+  description: Wie sich die Emissionen entwickeln, wenn keine der hier abgebildeten Maßnahmen
+    umgesetzt wird. Energieverbrauch und Emissionsfaktoren folgen dem Trendszenario.
+  description_en: How emissions develop if none of the measures shown here is implemented.
+    Energy use and emission factors follow the trend scenario.
 
 - id: default
   default: true
   all_actions_enabled: true
   name: Masterplan 100% Klimaschutz
-  # name_en: Climate Protection Plan
+  name_en: Master Plan 100% Climate Protection
+  description: Die Maßnahmen des Masterplans 100% Klimaschutz. Erneuerbare Energien ersetzen
+    fossile in Fernwärme, Nahwärme, Strom und Verkehr, und Gebäudesanierung und Einsparungen
+    senken den Energieverbrauch. Die Fernwärme erreicht bis 2040 80 % erneuerbare Energien.
+    Dies ist das Standardszenario.
+  description_en: The measures of the Master Plan 100% Climate Protection. Renewables replace
+    fossil fuels in district heating, local heating networks, electricity and transport, and
+    building renovation and savings reduce energy use. District heating reaches 80 % renewables
+    by 2040. This is the default scenario.
   params:
   - id: district_heating_2040_2045.enabled
     value: false
   - id: re_expansion_masterplan_kwp.enabled
     value: false
+  # The ProPotsdam actions are placeholders for a separate question, with their own scenarios
+  # below. all_actions_enabled would otherwise put them into the Masterplan.
+  - id: pro_potsdam_renovation_eh55.enabled
+    value: false
+  - id: pro_potsdam_renovation_eh40.enabled
+    value: false
+  - id: pro_potsdam_rent_subsidy.enabled
+    value: false
 
 - id: additional_actions
   name: Masterplan + Kommunale Wärmeplanung
-  # name_en: Master plan + Community Heating Plan
+  name_en: Master Plan + Municipal Heat Planning
+  description: Der Masterplan, ergänzt um die Kommunale Wärmeplanung. Erneuerbare Wärme wird in
+    der Einzelversorgung zusätzlich ausgebaut, und die Fernwärme erreicht bis 2045 100 %
+    erneuerbare Energien.
+  description_en: The Master Plan, extended by the municipal heat planning. Renewable heat is
+    expanded further in buildings heated individually, and district heating reaches 100 %
+    renewables by 2045.
   all_actions_enabled: true
   params:
-  - id: re_expansion_masterplan_2045.enabled
-    value: true
+  # The ProPotsdam actions are placeholders for a separate question, with their own scenarios
+  # below. all_actions_enabled would otherwise put them into the Masterplan.
+  - id: pro_potsdam_renovation_eh55.enabled
+    value: false
+  - id: pro_potsdam_renovation_eh40.enabled
+    value: false
+  - id: pro_potsdam_rent_subsidy.enabled
+    value: false
 
 - id: emission_factors_only
-  name: Nur Emissionsfaktor-Maßnahmen
-  # name_en: Emission Factor Actions Only
+  name: 'Masterplan: nur erneuerbare Energieversorgung'
+  name_en: 'Master Plan: renewable energy supply only'
+  description: Nur der Teil des Masterplans, der die Energie sauberer macht, mit erneuerbaren
+    Energien in Fernwärme, Nahwärme, Strom und Verkehr. Der Energieverbrauch folgt dem Trend.
+    Zusammen mit »Masterplan, nur Energieeinsparung« zeigt es, woher die Minderung des
+    Masterplans kommt. Die beiden Teile ergeben zusammen etwas mehr als den Masterplan, weil
+    eingesparte Energie nicht mehr sauberer gemacht werden muss.
+  description_en: Only the part of the Master Plan that makes energy cleaner, with renewables in
+    district heating, local heating networks, electricity and transport. Energy use follows the
+    trend. Together with "Master Plan, energy savings only" it shows where the Master Plan's
+    reduction comes from. The two parts add up to slightly more than the Master Plan, because
+    energy that is saved no longer needs to be made cleaner.
   params:
-  # Enable emission-factor-based actions
+  # Enable the emission-factor actions of the Masterplan. The 2040-2045 district heating step and
+  # the KWP expansion belong to "Masterplan + Kommunale Wärmeplanung", not to the Masterplan.
   - id: district_heating_until_2030.enabled
     value: true
   - id: district_heating_2030_2040.enabled
     value: true
   - id: district_heating_2040_2045.enabled
-    value: true
+    value: false
   - id: local_heating_networks_2045.enabled
     value: true
   - id: re_expansion_masterplan_2045.enabled
     value: true
   - id: re_expansion_masterplan_kwp.enabled
-    value: true
+    value: false
   - id: pv_rooftop_expansion.enabled
     value: true
   - id: ground_mounted_pv_expansion.enabled
@@ -1275,8 +1502,13 @@ scenarios:
     value: false
 
 - id: energy_savings_only
-  name: Nur Energieeinspar-Maßnahmen
-  # name_en: Energy Savings Actions Only
+  name: 'Masterplan: nur Energieeinsparung'
+  name_en: 'Master Plan: energy savings only'
+  description: Nur der Teil des Masterplans, der Energie spart, durch Gebäudesanierung und
+    weniger Energieverbrauch bei Strom und Verkehr. Die Energie wird so erzeugt wie im Trend.
+  description_en: Only the part of the Master Plan that saves energy, through building
+    renovation and lower energy use in electricity and transport. Energy is produced as in the
+    trend.
   params:
   # Disable emission-factor-based actions
   - id: district_heating_until_2030.enabled
@@ -1312,8 +1544,16 @@ scenarios:
     value: true
 
 - id: pro_potsdam_eh55_only
-  name: ProPotsdam EH 55 + EWP-Wende
-  name_en: ProPotsdam EH 55 + EWP Transition
+  name: 'ProPotsdam: Sanierung EH 55 + erneuerbare Fernwärme'
+  name_en: 'ProPotsdam: EH 55 renovation + renewable district heating'
+  description: Nur die Sanierung der ProPotsdam-Wohnungen auf den Effizienzhaus-Standard 55 (EH 55)
+    und der Umbau der Fernwärme der Energie und Wasser Potsdam (EWP) auf 100 % erneuerbare
+    Energien bis 2045. Die ProPotsdam-Zahlen sind vorläufige Platzhalter, bis die Daten der
+    ProPotsdam vorliegen.
+  description_en: Only the renovation of ProPotsdam's apartments to the Efficiency House 55
+    standard (EH 55) and the conversion of the district heating of Energie und Wasser Potsdam
+    (EWP) to 100 % renewables by 2045. The ProPotsdam figures are placeholders until ProPotsdam's
+    data arrive.
   all_actions_enabled: false
   params:
   - id: pro_potsdam_renovation_eh55.enabled
@@ -1326,8 +1566,12 @@ scenarios:
     value: true
 
 - id: pro_potsdam_eh40_only
-  name: ProPotsdam EH 40 + EWP-Wende
-  name_en: ProPotsdam EH 40 + EWP Transition
+  name: 'ProPotsdam: Sanierung EH 40 + erneuerbare Fernwärme'
+  name_en: 'ProPotsdam: EH 40 renovation + renewable district heating'
+  description: Wie »ProPotsdam, Sanierung EH 55«, die Wohnungen werden aber auf den strengeren
+    Effizienzhaus-Standard 40 (EH 40) saniert. Die ProPotsdam-Zahlen sind vorläufige Platzhalter.
+  description_en: As "ProPotsdam, EH 55 renovation", but the apartments are renovated to the
+    stricter Efficiency House 40 standard (EH 40). The ProPotsdam figures are placeholders.
   all_actions_enabled: false
   params:
   - id: pro_potsdam_renovation_eh55.enabled
