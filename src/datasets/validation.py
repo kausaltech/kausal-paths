@@ -204,14 +204,11 @@ def _evaluate_rule(
         return []
 
     def violation(**kwargs) -> RuleViolation:
-        return RuleViolation(
-            rule_uuid=rule_uuid,
-            kind=rule.kind,
-            enforcement=rule.enforcement,
-            metric_uuid=metric_uuid,
-            metric=column,
-            **kwargs,
-        )
+        # The rule's own kind and enforcement are defaults: a rule that cannot be
+        # evaluated reports itself as INVALID_RULE_KIND with its own enforcement.
+        kwargs.setdefault('kind', rule.kind)
+        kwargs.setdefault('enforcement', rule.enforcement)
+        return RuleViolation(rule_uuid=rule_uuid, metric_uuid=metric_uuid, metric=column, **kwargs)
 
     match rule:
         case ValueRangeRule():
@@ -240,7 +237,7 @@ def _category_domain_coordinates(dataset: Dataset) -> dict[UUID, dict[str, str]]
     if schema is None or dataset.scope_id is None or not schema.category_domain.combinations:
         return {}
     scopes = {
-        scope.dimension_id: scope
+        scope.dimension.pk: scope
         for scope in DimensionScope.objects
         .filter(
             scope_content_type=dataset.scope_content_type,
@@ -251,9 +248,10 @@ def _category_domain_coordinates(dataset: Dataset) -> dict[UUID, dict[str, str]]
         .prefetch_related('dimension__categories')
     }
     columns = {
-        schema_dimension.dimension_id: schema_dimension.column_name
-        or (scopes[schema_dimension.dimension_id].identifier if schema_dimension.dimension_id in scopes else None)
-        for schema_dimension in DatasetSchemaDimension.objects.filter(schema=schema)
+        dimension_id: column_name or (scopes[dimension_id].identifier if dimension_id in scopes else None)
+        for dimension_id, column_name in DatasetSchemaDimension.objects.filter(schema=schema).values_list(
+            'dimension_id', 'column_name'
+        )
     }
     category_identifiers = {
         category.uuid: category.identifier

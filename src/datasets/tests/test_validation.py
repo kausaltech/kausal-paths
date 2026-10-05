@@ -227,6 +227,42 @@ def test_allowed_combinations_rule_rejects_rows_outside_closed_domain(rig):
     assert violation.categories == {'region': 'b'}
 
 
+def test_required_combinations_rule_outside_domain_is_reported_as_invalid_rule(rig):
+    # The shape an instance copy produces: the domain's category UUIDs belong to the
+    # source instance's dimensions, so no combination resolves against this dataset.
+    dataset, metric, cat_a, _cat_b = rig
+    foreign = DatasetCategoryCombination(id=uuid4(), identifier='region_x', categories={uuid4(): uuid4()})
+    dataset.schema.category_domain = DatasetCategoryDomain(combinations=[foreign])
+    dataset.schema.save(update_fields=['category_domain'])
+    set_rule(
+        metric,
+        {
+            'kind': 'required_combinations',
+            'enforcement': 'block_edit',
+            'groups': [{'id': 'region_x', 'combinations': [str(foreign.id)]}],
+        },
+    )
+    add_point(dataset, metric, 2020, 1, cat_a)
+
+    (violation,) = evaluate_dataset_rules(dataset)
+
+    assert violation.kind == 'invalid_rule'
+    assert violation.enforcement == 'block_publish'
+    assert violation.combination_ids == [foreign.id]
+
+
+def test_dimension_sum_rule_on_missing_dimension_is_reported_as_invalid_rule(rig):
+    dataset, metric, cat_a, _cat_b = rig
+    set_rule(metric, {'kind': 'dimension_sum', 'enforcement': 'block_edit', 'dimension': 'sector', 'target': 1.0})
+    add_point(dataset, metric, 2020, 1, cat_a)
+
+    (violation,) = evaluate_dataset_rules(dataset)
+
+    assert violation.kind == 'invalid_rule'
+    assert violation.enforcement == 'block_publish'
+    assert 'sector' in violation.message
+
+
 def test_unparseable_rule_fails_loudly(rig):
     # Every write path validates rule blobs before persisting, so an
     # unparseable row is a bug: evaluation crashes instead of degrading.
@@ -526,7 +562,7 @@ def test_set_metric_validation_rules_requires_exactly_one_variant(gql_client: Pa
             ],
         },
     )
-    assert 'exactly one' in errors[0]['message'].lower()
+    assert 'exactly one' in errors[0].get('message', '').lower()
     assert not DatasetMetricValidationRule.objects.filter(metric=metric).exists()
 
 
