@@ -342,6 +342,23 @@ def _apply_metadata_columns(ic: InstanceConfig, snapshot: InstanceSnapshot) -> N
     )
 
 
+def _store_instance_spec(ic: InstanceConfig, snapshot: InstanceSnapshot) -> None:
+    """
+    Write the parsed spec and metadata onto the instance row as its draft.
+
+    Public reads of a published instance are served from its live revision, so
+    a sync changes nothing visible until the instance is published again. Flag
+    the draft as ahead of that revision -- as ``save_revision`` would -- so the
+    editor offers the publish instead of reporting the instance as up to date.
+    """
+    _apply_metadata_columns(ic, snapshot)
+    ic.spec = snapshot.spec
+    ic.config_source = 'database'
+    ic.has_unpublished_changes = True
+    ic.invalidate_cache(save=False)
+    ic.save()
+
+
 def _sync_dimensions_from_snapshot(ic: InstanceConfig, snapshot: InstanceSnapshot) -> None:
     """Mirror ``InstanceConfig.sync_dimensions`` from the spec's dimension configs."""
     from nodes.dimensions import Dimension
@@ -780,11 +797,7 @@ def sync_parsed_instance_to_db(
         snapshot = reconcile_snapshot_node_metadata(snapshot, existing_node_configs)
 
         with set_i18n_context(snapshot.metadata.primary_language, list(snapshot.metadata.other_languages)):
-            _apply_metadata_columns(ic, snapshot)
-            ic.spec = snapshot.spec
-            ic.config_source = 'database'
-            ic.invalidate_cache(save=False)
-            ic.save()
+            _store_instance_spec(ic, snapshot)
 
             _sync_dimensions_from_snapshot(ic, snapshot)
             node_configs = _upsert_node_configs(ic, snapshot, existing_node_configs)

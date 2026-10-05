@@ -29,7 +29,12 @@ from nodes.instance_serialization import (
     reconcile_snapshot_node_metadata,
 )
 from nodes.models import NodeConfig
-from nodes.spec_sync import _apply_metadata_columns, _sync_dataset_metadata_from_snapshot, _upsert_node_configs
+from nodes.spec_sync import (
+    _apply_metadata_columns,
+    _store_instance_spec,
+    _sync_dataset_metadata_from_snapshot,
+    _upsert_node_configs,
+)
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory, NodeConfigFactory
 
 pytestmark = pytest.mark.django_db
@@ -107,6 +112,21 @@ def test_metadata_sync_seeds_blank_name_and_owner(db_instance):
     }
     assert db_instance.primary_language == 'en'
     assert db_instance.other_languages == ['fi']
+
+
+def test_store_instance_spec_marks_published_instance_as_having_unpublished_changes(db_instance):
+    db_instance.save_revision().publish()
+    db_instance.refresh_from_db()
+    assert db_instance.live_revision_id is not None
+    assert not db_instance.has_unpublished_changes
+    snapshot = InstanceSnapshot(spec=InstanceModelSpec(years=YearsSpec(target=2040, min_historical=2010)))
+
+    _store_instance_spec(db_instance, snapshot)
+
+    db_instance.refresh_from_db()
+    assert db_instance.has_unpublished_changes
+    assert db_instance.spec is not None
+    assert db_instance.spec.years.min_historical == 2010
 
 
 def test_uuid_matched_rename_does_not_mark_row_stale(db_instance):
