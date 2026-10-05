@@ -5,14 +5,14 @@ dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: d4b1fa170a2cc9f9e047b4dc2a331aee174a070a
   dvc_remote: kausal-s3
-name_de: Bayreuth Treibhausgas-Monitor
-name_en: Bayreuth Greenhouse Gas Monitor
+name_de: Treibhausgas-Monitor
+name_en: Greenhouse Gas Monitor
 owner: Bayreuth Stadt
 theme_identifier: de-bayreuth
 target_year: 2040
 model_end_year: 2040
 reference_year: 2010
-minimum_historical_year: 1990
+minimum_historical_year: 2010
 maximum_historical_year: 2023
 emission_unit: kt_co2e/a
 features:
@@ -938,7 +938,7 @@ scenarios:
 - id: default
   default: true
   all_actions_enabled: true
-  name_de: Ambitionierter Klimaschutz
-  name_en: Ambitious Climate Protection
+  name_de: Klimaneutral 2040
+  name_en: Climate neutral 2040
 
 
