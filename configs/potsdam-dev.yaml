@@ -16,7 +16,7 @@ minimum_historical_year: 1995
 maximum_historical_year: 2024
 emission_unit: kt/a
 emission_forecast_from: 2025
-emission_dimensions: [energy_carrier, sector]
+emission_dimensions: [sector, energy_carrier]
 features:
   baseline_visible_in_graphs: true
   use_datasets_from_db: true
@@ -419,8 +419,8 @@ nodes:
   type: generic.GenericNode
   quantity: emissions
   unit: kt/a
-  input_dimensions: [energy_carrier, sector]
-  output_dimensions: [energy_carrier, sector]
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
   is_outcome: true
   goals:
   - label_de: Ziel Netto-Emissionen
