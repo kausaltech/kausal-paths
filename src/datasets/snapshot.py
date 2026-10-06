@@ -233,6 +233,7 @@ class DatasetSnapshot(ModelSnapshot['Dataset']):
     """
 
     schema_version: int = 1
+    uuid: UUID | None = None  # source identity for remapping layout references when copied
     identifier: str | None = None
     name: TranslatedString | None = None
     forecast_from: int | None = None
@@ -298,6 +299,7 @@ class DatasetSnapshot(ModelSnapshot['Dataset']):
             evidence = export_dataset_evidence(obj)
 
         return cls(
+            uuid=obj.uuid,
             identifier=obj.identifier,
             name=name_ts,
             forecast_from=(obj.spec or {}).get('forecast_from'),

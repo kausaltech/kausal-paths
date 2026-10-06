@@ -31,6 +31,7 @@ if TYPE_CHECKING:
     from datasets.shapes import DatasetMetricPair, DatasetShapeProfile
     from nodes.constraints.compile import ShapeRuleCompilation
     from nodes.constraints.solver import ConstraintProgram, ConstraintSolveResult, GraphOverlay
+    from nodes.data_entry import EntryLayout
     from nodes.instance_serialization import InstanceSnapshot
     from nodes.node import Node
 
@@ -40,7 +41,8 @@ if TYPE_CHECKING:
 # v7: a dataset input port takes the dataset's authored unit before the node's own.
 
 # v7: input ports carry delivered-value contracts and their port dependencies.
-INSTANCE_GRAPH_FORMAT_VERSION = 7
+# v8: data-entry layouts and explicit disconnections are available to editor queries.
+INSTANCE_GRAPH_FORMAT_VERSION = 9
 
 
 class InstanceGraphDiagnostic(FrozenGraphModel):
@@ -340,6 +342,7 @@ class InstanceGraph(FrozenGraphModel):
     metadata: InstanceMetadata
     spec: InstanceModelSpec
     composition_errors: tuple[str, ...] = ()
+    disconnected_inputs: tuple[tuple[UUID, UUID], ...] = ()
     nodes: tuple[NodeMeta, ...] = ()
     bindings: tuple[GraphBinding, ...] = ()
     dimensions: tuple[DimensionMeta, ...] = ()
@@ -384,6 +387,12 @@ class InstanceGraph(FrozenGraphModel):
             raise ValueError('Duplicate dataset metric UUID in InstanceGraph')
 
     _solve_cache: dict[Any, ConstraintSolveResult] = PrivateAttr(default_factory=dict)
+
+    @cached_property
+    def data_entry(self) -> EntryLayout:
+        from nodes.data_entry import resolve_data_entry
+
+        return resolve_data_entry(self)
 
     @cached_property
     def constraint_program(self) -> ConstraintProgram:
@@ -839,6 +848,7 @@ def build_instance_graph(
         )
 
     return InstanceGraph(
+        disconnected_inputs=tuple((item.node_uuid, item.port_uuid) for item in snapshot.binding_overrides if not item.bindings),
         instance_id=snapshot.metadata.uuid,
         copy_of_id=UUID(snapshot.copy_of) if snapshot.copy_of is not None else None,
         metadata=snapshot.metadata,
