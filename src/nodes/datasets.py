@@ -181,8 +181,16 @@ class Dataset(ABC):
             d['class_hash'] = class_hash.hex()
         d.update(self.hash_data())
         h = hashlib.md5(orjson.dumps(d, option=orjson.OPT_SORT_KEYS), usedforsecurity=False).digest()
-        self.hash = h
+        # Keep the hash only while nothing in it can change. A transformation that reads a
+        # parameter (a `filter_column` with `ref`) hashes the parameter's current value, and
+        # keeping the first hash served the frame for the first value after it changed.
+        if not self.referenced_parameters():
+            self.hash = h
         return h
+
+    def referenced_parameters(self) -> list[str]:
+        """Ids of the parameters this binding's transformations read."""
+        return [param_id for op in self.transformations for param_id in op.referenced_parameters()]
 
     def get_cache_key(self) -> str:
         ds_hash = self.calculate_hash().hex()
@@ -497,8 +505,10 @@ class DVCDataset(DatasetWithFilters):
         attrs['dataset.input.id'] = self.input_dataset or self.id
         return attrs
 
-    @cached_property
+    @property
     def cache_key(self) -> str | None:
+        # Not cached: the key follows `calculate_hash`, which keeps its value only while no
+        # transformation reads a parameter.
         return self.get_cache_key()
 
     def cache_get(self) -> ppl.PathsDataFrame | None:

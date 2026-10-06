@@ -396,3 +396,58 @@ class InequalityAversion(NumberGlobalParameter):
 class FloorThreshold(NumberGlobalParameter):
     name = _('Floor threshold (f) for floor-constrained average social welfare')
     id = 'floor_threshold'
+
+
+class CountryCode(StringGlobalParameter):
+    """
+    The instance's country as an ISO 3166-1 alpha-2 code, e.g. `DE`.
+
+    Read by `configs/modules/fair_share/carbon_budget.yaml`, which filters its national tables
+    by it, so that one table can carry several countries.
+    """
+
+    name = _('Country code (ISO 3166-1 alpha-2)')
+    id = 'country_code'
+
+
+# The premises of the fair-share argument (`configs/modules/fair_share/`). Each is a value
+# judgement on which reasonable people differ, so each is a setting rather than a constant, and
+# a reader who rejects the default can see what follows from their own reading.
+
+
+class FairShareTemperatureLimit(NumberGlobalParameter):
+    """Premise 1: the warming limit, in °C above pre-industrial, whose CO2 budget is shared out."""
+
+    name = _('Fair share: warming limit (°C)')
+    id = 'fair_share_temperature_limit'
+
+
+class FairShareLikelihood(NumberGlobalParameter):
+    """Premise 1: how likely, in per cent, the shared-out budget must be to keep within the limit."""
+
+    name = _('Fair share: likelihood of staying within the limit')
+    id = 'fair_share_likelihood'
+
+
+class FairShareGrandfatheringWeight(NumberGlobalParameter):
+    """
+    Premise 3: how much of the budget is shared by today's emissions rather than by headcount.
+
+    0 % is an equal claim per person; 100 % shares the budget in proportion to emissions in the
+    year before it starts, which rewards having emitted much.
+    """
+
+    name = _('Fair share: weight of current emissions in the allocation')
+    id = 'fair_share_grandfathering_weight'
+
+
+class FairShareResponsibilityStartYear(NumberGlobalParameter):
+    """
+    Premise 4: the year from which a country answers for having used more than its share.
+
+    Emissions above an equal per-capita share since this year are deducted from the country's
+    budget. The budget's own start year (2020) means no past is counted.
+    """
+
+    name = _('Fair share: start year of historical responsibility')
+    id = 'fair_share_responsibility_start_year'

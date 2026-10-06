@@ -71,6 +71,16 @@ class PortTransformOpBase(BaseModel):
             'operation': self.model_dump(mode='json'),
         }
 
+    def referenced_parameters(self) -> list[str]:
+        """
+        Ids of the parameters whose current value this operation's output depends on.
+
+        Such an operation's `cache_hash_data` changes when the parameter does, so whoever
+        stores a hash built from it must recompute it rather than keep the first one, and the
+        node reading the binding has to hear of the change.
+        """
+        return []
+
 
 class FilterDimensionOp(PortTransformOpBase):
     """
@@ -163,6 +173,9 @@ class FilterColumnOp(PortTransformOpBase):
             parameter = context.get_parameter(self.ref, required=True)
             data['parameter'] = parameter.calculate_hash()
         return data
+
+    def referenced_parameters(self) -> list[str]:
+        return [self.ref] if self.ref is not None else []
 
 
 class RenameColumnOp(PortTransformOpBase):

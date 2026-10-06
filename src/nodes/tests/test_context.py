@@ -27,6 +27,27 @@ def test_context_get_parameter_local(context: Context, node: Node, number_parame
     assert context.get_parameter(number_parameter.global_id) == number_parameter
 
 
+def test_node_hears_of_a_parameter_its_dataset_filters_by(context: Context, node: Node, number_parameter: Parameter[Any]):
+    """
+    A parameter that only picks a dataset row must still invalidate the node's hash.
+
+    The node does not list it in `global_parameters`, so without subscribing through the
+    dataset the node kept its memoized hash, and its cached output, after the value changed.
+    """
+    context.add_global_parameter(number_parameter)
+    del context.nodes[node.id]
+    node.input_dataset_instances = [SimpleNamespace(referenced_parameters=lambda: [number_parameter.local_id])]  # type: ignore[list-item]
+    context.add_node(node)
+    assert node in number_parameter._subscription_nodes
+
+    node.hasher.param_hash = b'stale'
+    before = node.hasher.modified_at
+    number_parameter.set(2.0)
+
+    assert node.hasher.param_hash is None
+    assert node.hasher.modified_at != before
+
+
 def test_context_activate_scenario_sets_active_scenario(context: Context, scenario: Scenario):
     assert context.active_scenario != scenario
     context.activate_scenario(scenario)

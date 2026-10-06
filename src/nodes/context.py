@@ -553,7 +553,11 @@ class Context:
         if node.id in self.nodes:
             raise Exception('Node %s already defined' % (node.id))
         self.nodes[node.id] = node
-        for param_id in node.global_parameters:
+        # A node hears of a change to the global parameters it reads itself and to those its
+        # input datasets filter by. Without the second, a change to a parameter that only picks
+        # a dataset row left the node's memoized hash, and so its cached output, in place.
+        dataset_param_ids = [param_id for ds in node.input_dataset_instances for param_id in ds.referenced_parameters()]
+        for param_id in dict.fromkeys([*node.global_parameters, *dataset_param_ids]):
             if param_id not in self.global_parameters:
                 continue
             param = self.global_parameters[param_id]

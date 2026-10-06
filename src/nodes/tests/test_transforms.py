@@ -240,6 +240,51 @@ def test_filter_dimension_flattens_by_summing_over_the_dimension():
     assert sorted(result[VALUE_COLUMN].to_list()) == [3.0, 7.0]
 
 
+def _env_with_parameters(values: dict[str, object]) -> PipelineEnv:
+    """Build an environment whose context answers `get_parameter_value` from `values`."""
+    context = cast(
+        'Context',
+        SimpleNamespace(dimensions={}, get_parameter_value=lambda param_id, **_kwargs: values[param_id]),
+    )
+    return PipelineEnv(context=context)
+
+
+@pytest.mark.parametrize(
+    ('value', 'expected'),
+    [
+        (1.7, ['1.7']),
+        (1.6000000000000001, ['1.6']),  # slider arithmetic
+        (2.0, ['2.0']),
+        (2020.0, ['2020']),
+    ],
+)
+def test_filter_column_matches_a_number_parameter_by_value(value: float, expected: list[str]):
+    """A fractional choice must find its own row, not the one its integer part names."""
+    df = to_ppdf(
+        pl.DataFrame({
+            YEAR_COLUMN: [2020] * 5,
+            'limit': ['1.5', '1.6', '1.7', '2.0', '2020'],
+            VALUE_COLUMN: [1.0, 2.0, 3.0, 4.0, 5.0],
+        }),
+        DataFrameMeta(units={VALUE_COLUMN: unit_registry.parse_units('kt')}, primary_keys=[YEAR_COLUMN, 'limit']),
+    )
+
+    result = _run(df, [FilterColumnOp(column='limit', ref='p', drop_col=False)], _env_with_parameters({'p': value}))
+
+    assert result['limit'].to_list() == expected
+
+
+def test_filter_column_matches_a_string_parameter_by_spelling():
+    df = to_ppdf(
+        pl.DataFrame({YEAR_COLUMN: [2020, 2020], 'lau': ['DE_07315000', 'DE_7315000'], VALUE_COLUMN: [1.0, 2.0]}),
+        DataFrameMeta(units={VALUE_COLUMN: unit_registry.parse_units('cap')}, primary_keys=[YEAR_COLUMN, 'lau']),
+    )
+
+    result = _run(df, [FilterColumnOp(column='lau', ref='p')], _env_with_parameters({'p': 'DE_07315000'}))
+
+    assert result[VALUE_COLUMN].to_list() == [1.0]
+
+
 def test_filtering_everything_away_is_an_error():
     """An empty result means the configuration is wrong, and silence would hide it."""
     df = to_ppdf(

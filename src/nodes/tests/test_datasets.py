@@ -70,6 +70,38 @@ def test_dvc_dataset_hash_includes_resolved_filter_parameter_values() -> None:
     assert mainz.hash_data()['pipeline']['transformations'][0]['parameter'] == 'municipality_name:Mainz'
 
 
+def test_dvc_dataset_hash_follows_a_filter_parameter_that_changes() -> None:
+    """
+    A dataset filtered by a parameter must not keep the hash of the parameter's first value.
+
+    It once did, and served the row of the first value for as long as the context lived.
+    """
+    values = {'fair_share_likelihood': '67'}
+    context = _hash_context(parameter_values=values)
+    dataset = DVCDataset(
+        id='fair_share/global_co2_budget',
+        context=context,
+        transformations=[FilterColumnOp(column='likelihood', ref='fair_share_likelihood')],
+    )
+    first = dataset.cache_key
+
+    values['fair_share_likelihood'] = '50'
+
+    assert dataset.cache_key != first
+    assert dataset.referenced_parameters() == ['fair_share_likelihood']
+
+
+def test_dvc_dataset_keeps_its_hash_when_no_transformation_reads_a_parameter() -> None:
+    dataset = DVCDataset(
+        id='bisko/other_transport_energy',
+        context=_hash_context(),
+        transformations=[FilterColumnOp(column='sector', value='first')],
+    )
+
+    assert dataset.calculate_hash() is dataset.calculate_hash()
+    assert dataset.referenced_parameters() == []
+
+
 def test_dvc_dataset_hash_includes_years_resolved_by_legacy_remapping() -> None:
     mainz = DVCDataset(
         id='shared/dataset',
