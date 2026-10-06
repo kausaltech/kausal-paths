@@ -8,6 +8,7 @@ from uuid import UUID
 
 import strawberry as sb
 import strawberry_django
+from django.db.models import prefetch_related_objects
 from strawberry import auto
 
 from kausal_common.datasets.models import (
@@ -395,6 +396,8 @@ class DatasetType(UserPermissionsMixin):
 
     _model: sb.Private['DatasetModel | None'] = None
     _forecast_from: sb.Private[int | None] = None
+    _batch: sb.Private['Mapping[UUID, DatasetModel] | None'] = None
+    """Datasets loaded together with this one, so that resolving a field for one loads it for all."""
 
     @sb.field
     @staticmethod
@@ -455,7 +458,13 @@ class DatasetType(UserPermissionsMixin):
     def metrics(root: 'DatasetType') -> list[DatasetMetricType]:
         if root._model is None or root._model.schema is None:
             return []
-        metrics = list(root._model.schema.metrics.prefetch_related('validation_rules'))
+        schema = root._model.schema
+        # The editor resolves this once per port binding; load the metrics of every
+        # dataset in the batch on the first call, so the rest hit the prefetch cache.
+        # Schemas that already carry it are skipped.
+        batch = [ds.schema for ds in root._batch.values() if ds.schema is not None] if root._batch else []
+        prefetch_related_objects([schema, *batch], 'metrics__validation_rules')
+        metrics = list(schema.metrics.all())
         return [
             DatasetMetricType.from_model(metric, previous_sibling=prev_id, next_sibling=next_id)
             for metric, prev_id, next_id in with_sibling_ids(metrics, lambda metric: sb.ID(str(metric.uuid)))
@@ -621,6 +630,7 @@ class DatasetType(UserPermissionsMixin):
             model = dataset_models_by_uuid.get(binding.dataset_uuid)
         if model is not None:
             obj = cls.from_model(model)
+            obj._batch = dataset_models_by_uuid
             if binding.forecast_from is not None:
                 obj._forecast_from = binding.forecast_from
             return obj
