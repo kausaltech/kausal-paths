@@ -20,8 +20,8 @@ Implementation entry points:
 Implementation boundaries: node classes can declare category-preserving dependencies
 through `Node.data_entry_dependencies`; unknown mappings widen and report their
 approximation. Conditional input requirements that depend on another port remain
-explicit model-validation diagnostics in section summaries; the summary layer does
-not compute the dependency. Direct required-value and qualifier checks share their
+model-validation checks in the editor; the section summary layer does not compute
+the dependency or count an evaluation reminder as a data finding. Direct required-value and qualifier checks share their
 assessment logic with delivered-value validation. Published observations are read-only
 and have no mutable data-point UUID in this view, because dataset revision payloads
 preserve natural coordinates rather than data-point UUIDs. Neither the layout nor
@@ -54,8 +54,9 @@ facilities, and so on. That usually coincides with how the model uses the data, 
 not always. The municipal collection workflows have not yet been established. For
 the initial migration, preserve the current Data Studio placement and page order,
 including municipal facilities on their own page and district-heating consumption
-on the sector pages. Graph-derived placement supplies defaults for new inputs; it
-does not by itself justify reorganising the existing pages.
+on the sector pages. BISKO currently uses explicit placements only: production node
+classes do not yet declare the category mappings needed for reliable discovery.
+New inputs fall back to the unplaced section until assigned explicitly.
 
 So placement has two mechanisms:
 
@@ -505,7 +506,7 @@ Distinguish at least:
 - missing required values;
 - missing required grades or evidence;
 - plausibility and other dataset validation findings;
-- resolution and configuration problems.
+- resolution and configuration problems, exposed separately in `InstanceEditor.problems`.
 
 Missing required cells need stable coordinates (dataset, metric, categories, year)
 even when no data point exists. Requiredness comes from the value contracts and
@@ -524,16 +525,30 @@ section. The instance-level `problemCounts` deduplicates findings by their canon
 identity across sections; clients must not sum section badges to obtain that total.
 Permissions apply before exposing findings, counts or affected-section references.
 
-Resolution problems associated with a section appear in that section's list and
-counts; instance-wide problems without a section remain in `resolutionProblems` and
-contribute to the instance total. A problem exposed through both paths retains one
-identity and is counted once in the instance total.
+Definition problems appear as `DataEntryDefinitionProblem` entries in
+`InstanceEditor.problems`, with `enforcement: BLOCK_PUBLISH` and section/node/port/
+dataset UUIDs where available. They are excluded from section `problems` and all
+`dataEntry.problemCounts`. Draft edits remain possible; ordinary instance and template
+publication reject invalid layouts and GraphQL returns a typed
+`DataEntryDefinitionProblems` result. `resolutionProblems` remains a diagnostic view.
 
-Return annual finding totals and a per-year breakdown, with yearless configuration
-problems separate. A finding spanning several selected years counts once in the total
-and once in each affected year's breakdown; per-year counts need not add up to the
-total. `years: []` empties annual findings and counts but does not hide yearless
-configuration problems. Lists and counts share selection and deduplication rules.
+Unbound, disconnected or external inputs encountered incidentally during discovery
+are input states, not automatically definition errors. A manual table that requires
+an unavailable source is a definition error. Required-input contracts and graph
+constraints are checked independently in the model editor.
+
+Return annual finding totals and a per-year breakdown, with yearless data findings
+separate. A finding spanning several selected years counts once in the total and
+once in each affected year's breakdown; per-year counts need not add up to the
+total. Lists and counts share selection and deduplication rules.
+
+`tools/setup_bisko.py` checks the same categories of instance problems before explicit
+or default-quality-triggered template publication and after applying dependent draft
+pins. A failed post-upgrade check rolls back the pin and associated changes; the
+script's outer transaction rolls back the whole invocation on failure.
+`--ignore-problems` reports the problems but allows publication and pin updates.
+It does not bypass authorization, malformed snapshot errors or runtime failures.
+Use `--dry-run` to exercise the workflow while rolling back all database writes.
 
 Summary queries must not hydrate every data-point ORM object or initialise the
 calculation runtime. Plausibility is evaluated per dataset over its whole frame, so
@@ -554,8 +569,9 @@ order and cell placement. Port the existing `src/config/data-entry.ts` mapping i
 explicit placements: all four final-energy sector slices (including district heating),
 the transport inputs, district-heating-specific inputs, emission factors and settings.
 The built-in unplaced section keeps the current "other" fallback, including the review
-fixture's reporting-comparison input. Add anchors to provide defaults for
-new inputs without moving explicitly placed cells.
+fixture's reporting-comparison input. Discovery entries are disabled until real-node
+category mappings are supported and tested against the BISKO graph. The retired
+`passenger_kilometers_own` input has no layout placement.
 
 Instances without a layout stay valid. Deploy the backend contract before switching
 Data Studio, use section UUIDs in new routes, and resolve existing readable route

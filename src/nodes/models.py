@@ -1145,6 +1145,9 @@ class InstanceConfig(
             )
 
             graph = get_instance_graph(locked, PreferredInstanceSource.DRAFT)
+            from nodes.instance_problems import require_valid_data_entry_definition
+
+            require_valid_data_entry_definition(graph)
             if any(port.validation is not None for node in graph.nodes for port in node.spec.input_ports):
                 # A fresh draft runtime avoids validating a cached output or cleaning a shared instance.
                 from nodes.instance_loader import InstanceLoader
