@@ -9,7 +9,12 @@ from django.core.cache import cache
 from kausal_common.i18n.pydantic import set_i18n_context
 
 from nodes.instance_graph import INSTANCE_GRAPH_FORMAT_VERSION, InstanceGraph, build_instance_graph
-from nodes.instance_serialization import SNAPSHOT_SCHEMA_VERSION, InstanceSnapshot, build_instance_snapshot
+from nodes.instance_serialization import (
+    SNAPSHOT_SCHEMA_VERSION,
+    InstanceSnapshot,
+    _dimension_catalog_for,
+    build_instance_snapshot,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -215,4 +220,5 @@ def _yaml_snapshot(config: InstanceConfig) -> InstanceSnapshot:
         instance_uuid=config.uuid,
         node_uuids=node_uuids,
         port_references=build_yaml_port_reference_catalog(config),
+        data_entry_dimensions=_dimension_catalog_for(config),
     )
