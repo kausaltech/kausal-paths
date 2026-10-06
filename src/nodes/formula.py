@@ -12,7 +12,7 @@ import polars as pl
 
 from common import polars as ppl
 from nodes.calc import convert_to_co2e, extend_last_historical_value_pl
-from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN
+from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from nodes.exceptions import NodeError
 from nodes.units import Quantity, QuantityType, Unit, unit_registry
 from params.param import BoolParameter, NumberParameter, StringParameter
@@ -326,6 +326,7 @@ class FormulaNode(Node):
         'min_dim': '_custom_min_dim',
         'max_dim': '_custom_max_dim',
         'zero_fill': '_custom_zero_fill',
+        'from_year': '_custom_from_year',
         'select_port': '_custom_select_port',
         'float': '_custom_float',
         'coalesce_df': '_custom_coalesce_df',
@@ -362,8 +363,13 @@ class FormulaNode(Node):
         return convert_to_co2e(df, 'greenhouse_gases')
 
     def _custom_sum_dim(self, _func: str, node: ast.Call, _varss: EvalVars, df: EvalOutput) -> EvalOutput:
-        assert len(node.args) == 2
+        """Handle ``sum_dim(df, dim)``, or ``sum_dim(df)`` to sum over every dimension the frame has."""
+        assert len(node.args) in (1, 2), 'sum_dim(df[, dim]) takes one or two arguments'
         assert isinstance(df, PDF)
+        if len(node.args) == 1:
+            # For a total whose consumer should not need to know the source's dimensions, such
+            # as a module reading an instance's `net_emissions`.
+            return df.paths.sum_over_dims()
         dim_arg = node.args[1]
         assert isinstance(dim_arg, ast.Name)
         assert isinstance(dim_arg.id, str)
@@ -436,6 +442,22 @@ class FormulaNode(Node):
         meta = df.get_meta()
         zdf = df.fill_null(0)
         return ppl.to_ppdf(zdf, meta=meta).paths.to_narrow()
+
+    def _custom_from_year(self, _func: str, node: ast.Call, _varss: EvalVars, df: EvalOutput) -> EvalOutput:
+        """
+        Handle ``from_year(df, year)``: keep only the years from ``year`` on.
+
+        For quantities that only exist from a given year, such as a budget that starts counting
+        on a fixed date. Dropping the earlier rows, rather than zeroing them, keeps a later
+        subtraction from inventing values for years the quantity does not cover.
+        """
+        assert len(node.args) == 2, 'from_year(df, year) requires two arguments'
+        if not isinstance(df, PDF):
+            raise NodeError(self, 'from_year() needs a data frame as its first argument')
+        year_arg = node.args[1]
+        if not isinstance(year_arg, ast.Constant) or not isinstance(year_arg.value, int) or isinstance(year_arg.value, bool):
+            raise NodeError(self, 'from_year() needs a literal year as its second argument')
+        return df.filter(pl.col(YEAR_COLUMN) >= year_arg.value)
 
     def _custom_select_port(self, _func: str, node: ast.Call, varss: EvalVars, df: EvalOutput) -> EvalOutput:
         assert len(node.args) == 3
@@ -896,7 +918,7 @@ def analyze_formula_units(  # noqa: C901, PLR0915
                 if first is not None and first.dimensionality != dimensionless.dimensionality:
                     analysis.errors.append("Function 'complement' requires dimensionless units.")
                 return dimensionless
-            if func_name in {'convert_gwp', 'zero_fill', 'output_with_scenario'} or func_name in passthrough:
+            if func_name in {'convert_gwp', 'zero_fill', 'from_year', 'output_with_scenario'} or func_name in passthrough:
                 return first
             analysis.warnings.append(f"Unknown function '{func_name}' in formula.")
             return first
@@ -940,7 +962,7 @@ def analyze_formula_dimensions(  # noqa: C901, PLR0915
             return _merge_union(left, right)
         return left
 
-    def _eval(node: ast.AST) -> set[str] | None:  # noqa: C901, PLR0911, PLR0912
+    def _eval(node: ast.AST) -> set[str] | None:  # noqa: C901, PLR0911, PLR0912, PLR0915
         if isinstance(node, ast.Expression):
             return _eval(node.body)
         if isinstance(node, ast.Constant):
@@ -982,6 +1004,8 @@ def analyze_formula_dimensions(  # noqa: C901, PLR0915
                 analysis.warnings.append(f"Function '{func_name}' has no arguments.")
                 return None
             first = _eval(node.args[0])
+            if func_name == 'sum_dim' and len(node.args) == 1:
+                return set()
             if func_name in ('sum_dim', 'mean_dim', 'min_dim', 'max_dim'):
                 if len(node.args) != 2:
                     analysis.errors.append(f'{func_name} requires exactly two arguments.')
@@ -1012,7 +1036,7 @@ def analyze_formula_dimensions(  # noqa: C901, PLR0915
                 else:
                     return _require_same(func_name, first, _eval(node.args[1]))
                 return first
-            if func_name in {'convert_gwp', 'zero_fill', 'output_with_scenario'} or func_name in passthrough:
+            if func_name in {'convert_gwp', 'zero_fill', 'from_year', 'output_with_scenario'} or func_name in passthrough:
                 return first
             analysis.warnings.append(f"Unknown function '{func_name}' in formula.")
             return first

@@ -60,6 +60,10 @@ if TYPE_CHECKING:
     from nodes.node import Node
 
 
+# How close a column value must be to a number parameter for `filter_column` to keep the row.
+NUMERIC_FILTER_TOLERANCE = 1e-9
+
+
 class PipelineError(Exception):
     """A transform operation could not be applied."""
 
@@ -374,9 +378,15 @@ def _filter_column(df: ppl.PathsDataFrame, op: FilterColumnOp, env: PipelineEnv)
         mask = pl.col(col) == val
     if op.ref:
         pval = env.context.get_parameter_value(op.ref, required=True)
-        if isinstance(pval, float):
-            pval = int(pval)
-        mask = pl.col(col) == str(pval)
+        if isinstance(pval, (int, float)) and not isinstance(pval, bool):
+            # A number parameter matches the column by value, not by spelling: 2020.0 finds
+            # '2020' and 1.7 finds '1.7'. Truncating to int, as this once did, made every
+            # fractional choice (a temperature limit) select the wrong row or none. The
+            # tolerance absorbs slider arithmetic such as 1.6000000000000001.
+            as_number = pl.col(col).cast(pl.String).cast(pl.Float64, strict=False)
+            mask = (as_number - float(pval)).abs() < NUMERIC_FILTER_TOLERANCE
+        else:
+            mask = pl.col(col) == str(pval)
     if mask is not None:
         if op.exclude:
             mask = ~mask
