@@ -40,6 +40,7 @@ from nodes.graph_layout import GraphLayout
 from nodes.graphql.types.data_entry import DataEntryType
 from nodes.graphql.types.dimension import DimensionType
 from nodes.instance import Instance
+from nodes.instance_problems import collect_instance_problems
 from nodes.instance_serialization import InstanceSnapshot
 from nodes.models import InstanceConfig, NodeLayout, PreferredInstanceSource
 from nodes.node import Node
@@ -64,6 +65,7 @@ from .graph import (
 from .layout import NodeLayoutType
 from .node import QuantityKindType
 from .problems import (
+    DataEntryDefinitionProblemType,
     DatasetPlausibilityFindingType,
     DatasetValidationViolationType,
     InstanceProblemInterface,
@@ -311,6 +313,8 @@ class InstanceEditorFields:
         assert resources is not None
         config, source = resources.resolve_source(root._config, root._source)
         graph = info.context.require_instance_graph(config, source=source)
+        if not isinstance(info.context.user, User):
+            raise GraphQLError('Authentication required')
         return DataEntryType(
             _query=DataEntryQuery(graph, info.context.user, published=source == PreferredInstanceSource.PUBLISHED),
             can_manage_years=root._config.gql_action_allowed(info, 'change', raise_on_denied=False)
@@ -443,30 +447,25 @@ class InstanceEditorFields:
         graphql_type=list[InstanceProblemInterface],
         description=(
             'Everything standing between this draft and publication: structural '
-            'constraint conflicts, dataset validation rules and delivered input-value contracts, as one list.'
+            'constraint conflicts, data-entry definitions, dataset validation rules '
+            'and delivered input-value contracts, as one list.'
         ),
     )
     @staticmethod
     def problems(root: 'InstanceEditorFields', info: gql.Info) -> list[InstanceProblemInterface]:
-        from datasets.materialization import collect_instance_dataset_violations
-
         result = info.context.require_constraint_solve(root._config, source=root._source)
-        conflicts: list[InstanceProblemInterface] = [
-            ConstraintConflictType.from_conflict(conflict) for conflict in result.conflicts
-        ]
-        violations: list[InstanceProblemInterface] = [
-            DatasetValidationViolationType.from_violation(violation)
-            for violation in collect_instance_dataset_violations(root._config)
-        ]
         graph = info.context.require_instance_graph(root._config, source=root._source)
-        values: list[InstanceProblemInterface] = []
-        if any(port.validation is not None for node in graph.nodes for port in node.spec.input_ports):
+        values = []
+        if not result.conflicts and any(port.validation is not None for node in graph.nodes for port in node.spec.input_ports):
             instance = info.context.require_instance(root._config, source=root._source)
-            values = [
-                NodeValueValidationViolationType.from_violation(violation)
-                for violation in collect_instance_value_violations(instance)
-            ]
-        return conflicts + violations + values
+            values = collect_instance_value_violations(instance)
+        problems = collect_instance_problems(root._config, graph=graph, constraints=result, value_violations=values)
+        return [
+            *[ConstraintConflictType.from_conflict(conflict) for conflict in problems.constraints],
+            *[DatasetValidationViolationType.from_violation(violation) for violation in problems.datasets],
+            *[NodeValueValidationViolationType.from_violation(violation) for violation in problems.values],
+            *[DataEntryDefinitionProblemType.from_problem(problem) for problem in problems.data_entry],
+        ]
 
     @sb.field(
         graphql_type=list[Annotated['InstanceChangeOperationType', sb.lazy('nodes.graphql.types.change_history')]],

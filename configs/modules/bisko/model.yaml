@@ -1,4 +1,5 @@
-# Preserve Data Studio's existing pages; anchors place future inputs by default.
+# Preserve Data Studio's existing pages with explicit placements.
+# Enable discovery only after category mappings are supported by the real node classes.
 data_entry:
   namespace: 3e9307fd-5adb-435b-adac-fda1f9e07d3a
   sections:
@@ -11,10 +12,6 @@ data_entry:
       input: final_energy_use
       slices:
       - sector: [private_households]
-    - id: discovered
-      kind: autodiscover
-      anchors:
-      - node: private_household_emissions
   - id: commerce_trade_services
     name_de: Gewerbe, Handel, Dienstleistungen
     name_en: Commerce, trade and services
@@ -24,10 +21,6 @@ data_entry:
       input: final_energy_use
       slices:
       - sector: [commerce_trade_services]
-    - id: discovered
-      kind: autodiscover
-      anchors:
-      - node: commerce_trade_services_emissions
   - id: industry
     name_de: Industrie
     name_en: Industry
@@ -37,10 +30,6 @@ data_entry:
       input: final_energy_use
       slices:
       - sector: [industry]
-    - id: discovered
-      kind: autodiscover
-      anchors:
-      - node: industry_emissions
   - id: municipal_facilities
     name_de: Kommunale Einrichtungen
     name_en: Municipal facilities
@@ -50,10 +39,6 @@ data_entry:
       input: final_energy_use
       slices:
       - sector: [municipal_facilities]
-    - id: discovered
-      kind: autodiscover
-      anchors:
-      - node: municipal_facilities_emissions
   - id: transport
     name_de: Verkehr
     name_en: Transport
@@ -67,13 +52,6 @@ data_entry:
     - id: other_transport_energy_own
       kind: input_port
       input: other_transport_energy_own
-    - id: passenger_kilometers_own
-      kind: input_port
-      input: passenger_kilometers_own
-    - id: discovered
-      kind: autodiscover
-      anchors:
-      - node: transport_emissions
   - id: district_heating
     name_de: Fernwärme
     name_en: District heating
@@ -92,10 +70,6 @@ data_entry:
       kind: input_port
       input: combined_heat_and_power_chp_fraction
       port: t_supply
-    - id: discovered
-      kind: autodiscover
-      anchors:
-      - node: district_heating_emissions
   - id: emission_factors
     name_de: Emissionsfaktoren
     name_en: Emission factors
@@ -116,10 +90,6 @@ data_entry:
     - id: weather_correction
       kind: input_port
       input: weather_correction
-    - id: discovered
-      kind: autodiscover
-      anchors:
-      - node: weather_correction
 
 # Every dataset this module reads is declared here with its ownership class, so the
 # ownership map can be read off the module rather than inferred from the database. See

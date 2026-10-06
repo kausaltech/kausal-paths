@@ -289,20 +289,8 @@ class DataEntryQuery:
             if column is None or column not in data.frame.columns:
                 continue
             if contract.required_if_positive or contract.combinations_from_positive:
-                # A computed dependency cannot be read as if it were a dataset.
-                # Keep this incompleteness visible instead of reporting a false zero.
-                sections = self.affected_sections(data.meta.id, metric.id, ((),))
-                results.append(
-                    EntryFinding(
-                        uuid3(binding.id, 'conditional_contract'),
-                        'conditional_contract',
-                        'This input has a conditional requirement checked by model validation',
-                        (),
-                        sections,
-                        data.meta.id,
-                        metric.id,
-                    )
-                )
+                # Model-level validation evaluates these dependencies. A reminder
+                # about the evaluator is not a finding about the entered data.
                 continue
             for combination in contract.combinations:
                 selection: dict[UUID, frozenset[UUID]] = {}
@@ -479,13 +467,4 @@ class DataEntryQuery:
                 if finding.years and not selected.intersection(finding.years):
                     continue
                 result[finding.id] = finding
-        for problem in self.graph.data_entry.problems:
-            if section_id is not None and problem.section_id != section_id:
-                continue
-            if problem.dataset_id is not None and problem.dataset_id not in self.datasets:
-                continue
-            key = uuid3(self.graph.instance_id, f'{problem.code}:{problem.node_id}:{problem.port_id}:{problem.section_id}')
-            result[key] = EntryFinding(
-                key, problem.code, problem.message, (), (problem.section_id,) if problem.section_id else (), problem.dataset_id
-            )
         return list(result.values())
