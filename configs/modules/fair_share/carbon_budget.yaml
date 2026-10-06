@@ -1,0 +1,536 @@
+# Fair share of the global CO2 budget -- the argument as a chain of premises.
+#
+# Does the city stay within its fair share of what the world may still emit? The answer
+# rests on value judgements, and this module keeps every one of them a global parameter, so
+# that a reader who rejects the default reading can see what follows from their own. The
+# premises are numbered as in README.md, which states the argument in full; each node below
+# names the premise it carries.
+#
+#   P1 Limit           fair_share_global_budget             warming limit, likelihood
+#   P2 Cumulative      fair_share_city_cumulative_emissions (none: physics)
+#   P3 Equal claim     fair_share_national_budget_share     weight of current emissions
+#   P4 Responsibility  fair_share_national_overuse          start year of responsibility
+#   P5 Capability      fair_share_city_overshoot            (text: why overshoot stays a duty)
+#   P6 No exemption    fair_share_city_budget               (none)
+#   P7 Subsidiarity    fair_share_city_budget               the instance's population key
+#                      fair_share_city_cumulative_emissions what counts as the city's emissions
+#   P8 Ought-can       fair_share_city_overshoot            (text)
+#
+# Nothing here feeds back into the balance: the module reads emissions and computes budgets,
+# and no scenario result depends on it.
+#
+# What the including instance must provide (see README.md, "Including the module"):
+#
+# * Global parameters `country_code`, `fair_share_temperature_limit`, `fair_share_likelihood`,
+#   `fair_share_grandfathering_weight` and `fair_share_responsibility_start_year`. An include
+#   does not carry `params:`, so they are declared in the instance.
+# * `net_emissions` -- the city's balance, in any dimensions; the module sums it. Which
+#   emissions are "the city's" is part of premise 7: an instance that counts something else
+#   overrides `fair_share_city_cumulative_emissions` and says so in its description.
+# * `fair_share_key_population` -- the city's share of the national population, %, taken in one
+#   base year and held, so that no scenario can move the city's own obligation.
+#
+# Data: `fair_share/*`, built by `modules/fair-share/scripts/create_fair_share_budget.py` in
+# paths-data.
+
+nodes:
+
+# ///// P1: the limit and its global budget /////
+
+- id: fair_share_global_budget
+  is_editable: false
+  name_de: Verbleibendes globales CO₂-Budget ab 2020
+  name_en: Remaining global CO₂ budget from 2020
+  description_de: |
+    <b>Prämisse 1: Es gibt eine Grenze.</b> Gefährliche Erwärmung ist ein schwerer Schaden,
+    und die Grenze des Pariser Abkommens markiert, wo er beginnt. Deutschland hat das
+    Abkommen ratifiziert, und das Bundesverfassungsgericht hat 2021 aus ihm ein deutsches
+    Budget abgeleitet.<br/>
+    Weil die Erwärmung mit den insgesamt ausgestoßenen Mengen wächst, entspricht jeder
+    Grenze eine Menge CO₂, die die Welt noch ausstoßen darf. Wie groß sie ist, hängt von zwei
+    Werturteilen ab, die in den Einstellungen gewählt werden: der <i>Erwärmungsgrenze</i> und
+    der <i>Wahrscheinlichkeit</i>, mit der sie eingehalten werden soll.<br/>
+    Die Werte stammen aus dem 6. Sachstandsbericht des Weltklimarats (IPCC AR6, Tabelle
+    SPM.2), gezählt ab dem 1. Januar 2020. Neuere Schätzungen liegen deutlich darunter; das
+    Modell rechnet also eher großzügig.
+  description_en: |
+    <b>Premise 1: there is a limit.</b> Dangerous warming is a serious harm, and the limit of
+    the Paris Agreement marks where it begins. Germany ratified the agreement, and in 2021 its
+    Federal Constitutional Court derived a German budget from it.<br/>
+    Because warming grows with the total amount emitted, every limit corresponds to an amount
+    of CO₂ the world may still emit. How large it is depends on two value judgements, chosen
+    in the settings: the <i>warming limit</i> and the <i>likelihood</i> with which it is to be
+    kept.<br/>
+    The values are from the IPCC's Sixth Assessment Report (AR6, Table SPM.2), counted from
+    1 January 2020. More recent estimates are markedly lower, so the model errs on the
+    generous side.
+  type: formula.FormulaNode
+  quantity: mass
+  unit: Gt_co2e
+  input_datasets:
+  - id: fair_share/global_co2_budget
+    tags: [budget]
+    column: budget
+    filters:
+    - column: temperature_limit
+      ref: fair_share_temperature_limit
+    - column: likelihood
+      ref: fair_share_likelihood
+  params:
+  - id: formula
+    value: budget
+  - id: extend_last_historical_value
+    value: true
+
+# ///// P3: the equal claim, and how far the status quo is allowed to count /////
+
+- id: fair_share_national_population_share
+  is_editable: false
+  name_de: Anteil des Landes an der Weltbevölkerung
+  name_en: The country's share of world population
+  description_de: |
+    Die Einwohnerzahl des Landes geteilt durch die der Welt, 2019 – im letzten Jahr, bevor das
+    Budget beginnt. Nach diesem Schlüssel hat jeder Mensch denselben Anspruch auf das, was
+    bleibt.
+  description_en: |
+    The country's population divided by the world's, in 2019, the last year before the budget
+    starts. By this key every person has the same claim to what is left.
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: '%'
+  input_datasets:
+  - id: fair_share/national_co2_key
+    tags: [country]
+    column: population
+    filters:
+    - column: country
+      ref: country_code
+  - id: fair_share/national_co2_key
+    tags: [world]
+    column: population_world
+    filters:
+    - column: country
+      ref: country_code
+  params:
+  - id: formula
+    value: country / world
+  - id: extend_last_historical_value
+    value: true
+
+- id: fair_share_national_emission_share
+  is_editable: false
+  name_de: Anteil des Landes an den weltweiten CO₂-Emissionen
+  name_en: The country's share of world CO₂ emissions
+  description_de: |
+    Die fossilen CO₂-Emissionen des Landes geteilt durch die der Welt, 2019. Nach diesem
+    Schlüssel bekäme jedes Land vom verbleibenden Budget so viel, wie es heute ausstößt
+    („Besitzstand“).
+  description_en: |
+    The country's fossil CO₂ emissions divided by the world's, in 2019. By this key each
+    country would get as much of the remaining budget as it emits today ("grandfathering").
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: '%'
+  input_datasets:
+  - id: fair_share/national_co2_key
+    tags: [country]
+    column: emissions
+    filters:
+    - column: country
+      ref: country_code
+  - id: fair_share/national_co2_key
+    tags: [world]
+    column: emissions_world
+    filters:
+    - column: country
+      ref: country_code
+  params:
+  - id: formula
+    value: country / world
+  - id: extend_last_historical_value
+    value: true
+
+- id: fair_share_national_budget_share
+  is_editable: false
+  name_de: Anteil des Landes am verbleibenden Budget
+  name_en: The country's share of the remaining budget
+  description_de: |
+    <b>Prämisse 3: Gleicher Anspruch.</b> Die Atmosphäre ist ein Gemeingut; niemand hat einen
+    größeren Anspruch auf sie als ein anderer. Kaum jemand bestreitet das im Grundsatz.<br/>
+    In der Praxis wird aber oft nach dem Besitzstand verteilt: Wer heute viel ausstößt,
+    bekommt mehr. Die Einstellung <i>Gewicht der heutigen Emissionen</i> legt fest, wie weit
+    das zählt. Bei 0 % (Standard) zählt nur die Kopfzahl, bei 100 % nur der heutige
+    Ausstoß. Für Deutschland, das je Kopf fast doppelt so viel ausstößt wie der
+    Weltdurchschnitt, vergrößert jeder Prozentpunkt Besitzstand das Budget.
+  description_en: |
+    <b>Premise 3: an equal claim.</b> The atmosphere is a commons; no one has a stronger claim
+    to it than anyone else. Hardly anyone disputes this in principle.<br/>
+    In practice, though, budgets are often shared by the status quo: whoever emits much today
+    gets more. The setting <i>weight of current emissions</i> decides how far that counts. At
+    0 % (the default) only headcount counts, at 100 % only today's emissions. For Germany,
+    which emits almost twice the world average per person, every percentage point of
+    grandfathering enlarges the budget.
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: '%'
+  input_nodes:
+  - id: fair_share_national_population_share
+    tags: [population]
+  - id: fair_share_national_emission_share
+    tags: [emissions]
+  params:
+  - id: formula
+    value: population + constant * (emissions - population)
+  - id: constant
+    ref: fair_share_grandfathering_weight
+
+# ///// P4: historical responsibility /////
+
+- id: fair_share_national_overuse
+  is_editable: false
+  name_de: Bisherige Übernutzung durch das Land
+  name_en: The country's past overuse
+  description_de: |
+    <b>Prämisse 4: Verantwortung für das Vergangene.</b> Wer bereits mehr als seinen Anteil
+    verbraucht hat, hat weniger übrig. Das ist als „gemeinsame, aber unterschiedliche
+    Verantwortung“ in der Klimarahmenkonvention der Vereinten Nationen verankert.<br/>
+    Strittig ist, ab wann gezählt wird. Die Einstellung <i>Beginn der historischen
+    Verantwortung</i> wählt das Jahr: 1850 (Beginn der Industrialisierung), 1990 (erster
+    Bericht des Weltklimarats – seitdem ist der Schaden bekannt) oder 2020 (Standard: nichts
+    Vergangenes wird angerechnet).<br/>
+    Gezeigt wird, wie viel CO₂ das Land seit diesem Jahr mehr ausgestoßen hat, als ihm bei
+    gleichem Anteil je Kopf an den jeweiligen Weltemissionen zugestanden hätte.
+  description_en: |
+    <b>Premise 4: responsibility for the past.</b> Whoever has already used more than their
+    share has less left. This is anchored in the UN Framework Convention on Climate Change as
+    "common but differentiated responsibilities".<br/>
+    What is disputed is from when to count. The setting <i>start year of historical
+    responsibility</i> chooses the year: 1850 (industrialisation), 1990 (the first IPCC report
+    -- since then the harm has been known) or 2020 (the default: nothing past is counted).<br/>
+    Shown is how much more CO₂ the country has emitted since that year than an equal
+    per-capita share of each year's world emissions would have allowed it.
+  type: formula.FormulaNode
+  quantity: mass
+  unit: Mt_co2e
+  input_datasets:
+  - id: fair_share/national_co2_responsibility
+    tags: [emitted]
+    column: historical_emissions
+    filters:
+    - column: country
+      ref: country_code
+    - column: start_year
+      ref: fair_share_responsibility_start_year
+  - id: fair_share/national_co2_responsibility
+    tags: [entitled]
+    column: equal_per_capita_entitlement
+    filters:
+    - column: country
+      ref: country_code
+    - column: start_year
+      ref: fair_share_responsibility_start_year
+  params:
+  - id: formula
+    value: emitted - entitled
+  - id: extend_last_historical_value
+    value: true
+
+- id: fair_share_national_budget
+  is_editable: false
+  name_de: Fairer Anteil des Landes am CO₂-Budget
+  name_en: The country's fair share of the CO₂ budget
+  description_de: |
+    Das verbleibende globale Budget mal dem Anteil des Landes, abzüglich der bisherigen
+    Übernutzung. Die Übernutzung wird nur für den Teil abgezogen, der nach Kopfzahl verteilt
+    wird: Wer nach Besitzstand verteilt, erkennt den bisherigen Ausstoß gerade als Anspruch
+    an.<br/>
+    Ein negativer Wert heißt: Das Land hat seinen Anteil bereits verbraucht, bevor das Budget
+    beginnt.
+  description_en: |
+    The remaining global budget times the country's share, less its past overuse. The overuse
+    is deducted only from the part shared by headcount: whoever shares by the status quo
+    accepts past emissions as an entitlement.<br/>
+    A negative value means the country used up its share before the budget began.
+  type: formula.FormulaNode
+  quantity: mass
+  unit: Mt_co2e
+  input_nodes:
+  - id: fair_share_global_budget
+    tags: [global_budget]
+  - id: fair_share_national_budget_share
+    tags: [share]
+  - id: fair_share_national_overuse
+    tags: [overuse]
+  params:
+  - id: formula
+    value: share * global_budget - (1 - constant) * overuse
+  - id: constant
+    ref: fair_share_grandfathering_weight
+
+# ///// P6 and P7: from the country to the city /////
+
+- id: fair_share_city_budget
+  is_editable: false
+  name_de: Fairer Anteil der Stadt am CO₂-Budget ab 2020
+  name_en: The city's fair share of the CO₂ budget from 2020
+  description_de: |
+    <b>Prämisse 6: Keine Ausnahme.</b> Klein zu sein entschuldigt nicht. Würde jede Einheit
+    dieser Größe so argumentieren, geschähe nichts. Deshalb wird der Anteil des Landes an
+    seine Städte weitergegeben.<br/>
+    <b>Prämisse 7: Weitergabe nach einem fairen Schlüssel.</b> Innerhalb des Landes wird nach
+    Einwohnern verteilt: Jede Einwohnerin und jeder Einwohner hat denselben Anteil, gleich wo
+    sie wohnen. Ein Schlüssel nach heutigen Emissionen wird hier nicht angeboten, weil die
+    kommunale Bilanz anders zählt als das nationale Inventar (Strom zum Bundesmix,
+    einschließlich der Emissionen der vorgelagerten Energiebereitstellung) und ein solcher
+    Anteil Ungleiches vergliche.
+  description_en: |
+    <b>Premise 6: no exemption.</b> Being small is no excuse. If every unit of this size argued
+    that way, nothing would happen. So the country's share is passed on to its cities.<br/>
+    <b>Premise 7: passing it on by a fair key.</b> Within the country the share is divided by
+    population: every resident has the same share, wherever they live. A key by current
+    emissions is not offered here, because the municipal balance counts differently from the
+    national inventory (electricity at the national mix, including the emissions of the
+    upstream energy supply), and such a share would compare unlike quantities.
+  type: formula.FormulaNode
+  quantity: mass
+  unit: kt_co2e
+  input_nodes:
+  - id: fair_share_national_budget
+    tags: [national]
+  - id: fair_share_key_population
+    tags: [key]
+  params:
+  # The key is held from its own base year; it is extended back so the budget exists from 2020.
+  # Up to the last measured year the budget is shown as known, not as forecast: it is a fixed
+  # amount, and what becomes forecast is the emissions drawn against it.
+  - id: formula
+    value: bring_to_maximum_historical_year(national * extend_to_history(key))
+
+# ///// P2: what counts is the sum /////
+
+- id: fair_share_city_cumulative_emissions
+  is_editable: false
+  name_de: Seit 2020 verbrauchtes CO₂-Budget der Stadt
+  name_en: CO₂ budget the city has used since 2020
+  description_de: |
+    <b>Prämisse 2: Es zählt die Summe.</b> Das Klima reagiert auf die insgesamt
+    ausgestoßene Menge. Bindend ist deshalb das Budget, nicht das Datum eines Zieljahres:
+    Zwei Pfade, die im selben Jahr bei null ankommen, können sehr verschieden viel
+    verbrauchen. Wer heute mehr ausstößt, nimmt späteren Generationen Freiheit – so hat es das
+    Bundesverfassungsgericht 2021 begründet.<br/>
+    Gezeigt werden die Emissionen der Stadt, aufsummiert ab 2020, im gewählten Szenario.
+    Gezählt wird die gesamte Treibhausgasbilanz der Stadt über alle Sektoren und
+    Energieträger – das ist Teil von Prämisse 7: Was „die Emissionen der Stadt“ sind, legt
+    ihre Bilanz fest.<br/>
+    Bei einer BISKO-Bilanz gehen zwei Vereinfachungen zulasten der Stadt: Die Bilanz zählt
+    alle Treibhausgase in CO₂-Äquivalenten, das Budget nur CO₂; und sie enthält die
+    Emissionen der vorgelagerten Energiebereitstellung (Förderung, Umwandlung, Transport der
+    Energieträger), die das nationale Inventar dort zählt, wo sie entstehen, oft im Ausland.
+    Eine dritte Festlegung geht zugunsten der Stadt: Strom wird zum Bundesmix gerechnet. Wird
+    der Bundesstrom sauberer, sinken die Emissionen der Stadt, ohne dass sie etwas dafür tut
+    – auch das Szenario ohne Maßnahmen enthält diesen Rückgang.
+  description_en: |
+    <b>Premise 2: what counts is the sum.</b> The climate responds to the total amount
+    emitted. What binds is therefore the budget, not the date of a target year: two paths that
+    reach zero in the same year can use very different amounts. Whoever emits more today takes
+    freedom from later generations -- this is how the Federal Constitutional Court reasoned in
+    2021.<br/>
+    Shown are the city's emissions summed from 2020, in the selected scenario. What is counted
+    is the city's whole greenhouse gas balance across all sectors and energy carriers -- part of
+    premise 7: what "the city's emissions" are is fixed by its balance.<br/>
+    With a BISKO balance, two simplifications count against the city: the balance counts all
+    greenhouse gases in CO₂ equivalents while the budget counts CO₂ only, and it includes the
+    emissions of the upstream energy supply (extraction, conversion and transport of the
+    fuels), which the national inventory counts where they arise, often abroad. A third choice
+    counts in the city's favour: electricity is valued at the national mix. As the national
+    grid gets cleaner, the city's emissions fall without it doing anything -- and the scenario
+    without measures contains that fall too.
+  type: formula.FormulaNode
+  quantity: mass
+  unit: kt_co2e
+  input_nodes:
+  - id: net_emissions
+    tags: [emissions]
+  params:
+  # The budget counts from 1 January 2020 (IPCC AR6), so the sum starts there too. The year is
+  # the dataset's, not a judgement: a newer budget with a later start moves both together.
+  # `sum_dim` with one argument sums whatever dimensions the instance's balance has.
+  - id: formula
+    value: cumulative(from_year(sum_dim(emissions), 2020))
+
+# ///// The conclusion /////
+
+- id: fair_share_city_remaining_budget
+  is_editable: false
+  name_de: Verbleibender fairer CO₂-Anteil der Stadt
+  name_en: The city's remaining fair share of CO₂
+  description_de: |
+    Der faire Anteil der Stadt abzüglich dessen, was sie seit 2020 ausgestoßen hat. Solange
+    der Wert positiv ist, bleibt die Stadt in ihrem Anteil; wo er unter null fällt, ist er
+    aufgebraucht.<br/>
+    Der Vergleich der Szenarien zeigt, was die Maßnahmen leisten: Reicht ein Szenario
+    nicht, ist mehr nötig; überzieht schon das Szenario ohne Maßnahmen das Budget, sind die
+    Maßnahmen nicht freiwillig, sondern geschuldet. Wie dieses Urteil ausfällt, hängt von den
+    Werturteilen in den Einstellungen ab – das Ergebnis ist am stärksten, wenn es auch bei der
+    großzügigsten noch vertretbaren Lesart gilt.
+  description_en: |
+    The city's fair share less what it has emitted since 2020. While the value is positive the
+    city stays within its share; where it falls below zero, the share is used up.<br/>
+    Comparing the scenarios shows what the measures achieve: if a scenario is not enough, more
+    is needed; if even the scenario without measures overdraws the budget, the measures are
+    not optional but owed. How this verdict comes out depends on the value judgements in the
+    settings -- the result is strongest when it holds even under the most generous reading
+    that can still be defended.
+  type: formula.FormulaNode
+  quantity: mass
+  unit: kt_co2e
+  input_nodes:
+  - id: fair_share_city_budget
+    tags: [budget]
+  - id: fair_share_city_cumulative_emissions
+    tags: [used]
+  params:
+  - id: formula
+    value: budget - used
+  goals:
+  - label_de: Fairer Anteil eingehalten
+    label_en: Fair share kept
+    default: true
+    is_main_goal: true
+    linear_interpolation: false
+    auto_start: false
+    values:
+    - year: 2030
+      value: 0.0
+    - year: 2035
+      value: 0.0
+    - year: 2040
+      value: 0.0
+    - year: 2045
+      value: 0.0
+    - year: 2050
+      value: 0.0
+
+- id: fair_share_city_budget_used
+  is_editable: false
+  name_de: Verbrauchter Anteil des fairen CO₂-Budgets
+  name_en: Share of the fair CO₂ budget used
+  description_de: |
+    Wie viel ihres fairen Anteils die Stadt seit 2020 verbraucht hat, in Prozent. 100 % heißt:
+    Der Anteil ist genau aufgebraucht; darüber ist er überzogen.<br/>
+    Dieselbe Aussage wie der verbleibende Anteil, aber unabhängig von der Größe der Stadt
+    lesbar. Ist das Budget selbst negativ – etwa wenn historische Verantwortung seit 1990
+    angerechnet wird –, hat der Prozentwert keinen Sinn; dann gilt der verbleibende Anteil.
+  description_en: |
+    How much of its fair share the city has used since 2020, in per cent. 100 % means the share
+    is exactly used up; above that it is overdrawn.<br/>
+    The same statement as the remaining share, but readable whatever the city's size. If the
+    budget itself is negative -- for instance when historical responsibility is counted since
+    1990 -- the percentage is meaningless; read the remaining share instead.
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: '%'
+  input_nodes:
+  - id: fair_share_city_budget
+    tags: [budget]
+  - id: fair_share_city_cumulative_emissions
+    tags: [used]
+  params:
+  - id: formula
+    value: used / budget
+  goals:
+  - label_de: Fairer Anteil eingehalten (höchstens 100 %)
+    label_en: Fair share kept (at most 100 %)
+    default: true
+    is_main_goal: true
+    linear_interpolation: false
+    auto_start: false
+    values:
+    - year: 2030
+      value: 100.0
+    - year: 2035
+      value: 100.0
+    - year: 2040
+      value: 100.0
+    - year: 2045
+      value: 100.0
+    - year: 2050
+      value: 100.0
+
+- id: fair_share_city_overshoot
+  is_editable: false
+  name_de: Überziehung des fairen Anteils
+  name_en: Overshoot of the fair share
+  description_de: |
+    Wie viel CO₂ die Stadt über ihren fairen Anteil hinaus ausgestoßen hat; null, solange sie
+    im Anteil bleibt.<br/>
+    <b>Prämisse 8: Sollen setzt Können voraus.</b> Eine Pflicht reicht nicht weiter als das
+    Mögliche – möglich heißt aber technisch und gesellschaftlich machbar, nicht bequem. Was
+    sich vor Ort nicht vermeiden lässt, verfällt nicht, sondern wird zur Pflicht, es
+    auszugleichen: durch Finanzierung von Minderungen anderswo oder durch dauerhafte
+    Entnahme von CO₂.<br/>
+    <b>Prämisse 5: Leistungsfähigkeit.</b> Wer wohlhabender ist, soll mehr tragen. Das
+    begründet, warum eine reiche Stadt diesen Ausgleich schuldet, statt ihn erlassen zu
+    bekommen. Die Größe der Ausgleichspflicht in Euro ist ein eigenes Werturteil (der Preis
+    je Tonne) und wird hier nicht berechnet.
+  description_en: |
+    How much CO₂ the city has emitted beyond its fair share; zero while it stays within it.<br/>
+    <b>Premise 8: ought implies can.</b> A duty reaches no further than what is possible --
+    but possible means technically and socially feasible, not convenient. What cannot be
+    avoided locally does not lapse; it becomes a duty to compensate, by financing reductions
+    elsewhere or by permanent removal of CO₂.<br/>
+    <b>Premise 5: capability.</b> Whoever is richer should carry more. This is why a wealthy
+    city owes that compensation instead of being excused from it. The size of the duty in
+    euros is a value judgement of its own (the price per tonne) and is not computed here.
+  type: formula.FormulaNode
+  quantity: mass
+  unit: kt_co2e
+  input_nodes:
+  - id: fair_share_city_budget
+    tags: [budget]
+  - id: fair_share_city_cumulative_emissions
+    tags: [used]
+  params:
+  - id: formula
+    value: make_nonnegative(used - budget)
+  goals:
+  - label_de: Keine Überziehung
+    label_en: No overshoot
+    default: true
+    is_main_goal: true
+    linear_interpolation: false
+    auto_start: false
+    values:
+    - year: 2030
+      value: 0.0
+    - year: 2035
+      value: 0.0
+    - year: 2040
+      value: 0.0
+    - year: 2045
+      value: 0.0
+    - year: 2050
+      value: 0.0
+
+# The duty node that `configs/modules/moral_argumentation/value_weights.yaml` expects, so that
+# module can weigh fairness against other values in an instance that includes both.
+- id: fair_share_met
+  is_editable: false
+  name_de: Fairer Anteil eingehalten?
+  name_en: Fair share kept?
+  description_de: |
+    1, solange die Stadt seit 2020 nicht mehr ausgestoßen hat als ihren fairen Anteil,
+    sonst 0.
+  description_en: |
+    1 while the city has emitted no more than its fair share since 2020, 0 otherwise.
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: dimensionless
+  input_nodes:
+  - id: fair_share_city_budget
+    tags: [budget]
+  - id: fair_share_city_cumulative_emissions
+    tags: [used]
+  params:
+  - id: formula
+    value: used <= budget

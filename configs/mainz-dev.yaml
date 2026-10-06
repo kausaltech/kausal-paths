@@ -3,7 +3,7 @@ default_language: de
 supported_languages: [en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 5c774d786ec8f8fc478223f48c376d48601aed77
+  commit: 7b395d2f89e96c13738e41f08b8cae27cd0dc84f
   dvc_remote: kausal-s3
 name_de: Treibhausgas-Monitor Mainz (Entwicklung)
 name_en: GHG Monitor Mainz (development)
@@ -146,6 +146,13 @@ include:
     to: mainz/municipal_street_lighting_energy
   - from: gpc/municipal_avoided_energy
     to: mainz/municipal_avoided_energy
+
+# Value judgement: is Mainz within its fair share of the global CO2 budget? The premises are
+# global parameters (see `params:`), and the module's README states the argument. The module
+# sums `net_emissions` itself and takes `fair_share_key_population` from the PV layer below, so
+# both layers divide the country's effort by the same rule. Nothing in it reaches the balance.
+- file: modules/fair_share/carbon_budget.yaml
+  allow_override: false
 
 #//////  Impact overviews
 
@@ -681,6 +688,91 @@ params:
   value: true
   is_visible: true
   is_customizable: true
+
+# The premises of the fair-share argument (modules/fair_share/carbon_budget.yaml), as settings a
+# visitor can change. The defaults are a middle reading, not the most generous one: 1.7 °C at 67 %
+# is the row of the IPCC table nearest to the basis the Federal Constitutional Court accepted in
+# 2021 (the SRU budget for 1.75 °C at 67 %), and an equal claim per person with no past counted
+# is the plainest form of premises 3 and 4. See the module README for what other readings give.
+# The labels carry the whole explanation, because the settings panel shows the label and not the
+# description: which premise, what question, and what the ends of the scale mean.
+- id: country_code
+  label_en: Country (ISO 3166-1 alpha-2 code)
+  label_de: Land (ISO-3166-1-Alpha-2-Code)
+  value: DE
+  is_customizable: false
+  is_visible: false
+- id: fair_share_temperature_limit
+  label_de: >-
+    Fairer Anteil, Prämisse 1 – Erwärmungsgrenze: Auf wie viel Grad über dem vorindustriellen
+    Niveau soll die Erwärmung begrenzt werden? Das Pariser Abkommen verlangt „deutlich unter
+    2 °C“ und Anstrengungen für 1,5 °C. Je niedriger die Grenze, desto kleiner das CO₂-Budget,
+    das die Welt noch hat – und damit der faire Anteil von Mainz.
+  label_en: >-
+    Fair share, premise 1 – warming limit: to how many degrees above pre-industrial should
+    warming be limited? The Paris Agreement requires "well below 2 °C" and efforts towards
+    1.5 °C. The lower the limit, the smaller the CO₂ budget the world has left, and with it
+    Mainz's fair share.
+  value: 1.7
+  min_value: 1.5
+  max_value: 2.0
+  step: 0.1
+  is_customizable: true
+  is_visible: true
+- id: fair_share_likelihood
+  label_de: >-
+    Fairer Anteil, Prämisse 1 – Sicherheit: Mit welcher Wahrscheinlichkeit soll die
+    Erwärmungsgrenze eingehalten werden? Je sicherer, desto kleiner das Budget. Das
+    Bundesverfassungsgericht stützte sich 2021 auf ein Budget für 1,75 °C mit 67 %
+    Wahrscheinlichkeit.
+  label_en: >-
+    Fair share, premise 1 – certainty: how likely should it be that warming stays within the
+    limit? The more certain, the smaller the budget. In 2021 the Federal Constitutional Court
+    relied on a budget for 1.75 °C at 67 % likelihood.
+  value: 67
+  min_value: 50
+  max_value: 83
+  step: 1
+  unit: '%'
+  is_customizable: true
+  is_visible: true
+- id: fair_share_grandfathering_weight
+  label_de: >-
+    Fairer Anteil, Prämisse 3 – Besitzstand: Wie stark zählt der heutige Ausstoß, wenn das
+    Budget auf die Länder verteilt wird? 0 % heißt: Jeder Mensch hat denselben Anspruch.
+    100 % heißt: Jedes Land bekommt so viel, wie es heute ausstößt. Mehr Besitzstand
+    vergrößert den Anteil Deutschlands, das je Kopf fast doppelt so viel ausstößt wie der
+    Weltdurchschnitt.
+  label_en: >-
+    Fair share, premise 3 – grandfathering: how much do today's emissions count when the
+    budget is shared between countries? 0 % means every person has the same claim. 100 % means
+    every country gets as much as it emits today. More grandfathering enlarges the share of
+    Germany, which emits almost twice the world average per person.
+  value: 0
+  min_value: 0
+  max_value: 100
+  step: 10
+  unit: '%'
+  is_customizable: true
+  is_visible: true
+- id: fair_share_responsibility_start_year
+  label_de: >-
+    Fairer Anteil, Prämisse 4 – Verantwortung für das Vergangene: Ab welchem Jahr wird
+    angerechnet, dass ein Land mehr ausgestoßen hat als seinen Anteil je Kopf? Dieser
+    Mehrverbrauch wird vom Budget Deutschlands abgezogen. 2020 heißt: Nichts Vergangenes
+    zählt. 1990 heißt: seit dem ersten Bericht des Weltklimarats, als der Schaden bekannt war.
+    1850 heißt: seit Beginn der Industrialisierung.
+  label_en: >-
+    Fair share, premise 4 – responsibility for the past: from which year does it count that a
+    country has emitted more than its per-capita share? That overuse is deducted from
+    Germany's budget. 2020 means nothing past counts. 1990 means since the first IPCC report,
+    when the harm was known. 1850 means since industrialisation began.
+  value: 2020
+  min_value: 1850
+  max_value: 2020
+  step: 10
+  is_customizable: true
+  is_visible: true
 
 
 #//////  Result Excels  ///////////////////////////////////////////////////////////////////////////////////////////////////
