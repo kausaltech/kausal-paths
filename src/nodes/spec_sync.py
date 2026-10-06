@@ -17,6 +17,7 @@ from uuid import uuid3
 
 from loguru import logger
 
+from datasets.catalogue import dataset_meta_from_model
 from datasets.snapshot import metric_column_id
 from nodes.defs.transform_def import resolve_metric_columns
 
@@ -806,6 +807,10 @@ def sync_parsed_instance_to_db(
             instance_uuid=ic.uuid,
             node_uuids=node_uuids,
             port_references=port_references,
+            data_entry_datasets=[
+                dataset_meta_from_model(dataset, primary_language=ic.primary_language)
+                for dataset in _get_db_datasets(ic).values()
+            ],
         )
         snapshot.spec.features.use_datasets_from_db = True
         snapshot = reconcile_snapshot_node_metadata(snapshot, existing_node_configs)
@@ -823,6 +828,24 @@ def sync_parsed_instance_to_db(
                 node_configs,
                 port_references=port_references,
             )
+            if data.get('data_entry'):
+                # Dimension identities are assigned by the ORM sync. Resolve the YAML
+                # layout once more against the now-persisted port/dimension catalog.
+                from nodes.instance_serialization import _dimension_catalog_for
+
+                resolved = parse_instance_snapshot(
+                    data,
+                    instance_uuid=ic.uuid,
+                    node_uuids={node.identifier: node.uuid for node in node_configs.values()},
+                    port_references=build_yaml_port_reference_catalog(ic),
+                    data_entry_dimensions=_dimension_catalog_for(ic),
+                    data_entry_datasets=[
+                        dataset_meta_from_model(dataset, primary_language=ic.primary_language)
+                        for dataset in _get_db_datasets(ic).values()
+                    ],
+                )
+                ic.spec.data_entry = resolved.spec.data_entry
+                ic.save(update_fields=['spec'])
             promoted = _promote_dataset_forecast_defaults(ic) if promote_forecast_defaults else 0
 
     logger.info(

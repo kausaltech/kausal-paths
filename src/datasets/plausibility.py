@@ -201,7 +201,7 @@ def all_plausibility_ranges(dataset: Dataset) -> list[DatasetMetricPlausibilityR
 
 
 @dataclass
-class _Cells:
+class DatasetPlausibilityCells:
     """The metric column of one dataset, with the context every rule needs."""
 
     dataset: Dataset
@@ -214,7 +214,7 @@ class _Cells:
     _selected: dict[UUID, pl.DataFrame] = field(default_factory=dict)
 
     @classmethod
-    def load(cls, dataset: Dataset, rules: list[DatasetMetricPlausibilityRange]) -> _Cells:
+    def load(cls, dataset: Dataset, rules: list[DatasetMetricPlausibilityRange]) -> DatasetPlausibilityCells:
         frame, dim_cols = _load_frame(dataset)
         return cls(
             dataset=dataset,
@@ -283,7 +283,7 @@ def _earlier(rule: DatasetMetricPlausibilityRange, year: int, values: dict[int, 
 
 
 def _compare(
-    rule: DatasetMetricPlausibilityRange, cells: _Cells, year: int, observed: float, history: dict[int, float]
+    rule: DatasetMetricPlausibilityRange, cells: DatasetPlausibilityCells, year: int, observed: float, history: dict[int, float]
 ) -> _Comparison | None:
     """Normalize one observation for its rule; return None when it cannot be assessed."""
     if rule.reference == Range.Reference.PREVIOUS_YEAR:
@@ -302,7 +302,7 @@ def _compare(
 
 def _finding(
     rule: DatasetMetricPlausibilityRange,
-    cells: _Cells,
+    cells: DatasetPlausibilityCells,
     *,
     year: int,
     categories: dict[str, str],
@@ -354,7 +354,11 @@ def _finding(
 
 
 def _cell_findings(
-    rule: DatasetMetricPlausibilityRange, cells: _Cells, *, min_reference: float | None = None, positive_only: bool = False
+    rule: DatasetMetricPlausibilityRange,
+    cells: DatasetPlausibilityCells,
+    *,
+    min_reference: float | None = None,
+    positive_only: bool = False,
 ) -> list[PlausibilityFinding]:
     """
     Check each selected cell on its own.
@@ -394,7 +398,7 @@ def _cell_findings(
 
 def _cell_breach_findings(
     rule: DatasetMetricPlausibilityRange,
-    cells: _Cells,
+    cells: DatasetPlausibilityCells,
     breaches: list[tuple[int, dict[str, str], tuple[str, ...], _Comparison]],
 ) -> list[PlausibilityFinding]:
     """
@@ -434,7 +438,7 @@ class _YearSum:
     """Each selected cell's value by its key; None for an empty cell."""
 
 
-def _year_sums(rule: DatasetMetricPlausibilityRange, cells: _Cells) -> dict[int, _YearSum]:
+def _year_sums(rule: DatasetMetricPlausibilityRange, cells: DatasetPlausibilityCells) -> dict[int, _YearSum]:
     """
     Sum the selected cells per year.
 
@@ -466,7 +470,7 @@ def _year_sums(rule: DatasetMetricPlausibilityRange, cells: _Cells) -> dict[int,
     return sums
 
 
-def _fixed_categories(rule: DatasetMetricPlausibilityRange, cells: _Cells) -> dict[str, str]:
+def _fixed_categories(rule: DatasetMetricPlausibilityRange, cells: DatasetPlausibilityCells) -> dict[str, str]:
     """Return the dimensions a sum's selection fixes to a single category."""
     single = {dimension: categories for dimension, categories in rule.selected_categories().items() if len(categories) == 1}
     return {coordinate.dimension: coordinate.category for coordinate in cells.coordinate_index.resolve_selection(single)}
@@ -479,7 +483,7 @@ def _within(rule: DatasetMetricPlausibilityRange, normalized: float, complete: b
 
 def _explaining_cell(
     rule: DatasetMetricPlausibilityRange,
-    cells: _Cells,
+    cells: DatasetPlausibilityCells,
     sums: dict[int, _YearSum],
     history: dict[int, float],
     year: int,
@@ -507,7 +511,7 @@ def _explaining_cell(
 
 
 def _attribution(
-    cells: _Cells, categories: dict[str, str], *, year: int, suspect_year: int, compared_year: int
+    cells: DatasetPlausibilityCells, categories: dict[str, str], *, year: int, suspect_year: int, compared_year: int
 ) -> PlausibilityAttribution:
     if suspect_year == year:
         message = f'With its {compared_year} value, this cell would bring the sum back into range.'
@@ -526,7 +530,7 @@ def _attribution(
     )
 
 
-def _sum_findings(rule: DatasetMetricPlausibilityRange, cells: _Cells) -> list[PlausibilityFinding]:
+def _sum_findings(rule: DatasetMetricPlausibilityRange, cells: DatasetPlausibilityCells) -> list[PlausibilityFinding]:
     sums = _year_sums(rule, cells)
     # A ratio between partial sums says nothing about either year.
     history = {year: year_sum.total for year, year_sum in sums.items() if year_sum.complete}
@@ -577,7 +581,7 @@ def evaluate_dataset_plausibility(dataset: Dataset) -> list[PlausibilityFinding]
     if not rules and not eligible(dataset):
         return []
     try:
-        cells = _Cells.load(dataset, rules)
+        cells = DatasetPlausibilityCells.load(dataset, rules)
     except UndefinedUnitError as exc:
         # A curated range is a configured check, and its failure should show; the history
         # fallback is advisory and must not turn an unreadable dataset into an editor error.
@@ -585,6 +589,15 @@ def evaluate_dataset_plausibility(dataset: Dataset) -> list[PlausibilityFinding]
             raise
         _log_unreadable(dataset, exc)
         return []
+    return evaluate_plausibility_cells(cells, rules)
+
+
+def evaluate_plausibility_cells(
+    cells: DatasetPlausibilityCells,
+    rules: list[DatasetMetricPlausibilityRange],
+) -> list[PlausibilityFinding]:
+    """Evaluate a prepared frame once, including revision-backed data-entry frames."""
+    dataset = cells.dataset
     findings: list[PlausibilityFinding] = []
     for rule in rules:
         if rule.aggregation == Range.Aggregation.SUM:

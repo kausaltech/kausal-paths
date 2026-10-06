@@ -20,7 +20,7 @@ from __future__ import annotations
 from copy import deepcopy
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Literal, Self, cast
-from uuid import UUID, uuid3
+from uuid import UUID, uuid3, uuid4
 
 from django.db import transaction
 from django.db.models import Q
@@ -37,6 +37,7 @@ from kausal_common.i18n.pydantic import (
 from datasets.catalogue import dataset_meta_from_model
 from datasets.snapshot import DatasetMetricSnapshot, DatasetSnapshot, metric_column_id
 from datasets.transfer import import_instance_datasets
+from nodes.defs.data_entry import DataEntrySpec, data_entry_dataset_ids, remap_data_entry
 from nodes.defs.graph import (
     DatasetMeta,
     DimensionCategoryMeta,
@@ -1183,7 +1184,14 @@ def _dataset_catalog_for(
     node_ct = ContentType.objects.get_for_model(NodeConfig)
     datasets = (
         DatasetModel.objects
-        .filter(Q(pk__in=dataset_ids) | Q(scope_content_type=node_ct, scope_id__in=node_uuids.keys()))
+        .filter(
+            Q(pk__in=dataset_ids)
+            | Q(scope_content_type=node_ct, scope_id__in=node_uuids.keys())
+            | (
+                Q(uuid__in=data_entry_dataset_ids(ic.spec.data_entry if ic.spec else None))
+                & Q(pk__in=DatasetModel.objects.get_queryset().for_instance_config(ic).values('pk'))
+            )
+        )
         .select_related('schema')
         .prefetch_related('schema__metrics__validation_rules', 'schema__dimensions__dimension')
         .order_by('pk')
@@ -1788,6 +1796,7 @@ def import_instance(
 
     # Nodes
     nodes_by_uuid = _import_nodes(ic, export, preserve_uuids=preserve_node_uuids)
+    _remap_imported_data_entry(ic, export, nodes_by_uuid, datasets, preserve_node_uuids=preserve_node_uuids)
 
     _import_dataset_ownership(ic, export.instance, nodes_by_uuid, datasets_by_id)
 
@@ -1795,6 +1804,63 @@ def import_instance(
     _import_bindings(ic, export, nodes_by_uuid, datasets_by_id)
     if template_revision_id is not None:
         _import_binding_overrides(ic, export.instance, nodes_by_uuid, datasets_by_id)
+
+
+def _remap_imported_data_entry(
+    ic: InstanceConfig,
+    export: InstanceExport,
+    nodes_by_uuid: dict[UUID, NodeConfig],
+    datasets: list[DatasetModel],
+    *,
+    preserve_node_uuids: bool,
+) -> None:
+    if ic.spec is not None and isinstance(ic.spec.data_entry, DataEntrySpec):
+        identities = {original: node.uuid for original, node in nodes_by_uuid.items()}
+        new_dimensions = {dim.identifier: dim for dim in _dimension_catalog_for(ic)}
+        for original in export.instance.dimensions:
+            target = new_dimensions.get(original.identifier)
+            if target is None:
+                continue
+            identities[original.id] = target.id
+            categories = {cat.identifier: cat.id for cat in target.categories}
+            identities.update({cat.id: categories[cat.identifier] for cat in original.categories if cat.identifier in categories})
+        targets = {
+            original.uuid: dataset
+            for original, dataset in zip(export.datasets, datasets, strict=True)
+            if original.uuid is not None
+        }
+        targets_by_identifier = {dataset.identifier: dataset for dataset in datasets if dataset.identifier is not None}
+        for original in export.instance.all_datasets():
+            target_dataset = targets.get(original.id) or (
+                targets_by_identifier.get(original.identifier) if original.identifier is not None else None
+            )
+            if target_dataset is None:
+                continue
+            identities[original.id] = target_dataset.uuid
+            target_metrics = (
+                {metric.name: metric.uuid for metric in target_dataset.schema.metrics.all()} if target_dataset.schema else {}
+            )
+            identities.update({
+                metric.id: target_metrics[metric.identifier] for metric in original.metrics if metric.identifier in target_metrics
+            })
+        if not preserve_node_uuids:
+            identities.update({section.id: uuid4() for section in ic.spec.data_entry.sections})
+            identities.update({table.id: uuid4() for section in ic.spec.data_entry.sections for table in section.tables})
+            # An amendment may replace an inherited entry or add a locally owned one.
+            inherited_layout = export.template.instance.spec.data_entry if export.template else None
+            inherited_tables = (
+                {table.id for section in inherited_layout.sections for table in section.tables}
+                if isinstance(inherited_layout, DataEntrySpec)
+                else set()
+            )
+            identities.update({
+                table.id: uuid4()
+                for amendment in ic.spec.data_entry.amendments
+                for table in amendment.tables
+                if table.id not in inherited_tables
+            })
+        ic.spec.data_entry = remap_data_entry(ic.spec.data_entry, identities)
+        ic.save(update_fields=['spec'])
 
 
 def _import_dataset_ownership(

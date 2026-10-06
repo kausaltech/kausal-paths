@@ -176,6 +176,20 @@ def _describe_categories(categories: dict[str, str]) -> str:
     return ' for ' + ', '.join(f'{dimension}={category}' for dimension, category in categories.items())
 
 
+def required_value_failures(
+    rows: pl.DataFrame,
+    requirements: dict[str, QualifierRequirement],
+) -> list[tuple[str, str]]:
+    """Check required values and assessments for both delivered values and source-entry views."""
+    if rows.is_empty():
+        return [('missing_required_value', 'No value')]
+    return [
+        ('required_qualifier', f'Qualifier {path} does not meet the requirement')
+        for path, requirement in requirements.items()
+        if not _qualifier_satisfies(rows, path, requirement)
+    ]
+
+
 def validate_value_contract(
     df: PathsDataFrame,
     contract: ValueContract,
@@ -200,14 +214,7 @@ def validate_value_contract(
         candidates = _matching_combinations(present, combination)
         for year in combination_years:
             rows = candidates.filter(pl.col(YEAR_COLUMN) == year)
-            failures: list[tuple[str, str]] = []
-            if rows.is_empty():
-                failures.append(('missing_required_value', 'No value'))
-            else:
-                for path, requirement in combination.qualifiers.items():
-                    satisfied = _qualifier_satisfies(rows, path, requirement)
-                    if not satisfied:
-                        failures.append(('required_qualifier', f'Qualifier {path} does not meet the requirement'))
+            failures = required_value_failures(rows, combination.qualifiers)
             for code, message in failures:
                 problems.append(
                     ValueValidationViolation(

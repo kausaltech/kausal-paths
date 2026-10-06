@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 from django.core.exceptions import ValidationError
 
+from nodes.defs.data_entry import ComposedDataEntrySpec, DataEntrySpec
 from nodes.scenario import Scenario, ScenarioKind
 from params.base import ParameterOwner
 from params.param import ValidationError as ParameterValidationError
@@ -57,6 +58,13 @@ def compose_instance_spec(  # noqa: C901, PLR0912, PLR0915
     if not result.scenarios:
         result.scenarios = [Scenario(id='default', name='Default', kind=ScenarioKind.DEFAULT)]
     result.years = local.years.model_copy(deep=True)
+    if base.data_entry is not None or local.data_entry is not None:
+        if isinstance(base.data_entry, ComposedDataEntrySpec) or isinstance(local.data_entry, ComposedDataEntrySpec):
+            raise ValueError('Data-entry composition requires authored layouts')
+        result.data_entry = ComposedDataEntrySpec(
+            template=(base.data_entry or DataEntrySpec()).model_copy(deep=True),
+            local=(local.data_entry or DataEntrySpec()).model_copy(deep=True),
+        )
     shared_ids = {parameter.local_id for parameter in base.params}
     local_ids = [parameter.local_id for parameter in local.params]
     if shared_ids.intersection(local_ids) or len(local_ids) != len(set(local_ids)):

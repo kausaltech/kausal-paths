@@ -5,6 +5,7 @@ import importlib
 import json
 import pickle
 import re
+import uuid as uuid_mod
 from collections.abc import Callable
 from dataclasses import dataclass
 from functools import cached_property, wraps
@@ -296,7 +297,27 @@ class InstanceYAMLConfig:
             raise TypeError(msg)
         return value
 
-    def load(self):
+    @staticmethod
+    def _merge_data_entry(data: dict[str, Any], included: dict[str, Any], dataset_replacements: list[dict[str, str]]) -> None:
+        if not (entry := included.get('data_entry')):
+            return
+        if not entry.get('namespace'):
+            raise ValueError('Included data-entry layouts require a stable namespace UUID')
+        dataset_map = {item['from']: item['to'] for item in dataset_replacements}
+        for section in (*entry.get('sections', []), *entry.get('amendments', [])):
+            for table in section.get('tables', []):
+                if table.get('kind') == 'dataset':
+                    table['dataset'] = dataset_map.get(table['dataset'], table['dataset'])
+        target = data.get('data_entry') or {'sections': []}
+        data['data_entry'] = target
+        for declaration in entry.get('sections', []):
+            section = dict(declaration)
+            if not section.get('uuid'):
+                section['uuid'] = str(uuid_mod.uuid3(uuid_mod.UUID(entry['namespace']), f'data-entry-section:{section["id"]}'))
+            target.setdefault('sections', []).append(section)
+        target.setdefault('amendments', []).extend(entry.get('amendments', []))
+
+    def load(self):  # noqa: PLR0915
         meta = self.meta
         entrypoint = meta.entrypoint
         yaml = RuamelYAML()
@@ -350,6 +371,8 @@ class InstanceYAMLConfig:
             with ifn.open('r') as f:
                 idata = yaml.load(f)
             meta.add_dependency(ifn)
+            self._merge_data_entry(data, idata, dataset_replacements)
+
             self._merge_include_config(
                 nodes,
                 idata.get('nodes', []),
@@ -1687,7 +1710,6 @@ class InstanceLoader:
         identity and year boundaries without the loader knowing about
         frameworks.
         """
-        import uuid as uuid_mod
 
         from nodes.instance_parser import parse_instance_snapshot
 

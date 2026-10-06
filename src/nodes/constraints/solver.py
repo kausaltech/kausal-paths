@@ -283,7 +283,7 @@ def _resolve_dimension_refs(
     return frozenset(ids) if ok else None
 
 
-def _resolve_binding_steps(  # noqa: C901, PLR0912
+def resolve_binding_steps(  # noqa: C901, PLR0912, PLR0915
     graph: InstanceGraph,
     binding: AnyPortBindingDef,
     conflicts: list[ConstraintConflict],
@@ -377,10 +377,17 @@ def _resolve_binding_steps(  # noqa: C901, PLR0912
                 dimension = graph.dimension_by_identifier.get(op.column)
                 if dimension is None or dataset_dims is None or dimension.id not in dataset_dims:
                     continue
+                values = {op.value} if op.value is not None else set(op.values)
+                categories = {category.identifier: category.id for category in dimension.categories}
+                selection = (
+                    frozenset(categories[value] for value in values)
+                    if op.ref is None and values and values <= categories.keys()
+                    else None
+                )
                 steps.append(
                     FilterStep(
                         dimension_id=dimension.id,
-                        selection=None,  # raw values are labels, not category identifiers
+                        selection=selection,
                         exclude=op.exclude,
                         flatten=op.drop_col or op.flatten,
                         index=index,
@@ -541,7 +548,7 @@ def compile_constraint_program(  # noqa: C901, PLR0912, PLR0915
                 )
             )
             dataset_sources.append(DatasetSourceInfo(binding_id=binding.id, dataset_id=dataset.id, metric_id=metric.id))
-        steps = _resolve_binding_steps(graph, binding, static_conflicts, dataset_dims=dataset_dims)
+        steps = resolve_binding_steps(graph, binding, static_conflicts, dataset_dims=dataset_dims)
         if isinstance(binding, EdgeBindingDef):
             # The per-edge output-dimension assertion: bare declared entries
             # (on the port for re-synced snapshots, on the binding for legacy

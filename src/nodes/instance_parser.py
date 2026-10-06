@@ -20,7 +20,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from functools import cache
 from typing import TYPE_CHECKING, Any, cast
-from uuid import UUID, uuid3
+from uuid import NAMESPACE_URL, UUID, uuid3, uuid5
 
 from pydantic import TypeAdapter
 
@@ -31,6 +31,7 @@ from paths.identifiers import identifier_or_none
 
 from datasets.validation_rules import rule_list_adapter
 from nodes.constants import VALUE_COLUMN, DecisionLevel
+from nodes.data_entry_yaml import YAMLAmendment, YAMLDataEntry, YAMLSection, resolve_yaml_data_entry
 from nodes.defs import (
     ActionConfig,
     DatasetPortSpec,
@@ -41,7 +42,7 @@ from nodes.defs import (
     SimpleConfig,
     YearsSpec,
 )
-from nodes.defs.graph import DatasetMeta, DatasetMetricMeta, QualityLevelKey
+from nodes.defs.graph import DatasetMeta, DatasetMetricMeta, DimensionCategoryMeta, DimensionMeta, QualityLevelKey
 from nodes.defs.instance_defs import ActionGroup, DatasetRepoSpec, InstanceFeatures, InstanceMetadata, InstanceTerms
 from nodes.defs.node_defs import ActionHookDef, NodeSpecExtra
 from nodes.defs.port_def import InputPortDef, OutputPortDef
@@ -216,7 +217,11 @@ class InstanceConfigParser:
         instance_uuid: UUID,
         node_uuids: dict[str, UUID] | None = None,
         port_references: YamlPortReferenceCatalog | None = None,
+        data_entry_dimensions: list[DimensionMeta] | None = None,
+        data_entry_datasets: list[DatasetMeta] | None = None,
     ) -> None:
+        self.data_entry_dimensions = data_entry_dimensions
+        self.data_entry_datasets = data_entry_datasets
         self.config = config
         self.instance_uuid = instance_uuid
         self.node_uuids = node_uuids or {}
@@ -293,6 +298,7 @@ class InstanceConfigParser:
 
         spec = self._parse_instance_spec()
         node_snapshots = [self._build_node_snapshot(parsed) for parsed in self.nodes.values()]
+        self._parse_data_entry(spec, node_snapshots)
         edges = self._build_edge_snapshots()
         dataset_ports = self._build_dataset_port_snapshots()
 
@@ -308,6 +314,66 @@ class InstanceConfigParser:
             bindings=unified_binding_snapshots(edges, dataset_ports),
             datasets=self._parse_dataset_catalog(),
         )
+
+    def _parse_data_entry(self, spec: InstanceModelSpec, node_snapshots: list[NodeSnapshot]) -> None:
+        if authored_entry := self.config.get('data_entry'):
+            entry_config = YAMLDataEntry(
+                namespace=authored_entry.get('namespace'),
+                sections=[YAMLSection.from_yaml_config(item) for item in authored_entry.get('sections', [])],
+                amendments=[YAMLAmendment.from_yaml_config(item) for item in authored_entry.get('amendments', [])],
+            )
+            dimensions = self.data_entry_dimensions
+            if dimensions is None:
+                dimensions = [
+                    DimensionMeta(
+                        id=self._uuid_from_identifiers(['dimension', dim.id]),
+                        identifier=dim.id,
+                        categories=tuple(
+                            DimensionCategoryMeta(
+                                id=self._uuid_from_identifiers(['dimension', dim.id, cat.id]),
+                                identifier=cat.id,
+                            )
+                            for cat in dim.categories
+                        ),
+                    )
+                    for dim in self.dimensions.values()
+                ]
+            spec.data_entry = resolve_yaml_data_entry(
+                entry_config, self.instance_uuid, node_snapshots, dimensions, self._data_entry_dataset_catalog()
+            )
+
+    def _data_entry_dataset_catalog(self) -> list[DatasetMeta]:
+        """Resolve YAML aliases using persisted identities, or the pure YAML runtime catalog."""
+        by_identifier = {dataset.identifier: dataset for dataset in self._parse_dataset_catalog()}
+        for binding in self._build_dataset_port_snapshots():
+            dataset = by_identifier.get(binding.dataset)
+            if dataset is None:
+                dataset_id = uuid5(NAMESPACE_URL, f'kausal-paths:runtime-dataset:{self.instance_uuid}:{binding.dataset}')
+                dataset = DatasetMeta(
+                    id=dataset_id,
+                    identifier=binding.dataset,
+                    schema_id=uuid5(NAMESPACE_URL, f'kausal-paths:runtime-dataset-schema:{dataset_id}'),
+                    is_external_placeholder=True,
+                )
+            if not any(metric.identifier == binding.metric for metric in dataset.metrics):
+                dataset = dataset.model_copy(
+                    update={
+                        'metrics': (
+                            *dataset.metrics,
+                            DatasetMetricMeta(
+                                id=uuid5(NAMESPACE_URL, f'kausal-paths:runtime-dataset-metric:{dataset.id}:{binding.metric}'),
+                                identifier=binding.metric,
+                            ),
+                        )
+                    }
+                )
+            by_identifier[binding.dataset] = dataset
+        known = self.data_entry_datasets or []
+        identifiers = [dataset.identifier for dataset in known if dataset.identifier is not None]
+        if len(identifiers) != len(set(identifiers)):
+            raise ValueError('Ambiguous dataset identifiers in YAML data-entry catalog')
+        by_identifier.update({dataset.identifier: dataset for dataset in known if dataset.identifier is not None})
+        return list(by_identifier.values())
 
     # -- metadata & instance spec ---------------------------------------------
 
@@ -1648,6 +1714,8 @@ def parse_instance_snapshot(
     instance_uuid: UUID,
     node_uuids: dict[str, UUID] | None = None,
     port_references: YamlPortReferenceCatalog | None = None,
+    data_entry_dimensions: list[DimensionMeta] | None = None,
+    data_entry_datasets: list[DatasetMeta] | None = None,
 ) -> InstanceSnapshot:
     """Parse a merged YAML config dict into an InstanceSnapshot without building a runtime."""
     parser = InstanceConfigParser(
@@ -1655,5 +1723,7 @@ def parse_instance_snapshot(
         instance_uuid=instance_uuid,
         node_uuids=node_uuids,
         port_references=port_references,
+        data_entry_dimensions=data_entry_dimensions,
+        data_entry_datasets=data_entry_datasets,
     )
     return parser.parse()

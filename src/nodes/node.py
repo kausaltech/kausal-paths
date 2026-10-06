@@ -1698,6 +1698,11 @@ class Node:
         return None
 
     @classmethod
+    def data_entry_dependencies(cls, meta: NodeMeta, output_id: UUID) -> tuple[UUID, ...] | None:  # noqa: ARG003
+        """Declare inputs preserving output category coordinates, or None for unknown mapping."""
+        return None
+
+    @classmethod
     def shape_rules(cls, meta: NodeMeta) -> tuple[AnyShapeRule, ...]:  # pyright: ignore[reportUnusedParameter]  # noqa: ARG003
         """
         Declare how this class's port shapes relate, resolved for one node.
