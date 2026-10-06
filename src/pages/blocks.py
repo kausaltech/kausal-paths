@@ -10,7 +10,7 @@ from wagtail import blocks
 from wagtail.images.blocks import ImageChooserBlock
 
 from grapple.helpers import register_streamfield_block
-from grapple.models import GraphQLField, GraphQLFloat, GraphQLImage, GraphQLStreamfield, GraphQLString
+from grapple.models import GraphQLField, GraphQLFloat, GraphQLImage, GraphQLInt, GraphQLStreamfield, GraphQLString
 from wagtail_color_panel.blocks import NativeColorBlock
 
 from nodes.blocks import NodeChooserBlock
@@ -224,6 +224,14 @@ class DashboardCardBlock(blocks.StructBlock):
     image = ImageChooserBlock(required=False)
     node_config = NodeChooserBlock(required=True)
     goal_index = blocks.IntegerBlock(required=False, min_value=0)  # used in {Goal,Scenario}ProgressBarBlock
+    year = blocks.IntegerBlock(
+        required=False,
+        label=_('Year'),
+        help_text=_(
+            "The year whose values the card shows. Leave empty for the instance's target year. Use it for a "
+            'quantity whose year of interest is another one, such as a budget used up by the end of the model.'
+        ),
+    )
     visualizations = blocks.StreamBlock([
         ('goal_progress_bar', GoalProgressBarBlock()),
         ('reference_progress_bar', ReferenceProgressBarBlock()),
@@ -246,6 +254,7 @@ class DashboardCardBlock(blocks.StructBlock):
         GraphQLImage('image', required=False),
         GraphQLField('node', 'nodes.schema.NodeType', required=True),  # pyright: ignore
         GraphQLField('unit', 'paths.schema.UnitType', required=True),  # pyright: ignore
+        GraphQLInt('year', required=False),
         GraphQLFloat('goal_value', required=False, deprecation_reason='Use goalValues instead'),
         GraphQLField(
             'goal_values',
@@ -312,14 +321,21 @@ class DashboardCardBlock(blocks.StructBlock):
         dm = self._dimensional_metric(node)
         return dm.unit
 
-    def goal_value(self, info: GQLInstanceInfo, values: dict) -> float | None:
-        """Return the value for the chosen goal for the node's target year."""
-        node = self.node(info, values)
+    def _card_year(self, node: Node, values: dict) -> int:
+        """Return the year the card shows: its own `year`, or else the node's target year."""
+        year = values.get('year')
+        if year is not None:
+            return year
         target_year = node.get_target_year()
         if target_year is None:
             raise ValueError('Node has no target year')
+        return target_year
+
+    def goal_value(self, info: GQLInstanceInfo, values: dict) -> float | None:
+        """Return the value for the chosen goal in the card's year."""
+        node = self.node(info, values)
         goal_index = values.get('goal_index')
-        return self._goal_value_for_year(node, target_year, goal_index)
+        return self._goal_value_for_year(node, self._card_year(node, values), goal_index)
 
     def goal_values(self, info: GQLInstanceInfo, values: dict) -> list[MetricYearlyGoal]:
         """Return the values for all years for the chosen goal."""
@@ -343,13 +359,11 @@ class DashboardCardBlock(blocks.StructBlock):
         return self._value_for_year(node, last_historical_year)
 
     def scenario_values(self, info: GQLInstanceInfo, values: dict) -> Iterable[ScenarioValue]:
-        """Return the value for each scenario for the node's target year."""
+        """Return the value for each scenario in the card's year."""
         from nodes.schema import ScenarioValue
 
         node = self.node(info, values)
-        target_year = node.get_target_year()
-        if target_year is None:
-            raise ValueError('Node has no target year')
+        target_year = self._card_year(node, values)
         return [
             ScenarioValue(
                 scenario=cast('ScenarioType', s),
@@ -400,7 +414,7 @@ class DashboardCardBlock(blocks.StructBlock):
 
     def scenario_action_impacts(self, info: GQLInstanceInfo, values: dict) -> Iterable[ScenarioActionImpacts]:
         """
-        Return the impact of each action in the node's target year, per scenario.
+        Return the impact of each action in the card's year, per scenario.
 
         Only the scenarios an `action_impact` visualization of this card names are computed:
         each one is a full set of model runs, and nothing else reads this field.
@@ -413,9 +427,7 @@ class DashboardCardBlock(blocks.StructBlock):
         from nodes.schema import ScenarioActionImpacts
 
         node = self.node(info, values)
-        target_year = node.get_target_year()
-        if target_year is None:
-            raise ValueError('Node has no target year')
+        target_year = self._card_year(node, values)
         context = node.context
         scenario_ids = {child.value['scenario_id'] for child in values['visualizations'] if child.block_type == 'action_impact'}
         result = []
