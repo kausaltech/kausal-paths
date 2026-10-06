@@ -171,7 +171,7 @@ def evaluate_dataset_rules(dataset: Dataset) -> list[RuleViolation]:
         column = metric.name or metric.label or str(metric.uuid)
         rule = validation_rule_adapter.validate_python(row.rule)
         violations.extend(
-            _evaluate_rule(
+            evaluate_rule(
                 rule,
                 row.uuid,
                 metric.uuid,
@@ -195,7 +195,7 @@ def _row_categories(row: dict[str, Any], cols: list[str]) -> dict[str, str]:
     return {col: row[col] for col in cols if row[col] is not None}
 
 
-def _evaluate_rule(
+def evaluate_rule(
     rule: ValidationRule,
     rule_uuid: UUID,
     metric_uuid: UUID,

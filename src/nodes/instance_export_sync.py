@@ -17,7 +17,10 @@ from typing import TYPE_CHECKING, Any, Literal
 
 from django.db import transaction
 
+from kausal_common.datasets.models import Dataset
 from kausal_common.i18n.pydantic import get_modeltrans_attrs_from_str
+
+from datasets.catalogue import dataset_meta_from_model
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -107,7 +110,7 @@ def compile_instance_export_from_yaml(
     """
     from nodes.instance_loader import InstanceYAMLConfig
     from nodes.instance_parser import parse_instance_snapshot
-    from nodes.instance_serialization import InstanceExport
+    from nodes.instance_serialization import InstanceExport, _dimension_catalog_for
     from nodes.yaml_port_refs import build_yaml_port_reference_catalog
 
     if ic.has_framework_config():
@@ -134,6 +137,12 @@ def compile_instance_export_from_yaml(
         instance_uuid=ic.uuid,
         node_uuids=node_uuids,
         port_references=build_yaml_port_reference_catalog(ic),
+        data_entry_dimensions=_dimension_catalog_for(ic) or None,
+        data_entry_datasets=[
+            dataset_meta_from_model(dataset, primary_language=ic.primary_language)
+            for dataset in Dataset.objects.get_queryset().for_instance_config(ic).select_related('schema')
+        ]
+        or None,
     )
     return InstanceExport(instance=snapshot)
 

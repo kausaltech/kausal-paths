@@ -31,6 +31,7 @@ from pages.config import OutcomePage
 from params.discover import AnyParameter
 
 from .action_def import ImpactOverviewSpec
+from .data_entry import DataEntryDefinition
 
 if TYPE_CHECKING:
     from nodes.models import InstanceConfig
@@ -233,6 +234,7 @@ class InstanceModelSpec(I18nBaseModel):
     carries the language fields needed to do so itself.
     """
 
+    data_entry: DataEntryDefinition | None = None
     years: YearsSpec = YearsSpec()
     dataset_repo: DatasetRepoSpec | None = None
     features: InstanceFeatures = Field(default_factory=InstanceFeatures)
@@ -278,6 +280,9 @@ class InstanceModelSpec(I18nBaseModel):
     def serialize_definition(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
         """Preserve scalar and nested-field presence across database and snapshot round trips."""
         data = handler(self)
+        # Absent layout must not change the content hash of an older pinned template.
+        if self.data_entry is None:
+            data.pop('data_entry', None)
         if self._is_composed:
             return data
         for field in ('dataset_repo', 'theme_identifier', 'sample_size'):
