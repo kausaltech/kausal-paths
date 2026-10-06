@@ -26,6 +26,7 @@ from paths import gql
 from paths.graphql_helpers import pass_context
 from paths.graphql_types import UnitType
 
+from datasets.data_entry import DataEntryQuery
 from datasets.graphql import DatasetType
 from datasets.graphql.types import DatasetSchemaType
 from datasets.snapshot import metric_column_id
@@ -36,6 +37,7 @@ from nodes.defs.binding_def import DatasetBindingDef, EdgeBindingDef
 from nodes.defs.instance_defs import InstanceFeatures
 from nodes.goals import GoalActualValue, NodeGoalsEntry
 from nodes.graph_layout import GraphLayout
+from nodes.graphql.types.data_entry import DataEntryType
 from nodes.graphql.types.dimension import DimensionType
 from nodes.instance import Instance
 from nodes.instance_serialization import InstanceSnapshot
@@ -301,6 +303,19 @@ def _collect_quantity_kind_unit_usage(instance: Instance) -> dict[str, list[Quan
 class InstanceEditorFields:
     _config: sb.Private[InstanceConfig]
     _source: sb.Private[PreferredInstanceSource | None] = None
+
+    @sb.field
+    @staticmethod
+    def data_entry(root: 'InstanceEditorFields', info: gql.Info) -> DataEntryType:
+        resources = info.context.instance_resources
+        assert resources is not None
+        config, source = resources.resolve_source(root._config, root._source)
+        graph = info.context.require_instance_graph(config, source=source)
+        return DataEntryType(
+            _query=DataEntryQuery(graph, info.context.user, published=source == PreferredInstanceSource.PUBLISHED),
+            can_manage_years=root._config.gql_action_allowed(info, 'change', raise_on_denied=False)
+            and source != PreferredInstanceSource.PUBLISHED,
+        )
 
     @sb.field
     @staticmethod
