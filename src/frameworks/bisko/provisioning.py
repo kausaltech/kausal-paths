@@ -363,6 +363,8 @@ def reconcile_bisko_default_quality(
     defaults: dict[str, QualityLevelKey],
     *,
     publish: bool = True,
+    check_problems: bool = False,
+    ignore_problems: bool = False,
 ) -> Revision | None:
     """Reconcile declared grades and release them once to template-dependent drafts."""
     from frameworks.evidence import DEFAULT_QUALITY_SPEC_KEY
@@ -398,5 +400,9 @@ def reconcile_bisko_default_quality(
         snapshot = InstanceSnapshot.from_serialized_data(revision.content['model_snapshot']['structured'])
         released = {d.id: d.default_quality for d in snapshot.all_datasets()}
     if revision is None or any(released.get(key) != value for key, value in expected.items()):
+        if check_problems:
+            from frameworks.bisko.validation import publish_checked_template
+
+            return publish_checked_template(template, ignore_problems=ignore_problems)
         return publish_template_instance(template)
     return revision
