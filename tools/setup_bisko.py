@@ -20,6 +20,9 @@ def main() -> None:
     parser.add_argument('--reference-instance', help='Use this historical reference-data edition when publishing.')
     parser.add_argument('--convert', action='append', default=[], help='Convert a DB model to the published template.')
     parser.add_argument('--dry-run', action='store_true')
+    parser.add_argument(
+        '--ignore-problems', action='store_true', help='Report instance problems but allow publication and template-pin updates.'
+    )
     args = parser.parse_args()
     if args.instance and args.convert:
         parser.error('--instance and --convert are alternative attachment modes')
@@ -57,6 +60,7 @@ def _setup_graphs(framework: Framework, args: argparse.Namespace) -> None:
     from kausal_common.datasets.models import Dataset
 
     from frameworks.bisko.provisioning import prepare_bisko_template, reconcile_bisko_default_quality
+    from frameworks.bisko.validation import check_instance_problems, publish_checked_template, upgrade_checked_instance
     from frameworks.conversion import (
         convert_to_framework,
         declare_local_data_slots,
@@ -67,7 +71,6 @@ def _setup_graphs(framework: Framework, args: argparse.Namespace) -> None:
     from nodes.defs.graph import QualityLevelKey
     from nodes.instance_loader import InstanceYAMLConfig
     from nodes.models import InstanceConfig
-    from nodes.template_graph import publish_template_instance, upgrade_template_instance
 
     yaml_config = InstanceYAMLConfig.load_for_entrypoint(Path(settings.BASE_DIR) / 'configs/bisko.yaml')
     assert yaml_config.data is not None
@@ -98,7 +101,7 @@ def _setup_graphs(framework: Framework, args: argparse.Namespace) -> None:
                 if dataset.identifier and not dataset.identifier.startswith('kommune/')
             }
         reconcile_bisko_default_quality(framework, defaults, publish=False)
-        revision = publish_template_instance(template, reference_data=reference_data)
+        revision = publish_checked_template(template, reference_data=reference_data, ignore_problems=args.ignore_problems)
         print(f'Published template revision {revision.pk}')
     if args.convert and revision is None:
         raise ValueError('Publish the template before converting framework instances')
@@ -107,18 +110,19 @@ def _setup_graphs(framework: Framework, args: argparse.Namespace) -> None:
         instance = InstanceConfig.objects.get(identifier=identifier)
         print(f'{identifier}: {convert_to_framework(instance, framework, revision)}')
         instance.refresh_from_db()
+        check_instance_problems(instance, ignore_problems=args.ignore_problems)
         org = ensure_municipal_organization(instance)
         print(f'{identifier}: organization {org.name if org else "unchanged (no AGS)"}')
 
     previous_revision_id = revision.pk if revision is not None else None
-    revision = reconcile_bisko_default_quality(framework, defaults)
+    revision = reconcile_bisko_default_quality(framework, defaults, check_problems=True, ignore_problems=args.ignore_problems)
     if revision is not None:
         dependents = InstanceConfig.objects.filter(
             template_revision__object_id=str(template.pk),
             template_revision__content_type=revision.content_type,
         ).exclude(template_revision=revision)
         for dependent in dependents:
-            upgrade_template_instance(dependent, revision)
+            upgrade_checked_instance(dependent, revision, ignore_problems=args.ignore_problems)
             print(f'{dependent.identifier}: upgraded to template revision {revision.pk}')
         action = 'Published' if revision.pk != previous_revision_id else 'Retained'
         print(f'{action} template revision {revision.pk}; dependent draft pins reconciled.')

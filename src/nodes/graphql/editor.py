@@ -66,6 +66,7 @@ from nodes.graphql.constraint_checks import check_binding_change, edge_candidate
 from nodes.graphql.inputs import get_input_port, get_output_port, is_maybe_set
 from nodes.input_bindings import compact_port_positions, next_port_position
 from nodes.instance_graph import NodeEditContext, NodeMeta
+from nodes.instance_problems import DataEntryDefinitionError
 from nodes.instance_serialization import InputBindingSnapshot, NodePortSource
 from nodes.models import InstanceConfig, NodeConfig, NodeInputPortBinding, NodeLayout, NodeLayoutSource, PreferredInstanceSource
 from nodes.node import Node
@@ -81,7 +82,7 @@ from .types.graph import ActionGroupType, NodeEdgeType
 from .types.instance import InstanceType
 from .types.layout import NodeLayoutType, UpdateNodeLayoutsResult
 from .types.node import AnyNodeType, NodeInterface
-from .types.problems import DatasetValidationViolationsType, NodeValueValidationViolationsType
+from .types.problems import DataEntryDefinitionProblemsType, DatasetValidationViolationsType, NodeValueValidationViolationsType
 from .types.scenario import ScenarioType
 from .types.spec import InputPortType, OutputPortType
 from .types.transformations import EdgeTransformationInput, edge_transformations_from_input
@@ -2681,13 +2682,20 @@ class InstanceEditorMutation:
         graphql_type=InstanceType
         | ConstraintViolationsType
         | DatasetValidationViolationsType
-        | NodeValueValidationViolationsType,
+        | NodeValueValidationViolationsType
+        | DataEntryDefinitionProblemsType,
     )
     @staticmethod
     def publish_model_instance(
         info: gql.Info,
         instance_id: sb.ID,
-    ) -> InstanceType | ConstraintViolationsType | DatasetValidationViolationsType | NodeValueValidationViolationsType:
+    ) -> (
+        InstanceType
+        | ConstraintViolationsType
+        | DatasetValidationViolationsType
+        | NodeValueValidationViolationsType
+        | DataEntryDefinitionProblemsType
+    ):
         from datasets.validation import InstanceDatasetValidationError
 
         ic = _get_instance_config(info, instance_id)
@@ -2697,6 +2705,8 @@ class InstanceEditorMutation:
         user = getattr(info.context, 'user', None)
         try:
             ic.publish_instance(user=user)
+        except DataEntryDefinitionError as error:
+            return DataEntryDefinitionProblemsType.from_problems(error.problems)
         except InstanceValueValidationError as error:
             return NodeValueValidationViolationsType.from_violations(error.violations)
         except InstanceConstraintError as error:

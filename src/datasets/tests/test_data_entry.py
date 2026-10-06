@@ -384,3 +384,52 @@ data_entry:
     assert table.dataset_id == dataset.uuid
     assert table.metric_ids == [metric.uuid]
     assert build_instance_graph(build_instance_snapshot(config)).data_entry.sections[0].selections
+
+
+def test_layout_errors_are_editor_problems_not_section_findings(client: Client) -> None:
+    query = make_query()
+    config = InstanceConfig.objects.get(uuid=query.graph.instance_id)
+    dataset = next(iter(query.datasets.values()))
+    with set_i18n_context('en', []):
+        bad = DataEntryPlacementSpec(id=uuid4(), node_id=uuid4(), port_id=uuid4())
+        config.spec = query.graph.spec.model_copy(deep=True)
+        section = DataEntrySectionSpec(
+            id=uuid4(),
+            name='Inputs',
+            tables=[
+                DataEntryDatasetSpec(id=uuid4(), dataset_id=dataset.uuid),
+                bad,
+            ],
+        )
+        config.spec.data_entry = DataEntrySpec(sections=[section])
+    config.save()
+    client.force_login(query.user)
+    gql = PathsTestClient(client)
+    gql.set_instance(config)
+    result = gql.query_data("""{
+      instance { editor {
+        problems { __typename code ... on DataEntryDefinitionProblem { enforcement sectionId nodeId portId } }
+        dataEntry {
+          problemCounts(years: [2023]) { total }
+          sections { problems(years: [2023]) { code } problemCounts(years: [2023]) { total } }
+        }
+      } }
+    }""")['instance']['editor']
+    problem = next(problem for problem in result['problems'] if problem['code'] == 'invalid_placement')
+    assert problem['enforcement'] == 'BLOCK_PUBLISH'
+    assert problem['sectionId'] == str(section.id)
+    assert problem['nodeId'] == str(bad.node_id)
+    assert result['dataEntry']['problemCounts']['total'] == 0
+    assert result['dataEntry']['sections'][0]['problems'] == []
+    published = gql.query_data(
+        """mutation Publish($id: ID!) {
+      instanceEditor(instanceId: $id) { publishModelInstance(instanceId: $id) {
+        __typename ... on DataEntryDefinitionProblems { problems { code enforcement } }
+      } }
+    }""",
+        variables={'id': str(config.pk)},
+    )['instanceEditor']['publishModelInstance']
+    assert published['__typename'] == 'DataEntryDefinitionProblems'
+    assert published['problems'][0]['code'] == 'invalid_placement'
+    config.refresh_from_db()
+    assert config.live_revision_id is None
