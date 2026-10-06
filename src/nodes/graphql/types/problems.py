@@ -24,6 +24,7 @@ if TYPE_CHECKING:
     from datasets.coordinates import DatasetCoordinate
     from datasets.plausibility import PlausibilityAttribution, PlausibilityFinding
     from datasets.validation import RuleViolation
+    from nodes.data_entry import EntryProblem
     from nodes.value_validation import ValueValidationViolation
 
 
@@ -38,6 +39,43 @@ class InstanceProblemInterface:
     code: str = sb.field(description='Machine-readable problem kind.')
     message: str = sb.field(description='Untranslated human-readable fallback.')
     severity: ProblemSeverity
+
+
+@sb.enum(name='ProblemEnforcement')
+class ProblemEnforcement(Enum):
+    BLOCK_EDIT = 'block_edit'
+    BLOCK_PUBLISH = 'block_publish'
+
+
+@sb.type(name='DataEntryDefinitionProblem', description='An invalid data-entry layout; drafts remain editable.')
+class DataEntryDefinitionProblemType(InstanceProblemInterface):
+    enforcement: ProblemEnforcement
+    section_id: UUID | None
+    node_id: UUID | None
+    port_id: UUID | None
+    dataset_id: UUID | None
+
+    @classmethod
+    def from_problem(cls, problem: EntryProblem) -> Self:
+        return cls(
+            code=problem.code,
+            message=problem.message,
+            severity=ProblemSeverity.ERROR,
+            enforcement=ProblemEnforcement.BLOCK_PUBLISH,
+            section_id=problem.section_id,
+            node_id=problem.node_id,
+            port_id=problem.port_id,
+            dataset_id=problem.dataset_id,
+        )
+
+
+@sb.type(name='DataEntryDefinitionProblems')
+class DataEntryDefinitionProblemsType:
+    problems: list[DataEntryDefinitionProblemType]
+
+    @classmethod
+    def from_problems(cls, problems: list[EntryProblem]) -> Self:
+        return cls(problems=[DataEntryDefinitionProblemType.from_problem(problem) for problem in problems])
 
 
 @sb.type(name='NodeValueCoordinate')

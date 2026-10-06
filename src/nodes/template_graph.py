@@ -323,6 +323,7 @@ def publish_template_instance(
     *,
     user: User | None = None,
     reference_data: dict[str, Dataset] | None = None,
+    ignore_problems: bool = False,
 ) -> Revision:
     """Publish a complete template without changing any dependent draft."""
 
@@ -330,7 +331,11 @@ def publish_template_instance(
     if template.config_source != 'database' or template.template_revision_id is not None:
         raise ValueError('A template must be a standalone database-backed instance')
     with set_i18n_context(template.primary_language, template.other_languages):
-        template.validate_draft_constraints()
+        if not ignore_problems:
+            template.validate_draft_constraints()
+            from nodes.instance_problems import require_valid_data_entry_definition
+
+            require_valid_data_entry_definition(build_instance_graph(build_instance_snapshot(template)))
         revision = _freeze_template_revision(template, user, reference_data or {})
     template.publish(revision, user=user)
     template.invalidate_cache()

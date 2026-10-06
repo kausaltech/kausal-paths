@@ -68,6 +68,7 @@ class EntryProblem:
     node_id: UUID | None = None
     port_id: UUID | None = None
     dataset_id: UUID | None = None
+    blocks_publication: bool = True
 
 
 @dataclass(frozen=True)
@@ -119,18 +120,27 @@ class EntryResolver:
         self.domains = {dim.id: frozenset(cat.id for cat in dim.categories) for dim in graph.dimensions}
         self.anchors: dict[tuple[UUID, UUID], list[tuple[UUID, UUID, DataEntryAnchorSpec]]] = {}
 
-    def problem(self, code: str, message: str, section_id: UUID | None = None, **refs: UUID | None) -> None:
-        problem = EntryProblem(code, message, section_id, **refs)
+    def problem(
+        self,
+        code: str,
+        message: str,
+        section_id: UUID | None = None,
+        *,
+        blocks_publication: bool = True,
+        **refs: UUID | None,
+    ) -> None:
+        problem = EntryProblem(code, message, section_id, blocks_publication=blocks_publication, **refs)
         self.problems.append(problem)
         if section_id in self.sections:
             self.sections[section_id].problems.append(problem)
 
-    def unbound(self, section: UUID, node: UUID, port: UUID) -> None:
+    def unbound(self, section: UUID, node: UUID, port: UUID, *, explicit: bool = False) -> None:
         disconnected = (node, port) in self.graph.disconnected_inputs
         self.problem(
             'disconnected_input' if disconnected else 'unbound_input',
             'Input is explicitly disconnected' if disconnected else 'Input has no effective binding',
             section,
+            blocks_publication=explicit,
             node_id=node,
             port_id=port,
         )
@@ -229,6 +239,7 @@ class EntryResolver:
                     'external_placeholder',
                     'Input data has not been imported',
                     section,
+                    blocks_publication=tier < 2,
                     node_id=binding.target_node.id,
                     port_id=binding.target_port.id,
                     dataset_id=binding.dataset.id,
@@ -319,7 +330,7 @@ class EntryResolver:
         assert node is not None
         bindings = node.bindings_for_port(port.id)
         if not bindings:
-            self.unbound(section, node.id, port.id)
+            self.unbound(section, node.id, port.id, explicit=True)
         for binding in bindings:
             if isinstance(binding, EdgeBindingDef):
                 self.problem(
@@ -598,7 +609,7 @@ class EntryResolver:
                 elif any(isinstance(binding, EdgeBindingDef) for binding in bindings):
                     code, message = 'unsupported_source', 'Submodel input forms are not available'
                 if code:
-                    problem = EntryProblem(code, message, self.unplaced_id, node.id, port.id)
+                    problem = EntryProblem(code, message, self.unplaced_id, node.id, port.id, blocks_publication=False)
                     unplaced_problems.append(problem)
                     self.problems.append(problem)
         return unplaced_problems
