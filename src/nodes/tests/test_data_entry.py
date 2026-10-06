@@ -28,6 +28,7 @@ from nodes.defs.transform_def import AssignDimensionOp, FilterColumnOp, FilterDi
 from nodes.instance_graph import InstanceGraph, NodeMeta
 from nodes.instance_loader import InstanceYAMLConfig
 from nodes.instance_parser import parse_instance_snapshot
+from nodes.instance_problems import data_entry_definition_problems
 from nodes.instance_serialization import export_instance, import_instance
 from nodes.models import InstanceConfig
 from nodes.node import Node
@@ -171,6 +172,14 @@ def test_bisko_yaml_sections_have_stable_shared_ids() -> None:
         section.id for section in second.spec.data_entry.sections
     ]
     assert len(first.spec.data_entry.sections) == 8
+    nodes = {node.uuid: node for node in first.nodes}
+    for section in first.spec.data_entry.sections:
+        for table in section.tables:
+            assert isinstance(table, DataEntryPlacementSpec)
+            assert nodes[table.node_id].identifier != 'passenger_kilometers_own'
+            spec = nodes[table.node_id].spec
+            assert spec is not None
+            assert any(port.id == table.port_id and port.binding_owner == 'instance' for port in spec.input_ports)
 
 
 def test_excluded_filter_and_assignment_translate_backwards(graph: InstanceGraph) -> None:
@@ -577,3 +586,30 @@ def test_composed_layout_rejects_table_identity_shared_between_sections(graph: I
     )
     assert any(problem.code == 'duplicate_table' for problem in graph.data_entry.problems)
     assert not graph.data_entry.sections[1].selections
+
+
+def test_unbound_discovered_inputs_are_not_definition_errors(graph: InstanceGraph) -> None:
+    graph, _, output = anchored_graph(graph)
+    data = graph.model_dump(mode='python')
+    data['bindings'] = [binding for binding in data['bindings'] if binding['kind'] != 'dataset']
+    with set_i18n_context('en', []):
+        graph = InstanceGraph.model_validate(data)
+        graph.spec.data_entry = DataEntrySpec(
+            sections=[
+                DataEntrySectionSpec(
+                    id=uuid4(),
+                    name='Optional',
+                    tables=[
+                        DataEntryAutodiscoverSpec(
+                            id=uuid4(), anchors=[DataEntryAnchorSpec(node_id=graph.nodes[1].id, output_port_id=output)]
+                        ),
+                    ],
+                )
+            ]
+        )
+    assert any(problem.code == 'unbound_input' for problem in graph.data_entry.problems)
+    assert not data_entry_definition_problems(graph)
+    # An authored manual table that cannot resolve its source is a definition error.
+    graph.spec.data_entry = DataEntrySpec(sections=[section(graph)])
+    graph.__dict__.pop('data_entry', None)
+    assert data_entry_definition_problems(graph)[0].code == 'unbound_input'
