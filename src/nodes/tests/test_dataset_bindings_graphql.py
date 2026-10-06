@@ -9,6 +9,7 @@ The edge tests cover the same ``bindingEditor`` resolving edge-sourced
 legacy vocabulary presented and stored in the current one.
 """
 
+import re
 from typing import TYPE_CHECKING, Any
 
 import pytest
@@ -977,3 +978,88 @@ def test_deleting_an_edge_binding_leaves_the_ports(gql_client: PathsTestClient, 
     consumer.refresh_from_db()
     assert consumer.spec is not None
     assert [port.identifier for port in consumer.spec.input_ports] == ['heating']
+
+
+NODE_GRAPH_DATASET_METRICS = gql("""
+    query NodeGraphDatasetMetrics {
+      instance {
+        nodes {
+          identifier
+          editor {
+            spec {
+              inputPorts {
+                bindings {
+                  __typename
+                  ... on DatasetPortType {
+                    dataset { identifier metrics { name validationRules { id } } }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+""")
+
+
+def test_node_graph_loads_bound_dataset_metrics_in_one_query(
+    gql_client: PathsTestClient, db_instance_config: InstanceConfig
+) -> None:
+    """Each binding's ``dataset.metrics`` reads the editor's bulk prefetch, not one query per binding."""
+    from django.db import connection
+    from django.test.utils import CaptureQueriesContext
+
+    from kausal_common.datasets.models import DatasetMetricValidationRule
+
+    from nodes.models import _pytest_instances
+
+    datasets = {}
+    for identifier in ('heating', 'cooling'):
+        dataset, metric = _dataset_with_metric(db_instance_config, identifier=identifier)
+        DatasetMetricFactory.create(schema=dataset.schema, name='Other', label='Other', unit='kt/a')
+        DatasetMetricValidationRule.objects.create(
+            metric=metric, order=0, rule={'kind': 'value_range', 'enforcement': 'block_edit', 'min': 0}
+        )
+        datasets[identifier] = (dataset, metric)
+
+    # Two nodes share 'heating', so a binding count above the dataset count is covered too.
+    bound = {'a': 'heating', 'b': 'heating', 'c': 'cooling'}
+    for node_id, identifier in bound.items():
+        port = InputPortDef(id=_port_id(f'{node_id}_input'), identifier='input', unit=unit_registry.parse_units('kt/a'))
+        NodeConfigFactory.create(instance=db_instance_config, identifier=node_id, spec=_node_spec(input_ports=[port]))
+        dataset, metric = datasets[identifier]
+        gql_client.query_data(
+            BIND_DATASET,
+            variables={
+                'instanceId': str(db_instance_config.pk),
+                'nodeId': node_id,
+                'input': {'portId': str(port.id), 'datasetId': str(dataset.uuid), 'metricId': str(metric.uuid)},
+            },
+        )
+
+    # Rebuild the cached runtime so it carries the new nodes, outside the capture.
+    db_instance_config.owner = 'Test Owner'
+    db_instance_config.save(update_fields=['owner'])
+    _pytest_instances.pop(db_instance_config.identifier, None)
+    gql_client.query_data('query { instance { id } }')
+
+    with CaptureQueriesContext(connection) as queries:
+        data = gql_client.query_data(NODE_GRAPH_DATASET_METRICS)
+
+    seen = {}
+    for node in data['instance']['nodes']:
+        for port in node['editor']['spec']['inputPorts']:
+            for binding in port['bindings']:
+                seen[node['identifier']] = binding['dataset']
+    assert {node_id: ds['identifier'] for node_id, ds in seen.items()} == bound
+    assert all([m['name'] for m in ds['metrics']] == ['Energy', 'Other'] for ds in seen.values())
+    assert all(len(ds['metrics'][0]['validationRules']) == 1 for ds in seen.values())
+
+    # One batch for the runtime's dataset catalog and one for the editor's binding
+    # prefetch, however many bindings there are; never one query per dataset schema.
+    metric_queries = [q['sql'] for q in queries.captured_queries if 'FROM "datasets_datasetmetric"' in q['sql']]
+    rule_queries = [q['sql'] for q in queries.captured_queries if 'FROM "datasets_datasetmetricvalidationrule"' in q['sql']]
+    assert not [sql for sql in metric_queries if re.search(r'"schema_id" = \d', sql)]
+    assert len(metric_queries) <= 2, metric_queries
+    assert len(rule_queries) <= 2, rule_queries
