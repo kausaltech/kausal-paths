@@ -21,7 +21,8 @@ Enforcement semantics:
 * ``block_publish`` — edits are allowed and the violations surface in the
   UI, but the instance publication gate refuses while any remain.
 
-Both tiers block publication; the tiers differ only at edit time.
+* ``block_submission`` — edits and publication are allowed; submission is refused
+  while violations remain.
 """
 
 from enum import Enum as PyEnum
@@ -39,25 +40,26 @@ from kausal_common.strawberry.pydantic import (
     register_type_conversion,
 )
 
-type Enforcement = Literal['block_edit', 'block_publish']
+from common.validation import Enforcement
 
 
 @sb.enum(
     name='DatasetRuleEnforcement',
     description=(
         'BLOCK_EDIT rules reject mutations that introduce new violations; '
-        'BLOCK_PUBLISH rules allow edits but block publication while violations remain.'
+        'BLOCK_PUBLISH rules allow edits but block publication; BLOCK_SUBMISSION rules block only submission.'
     ),
 )
 class DatasetRuleEnforcement(PyEnum):
     BLOCK_EDIT = 'block_edit'
     BLOCK_PUBLISH = 'block_publish'
+    BLOCK_SUBMISSION = 'block_submission'
 
 
 # The GraphQL projections carry ``enforcement`` as the enum; the conversions
 # swap it in for both the alias and the narrowed literal ``NoGapsRule`` uses.
 register_type_conversion(Enforcement, DatasetRuleEnforcement)
-register_type_conversion(Literal['block_publish'], DatasetRuleEnforcement)
+register_type_conversion(Literal['block_publish', 'block_submission'], DatasetRuleEnforcement)
 
 
 class _RuleBase(BaseModel):
@@ -157,11 +159,11 @@ class NoGapsRule(_RuleBase):
 
     Whole-dataset invariants cannot gate individual edits (a dataset being
     entered incrementally is always incomplete mid-entry), so this rule is
-    ``block_publish`` only.
+    ``block_publish`` or ``block_submission``; existing rules default to publication enforcement.
     """
 
     kind: Literal['no_gaps'] = 'no_gaps'
-    enforcement: Literal['block_publish'] = 'block_publish'
+    enforcement: Literal['block_publish', 'block_submission'] = 'block_publish'
 
     class ObjectType(ValidationRuleGQLInterface):
         enforcement: auto

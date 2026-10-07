@@ -525,6 +525,16 @@ section. The instance-level `problemCounts` deduplicates findings by their canon
 identity across sections; clients must not sum section badges to obtain that total.
 Permissions apply before exposing findings, counts or affected-section references.
 
+Every `InstanceProblem` exposes `enforcement: ProblemEnforcement` independently of
+presentation severity. `BLOCK_EDIT` rejects newly introduced violations on edit and
+blocks publication/submission; `BLOCK_PUBLISH` permits edits but blocks publication
+and submission; `BLOCK_SUBMISSION` permits edits, publication and template-pin
+updates, but blocks finalising a submission. Dataset rule definitions retain their
+`DatasetRuleEnforcement` enum with the same three values. `NoGapsRule` permits
+publication or submission enforcement; its existing publication default is preserved.
+Rules are JSON-backed, so this extension needs no database schema migration and
+does not reclassify existing rules automatically.
+
 Definition problems appear as `DataEntryDefinitionProblem` entries in
 `InstanceEditor.problems`, with `enforcement: BLOCK_PUBLISH` and section/node/port/
 dataset UUIDs where available. They are excluded from section `problems` and all
@@ -534,8 +544,18 @@ publication reject invalid layouts and GraphQL returns a typed
 
 Unbound, disconnected or external inputs encountered incidentally during discovery
 are input states, not automatically definition errors. A manual table that requires
-an unavailable source is a definition error. Required-input contracts and graph
-constraints are checked independently in the model editor.
+an unavailable source is a definition error on a concrete instance. Framework
+templates may declare external placeholders: resolution continues through metric,
+dimension and slice checks without requiring imported observations. Required-input
+contracts and graph constraints are checked independently in the model editor.
+
+`InstanceMetadata.is_template` projects `InstanceConfig.is_template`; the immutable
+graph exposes it as `graph.is_template`. Composition retains the follower's metadata,
+and copies derive their role from the destination's framework relationships. Legacy
+snapshots omit the new field when reserialized so existing template hashes remain
+valid; ORM-aware loading fills missing role information on a copy. YAML uses the same
+loading boundary. Graph cache keys include the role and the graph format version is
+bumped, preventing reuse of graphs with the old placeholder behavior.
 
 Return annual finding totals and a per-year breakdown, with yearless data findings
 separate. A finding spanning several selected years counts once in the total and
@@ -544,7 +564,9 @@ total. Lists and counts share selection and deduplication rules.
 
 `tools/setup_bisko.py` checks the same categories of instance problems before explicit
 or default-quality-triggered template publication and after applying dependent draft
-pins. A failed post-upgrade check rolls back the pin and associated changes; the
+pins. Both gates select publication blockers: submission-only dataset and input-value
+findings remain visible but do not block template publication or a pin bump.
+A failed post-upgrade check rolls back the pin and associated changes; the
 script's outer transaction rolls back the whole invocation on failure.
 `--ignore-problems` reports the problems but allows publication and pin updates.
 It does not bypass authorization, malformed snapshot errors or runtime failures.

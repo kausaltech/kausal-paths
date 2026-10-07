@@ -418,7 +418,8 @@ class InstanceEditorFields:
         graphql_type=list[DatasetValidationViolationType],
         description=(
             'Current dataset validation-rule violations across the datasets bound to the graph. '
-            'Any entry blocks publication; BLOCK_EDIT entries predate the rule that forbids them.'
+            'Enforcement determines whether publication or only submission is blocked; '
+            'BLOCK_EDIT entries predate the rule that forbids them.'
         ),
     )
     @staticmethod
