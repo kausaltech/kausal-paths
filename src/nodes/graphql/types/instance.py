@@ -23,7 +23,7 @@ from kausal_common.strawberry.permissions import SuperuserOnly
 from kausal_common.strawberry.pydantic import StrawberryPydanticType
 
 from paths import gql
-from paths.graphql_helpers import pass_context
+from paths.graphql_helpers import graphql_error_nodes
 from paths.graphql_types import UnitType
 
 from datasets.data_entry import DataEntryQuery
@@ -37,6 +37,7 @@ from nodes.defs.binding_def import DatasetBindingDef, EdgeBindingDef
 from nodes.defs.instance_defs import InstanceFeatures
 from nodes.goals import GoalActualValue, NodeGoalsEntry
 from nodes.graph_layout import GraphLayout
+from nodes.graphql.inputs import is_maybe_set
 from nodes.graphql.types.data_entry import DataEntryType
 from nodes.graphql.types.dimension import DimensionType
 from nodes.instance import Instance
@@ -49,6 +50,7 @@ from nodes.quantities import get_registry as get_quantity_registry
 from nodes.units import Unit
 from nodes.value_validation import collect_instance_value_violations
 from pages.models import ActionListPage
+from params.overrides import InvalidModelOverrideError, ModelOverrides, ParameterOverride
 from users.models import User
 
 from .constraints import ConstraintConflictType
@@ -80,11 +82,18 @@ if TYPE_CHECKING:
     from frameworks.mutations import OrganizationAccessGrantType
     from frameworks.schema import FrameworkConfigType  # used in lazy strawberry annotation
     from frameworks.submission_schema import SubmissionType
+    from nodes.actions.action import ActionNode, ImpactOverview
     from nodes.context import Context
     from nodes.graphql.types.change_history import InstanceChangeOperationType
+    from nodes.graphql.types.impact import ImpactOverviewType  # used in lazy strawberry annotation
     from nodes.graphql.types.node import NodeInterface, NodeType
+    from nodes.graphql.types.scenario import ScenarioType  # used in lazy strawberry annotation
     from nodes.instance_graph import InstanceGraph
     from nodes.models import InstanceInvitation, NodeInputPortBinding
+    from nodes.scenario import Scenario
+    from nodes.schema import ActionNodeType  # used in lazy strawberry annotation
+    from params import Parameter
+    from params.schema import ParameterInterface  # used in lazy strawberry annotation
     from users.graphql.mutations import InstanceInvitationType  # used in lazy strawberry annotation
     from users.schema import UserType  # used in lazy strawberry annotation
 
@@ -382,7 +391,9 @@ class InstanceEditorFields:
             spec = root._config.spec
         else:
             spec = info.context.require_instance_graph(root._config, source=root._source).spec
-        return action_group_types(list(spec.action_groups)) if spec is not None else []
+        if spec is None:
+            return []
+        return action_group_types(list(spec.action_groups), config=root._config, source=root._source)
 
     @sb.field(graphql_type=list[NodeEdgeType])
     @staticmethod
@@ -670,6 +681,57 @@ class InstanceEditorFields:
         )
 
 
+@sb.type
+class NormalizationType:
+    @sb.field
+    @staticmethod
+    def id(root: Normalization) -> sb.ID:
+        return sb.ID(root.normalizer_node.id)
+
+    @sb.field
+    @staticmethod
+    def label(root: Normalization) -> str:
+        return str(root.normalizer_node.name)
+
+    @sb.field(graphql_type=Annotated['NodeType', sb.lazy('nodes.schema')])
+    @staticmethod
+    def normalizer(root: Normalization) -> Node:
+        return root.normalizer_node
+
+    @sb.field
+    @staticmethod
+    def is_active(root: Normalization) -> bool:
+        return root.context.active_normalization == root
+
+
+def find_node(context: Context, id: str) -> Node | None:
+    """Look a node up by identifier, or by its database id for older clients."""
+    if id.isnumeric():
+        for node in context.nodes.values():
+            if node.database_id is not None and node.database_id == int(id):
+                return node
+        return None
+    return context.nodes.get(id)
+
+
+def find_action(context: Context, id: str) -> ActionNode | None:
+    try:
+        return context.get_action(id)
+    except KeyError, TypeError:
+        return None
+
+
+def list_actions(context: Context, *, only_root: bool) -> list[ActionNode]:
+    actions = context.get_actions()
+    if only_root:
+        return [act for act in actions if act.parent_action is None]
+    return actions
+
+
+def find_impact_overview(context: Context, id: str) -> ImpactOverview | None:
+    return next((io for io in context.impact_overviews if io.spec.id == id), None)
+
+
 @sb.type(name='InstanceModel')
 class InstanceModelType:
     _instance: sb.Private[Instance]
@@ -762,6 +824,62 @@ class InstanceModelType:
         if not can_edit:
             node_seq = filter(_node_is_publicly_visible, node_seq)
         return sorted(node_seq, key=lambda node: (node.order is None, node.order or 0, node.id))
+
+    # The model's state as this runtime has it. Under `model(...)` with overrides
+    # these say what the overrides did: the scenario they activated, the parameter
+    # values they set and the normalization they chose.
+
+    @property
+    def context(self) -> Context:
+        return self._instance.context
+
+    @sb.field(
+        graphql_type=Annotated['NodeInterface', sb.lazy('nodes.schema')] | None,
+        description='One node of the model, by identifier or UUID.',
+    )
+    def node(self, info: gql.Info, id: sb.ID) -> Node | None:
+        nodes = self.nodes(info, [id])
+        return nodes[0] if nodes else None
+
+    @sb.field(graphql_type=Annotated['ActionNodeType', sb.lazy('nodes.schema')] | None)
+    def action(self, id: sb.ID) -> 'ActionNode | None':
+        return find_action(self.context, str(id))
+
+    @sb.field(graphql_type=list[Annotated['ActionNodeType', sb.lazy('nodes.schema')]])
+    def actions(self, only_root: bool = False) -> list['ActionNode']:
+        return list_actions(self.context, only_root=only_root)
+
+    @sb.field(graphql_type=list[Annotated['ScenarioType', sb.lazy('nodes.graphql.types.scenario')]])
+    def scenarios(self) -> list['Scenario']:
+        return list(self.context.scenarios.values())
+
+    @sb.field(graphql_type=Annotated['ScenarioType', sb.lazy('nodes.graphql.types.scenario')])
+    def active_scenario(self) -> 'Scenario':
+        return self.context.active_scenario
+
+    @sb.field(graphql_type=list[NormalizationType])
+    def available_normalizations(self) -> list[Normalization]:
+        return list(self.context.normalizations.values())
+
+    @sb.field(graphql_type=NormalizationType | None)
+    def active_normalization(self) -> Normalization | None:
+        return self.context.active_normalization
+
+    @sb.field(graphql_type=list[Annotated['ParameterInterface', sb.lazy('params.schema')]])
+    def parameters(self) -> list['Parameter[Any, Any]']:
+        return [param for param in self.context.global_parameters.values() if param.is_visible]
+
+    @sb.field(graphql_type=list[Annotated['ImpactOverviewType', sb.lazy('nodes.graphql.types.impact')]])
+    def impact_overviews(self) -> list['ImpactOverview']:
+        return self.context.impact_overviews
+
+
+@sb.input(description='A value for one parameter, in the field that matches its type.')
+class ParameterValueInput:
+    id: sb.ID
+    number_value: float | None = None
+    bool_value: bool | None = None
+    string_value: str | None = None
 
 
 @sb.type
@@ -958,7 +1076,7 @@ class InstanceType:
 
     @sb.field
     def action_groups(self) -> list[ActionGroupType]:
-        return action_group_types(list(self.spec.action_groups))
+        return action_group_types(list(self.spec.action_groups), config=self._config, source=self._source)
 
     @sb.field
     def features(self) -> InstanceFeaturesType:
@@ -966,10 +1084,53 @@ class InstanceType:
 
     @sb.field(
         graphql_type=InstanceModelType,
-        description='Runtime computation model for fields that require hydrating the calculation graph.',
+        description=(
+            'Runtime computation model for fields that require hydrating the calculation graph. '
+            "With arguments, a runtime of its own for this field only: it starts from the visitor's "
+            'settings, applies the arguments and stores nothing. Parameters are applied the way '
+            '`setParameter` applies them, so `activeScenario` is the custom scenario whenever one '
+            'is given. Fields below it compute against that runtime; aliases put several side by side.'
+        ),
     )
-    def model(self, info: gql.Info) -> InstanceModelType:
-        return InstanceModelType(_instance=self.instance(info), _config=self._config)
+    def model(
+        self,
+        info: gql.Info,
+        scenario: Annotated[
+            sb.ID | None,
+            sb.argument(description='Scenario to activate. Parameters given as well are applied on top of it.'),
+        ] = None,
+        parameters: Annotated[
+            list[ParameterValueInput] | None,
+            sb.argument(description='Values for customizable parameters.'),
+        ] = None,
+        normalizer: Annotated[
+            sb.Maybe[sb.ID | None],
+            sb.argument(description='Normalization to activate, or null for none. Omit to keep the active one.'),
+        ] = None,
+    ) -> InstanceModelType:
+        try:
+            overrides = ModelOverrides(
+                scenario=str(scenario) if scenario is not None else None,
+                parameters=tuple(
+                    ParameterOverride(
+                        id=str(value.id),
+                        number_value=value.number_value,
+                        bool_value=value.bool_value,
+                        string_value=value.string_value,
+                    )
+                    for value in parameters or ()
+                ),
+                normalizer=str(normalizer.value) if is_maybe_set(normalizer) and normalizer.value is not None else None,
+                override_normalizer=is_maybe_set(normalizer),
+            )
+            instance = info.context.require_instance(
+                self._config,
+                source=self._source,
+                overrides=None if overrides.is_empty else overrides,
+            )
+        except InvalidModelOverrideError as e:
+            raise GraphQLError(str(e), graphql_error_nodes(info)) from e
+        return InstanceModelType(_instance=instance, _config=self._config)
 
     @sb.field(graphql_type=InstanceHostname | None)
     def hostname(self, hostname: str) -> InstanceHostname | None:
@@ -1118,27 +1279,3 @@ class InstanceBasicConfiguration:
             hostname=gql_context.matched_hostname.hostname,
             base_path=gql_context.matched_hostname.base_path,
         )
-
-
-@sb.type
-class NormalizationType:
-    @sb.field
-    @staticmethod
-    def id(root: Normalization) -> sb.ID:
-        return sb.ID(root.normalizer_node.id)
-
-    @sb.field
-    @staticmethod
-    def label(root: Normalization) -> str:
-        return str(root.normalizer_node.name)
-
-    @sb.field(graphql_type=Annotated['NodeType', sb.lazy('nodes.schema')])
-    @staticmethod
-    def normalizer(root: Normalization) -> Node:
-        return root.normalizer_node
-
-    @sb.field
-    @pass_context
-    @staticmethod
-    def is_active(root: 'Normalization', context: 'Context') -> bool:
-        return context.active_normalization == root

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 from django.conf import settings
 from django.utils import translation
@@ -24,7 +24,7 @@ from frameworks.models import Framework
 from nodes.instance_graph import NodeEditContext
 from nodes.instance_graph_cache import resolve_instance_source
 from nodes.models import PreferredInstanceSource
-from params.storage import SessionStorage
+from params.storage import InstanceDataStorage, SessionStorage
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -43,6 +43,7 @@ if TYPE_CHECKING:
     from nodes.instance_graph_cache import LoadedInstanceSnapshot, ResolvedInstanceSource
     from nodes.instance_serialization import InstanceSnapshot
     from nodes.models import InstanceConfig, InstanceConfigQuerySet
+    from params.overrides import ModelOverrides
 
 logger = logger.bind(markup=True)
 
@@ -52,6 +53,7 @@ class InstanceRuntimeKey:
     instance_pk: int
     source: PreferredInstanceSource
     tolerate_node_failures: bool
+    overrides: ModelOverrides | None = None
 
 
 @dataclass
@@ -126,6 +128,7 @@ class InstanceRequestResources:
         source: PreferredInstanceSource,
         tolerate_node_failures: bool,
         force_reinitialize: bool,
+        overrides: ModelOverrides | None,
     ) -> Generator[Instance]:
         instance: Instance | None = None
         try:
@@ -134,11 +137,15 @@ class InstanceRequestResources:
                     source=source,
                     tolerate_node_failures=tolerate_node_failures,
                     force_reinitialize=force_reinitialize,
+                    # Code that finds its instance through `InstanceConfig.get_instance()`
+                    # gets the ambient one. An overridden runtime must never be it: it
+                    # would answer for the instance for the rest of the request.
+                    ambient=overrides is None,
                 ) as instance,
                 instance.lock,
                 instance.context.run(),
             ):
-                self.extension.activate_instance(instance)
+                self.extension.activate_instance(instance, overrides)
                 yield instance
         finally:
             if instance is not None:
@@ -151,7 +158,15 @@ class InstanceRequestResources:
         source: PreferredInstanceSource | None = None,
         tolerate_node_failures: bool | None = None,
         refresh: bool = False,
+        overrides: ModelOverrides | None = None,
     ) -> Instance:
+        """
+        Return the request's runtime for an instance, building it on first use.
+
+        `overrides` gives a runtime of its own, kept beside the plain one: two
+        `model(...)` fields with different arguments compute side by side, and
+        nodes the overrides do not reach share their cached outputs.
+        """
         config, source = self.resolve_source(config, source)
         is_default = self.default_config is not None and config.pk == self.default_config.pk
         if tolerate_node_failures is None:
@@ -161,6 +176,7 @@ class InstanceRequestResources:
             instance_pk=config.pk,
             source=source,
             tolerate_node_failures=tolerate_node_failures,
+            overrides=overrides,
         )
         refresh_key = (config.pk, source)
         refresh = refresh or refresh_key in self.instance_refreshes
@@ -174,7 +190,7 @@ class InstanceRequestResources:
             is_query_with_instance_context.set(True),
         ):
             instance = self.stack.enter_context(
-                self._instance_context(config, source, tolerate_node_failures, refresh),
+                self._instance_context(config, source, tolerate_node_failures, refresh, overrides),
             )
         self.instances[key] = instance
         self.instance_refreshes.discard(refresh_key)
@@ -293,7 +309,7 @@ class InstanceRequestResources:
 
 
 @dataclass
-class PathsGraphQLContext[InstanceType: Instance | None = Instance | None](GraphQLContext):
+class PathsGraphQLContext(GraphQLContext):
     instance_config: InstanceConfig | None = None
     cache: PathsObjectCache = field(init=False)
     instance_resources: InstanceRequestResources | None = field(init=False, default=None, repr=False)
@@ -325,12 +341,6 @@ class PathsGraphQLContext[InstanceType: Instance | None = Instance | None](Graph
             cache = PathsObjectCache(user=user)
         self.cache = cache
 
-    @property
-    def instance(self) -> InstanceType:
-        if self.instance_resources is None or self.instance_resources.default_config is None:
-            return cast('InstanceType', None)
-        return cast('InstanceType', self.instance_resources.require_instance())
-
     def require_instance(
         self,
         config: InstanceConfig | None = None,
@@ -338,7 +348,16 @@ class PathsGraphQLContext[InstanceType: Instance | None = Instance | None](Graph
         source: PreferredInstanceSource | None = None,
         tolerate_node_failures: bool | None = None,
         refresh: bool = False,
+        overrides: ModelOverrides | None = None,
     ) -> Instance:
+        """
+        Return a runtime of `config`, or of the instance the operation names.
+
+        The one way GraphQL code obtains a runtime. A field of an object that is
+        already bound to a runtime -- a node, a scenario, `InstanceModel` -- takes
+        the context from that object instead, so that it computes against the same
+        runtime as its parent.
+        """
         if self.instance_resources is None:
             raise GraphQLError(
                 "Unable to determine Paths instance for the request. Use the 'instance' directive or HTTP headers.",
@@ -348,6 +367,7 @@ class PathsGraphQLContext[InstanceType: Instance | None = Instance | None](Graph
             source=source,
             tolerate_node_failures=tolerate_node_failures,
             refresh=refresh,
+            overrides=overrides,
         )
 
     def require_instance_graph(
@@ -414,7 +434,7 @@ class PathsGraphQLContext[InstanceType: Instance | None = Instance | None](Graph
 
 
 class PathsSchemaExtension(SchemaExtension[PathsGraphQLContext]):
-    context_class: type[PathsGraphQLContext[Instance | None]] = PathsGraphQLContext
+    context_class: type[PathsGraphQLContext] = PathsGraphQLContext
 
 
 class DetermineInstanceContextExtension(PathsSchemaExtension):
@@ -632,18 +652,23 @@ class ActivateInstanceContextExtension(PathsSchemaExtension):
             if fw is not None:
                 scope.set_tag('framework_id', fw.identifier)
 
-    def activate_instance(self, instance: Instance):
+    def activate_instance(self, instance: Instance, overrides: ModelOverrides | None = None):
         context = instance.context
         session = self.get_session()
         assert session is not None
-        context.setting_storage = storage = SessionStorage(instance=instance, session=session)
+        session_storage = SessionStorage(instance=instance, session=session)
+        stored_scenario_id = session_storage.get_active_scenario()
+        if stored_scenario_id and stored_scenario_id not in context.scenarios:
+            session_storage.set_active_scenario(None)
+
+        storage: InstanceDataStorage = session_storage
+        if overrides is not None:
+            # Validated against this runtime, so an unknown id is refused rather than ignored.
+            storage = overrides.storage_for(context, session_storage.data)
+        context.setting_storage = storage
+
         active_scenario_id = storage.get_active_scenario()
-        scenario = None
-        if active_scenario_id:
-            try:
-                scenario = context.get_scenario(active_scenario_id)
-            except KeyError:
-                storage.set_active_scenario(None)
+        scenario = context.get_scenario(active_scenario_id) if active_scenario_id else None
 
         # Tell the custom scenario about the user setting so that
         # it can locate the customized parameters.
@@ -654,8 +679,8 @@ class ActivateInstanceContextExtension(PathsSchemaExtension):
             scenario = context.get_default_scenario()
 
         # Activate normalization
-        if context.setting_storage.has_option('normalizer'):
-            val = context.setting_storage.get_option('normalizer')
+        if storage.has_option('normalizer'):
+            val = storage.get_option('normalizer')
             context.set_option('normalizer', val)
         else:
             for n in context.normalizations.values():
@@ -670,7 +695,7 @@ class ActivateInstanceContextExtension(PathsSchemaExtension):
     def _resolve_preview_source(
         self,
         ic: InstanceConfig,
-        ctx: PathsGraphQLContext[Any],
+        ctx: PathsGraphQLContext,
     ) -> PreferredInstanceSource:
         """
         Translate ``ctx.preview_mode`` into a ``PreferredInstanceSource``.
@@ -767,7 +792,7 @@ class ActivateInstanceContextExtension(PathsSchemaExtension):
 
 
 class PathsExecutionCacheExtension(ExecutionCacheExtension[PathsGraphQLContext]):
-    context_class: type[PathsGraphQLContext[Instance | None]] = PathsGraphQLContext
+    context_class: type[PathsGraphQLContext] = PathsGraphQLContext
 
     def get_cache_key_parts(self) -> list[str] | None:
         exec_ctx = self.get_context()
@@ -788,4 +813,4 @@ class PathsExecutionCacheExtension(ExecutionCacheExtension[PathsGraphQLContext])
 
 
 class PathsAuthenticationExtension(AuthenticationExtension[PathsGraphQLContext]):
-    context_class: type[PathsGraphQLContext[Instance | None]] = PathsGraphQLContext
+    context_class: type[PathsGraphQLContext] = PathsGraphQLContext

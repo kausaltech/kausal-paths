@@ -8,12 +8,10 @@ from kausal_common.strawberry.ordering import with_sibling_ids
 from kausal_common.strawberry.pydantic import pydantic_type
 
 from paths import gql
-from paths.graphql_helpers import pass_context
 
 from nodes.actions.action import ActionNode
 from nodes.context import Context
 from nodes.defs.binding_def import DatasetBindingDef
-from nodes.defs.instance_defs import ActionGroup
 from nodes.defs.transform_def import PortTransformOp, modernized_transformations
 from nodes.graphql.types.change_history import EditableEntity
 from nodes.graphql.types.metric import DimensionalMetricType
@@ -24,9 +22,10 @@ if TYPE_CHECKING:
     from kausal_common.datasets.models import Dataset as DatasetModel, DatasetMetric
 
     from nodes.defs.binding_def import EdgeBindingDef
+    from nodes.defs.instance_defs import ActionGroup
     from nodes.graphql.types.change_history import InstanceModelLogEntryType
     from nodes.graphql.types.node import ActionNodeType
-    from nodes.models import NodeInputPortBinding
+    from nodes.models import InstanceConfig, NodeInputPortBinding, PreferredInstanceSource
     from nodes.node import Node
 
 from nodes.graphql.types.transformations import PortTransformationType
@@ -316,10 +315,11 @@ class ActionGroupType:
     order: int
     _previous_sibling: sb.Private[UUID | None] = None
     _next_sibling: sb.Private[UUID | None] = None
-
-    @classmethod
-    def is_type_of(cls, obj: Any, _info: gql.Info) -> bool:
-        return isinstance(obj, (ActionGroup, cls))
+    _context: sb.Private[Context | None] = None
+    """The runtime the group belongs to, when it was read from one."""
+    _config: sb.Private['InstanceConfig | None'] = None
+    """The instance to build a runtime for, when the group was read from a spec."""
+    _source: sb.Private['PreferredInstanceSource | None'] = None
 
     @classmethod
     def from_group(
@@ -328,7 +328,12 @@ class ActionGroupType:
         *,
         previous_sibling: UUID | None = None,
         next_sibling: UUID | None = None,
+        context: Context | None = None,
+        config: InstanceConfig | None = None,
+        source: PreferredInstanceSource | None = None,
     ) -> ActionGroupType:
+        if (context is None) == (config is None):
+            raise ValueError('An action group is bound either to a runtime context or to an instance config')
         return cls(
             id=sb.ID(group.id),
             uuid=group.uuid,
@@ -337,53 +342,68 @@ class ActionGroupType:
             order=group.order,
             _previous_sibling=previous_sibling,
             _next_sibling=next_sibling,
+            _context=context,
+            _config=config,
+            _source=source,
         )
 
+    def runtime_context(self, info: gql.Info) -> Context:
+        if self._context is not None:
+            return self._context
+        assert self._config is not None
+        return info.context.require_instance(self._config, source=self._source).context
+
     @sb.field(description='Human-readable identifier. Alias of `id`; use `uuid` for entity identity.')
-    @staticmethod
-    def identifier(root: 'ActionGroup | ActionGroupType') -> str:
-        return str(root.id)
+    def identifier(self) -> str:
+        return str(self.id)
 
     @sb.field(description='UUID of the preceding action group in display order.')
-    @pass_context
-    @staticmethod
-    def previous_sibling(root: 'ActionGroup | ActionGroupType', context: Context) -> UUID | None:
-        if isinstance(root, ActionGroupType):
-            return root._previous_sibling
-        groups = context.instance.action_groups
-        index = next((index for index, group in enumerate(groups) if group.uuid == root.uuid), None)
-        if index is None or index == 0:
-            return None
-        return groups[index - 1].uuid
+    def previous_sibling(self) -> UUID | None:
+        return self._previous_sibling
 
     @sb.field(description='UUID of the following action group in display order.')
-    @pass_context
-    @staticmethod
-    def next_sibling(root: 'ActionGroup | ActionGroupType', context: Context) -> UUID | None:
-        if isinstance(root, ActionGroupType):
-            return root._next_sibling
-        groups = context.instance.action_groups
-        index = next((index for index, group in enumerate(groups) if group.uuid == root.uuid), None)
-        if index is None or index == len(groups) - 1:
-            return None
-        return groups[index + 1].uuid
+    def next_sibling(self) -> UUID | None:
+        return self._next_sibling
 
     @sb.field(graphql_type=list[Annotated['ActionNodeType', sb.lazy('nodes.schema')]])
-    @pass_context
-    @staticmethod
-    def actions(root: 'ActionGroup | ActionGroupType', context: Context) -> list[ActionNode]:
-        return [act for act in context.get_actions() if act.group is not None and act.group.uuid == root.uuid]
+    def actions(self, info: gql.Info) -> list[ActionNode]:
+        context = self.runtime_context(info)
+        return [act for act in context.get_actions() if act.group is not None and act.group.uuid == self.uuid]
 
 
-def action_group_types(groups: list[ActionGroup]) -> list[ActionGroupType]:
+def action_group_types(
+    groups: list[ActionGroup],
+    *,
+    context: Context | None = None,
+    config: InstanceConfig | None = None,
+    source: PreferredInstanceSource | None = None,
+) -> list[ActionGroupType]:
     return [
         ActionGroupType.from_group(
             group,
             previous_sibling=previous_sibling,
             next_sibling=next_sibling,
+            context=context,
+            config=config,
+            source=source,
         )
         for group, previous_sibling, next_sibling in with_sibling_ids(groups, lambda group: group.uuid)
     ]
+
+
+def action_group_type(
+    group: ActionGroup,
+    groups: list[ActionGroup],
+    *,
+    context: Context | None = None,
+    config: InstanceConfig | None = None,
+    source: PreferredInstanceSource | None = None,
+) -> ActionGroupType:
+    """Return `group` as a GraphQL type, with its siblings taken from `groups`."""
+    for entry in action_group_types(groups, context=context, config=config, source=source):
+        if entry.uuid == group.uuid:
+            return entry
+    raise ValueError(f'Action group {group.uuid} is not among its siblings')
 
 
 def dataset_external_ref_to_gql(external_ref: object) -> DatasetExternalRefType | None:

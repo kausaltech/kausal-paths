@@ -15,15 +15,14 @@ from strawberry.types.info import Info as StrawberryInfo
 from paths.graphql_types import AdminButton
 from paths.schema_context import PathsGraphQLContext
 
-from nodes.instance import Instance
+from nodes.context import Context
 
 if TYPE_CHECKING:
     from django.db.models import Model
 
-    from paths.types import GQLInstanceInfo, PathsGQLInfo
+    from paths.types import PathsGQLInfo
 
     from admin_site.viewsets import PathsViewSet
-    from nodes.context import Context
     from nodes.instance import Instance
 
     from .graphql_types import SBInfo
@@ -34,21 +33,7 @@ class GraphQLPerfNode:
     id: str
 
 
-def _instance_or_bust(info: InfoType) -> Instance:
-    if (instance := getattr(info.context, 'instance', None)) is None:
-        raise GraphQLError(
-            "Unable to determine Paths instance for the request. Use the 'instance' directive or HTTP headers.",
-            graphql_error_nodes(info),
-        )
-    if instance is None:
-        raise GraphQLError(
-            "Instance is not set in the context. Use the 'instance' directive or HTTP headers.",
-            graphql_error_nodes(info),
-        )
-    return instance
-
-
-type InfoType = GQLInstanceInfo | SBInfo | StrawberryInfo[PathsGraphQLContext[Any]]
+type InfoType = PathsGQLInfo | SBInfo | StrawberryInfo[PathsGraphQLContext]
 
 
 def graphql_error_nodes(info: InfoType):
@@ -57,50 +42,20 @@ def graphql_error_nodes(info: InfoType):
     return raw_info.field_nodes
 
 
-type AnyResolver[**P, R, I: InfoType] = Callable[Concatenate[Any, I, P], R]
-
-
-def ensure_instance[**P, R, I: InfoType](method: AnyResolver[P, R, I]) -> AnyResolver[P, R, I]:
-    """Wrap a class method to ensure instance is specified when the method is called."""
-
-    @functools.wraps(method)
-    def method_wrapper(self: Any, info: I, *args: P.args, **kwargs: P.kwargs) -> R:
-        _instance_or_bust(info)
-        return method(self, info, *args, **kwargs)
-
-    return method_wrapper
-
+ROOT_PARAMETER_NAMES = frozenset({'self', 'root'})
 
 P = ParamSpec('P')
 R = TypeVar('R')
 
 type ResolverWithContext[**P, R, I: InfoType] = Callable[Concatenate[Any, I, Context, P], R]
 type ResolverWithRootAndContext[**P, R] = Callable[Concatenate[Any, Context, P], R]
-type ResolverWithInfoAndContext[**P, R, I: InfoType] = Callable[Concatenate[I, Context, P], R]
-type ResolverContextOnly[**P, R] = Callable[Concatenate[Context, P], R]
-
-type ContextResolver[**P, R, I: InfoType] = (
-    ResolverWithContext[P, R, I]
-    | ResolverWithRootAndContext[P, R]
-    | ResolverWithInfoAndContext[P, R, I]
-    | ResolverContextOnly[P, R]
-)
 
 
 def _get_public_context_resolver_signature(sig: inspect.Signature) -> inspect.Signature:
     public_params = [param for param in sig.parameters.values() if param.name != 'context']
-    if any(param.name == 'info' for param in public_params):
-        return sig.replace(parameters=public_params)
-
-    insert_at = 1 if public_params and public_params[0].name in {'self', 'cls', 'root'} else 0
-    public_params.insert(
-        insert_at,
-        inspect.Parameter(
-            'info',
-            inspect.Parameter.POSITIONAL_OR_KEYWORD,
-            annotation=StrawberryInfo,
-        ),
-    )
+    if not public_params or public_params[0].name not in ROOT_PARAMETER_NAMES:
+        msg = 'pass_context resolvers take the runtime from their root; the first parameter must be `root` or `self`'
+        raise TypeError(msg)
     return sig.replace(parameters=public_params)
 
 
@@ -112,14 +67,14 @@ def _call_context_resolver[R](
     **kwargs: Any,
 ) -> R:
     bound = public_sig.bind_partial(*args, **kwargs)
-    info = cast('InfoType', bound.arguments['info'])
-    instance = _instance_or_bust(info)
+    root_name = next(iter(public_sig.parameters))
+    context = root_context(bound.arguments[root_name])
     call_args: list[Any] = []
     call_kwargs: dict[str, Any] = {}
 
     for param in sig.parameters.values():
         if param.name == 'context':
-            value = instance.context
+            value = context
         elif param.name in bound.arguments:
             value = bound.arguments[param.name]
         else:
@@ -145,22 +100,18 @@ def pass_context[**P, R, I: InfoType](method_or_field: ResolverWithContext[P, R,
 def pass_context[**P, R](method_or_field: ResolverWithRootAndContext[P, R]) -> Callable[Concatenate[Any, P], R]: ...
 
 
-@overload
-def pass_context[**P, R, I: InfoType](
-    method_or_field: ResolverWithInfoAndContext[P, R, I],
-) -> Callable[Concatenate[I, P], R]: ...
-
-
-@overload
-def pass_context[**P, R](
-    method_or_field: ResolverContextOnly[P, R],
-) -> Callable[P, R]: ...
-
-
 def pass_context[**P, R, I: InfoType](
     method_or_field: object,
 ) -> Callable[..., Any]:
-    """Wrap a resolver function to provide Context as an argument."""
+    """
+    Wrap a resolver function to provide the runtime Context of its root object.
+
+    The context comes from the root (`root.context`), never from the request, so a
+    field resolves against the same model runtime as the object it is a field of.
+    A request can hold several runtimes of one instance -- `InstanceType.model`
+    with parameter overrides builds its own -- and a resolver that read the
+    request's default runtime instead would silently mix their states.
+    """
 
     if isinstance(method_or_field, StrawberryField) or not callable(method_or_field):
         msg = 'pass_context must wrap the resolver function before @sb.field'
@@ -180,14 +131,30 @@ def pass_context[**P, R, I: InfoType](
     return method_wrapper
 
 
-def get_instance_context(info: InfoType) -> Context:
-    instance = _instance_or_bust(info)
-    return instance.context
+def root_context(root: object) -> Context:
+    """Return the model runtime a GraphQL root object is bound to."""
+    context = getattr(root, 'context', None)
+    if not isinstance(context, Context):
+        msg = f'{type(root).__name__} is not bound to a model runtime'
+        raise TypeError(msg)
+    return context
 
 
-def get_instance(info: InfoType) -> Instance:
-    instance = _instance_or_bust(info)
-    return instance
+def default_instance(info: InfoType) -> Instance:
+    """
+    Return the runtime of the instance the operation names, without overrides.
+
+    For entry points that have no root object to take a runtime from: top-level
+    query fields, mutations and pages. A field of a runtime-bound object must use
+    `root_context` (or `pass_context`) instead.
+    """
+    context = cast('PathsGraphQLContext', info.context)
+    if context.instance_resources is None or context.instance_resources.default_config is None:
+        raise GraphQLError(
+            "Unable to determine Paths instance for the request. Use the 'instance' directive or HTTP headers.",
+            graphql_error_nodes(info),
+        )
+    return context.instance_resources.require_instance()
 
 
 class AdminButtonsMixin:

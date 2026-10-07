@@ -478,23 +478,17 @@ class MeasureType(DjangoNode[Measure]):
         return root.cache.measure_datapoints.by_measure(root.pk)
 
     @staticmethod
-    def _get_fwc_and_context(measure: Measure) -> tuple[FrameworkConfig, Context]:
+    def _get_fwc_and_context(measure: Measure, info: GQLInfo) -> tuple[FrameworkConfig, Context]:
         fwc = measure.cache.framework_config
-        if hasattr(measure.cache, 'instance'):
-            instance = measure.cache.instance
-        else:
-            instance = fwc.instance_config.get_instance()
-            measure.cache.instance = instance
-        context = instance.context
-        return fwc, context
+        return fwc, info.context.require_instance(fwc.instance_config).context
 
     @staticmethod
-    def _find_corresponding_node(measure: Measure) -> tuple[Node | None, NodeDimensionSelection | None]:
+    def _find_corresponding_node(measure: Measure, info: GQLInfo) -> tuple[Node | None, NodeDimensionSelection | None]:
         cached = getattr(measure, '_node', None)
         if cached is not None:
             return cached
         measure_template_uuid = str(measure.measure_template.uuid)
-        fwc, context = MeasureType._get_fwc_and_context(measure)
+        fwc, context = MeasureType._get_fwc_and_context(measure, info)
         node_dimension_selection = fwc.measure_template_uuid_to_node_dimension_selection.get(measure_template_uuid)
         if node_dimension_selection is None:
             return None, None
@@ -505,7 +499,7 @@ class MeasureType(DjangoNode[Measure]):
 
     @staticmethod
     def resolve_corresponding_node(root: Measure, info: GQLInfo) -> Node | None:
-        node = MeasureType._find_corresponding_node(root)
+        node = MeasureType._find_corresponding_node(root, info)
         return node[0]
 
     @staticmethod
@@ -584,10 +578,10 @@ class MeasureType(DjangoNode[Measure]):
     @staticmethod
     def resolve_placeholder_data_points(root: Measure, info: GQLInfo) -> list[PlaceHolderDataPoint]:
 
-        node, node_dimension_selection = MeasureType._find_corresponding_node(root)
+        node, node_dimension_selection = MeasureType._find_corresponding_node(root, info)
         if node is None or node_dimension_selection is None:
             return []
-        fwc, context = MeasureType._get_fwc_and_context(root)
+        fwc, context = MeasureType._get_fwc_and_context(root, info)
         with context.get_default_scenario().override():
             try:
                 df = MeasureType._get_placeholder_df(root, node, node_dimension_selection)

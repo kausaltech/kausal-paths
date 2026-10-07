@@ -28,13 +28,7 @@ if TYPE_CHECKING:
         ResolverFunc,
     )
 
-    from paths.schema_context import PathsGraphQLContext
-
-    from nodes.instance import Instance
     from nodes.models import InstanceConfig
-
-
-type InstanceInfo = strawberry.Info['PathsGraphQLContext[Instance]']
 
 
 def get_ic_or_error(info: Info, ic_id: str) -> InstanceConfig:
