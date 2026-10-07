@@ -364,6 +364,8 @@ class PathsExt:
         y = df[YEAR_COLUMN]
         if y.n_unique() != len(y):
             raise Exception('DataFrame has duplicated years')
+        if y.is_empty():  # No year to make forecast rows after
+            return ppl.to_ppdf(df, meta=meta)
 
         if FORECAST_COLUMN not in df.columns:
             last_hist_year = y.max()
