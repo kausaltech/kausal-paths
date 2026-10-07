@@ -43,6 +43,7 @@ if TYPE_CHECKING:
     from nodes.instance_graph_cache import LoadedInstanceSnapshot, ResolvedInstanceSource
     from nodes.instance_serialization import InstanceSnapshot
     from nodes.models import InstanceConfig, InstanceConfigQuerySet
+    from nodes.node import Node
     from params.overrides import ModelOverrides
 
 logger = logger.bind(markup=True)
@@ -315,6 +316,14 @@ class PathsGraphQLContext(GraphQLContext):
     instance_resources: InstanceRequestResources | None = field(init=False, default=None, repr=False)
     organization_population_indexes: dict[tuple[int, int], PopulationYearIndex] = field(default_factory=dict, repr=False)
     dataset_plausibility_lookups: dict[int, DatasetPlausibilityLookup] = field(default_factory=dict, repr=False)
+    upstream_nodes: dict[tuple[str | int, ...], Node] = field(default_factory=dict, repr=False)
+    """
+    The node each `downstreamNodes` list was resolved from, keyed by that field's response path.
+
+    `impactMetric` on a node in such a list measures the upstream node's impact on it. Keyed by
+    path so that only the list's own items see it: whatever else the response contains, and
+    whichever runtime it comes from, cannot.
+    """
 
     # Populated by DetermineInstanceContextExtension from @instance / @context
     # directive arguments. Consumed by editing mutations for optimistic

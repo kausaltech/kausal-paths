@@ -627,7 +627,7 @@ class NodeInterface(UserPermissionsMixin):
         only_outcome: bool = False,
         until_node: sb.ID | None = None,
     ) -> list['Node']:
-        info.context._upstream_node = root  # type: ignore[attr-defined]
+        info.context.upstream_nodes[tuple(info.path.as_list())] = root
         if until_node is not None:
             try:
                 to_node = root.context.get_node(until_node)
@@ -685,7 +685,10 @@ class NodeInterface(UserPermissionsMixin):
         from nodes.actions.action import ActionNode
 
         instance = context.instance
-        upstream_node: 'Node | None' = getattr(info.context, '_upstream_node', None)
+        # Set when this node is an item of a `downstreamNodes` list: the path is
+        # [..., 'downstreamNodes', <index>, 'impactMetric'].
+        list_path = info.path.prev.prev if info.path.prev is not None else None
+        upstream_node = info.context.upstream_nodes.get(tuple(list_path.as_list())) if list_path is not None else None
 
         if goal_id is not None:
             try:
