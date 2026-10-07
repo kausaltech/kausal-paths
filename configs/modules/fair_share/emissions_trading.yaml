@@ -1,0 +1,428 @@
+# Objection 2, "the cap makes it pointless" -- the emissions-trading waterbed.
+#
+# Under a binding cap, an emission a city avoids frees an allowance someone else can use, so
+# world emissions do not change: the "waterbed". This file asks how much of a scenario's
+# reduction survives it. It needs the city's balance by BISKO `sector` and `energy_carrier`,
+# because which trading system covers an emission depends on both, and its data describes the
+# German and EU systems; that is why it is separate from `objections.yaml`. See `objections.md`,
+# objection 2.
+#
+#   objection_emissions_by_trading_system    which system covers the balance (data)
+#   objection_trading_coverage_check          how much of the balance the data assigns
+#   objection_waterbed_released_ets1/_ets2    the part a cap would let others emit (two parameters)
+#   objection_effective_emissions             what is left: the emissions the city's choices change
+#   objection_effective_reduction(_cumulative) the scenario's reduction that changes world emissions
+#   objection_effective_reduction_share       the same, as a share of the planned reduction
+#   objection_climate_damage_avoided_effective the damage that reduction avoids
+#   objection_carbon_price_share_of_damage    the consequence: CO2 price / damage per tonne
+#
+# What the including instance must provide, beyond `objections.yaml`'s requirements:
+#
+# * `net_emissions` with the BISKO dimensions `sector` and `energy_carrier`.
+# * Global parameters `fair_share_waterbed_ets1` and `fair_share_waterbed_ets2` (%).
+# * `co2_price_fuels` -- the CO2 price on heating and road fuels, EUR/t (mainz-bisko has one).
+#
+# Data: `fair_share/emissions_trading_coverage`, built by
+# `modules/fair-share/scripts/create_objections_data.py` in paths-data. It assigns to a cap
+# whatever could plausibly be called capped, so it grants the objection rather than understating it.
+
+dimensions:
+
+- id: emissions_trading_system
+  label_de: Emissionshandelssystem
+  label_en: Emissions trading system
+  help_text: >-
+    Welches System die Emissionen erfasst: der europäische Emissionshandel für Strom, Wärme und
+    Industrie (EU-ETS 1), der für Gebäude und Verkehr ab 2028 (EU-ETS 2), der nationale
+    Festpreis 2021–2027 oder keines.
+  categories:
+  - id: eu_ets1
+    label_de: EU-Emissionshandel 1 (Strom, Wärme, Industrie)
+    label_en: EU ETS 1 (power, heat, industry)
+    order: 1
+  - id: eu_ets2
+    label_de: EU-Emissionshandel 2 (Gebäude, Verkehr, ab 2028)
+    label_en: EU ETS 2 (buildings, transport, from 2028)
+    order: 2
+  - id: national_fixed_price
+    label_de: Nationaler CO₂-Preis (Festpreis 2021–2027)
+    label_en: National CO₂ price (fixed price 2021–2027)
+    order: 3
+  - id: uncapped
+    label_de: Keine Obergrenze
+    label_en: No cap
+    order: 4
+
+nodes:
+
+- id: objection_emissions_by_trading_system
+  is_editable: false
+  name_de: Emissionen der Stadt nach Emissionshandelssystem
+  name_en: The city's emissions by emissions trading system
+  description_de: |
+    <b>Einwand 2: „Der Emissionshandel macht es sinnlos.“</b> Strom, Fernwärme und Industrie
+    unterliegen dem europäischen Emissionshandel, ab 2028 auch Heiz- und Kraftstoffe. Seine
+    Obergrenze legt fest, wie viel insgesamt ausgestoßen wird. Was Mainz einspart, gibt ein
+    Zertifikat frei, das ein anderer nutzen kann – die Emissionen wandern nur, wie Wasser in
+    einem Wasserbett.<br/>
+    Gezeigt wird, welcher Teil der Bilanz unter welches System fällt. Bis 2027 liegen Heiz- und
+    Kraftstoffe unter dem nationalen CO₂-Preis, der als Festpreis keine Menge begrenzt; was dort
+    eingespart wird, gibt niemand anderem etwas frei. Ab 2028 fällt fast die ganze Bilanz unter
+    eine Obergrenze.<br/>
+    Die Zuordnung gesteht dem Einwand im Zweifel zu viel zu: Industrie und Fernwärme zählen ganz
+    zum EU-Emissionshandel 1, obwohl kleinere Anlagen und die Müllverbrennung nicht darunter
+    fallen, und die vorgelagerte Energiebereitstellung zählt mit, obwohl sie großenteils im
+    Ausland ohne Obergrenze stattfindet. Was diese Zuordnung übersteht, übersteht auch eine
+    genauere.
+  description_en: |
+    <b>Objection 2: "Emissions trading makes it pointless."</b> Electricity, district heating and
+    industry are under the EU emissions trading system, and from 2028 heating and road fuels are
+    too. Its cap fixes how much is emitted in total. Whatever Mainz saves frees an allowance
+    someone else can use: emissions only move, like water in a waterbed.<br/>
+    Shown is which part of the balance falls under which system. Until 2027 heating and road
+    fuels are under the national CO₂ price, a fixed price that limits no quantity; what is saved
+    there frees nothing for anyone else. From 2028 almost the whole balance is under a cap.<br/>
+    Where in doubt, the assignment grants the objection too much: industry and district heating
+    count wholly as EU ETS 1, although smaller plants and waste incineration are not in it, and
+    the upstream energy supply counts too, although much of it happens abroad under no cap.
+    Whatever survives this assignment survives a more accurate one.
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [emissions_trading_system]
+  output_dimensions: [emissions_trading_system]
+  input_nodes:
+  - id: net_emissions
+    tags: [emissions]
+  input_datasets:
+  - id: fair_share/emissions_trading_coverage
+    tags: [coverage]
+    column: share
+  params:
+  # The coverage data starts in 2020, the budget's start, so the product does too.
+  - id: formula
+    value: sum_dim(sum_dim(emissions * coverage, sector), energy_carrier)
+
+- id: objection_trading_coverage_check
+  is_editable: false
+  name_de: Anteil der Bilanz mit Zuordnung zu einem Emissionshandelssystem
+  name_en: Share of the balance assigned to an emissions trading system
+  description_de: |
+    Eine Kontrolle: Welcher Teil der Treibhausgasbilanz einem Emissionshandelssystem zugeordnet
+    ist. Er sollte 100 % betragen. Liegt er darunter, hat die Bilanz Emissionen in einem Sektor
+    oder Energieträger, für den die Daten keine Zuordnung enthalten, und diese Emissionen fehlen
+    in der Prüfung von Einwand 2.
+  description_en: |
+    A check: which part of the greenhouse gas balance is assigned to an emissions trading system.
+    It should be 100 %. If it is lower, the balance has emissions in a sector or energy carrier
+    the data does not assign, and those emissions are missing from the test of objection 2.
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: '%'
+  input_nodes:
+  - id: net_emissions
+    tags: [emissions]
+  - id: objection_emissions_by_trading_system
+    tags: [assigned]
+  params:
+  - id: formula
+    value: sum_dim(assigned) / from_year(sum_dim(emissions), 2020)
+
+- id: objection_waterbed_released_ets1
+  is_editable: false
+  name_de: Im EU-Emissionshandel 1 woanders wieder ausgestoßene Emissionen
+  name_en: Emissions under EU ETS 1 emitted again elsewhere
+  description_de: |
+    Der Teil der Emissionen unter dem EU-Emissionshandel 1, den die Obergrenze nach dem
+    gewählten Wasserbett-Anteil festlegt: Was die Stadt davon einspart, stößt ein anderer aus.
+    Der Anteil wird in den Einstellungen gewählt.
+  description_en: |
+    The part of the emissions under EU ETS 1 that the cap fixes, by the waterbed share chosen in
+    the settings: whatever the city saves of it, someone else emits.
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_nodes:
+  - id: objection_emissions_by_trading_system
+    tags: [capped]
+    from_dimensions:
+    - id: emissions_trading_system
+      categories: [eu_ets1]
+      flatten: true
+  params:
+  - id: formula
+    value: capped * constant
+  - id: constant
+    ref: fair_share_waterbed_ets1
+
+- id: objection_waterbed_released_ets2
+  is_editable: false
+  name_de: Im EU-Emissionshandel 2 woanders wieder ausgestoßene Emissionen
+  name_en: Emissions under EU ETS 2 emitted again elsewhere
+  description_de: |
+    Wie der vorige Knoten, für den Emissionshandel für Gebäude und Verkehr ab 2028, mit seinem
+    eigenen Wasserbett-Anteil.
+  description_en: |
+    As the previous node, for emissions trading for buildings and transport from 2028, with its
+    own waterbed share.
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_nodes:
+  - id: objection_emissions_by_trading_system
+    tags: [capped]
+    from_dimensions:
+    - id: emissions_trading_system
+      categories: [eu_ets2]
+      flatten: true
+  params:
+  - id: formula
+    value: capped * constant
+  - id: constant
+    ref: fair_share_waterbed_ets2
+
+- id: objection_effective_emissions
+  is_editable: false
+  name_de: Emissionen, die von den Entscheidungen der Stadt abhängen
+  name_en: Emissions that depend on the city's choices
+  description_de: |
+    Die Emissionen der Stadt ohne den Teil, den eine Obergrenze ohnehin festlegt. Bei einem
+    Wasserbett-Anteil von 100 % sind das nur noch die Emissionen ohne Obergrenze und die unter
+    dem nationalen Festpreis; bei 0 % die ganze Bilanz.<br/>
+    Als Höhe ist der Wert ein Hilfsmaß. Aussagekräftig ist der Unterschied zwischen zwei
+    Szenarien: Er ist die Minderung, die die weltweiten Emissionen tatsächlich senkt.
+  description_en: |
+    The city's emissions without the part a cap fixes anyway. At a waterbed share of 100 % only
+    the uncapped emissions and those under the national fixed price remain; at 0 % the whole
+    balance.<br/>
+    As a level the value is an auxiliary measure. What it is for is the difference between two
+    scenarios: that difference is the reduction that actually lowers world emissions.
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_nodes:
+  - id: objection_emissions_by_trading_system
+    tags: [emissions]
+  - id: objection_waterbed_released_ets1
+    tags: [ets1]
+  - id: objection_waterbed_released_ets2
+    tags: [ets2]
+  params:
+  # ETS 2 rows exist only from 2028; subtraction joins outer and treats a missing year as zero.
+  - id: formula
+    value: sum_dim(emissions) - ets1 - ets2
+
+- id: objection_effective_reduction
+  is_editable: false
+  name_de: Minderung des Szenarios, die die weltweiten Emissionen senkt
+  name_en: The scenario's reduction that lowers world emissions
+  description_de: |
+    Die Minderung des Szenarios gegenüber „Business as Usual“, nach Abzug dessen, was die
+    Obergrenzen des Emissionshandels woanders wieder freigeben. Mit der „Minderung des Szenarios
+    gegenüber Business as Usual“ verglichen zeigt sie, wie viel vom Einwand 2 übrig bleibt.
+  description_en: |
+    The scenario's reduction against Business as Usual, less what the caps of emissions trading
+    release again elsewhere. Compared with "The scenario's reduction against Business as Usual",
+    it shows how much objection 2 takes away.
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_nodes:
+  - id: objection_effective_emissions
+    tags: [effective]
+  params:
+  - id: formula
+    value: output_with_scenario(effective, 'baseline') - effective
+
+- id: objection_effective_reduction_cumulative
+  is_editable: false
+  name_de: Minderung des Szenarios, die die weltweiten Emissionen senkt, aufsummiert ab 2020
+  name_en: The scenario's reduction that lowers world emissions, summed from 2020
+  description_de: |
+    Die Minderung, die nach Abzug des Wasserbetts bleibt, aufsummiert ab 2020.<br/>
+    <b>Was bleibt vom Einwand?</b> Bei einem Wasserbett-Anteil von 100 % senken ab 2028 fast nur
+    noch die Minderungen ohne Obergrenze die weltweiten Emissionen; was davor unter dem
+    nationalen Festpreis gemindert wird, zählt voll. Wer den Einwand ganz zugesteht, muss
+    allerdings auch seine Folge zugestehen: Unter einer festen Obergrenze bestimmen die
+    Maßnahmen nicht, <i>wie viel</i> ausgestoßen wird, sondern <i>wer</i> mindert. Dann gilt
+    der faire Anteil für die Nutzung der Obergrenze: Was die Stadt über ihren Anteil hinaus
+    ausstößt, bezahlt sie mit Zertifikaten, für deren Freigabe andere mindern müssen – eine
+    Pflicht zum Ausgleich wie in Prämisse 8.<br/>
+    Drei Gründe sprechen dafür, den Anteil unter 100 % anzusetzen. Die Marktstabilitätsreserve
+    löscht überschüssige Zertifikate, sodass ein Teil der Einsparungen dauerhaft wirkt. Der
+    Emissionshandel 2 gibt bei hohen Preisen zusätzliche Zertifikate aus, und jede Einsparung
+    verringert diese Ausgabe. Und die Obergrenzen sind politisch gesetzt: Sie werden verschärft,
+    wo Minderung gelingt, und gelockert, wo sie teuer wird – der Start des Emissionshandels 2 wurde
+    2025 um ein Jahr verschoben, um die Preise zu dämpfen.
+  description_en: |
+    The reduction left after the waterbed, summed from 2020.<br/>
+    <b>What is left of the objection?</b> At a waterbed share of 100 %, from 2028 almost only the
+    uncapped reductions still lower world emissions; what is cut before that under the national
+    fixed price counts in full. Whoever grants the objection in full must also grant its
+    consequence, though: under a fixed cap the measures decide not <i>how much</i> is emitted but
+    <i>who</i> cuts. The fair share then applies to the use of the cap: what the city emits
+    beyond its share it pays for with allowances that others must cut to free, a duty to
+    compensate as in premise 8.<br/>
+    Three reasons speak for a share below 100 %. The market stability reserve cancels surplus
+    allowances, so part of the savings lasts. ETS 2 issues additional allowances when prices are
+    high, and every saving reduces that issue. And caps are set politically: they are tightened
+    where reduction succeeds and loosened where it gets expensive. The start of ETS 2 was put off
+    by a year in 2025 to damp prices.
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: kt_co2e
+  input_nodes:
+  - id: objection_effective_reduction
+    tags: [reduction]
+  params:
+  - id: formula
+    value: cumulative(reduction)
+
+- id: objection_effective_reduction_share
+  is_editable: false
+  name_de: Anteil der Minderung, der die weltweiten Emissionen senkt
+  name_en: Share of the reduction that lowers world emissions
+  description_de: |
+    Welcher Teil der Minderung des Szenarios gegenüber „Business as Usual“ die weltweiten
+    Emissionen senkt, nachdem der Emissionshandel seinen Teil woanders wieder freigegeben hat,
+    aufsummiert ab 2020. 100 % heißt: Die ganze Minderung wirkt; das wäre ohne Obergrenzen so.
+    <br/>
+    Wie viel der Einwand wegnimmt, hängt von den Wasserbett-Anteilen in den Einstellungen ab. Im
+    Szenario „Business as Usual“ wird nichts gemindert, und der Wert ist nicht bestimmt.
+  description_en: |
+    Which part of the scenario's reduction against Business as Usual lowers world emissions, once
+    emissions trading has released its part again elsewhere, summed from 2020. 100 % means the
+    whole reduction works, as it would without caps.<br/>
+    How much the objection takes away depends on the waterbed shares in the settings. In the
+    Business as Usual scenario nothing is cut, and the value is undefined.
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: '%'
+  input_nodes:
+  - id: objection_effective_reduction_cumulative
+    tags: [effective]
+  - id: fair_share_planned_reduction_cumulative
+    tags: [planned]
+  params:
+  # Undefined where nothing is cut (Business as Usual itself, and 2020); those years are dropped.
+  - id: formula
+    value: drop_infs(effective / planned)
+  goals:
+  - label_de: Die ganze Minderung wirkt weltweit
+    label_en: The whole reduction works worldwide
+    default: true
+    is_main_goal: true
+    linear_interpolation: false
+    auto_start: false
+    values:
+    - year: 2030
+      value: 100.0
+    - year: 2035
+      value: 100.0
+    - year: 2040
+      value: 100.0
+    - year: 2045
+      value: 100.0
+    - year: 2050
+      value: 100.0
+
+# ///// The consequence of objection 2: whoever raises it must want a stricter cap /////
+
+- id: objection_carbon_price_share_of_damage
+  is_editable: false
+  name_de: Anteil des Klimaschadens, den der CO₂-Preis abdeckt
+  name_en: Share of the climate damage covered by the CO₂ price
+  description_de: |
+    <b>Was aus Einwand 2 folgt.</b> Wer sagt, Klimaschutz vor Ort sei sinnlos, weil der
+    Emissionshandel jede Einsparung woanders wieder freigibt, sagt damit: Allein die Obergrenze
+    entscheidet, wie viel ausgestoßen wird. Wer außerdem den Klimawandel für ein Problem hält, das
+    gelöst werden muss, muss dann eine strengere Obergrenze wollen – sie ist nach seinen eigenen
+    Prämissen der einzige Hebel. Eine strengere Obergrenze hebt den CO₂-Preis, und mit ihm lohnen
+    sich die Maßnahmen vor Ort auch finanziell.<br/>
+    Wer diese Folgerung ablehnt, muss eine Prämisse aufgeben: Entweder wirkt der Emissionshandel
+    nicht wie ein Wasserbett – dann zählt die Minderung vor Ort unmittelbar –, oder der Klimawandel
+    ist kein Problem. Die übrigen Auswege führen zurück: „Die Obergrenze ist schon streng genug“
+    heißt, dass die Minderung irgendwo geschehen muss und nur offen ist, wer sie erbringt (der faire
+    Anteil); „ein anderes Instrument“ verlangt dieselbe Strenge auf anderem Weg; „dann wandert die
+    Industrie nach China“ ist Einwand 3.<br/>
+    Auch wer nur so weit mindern will, wie es sich lohnt, landet hier. Gezeigt wird der CO₂-Preis
+    auf Heiz- und Kraftstoffe geteilt durch den Schaden je Tonne. Liegt er unter 100 %, ist der
+    Ausstoß zu billig, gemessen an dem Schaden, den er anrichtet: Eine Kosten-Nutzen-Abwägung
+    verlangt dann einen höheren Preis, also eine strengere Obergrenze. Im Emissionshandel für Strom
+    und Industrie lag der Preis bisher unter rund 100 Euro je Tonne, also ebenfalls weit unter dem
+    Schaden.
+  description_en: |
+    <b>What follows from objection 2.</b> Whoever says local climate action is pointless because
+    emissions trading releases every saving elsewhere is saying that the cap alone decides how much
+    is emitted. If they also hold that climate change is a problem that must be solved, they must
+    want a stricter cap: on their own premises it is the only lever. A stricter cap raises the CO₂
+    price, and with it the local measures pay off financially too.<br/>
+    Whoever rejects this conclusion has to give up a premise: either emissions trading does not
+    work like a waterbed, and then the local reduction counts directly, or climate change is not a
+    problem. The other ways out lead back: "the cap is strict enough already" means the reduction
+    has to happen somewhere and only who delivers it is open (the fair share); "a different
+    instrument" requires the same stringency by another route; "then industry moves to China" is
+    objection 3.<br/>
+    Even someone who will only cut as far as it pays ends up here. Shown is the CO₂ price on heating
+    and road fuels divided by the damage per tonne. Below 100 %, emitting is too cheap for the
+    damage it does: a cost-benefit judgement then requires a higher price, that is, a stricter cap.
+    In emissions trading for power and industry the price has so far stayed below about 100 euros
+    per tonne, also far below the damage.
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: '%'
+  input_nodes:
+  # `co2_price_fuels` is the instance's CO2 price on heating and road fuels (BEHG, then ETS 2);
+  # in mainz-dev it comes from mainz-bisko.yaml, with its post-2028 level as a setting.
+  - id: co2_price_fuels
+    tags: [price]
+  - id: objection_climate_cost_rate
+    tags: [damage]
+  params:
+  - id: formula
+    value: price / damage
+  goals:
+  - label_de: Der Preis deckt den Schaden
+    label_en: The price covers the damage
+    default: true
+    is_main_goal: true
+    linear_interpolation: false
+    auto_start: false
+    values:
+    - year: 2030
+      value: 100.0
+    - year: 2035
+      value: 100.0
+    - year: 2040
+      value: 100.0
+    - year: 2045
+      value: 100.0
+    - year: 2050
+      value: 100.0
+
+- id: objection_climate_damage_avoided_effective
+  is_editable: false
+  name_de: Durch das Szenario vermiedener Klimaschaden, nach Abzug des Wasserbetts
+  name_en: Climate damage avoided by the scenario, after the waterbed
+  description_de: |
+    Wie der „Durch das Szenario vermiedene Klimaschaden“, aber nur für die Minderung, die die
+    weltweiten Emissionen tatsächlich senkt: Einwand 1 und Einwand 2 zusammen. Was der
+    Wasserbett-Anteil abzieht, ist nicht wertlos – eine eingesparte Tonne unter einer
+    Obergrenze erspart jemand anderem eine Minderung zum Preis eines Zertifikats –, aber es ist
+    kein vermiedener Klimaschaden.
+  description_en: |
+    Like "Climate damage avoided by the scenario", but only for the reduction that actually
+    lowers world emissions: objections 1 and 2 together. What the waterbed share takes away is
+    not worthless (a tonne saved under a cap spares someone else a cut, at the price of an
+    allowance), but it is not climate damage avoided.
+  type: formula.FormulaNode
+  quantity: currency
+  unit: MEUR
+  input_nodes:
+  - id: objection_effective_reduction
+    tags: [reduction]
+  - id: objection_climate_cost_rate
+    tags: [rate]
+  params:
+  - id: formula
+    value: cumulative(reduction * rate)

@@ -1,0 +1,469 @@
+# Objections to the fair-share argument -- each met from a premise most people accept.
+#
+# `carbon_budget.yaml` answers how much the city owes. The objections it actually hears ask
+# something else: whether a local tonne changes anything, and whether the duty holds when others
+# do not act. This module meets two of them; the third, the emissions-trading "waterbed", needs
+# the BISKO sector and energy-carrier dimensions and lives in `emissions_trading.yaml`. The
+# objections are numbered as in `objections.md`, which states each one in its strongest form,
+# the premise that answers it and what the model shows.
+#
+#   E1 "Too small to matter"   objection_climate_cost_rate          pure rate of time preference
+#                              objection_climate_damage_caused
+#                              objection_climate_damage_avoided
+#   E2 "The cap makes it pointless"  see emissions_trading.yaml
+#   E3 "Only if others act"    objection_cooperation_<criterion>    (none: facts)
+#                              objection_cooperation_met_<criterion> the sceptic's own threshold
+#                              for each criterion of acting: net_zero_target, carbon_price,
+#                              emissions_falling
+#
+#   fair_share_planned_reduction(_cumulative): the scenario's reduction against Business as
+#   Usual, which every objection is tested against; fair_share_planned_reduction_owed_share: the
+#   part of it the fair share requires.
+#
+# Nothing here feeds back into the balance.
+#
+# What the including instance must provide (see objections.md, "Including the module"):
+#
+# * `carbon_budget.yaml`, included too: these nodes read `net_emissions` the same way it does.
+# * A scenario with the id `baseline`, the Business as Usual every reduction is measured from.
+# * Global parameters `fair_share_pure_time_preference` (0 or 1, %) and
+#   `fair_share_cooperation_threshold` (%).
+#
+# Data: `fair_share/climate_cost_rate` and `fair_share/cooperation_coverage`, built by
+# `modules/fair-share/scripts/create_objections_data.py` in paths-data.
+
+nodes:
+
+# ///// The scenario's reduction, which every objection is tested against /////
+
+- id: fair_share_planned_reduction
+  is_editable: false
+  name_de: Minderung des Szenarios gegenüber Business as Usual
+  name_en: The scenario's reduction against Business as Usual
+  description_de: |
+    Um wie viel die Emissionen der Stadt im gewählten Szenario unter denen von „Business as
+    Usual“ liegen, Jahr für Jahr ab 2020. Im Szenario „Business as Usual“ selbst ist der Wert
+    null.<br/>
+    Das ist die Minderung, die die Maßnahmen bewirken – und die Größe, an der jeder Einwand
+    geprüft wird: Ist es fair, mindestens so viel zu mindern? Ändert diese Minderung etwas an
+    den weltweiten Emissionen? Gilt die Pflicht dazu auch, wenn andere nicht handeln?
+  description_en: |
+    How far the city's emissions in the selected scenario lie below those of Business as Usual,
+    year by year from 2020. In the Business as Usual scenario itself the value is zero.<br/>
+    This is the reduction the measures achieve, and the quantity every objection is tested
+    against: is it fair to cut at least this much? Does the cut change world emissions? Does
+    the duty hold if others do not act?
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_nodes:
+  - id: net_emissions
+    tags: [emissions]
+  params:
+  # The same total `fair_share_city_cumulative_emissions` counts, from the budget's start year.
+  - id: formula
+    value: from_year(sum_dim(output_with_scenario(emissions, 'baseline')) - sum_dim(emissions), 2020)
+
+- id: fair_share_planned_reduction_cumulative
+  is_editable: false
+  name_de: Minderung des Szenarios gegenüber Business as Usual, aufsummiert ab 2020
+  name_en: The scenario's reduction against Business as Usual, summed from 2020
+  description_de: |
+    Die Minderung des Szenarios gegenüber „Business as Usual“, aufsummiert ab 2020.<br/>
+    <b>Ist es fair, mindestens so viel zu mindern?</b> Nach den Prämissen des fairen Anteils ist
+    die Minderung geschuldet, solange das Szenario den fairen Anteil der Stadt noch überzieht
+    oder gerade ausschöpft – also solange der „Verbleibende faire CO₂-Anteil der Stadt“ im
+    Szenario nicht positiv ist. Denn was die Stadt über ihren Anteil hinaus ausstößt, ist genau
+    das, was sie gegenüber „Business as Usual“ mindestens mindern müsste, abzüglich dessen, was
+    das Szenario schon mindert. Bei großzügigeren Lesarten der Prämissen kann das Szenario mehr
+    mindern, als die Fairness verlangt; dann begründet sich der Rest mit anderen Argumenten,
+    etwa dem vermiedenen Schaden.
+  description_en: |
+    The scenario's reduction against Business as Usual, summed from 2020.<br/>
+    <b>Is it fair to cut at least this much?</b> On the premises of the fair share, the cut is
+    owed as long as the scenario still overdraws, or just uses up, the city's fair share, that
+    is, as long as "The city's remaining fair share of CO₂" is not positive in the scenario. What
+    the city emits beyond its share is exactly what it would at least have to cut against
+    Business as Usual, less what the scenario already cuts. Under more generous readings of the
+    premises the scenario may cut more than fairness requires; the rest is then justified by
+    other arguments, such as the damage avoided.
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: kt_co2e
+  input_nodes:
+  - id: fair_share_planned_reduction
+    tags: [reduction]
+  params:
+  - id: formula
+    value: cumulative(reduction)
+
+- id: fair_share_planned_reduction_owed_share
+  is_editable: false
+  name_de: Nach dem fairen Anteil geschuldeter Teil der Minderung
+  name_en: Part of the reduction owed under the fair share
+  description_de: |
+    Welcher Teil der Minderung des Szenarios gegenüber „Business as Usual“ nach den Prämissen des
+    fairen Anteils geschuldet ist, aufsummiert ab 2020. Geschuldet ist, was die Stadt ohne
+    Maßnahmen über ihren fairen Anteil hinaus ausstoßen würde. 100 % heißt: Die ganze Minderung
+    ist geschuldet – und wenn das Szenario seinen Anteil trotzdem überzieht, noch mehr. Weniger
+    heißt: Das Szenario mindert mehr, als die Fairness verlangt; den Rest muss ein anderes
+    Argument tragen, etwa der vermiedene Schaden.<br/>
+    Im Szenario „Business as Usual“ wird nichts gemindert, und der Wert ist nicht bestimmt.
+  description_en: |
+    Which part of the scenario's reduction against Business as Usual is owed on the premises of
+    the fair share, summed from 2020. What is owed is what the city would emit beyond its fair
+    share without measures. 100 % means the whole reduction is owed, and if the scenario still
+    overdraws its share, more. Less means the scenario cuts more than fairness requires; the rest
+    has to be carried by another argument, such as the damage avoided.<br/>
+    In the Business as Usual scenario nothing is cut, and the value is undefined.
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: '%'
+  input_nodes:
+  - id: fair_share_city_cumulative_emissions
+    tags: [used]
+  - id: fair_share_city_budget
+    tags: [budget]
+  - id: fair_share_planned_reduction_cumulative
+    tags: [reduction]
+  params:
+  # Owed is the Business as Usual overshoot to date. The division is undefined where nothing is
+  # cut (Business as Usual itself, and 2020), and those years are dropped before the cap at 1, so
+  # an undefined year is shown as missing, not as 100 %.
+  - id: formula
+    value: min(drop_infs(make_nonnegative(output_with_scenario(used, 'baseline') - budget) / reduction), 1)
+  goals:
+  - label_de: Die ganze Minderung ist geschuldet
+    label_en: The whole reduction is owed
+    default: true
+    is_main_goal: true
+    linear_interpolation: false
+    auto_start: false
+    values:
+    - year: 2030
+      value: 100.0
+    - year: 2035
+      value: 100.0
+    - year: 2040
+      value: 100.0
+    - year: 2045
+      value: 100.0
+    - year: 2050
+      value: 100.0
+
+# ///// E1: "Mainz is too small to matter" -- the harm each tonne causes /////
+
+- id: objection_climate_cost_rate
+  is_editable: false
+  name_de: Klimaschaden je Tonne CO₂
+  name_en: Climate damage per tonne of CO₂
+  description_de: |
+    <b>Einwand 1: „Mainz ist zu klein, um etwas zu bewirken.“</b> Die Stadt stößt einen
+    winzigen Teil der weltweiten Emissionen aus; ihre Minderung ist an der Temperatur nicht
+    messbar.<br/>
+    <b>Die Prämisse dagegen: Wer anderen vorhersehbar Schaden zufügt, braucht dafür eine
+    Rechtfertigung – auch wenn der Schaden klein und auf viele verteilt ist.</b> Die Erwärmung
+    wächst mit der Summe der Emissionen, und jede Tonne trägt ihren Teil zum Schaden bei. Klein
+    zu sein macht den Schaden klein, aber nicht null.<br/>
+    Gezeigt wird der Schaden, den eine Tonne CO₂ während ihrer Verweildauer in der Atmosphäre
+    weltweit anrichtet, nach dem Jahr, in dem sie ausgestoßen wird, in Euro von 2025. Die Werte
+    stammen aus der Methodenkonvention 4.0 des Umweltbundesamts (2026). Sie hängen von einem
+    Werturteil ab, das in den Einstellungen gewählt wird: wie stark das Wohlergehen künftiger
+    Generationen zählt. Bei 0 % (Empfehlung des Umweltbundesamts) zählt es gleich viel wie das
+    heutige, bei 1 % weniger; das ergibt etwa ein Drittel des Werts.
+  description_en: |
+    <b>Objection 1: "Mainz is too small to make a difference."</b> The city emits a tiny part of
+    world emissions; its reduction cannot be measured in the temperature.<br/>
+    <b>The premise against it: whoever foreseeably harms others needs a justification, even if
+    the harm is small and spread over many.</b> Warming grows with the sum of emissions, and
+    every tonne contributes its part of the harm. Being small makes the harm small, not zero.<br/>
+    Shown is the damage one tonne of CO₂ does worldwide during its time in the atmosphere, by the
+    year in which it is emitted, in euros of 2025. The values are from the German Environment
+    Agency's Methodological Convention 4.0 (2026). They depend on a value judgement chosen in the
+    settings: how much the welfare of future generations counts. At 0 % (the agency's
+    recommendation) it counts as much as today's, at 1 % less, which gives about a third of the
+    value.
+  type: formula.FormulaNode
+  quantity: unit_price
+  unit: EUR/t_co2e
+  input_datasets:
+  - id: fair_share/climate_cost_rate
+    tags: [rate]
+    column: cost_rate
+    filters:
+    - column: pure_time_preference
+      ref: fair_share_pure_time_preference
+  params:
+  - id: formula
+    value: rate
+  - id: extend_last_historical_value
+    value: true
+
+- id: objection_climate_damage_caused
+  is_editable: false
+  name_de: Klimaschaden durch die Emissionen der Stadt
+  name_en: Climate damage caused by the city's emissions
+  description_de: |
+    Der Schaden, den die Emissionen der Stadt eines Jahres weltweit anrichten: die gesamte
+    Treibhausgasbilanz mal dem Schaden je Tonne. Fast der ganze Schaden trifft Menschen
+    außerhalb der Stadt, viele davon noch nicht geboren.<br/>
+    Dieser Wert beantwortet Einwand 1 unabhängig davon, was andere tun. Ob Mainz allein mindert
+    oder mit allen anderen: Jede vermiedene Tonne vermeidet ihren Teil des Schadens. Handeln die
+    anderen nicht, wird es wärmer, und der Schaden je Tonne wird eher größer.<br/>
+    Die Bilanz zählt CO₂-Äquivalente einschließlich der vorgelagerten Energiebereitstellung; das
+    Umweltbundesamt empfiehlt für solche Angaben den Wert für CO₂.
+  description_en: |
+    The damage a year of the city's emissions does worldwide: the whole greenhouse gas balance
+    times the damage per tonne. Almost all of it falls on people outside the city, many of them
+    not yet born.<br/>
+    This value answers objection 1 whatever others do. Whether Mainz cuts alone or with
+    everyone else, each tonne avoided avoids its part of the harm. If the others do not act, it
+    gets warmer, and the damage per tonne tends to grow.<br/>
+    The balance counts CO₂ equivalents including the upstream energy supply; for such figures
+    the German Environment Agency recommends the value for CO₂.
+  type: formula.FormulaNode
+  quantity: currency
+  unit: MEUR/a
+  input_nodes:
+  - id: net_emissions
+    tags: [emissions]
+  - id: objection_climate_cost_rate
+    tags: [rate]
+  params:
+  - id: formula
+    value: from_year(sum_dim(emissions), 2020) * rate
+
+- id: objection_climate_damage_avoided
+  is_editable: false
+  name_de: Durch das Szenario vermiedener Klimaschaden, aufsummiert ab 2020
+  name_en: Climate damage avoided by the scenario, summed from 2020
+  description_de: |
+    Der Schaden, den die Minderung des Szenarios gegenüber „Business as Usual“ vermeidet: Jahr
+    für Jahr die vermiedenen Tonnen mal dem Schaden je Tonne, aufsummiert ab 2020.<br/>
+    Er ist der Nutzen der Maßnahmen für andere, und mit ihm lassen sich ihre Kosten vergleichen:
+    Eine Maßnahme, die weniger kostet, als sie an Schaden vermeidet, ist gerechtfertigt, auch
+    wenn sonst niemand handelt. Die Investitionskosten der Maßnahmen enthält das Modell nicht.
+    <br/>
+    Gezählt werden alle vermiedenen Tonnen. Ob eine vermiedene Tonne im Emissionshandel woanders
+    wieder ausgestoßen wird, prüft Einwand 2 („Durch das Szenario vermiedener Klimaschaden, nach
+    Abzug des Wasserbetts“).
+  description_en: |
+    The damage the scenario's reduction against Business as Usual avoids: year by year the
+    tonnes avoided times the damage per tonne, summed from 2020.<br/>
+    It is the measures' benefit to others, and their costs can be compared with it: a measure
+    that costs less than the damage it avoids is justified even if no one else acts. The model
+    does not contain the measures' investment costs.<br/>
+    Every tonne avoided is counted. Whether an avoided tonne is emitted elsewhere under emissions
+    trading is tested by objection 2 ("Climate damage avoided by the scenario, after the
+    waterbed").
+  type: formula.FormulaNode
+  quantity: currency
+  unit: MEUR
+  input_nodes:
+  - id: fair_share_planned_reduction
+    tags: [reduction]
+  - id: objection_climate_cost_rate
+    tags: [rate]
+  params:
+  # Each year's damage is the value at the time of emission; summing them undiscounted follows
+  # the convention of the cost rates, which already weigh the future by the chosen preference.
+  - id: formula
+    value: cumulative(reduction * rate)
+
+# ///// E3: "Only if others act" -- grant the condition, then check it /////
+#
+# One node per criterion of acting rather than one node with a dimension: the criteria cover
+# different years (net-zero coverage 2024-2025, carbon prices 2021-2025, falling emissions
+# 1990-2024), and a dimensional metric fills a missing cell with zero, which would show "0 %
+# acting" for years that simply have no data.
+
+- id: objection_cooperation_net_zero_target
+  is_editable: false
+  name_de: Anteil der weltweiten Emissionen aus Ländern mit einem Netto-Null-Ziel
+  name_en: Share of world emissions from countries with a net-zero target
+  description_de: |
+    <b>Einwand 3: „Erst wenn die anderen handeln.“</b> Warum sollte Mainz mindern, wenn China,
+    die USA oder Indien es nicht tun?<br/>
+    Die Prämissen des fairen Anteils machen die Pflicht nicht davon abhängig, was andere tun
+    (Prämisse 6: keine Ausnahme). Wer das nicht teilt, sondern nur unter der Bedingung handeln
+    will, dass andere es auch tun, wird hier beim Wort genommen: <b>Die Bedingung wird
+    zugestanden und dann geprüft</b> – nach drei Maßstäben dafür, was „handeln“ heißt, vom
+    schwächsten bis zum strengsten.<br/>
+    Der schwächste Maßstab dafür, was „handeln“ heißt: Das Land hat ein nationales Ziel für
+    Netto-Null-Emissionen. Nach dem Net Zero Tracker deckten solche Ziele 2024 87 % der weltweiten
+    Emissionen ab, 2025 noch mindestens 74 %, nachdem die USA ihr Ziel aufgegeben hatten. Zwei
+    Drittel der Ziele sind gesetzlich oder in formeller Politik verankert. Ein Ziel ist eine
+    Zusage, keine Minderung.
+  description_en: |
+    <b>Objection 3: "Only once the others act."</b> Why should Mainz cut if China, the United
+    States or India do not?<br/>
+    The premises of the fair share do not make the duty depend on what others do (premise 6: no
+    exemption). Whoever does not share that view, but will act only on condition that others do
+    too, is taken at their word here: <b>the condition is granted, and then checked</b>, by three
+    measures of what "acting" means, from the weakest to the strictest.<br/>
+    The weakest measure of what "acting" means: the country has a national target of net-zero
+    emissions. According to the Net Zero Tracker such targets covered 87 % of world emissions in
+    2024 and at least 74 % in 2025, after the United States abandoned its target. Two thirds of the
+    targets are in law or formal policy. A target is a pledge, not a reduction.
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: '%'
+  input_datasets:
+  - id: fair_share/cooperation_coverage
+    tags: [coverage]
+    column: coverage
+    filters:
+    - column: cooperation_criterion
+      value: net_zero_target
+  params:
+  - id: formula
+    value: coverage
+
+- id: objection_cooperation_met_net_zero_target
+  is_editable: false
+  name_de: 'Bedingung für Mitwirken erfüllt? Maßstab: Netto-Null-Ziel beschlossen'
+  name_en: 'Condition for joining in met? Measure: Net-zero target adopted'
+  description_de: |
+    1, wenn der Anteil der weltweiten Emissionen aus Ländern, die nach diesem Maßstab handeln, die
+    in den Einstellungen gewählte Schwelle erreicht, sonst 0.<br/>
+    Wer nur mitwirken will, wenn genug andere es tun, legt mit der Schwelle selbst fest, was
+    „genug“ ist. Ist die Bedingung erfüllt, gilt für ihn dieselbe Pflicht wie für alle anderen.
+    Ist sie es nicht, bleibt der Einwand bestehen – für den, der ihn erhebt. Die übrigen Argumente
+    (Einwand 1 und der faire Anteil) hängen von dieser Bedingung nicht ab.
+  description_en: |
+    1 if the share of world emissions from countries acting by this measure reaches the threshold
+    chosen in the settings, 0 otherwise.<br/>
+    Whoever will join in only if enough others do sets with the threshold what "enough" means. If
+    the condition is met, the same duty applies to them as to everyone else. If it is not, the
+    objection stands, for whoever raises it. The other arguments (objection 1 and the fair share)
+    do not depend on this condition.
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: dimensionless
+  input_nodes:
+  - id: objection_cooperation_net_zero_target
+    tags: [coverage]
+  params:
+  - id: formula
+    value: coverage >= constant
+  - id: constant
+    ref: fair_share_cooperation_threshold
+
+- id: objection_cooperation_carbon_price
+  is_editable: false
+  name_de: Anteil der weltweiten Emissionen mit einem CO₂-Preis
+  name_en: Share of world emissions with a carbon price
+  description_de: |
+    Ein mittlerer Maßstab: Die Emissionen unterliegen einer CO₂-Steuer oder einem
+    Emissionshandel. Nach der Weltbank stieg dieser Anteil von 21,5 % 2021 auf 28 % 2025 (2022
+    interpoliert) – zu sehr verschiedenen Preisen; nur ein kleiner Teil liegt in der Höhe, die die
+    Pariser Ziele verlangen.
+  description_en: |
+    A middle measure: the emissions are under a carbon tax or emissions trading. According to the
+    World Bank this share rose from 21.5 % in 2021 to 28 % in 2025 (2022 interpolated), at very
+    different prices; only a small part is priced at the level the Paris goals require.
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: '%'
+  input_datasets:
+  - id: fair_share/cooperation_coverage
+    tags: [coverage]
+    column: coverage
+    filters:
+    - column: cooperation_criterion
+      value: carbon_price
+  params:
+  - id: formula
+    value: coverage
+
+- id: objection_cooperation_met_carbon_price
+  is_editable: false
+  name_de: 'Bedingung für Mitwirken erfüllt? Maßstab: CO₂-Preis eingeführt'
+  name_en: 'Condition for joining in met? Measure: Carbon price in force'
+  description_de: |
+    1, wenn der Anteil der weltweiten Emissionen aus Ländern, die nach diesem Maßstab handeln, die
+    in den Einstellungen gewählte Schwelle erreicht, sonst 0.<br/>
+    Wer nur mitwirken will, wenn genug andere es tun, legt mit der Schwelle selbst fest, was
+    „genug“ ist. Ist die Bedingung erfüllt, gilt für ihn dieselbe Pflicht wie für alle anderen.
+    Ist sie es nicht, bleibt der Einwand bestehen – für den, der ihn erhebt. Die übrigen Argumente
+    (Einwand 1 und der faire Anteil) hängen von dieser Bedingung nicht ab.
+  description_en: |
+    1 if the share of world emissions from countries acting by this measure reaches the threshold
+    chosen in the settings, 0 otherwise.<br/>
+    Whoever will join in only if enough others do sets with the threshold what "enough" means. If
+    the condition is met, the same duty applies to them as to everyone else. If it is not, the
+    objection stands, for whoever raises it. The other arguments (objection 1 and the fair share)
+    do not depend on this condition.
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: dimensionless
+  input_nodes:
+  - id: objection_cooperation_carbon_price
+    tags: [coverage]
+  params:
+  - id: formula
+    value: coverage >= constant
+  - id: constant
+    ref: fair_share_cooperation_threshold
+
+- id: objection_cooperation_emissions_falling
+  is_editable: false
+  name_de: Anteil der weltweiten Emissionen aus Ländern mit deutlich sinkenden Emissionen
+  name_en: Share of world emissions from countries whose emissions are clearly falling
+  description_de: |
+    Der strengste Maßstab: Die Emissionen des Landes sinken tatsächlich. Gezählt werden Länder,
+    deren Emissionen im Fünfjahresmittel mindestens 10 % unter ihrem bisherigen Höchststand
+    liegen, berechnet aus den Daten des Global Carbon Project. 1990 waren es 7 % der weltweiten
+    Emissionen, seit 2015 rund ein Drittel. Die USA, Japan und die großen EU-Länder gehören dazu,
+    China und Indien nicht. Sinken ist nicht dasselbe wie handeln: Auch ein wirtschaftlicher
+    Zusammenbruch zählt, etwa der der Sowjetunion in den 1990er Jahren.
+  description_en: |
+    The strictest measure: the country's emissions are actually falling. Counted are countries
+    whose five-year mean emissions are at least 10 % below their highest so far, computed from
+    Global Carbon Project data. In 1990 that was 7 % of world emissions, since 2015 about a third.
+    The United States, Japan and the large EU countries are among them; China and India are not.
+    Falling is not the same as acting: an economic collapse counts too, such as that of the Soviet
+    Union in the 1990s.
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: '%'
+  input_datasets:
+  - id: fair_share/cooperation_coverage
+    tags: [coverage]
+    column: coverage
+    filters:
+    - column: cooperation_criterion
+      value: emissions_falling
+  params:
+  - id: formula
+    value: coverage
+
+- id: objection_cooperation_met_emissions_falling
+  is_editable: false
+  name_de: 'Bedingung für Mitwirken erfüllt? Maßstab: Emissionen sinken deutlich'
+  name_en: 'Condition for joining in met? Measure: Emissions clearly falling'
+  description_de: |
+    1, wenn der Anteil der weltweiten Emissionen aus Ländern, die nach diesem Maßstab handeln, die
+    in den Einstellungen gewählte Schwelle erreicht, sonst 0.<br/>
+    Wer nur mitwirken will, wenn genug andere es tun, legt mit der Schwelle selbst fest, was
+    „genug“ ist. Ist die Bedingung erfüllt, gilt für ihn dieselbe Pflicht wie für alle anderen.
+    Ist sie es nicht, bleibt der Einwand bestehen – für den, der ihn erhebt. Die übrigen Argumente
+    (Einwand 1 und der faire Anteil) hängen von dieser Bedingung nicht ab.
+  description_en: |
+    1 if the share of world emissions from countries acting by this measure reaches the threshold
+    chosen in the settings, 0 otherwise.<br/>
+    Whoever will join in only if enough others do sets with the threshold what "enough" means. If
+    the condition is met, the same duty applies to them as to everyone else. If it is not, the
+    objection stands, for whoever raises it. The other arguments (objection 1 and the fair share)
+    do not depend on this condition.
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: dimensionless
+  input_nodes:
+  - id: objection_cooperation_emissions_falling
+    tags: [coverage]
+  params:
+  - id: formula
+    value: coverage >= constant
+  - id: constant
+    ref: fair_share_cooperation_threshold

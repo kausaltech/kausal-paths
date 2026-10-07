@@ -3,7 +3,7 @@ default_language: de
 supported_languages: [en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 7b395d2f89e96c13738e41f08b8cae27cd0dc84f
+  commit: 93285ca039dd3124adcf8cd46b7be8b820f2fc8b
   dvc_remote: kausal-s3
 name_de: Treibhausgas-Monitor Mainz (Entwicklung)
 name_en: GHG Monitor Mainz (development)
@@ -152,6 +152,15 @@ include:
 # sums `net_emissions` itself and takes `fair_share_key_population` from the PV layer below, so
 # both layers divide the country's effort by the same rule. Nothing in it reaches the balance.
 - file: modules/fair_share/carbon_budget.yaml
+  allow_override: false
+# The objections the fair-share argument has to meet (modules/fair_share/objections.md): "too
+# small to matter", "the cap makes it pointless", "only if others act". Each is answered from a
+# premise most people accept, and the disputed judgements are settings (see `params:`). Nothing
+# reaches the balance. The dashboard page /einwaende summarises it (paths-data
+# models/mainz/scripts/create_objections_dashboard.py).
+- file: modules/fair_share/objections.yaml
+  allow_override: false
+- file: modules/fair_share/emissions_trading.yaml
   allow_override: false
 
 #//////  Impact overviews
@@ -771,6 +780,84 @@ params:
   min_value: 1850
   max_value: 2020
   step: 10
+  is_customizable: true
+  is_visible: true
+
+# The objections to the fair-share argument (modules/fair_share/objections.md). As above, each
+# label carries the whole explanation. The defaults: the German Environment Agency's own main
+# value for future generations (0 %); a majority of world emissions as the cooperation threshold;
+# and the waterbed granted in full for both trading systems. For ETS 2 that is the weaker
+# assumption, deliberately: its cap releases extra allowances when prices rise and has already
+# been bent once (its start was put off a year in 2025), so less than 100 % is defensible -- but
+# the argument starts from the reading most favourable to the objection, and a visitor who finds
+# the counter-reasons convincing can lower the slider.
+- id: fair_share_pure_time_preference
+  label_de: >-
+    Einwand 1 – künftige Generationen: Wie viel weniger zählt das Wohlergehen künftiger
+    Generationen als das heutige, in Prozent je Jahr? 0 % heißt: gleich viel (Empfehlung des
+    Umweltbundesamts), eine Tonne CO₂ richtet dann rund 1000 Euro Schaden an. 1 % heißt:
+    weniger, rund 350 Euro je Tonne.
+  label_en: >-
+    Objection 1 – future generations: how much less does the welfare of future generations
+    count than today's, in per cent per year? 0 % means the same (the German Environment
+    Agency's recommendation); a tonne of CO₂ then does about 1,000 euros of damage. 1 % means
+    less, about 350 euros per tonne.
+  value: 0
+  min_value: 0
+  max_value: 1
+  step: 1
+  unit: '%'
+  is_customizable: true
+  is_visible: true
+- id: fair_share_waterbed_ets1
+  label_de: >-
+    Einwand 2 – Wasserbett im EU-Emissionshandel 1 (Strom, Wärme, Industrie): Welcher Teil
+    dessen, was Mainz hier einspart, wird wegen der Obergrenze woanders wieder ausgestoßen?
+    100 % heißt: alles, die Einsparung ändert die weltweiten Emissionen nicht. 0 % heißt:
+    nichts, etwa weil überschüssige Zertifikate gelöscht werden.
+  label_en: >-
+    Objection 2 – waterbed in EU ETS 1 (power, heat, industry): what part of what Mainz saves
+    here is emitted elsewhere because of the cap? 100 % means all of it; the saving does not
+    change world emissions. 0 % means none, for instance because surplus allowances are
+    cancelled.
+  value: 100
+  min_value: 0
+  max_value: 100
+  step: 10
+  unit: '%'
+  is_customizable: true
+  is_visible: true
+- id: fair_share_waterbed_ets2
+  label_de: >-
+    Einwand 2 – Wasserbett im EU-Emissionshandel 2 (Heiz- und Kraftstoffe, ab 2028): Welcher
+    Teil dessen, was Mainz hier einspart, wird woanders wieder ausgestoßen? 100 % heißt:
+    alles. Für weniger spricht, dass dieses System bei hohen Preisen zusätzliche Zertifikate
+    ausgibt und seine Obergrenze politisch schon einmal nachgegeben hat.
+  label_en: >-
+    Objection 2 – waterbed in EU ETS 2 (heating and road fuels, from 2028): what part of what
+    Mainz saves here is emitted elsewhere? 100 % means all of it. What speaks for less: this
+    system issues extra allowances when prices are high, and its cap has already given way once.
+  value: 100
+  min_value: 0
+  max_value: 100
+  step: 10
+  unit: '%'
+  is_customizable: true
+  is_visible: true
+- id: fair_share_cooperation_threshold
+  label_de: >-
+    Einwand 3 – Bedingung für Mitwirken: Wer nur handeln will, wenn genug andere handeln –
+    welcher Anteil der weltweiten Emissionen muss von Ländern kommen, die handeln? Das
+    Modell prüft, ob die Bedingung erfüllt ist. 0 % heißt: Mainz handelt bedingungslos.
+  label_en: >-
+    Objection 3 – condition for joining in: for whoever will act only if enough others act,
+    what share of world emissions must come from countries that are acting? The model checks
+    whether the condition is met. 0 % means Mainz acts unconditionally.
+  value: 50
+  min_value: 0
+  max_value: 100
+  step: 5
+  unit: '%'
   is_customizable: true
   is_visible: true
 

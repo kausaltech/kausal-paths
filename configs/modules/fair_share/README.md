@@ -1,6 +1,7 @@
 # Fair share of the global CO₂ budget
 
 *Produced by Claude Opus 5.5 on 2026-10-06.*
+*Version 2 produced by Claude Opus 5.5 on 2026-10-07.*
 *Responsible: Jouni Tuomisto.*
 
 A module that asks whether a city stays within its fair share of what the world may still
@@ -76,6 +77,21 @@ Germany emitted 3.2 Gt of fossil CO₂ in 2020–2024. The default is the row of
 nearest to the basis the Federal Constitutional Court accepted (the German Advisory Council
 on the Environment's budget for 1.75 °C at 67 %), with an equal claim per person and no past
 counted. It is a middle reading, not the most generous one.
+
+## Objections, in a file of their own
+
+The budget answers *how much*. The objections a city hears mostly ask something else (does a
+local tonne change anything, does the duty hold while others do nothing), so they are met by
+other premises, in [`objections.md`](objections.md) and two more files:
+
+| File | Objection | Needs |
+|---|---|---|
+| `objections.yaml` | 1 "Too small to matter" (climate damage per tonne); 3 "Only if others act" (the condition granted and checked) | this module, a `baseline` scenario |
+| `emissions_trading.yaml` | 2 "Emissions trading makes it pointless" (the waterbed) | BISKO `sector` × `energy_carrier`; German and EU trading systems |
+
+`objections.md` also shows that the claim "the city should cut at least what its scenario cuts"
+is, on this module's premises, the same statement as `fair_share_city_remaining_budget` not being
+positive in that scenario, so it needs no node of its own.
 
 ## Including the module
 

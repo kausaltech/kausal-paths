@@ -451,3 +451,52 @@ class FairShareResponsibilityStartYear(NumberGlobalParameter):
 
     name = _('Fair share: start year of historical responsibility')
     id = 'fair_share_responsibility_start_year'
+
+
+# The objections to the fair-share argument (`configs/modules/fair_share/objections.md`). Each
+# objection is met from a premise most people accept; what the objector and the model may
+# reasonably disagree about is a setting.
+
+
+class FairSharePureTimePreference(NumberGlobalParameter):
+    """
+    Objection 1: how much less, in per cent per year, the welfare of future generations counts.
+
+    Selects the German Environment Agency's climate cost rate: 0 % weighs every generation
+    equally (the agency's main value), 1 % weighs the present more and gives about a third of it.
+    """
+
+    name = _('Fair share objections: pure rate of time preference')
+    id = 'fair_share_pure_time_preference'
+
+
+class FairShareWaterbedEts1(NumberGlobalParameter):
+    """
+    Objection 2: the share of a saving under EU ETS 1 that the cap releases to be emitted elsewhere.
+
+    100 % is the full waterbed, where a local saving does not change world emissions; less
+    stands for allowances cancelled by the market stability reserve or a cap tightened as
+    abatement succeeds.
+    """
+
+    name = _('Fair share objections: waterbed share in EU ETS 1')
+    id = 'fair_share_waterbed_ets1'
+
+
+class FairShareWaterbedEts2(NumberGlobalParameter):
+    """Objection 2: as `fair_share_waterbed_ets1`, for the emissions trading system for buildings and road transport."""
+
+    name = _('Fair share objections: waterbed share in EU ETS 2')
+    id = 'fair_share_waterbed_ets2'
+
+
+class FairShareCooperationThreshold(NumberGlobalParameter):
+    """
+    Objection 3: the share of world emissions that must come from acting countries before a conditional cooperator acts.
+
+    The model compares it with the coverage of each criterion of acting, and reports whether the
+    objector's own condition is met.
+    """
+
+    name = _('Fair share objections: cooperation threshold')
+    id = 'fair_share_cooperation_threshold'
