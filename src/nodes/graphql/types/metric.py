@@ -24,7 +24,6 @@ from nodes.metric import (
 
 if TYPE_CHECKING:
     from paths.graphql_types import UnitType
-    from paths.types import GQLInstanceContext
 
 
 class YearlyValueProtocol(Protocol):
@@ -222,13 +221,9 @@ class VisualizationNodeOutput(VisualizationEntry):  # type: ignore[override]
     scenarios: list[str] | None = None
 
     @sb.field(graphql_type=DimensionalMetricType | None)
-    def metric_dim(self, info: sb.Info) -> DimensionalMetric | None:
+    def metric_dim(self) -> DimensionalMetric | None:
         e = cast('viz.VisualizationNodeOutput', self)
-        req = cast('GQLInstanceContext', info.context)
-        dm = e.get_metric_data(req.instance.context.nodes[self.node_id])
-        if dm is None:
-            return None
-        return dm
+        return e.get_metric_data(e.node)
 
     def to_pydantic(self, **kwargs: Any) -> viz.VisualizationNodeOutput:
         data = dataclasses.asdict(self)  # type: ignore[call-overload]

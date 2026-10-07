@@ -13,7 +13,6 @@ if TYPE_CHECKING:
     from collections import OrderedDict
     from typing import type_check_only
 
-    from graphql import GraphQLResolveInfo
     from rest_framework.request import Request as APIRequest
     from wagtail.models import Site
 
@@ -27,7 +26,6 @@ if TYPE_CHECKING:
     from paths.schema_context import PathsGraphQLContext
 
     from common.cache import CacheResult
-    from nodes.instance import Instance
     from nodes.models import InstanceConfig
     from users.models import User
 
@@ -85,15 +83,6 @@ if TYPE_CHECKING:
     @type_check_only
     class PathsGQLInfo(CommonGQLInfo):  # pyright: ignore[reportGeneralTypeIssues]
         context: PathsGraphQLContext
-
-    @type_check_only
-    class GQLInstanceContext(PathsGQLContext):  # pyright: ignore
-        instance: Instance
-        wildcard_domains: list[str]
-
-    @type_check_only
-    class GQLInstanceInfo(GraphQLResolveInfo):
-        context: PathsGraphQLContext[Instance]
 
 
 class CacheablePathsModel[CacheT](CacheableModel[CacheT], PathsModel):  # pyright: ignore[reportImplicitAbstractClass]

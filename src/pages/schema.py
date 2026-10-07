@@ -3,12 +3,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import graphene
+from graphql.error import GraphQLError
 
 from grapple.types.pages import Page as GrapplePageType
 
-from paths.graphql_helpers import ensure_instance
+from paths.graphql_helpers import default_instance, graphql_error_nodes
 
-from nodes.models import InstanceConfig
 from nodes.schema import NodeType
 from pages.page_interface import PageInterface
 
@@ -16,8 +16,9 @@ from .models import OutcomePage, PathsPage
 from .perms import PagePermissionPolicy
 
 if TYPE_CHECKING:
-    from paths.graphql_helpers import GQLInstanceInfo
+    from paths.types import PathsGQLInfo as GQLInfo
 
+    from nodes.models import InstanceConfig
     from nodes.node import Node
 
     from .models import Page
@@ -38,14 +39,24 @@ class OutcomePageType(PathsPageType):
     outcome_node = graphene.Field(NodeType, required=True)
 
     @staticmethod
-    @ensure_instance
-    def resolve_outcome_node(root: OutcomePage, info: GQLInstanceInfo) -> Node:
-        return info.context.instance.context.get_node(root.outcome_node.identifier)
+    def resolve_outcome_node(root: OutcomePage, info: GQLInfo) -> Node:
+        # The page's own model: a page is served for the instance the operation names.
+        return default_instance(info).context.get_node(root.outcome_node.identifier)
 
     class Meta:  # pyright: ignore
         model = OutcomePage
         interfaces = (PageInterface,)
         name = 'OutcomePage'
+
+
+def _operation_instance_config(info: GQLInfo) -> InstanceConfig:
+    instance_config = info.context.instance_config
+    if instance_config is None:
+        raise GraphQLError(
+            "Unable to determine Paths instance for the request. Use the 'instance' directive or HTTP headers.",
+            graphql_error_nodes(info),
+        )
+    return instance_config
 
 
 class Query:
@@ -58,12 +69,11 @@ class Query:
     )
     page = graphene.Field(PageInterface, path=graphene.String(required=True))
 
-    @ensure_instance
     @staticmethod
     def resolve_pages(
-        query, info: GQLInstanceInfo, in_menu: bool = False, in_footer: bool = False, in_additional_links: bool = False, **kwargs
+        query, info: GQLInfo, in_menu: bool = False, in_footer: bool = False, in_additional_links: bool = False, **kwargs
     ) -> list[PathsPage]:
-        instance_config = InstanceConfig.objects.get(identifier=info.context.instance.id)
+        instance_config = _operation_instance_config(info)
         root_page = instance_config.get_translated_root_page()
         qs = root_page.get_descendants(inclusive=True).live().public().specific()
 
@@ -81,14 +91,13 @@ class Query:
 
         return out
 
-    @ensure_instance
     @staticmethod
-    def resolve_page(query, info: GQLInstanceInfo, path: str, **kwargs) -> Page | None:
+    def resolve_page(query, info: GQLInfo, path: str, **kwargs) -> Page | None:
         qs = Query.resolve_pages(query, info, **kwargs)
         if not path.endswith('/'):
             path = path + '/'
         # Prepend the url_path of the translated root page
-        instance_config = InstanceConfig.objects.get(identifier=info.context.instance.id)
+        instance_config = _operation_instance_config(info)
         root_page = instance_config.get_translated_root_page()
         path = root_page.url_path.rstrip('/') + path
         for page in qs:

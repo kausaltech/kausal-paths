@@ -20,7 +20,7 @@ from nodes.metric import DimensionalMetric
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
-    from paths.types import GQLInstanceInfo
+    from paths.types import PathsGQLInfo as GQLInfo
 
     from frameworks.models import Framework
     from nodes.actions.action import ActionNode
@@ -59,7 +59,7 @@ class FrameworkLandingBlock(blocks.StructBlock):
         GraphQLField('framework', 'frameworks.schema.FrameworkType', required=False),
     ]
 
-    def framework(self, info: GQLInstanceInfo, values: dict[str, Any]) -> Framework | None:
+    def framework(self, info: GQLInfo, values: dict[str, Any]) -> Framework | None:
         from frameworks.models import Framework
 
         identifier = values.get('framework_identifier')
@@ -306,17 +306,18 @@ class DashboardCardBlock(blocks.StructBlock):
             raise blocks.StructBlockValidationError(errors)
         return cleaned_data
 
-    def node(self, info: GQLInstanceInfo, values: dict) -> Node:
+    def node(self, info: GQLInfo, values: dict) -> Node:
         from nodes.models import NodeConfig
 
         node_config = values['node_config']
         assert isinstance(node_config, NodeConfig)
-        node = node_config.get_node()
+        # The page's own model: a page is served for the instance the operation names.
+        node = info.context.require_instance().context.nodes.get(node_config.identifier)
         if not node:
             raise ValueError('Node config has no node.')  # hopefully prevented by validation
         return node
 
-    def unit(self, info: GQLInstanceInfo, values: dict) -> Unit:
+    def unit(self, info: GQLInfo, values: dict) -> Unit:
         node = self.node(info, values)
         dm = self._dimensional_metric(node)
         return dm.unit
@@ -331,26 +332,26 @@ class DashboardCardBlock(blocks.StructBlock):
             raise ValueError('Node has no target year')
         return target_year
 
-    def goal_value(self, info: GQLInstanceInfo, values: dict) -> float | None:
+    def goal_value(self, info: GQLInfo, values: dict) -> float | None:
         """Return the value for the chosen goal in the card's year."""
         node = self.node(info, values)
         goal_index = values.get('goal_index')
         return self._goal_value_for_year(node, self._card_year(node, values), goal_index)
 
-    def goal_values(self, info: GQLInstanceInfo, values: dict) -> list[MetricYearlyGoal]:
+    def goal_values(self, info: GQLInfo, values: dict) -> list[MetricYearlyGoal]:
         """Return the values for all years for the chosen goal."""
         node = self.node(info, values)
         goal_index = values.get('goal_index')
         return self._goal_values(node, goal_index)
 
-    def reference_year_value(self, info: GQLInstanceInfo, values: dict) -> float | None:
+    def reference_year_value(self, info: GQLInfo, values: dict) -> float | None:
         node = self.node(info, values)
-        reference_year = info.context.instance.reference_year
+        reference_year = node.context.instance.reference_year
         if reference_year is None:
             raise ValueError('Instance has no reference year')
         return self._value_for_year(node, reference_year)
 
-    def last_historical_year_value(self, info: GQLInstanceInfo, values: dict) -> float | None:
+    def last_historical_year_value(self, info: GQLInfo, values: dict) -> float | None:
         node = self.node(info, values)
         dm = self._dimensional_metric(node)
         last_historical_year = self._last_historical_year(dm)
@@ -358,7 +359,7 @@ class DashboardCardBlock(blocks.StructBlock):
             return None
         return self._value_for_year(node, last_historical_year)
 
-    def scenario_values(self, info: GQLInstanceInfo, values: dict) -> Iterable[ScenarioValue]:
+    def scenario_values(self, info: GQLInfo, values: dict) -> Iterable[ScenarioValue]:
         """Return the value for each scenario in the card's year."""
         from nodes.schema import ScenarioValue
 
@@ -373,9 +374,7 @@ class DashboardCardBlock(blocks.StructBlock):
             for s in node.context.scenarios.values()
         ]
 
-    def metric_dimension_category_values(
-        self, info: GQLInstanceInfo, values: dict
-    ) -> Iterable[MetricDimensionCategoryValue] | None:
+    def metric_dimension_category_values(self, info: GQLInfo, values: dict) -> Iterable[MetricDimensionCategoryValue] | None:
         """
         Return the value for each dimension and each category for the node's target year.
 
@@ -412,7 +411,7 @@ class DashboardCardBlock(blocks.StructBlock):
                 )
         return result
 
-    def scenario_action_impacts(self, info: GQLInstanceInfo, values: dict) -> Iterable[ScenarioActionImpacts]:
+    def scenario_action_impacts(self, info: GQLInfo, values: dict) -> Iterable[ScenarioActionImpacts]:
         """
         Return the impact of each action in the card's year, per scenario.
 
