@@ -15,12 +15,15 @@ from kausal_common.datasets.tests.factories import DatasetFactory, DatasetMetric
 
 from paths.context import PathsObjectCache
 
+from frameworks.tests.factories import FrameworkFactory
 from nodes.defs.binding_def import DatasetBindingDef, EdgeBindingDef, NodePortRef
 from nodes.defs.instance_defs import InstanceMetadata, InstanceModelSpec
 from nodes.defs.node_defs import NodeSpec
 from nodes.defs.port_def import InputPortDef, OutputPortDef
 from nodes.instance_graph import InstanceGraph, NodeMeta, build_instance_graph
 from nodes.instance_graph_cache import (
+    LoadedInstanceSnapshot,
+    _build_graph,
     _dump_graph,
     _load_graph,
     get_instance_graph,
@@ -32,8 +35,11 @@ from nodes.instance_serialization import (
     NodePortSource,
     NodeSnapshot,
     build_instance_snapshot,
+    export_instance,
+    import_instance,
 )
 from nodes.models import NodeInputPortBinding, PreferredInstanceSource
+from nodes.template_graph import publish_template_instance, snapshot_content_hash
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory, NodeConfigFactory
 from nodes.units import unit_registry
 
@@ -259,3 +265,53 @@ def test_snapshot_catalog_keeps_dataset_references_stable_across_renames() -> No
     assert binding.dataset.identifier == 'before-dataset'
     assert binding.metric.id == metric.uuid
     assert binding.metric.identifier == 'before_metric'
+
+
+def test_template_role_survives_snapshot_and_graph_cache_without_inheriting() -> None:
+    template = _database_config()
+    FrameworkFactory.create(template_instance=template)
+    template = type(template).objects.get(pk=template.pk)
+    snapshot = build_instance_snapshot(template)
+    assert snapshot.metadata.is_template
+    graph = build_instance_graph(snapshot)
+    assert _load_graph(_dump_graph(graph)).is_template
+    revision = publish_template_instance(template)
+    follower = InstanceConfigFactory.create(
+        name='Follower',
+        config_source='database',
+        template_revision=revision,
+        spec=InstanceModelSpec(),
+    )
+    composed = build_instance_snapshot(follower)
+    assert composed.snapshot_kind == 'composed'
+    assert not build_instance_graph(composed).is_template
+    copied = InstanceConfigFactory.create(name='Copied template', config_source='database', spec=InstanceModelSpec())
+    import_instance(copied, export_instance(template))
+    assert not build_instance_graph(build_instance_snapshot(copied)).is_template
+
+
+def test_legacy_template_role_is_filled_without_modifying_frozen_metadata() -> None:
+    template = _database_config()
+    FrameworkFactory.create(template_instance=template)
+    template = type(template).objects.get(pk=template.pk)
+    data = build_instance_snapshot(template).model_dump(mode='json')
+    data['metadata'].pop('is_template')
+    legacy = InstanceSnapshot.model_validate(data)
+    assert legacy.model_dump(mode='json') == data
+    original_hash = snapshot_content_hash(legacy)
+    hydrated = legacy.with_instance_role(template)
+    assert hydrated.metadata.is_template
+    assert snapshot_content_hash(legacy) == original_hash
+    assert 'is_template' not in legacy.metadata.model_fields_set
+    source = resolve_instance_source(template, PreferredInstanceSource.PUBLISHED)
+    graph = _build_graph(template, source, LoadedInstanceSnapshot(legacy, legacy.schema_version))
+    assert graph.is_template
+
+
+def test_graph_cache_key_changes_when_instance_becomes_template() -> None:
+    config = _database_config()
+    before = resolve_instance_source(config, PreferredInstanceSource.DRAFT)
+    FrameworkFactory.create(template_instance=config)
+    refreshed = type(config).objects.get(pk=config.pk)
+    after = resolve_instance_source(refreshed, PreferredInstanceSource.DRAFT)
+    assert before.cache_key != after.cache_key

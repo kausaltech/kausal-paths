@@ -234,7 +234,7 @@ class EntryResolver:
         if isinstance(binding, DatasetBindingDef):
             if binding.target_port.binding_owner != 'instance':
                 return
-            if binding.dataset.is_external_placeholder:
+            if binding.dataset.is_external_placeholder and not self.graph.is_template:
                 self.problem(
                     'external_placeholder',
                     'Input data has not been imported',
@@ -342,7 +342,7 @@ class EntryResolver:
 
     def direct(self, section: UUID, table: DataEntryDatasetSpec, tier: int) -> None:
         dataset = self.graph.dataset_by_id.get(table.dataset_id)
-        if dataset is None or dataset.is_external_placeholder:
+        if dataset is None or (dataset.is_external_placeholder and not self.graph.is_template):
             self.problem(
                 'unresolved_source', 'Dataset is unavailable or has not been imported', section, dataset_id=table.dataset_id
             )
@@ -529,7 +529,7 @@ class EntryResolver:
                 continue
             if binding.dataset_uuid not in self.graph.dataset_by_id or binding.metric_uuid is None:
                 continue
-            if binding.dataset.is_external_placeholder:
+            if binding.dataset.is_external_placeholder and not self.graph.is_template:
                 continue
             key = (binding.dataset.id, binding.metric_uuid)
             remaining = [self.source_universe(binding)]
@@ -540,7 +540,7 @@ class EntryResolver:
                 leftovers.append(EntrySelection(*key, tuple(remaining), 'unplaced', reasons=('No section claims these cells',)))
         for dataset_id in sorted(data_entry_dataset_ids(self.graph.spec.data_entry)):
             dataset = self.graph.dataset_by_id.get(dataset_id)
-            if dataset is None or dataset.is_external_placeholder:
+            if dataset is None or (dataset.is_external_placeholder and not self.graph.is_template):
                 continue
             universe = rectangle({dim: self.domains.get(dim, frozenset()) for dim in dataset.declared_dimension_ids})
             for metric in dataset.metrics:
@@ -602,7 +602,7 @@ class EntryResolver:
                     for binding in bindings
                 ):
                     code, message = 'unresolved_source', 'Dataset or metric is unavailable'
-                elif any(
+                elif not self.graph.is_template and any(
                     isinstance(binding, DatasetBindingDef) and binding.dataset.is_external_placeholder for binding in bindings
                 ):
                     code, message = 'external_placeholder', 'Input data has not been imported'

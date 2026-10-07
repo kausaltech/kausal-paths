@@ -1136,7 +1136,7 @@ class InstanceConfig(
             locked.validate_draft_constraints()
             # Dataset validation rules gate publication the same way: the
             # violations were just re-evaluated by the refresh above.
-            require_valid_dataset_rules(materializations.values())
+            require_valid_dataset_rules(materializations.values(), require_submittable=require_submittable)
             from nodes.instance_graph_cache import get_instance_graph
             from nodes.value_validation import (
                 InstanceValueValidationError,

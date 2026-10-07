@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from common.validation import ValidationOperation, blocks_operation
 from datasets.materialization import collect_instance_dataset_violations
 from nodes.constraints.validation import solve_instance_constraints
 from nodes.instance_graph import build_instance_graph
@@ -24,6 +25,8 @@ if TYPE_CHECKING:
 
 def data_entry_definition_problems(graph: InstanceGraph) -> list[EntryProblem]:
     """Only authored layout failures; global optional input states are not layout defects."""
+    if graph.spec.data_entry is None:
+        return []
     return [problem for problem in graph.data_entry.problems if problem.blocks_publication]
 
 
@@ -45,6 +48,14 @@ class InstanceProblems:
     datasets: list[RuleViolation]
     values: list[ValueValidationViolation]
     data_entry: list[EntryProblem]
+
+    def blocking(self, operation: ValidationOperation) -> InstanceProblems:
+        return InstanceProblems(
+            constraints=self.constraints,
+            datasets=[problem for problem in self.datasets if blocks_operation(problem.enforcement, operation)],
+            values=[problem for problem in self.values if blocks_operation(problem.enforcement, operation)],
+            data_entry=self.data_entry if operation != 'edit' else [],
+        )
 
     @property
     def messages(self) -> list[str]:

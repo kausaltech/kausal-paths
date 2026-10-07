@@ -855,6 +855,16 @@ class InstanceSnapshot(BaseModel):
 
     model_config = {'arbitrary_types_allowed': True}
 
+    def with_instance_role(self, config: InstanceConfig) -> Self:
+        """Fill legacy/YAML role metadata on a copy at an ORM-aware loading boundary."""
+        if 'is_template' in self.metadata.model_fields_set:
+            return self
+        return self.model_copy(
+            update={
+                'metadata': self.metadata.model_copy(update={'is_template': config.is_template}),
+            }
+        )
+
     def all_datasets(self) -> list[DatasetMeta]:
         """Return the instance's own catalog entries followed by those of the datasets its nodes own."""
         return [*self.datasets, *(dataset for node in self.nodes for dataset in node.datasets)]

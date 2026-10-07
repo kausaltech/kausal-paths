@@ -122,8 +122,8 @@ class InstanceDatasetValidationError(Exception):
     """
     Publication was refused: the instance's bound datasets carry validation-rule violations.
 
-    The parallel of ``InstanceConstraintError`` for data-level problems; both
-    enforcement tiers block publication.
+    The parallel of ``InstanceConstraintError`` for data-level problems. The caller
+    selects publication or submission enforcement before raising this error.
     """
 
     def __init__(self, violations: list[RuleViolation]):

@@ -318,12 +318,21 @@ class InstanceMetadata(I18nBaseModel):
 
     uuid: UUID = Field(default_factory=uuid4)
     identifier: str = ''
+    is_template: bool = False
     name: I18nString = ''
     owner: I18nString | None = None
     lead_title: I18nString | None = None
     lead_paragraph: I18nString | None = None
     primary_language: str = 'en'
     other_languages: list[str] = Field(default_factory=list)
+
+    @model_serializer(mode='wrap')
+    def serialize_metadata(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        data = handler(self)
+        # Old pinned snapshots must retain their content hashes until republished.
+        if 'is_template' not in self.model_fields_set:
+            data.pop('is_template', None)
+        return data
 
     @classmethod
     def from_model(cls, ic: InstanceConfig) -> InstanceMetadata:
@@ -333,6 +342,7 @@ class InstanceMetadata(I18nBaseModel):
         has_lead_paragraph = bool(ic.lead_paragraph) or any(k.startswith('lead_paragraph_') and v for k, v in i18n.items())
         return cls(
             uuid=ic.uuid,
+            is_template=ic.is_template,
             identifier=ic.identifier,
             name=get_translated_string_from_modeltrans(ic, 'name', ic.primary_language),
             owner=get_translated_string_from_modeltrans(ic, 'owner', ic.primary_language) if has_owner else None,

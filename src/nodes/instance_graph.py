@@ -40,7 +40,8 @@ if TYPE_CHECKING:
 #     binding positions built from a snapshot change accordingly.
 # v7: input ports carry delivered-value contracts and their port dependencies.
 # v8: data-entry layouts and explicit disconnections are available to editor queries.
-INSTANCE_GRAPH_FORMAT_VERSION = 9
+# v10: template role is available to declaration validation.
+INSTANCE_GRAPH_FORMAT_VERSION = 10
 
 
 class InstanceGraphDiagnostic(FrozenGraphModel):
@@ -266,6 +267,10 @@ class InstanceGraph(FrozenGraphModel):
     bindings: tuple[GraphBinding, ...] = ()
     dimensions: tuple[DimensionMeta, ...] = ()
     datasets: tuple[DatasetMeta, ...] = ()
+
+    @property
+    def is_template(self) -> bool:
+        return self.metadata.is_template
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, InstanceGraph):
