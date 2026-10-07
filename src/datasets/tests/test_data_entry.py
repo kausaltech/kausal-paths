@@ -22,6 +22,7 @@ from kausal_common.i18n.pydantic import set_i18n_context
 from paths.tests.graphql import PathsTestClient
 
 from datasets.data_entry import DataEntryQuery
+from datasets.validation import InstanceDatasetValidationError
 from frameworks.models import DataPointEvidence, DataQualityLevel, DataQualityScheme
 from frameworks.tests.factories import FrameworkConfigFactory, FrameworkFactory
 from nodes.defs.binding_def import DatasetBindingDef, NodePortRef
@@ -408,7 +409,7 @@ def test_layout_errors_are_editor_problems_not_section_findings(client: Client) 
     gql.set_instance(config)
     result = gql.query_data("""{
       instance { editor {
-        problems { __typename code ... on DataEntryDefinitionProblem { enforcement sectionId nodeId portId } }
+        problems { __typename code enforcement ... on DataEntryDefinitionProblem { sectionId nodeId portId } }
         dataEntry {
           problemCounts(years: [2023]) { total }
           sections { problems(years: [2023]) { code } problemCounts(years: [2023]) { total } }
@@ -433,3 +434,38 @@ def test_layout_errors_are_editor_problems_not_section_findings(client: Client) 
     assert published['problems'][0]['code'] == 'invalid_placement'
     config.refresh_from_db()
     assert config.live_revision_id is None
+
+
+def test_submission_only_dataset_rule_allows_publication_but_blocks_submission() -> None:
+    query = make_query()
+    config = InstanceConfig.objects.get(uuid=query.graph.instance_id)
+    dataset = next(iter(query.datasets.values()))
+    assert dataset.schema is not None
+    metric = dataset.schema.metrics.get()
+    DatasetMetricValidationRule.objects.create(
+        metric=metric,
+        rule={'kind': 'value_range', 'max': 1, 'enforcement': 'block_submission'},
+    )
+    with set_i18n_context('en', []):
+        config.spec = query.graph.spec.model_copy(deep=True)
+        config.spec.data_entry = DataEntrySpec(
+            sections=[
+                DataEntrySectionSpec(
+                    id=uuid4(),
+                    name='Input',
+                    tables=[
+                        DataEntryDatasetSpec(id=uuid4(), dataset_id=dataset.uuid),
+                    ],
+                )
+            ]
+        )
+    config.save()
+    config.publish_instance()
+    config.refresh_from_db()
+    revision = config.live_revision_id
+    assert revision is not None
+    with pytest.raises(InstanceDatasetValidationError) as exc:
+        config.publish_instance(require_submittable=True)
+    assert {violation.enforcement for violation in exc.value.violations} == {'block_submission'}
+    config.refresh_from_db()
+    assert config.live_revision_id == revision

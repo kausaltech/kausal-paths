@@ -1750,6 +1750,8 @@ class InstanceLoader:
         from .units import add_unit_translations
 
         add_unit_translations()
+        if instance_config is not None:
+            snapshot = snapshot.with_instance_role(instance_config)
         self.tolerate_node_failures = tolerate_node_failures
         self.supplied_dataset_payload_refs = dataset_payload_refs
         self.instance_config = instance_config
