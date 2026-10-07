@@ -297,6 +297,7 @@ class Command(BaseCommand):
     trace_new_objects: bool
     trace_new_object_limit: int
     limit: int
+    ignore_problems: bool
 
     def add_arguments(self, parser: CommandParser):
         parser.add_argument('instances', metavar='INSTANCE_ID', type=str, nargs='*')
@@ -318,6 +319,11 @@ class Command(BaseCommand):
             '--ignore-fixed-problems',
             action='store_true',
             help='With --compare, allow recorded validation problems to disappear; new or changed problems still fail',
+        )
+        parser.add_argument(
+            '--ignore-problems',
+            action='store_true',
+            help='With --compare, ignore all validation problems',
         )
         parser.add_argument(
             '--spec-only',
@@ -1184,7 +1190,7 @@ class Command(BaseCommand):
         current = Counter(problem.comparison_key() for problem in problems)
         added = current - reference
         removed = reference - current
-        if added or (removed and not self.ignore_fixed_problems):
+        if not self.ignore_problems and (added or (removed and not self.ignore_fixed_problems)):
             logger.error(
                 'Validation problems differ from reference: {added} added, {removed} removed',
                 added=sum(added.values()),
@@ -1307,6 +1313,7 @@ class Command(BaseCommand):
             self.compare = bool(options['compare'])
         self.spec_only = bool(options['spec_only'])
         self.ignore_fixed_problems = bool(options['ignore_fixed_problems'])
+        self.ignore_problems = bool(options['ignore_problems'])
         self.dry_run = bool(options['dry_run'])
         self.include_impacts = bool(options['include_impacts'])
         smoke_test = bool(options['smoke_test'])
