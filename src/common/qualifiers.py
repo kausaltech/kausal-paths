@@ -30,7 +30,7 @@ ANY = 'any'
 ALL = 'all'
 SOURCES = 'sources'
 # Change this when either the stored shape or propagation semantics change.
-QUALIFIER_VERSION = 7
+QUALIFIER_VERSION = 8
 
 
 class CoveredScore(TypedDict):

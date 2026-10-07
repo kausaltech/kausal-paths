@@ -13,6 +13,7 @@ from admin_site.auth_pipeline import assign_roles
 from frameworks.models import Framework, FrameworkConfig
 from frameworks.roles import FrameworkRoleDef
 from nodes.defs import InstanceModelSpec, YearsSpec
+from nodes.defs.node_defs import NodeSpec
 from nodes.models import InstanceConfig, make_minimal_instance_spec, test_instance_registry
 from nodes.roles import instance_admin_role, instance_super_admin_role
 from nodes.tests.factories import InstanceFactory, NodeConfigFactory, SimpleNodeFactory
@@ -24,6 +25,22 @@ pytestmark = pytest.mark.django_db
 
 class DummyAuthBackend(BaseAuth):
     name = 'test'
+
+
+@pytest.mark.parametrize('stored_spec', [None, NodeSpec()])
+def test_metadata_overlay_preserves_loaded_node_spec(instance_config: InstanceConfig, stored_spec: NodeSpec | None) -> None:
+    instance = instance_config.get_instance()
+    runtime_spec = NodeSpec()
+    node = SimpleNodeFactory.create(context=instance.context, spec=runtime_spec)
+    node_config = NodeConfigFactory.create(instance=instance_config, identifier=node.id, spec=stored_spec, order=7)
+
+    instance_config.update_instance_from_configs(instance, node_refs=True)
+
+    assert node.spec is runtime_spec
+    assert node.database_id == node_config.pk
+    assert node.db_obj is not None
+    assert node.db_obj.pk == node_config.pk
+    assert node.order == 7
 
 
 def test_database_sourced_instance_requires_spec() -> None:
