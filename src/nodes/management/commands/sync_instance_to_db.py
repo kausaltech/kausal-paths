@@ -4,6 +4,7 @@ Parse a YAML instance into an InstanceSnapshot and sync its spec to the DB.
 Usage:
     python manage.py sync_instance_to_db espoo
     python manage.py sync_instance_to_db espoo --dry-run
+    python manage.py sync_instance_to_db --all-db --dry-run
 """
 
 from __future__ import annotations
@@ -28,7 +29,9 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument('instance', nargs='*', type=str, help='Instance identifier(s)')
-        parser.add_argument('--all', action='store_true', help='Sync all instances')
+        selection = parser.add_mutually_exclusive_group()
+        selection.add_argument('--all', action='store_true', help='Sync all non-framework instances')
+        selection.add_argument('--all-db', action='store_true', help='Sync all database-sourced, non-framework instances')
         parser.add_argument('--dry-run', action='store_true', help='Load and export but do not save to DB')
         parser.add_argument('--start-after', type=str, help='Instance identifier to start after')
         parser.add_argument('--skip', dest='skip', metavar='INSTANCE_ID', action='append', help='Instances to skip')
@@ -54,8 +57,11 @@ class Command(BaseCommand):
     def handle(self, *args, **options) -> None:
         dry_run: bool = options['dry_run']
 
-        if options['all']:
-            instance_ids = InstanceConfig.objects.filter(framework_config__isnull=True).values_list('identifier', flat=True)
+        if options['all'] or options['all_db']:
+            instances = InstanceConfig.objects.filter(framework_config__isnull=True)
+            if options['all_db']:
+                instances = instances.filter(config_source='database')
+            instance_ids = instances.values_list('identifier', flat=True)
         else:
             instance_ids = options['instance']
         start_after = options['start_after']

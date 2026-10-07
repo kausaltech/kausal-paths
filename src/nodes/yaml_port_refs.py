@@ -42,6 +42,7 @@ class YamlPortReferenceCatalog:
     output_ports: dict[tuple[object, ...], set[UUID]] = field(default_factory=dict)
     input_roles: dict[tuple[object, ...], set[UUID]] = field(default_factory=dict)
     edge_ports: dict[tuple[object, ...], set[UUID]] = field(default_factory=dict)
+    edge_ports_by_role: dict[tuple[object, ...], set[UUID]] = field(default_factory=dict)
     dataset_ports: dict[tuple[object, ...], set[UUID]] = field(default_factory=dict)
     dataset_groups: dict[tuple[object, ...], set[UUID]] = field(default_factory=dict)
 
@@ -55,9 +56,29 @@ class YamlPortReferenceCatalog:
     def input_role_id(self, node_id: UUID, role: str, fallback: UUID) -> UUID:
         return _one(self.input_roles.get((node_id, role), ()), description=f'input role {node_id}:{role}') or fallback
 
-    def edge_port_id(self, target_node_id: UUID, source_node_id: UUID, source_port_id: UUID, fallback: UUID) -> UUID:
+    def edge_port_id(
+        self,
+        target_node_id: UUID,
+        source_node_id: UUID,
+        source_port_id: UUID,
+        fallback: UUID,
+        *,
+        role: str | None = None,
+        reuse_unclassified: bool = False,
+    ) -> UUID:
+        """
+        Preserve an edge's target port, distinguishing roles that share a source.
+
+        Only the first role of a legacy edge expansion may reuse its old,
+        unclassified port; the remaining roles need their own identities.
+        """
         key = (target_node_id, source_node_id, source_port_id)
-        return _one(self.edge_ports.get(key, ()), description=f'edge input {key}') or fallback
+        if role is None:
+            return _one(self.edge_ports.get(key, ()), description=f'edge input {key}') or fallback
+        matches = self.edge_ports_by_role.get((*key, role), set())
+        if not matches and reuse_unclassified:
+            matches = self.edge_ports_by_role.get((*key, None), set())
+        return _one(matches, description=f'edge input {key} with role {role!r}') or fallback
 
     def dataset_port_id(
         self,
@@ -94,6 +115,7 @@ def build_yaml_port_reference_catalog(instance: InstanceConfig) -> YamlPortRefer
     output_ports: dict[tuple[object, ...], set[UUID]] = {}
     input_roles: dict[tuple[object, ...], set[UUID]] = {}
     edge_ports: dict[tuple[object, ...], set[UUID]] = {}
+    edge_ports_by_role: dict[tuple[object, ...], set[UUID]] = {}
     dataset_ports: dict[tuple[object, ...], set[UUID]] = {}
     dataset_groups: dict[tuple[object, ...], set[UUID]] = defaultdict(set)
 
@@ -112,7 +134,11 @@ def build_yaml_port_reference_catalog(instance: InstanceConfig) -> YamlPortRefer
     dataset_row_snapshots: list[tuple[InputBindingSnapshot, int]] = []
     for binding in rows:
         if binding.source_node is not None:
-            _add(edge_ports, (binding.node.uuid, binding.source_node.uuid, binding.source_port_id), binding.port_id)
+            key = (binding.node.uuid, binding.source_node.uuid, binding.source_port_id)
+            _add(edge_ports, key, binding.port_id)
+            spec = specs.get(binding.node.uuid)
+            port = spec.input_port_by_id.get(binding.port_id) if spec is not None else None
+            _add(edge_ports_by_role, (*key, port.role if port is not None else None), binding.port_id)
             continue
         snap = InputBindingSnapshot.from_model(binding)
         dataset_row_snapshots.append((snap, snap.position))
@@ -138,6 +164,7 @@ def build_yaml_port_reference_catalog(instance: InstanceConfig) -> YamlPortRefer
         output_ports=output_ports,
         input_roles=input_roles,
         edge_ports=edge_ports,
+        edge_ports_by_role=edge_ports_by_role,
         dataset_ports=dataset_ports,
         dataset_groups=dict(dataset_groups),
     )

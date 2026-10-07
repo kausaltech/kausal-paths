@@ -523,7 +523,7 @@ existing bookmarks keep working.
 
 ## sync_instance_to_db
 
-Exports runtime node specs from YAML-loaded instances into the DB.
+Parses instance YAML and syncs its specs and bindings into the DB.
 
 ```bash
 # Sync a single instance
@@ -531,6 +531,9 @@ python manage.py sync_instance_to_db espoo
 
 # Sync all non-framework instances
 python manage.py sync_instance_to_db --all
+
+# Sync only database-sourced, non-framework instances
+python manage.py sync_instance_to_db --all-db
 
 # Dry run (shows summary without writing)
 python manage.py sync_instance_to_db espoo --dry-run
@@ -541,7 +544,7 @@ serialization), all DB-sourced instances need re-syncing. The typical
 workflow:
 
 1. Make the schema change
-2. `python manage.py sync_instance_to_db --all`
+2. `python manage.py sync_instance_to_db --all-db`
 3. Verify with `test_instance`
 
 ### A sync writes the draft; the public site serves the published revision

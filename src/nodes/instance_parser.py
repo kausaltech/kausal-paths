@@ -1338,6 +1338,7 @@ class InstanceConfigParser:
         edge: _ParsedEdge,
         from_metric: NodeMetric,
         port_id: UUID,
+        source_port_id: UUID,
     ) -> list[tuple[UUID, str | None]]:
         """
         Return the (port id, role) pairs one edge metric should produce.
@@ -1350,14 +1351,30 @@ class InstanceConfigParser:
 
         The first role keeps the edge's existing port id so no stored binding moves; the
         rest derive theirs from the role, which is new identity for a port that did not
-        previously exist.
+        previously exist. On subsequent syncs, resolve each persisted port by role
+        before considering its generated identity.
         """
         roles = [role for role in parsed.node_class.legacy_edge_role_fanout if role in edge.tags]
+        source = self.nodes[edge.from_node]
+        target_uuid = self._node_uuid(parsed.identifier, parsed.config.get('uuid'))
+        source_uuid = self._node_uuid(source.identifier, source.config.get('uuid'))
         if len(roles) < 2:
-            return [(port_id, None)]
-        fanout: list[tuple[UUID, str | None]] = [(port_id, roles[0])]
-        for role in roles[1:]:
-            role_id = self._uuid_from_identifiers([edge.from_node, parsed.identifier, 'edge', from_metric.id, role])
+            return [(self.port_references.edge_port_id(target_uuid, source_uuid, source_port_id, port_id), None)]
+        fanout: list[tuple[UUID, str | None]] = []
+        for index, role in enumerate(roles):
+            fallback = (
+                port_id
+                if index == 0
+                else self._uuid_from_identifiers([edge.from_node, parsed.identifier, 'edge', from_metric.id, role])
+            )
+            role_id = self.port_references.edge_port_id(
+                target_uuid,
+                source_uuid,
+                source_port_id,
+                fallback,
+                role=role,
+                reuse_unclassified=index == 0,
+            )
             fanout.append((role_id, role))
         return fanout
 
@@ -1393,17 +1410,11 @@ class InstanceConfigParser:
                 seen_metric_ids.add(from_metric.id)
                 fallback_id = self._uuid_from_identifiers([from_parsed.identifier, parsed.identifier, 'edge', from_metric.id])
                 from_port = next(port for port in from_parsed.output_ports if port._metric_id == from_metric.id)
-                port_id = self.port_references.edge_port_id(
-                    self._node_uuid(parsed.identifier, parsed.config.get('uuid')),
-                    self._node_uuid(from_parsed.identifier, from_parsed.config.get('uuid')),
-                    from_port.id,
-                    fallback_id,
-                )
                 if len(from_parsed.output_metrics) > 1:
                     port_identifier = identifier_or_none(f'{from_parsed.identifier}_{from_metric.id}')
                 else:
                     port_identifier = identifier_or_none(from_parsed.identifier)
-                for target_id, role in self._edge_port_fanout(parsed, edge, from_metric, port_id):
+                for target_id, role in self._edge_port_fanout(parsed, edge, from_metric, fallback_id, from_port.id):
                     edge.port_pairs.append((from_metric.id, target_id))
                     port = InputPortDef(
                         id=target_id,

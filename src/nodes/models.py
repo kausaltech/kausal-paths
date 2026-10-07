@@ -2485,7 +2485,8 @@ class NodeConfig(PathsModel[InstanceConfig], EditableInstanceChild, index.Indexe
         if self.order is not None:
             node.order = self.order
 
-        node._spec = self.spec
+        # The loader owns the effective spec (YAML, published, or template-composed).
+        # A metadata overlay must not replace it with a missing or stale DB draft.
 
         if self.input_data:
             assert len(node.input_dataset_instances) == 1
