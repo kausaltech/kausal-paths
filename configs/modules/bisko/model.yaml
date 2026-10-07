@@ -2475,9 +2475,11 @@ nodes:
     emissions) are not included. The gases considered are CO<sub>2</sub>, CH<sub>4</sub>, and N<sub>2</sub>O, and the
     values are CO<sub>2</sub> equivalents for 100-year global warming potential.<br/>
     These emission factors were received from IFEU, and they are updated annually. The detailed data sources are given
-    in the dataset. There are two versions of this dataset, national and local. You can toggle between the two
-    via 'Edit scenario' panel with the national vs. local toggle.<br/> Originally the datasets
-    are the same, but the city admin user can edit the local values via the admin user interface.
+    in the dataset. There are two versions of this dataset, national and local, switched with the
+    national vs. local toggle in the 'Edit scenario' panel. The local one holds only what the city
+    admin user has entered there: with the toggle on local, each energy carrier and year takes the
+    local factor where there is one and the national factor otherwise, so a local table left empty
+    gives the national result.
   description_de: |
     Die Emissionsfaktoren sind pro Endenergieverbrauch angegeben. Sie sind für alle Sektoren und
     für ganz Deutschland relevant. Sie enthalten Vorkettenemissionen der für die
@@ -2485,10 +2487,11 @@ nodes:
     N<sub>2</sub>O, und die Werte sind CO<sub>2</sub>-Äquivalente für ein 100-jähriges
     Treibhauspotenzial (GWP).<br/>
     Diese Emissionsfaktoren stammen von IFEU und werden jährlich aktualisiert. Die detaillierten Datenquellen sind
-    im Datensatz angegeben. Es gibt zwei Versionen dieses Datensatzes, national und lokal. Sie können zwischen den
-    beiden über das Panel „Szenario bearbeiten“ mit dem national-vs.-lokal-Schalter wechseln.<br/> Ursprünglich sind
-    die Datensätze gleich, aber die Stadt-Admin-Benutzer können die lokalen Werte über die
-    Admin-Benutzeroberfläche anpassen.
+    im Datensatz angegeben. Es gibt zwei Versionen dieses Datensatzes, national und lokal, umschaltbar
+    mit dem national-vs.-lokal-Schalter im Panel „Szenario bearbeiten“. Die lokale enthält nur, was
+    die Stadt-Administration dort eingetragen hat: Steht der Schalter auf lokal, gilt für jeden
+    Energieträger und jedes Jahr der lokale Faktor, wo es einen gibt, sonst der nationale – eine leer
+    gelassene lokale Tabelle ergibt also das nationale Ergebnis.
   type: formula.FormulaNode
   quantity: emission_factor
   unit: g_co2e/kWh
@@ -2505,7 +2508,7 @@ nodes:
     tags: [local]
   params:
   - id: formula
-    value: extend_all(select_port(condition, national, local))
+    value: extend_all(select_port(condition, national, coalesce_df(local, national)))
   - id: condition
     ref: use_national_values
 
@@ -2529,9 +2532,9 @@ nodes:
     N<sub>2</sub>O, as CO<sub>2</sub> equivalents over 100 years. They come from ifeu and are
     updated annually; the data sources are given in the dataset.<br/>
     There are a national and a local version, switchable in the 'Edit scenario' panel. The local
-    one is a snapshot taken when it was created, not a mirror: it does not follow later additions to
-    the national table, so it can carry fewer carriers. A city admin can edit it — but a balance
-    computed on local factors
+    one holds only what a city admin has entered: with the switch on local, each carrier and year
+    takes the local factor where there is one and the national factor otherwise. A balance computed
+    on local factors
     is not BISKO-conform, and <i>Has national electricity emission factors?</i> drops to 0 the
     moment the switch is thrown. District heating does not follow this switch: Möglichkeit 1 reads
     the national table directly, because criterion 6.2 does not allow a city's district heating
@@ -2553,10 +2556,9 @@ nodes:
     CH<sub>4</sub> und N<sub>2</sub>O als CO<sub>2</sub>-Äquivalente über 100 Jahre. Sie stammen
     von ifeu und werden jährlich aktualisiert; die Datenquellen stehen im Datensatz.<br/>
     Es gibt eine nationale und eine lokale Fassung, umschaltbar im Panel „Szenario bearbeiten". Die
-    lokale ist eine Momentaufnahme aus dem Zeitpunkt ihrer Anlage und kein Spiegel: Sie folgt
-    späteren Ergänzungen der nationalen Tabelle nicht und kann daher weniger Energieträger führen.
-    Die Stadt-Administration kann sie bearbeiten – eine Bilanz auf lokalen Faktoren ist jedoch nicht
-    BISKO-konform, und „Hat nationale Stromemissionsfaktoren?" fällt auf 0, sobald der Schalter
+    lokale enthält nur, was die Stadt-Administration eingetragen hat: Steht der Schalter auf lokal,
+    gilt für jeden Energieträger und jedes Jahr der lokale Faktor, wo es einen gibt, sonst der
+    nationale. Eine Bilanz auf lokalen Faktoren ist nicht BISKO-konform, und „Hat nationale Stromemissionsfaktoren?" fällt auf 0, sobald der Schalter
     umgelegt wird. Die Fernwärme folgt diesem Schalter nicht:
     Möglichkeit 1 liest die nationale Tabelle direkt, denn Kriterium 6.2 lässt einen eingetragenen
     Fernwärme-Emissionsfaktor überhaupt nicht zu.
@@ -2580,7 +2582,7 @@ nodes:
     tags: [local]
   params:
   - id: formula
-    value: extend_all(select_port(condition, national, local))
+    value: extend_all(select_port(condition, national, coalesce_df(local, national)))
   - id: condition
     ref: use_national_values
 
@@ -2599,9 +2601,11 @@ nodes:
     included. The gases considered are CO<sub>2</sub>, CH<sub>4</sub>, and N<sub>2</sub>O, and the values
     are CO<sub>2</sub> equivalents for 100-year global warming potential.<br/>
     These emission factors were received from IFEU, and they are updated annually.
-    There are two versions of this dataset, national and local. You can toggle between the two
-    via 'Edit scenario' panel with the national vs. local toggle.<br/> Originally the datasets
-    are the same, but the city admin user can edit the local values via the admin user interface.
+    There are two versions of this dataset, national and local, switched with the national vs.
+    local toggle in the 'Edit scenario' panel. The local one holds only what the city admin user has
+    entered there: with the toggle on local, each energy carrier and year takes the local factor
+    where there is one and the national factor otherwise, so a local table left empty gives the
+    national result.
   description_de: |
     Die Emissionsfaktoren sind produktbezogen und pro erzeugter Strom- oder Wärmemenge berechnet.
     Das ist nützlich, wenn die Anteile von erzeugtem Strom und Wärme nicht bekannt sind, Sie aber die
@@ -2615,10 +2619,11 @@ nodes:
     N<sub>2</sub>O, und die Werte sind CO<sub>2</sub>-Äquivalente für ein 100-jähriges
     Treibhauspotenzial (GWP).<br/>
     Diese Emissionsfaktoren stammen von IFEU und werden jährlich aktualisiert.
-    Es gibt zwei Versionen dieses Datensatzes, national und lokal. Sie können zwischen den beiden
-    über das Panel „Szenario bearbeiten“ mit dem national-vs.-lokal-Schalter wechseln.<br/> Ursprünglich sind
-    die Datensätze gleich, aber die Stadt-Admin-Benutzer können die lokalen Werte über die
-    Admin-Benutzeroberfläche anpassen.
+    Es gibt zwei Versionen dieses Datensatzes, national und lokal, umschaltbar mit dem
+    national-vs.-lokal-Schalter im Panel „Szenario bearbeiten“. Die lokale enthält nur, was die
+    Stadt-Administration dort eingetragen hat: Steht der Schalter auf lokal, gilt für jeden
+    Energieträger und jedes Jahr der lokale Faktor, wo es einen gibt, sonst der nationale – eine leer
+    gelassene lokale Tabelle ergibt also das nationale Ergebnis.
   type: formula.FormulaNode
   quantity: emission_factor
   unit: g_co2e/kWh
@@ -2634,7 +2639,7 @@ nodes:
     tags: [local]
   params:
   - id: formula
-    value: extend_all(select_port(condition, national, local))
+    value: extend_all(select_port(condition, national, coalesce_df(local, national)))
   - id: condition
     ref: use_national_values
 
