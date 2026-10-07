@@ -37,8 +37,12 @@ class Normalization:
     normalizer_node: Node
     """The live node that provides normalization values."""
 
+    context: Context
+    """The runtime this normalization belongs to."""
+
     def __init__(self, spec: NormalizationSpec, context: Context):
         self.spec = spec
+        self.context = context
         self.normalizer_node = context.nodes[spec.normalizer_node_id]
 
     def denormalize_output(self, to_metric: NodeMetric, df: PathsDataFrame) -> PathsDataFrame:
