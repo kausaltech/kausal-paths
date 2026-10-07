@@ -90,6 +90,46 @@ def _qual(df: ppl.PathsDataFrame) -> dict[tuple[int | str, ...], FixtureQualifie
 
 
 class TestPairing:
+    @pytest.mark.parametrize('qualified_side', ['left', 'right', 'both', 'neither'])
+    def test_stacking_aligns_columns_without_reassigning_values_or_qualifiers(self, qualified_side: str) -> None:
+        left = _frame([(2020, 'gas', 3.0, 1.0, True)], qualified=qualified_side in ('left', 'both'))
+        right = _frame([(2021, 'gas', 5.0, 0.5, False)], qualified=qualified_side in ('right', 'both'))
+        right = right.with_columns(pl.lit(value=True).alias(FORECAST_COLUMN)).select(list(reversed(right.columns)))
+
+        stacked = left.paths.concat_vertical(right)
+
+        assert stacked[YEAR_COLUMN].to_list() == [2020, 2021]
+        assert stacked[VALUE_COLUMN].to_list() == [3.0, 5.0]
+        assert stacked[FORECAST_COLUMN].to_list() == [False, True]
+        assert stacked.get_meta() == left.get_meta()
+        if qualified_side == 'neither':
+            assert not stacked.qualifier_cols
+        else:
+            rows = _qual(stacked)
+            for source in (left, right):
+                if source.qualifier_cols:
+                    assert all(rows[key] == value for key, value in _qual(source).items())
+                else:
+                    assert rows[source[YEAR_COLUMN][0], 'gas']['quality'] is None
+
+    def test_reference_year_scaling_drops_the_reference_qualifier_with_its_value(self) -> None:
+        df = _frame([
+            (2020, 'gas', 2.0, 1.0, True),
+            (2021, 'gas', 6.0, 0.5, False),
+            (2020, 'electricity', 4.0, 0.8, True),
+            (2021, 'electricity', 8.0, 0.4, False),
+        ]).with_columns((pl.col(YEAR_COLUMN) == 2021).alias(FORECAST_COLUMN))
+
+        scaled = df.paths._scale_by_reference_year(df, 2020).sort(YEAR_COLUMN, 'energy_carrier')
+
+        assert set(scaled.columns) == set(df.columns)
+        assert scaled.qualifier_cols == {VALUE_COLUMN: QUAL}
+        assert scaled.metric_cols == [VALUE_COLUMN]
+        assert scaled[VALUE_COLUMN].to_list() == [1.0, 1.0, 2.0, 3.0]
+        assert scaled[FORECAST_COLUMN].to_list() == [False, False, True, True]
+        assert scaled.get_unit(VALUE_COLUMN) == unit_registry.dimensionless
+        assert _qual(scaled) == _qual(df)
+
     @pytest.mark.parametrize('qualified_side', ['left', 'right', 'both'])
     def test_joined_qualifiers_follow_their_metric_names(self, qualified_side: str) -> None:
         left = _frame([(2020, 'gas', 3.0, 1.0, True)], qualified=qualified_side != 'right')
