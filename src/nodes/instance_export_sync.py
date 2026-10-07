@@ -144,7 +144,7 @@ def compile_instance_export_from_yaml(
         ]
         or None,
     )
-    return InstanceExport(instance=snapshot)
+    return InstanceExport(instance=snapshot.with_instance_role(ic))
 
 
 def _node_metadata_attributes(node: NodeSnapshot, primary_language: str) -> dict[str, Any]:

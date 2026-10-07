@@ -10,6 +10,7 @@ import polars as pl
 
 from common import qualifiers
 from common.polars import DataFrameMeta, to_ppdf
+from common.validation import blocks_operation
 from nodes.constants import VALUE_COLUMN, YEAR_COLUMN
 from nodes.exceptions import NodeError
 from nodes.units import unit_registry
@@ -101,7 +102,7 @@ class ValueValidationViolation(BaseModel):
 
 
 def publication_blockers(violations: list[ValueValidationViolation]) -> list[ValueValidationViolation]:
-    return [violation for violation in violations if violation.enforcement == 'block_publish']
+    return [violation for violation in violations if blocks_operation(violation.enforcement, 'publish')]
 
 
 def _qualifier_satisfies(rows: pl.DataFrame, path: str, requirement: QualifierRequirement) -> bool:

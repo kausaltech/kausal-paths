@@ -613,3 +613,42 @@ def test_unbound_discovered_inputs_are_not_definition_errors(graph: InstanceGrap
     graph.spec.data_entry = DataEntrySpec(sections=[section(graph)])
     graph.__dict__.pop('data_entry', None)
     assert data_entry_definition_problems(graph)[0].code == 'unbound_input'
+
+
+@pytest.mark.parametrize('is_template', [False, True])
+@pytest.mark.parametrize('direct', [False, True])
+def test_placeholder_declarations_are_allowed_only_on_templates(graph: InstanceGraph, is_template: bool, direct: bool) -> None:
+    data = graph.model_dump(mode='python')
+    data['metadata']['is_template'] = is_template
+    data['datasets'][0]['is_external_placeholder'] = True
+    with set_i18n_context('en', []):
+        graph = InstanceGraph.model_validate(data)
+        declared = section(graph)
+        if direct:
+            declared.tables = [DataEntryDatasetSpec(id=uuid4(), dataset_id=graph.datasets[0].id)]
+        graph.spec.data_entry = DataEntrySpec(sections=[declared])
+    assert bool(graph.data_entry.sections[0].selections) == is_template
+    assert bool(data_entry_definition_problems(graph)) != is_template
+
+
+def test_template_placeholder_still_validates_slice_dimensions(graph: InstanceGraph) -> None:
+    data = graph.model_dump(mode='python')
+    data['metadata']['is_template'] = True
+    data['datasets'][0]['is_external_placeholder'] = True
+    data['datasets'][0]['declared_dimension_ids'] = []
+    with set_i18n_context('en', []):
+        graph = InstanceGraph.model_validate(data)
+    graph.spec.data_entry = DataEntrySpec(sections=[section(graph, [graph.dimensions[0].categories[0].id])])
+    assert data_entry_definition_problems(graph)[0].code == 'invalid_slice'
+
+
+def test_template_placeholder_still_validates_selected_metrics(graph: InstanceGraph) -> None:
+    data = graph.model_dump(mode='python')
+    data['metadata']['is_template'] = True
+    data['datasets'][0]['is_external_placeholder'] = True
+    with set_i18n_context('en', []):
+        graph = InstanceGraph.model_validate(data)
+        declared = section(graph)
+        declared.tables = [DataEntryDatasetSpec(id=uuid4(), dataset_id=graph.datasets[0].id, metric_ids=[uuid4()])]
+    graph.spec.data_entry = DataEntrySpec(sections=[declared])
+    assert data_entry_definition_problems(graph)[0].code == 'invalid_metric'

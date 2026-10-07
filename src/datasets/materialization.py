@@ -10,6 +10,7 @@ from django.utils import timezone
 
 from kausal_common.datasets.models import Dataset
 
+from common.validation import blocks_operation
 from datasets.shapes import build_observed_metric_shapes, dump_observed_metric_shapes
 from datasets.snapshot import DatasetSnapshot
 from datasets.validation import (
@@ -195,16 +196,19 @@ def collect_instance_dataset_violations(instance_config: InstanceConfig) -> list
     ]
 
 
-def require_valid_dataset_rules(materializations: Iterable[DatasetMaterialization]) -> None:
+def require_valid_dataset_rules(materializations: Iterable[DatasetMaterialization], *, require_submittable: bool = False) -> None:
     """
     Publication gate for dataset validation rules.
 
     Raises ``InstanceDatasetValidationError`` when any of the (fresh)
-    materializations carries validation-rule violations; both enforcement
-    tiers keep a draft editable but block publication.
+    materializations carries violations blocking the requested operation.
+    Submission-only rules do not block ordinary publication.
     """
     violations = [
-        violation for materialization in materializations for violation in load_violations(materialization.validation_violations)
+        violation
+        for materialization in materializations
+        for violation in load_violations(materialization.validation_violations)
+        if blocks_operation(violation.enforcement, 'submit' if require_submittable else 'publish')
     ]
     if violations:
         raise InstanceDatasetValidationError(violations)

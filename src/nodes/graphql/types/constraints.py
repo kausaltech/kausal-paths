@@ -26,7 +26,7 @@ from nodes.constraints.values import (
     ValueKey,
 )
 from nodes.defs.binding_def import EdgeBindingDef
-from nodes.graphql.types.problems import InstanceProblemInterface, ProblemSeverity
+from nodes.graphql.types.problems import InstanceProblemInterface, ProblemEnforcement, ProblemSeverity
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -89,6 +89,7 @@ class ConstraintConflictType(InstanceProblemInterface):
             code=conflict.code,
             message=conflict.message,
             severity=ProblemSeverity.ERROR,
+            enforcement=ProblemEnforcement.BLOCK_EDIT,
             value=ConstraintValueRefType.from_value(conflict.value) if conflict.value is not None else None,
             origins=[ConstraintOriginType.from_origin(origin) for origin in conflict.origins],
         )
