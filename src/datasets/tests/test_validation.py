@@ -139,6 +139,80 @@ def test_old_materialization_rebuilds_coordinate_uuids(rig):
     assert load_violations(refreshed.validation_violations)[0].coordinates[0].category_uuid == category.uuid
 
 
+@pytest.mark.parametrize('change', ['add', 'remove', 'severity', 'legacy'])
+def test_materialization_revalidates_changed_rules(
+    rig: tuple[Dataset, DatasetMetric, DimensionCategory, DimensionCategory],
+    change: str,
+):
+    dataset, metric, category, _ = rig
+    add_point(dataset, metric, 2020, -5, category)
+    rule = set_rule(metric, {'kind': 'value_range', 'enforcement': 'block_publish', 'min': 0})
+    if change == 'add':
+        rule.delete()
+    original = materialize_dataset(dataset)
+    dataset.refresh_from_db()
+    modified_at = dataset.last_modified_at
+    if change == 'add':
+        set_rule(metric, {'kind': 'value_range', 'enforcement': 'block_publish', 'min': 0})
+    elif change == 'remove':
+        rule.delete()
+    elif change == 'severity':
+        rule.rule['enforcement'] = 'block_submission'
+        rule.save(update_fields=['rule'])
+    else:
+        original.validation_rules_hash = ''
+        original.save(update_fields=['validation_rules_hash'])
+
+    refreshed = ensure_dataset_materializations([dataset])[dataset.pk]
+    dataset.refresh_from_db()
+    assert dataset.last_modified_at == modified_at
+    assert refreshed.generation == original.generation + 1
+    violations = load_violations(refreshed.validation_violations)
+    assert len(violations) == (0 if change == 'remove' else 1)
+    if change == 'severity':
+        assert violations[0].enforcement == 'block_submission'
+        require_valid_dataset_rules([refreshed])
+        with pytest.raises(InstanceDatasetValidationError):
+            require_valid_dataset_rules([refreshed], require_submittable=True)
+    if change == 'remove':
+        require_valid_dataset_rules([refreshed])
+    assert ensure_dataset_materializations([dataset])[dataset.pk].generation == refreshed.generation
+
+
+def test_materialization_revalidates_changed_category_domain(
+    rig: tuple[Dataset, DatasetMetric, DimensionCategory, DimensionCategory],
+):
+    dataset, metric, category, other_category = rig
+    combination = DatasetCategoryCombination(
+        id=uuid4(), identifier='required', categories={category.dimension.uuid: category.uuid}
+    )
+    schema = dataset.schema
+    assert schema is not None
+    schema.category_domain = DatasetCategoryDomain(combinations=[combination])
+    schema.save(update_fields=['category_domain'])
+    set_rule(
+        metric,
+        {
+            'kind': 'required_combinations',
+            'enforcement': 'block_submission',
+            'groups': [{'id': 'required', 'combinations': [str(combination.id)]}],
+        },
+    )
+    add_point(dataset, metric, 2020, 1, category)
+    original = materialize_dataset(dataset)
+    assert not original.validation_violations
+
+    combination = combination.model_copy(update={'categories': {category.dimension.uuid: other_category.uuid}})
+    schema.category_domain = DatasetCategoryDomain(combinations=[combination])
+    schema.save(update_fields=['category_domain'])
+    refreshed = ensure_dataset_materializations([dataset])[dataset.pk]
+
+    assert refreshed.generation == original.generation + 1
+    (violation,) = load_violations(refreshed.validation_violations)
+    assert violation.categories == {'region': 'b'}
+    assert violation.enforcement == 'block_submission'
+
+
 def test_value_range_rule_supports_exclusive_bounds(rig):
     dataset, metric, cat_a, _ = rig
     set_rule(
