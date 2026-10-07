@@ -152,6 +152,26 @@ def test_remove_subset_formula_and_analysis() -> None:
     assert not units.warnings
 
 
+def test_coalesce_df_analysis_requires_matching_sides() -> None:
+    """The analysis used to check a `coalesce` the formula language does not have, so `coalesce_df` went unchecked."""
+    from nodes.formula import analyze_formula_dimensions, analyze_formula_units
+
+    kwh = unit_registry.parse_units('kWh')
+    units = analyze_formula_units('coalesce_df(local, national)', {'local': kwh, 'national': kwh})
+    assert units.unit == kwh
+    assert not units.errors
+    mismatch = analyze_formula_units('coalesce_df(local, national)', {'local': kwh, 'national': unit_registry.parse_units('t')})
+    assert mismatch.errors == ["Unit mismatch for 'coalesce_df': kWh vs t"]
+
+    dims = analyze_formula_dimensions(
+        'coalesce_df(local, national)', {'local': {'energy_carrier'}, 'national': {'energy_carrier'}}
+    )
+    assert dims.dims == {'energy_carrier'}
+    assert not dims.errors
+    other = analyze_formula_dimensions('coalesce_df(local, national)', {'local': {'sector'}, 'national': {'energy_carrier'}})
+    assert other.errors == ["Dimension mismatch for 'coalesce_df': ['sector'] vs ['energy_carrier']"]
+
+
 def test_dataset_cleaning_preserves_endpoint_grades_and_interpolates_coverage(monkeypatch: pytest.MonkeyPatch) -> None:
     context = _make_context('qualified-cleaning')
     node = _make_node(context, _ParamMultiplierNode, 'source')
