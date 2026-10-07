@@ -2489,7 +2489,6 @@ actions:
   - id: i42_energy_grid_energy_consumption_emissions
     tags: [additive]
 
-
 - id: bicycle_and_pedestrian_infrastructure_measures
   name: Bicycle and Pedestrian Infrastructure Measures
   type: simple.AdditiveAction
@@ -2507,7 +2506,7 @@ actions:
       value: bicycle_and_pedestrian_infrastructure_measures
     - column: ghg
   output_metrics:
-  - id: Mileage
+  - id: mileage
     unit: km/a
     quantity: mileage
   - id: currency
@@ -2515,7 +2514,7 @@ actions:
     quantity: currency
   output_nodes:
   - id: ii1_onroad_transport_mileage_territorial
-    metrics: [Mileage]
+    metrics: [mileage]
     from_dimensions:
     - id: cost_type
       flatten: true
@@ -2556,7 +2555,7 @@ actions:
       value: parking_measures
     - column: ghg
   output_metrics:
-  - id: Mileage
+  - id: mileage
     unit: km/a
     quantity: mileage
   - id: currency
@@ -2564,7 +2563,7 @@ actions:
     quantity: currency
   output_nodes:
   - id: ii1_onroad_transport_mileage_territorial
-    metrics: [Mileage]
+    metrics: [mileage]
     from_dimensions:
     - id: cost_type
       flatten: true
@@ -2605,7 +2604,7 @@ actions:
       value: public_transport_infrastructure_measures
     - column: ghg
   output_metrics:
-  - id: Mileage
+  - id: mileage
     unit: km/a
     quantity: mileage
   - id: currency
@@ -2613,7 +2612,7 @@ actions:
     quantity: currency
   output_nodes:
   - id: ii1_onroad_transport_mileage_territorial
-    metrics: [Mileage]
+    metrics: [mileage]
     from_dimensions:
     - id: cost_type
       flatten: true
