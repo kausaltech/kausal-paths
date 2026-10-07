@@ -2795,6 +2795,8 @@ class DatasetMaterialization(models.Model):
     validation_violations = models.JSONField(default=list, blank=True)
     """Current violations of the dataset's metric validation rules (see ``datasets.validation``)."""
     validation_payload_version = models.PositiveSmallIntegerField(default=0)
+    validation_rules_hash = models.CharField(max_length=64, default='', blank=True)
+    """Fingerprint of the rules and category domain used to evaluate validation_violations."""
     forecast_from = models.IntegerField(null=True, blank=True)
     source_modified_at = models.DateTimeField()
     updated_at = models.DateTimeField(auto_now=True)
