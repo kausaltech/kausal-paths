@@ -24,6 +24,7 @@ from kausal_common.datasets.tests.factories import (
 from nodes.defs.instance_defs import InstanceModelSpec, YearsSpec
 from nodes.defs.node_defs import ActionConfig, NodeSpec, SimpleConfig
 from nodes.defs.port_def import InputPortDef, OutputPortDef, pair_input_ports_to_outputs
+from nodes.models import test_instance_registry
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory, NodeConfigFactory, _port_id, register_dimensions
 from nodes.units import unit_registry
 
@@ -1012,8 +1013,6 @@ def test_node_graph_loads_bound_dataset_metrics_in_one_query(
 
     from kausal_common.datasets.models import DatasetMetricValidationRule
 
-    from nodes.models import _pytest_instances
-
     datasets = {}
     for identifier in ('heating', 'cooling'):
         dataset, metric = _dataset_with_metric(db_instance_config, identifier=identifier)
@@ -1038,10 +1037,10 @@ def test_node_graph_loads_bound_dataset_metrics_in_one_query(
             },
         )
 
-    # Rebuild the cached runtime so it carries the new nodes, outside the capture.
+    # Load the runtime from the database instead of the factory-provided test instance.
     db_instance_config.owner = 'Test Owner'
     db_instance_config.save(update_fields=['owner'])
-    _pytest_instances.pop(db_instance_config.identifier, None)
+    test_instance_registry.pop(db_instance_config.identifier, None)
     gql_client.query_data('query { instance { id } }')
 
     with CaptureQueriesContext(connection) as queries:
@@ -1059,7 +1058,11 @@ def test_node_graph_loads_bound_dataset_metrics_in_one_query(
     # One batch for the runtime's dataset catalog and one for the editor's binding
     # prefetch, however many bindings there are; never one query per dataset schema.
     metric_queries = [q['sql'] for q in queries.captured_queries if 'FROM "datasets_datasetmetric"' in q['sql']]
-    rule_queries = [q['sql'] for q in queries.captured_queries if 'FROM "datasets_datasetmetricvalidationrule"' in q['sql']]
+    # Rule fingerprints select UUIDs and JSON separately for validation-cache freshness;
+    # count the full rule objects loaded for these GraphQL fields.
+    rule_queries = [
+        q['sql'] for q in queries.captured_queries if 'SELECT "datasets_datasetmetricvalidationrule"."id"' in q['sql']
+    ]
     assert not [sql for sql in metric_queries if re.search(r'"schema_id" = \d', sql)]
     assert len(metric_queries) <= 2, metric_queries
     assert len(rule_queries) <= 2, rule_queries

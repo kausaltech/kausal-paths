@@ -15,13 +15,13 @@ from kausal_common.i18n.pydantic import TranslatedString
 
 from common.polars import DataFrameMeta, to_ppdf
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
+from nodes.defs.node_defs import FormulaConfig, NodeSpec
 from nodes.edges import Edge
 from nodes.exceptions import NodeError
 from nodes.formula import FormulaNode
 from nodes.node import Node
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory
 from nodes.units import unit_registry
-from params.param import StringParameter
 
 if TYPE_CHECKING:
     from common import polars as ppl
@@ -70,7 +70,7 @@ def _formula_over(context: Context, formula: str, rows: list[tuple[int, float]],
         unit=unit_registry.parse_units(unit),
         quantity='mass',
     )
-    target.parameters['formula'] = StringParameter(local_id='formula', value=formula)
+    target._spec = NodeSpec(type_config=FormulaConfig(formula=formula))
     edge = Edge(input_node=source, output_node=target, tags=[])
     source.add_edge(edge)
     target.add_edge(edge)
