@@ -16,6 +16,7 @@ from datasets.snapshot import DatasetSnapshot
 from datasets.validation import (
     DatasetValidationError,
     InstanceDatasetValidationError,
+    dataset_validation_hash,
     dump_violations,
     evaluate_dataset_rules,
     load_violations,
@@ -97,6 +98,7 @@ def refresh_dataset_materialization(
             'shape_profiles': shape_profiles,
             'validation_violations': dump_violations(violations),
             'validation_payload_version': 1,
+            'validation_rules_hash': dataset_validation_hash(dataset),
             'forecast_from': (dataset.spec or {}).get('forecast_from'),
             'source_modified_at': dataset.last_modified_at,
         },
@@ -115,6 +117,7 @@ def materialization_is_fresh(dataset: Dataset, materialization: DatasetMateriali
     return (
         materialization.source_modified_at == dataset.last_modified_at
         and materialization.shape_profiles is not None
+        and materialization.validation_rules_hash == dataset_validation_hash(dataset)
         and (materialization.validation_payload_version == 1 or not materialization.validation_violations)
     )
 
