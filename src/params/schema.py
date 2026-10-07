@@ -7,7 +7,7 @@ import strawberry as sb
 from graphql.error import GraphQLError
 
 from paths import gql
-from paths.graphql_helpers import get_instance_context, graphql_error_nodes
+from paths.graphql_helpers import default_instance, graphql_error_nodes
 
 from . import (
     BoolParameter,
@@ -16,20 +16,23 @@ from . import (
     NumberParameter,
     Parameter,
     StringParameter,
-    ValidationError,
 )
 from .base import ParameterOwner
+from .overrides import InvalidModelOverrideError, parameter_value_from_fields
 
 if TYPE_CHECKING:
     from paths.graphql_types import UnitType
 
+    from nodes.context import Context
     from nodes.node import Node
     from nodes.scenario import Scenario
     from nodes.schema import NodeInterface, ScenarioType
 
 
-def _resolve_default_value(info: gql.Info, root: Parameter[Any, Any]) -> Any:
-    context = get_instance_context(info)
+def _resolve_default_value(root: Parameter[Any, Any]) -> Any:
+    context = root.context
+    if context is None:
+        raise TypeError(f'Parameter {root.global_id} is not bound to a model runtime')
     scenario: Scenario = context.get_default_scenario()
     if not scenario.has_parameter(root):
         return root.configured_value
@@ -49,44 +52,11 @@ def _get_parameter_type_name(instance: Parameter[Any, Any]) -> str:
     return 'UnknownParameterType'
 
 
-def _get_parameter_or_error(info: gql.Info, id: str) -> Parameter[Any, Any]:
-    context = get_instance_context(info)
+def get_parameter_or_error(info: gql.Info, context: Context, id: str) -> Parameter[Any, Any]:
     try:
         return context.get_parameter(id)
     except KeyError:
         raise GraphQLError(f'Parameter {id} does not exist', graphql_error_nodes(info)) from None
-
-
-def _get_parameter_value_for_mutation(
-    info: gql.Info,
-    param: Parameter[Any, Any],
-    *,
-    number_value: float | None,
-    bool_value: bool | None,
-    string_value: str | None,
-) -> Any:
-    values = {'numberValue': number_value, 'boolValue': bool_value, 'stringValue': string_value}
-    value_fields: dict[type[Parameter[Any, Any]], str] = {
-        NumberParameter: 'numberValue',
-        BoolParameter: 'boolValue',
-        StringParameter: 'stringValue',
-        ChoiceParameter: 'stringValue',
-    }
-    attr_name = next((name for klass, name in value_fields.items() if isinstance(param, klass)), None)
-    if attr_name is None:
-        msg = f'Attempting to mutate an unsupported parameter class: {type(param)}'
-        raise Exception(msg)
-
-    value = values.pop(attr_name)
-    if value is None:
-        raise GraphQLError(f"You must specify '{attr_name}' for '{param.global_id}'", graphql_error_nodes(info))
-    if any(other is not None for other in values.values()):
-        raise GraphQLError('Only one type of value allowed', graphql_error_nodes(info))
-
-    try:
-        return param.clean(value)
-    except ValidationError as e:
-        raise GraphQLError(str(e), graphql_error_nodes(info)) from e
 
 
 @sb.interface
@@ -141,7 +111,7 @@ class BoolParameterType(ParameterInterface):
     @sb.field
     @staticmethod
     def default_value(root: BoolParameter, info: gql.Info) -> bool | None:
-        return _resolve_default_value(info, root)
+        return _resolve_default_value(root)
 
 
 @sb.type(name='NumberParameterType')
@@ -159,7 +129,7 @@ class NumberParameterType(ParameterInterface):
     @sb.field
     @staticmethod
     def default_value(root: NumberParameter, info: gql.Info) -> float | None:
-        return _resolve_default_value(info, root)
+        return _resolve_default_value(root)
 
 
 @sb.type(name='StringParameterType')
@@ -173,7 +143,7 @@ class StringParameterType(ParameterInterface):
     @sb.field
     @staticmethod
     def default_value(root: StringParameter, info: gql.Info) -> str | None:
-        return _resolve_default_value(info, root)
+        return _resolve_default_value(root)
 
 
 @sb.type(name='ParameterChoiceType')
@@ -206,7 +176,7 @@ class ChoiceParameterType(ParameterInterface):
     @sb.field
     @staticmethod
     def default_value(root: ChoiceParameter, info: gql.Info) -> str | None:
-        return _resolve_default_value(info, root)
+        return _resolve_default_value(root)
 
 
 @sb.type(name='UnknownParameterType')
@@ -246,19 +216,21 @@ class SBMutation:
         bool_value: bool | None = None,
         string_value: str | None = None,
     ) -> SetParameterResult:
-        context = get_instance_context(info)
-        param = _get_parameter_or_error(info, str(id))
+        context = default_instance(info).context
+        param = get_parameter_or_error(info, context, str(id))
 
         if not param.is_customizable:
             raise GraphQLError(f'Parameter {id} is not customizable', graphql_error_nodes(info))
 
-        value = _get_parameter_value_for_mutation(
-            info,
-            param,
-            number_value=number_value,
-            bool_value=bool_value,
-            string_value=string_value,
-        )
+        try:
+            value = parameter_value_from_fields(
+                param,
+                number_value=number_value,
+                bool_value=bool_value,
+                string_value=string_value,
+            )
+        except InvalidModelOverrideError as e:
+            raise GraphQLError(str(e), graphql_error_nodes(info)) from e
 
         setting_storage = context.setting_storage
         assert setting_storage is not None
@@ -291,7 +263,7 @@ class SBMutation:
 
     @sb.mutation
     def reset_parameter(self, info: gql.Info, id: sb.ID | None = None) -> ResetParameterResult:
-        context = get_instance_context(info)
+        context = default_instance(info).context
         storage = context.setting_storage
         assert storage is not None
         if id is None:
@@ -313,7 +285,7 @@ class SBMutation:
 
     @sb.mutation
     def activate_scenario(self, info: gql.Info, id: sb.ID) -> ActivateScenarioResult:
-        context = get_instance_context(info).instance.context
+        context = default_instance(info).context
         scenario = context.scenarios.get(str(id))
         if scenario is None:
             raise GraphQLError(f"Scenario '{id}' not found", graphql_error_nodes(info))
@@ -335,15 +307,22 @@ class SBMutation:
 class SBQuery:
     @sb.field(graphql_type=list[ParameterInterface])
     def parameters(self, info: gql.Info) -> list[Parameter[Any, Any]]:
-        context = get_instance_context(info)
-        return [param for param in context.global_parameters.values() if param.is_visible]
+        return visible_parameters(default_instance(info).context)
 
     @sb.field(graphql_type=Union[Annotated['ParameterInterface', sb.lazy('params.schema')], None])  # pyright: ignore[reportDeprecated]
     def parameter(self, info: gql.Info, id: sb.ID) -> Parameter[Any, Any] | None:
-        param = _get_parameter_or_error(info, str(id))
-        if not param.is_visible:
-            return None
-        return param
+        return visible_parameter(info, default_instance(info).context, str(id))
+
+
+def visible_parameters(context: Context) -> list[Parameter[Any, Any]]:
+    return [param for param in context.global_parameters.values() if param.is_visible]
+
+
+def visible_parameter(info: gql.Info, context: Context, id: str) -> Parameter[Any, Any] | None:
+    param = get_parameter_or_error(info, context, id)
+    if not param.is_visible:
+        return None
+    return param
 
 
 types = [BoolParameterType, NumberParameterType, StringParameterType, ChoiceParameterType, UnknownParameterType]
