@@ -23,6 +23,17 @@ features:
   show_explanations: true
   show_category_warnings: true
 
+# Per-capita figures over the municipality's own population (the `population` node,
+# Eurostat GISCO LAU by `lau_code`). Years the population series lacks drop out of a
+# normalized metric rather than being divided by a guess.
+normalizations:
+- normalizer_node: population
+  quantities:
+  - id: emissions
+    unit: t_co2e/cap/a
+  - id: energy
+    unit: MWh/cap/a
+
 include:
 - file: modules/bisko/model.yaml
   allow_override: false
