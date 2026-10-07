@@ -3,7 +3,7 @@ import pytest
 from polars.testing import assert_frame_equal
 
 from common.polars import DataFrameMeta, to_ppdf
-from nodes.calc import extend_last_historical_value_pl
+from nodes.calc import extend_last_forecast_value_pl, extend_last_historical_value_pl, extend_to_history_pl
 from nodes.units import unit_registry
 
 pytestmark = pytest.mark.django_db
@@ -65,6 +65,30 @@ def test_no_history_is_unchanged(empty: bool) -> None:
         frame = frame.clear()
     df = to_ppdf(frame, meta=DataFrameMeta(units={'Value': unit_registry.kg}, primary_keys=['Year']))
     assert extend_last_historical_value_pl(df, 2025) is df
+
+
+def _empty_dimensioned_frame():
+    frame = pl.DataFrame(
+        {'Year': [], 'energy_carrier': [], 'Value': [], 'Forecast': []},
+        schema={'Year': pl.Int64, 'energy_carrier': pl.Categorical, 'Value': pl.Float64, 'Forecast': pl.Boolean},
+    )
+    return to_ppdf(frame, meta=DataFrameMeta(units={'Value': unit_registry.kg}, primary_keys=['Year', 'energy_carrier']))
+
+
+def test_extending_a_rowless_frame_returns_it_unchanged() -> None:
+    """
+    No values means nothing to extend, in either direction.
+
+    A municipality that has entered nothing yet hands its node a frame with no rows. Inventing
+    years for it would need a year to start from; asserting on the missing one failed the
+    whole model instead.
+    """
+    df = _empty_dimensioned_frame()
+    assert extend_to_history_pl(df, 1990) is df
+    assert extend_last_forecast_value_pl(df, 2030) is df
+    forecast_rows = df.paths.to_wide().paths.make_forecast_rows(2030)
+    assert forecast_rows.is_empty()
+    assert forecast_rows.get_meta() == df.paths.to_wide().get_meta()
 
 
 @pytest.mark.parametrize('zero_fill_missing', [True, False])
