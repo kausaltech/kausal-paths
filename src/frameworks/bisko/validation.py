@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 
 
 def check_instance_problems(instance: InstanceConfig, *, ignore_problems: bool = False) -> None:
-    problems = collect_instance_problems(instance)
+    problems = collect_instance_problems(instance).blocking('publish')
     if not problems.messages:
         return
     message = f'{instance.identifier}: instance problems:\n' + '\n'.join(f'- {item}' for item in problems.messages)
