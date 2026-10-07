@@ -1312,7 +1312,7 @@ class PathsExt:
             other = other.with_columns(cast_exprs)
 
         meta = df.get_meta()
-        zdf = pl.concat([df, other], how='vertical')
+        zdf = pl.concat([df, other.select(df.columns)], how='vertical')
         df = ppl.to_ppdf(zdf, meta=meta)
 
         if df._primary_keys:
@@ -1792,12 +1792,10 @@ class PathsExt:
             reference = df.filter(pl.col(YEAR_COLUMN).eq(year))[VALUE_COLUMN][0]
             df = df.with_columns((pl.col(VALUE_COLUMN) / pl.lit(reference)).alias(VALUE_COLUMN))
         else:
-            meta = df.get_meta()
-            reference = df.filter(pl.col(YEAR_COLUMN).eq(year))
-            zdf = df.join(reference, on=df.dim_ids)
-            zdf = zdf.with_columns((pl.col(VALUE_COLUMN) / pl.col(VALUE_COLUMN + '_right')).alias(VALUE_COLUMN))
-            zdf = zdf.drop([VALUE_COLUMN + '_right', FORECAST_COLUMN + '_right', YEAR_COLUMN + '_right'])
-            df = ppl.to_ppdf(zdf, meta=meta)
+            reference = df.filter(pl.col(YEAR_COLUMN).eq(year)).drop(YEAR_COLUMN, FORECAST_COLUMN)
+            df = df.paths.join_over_index(reference, how='inner')
+            df = df.with_columns((pl.col(VALUE_COLUMN) / pl.col(VALUE_COLUMN + '_right')).alias(VALUE_COLUMN))
+            df = df.drop(VALUE_COLUMN + '_right')
 
         df = df.clear_unit(VALUE_COLUMN)
         df = df.set_unit(VALUE_COLUMN, 'dimensionless')
