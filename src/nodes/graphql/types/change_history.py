@@ -214,7 +214,7 @@ class InstanceModelLogEntryType:
     def target(root: InstanceModelLogEntryType, info: gql.Info) -> Any:
         if not root._entry.operation.instance_config.gql_action_allowed(info, 'change', raise_on_denied=False):
             return None
-        return _resolve_target(root._entry)
+        return _resolve_target(root._entry, info)
 
     @sb.field(graphql_type=sb.scalars.JSON | None, description='State prior to the change. Null for create operations.')
     @staticmethod
@@ -239,7 +239,7 @@ class InstanceModelLogEntryType:
         )
 
 
-def _resolve_target(entry: InstanceModelLogEntry) -> Any:
+def _resolve_target(entry: InstanceModelLogEntry, info: gql.Info) -> Any:
     """
     Resolve the GFK target of a log entry to its GQL object, or ``None``.
 
@@ -272,9 +272,7 @@ def _resolve_target(entry: InstanceModelLogEntry) -> Any:
             return None
         # Resolve via the runtime Node so the UI gets a real Node /
         # ActionNode object it can introspect through EditableEntity.
-        ic = nc.instance
-        instance = ic.get_instance()
-        return instance.context.nodes.get(nc.identifier)
+        return info.context.require_instance(nc.instance).context.nodes.get(nc.identifier)
 
     if model is NodeInputPortBinding:
         return _resolve_binding_target(entry, pk, by_pk=True)

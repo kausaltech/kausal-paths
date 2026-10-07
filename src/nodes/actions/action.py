@@ -486,11 +486,13 @@ TIMELINE_GRAPH_TYPES: frozenset[ImpactGraphType] = frozenset({
 
 class ImpactOverview:
     spec: ImpactOverviewSpec
+    context: Context
     effect_node: Node
     cost_node: Node | None
 
     def __init__(self, spec: ImpactOverviewSpec, context: Context):
         self.spec = spec
+        self.context = context
         self.effect_node = context.get_node(spec.effect_node_id)
         self.cost_node = context.get_node(spec.cost_node_id) if spec.cost_node_id is not None else None
 

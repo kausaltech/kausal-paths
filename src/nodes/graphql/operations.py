@@ -13,20 +13,27 @@ from kausal_common.strawberry.registry import register_strawberry_type
 
 from paths import gql
 from paths.const import INSTANCE_CHANGE_GROUP, INSTANCE_CHANGE_TYPE
-from paths.graphql_helpers import ensure_instance, get_instance_context, pass_context
+from paths.graphql_helpers import default_instance
 
 from nodes.models import InstanceConfig, InstanceGraphQLContext
 from nodes.normalization import Normalization
 from nodes.scenario import Scenario
 
 from .types.impact import ImpactOverviewType
-from .types.instance import InstanceBasicConfiguration, InstanceType, NormalizationType
+from .types.instance import (
+    InstanceBasicConfiguration,
+    InstanceType,
+    NormalizationType,
+    find_action,
+    find_impact_overview,
+    find_node,
+    list_actions,
+)
 from .types.node import ActionNodeType, NodeInterface
 from .types.scenario import ScenarioType
 
 if TYPE_CHECKING:
-    from nodes.actions.action import ActionNode
-    from nodes.context import Context
+    from nodes.actions.action import ActionNode, ImpactOverview
     from nodes.node import Node
 
 logger = logger.bind(name='nodes.schema')
@@ -57,93 +64,78 @@ class Query:
         qs = InstanceConfig.objects.qs.viewable_by(info.context.get_user()).order_by('identifier')
         return [InstanceType.from_model(ic) for ic in qs]
 
+    # The fields below read the operation's default model: the instance the
+    # `@context` directive names, under the visitor's session settings. They are
+    # entry points with no root object, so they name that runtime explicitly;
+    # `instance { model(...) { ... } }` reaches the same data, with overrides.
+
     @sb.field(graphql_type=list[NodeInterface])
-    @pass_context
-    def nodes(self, context: 'Context') -> list['Node']:
-        return list(context.nodes.values())
+    @staticmethod
+    def nodes(info: gql.Info) -> list['Node']:
+        return list(default_instance(info).context.nodes.values())
 
     @sb.field(graphql_type=NodeInterface | None)
-    @ensure_instance
-    def node(self, info: gql.InstanceInfo, id: sb.ID):
-        instance = info.context.instance
-        nodes = instance.context.nodes
-        node_id = str(id)
-        if node_id.isnumeric():
-            for node in nodes.values():
-                if node.database_id is not None and node.database_id == int(node_id):
-                    return node
-            return None
-
-        return instance.context.nodes.get(node_id)
+    @staticmethod
+    def node(info: gql.Info, id: sb.ID) -> 'Node | None':
+        return find_node(default_instance(info).context, str(id))
 
     @sb.field(graphql_type=ActionNodeType | None)
-    @pass_context
-    def action(self, context, id: sb.ID):
-        try:
-            return context.get_action(str(id))
-        except KeyError:
-            return None
-        except TypeError:
-            return None
+    @staticmethod
+    def action(info: gql.Info, id: sb.ID) -> 'ActionNode | None':
+        return find_action(default_instance(info).context, str(id))
 
     @sb.field(graphql_type=list[ImpactOverviewType], deprecation_reason='Use impactOverviews instead')
-    @pass_context
-    def action_efficiency_pairs(self, context):
-        return context.impact_overviews
+    @staticmethod
+    def action_efficiency_pairs(info: gql.Info) -> 'list[ImpactOverview]':
+        return default_instance(info).context.impact_overviews
 
     @sb.field(graphql_type=list[ImpactOverviewType])
-    @pass_context
-    def impact_overviews(self, context):
-        return context.impact_overviews
+    @staticmethod
+    def impact_overviews(info: gql.Info) -> 'list[ImpactOverview]':
+        return default_instance(info).context.impact_overviews
 
     @sb.field(graphql_type=ImpactOverviewType | None)
-    @pass_context
-    def impact_overview(self, context, id: sb.ID):
-        return next((io for io in context.impact_overviews if io.spec.id == str(id)), None)
+    @staticmethod
+    def impact_overview(info: gql.Info, id: sb.ID) -> 'ImpactOverview | None':
+        return find_impact_overview(default_instance(info).context, str(id))
 
     @sb.field(graphql_type=list[ScenarioType])
-    @pass_context
-    def scenarios(self, context) -> list[Scenario]:
-        return list(context.scenarios.values())
+    @staticmethod
+    def scenarios(info: gql.Info) -> list[Scenario]:
+        return list(default_instance(info).context.scenarios.values())
 
     @sb.field(graphql_type=ScenarioType)
-    @pass_context
-    def scenario(self, context, id: sb.ID) -> Scenario:
-        return context.get_scenario(str(id))
+    @staticmethod
+    def scenario(info: gql.Info, id: sb.ID) -> Scenario:
+        return default_instance(info).context.get_scenario(str(id))
 
     @sb.field(graphql_type=ScenarioType)
-    @pass_context
-    def active_scenario(self, context) -> Scenario:
-        return context.active_scenario
+    @staticmethod
+    def active_scenario(info: gql.Info) -> Scenario:
+        return default_instance(info).context.active_scenario
 
     @sb.field(graphql_type=list[NormalizationType])
-    @pass_context
-    def available_normalizations(self, context):
-        return list(context.normalizations.values())
+    @staticmethod
+    def available_normalizations(info: gql.Info) -> list[Normalization]:
+        return list(default_instance(info).context.normalizations.values())
 
     @sb.field(graphql_type=NormalizationType | None)
-    @pass_context
-    def active_normalization(self, context):
-        return context.active_normalization
+    @staticmethod
+    def active_normalization(info: gql.Info) -> Normalization | None:
+        return default_instance(info).context.active_normalization
 
 
 @sb.type
 class SBQuery(Query):
     @sb.field(graphql_type=list[NormalizationType])
-    @pass_context
     @staticmethod
-    def active_normalizations(context: 'Context') -> list[Normalization]:
-        return list(context.normalizations.values())
+    def active_normalizations(info: gql.Info) -> list[Normalization]:
+        return list(default_instance(info).context.normalizations.values())
 
     @sb.field(graphql_type=list[ActionNodeType])
-    @pass_context
     @staticmethod
-    def actions(context: 'Context', only_root: bool = False) -> list['ActionNode']:
-        instance = context.instance
-        actions = instance.context.get_actions()
-        if only_root:
-            actions = list(filter(lambda act: act.parent_action is None, actions))
-        return actions
+    def actions(info: gql.Info, only_root: bool = False) -> list['ActionNode']:
+        return list_actions(default_instance(info).context, only_root=only_root)
 
     @sb.field(graphql_type=list[InstanceBasicConfiguration])
     @staticmethod
@@ -232,7 +224,7 @@ class Mutation:
 
     @sb.mutation
     def set_normalizer(self, info: gql.Info, id: sb.ID | None = None) -> 'Mutation.SetNormalizerMutation':
-        context = get_instance_context(info)
+        context = default_instance(info).context
         default = context.default_normalization
         if id:
             normalizer = context.normalizations.get(id)

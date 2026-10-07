@@ -78,7 +78,7 @@ from params.param import BoolParameter, NumberParameter, StringParameter
 
 from .types.constraints import ConstraintConflictType, ConstraintViolationsType, conflicts_for_node
 from .types.dimension import DimensionType
-from .types.graph import ActionGroupType, NodeEdgeType
+from .types.graph import ActionGroupType, NodeEdgeType, action_group_type
 from .types.instance import InstanceType
 from .types.layout import NodeLayoutType, UpdateNodeLayoutsResult
 from .types.node import AnyNodeType, NodeInterface
@@ -2482,7 +2482,7 @@ class InstanceEditorMutation:
         info: gql.Info,
         root: sb.Parent[Me],
         input: CreateActionGroupInput,
-    ) -> ActionGroup:
+    ) -> ActionGroupType:
         ic = root.instance
         with gql_change_operation(info, ic, action='action_group.create'):
             ic.refresh_from_db(fields=['spec'])
@@ -2514,7 +2514,7 @@ class InstanceEditorMutation:
                 target_uuid=group.uuid,
             )
         _invalidate_action_group_runtime(info, ic)
-        return group
+        return action_group_type(group, groups, config=ic)
 
     @gql.mutation(description='Update an action group selected by UUID.', graphql_type=ActionGroupType)
     @staticmethod
@@ -2523,7 +2523,7 @@ class InstanceEditorMutation:
         root: sb.Parent[Me],
         id: Annotated[UUID, sb.argument(description='UUID of the action group to update.')],
         input: UpdateActionGroupInput,
-    ) -> ActionGroup:
+    ) -> ActionGroupType:
         has_update = any(
             value is not None and value is not sb.UNSET
             for value in (
@@ -2536,10 +2536,11 @@ class InstanceEditorMutation:
         )
         ic = root.instance
         if not has_update:
-            group = next((group for group in ic.ensure_spec().action_groups if group.uuid == id), None)
+            groups = list(ic.ensure_spec().action_groups)
+            group = next((group for group in groups if group.uuid == id), None)
             if group is None:
                 raise NotFoundError(info, f'Action group with UUID "{id}" not found')
-            return group
+            return action_group_type(group, groups, config=ic)
 
         with gql_change_operation(info, ic, action='action_group.update'):
             ic.refresh_from_db(fields=['spec'])
@@ -2576,7 +2577,7 @@ class InstanceEditorMutation:
                 target_uuid=group.uuid,
             )
         _invalidate_action_group_runtime(info, ic)
-        return group
+        return action_group_type(group, groups, config=ic)
 
     @gql.mutation(description='Delete an unreferenced action group selected by UUID.')
     @staticmethod

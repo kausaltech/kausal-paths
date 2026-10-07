@@ -92,6 +92,31 @@ intent rather than load-bearing, and it stops the model depending on the node de
 the scenario's intent continuing to coincide. See [`action-design.md`](action-design.md),
 *A worked example*.
 
+### Per-operation overrides are the custom scenario without the session
+
+`InstanceType.model(scenario:, parameters:, normalizer:)` builds a runtime of its own for
+that field. It exists for clients that hold no session, such as a server loader with a
+bearer token, and for showing two settings side by side in one response (Bundesmix and
+Lokalmix under two aliases).
+
+It is deliberately *not* a way of setting parameters outside scenarios (see below).
+`ModelOverrides.storage_for` (`src/params/overrides.py`) starts from the visitor's stored
+settings and applies the overrides by the same branch rule as `setParameter`, into an
+in-memory `InstanceDataStorage` that is never written back. So an overridden parameter
+puts the runtime in the custom scenario, based on the scenario that was active or the one
+named by `scenario:`. `activeScenario` under that `model` says so, as the selector would.
+
+Two rules keep the runtimes apart, and both are there because breaking them fails
+silently:
+
+* **A field takes its runtime from its root.** `pass_context` passes `root.context`, and
+  objects that leave the runtime (action groups read from a spec, visualizations) carry
+  a reference back to it. Only entry points with no root, such as top-level query fields,
+  mutations and pages, ask the request for the operation's plain runtime.
+* **An overridden runtime is never ambient.** It is entered with `ambient=False`, so
+  `InstanceConfig.get_instance()` keeps returning the plain runtime for the rest of the
+  request.
+
 ## Considered and rejected: parameters outside scenarios
 
 Discussed in mid-2026 and **deliberately not implemented**. Recorded so it

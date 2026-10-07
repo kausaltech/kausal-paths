@@ -19,7 +19,7 @@ from kausal_common.strawberry.pydantic import StrawberryPydanticType, pydantic_t
 from kausal_common.strawberry.registry import register_strawberry_type
 
 from paths import gql
-from paths.graphql_helpers import get_instance_context, graphql_error_nodes, pass_context
+from paths.graphql_helpers import graphql_error_nodes, pass_context
 from paths.graphql_types import UnitType
 
 from nodes import visualizations as viz
@@ -41,7 +41,7 @@ from nodes.scenario import Scenario, ScenarioKind
 from params import Parameter
 
 from .constraints import ConstraintConflictType, conflicts_for_node
-from .graph import ActionGroupType, NodeEdgeType
+from .graph import ActionGroupType, NodeEdgeType, action_group_type
 from .layout import NodeLayoutType
 from .metric import (
     DimensionalFlowType,
@@ -55,7 +55,6 @@ from .spec import InputPortDeclarationType, InputPortType, OutputPortType
 if TYPE_CHECKING:
     from datasets.graphql.types import DatasetType
     from nodes.context import Context
-    from nodes.defs.instance_defs import ActionGroup
     from nodes.graphql.types.change_history import InstanceModelLogEntryType
     from nodes.metric import DimensionalFlow, DimensionalMetric, Metric
     from nodes.node import Node
@@ -753,13 +752,12 @@ class NodeInterface(UserPermissionsMixin):
     @staticmethod
     def metric_dim(
         root: 'Node',
-        info: gql.Info,
         with_scenarios: list[str] | None = None,
         include_scenario_kinds: list[ScenarioKind] | None = None,
     ) -> 'DimensionalMetric | None':
         from nodes.metric import DimensionalMetric
 
-        context = get_instance_context(info)
+        context = root.context
         extra_scenarios: list[Scenario] = []
         for scenario_id in with_scenarios or []:
             if scenario_id not in context.scenarios:
@@ -901,8 +899,10 @@ class ActionNodeType(NodeInterface, EditableEntity):  # type: ignore[override]
 
     @sb.field(graphql_type=ActionGroupType | None)
     @staticmethod
-    def group(root: ActionNode) -> 'ActionGroup | None':
-        return root.group
+    def group(root: ActionNode) -> ActionGroupType | None:
+        if root.group is None:
+            return None
+        return action_group_type(root.group, list(root.context.instance.action_groups), context=root.context)
 
     @grapple_field
     @staticmethod
@@ -921,7 +921,7 @@ class ActionNodeType(NodeInterface, EditableEntity):  # type: ignore[override]
 
     @sb.field(graphql_type=Optional[Annotated['NodeType', sb.lazy('nodes.graphql.types')]])  # noqa: UP045  # pyright: ignore[reportDeprecated]
     @staticmethod
-    def indicator_node(root: ActionNode, info: gql.Info) -> 'Node | None':
+    def indicator_node(root: ActionNode) -> 'Node | None':
         if root.source_snapshot is not None:
             indicator_uuid = root.source_snapshot.indicator_node
             if indicator_uuid is None:
@@ -932,7 +932,7 @@ class ActionNodeType(NodeInterface, EditableEntity):  # type: ignore[override]
             return None
         if nc.indicator_node is None:
             return None
-        return nc.indicator_node.get_node(visible_for_user=info.context.user)
+        return root.context.nodes.get(nc.indicator_node.identifier)
 
 
 AnyNodeType = Annotated[ActionNodeType | NodeType, sb.union('AnyNodeType')]
