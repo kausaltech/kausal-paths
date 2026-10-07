@@ -321,7 +321,7 @@ def _make_data_dimension(
     mdim = MetricDimension(
         id=make_id('dim', dim.id),
         label=str(dim.label),
-        help_text=str(dim.help_text),
+        help_text=str(dim.help_text) if dim.help_text else None,
         categories=ordered_cats,
         original_id=dim.id,
         groups=ordered_groups,
@@ -584,7 +584,7 @@ def from_action_impact(
         mdim = MetricDimension(
             id=make_id('dim', dim.id),
             label=str(dim.label),
-            help_text=str(dim.help_text),
+            help_text=str(dim.help_text) if dim.help_text else None,
             categories=ordered_cats,
             original_id=dim.id,
         )
