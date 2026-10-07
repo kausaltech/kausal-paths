@@ -5,7 +5,7 @@ from enum import StrEnum
 from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Literal, Self
 
 import strawberry as sb
-from pydantic import BaseModel, Discriminator, Field, RootModel, field_validator, model_validator
+from pydantic import BaseModel, Discriminator, Field, PrivateAttr, RootModel, field_validator, model_validator
 
 from kausal_common.i18n.pydantic import I18nBaseModel, I18nStringInstance
 
@@ -16,6 +16,7 @@ from paths.refs import (
 )
 
 from nodes.constants import VALUE_COLUMN
+from nodes.node import Node
 
 if TYPE_CHECKING:
     from pydantic import ValidationInfo
@@ -23,7 +24,6 @@ if TYPE_CHECKING:
     from common.polars import PathsDataFrame
     from nodes.context import Context
     from nodes.metric import DimensionalMetric
-    from nodes.node import Node
 
 
 @dataclass(slots=True)
@@ -127,6 +127,22 @@ class VisualizationNodeOutput(VisualizationEntry):
 
     output_metric_id: str | None = Field(validate_default=True, default=None)
     """The id of the node output metric to use. If not provided, the node's default output metric is used."""
+
+    _node: Node | None = PrivateAttr(default=None)
+
+    @property
+    def node(self) -> Node:
+        """The runtime node this visualization shows, bound when it was validated against a context."""
+        if self._node is None:
+            raise RuntimeError(f'Visualization of {self.node_id} is not bound to a runtime node')
+        return self._node
+
+    @model_validator(mode='after')
+    def bind_node(self, info: ValidationInfo) -> Self:
+        ctx = get_validation_context(info)
+        if ctx is not None:
+            self._node = ctx.context.nodes[self.node_id]
+        return self
 
     @field_validator('node_id', mode='after')
     @classmethod

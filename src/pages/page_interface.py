@@ -5,14 +5,17 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Self
 
 import graphene
+from graphql.error import GraphQLError
 
 from grapple.types.interfaces import PageInterface as BasePageInterface, get_page_interface
+
+from paths.graphql_helpers import graphql_error_nodes
 
 if TYPE_CHECKING:
     from wagtail.models import Page
 
     from paths.context import InstanceSpecificCache
-    from paths.types import GQLInstanceInfo, PathsGQLInfo as GQLInfo
+    from paths.types import PathsGQLInfo as GQLInfo
 
     from pages.models import PathsPage
 
@@ -75,12 +78,15 @@ class PageInterface(BasePageInterface):
         return specific.page.get_visible_ancestors(specific.cache)
 
     @staticmethod
-    def resolve_url_path(root, info: GQLInstanceInfo) -> str:
+    def resolve_url_path(root, info: GQLInfo) -> str:
         url_path = root.url_path
+        instance_config = info.context.instance_config
+        if instance_config is None:
+            raise GraphQLError('A page path is relative to the instance the operation names', graphql_error_nodes(info))
         # FIXME: This is a dirty way to work around the issue of the slug having the form <instance>-1 or so for translated
         # pages.
         # Replace instance ID, optionally followed by a `-` and a number, if it is surrounded by slashes, by a single slash
-        url_path = re.sub('^/%s(-[0-9]+)?/' % re.escape(info.context.instance.id), '/', root.url_path)
+        url_path = re.sub('^/%s(-[0-9]+)?/' % re.escape(instance_config.identifier), '/', root.url_path)
         if len(url_path) > 1:
             url_path = url_path.rstrip('/')
         return url_path

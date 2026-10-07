@@ -1429,7 +1429,16 @@ class InstanceConfig(
         source: PreferredInstanceSource = PreferredInstanceSource.DRAFT,
         tolerate_node_failures: bool = False,
         force_reinitialize: bool = False,
+        ambient: bool = True,
     ):
+        """
+        Build a runtime and keep it entered for the duration of the block.
+
+        With `ambient`, the runtime is also what `get_instance()` returns for this
+        instance inside the block. A runtime built with per-operation overrides is
+        entered with `ambient=False`, so code that does not know about the overrides
+        never picks it up.
+        """
         if not force_reinitialize and self.identifier in test_instance_registry:
             instance = test_instance_registry[self.identifier]
         else:
@@ -1439,13 +1448,14 @@ class InstanceConfig(
         # that reuse a cached instance/context. See docs/architecture/fault-tolerance.md.
         instance.context.tolerate_node_failures = tolerate_node_failures
 
-        token = instance_context.set(instance)
+        token = instance_context.set(instance) if ambient else None
         try:
             with sentry_sdk.new_scope() as scope, logger.contextualize(instance=self.identifier):
                 self.set_instance_scope(scope)
                 yield instance
         finally:
-            instance_context.reset(token)
+            if token is not None:
+                instance_context.reset(token)
 
     @asynccontextmanager
     async def enter_instance_context_async(
