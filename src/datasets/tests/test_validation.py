@@ -179,9 +179,12 @@ def test_value_range_rule_rejects_empty_or_unbounded_exclusive_ranges(rule):
         ValueRangeRule.model_validate({'enforcement': 'block_edit', **rule})
 
 
-def test_no_gaps_rule_observed_union(rig):
+@pytest.mark.parametrize('enforcement', ['block_publish', 'block_submission'])
+def test_no_gaps_rule_observed_union(
+    rig: tuple[Dataset, DatasetMetric, DimensionCategory, DimensionCategory], enforcement: str
+) -> None:
     dataset, metric, cat_a, cat_b = rig
-    set_rule(metric, {'kind': 'no_gaps', 'enforcement': 'block_publish'})
+    set_rule(metric, {'kind': 'no_gaps', 'enforcement': enforcement})
     add_point(dataset, metric, 2020, 1, cat_a)
     # An explicit 0 counts as a value; an explicit null and a missing row do not.
     add_point(dataset, metric, 2020, 0, cat_b)
@@ -194,6 +197,7 @@ def test_no_gaps_rule_observed_union(rig):
     assert len(violations) == 1
     violation = violations[0]
     assert violation.kind == 'no_gaps'
+    assert violation.enforcement == enforcement
     assert violation.categories == {'region': 'b'}
     assert violation.years == [2021, 2022]
 
@@ -502,7 +506,8 @@ query DatasetValidation($datasetId: ID!) {
 """
 
 
-def test_set_metric_validation_rules_mutation(gql_client: PathsTestClient, db_instance_config, rig):
+@pytest.mark.parametrize('enforcement', ['BLOCK_PUBLISH', 'BLOCK_SUBMISSION'])
+def test_set_metric_validation_rules_mutation(gql_client: PathsTestClient, db_instance_config, rig, enforcement: str):
     dataset, metric, _cat_a, _cat_b = rig
 
     data = gql_client.query_data(
@@ -511,7 +516,7 @@ def test_set_metric_validation_rules_mutation(gql_client: PathsTestClient, db_in
             'instanceId': str(db_instance_config.pk),
             'datasetId': str(dataset.uuid),
             'metricId': str(metric.uuid),
-            'rules': [{'rule': {'valueRange': {'enforcement': 'BLOCK_PUBLISH', 'min': 0}}}],
+            'rules': [{'rule': {'valueRange': {'enforcement': enforcement, 'min': 0}}}],
         },
     )
     result = data['instanceEditor']['datasetEditor']['setMetricValidationRules']
@@ -519,7 +524,7 @@ def test_set_metric_validation_rules_mutation(gql_client: PathsTestClient, db_in
     (rule_payload,) = result['validationRules']
     assert rule_payload['rule'] == {
         '__typename': 'ValueRangeRule',
-        'enforcement': 'BLOCK_PUBLISH',
+        'enforcement': enforcement,
         'min': 0.0,
         'max': None,
     }
@@ -646,9 +651,12 @@ def test_set_metric_validation_rules_requires_exactly_one_variant(gql_client: Pa
     assert not DatasetMetricValidationRule.objects.filter(metric=metric).exists()
 
 
-def test_create_data_points_returns_block_publish_violations(gql_client: PathsTestClient, db_instance_config, rig):
+@pytest.mark.parametrize('enforcement', ['block_publish', 'block_submission'])
+def test_create_data_points_returns_nonblocking_violations(
+    gql_client: PathsTestClient, db_instance_config, rig, enforcement: str
+):
     dataset, metric, cat_a, _cat_b = rig
-    set_rule(metric, {'kind': 'value_range', 'enforcement': 'block_publish', 'min': 0})
+    set_rule(metric, {'kind': 'value_range', 'enforcement': enforcement, 'min': 0})
 
     data = gql_client.query_data(
         CREATE_DATA_POINTS_WITH_VIOLATIONS,
@@ -670,7 +678,7 @@ def test_create_data_points_returns_block_publish_violations(gql_client: PathsTe
     assert len(result['dataPoints']) == 1
     (violation,) = result['violations']
     assert violation['code'] == 'value_range'
-    assert violation['enforcement'] == 'BLOCK_PUBLISH'
+    assert violation['enforcement'] == enforcement.upper()
     assert violation['years'] == [2020]
     assert violation['coordinates'] == [{'dimension': 'region', 'category': 'a'}]
 

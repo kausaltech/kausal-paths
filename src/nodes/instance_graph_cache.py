@@ -66,7 +66,7 @@ def resolve_instance_source(
         if entrypoint is not None:
             yaml_config = _load_yaml_config(config)
             version = yaml_config.meta.mtime_hash or yaml_config.meta.calculate_mtime_hash()
-            return ResolvedInstanceSource(str(config.uuid), 'yaml', version)
+            return ResolvedInstanceSource(str(config.uuid), 'yaml', f'{version}:template-role:{int(config.is_template)}')
 
     if requested_source == PreferredInstanceSource.PUBLISHED and config.live_revision_id is not None:
         revision = config.live_revision
@@ -76,11 +76,11 @@ def resolve_instance_source(
             return ResolvedInstanceSource(
                 str(config.uuid),
                 'database-published',
-                str(config.live_revision_id),
+                f'{config.live_revision_id}:template-role:{int(config.is_template)}',
                 revision_id=config.live_revision_id,
             )
 
-    version = config.cache_invalidated_at.isoformat()
+    version = f'{config.cache_invalidated_at.isoformat()}:template-role:{int(config.is_template)}'
     if config.template_revision_id is not None:
         version += f':template:{config.template_revision_id}'
     return ResolvedInstanceSource(str(config.uuid), 'database-draft', version)
@@ -138,7 +138,7 @@ def load_instance_snapshot(config: InstanceConfig, source: ResolvedInstanceSourc
     else:
         snapshot = _yaml_snapshot(config)
         original_version = snapshot.schema_version
-    return LoadedInstanceSnapshot(snapshot, original_version)
+    return LoadedInstanceSnapshot(snapshot.with_instance_role(config), original_version)
 
 
 def _build_graph(
@@ -146,7 +146,7 @@ def _build_graph(
     source: ResolvedInstanceSource,
     loaded: LoadedInstanceSnapshot,
 ) -> InstanceGraph:
-    snapshot = loaded.snapshot
+    snapshot = loaded.snapshot.with_instance_role(config)
     original_version = loaded.source_schema_version
 
     if source.kind == 'database-draft' or (source.kind == 'database-published' and original_version >= 8):
