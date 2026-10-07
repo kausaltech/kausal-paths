@@ -112,6 +112,8 @@ def extend_last_historical_value(df: pd.DataFrame, end_year: int) -> pd.DataFram
 def extend_last_forecast_value_pl(df: ppl.PathsDataFrame, end_year: int) -> ppl.PathsDataFrame:
     if FORECAST_COLUMN not in df.columns:
         raise ValueError('There is no FORECAST_COLUMN.')
+    if df.is_empty():  # Nothing to extend if there are no values
+        return df
     last_forecast_year = df[YEAR_COLUMN].max()
     df = df.paths.to_wide()
     df = df.paths.make_forecast_rows(end_year)
@@ -131,6 +133,8 @@ def extend_last_forecast_value_pl(df: ppl.PathsDataFrame, end_year: int) -> ppl.
 def extend_to_history_pl(df: ppl.PathsDataFrame, start_year: int) -> ppl.PathsDataFrame:
     if FORECAST_COLUMN not in df.columns:
         raise ValueError('There is no FORECAST_COLUMN.')
+    if df.is_empty():  # Nothing to extend if there are no values
+        return df
     end_year = df[YEAR_COLUMN].max()
     assert isinstance(end_year, int)
     df_year = ppl.PathsDataFrame(pl.int_range(start_year, end_year + 1, eager=True).alias(YEAR_COLUMN)).add_to_index(YEAR_COLUMN)
