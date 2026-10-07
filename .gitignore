@@ -30,7 +30,7 @@ notebooks/data/**
 **/.virtual_documents
 /docker-compose.override.yml
 /bin/**
-/query-store/**
+/query-store*/**
 /model-outputs*/**
 /store/**
 celerybeat-schedule
