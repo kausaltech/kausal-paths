@@ -1148,10 +1148,10 @@ def analyze_formula_units(  # noqa: C901, PLR0915
                 return override_unit
             if func_name in ('sum_dim', 'sum_into_cat', 'mean_dim', 'min_dim', 'max_dim'):
                 return first
-            if func_name == 'coalesce':
+            if func_name == 'coalesce_df':
                 unit = first
                 for arg in node.args[1:]:
-                    unit = _merge_compatible('coalesce', unit, _eval(arg))
+                    unit = _merge_compatible('coalesce_df', unit, _eval(arg))
                 return unit
             if func_name == 'prefer_by_year':
                 if len(node.args) not in (2, 3):
@@ -1282,10 +1282,10 @@ def analyze_formula_dimensions(  # noqa: C901, PLR0915
                 return set()
             if func_name == 'sum_into_cat':
                 return first
-            if func_name == 'coalesce':
+            if func_name == 'coalesce_df':
                 dims = first
                 for arg in node.args[1:]:
-                    dims = _require_same('coalesce', dims, _eval(arg))
+                    dims = _require_same('coalesce_df', dims, _eval(arg))
                 return dims
             if func_name == 'prefer_by_year':
                 if len(node.args) not in (2, 3):
