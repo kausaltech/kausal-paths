@@ -187,6 +187,48 @@ def test_forecast_metric_type(
     assert data == expected
 
 
+@pytest.fixture
+def stub_impact_metric(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Name each impact metric by its source and target, without computing either node."""
+
+    def impact(source, target, goal=None):
+        return Metric(id=f'{source.id}-{target.id}-impact', name='impact', df=None)  # type: ignore[arg-type]
+
+    monkeypatch.setattr('nodes.graphql.types.node.get_impact_metric', impact)
+
+
+@pytest.mark.usefixtures('stub_impact_metric')
+@pytest.mark.parametrize('impact_first', [True, False])
+def test_impact_metric_takes_its_source_from_its_own_downstream_list(
+    graphql_client_query_data, additive_action: AdditiveAction, instance_config, impact_first: bool
+):
+    """
+    `impactMetric` under `downstreamNodes` measures the list's node; everywhere else, the node itself.
+
+    The upstream node used to be stored on the request, so any `impactMetric` resolved after a
+    `downstreamNodes` list picked it up: the action's own impact came out as its impact on itself,
+    depending only on which of the two fields the query asked for first.
+    """
+    from nodes.models import test_instance_registry
+
+    NodeConfigFactory.create(instance=instance_config, identifier=additive_action.id)
+    ctx = test_instance_registry[instance_config.identifier].context
+    outcome = NodeFactory.create(context=ctx, is_outcome=True)
+    additive_action.add_output_node(outcome)
+    ctx.finalize_nodes()
+    own = 'impactMetric { id }'
+    listed = 'downstreamNodes { id impactMetric { id } }'
+    fields = f'{own} {listed}' if impact_first else f'{listed} {own}'
+    data = graphql_client_query_data(
+        'query($id: ID!) { node(id: $id) { %s } }' % fields,
+        variables={'id': additive_action.id},
+    )
+    node = data['node']
+    assert node['impactMetric'] == {'id': f'{additive_action.id}-{outcome.id}-impact'}
+    assert node['downstreamNodes'] == [{'id': outcome.id, 'impactMetric': {'id': f'{additive_action.id}-{outcome.id}-impact'}}]
+
+
+@pytest.mark.usefixtures('stub_impact_metric')
 def test_node_type(graphql_client_query_data, additive_action, instance_config):
     from nodes.models import test_instance_registry
 
@@ -196,7 +238,7 @@ def test_node_type(graphql_client_query_data, additive_action, instance_config):
     assert ctx.instance == instance
     input_node = NodeFactory.create(context=ctx)
     additive_action.add_input_node(input_node)
-    output_node = NodeFactory.create(context=ctx)
+    output_node = NodeFactory.create(context=ctx, is_outcome=True)
     additive_action.add_output_node(output_node)
     upstream_action = ActionNodeFactory.create(context=ctx)
     input_node.add_input_node(upstream_action)
@@ -319,7 +361,7 @@ def test_node_type(graphql_client_query_data, additive_action, instance_config):
             },
             'impactMetric': {
                 '__typename': 'ForecastMetricType',
-                'id': f'{additive_action.id}-{additive_action.id}-impact',
+                'id': f'{additive_action.id}-{output_node.id}-impact',
             },
             'parameters': [
                 {
