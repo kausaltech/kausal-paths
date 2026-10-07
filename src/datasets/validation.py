@@ -12,6 +12,8 @@ Stored rule blobs are parsed strictly: every write path validates through
 bug and fails loudly instead of degrading into a violation.
 """
 
+import hashlib
+import json
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
@@ -20,6 +22,8 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from pydantic import BaseModel, Field, TypeAdapter
 
 import polars as pl
+
+from kausal_common.datasets.models import DatasetMetricValidationRule, DatasetSchema
 
 from nodes.constants import YEAR_COLUMN
 
@@ -133,14 +137,39 @@ class InstanceDatasetValidationError(Exception):
         super().__init__(f'{len(violations)} dataset validation violation(s): {preview}{more}')
 
 
+def dataset_validation_hash(dataset: Dataset) -> str:
+    """
+    Fingerprint current rule definitions independently of dataset modification time.
+
+    Query the database rather than prefetched relations: a shared schema can be
+    changed without touching any of its datasets. Include the category domain
+    because it defines the meaning of combination rules.
+    """
+    rules = (
+        list(
+            DatasetMetricValidationRule.objects
+            .filter(metric__schema_id=dataset.schema_id)
+            .order_by('metric__order', 'metric__uuid', 'order', 'uuid')
+            .values('uuid', 'rule', 'metric__uuid', 'metric__name', 'metric__label')
+        )
+        if dataset.schema_id is not None
+        else []
+    )
+    domain = (
+        DatasetSchema.objects.get(pk=dataset.schema_id).category_domain.model_dump(mode='json')
+        if dataset.schema_id is not None
+        else None
+    )
+    payload = json.dumps({'rules': rules, 'domain': domain}, sort_keys=True, default=str)
+    return hashlib.sha256(payload.encode()).hexdigest()
+
+
 def evaluate_dataset_rules(dataset: Dataset) -> list[RuleViolation]:
     """
     Evaluate all validation rules bound to the dataset's metrics.
 
     Returns the complete violation set for the dataset's current contents.
     """
-    from kausal_common.datasets.models import DatasetMetricValidationRule
-
     schema = dataset.schema
     if schema is None or dataset.is_external_placeholder:
         return []
