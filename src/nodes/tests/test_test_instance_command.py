@@ -217,7 +217,7 @@ def test_collect_problems_uses_loaded_graph_and_observed_profiles(monkeypatch: p
         assert actual_graph is graph
         assert actual_source is source
         events.append('solve')
-        return SimpleNamespace(conflicts=(conflict,))
+        return SimpleNamespace(conflicts=(conflict,), notices=())
 
     monkeypatch.setattr(test_instance, 'resolve_instance_source', lambda *_args: source)
     monkeypatch.setattr(test_instance, 'collect_instance_dataset_violations', collect_violations)

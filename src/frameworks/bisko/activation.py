@@ -18,7 +18,7 @@ from frameworks.organization_access import organization_is_in_framework
 from nodes.defs.instance_defs import InstanceModelSpec
 from nodes.instance_serialization import DatasetMetricSource, InputBindingSnapshot, InstanceSnapshot
 from nodes.models import DatasetMaterialization, InputPortBindingSet, InstanceConfig
-from nodes.template_graph import template_snapshot
+from nodes.template_graph import follow_template_dataset_shapes, template_snapshot
 from orgs.models import Organization, OrganizationIdentifier
 from params.param import StringParameter
 
@@ -77,6 +77,9 @@ def _ensure_local_inputs(instance: InstanceConfig) -> None:  # noqa: C901
         )
         if dataset.schema_id != source.schema_id or dataset.schema is None:
             raise ActivationError(f'{identifier} uses a different municipal schema; reconcile it explicitly.')
+        # The copied spec is the template draft's; the shape reference must be the pinned revision's.
+        if follow_template_dataset_shapes(instance, base, [identifier]):
+            dataset.refresh_from_db(fields=['spec'])
         if identifier == WEATHER_DATASET and not dataset.data_points.exists():
             if weather_source is None:
                 weather_source = load_weather_source(framework)

@@ -24,7 +24,7 @@ from datasets.plausibility import (
     evaluate_plausibility_cells,
 )
 from datasets.snapshot import DatasetSnapshot
-from datasets.validation import evaluate_rule
+from datasets.validation import evaluate_closed_domain, evaluate_rule
 from frameworks.models import Framework
 from frameworks.qualifiers import attach_evidence_qualifiers, qualifier_catalog_for_instance
 from nodes.constants import VALUE_COLUMN, YEAR_COLUMN
@@ -32,13 +32,14 @@ from nodes.data_entry import EntryResolver, EntrySelection, Rectangle, intersect
 from nodes.datasets import JSONDataset
 from nodes.defs.binding_def import DatasetBindingDef
 from nodes.models import DatasetMaterialization, InstanceConfig
-from nodes.value_validation import required_value_failures
+from nodes.value_validation import contract_requirements, requirement_failures
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping
 
     from nodes.defs.graph import DatasetMeta
     from nodes.instance_graph import InstanceGraph
+    from nodes.value_validation import ValueContract, ValueRequirement
     from users.models import User
 
 
@@ -272,9 +273,7 @@ class DataEntryQuery:
             )
         )
 
-    def contract_findings(  # noqa: C901, PLR0912
-        self, data: EntryDatasetData
-    ) -> list[EntryFinding]:
+    def contract_findings(self, data: EntryDatasetData) -> list[EntryFinding]:
         """Project declared input completeness onto source coordinates, without filling data."""
         results: list[EntryFinding] = []
         resolver = EntryResolver(self.graph)
@@ -292,61 +291,86 @@ class DataEntryQuery:
                 # Model-level validation evaluates these dependencies. A reminder
                 # about the evaluator is not a finding about the entered data.
                 continue
-            for combination in contract.combinations:
-                selection: dict[UUID, frozenset[UUID]] = {}
-                for dimension, category in combination.categories.items():
-                    dim = self.graph.dimension_by_identifier[dimension]
-                    category_id = next(c.id for c in dim.categories if c.identifier == category)
-                    selection[dim.id] = frozenset((category_id,))
-                source, reasons = resolver.translate(binding, rectangle(selection))
-                if source is None:
-                    continue
-                if reasons:
-                    results.append(
-                        EntryFinding(
-                            uuid3(binding.id, f'unresolved-contract:{selection}'),
-                            'unresolved_contract',
-                            'Input requirements cannot be translated to dataset coordinates',
-                            (),
-                            self.affected_sections(data.meta.id, metric.id, ((),)),
-                            data.meta.id,
-                            metric.id,
-                        )
+            shape = self.graph.shapes.get(contract.shape) if contract.shape is not None else None
+            for requirement in contract_requirements(contract, shape):
+                results.extend(self._requirement_findings(resolver, binding, data, metric.id, column, contract, requirement))
+        return results
+
+    def _requirement_findings(
+        self,
+        resolver: EntryResolver,
+        binding: DatasetBindingDef,
+        data: EntryDatasetData,
+        metric_id: UUID,
+        column: str,
+        contract: ValueContract,
+        requirement: ValueRequirement,
+    ) -> list[EntryFinding]:
+        """
+        Locate one port requirement in the dataset that feeds the port.
+
+        A requirement with an alternative this binding cannot deliver is skipped: another
+        binding of the port may satisfy it.
+        """
+        alternatives: list[tuple[pl.DataFrame, tuple[tuple[UUID, UUID], ...], Rectangle]] = []
+        for categories in requirement.alternatives:
+            selection: dict[UUID, frozenset[UUID]] = {}
+            for dimension, category in categories.items():
+                dim = self.graph.dimension_by_identifier[dimension]
+                category_id = next(c.id for c in dim.categories if c.identifier == category)
+                selection[dim.id] = frozenset((category_id,))
+            source, reasons = resolver.translate(binding, rectangle(selection))
+            if source is None:
+                return []
+            if reasons:
+                return [
+                    EntryFinding(
+                        uuid3(binding.id, f'unresolved-contract:{selection}'),
+                        'unresolved_contract',
+                        'Input requirements cannot be translated to dataset coordinates',
+                        (),
+                        self.affected_sections(data.meta.id, metric_id, ((),)),
+                        data.meta.id,
+                        metric_id,
                     )
-                    continue
-                source = rectangle({dim: cats for dim, cats in source if dim in data.meta.declared_dimension_ids})
-                rows = data.frame
-                for dim, cats in source:
-                    dimension_column = next(name for name, id in data.dimensions.items() if id == dim)
-                    labels = [label for (name, label), id in data.categories.items() if name == dimension_column and id in cats]
-                    rows = rows.filter(pl.col(dimension_column).is_in(labels))
-                coordinates = tuple((dim, next(iter(cats))) for dim, cats in source if len(cats) == 1)
-                sections = self.affected_sections(data.meta.id, metric.id, (source,))
-                for year in self.years:
-                    present = rows.filter(
-                        (pl.col(YEAR_COLUMN) == year) & pl.col(column).is_not_null() & pl.col(column).is_finite()
-                    )
-                    if contract.years == 'active' and present.is_empty():
-                        continue
-                    renamed = {column: VALUE_COLUMN}
-                    qualifier_column = qualifiers.qualifier_column(column)
-                    if qualifier_column in present.columns:
-                        renamed[qualifier_column] = qualifiers.qualifier_column(VALUE_COLUMN)
-                    assessment_rows = present.select(list(renamed)).rename(renamed)
-                    failures = required_value_failures(assessment_rows, combination.qualifiers)
-                    for code, message in failures:
-                        results.append(
-                            EntryFinding(
-                                uuid3(binding.id, f'{code}:{message}:{coordinates}:{year}'),
-                                code,
-                                message,
-                                (year,),
-                                sections,
-                                data.meta.id,
-                                metric.id,
-                                coordinates,
-                            )
-                        )
+                ]
+            source = rectangle({dim: cats for dim, cats in source if dim in data.meta.declared_dimension_ids})
+            rows = data.frame
+            for dim, cats in source:
+                dimension_column = next(name for name, id in data.dimensions.items() if id == dim)
+                labels = [label for (name, label), id in data.categories.items() if name == dimension_column and id in cats]
+                rows = rows.filter(pl.col(dimension_column).is_in(labels))
+            coordinates = tuple((dim, next(iter(cats))) for dim, cats in source if len(cats) == 1)
+            alternatives.append((rows, coordinates, source))
+        sections = self.affected_sections(data.meta.id, metric_id, tuple(source for _, _, source in alternatives))
+        coordinates = alternatives[0][1] if len(alternatives) == 1 else ()
+        key = coordinates if len(alternatives) == 1 else requirement.identifier
+        renamed = {column: VALUE_COLUMN}
+        qualifier_column = qualifiers.qualifier_column(column)
+        if qualifier_column in data.frame.columns:
+            renamed[qualifier_column] = qualifiers.qualifier_column(VALUE_COLUMN)
+        results: list[EntryFinding] = []
+        for year in self.years:
+            present = [
+                rows.filter((pl.col(YEAR_COLUMN) == year) & pl.col(column).is_not_null() & pl.col(column).is_finite())
+                for rows, _, _ in alternatives
+            ]
+            if contract.years == 'active' and all(rows.is_empty() for rows in present):
+                continue
+            assessments = [rows.select(list(renamed)).rename(renamed) for rows in present]
+            results.extend(
+                EntryFinding(
+                    uuid3(binding.id, f'{code}:{message}:{key}:{year}'),
+                    code,
+                    message,
+                    (year,),
+                    sections,
+                    data.meta.id,
+                    metric_id,
+                    coordinates,
+                )
+                for code, message in requirement_failures(assessments, requirement.qualifiers)
+            )
         return results
 
     def dataset_findings(self, id: UUID) -> tuple[EntryFinding, ...]:  # noqa: C901
@@ -356,7 +380,7 @@ class DataEntryQuery:
         data = self._data[id]
         meta = data.meta
         frame = data.frame
-        # A required-combination rule must also see wholly empty declared years.
+        # The rules must also see wholly empty declared years.
         # Null rows add years without inventing observed category combinations.
         absent = set(self.years) - set(frame[YEAR_COLUMN].to_list())
         if absent:
@@ -376,6 +400,7 @@ class DataEntryQuery:
         results: list[EntryFinding] = []
         violations = []
         metric_by_name = {metric.identifier: metric for metric in meta.metrics}
+        dim_cols = list(data.dimensions)
         for metric_snapshot in data.snapshot.metrics:
             metric = metric_by_name.get(metric_snapshot.identifier)
             if metric is None:
@@ -383,40 +408,32 @@ class DataEntryQuery:
             column = metric_snapshot.identifier
             if column not in frame.columns:
                 frame = frame.with_columns(pl.lit(None, dtype=pl.Float64).alias(column))
-            for rule in metric_snapshot.validation_rules:
-                for violation in evaluate_rule(
-                    rule.rule,
-                    rule.uuid,
-                    metric.id,
-                    column,
-                    frame,
-                    list(data.dimensions),
-                    domain,
-                    meta.category_domain.mode == 'closed',
-                ):
-                    violations.append(violation)
-                    coordinates = data.coordinates(violation.categories)
-                    selections = tuple(
-                        rectangle({dim: frozenset((cat,)) for dim, cat in data.coordinates(domain[combination])})
-                        for combination in violation.combination_ids
-                        if combination in domain
+            found = [
+                violation
+                for rule in metric_snapshot.validation_rules
+                for violation in evaluate_rule(rule.rule, rule.uuid, metric.id, column, frame, dim_cols)
+            ]
+            if meta.category_domain.mode == 'closed':
+                domain_id = meta.shape_id or meta.schema_id
+                found.extend(evaluate_closed_domain(domain_id, metric.id, column, frame, dim_cols, domain.values()))
+            for violation in found:
+                violations.append(violation)
+                coordinates = data.coordinates(violation.categories)
+                sections = self.affected_sections(
+                    id, metric.id, (rectangle({dim: frozenset((cat,)) for dim, cat in coordinates}),)
+                )
+                results.append(
+                    EntryFinding(
+                        uuid3(id, f'{violation.rule_uuid}:{violation.kind}:{coordinates}'),
+                        violation.kind,
+                        violation.message,
+                        tuple(violation.years),
+                        sections,
+                        id,
+                        metric.id,
+                        coordinates,
                     )
-                    if not selections:
-                        selections = (rectangle({dim: frozenset((cat,)) for dim, cat in coordinates}),)
-                    sections = self.affected_sections(id, metric.id, selections)
-                    key = f'{rule.uuid}:{violation.kind}:{violation.requirement_group}:{coordinates}:{violation.combination_ids}'
-                    results.append(
-                        EntryFinding(
-                            uuid3(id, key),
-                            violation.kind,
-                            violation.message,
-                            tuple(violation.years),
-                            sections,
-                            id,
-                            metric.id,
-                            coordinates,
-                        )
-                    )
+                )
         dataset = self.datasets[id]
         ranges = [rule for rule in applicable_plausibility_ranges(dataset) if rule.metric.uuid in meta.metric_by_id]
         cells = DatasetPlausibilityCells(

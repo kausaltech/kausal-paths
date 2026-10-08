@@ -16,6 +16,9 @@ def main() -> None:
     parser.add_argument(
         '--prepare-from', action='append', default=[], help='Prepare template declarations from verified DB models.'
     )
+    parser.add_argument(
+        '--sync-template', action='store_true', help='Sync configs/bisko.yaml into the template before anything else.'
+    )
     parser.add_argument('--publish', action='store_true', help='Publish the template and advance dependent local drafts.')
     parser.add_argument('--reference-instance', help='Use this historical reference-data edition when publishing.')
     parser.add_argument('--convert', action='append', default=[], help='Convert a DB model to the published template.')
@@ -32,13 +35,20 @@ def main() -> None:
     from kausal_common.development.django import init_django
 
     init_django()
+    from django.core.management import call_command
     from django.db import transaction
 
+    from frameworks.bisko.legacy_contracts import retire_legacy_value_contracts
     from frameworks.bisko.provisioning import setup_bisko
     from frameworks.bisko.quality import provision_bisko_quality_projections
 
     try:
         with transaction.atomic():
+            # Runs before anything parses the stored node specs; a no-op once done.
+            for change in retire_legacy_value_contracts():
+                print(change)
+            if args.sync_template:
+                call_command('sync_instance_to_db', args.template)
             framework = setup_bisko(template_identifier=args.template, instance_identifiers=tuple(args.instance))
             print(
                 f'Framework: {framework.identifier}; template: {args.template}; '
