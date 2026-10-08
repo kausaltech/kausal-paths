@@ -3,9 +3,10 @@
 import hashlib
 import json
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypedDict, cast
 
 from django.db import transaction
+from django.db.models import F
 from django.utils import timezone
 
 from kausal_common.datasets.models import Dataset
@@ -21,13 +22,20 @@ from datasets.validation import (
     evaluate_dataset_rules,
     load_violations,
     new_blocking_violations,
+    validation_context_hash,
+    validation_rules_subquery,
 )
 from nodes.models import DatasetMaterialization
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator
 
-    from datasets.validation import RuleViolation
+    from django.db.models import QuerySet
+    from django_stubs_ext import WithAnnotations
+
+    from kausal_common.datasets.category_domain import DatasetCategoryDomain
+
+    from datasets.validation import RuleViolation, ValidationRuleFingerprint
     from nodes.models import InstanceConfig
     from users.models import User
 
@@ -72,7 +80,7 @@ def refresh_dataset_materialization(
         msg = 'Dataset materialization refresh requires an atomic write boundary'
         raise RuntimeError(msg)
 
-    dataset = Dataset.objects.select_for_update().get(pk=dataset.pk)
+    dataset = Dataset.objects.select_for_update(of=('self',)).select_related('schema', 'scope_content_type').get(pk=dataset.pk)
     if touch:
         dataset.last_modified_by = user
         dataset.last_modified_at = timezone.now()
@@ -113,11 +121,35 @@ def materialize_dataset(dataset: Dataset, *, user: User | None = None) -> Datase
         return refresh_dataset_materialization(dataset, user=user, touch=False)
 
 
-def materialization_is_fresh(dataset: Dataset, materialization: DatasetMaterialization) -> bool:
+class _ValidationContext(TypedDict):
+    current_validation_rules: list[ValidationRuleFingerprint]
+    current_category_domain: DatasetCategoryDomain | None
+
+
+def materializations_with_validation_hashes(
+    queryset: QuerySet[DatasetMaterialization],
+) -> Iterator[tuple[DatasetMaterialization, str]]:
+    """Read current shared-schema state in the same query as the materializations."""
+    annotated = queryset.annotate(
+        current_validation_rules=validation_rules_subquery('dataset__schema_id'),
+        current_category_domain=F('dataset__schema__category_domain'),
+    )
+    for row in annotated:
+        materialization = cast('WithAnnotations[DatasetMaterialization, _ValidationContext]', row)
+        yield (
+            materialization,
+            validation_context_hash(materialization.current_validation_rules, materialization.current_category_domain),
+        )
+
+
+def materialization_is_fresh(
+    dataset: Dataset, materialization: DatasetMaterialization, *, validation_hash: str | None = None
+) -> bool:
     return (
         materialization.source_modified_at == dataset.last_modified_at
         and materialization.shape_profiles is not None
-        and materialization.validation_rules_hash == dataset_validation_hash(dataset)
+        and materialization.validation_rules_hash
+        == (validation_hash if validation_hash is not None else dataset_validation_hash(dataset))
         and (materialization.validation_payload_version == 1 or not materialization.validation_violations)
     )
 
@@ -128,14 +160,17 @@ def ensure_dataset_materializations(datasets: Iterable[Dataset]) -> dict[int, Da
     if not datasets_by_pk:
         return {}
 
-    materializations = {
-        materialization.dataset_id: materialization
-        for materialization in DatasetMaterialization.objects.filter(dataset_id__in=datasets_by_pk)
+    current = {
+        materialization.dataset_id: (materialization, validation_hash)
+        for materialization, validation_hash in materializations_with_validation_hashes(
+            DatasetMaterialization.objects.filter(dataset_id__in=datasets_by_pk)
+        )
     }
+    materializations = {dataset_id: pair[0] for dataset_id, pair in current.items()}
     stale_ids = {
         dataset_id
         for dataset_id, dataset in datasets_by_pk.items()
-        if (materialization := materializations.get(dataset_id)) is None or not materialization_is_fresh(dataset, materialization)
+        if (pair := current.get(dataset_id)) is None or not materialization_is_fresh(dataset, pair[0], validation_hash=pair[1])
     }
     if not stale_ids:
         return materializations
@@ -143,13 +178,17 @@ def ensure_dataset_materializations(datasets: Iterable[Dataset]) -> dict[int, Da
     with transaction.atomic():
         locked = list(Dataset.objects.select_for_update().filter(pk__in=stale_ids).order_by('pk'))
         locked_materializations = {
-            materialization.dataset_id: materialization
-            for materialization in DatasetMaterialization.objects.select_for_update().filter(dataset_id__in=stale_ids)
+            materialization.dataset_id: (materialization, validation_hash)
+            for materialization, validation_hash in materializations_with_validation_hashes(
+                DatasetMaterialization.objects.select_for_update(of=('self',)).filter(dataset_id__in=stale_ids)
+            )
         }
         for dataset in locked:
-            materialization = locked_materializations.get(dataset.pk)
-            if materialization is None or not materialization_is_fresh(dataset, materialization):
+            pair = locked_materializations.get(dataset.pk)
+            if pair is None or not materialization_is_fresh(dataset, pair[0], validation_hash=pair[1]):
                 materialization = refresh_dataset_materialization(dataset, touch=False)
+            else:
+                materialization = pair[0]
             materializations[dataset.pk] = materialization
     return materializations
 

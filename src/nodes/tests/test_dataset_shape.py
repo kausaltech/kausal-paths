@@ -153,12 +153,13 @@ def test_missing_or_stale_materialization_is_repaired() -> None:
     assert second.categories_by_dimension == {category.dimension.uuid: frozenset({category.uuid})}
 
 
-def test_profile_query_count_is_constant_with_dataset_count() -> None:
+@pytest.mark.parametrize('dataset_count', [1, 3, 12])
+def test_profile_query_count_is_constant_with_dataset_count(dataset_count: int) -> None:
     config = _config()
     dimension_id = uuid4()
     metas: list[DatasetMeta] = []
     pairs = set()
-    for index in range(3):
+    for index in range(dataset_count):
         dataset = DatasetFactory.create(identifier=f'dataset-{index}', scope=config)
         metric = DatasetMetricFactory.create(schema=dataset.schema, name='value')
         materialize_dataset(dataset)
