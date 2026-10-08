@@ -70,6 +70,7 @@ class MetricDimensionCategoryType:
     id: sb.ID
     original_id: sb.ID | None
     label: sb.auto
+    short_label: sb.auto
     color: sb.auto
     order: sb.auto
     group: sb.auto
