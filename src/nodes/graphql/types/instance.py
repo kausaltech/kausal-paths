@@ -40,6 +40,7 @@ from nodes.graph_layout import GraphLayout
 from nodes.graphql.inputs import is_maybe_set
 from nodes.graphql.types.data_entry import DataEntryType
 from nodes.graphql.types.dimension import DimensionType
+from nodes.graphql.types.shape import ShapeType
 from nodes.instance import Instance
 from nodes.instance_problems import collect_instance_problems
 from nodes.instance_serialization import InstanceSnapshot
@@ -424,6 +425,29 @@ class InstanceEditorFields:
     def constraint_conflicts(root: 'InstanceEditorFields', info: gql.Info) -> list[ConstraintConflictType]:
         result = info.context.require_constraint_solve(root._config, source=root._source)
         return [ConstraintConflictType.from_conflict(conflict) for conflict in result.conflicts]
+
+    @sb.field(
+        graphql_type=list[ConstraintConflictType],
+        description=(
+            'What the structural checks could not verify in the selected graph, such as a binding whose '
+            'transformations cannot be projected onto the shape its port requires. Blocks nothing, '
+            'but is not a pass either.'
+        ),
+    )
+    @staticmethod
+    def constraint_notices(root: 'InstanceEditorFields', info: gql.Info) -> list[ConstraintConflictType]:
+        result = info.context.require_constraint_solve(root._config, source=root._source)
+        return [ConstraintConflictType.from_conflict(notice) for notice in result.notices]
+
+    @sb.field(
+        description=(
+            "The instance's category shapes, its own and those it inherits from its template, with inheritance resolved."
+        ),
+    )
+    @staticmethod
+    def shapes(root: 'InstanceEditorFields', info: gql.Info) -> list[ShapeType]:
+        graph, editable = ShapeType.for_instance(info, root._config, root._source)
+        return ShapeType.from_graph(graph, editable=editable)
 
     @sb.field(
         graphql_type=list[DatasetValidationViolationType],

@@ -8,6 +8,7 @@ from django.db import transaction
 from kausal_common.datasets.models import DataPoint, DataPointDimensionCategory, Dataset, DimensionCategory
 
 from datasets.materialization import refresh_dataset_materialization
+from datasets.shape_domain import dataset_category_domain
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -38,10 +39,10 @@ def ensure_empty_year(dataset: Dataset, year: int, *, prototype: Dataset | None 
     if not metrics:
         return 0
 
-    # The domain is the model's explicit row layout. For open domains with no declared
-    # combinations, an existing year (or the template) supplies the observed layout.
+    # The dataset's shape is the model's explicit row layout. Without declared combinations,
+    # an existing year (or the template) supplies the observed layout.
     layouts: set[tuple[int, tuple[int, ...]]] = set()
-    domain = schema.category_domain
+    domain = dataset_category_domain(dataset)
     if domain is not None and domain.combinations:
         uuids: set[UUID] = {uuid for combo in domain.combinations for uuid in combo.categories.values()}
         category_ids = dict(DimensionCategory.objects.filter(uuid__in=uuids).values_list('uuid', 'pk'))

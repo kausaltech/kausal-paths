@@ -27,7 +27,6 @@ Enforcement semantics:
 
 from enum import Enum as PyEnum
 from typing import Annotated, Any, Literal, assert_never
-from uuid import UUID
 
 import strawberry as sb
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, field_validator, model_validator
@@ -172,54 +171,8 @@ class NoGapsRule(_RuleBase):
         enforcement: auto
 
 
-@graphql_types
-class RequiredCombinationGroup(BaseModel):
-    """A named requirement satisfied by any one of its category combinations."""
-
-    model_config = ConfigDict(extra='forbid')
-
-    id: str
-    combinations: list[UUID] = Field(min_length=1)
-
-    class ObjectType(StrawberryPydanticType['RequiredCombinationGroup']):
-        id: auto
-        combinations: auto
-
-    class InputType(StrawberryPydanticType['RequiredCombinationGroup']):
-        id: auto
-        combinations: auto
-
-
-@graphql_types
-class RequiredCombinationsRule(_RuleBase):
-    """Every named group must have a value in at least one allowed category tuple."""
-
-    kind: Literal['required_combinations'] = 'required_combinations'
-    groups: list[RequiredCombinationGroup] = Field(min_length=1)
-
-    class ObjectType(ValidationRuleGQLInterface):
-        groups: auto
-
-    class InputType(StrawberryPydanticType['RequiredCombinationsRule']):
-        enforcement: auto
-        groups: auto
-
-
-@graphql_types
-class AllowedCombinationsRule(_RuleBase):
-    """Populated category tuples must belong to a closed schema domain."""
-
-    kind: Literal['allowed_combinations'] = 'allowed_combinations'
-
-    class ObjectType(ValidationRuleGQLInterface):
-        enforcement: auto
-
-    class InputType(StrawberryPydanticType['AllowedCombinationsRule']):
-        enforcement: auto
-
-
 type ValidationRule = Annotated[
-    ValueRangeRule | DimensionSumRule | NoGapsRule | RequiredCombinationsRule | AllowedCombinationsRule,
+    ValueRangeRule | DimensionSumRule | NoGapsRule,
     Field(discriminator='kind'),
 ]
 
@@ -236,10 +189,6 @@ def rule_to_gql(rule: ValidationRule) -> ValidationRuleGQLInterface:
             return DimensionSumRule.ObjectType.from_pydantic(rule)
         case NoGapsRule():
             return NoGapsRule.ObjectType.from_pydantic(rule)
-        case RequiredCombinationsRule():
-            return RequiredCombinationsRule.ObjectType.from_pydantic(rule)
-        case AllowedCombinationsRule():
-            return AllowedCombinationsRule.ObjectType.from_pydantic(rule)
         case _:
             assert_never(rule)
 
@@ -253,8 +202,6 @@ class ValidationRuleSpecInput:
     value_range: ValueRangeRule.InputType | None = sb.UNSET  # type: ignore[valid-type]
     dimension_sum: DimensionSumRule.InputType | None = sb.UNSET  # type: ignore[valid-type]
     no_gaps: NoGapsRule.InputType | None = sb.UNSET  # type: ignore[valid-type]
-    required_combinations: RequiredCombinationsRule.InputType | None = sb.UNSET  # type: ignore[valid-type]
-    allowed_combinations: AllowedCombinationsRule.InputType | None = sb.UNSET  # type: ignore[valid-type]
 
     def to_rule(self) -> ValidationRule:
         """Convert to the Pydantic rule; raises ``pydantic.ValidationError`` on invalid field values."""
@@ -264,8 +211,6 @@ class ValidationRuleSpecInput:
                 self.value_range,
                 self.dimension_sum,
                 self.no_gaps,
-                self.required_combinations,
-                self.allowed_combinations,
             )
             if variant is not sb.UNSET and variant is not None
         ]

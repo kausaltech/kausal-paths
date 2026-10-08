@@ -17,6 +17,7 @@ from kausal_common.i18n.pydantic import set_i18n_context
 
 from datasets.catalogue import dataset_meta_from_model
 from datasets.materialization import ensure_dataset_materializations
+from datasets.shape_domain import SHAPE_SPEC_KEY
 from nodes.constraints.validation import InstanceConstraintError, solve_instance_constraints
 from nodes.instance_graph import NodeEditContext, NodeMeta, build_instance_graph
 from nodes.instance_graph_cache import resolve_instance_source
@@ -45,6 +46,7 @@ from params.base import ParameterOwner
 from params.param import ReferenceParameter, ValidationError as ParameterValidationError
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
     from uuid import UUID
 
     from nodes.defs.graph import DatasetMeta, DimensionMeta
@@ -383,6 +385,7 @@ def upgrade_template_instance(instance: InstanceConfig, revision: Revision, *, u
             if port is None or port.binding_owner != 'instance':
                 binding.delete()
     _bind_inputs_to_own_datasets(instance, candidate)
+    follow_template_dataset_shapes(instance, candidate)
     spec = instance.ensure_spec()
     old_params = parameters_by_id(previous.spec, previous.nodes)
     new_params = parameters_by_id(candidate.spec, candidate.nodes)
@@ -402,6 +405,37 @@ def upgrade_template_instance(instance: InstanceConfig, revision: Revision, *, u
     instance.spec = spec
     instance.save(update_fields=['template_revision', 'node_settings', 'spec'])
     instance.invalidate_cache()
+
+
+def follow_template_dataset_shapes(
+    instance: InstanceConfig, template: InstanceSnapshot, identifiers: Iterable[str] | None = None
+) -> int:
+    """
+    Give the instance's own copies of the template's datasets the shape references of its pinned revision.
+
+    A local copy, such as a municipality's `kommune/*` slot, has the template dataset's entry form.
+    The reference comes from the pinned revision rather than the template's draft, so it always
+    names a shape the instance's composition declares. Return the number of rows changed.
+    """
+    declared = {meta.identifier: meta.shape_id for meta in template.all_datasets() if meta.identifier}
+    if identifiers is not None:
+        wanted = set(identifiers)
+        declared = {identifier: shape for identifier, shape in declared.items() if identifier in wanted}
+    changed = 0
+    for dataset in Dataset.objects.for_instance_config(instance).filter(identifier__in=declared):
+        assert dataset.identifier is not None
+        reference = declared[dataset.identifier]
+        spec = dict(dataset.spec or {})
+        if spec.get(SHAPE_SPEC_KEY) == (str(reference) if reference is not None else None):
+            continue
+        if reference is None:
+            spec.pop(SHAPE_SPEC_KEY, None)
+        else:
+            spec[SHAPE_SPEC_KEY] = str(reference)
+        dataset.spec = spec
+        dataset.save(update_fields=['spec'])
+        changed += 1
+    return changed
 
 
 def _bind_inputs_to_own_datasets(instance: InstanceConfig, template: InstanceSnapshot) -> None:

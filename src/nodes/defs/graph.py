@@ -96,6 +96,10 @@ class DatasetMeta(FrozenGraphModel):
     revision_id: int | None = None
     category_domain: DatasetCategoryDomain = Field(default_factory=DatasetCategoryDomain)
     category_domain_spec: DatasetCategoryDomainSpec | None = None
+    """Deprecated: no longer authored (see `shape_id`). Kept so revisions frozen with it keep their content hash."""
+    # Left out when absent, so revisions frozen before shapes keep their content hash.
+    shape_id: UUID | None = Field(default=None, exclude_if=lambda value: value is None)
+    """The shape this dataset's entry form follows, resolved in the dataset's own instance."""
     default_quality: QualityLevelKey | None = None
     """
     The grade of every value in the dataset that has no grade of its own.

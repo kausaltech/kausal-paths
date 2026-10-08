@@ -32,11 +32,10 @@ from datasets.models import (
     PlausibilityReference,
     PlausibilitySource,
 )
+from datasets.shape_domain import dataset_category_domain, dataset_shape_id
 from datasets.validation_rules import (
-    AllowedCombinationsRule,
     DimensionSumRule,
     NoGapsRule,
-    RequiredCombinationsRule,
     ValidationRuleGQLInterface,
     ValueRangeRule,
     rule_to_gql,
@@ -50,6 +49,7 @@ from frameworks.models import (
     DataQualityScheme as DataQualitySchemeModel,
     Framework,
 )
+from nodes.graphql.types.shape import ShapeType
 from nodes.units import Unit, unit_registry
 from users.models import User
 from users.schema import UserType
@@ -59,8 +59,6 @@ from users.schema import UserType
 register_strawberry_type(ValueRangeRule.ObjectType)
 register_strawberry_type(DimensionSumRule.ObjectType)
 register_strawberry_type(NoGapsRule.ObjectType)
-register_strawberry_type(RequiredCombinationsRule.ObjectType)
-register_strawberry_type(AllowedCombinationsRule.ObjectType)
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -736,12 +734,23 @@ class DatasetType(UserPermissionsMixin):
         prefetch_related_objects([root._model.schema], 'dimensions__dimension__categories')
         return [DatasetDimensionType.from_schema_dimension(sd) for sd in root._model.schema.dimensions.all()]
 
-    @sb.field(description='Meaningful category combinations declared by this dataset schema.')
+    @sb.field(
+        graphql_type=ShapeType | None,
+        description="The shape that defines the dataset's entry form, as the dataset's instance resolves it.",
+    )
+    @staticmethod
+    def shape(root: 'DatasetType', info: gql.Info) -> ShapeType | None:
+        if root._model is None:
+            return None
+        shape_id = dataset_shape_id(root._model)
+        return ShapeType.resolve(info, root._model.scope_instance, shape_id) if shape_id is not None else None
+
+    @sb.field(description="The dataset's entry form: the category combinations of its shape, as its instance resolves it.")
     @staticmethod
     def category_domain(root: 'DatasetType') -> DatasetCategoryDomainType:
         if root._model is None or root._model.schema is None:
             return DatasetCategoryDomainType(mode='open', combinations=[])
-        domain = root._model.schema.category_domain
+        domain = dataset_category_domain(root._model)
         return DatasetCategoryDomainType(
             mode=domain.mode,
             combinations=[
