@@ -25,6 +25,7 @@ from kausal_common.i18n.pydantic import (
 from paths.identifiers import ActionGroupIdentifier
 
 from nodes.constants import KNOWN_QUANTITIES
+from nodes.defs.shape_defs import ShapeSpec
 from nodes.scenario import Scenario
 from nodes.units import Unit
 from pages.config import OutcomePage
@@ -246,6 +247,7 @@ class InstanceModelSpec(I18nBaseModel):
     params: list[AnyParameter] = Field(default_factory=list)
     action_groups: list[ActionGroup] = Field(default_factory=list)
     scenarios: list[Scenario] = Field(default_factory=list)
+    shapes: list[ShapeSpec] = Field(default_factory=list)
     theme_identifier: str | None = None
     sample_size: int = 0
     """Sample only every Nth year in computations (0 = no sampling)."""
@@ -283,6 +285,9 @@ class InstanceModelSpec(I18nBaseModel):
         # Absent layout must not change the content hash of an older pinned template.
         if self.data_entry is None:
             data.pop('data_entry', None)
+        # Likewise for shapes, which pinned templates published before them do not carry.
+        if not self.shapes:
+            data.pop('shapes', None)
         if self._is_composed:
             return data
         for field in ('dataset_repo', 'theme_identifier', 'sample_size'):
