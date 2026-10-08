@@ -58,7 +58,7 @@ from kausal_common.datasets.models import (
 )
 from kausal_common.deployment.http import get_request_wildcard_domains
 from kausal_common.i18n.helpers import convert_language_code
-from kausal_common.i18n.pydantic import get_modeltrans_attrs_from_str, set_i18n_context
+from kausal_common.i18n.pydantic import TranslatedString, get_modeltrans_attrs_from_str, set_i18n_context
 from kausal_common.models.modification_tracking import UserModifiableModel
 from kausal_common.models.permission_policy import (
     ModelPermissionPolicy,
@@ -107,7 +107,7 @@ if TYPE_CHECKING:
 
     from loguru import Logger
 
-    from kausal_common.i18n.pydantic import I18nString, TranslatedString
+    from kausal_common.i18n.pydantic import I18nString
     from kausal_common.models.permission_policy import (
         BaseObjectAction,
         ObjectSpecificAction,
@@ -504,6 +504,24 @@ def make_minimal_instance_spec(
 class InstanceGraphQLContext:
     requested_hostname: str
     matched_hostname: InstanceHostname | None = None
+
+
+def _optional_modeltrans_attrs(
+    value: str | TranslatedString | None, field_name: str, default_lang: str
+) -> tuple[str | None, dict[str, str]]:
+    """
+    Split an optional translated value into its column and `i18n` entries.
+
+    Unlike `get_modeltrans_attrs_from_str`, a value with no text in the default language is
+    not an error: the column stays empty and the other languages go to `i18n`. An optional
+    field such as a short label is often given only in the language that has a convention for
+    it (PHH, GHD), and an instance in another language should then fall back to the full label.
+    """
+    if value is None:
+        return None, {}
+    if isinstance(value, TranslatedString) and convert_language_code(default_lang, 'iso') not in value.i18n:
+        return None, {f'{field_name}_{convert_language_code(lang, "modeltrans")}': text for lang, text in value.i18n.items()}
+    return get_modeltrans_attrs_from_str(value, field_name, default_lang)
 
 
 class InstanceConfig(
@@ -1817,12 +1835,15 @@ class InstanceConfig(
         for order, cat in enumerate(dim.categories):
             cat_obj = cats.get(cat.id)
             label, i18n = get_modeltrans_attrs_from_str(cat.label, 'label', default_lang)
+            short_label, short_i18n = _optional_modeltrans_attrs(cat.short_label, 'short_label', default_lang)
+            i18n |= short_i18n
             cat_spec = DimensionCategorySpec.from_runtime(cat).to_json()
             if cat_obj is None:
                 cat_obj = DimensionCategory.objects.create(
                     dimension=dataset_dim,
                     identifier=cat.id,
                     label=label,
+                    short_label=short_label,
                     i18n=i18n,
                     spec=cat_spec,
                     order=order,
@@ -1832,10 +1853,15 @@ class InstanceConfig(
                 found_cats.add(cat_obj.pk)
                 # OrderableModel ordering starts from 1
                 changed = (
-                    i18n != cat_obj.i18n or cat_obj.label != label or cat_obj.spec != cat_spec or cat_obj.order != (order + 1)
+                    i18n != cat_obj.i18n
+                    or cat_obj.label != label
+                    or cat_obj.short_label != short_label
+                    or cat_obj.spec != cat_spec
+                    or cat_obj.order != (order + 1)
                 )
                 if changed:
-                    cat_obj.label, cat_obj.i18n, cat_obj.spec, cat_obj.order = label, i18n, cat_spec, order + 1
+                    cat_obj.label, cat_obj.short_label, cat_obj.i18n = label, short_label, i18n
+                    cat_obj.spec, cat_obj.order = cat_spec, order + 1
                     print('Updating category %s' % cat.id)
                     cat_obj.save()
 

@@ -94,6 +94,7 @@ class DatasetDimensionCategoryType:
     uuid: UUID
     identifier: str | None
     label: str
+    short_label: str | None
 
     @classmethod
     def from_model(cls, cat: DimensionCategoryModel) -> DatasetDimensionCategoryType:
@@ -101,6 +102,7 @@ class DatasetDimensionCategoryType:
             uuid=cat.uuid,
             identifier=cat.identifier,
             label=cat.label_i18n or str(cat.uuid),
+            short_label=cat.short_label_i18n or None,
         )
 
 
