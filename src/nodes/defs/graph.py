@@ -49,6 +49,8 @@ class DimensionCategoryMeta(FrozenGraphModel):
     id: UUID
     identifier: str | None = None
     label: I18nString | None = None
+    # Left out when absent, so revisions frozen before short labels keep their content hash.
+    short_label: I18nString | None = Field(default=None, exclude_if=lambda value: value is None)
     order: int | None = None
     spec: dict[str, Any] = Field(default_factory=dict)
 

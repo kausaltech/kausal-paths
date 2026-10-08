@@ -187,7 +187,10 @@ class EntryDatasetType:
                 name=str(dim.label or dim.identifier),
                 categories=[
                     DatasetDimensionCategoryType(
-                        uuid=cat.id, identifier=cat.identifier, label=str(cat.label or cat.identifier or cat.id)
+                        uuid=cat.id,
+                        identifier=cat.identifier,
+                        label=str(cat.label or cat.identifier or cat.id),
+                        short_label=str(cat.short_label) if cat.short_label is not None else None,
                     )
                     for cat in dim.categories
                 ],
