@@ -3,7 +3,7 @@ default_language: de
 supported_languages: [en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 843804814636c80bf50bbaa11f23281a277b5150
+  commit: a7435106697524a3d78260da7785827ca9a91a93
   dvc_remote: kausal-s3
 name_de: Augsburg CO₂-Zukunfts-Rechner
 name_en: Augsburg CO₂-Future Calculator
@@ -173,11 +173,6 @@ category_overrides:
     industry_commerce:
       color: *grey
     sinks:
-      color: *green
-    ghg_neutral_administration:
-      color: *lime
-      label_de: "THG-neutrale Verwaltung"
-    food_and_land_use:
       color: *green
   energy_carrier:
     hard_coal:
