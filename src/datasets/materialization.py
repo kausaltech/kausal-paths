@@ -4,14 +4,17 @@ import hashlib
 import json
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, TypedDict, cast
+from uuid import UUID
 
 from django.db import transaction
 from django.db.models import F
+from django.db.models.fields.json import KeyTextTransform
 from django.utils import timezone
 
 from kausal_common.datasets.models import Dataset
 
 from common.validation import blocks_operation
+from datasets.shape_domain import SHAPE_SPEC_KEY, CategoryDomainResolver
 from datasets.shapes import build_observed_metric_shapes, dump_observed_metric_shapes
 from datasets.snapshot import DatasetSnapshot
 from datasets.validation import (
@@ -124,6 +127,9 @@ def materialize_dataset(dataset: Dataset, *, user: User | None = None) -> Datase
 class _ValidationContext(TypedDict):
     current_validation_rules: list[ValidationRuleFingerprint]
     current_category_domain: DatasetCategoryDomain | None
+    current_shape: str | None
+    current_scope_type: int
+    current_scope_id: int
 
 
 def materializations_with_validation_hashes(
@@ -133,12 +139,22 @@ def materializations_with_validation_hashes(
     annotated = queryset.annotate(
         current_validation_rules=validation_rules_subquery('dataset__schema_id'),
         current_category_domain=F('dataset__schema__category_domain'),
+        current_shape=KeyTextTransform(SHAPE_SPEC_KEY, 'dataset__spec'),
+        current_scope_type=F('dataset__scope_content_type_id'),
+        current_scope_id=F('dataset__scope_id'),
     )
+    # A dataset with a shape has its domain resolved in its instance; one resolver per call
+    # resolves each instance once, so the query count does not grow with the datasets.
+    domains = CategoryDomainResolver()
     for row in annotated:
         materialization = cast('WithAnnotations[DatasetMaterialization, _ValidationContext]', row)
+        domain = materialization.current_category_domain
+        if materialization.current_shape:
+            instance = domains.instance(materialization.current_scope_type, materialization.current_scope_id)
+            domain = domains.for_shape(instance, UUID(materialization.current_shape))
         yield (
             materialization,
-            validation_context_hash(materialization.current_validation_rules, materialization.current_category_domain),
+            validation_context_hash(materialization.current_validation_rules, domain),
         )
 
 

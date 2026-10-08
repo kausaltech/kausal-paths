@@ -136,11 +136,21 @@ datasets:
 
 A dataset reference uses the shape's **combinations** only:
 
-- they define the **entry form**: sync compiles the effective combinations into the schema's
-  `DatasetSchema.category_domain`, which is what the data-entry UI renders as rows. The
-  `category_domain` field stays as the stored, UUID-compiled form; it stops being authored by
-  hand;
+- they define the **entry form**: the cells an empty year is given, and the rows the data-entry
+  UI renders (`categoryDomain` in GraphQL, which keeps its form);
 - if the shape is closed, a value outside it is refused when entered (`block_edit`).
+
+The reference is stored on the dataset row (`Dataset.spec['shape']`, beside `default_quality`)
+and **resolved on read**, in the dataset's own instance. The effective combinations are never
+stored. They cannot be: municipalities share their `kommune/*` schemas with the template, and
+each municipality's record of an extension point may add different combinations, so a domain
+compiled onto the shared schema could hold only one of them. Resolving on read also means
+nothing derived goes stale when a municipality edits its record or upgrades its template.
+`datasets.shape_domain.dataset_category_domain()` is the one accessor every reader uses.
+
+This replaces `DatasetSchema.category_domain`. Only BISKO ever declared a domain, and it was used
+for exactly this, the entry grid; observed combinations of external datasets live in
+`DatasetShapeProfile` and never used it.
 
 A dataset reference does **not** enforce required groups. Whether a required cell is missing is
 a question about what the model receives, not about what one table holds: a municipality that
@@ -247,10 +257,23 @@ To be trimmed from this document once built.
    missing, not removable, with `dimensions`, `inherits` and `closed` fixed. No snapshot version
    bump: the list defaults to empty and is left out of the serialized spec when empty, so the
    content hashes of revisions published before shapes stay valid.
-2. **Dataset references.** `shape:` in dataset metadata compiles into `DatasetSchema.category_domain`
-   at sync, replacing `_apply_declared_category_domain`'s authoring input. A closed shape adds
-   the `block_edit` allowed check. Convert the four BISKO `category_domain` blocks and drop
-   `category_domain:` authoring; no other config uses it.
+2. **Dataset references.**
+   - `shape:` in dataset metadata, parsed into `DatasetMeta.shape_id` and stored at sync in
+     `Dataset.spec['shape']`. An instance's own copies of the template's datasets take the
+     reference of the **pinned revision** (`follow_template_dataset_shapes`, on activation and
+     upgrade), never of the template's draft, so it always names a shape the instance declares.
+   - `datasets.shape_domain`: an instance's effective shapes from its local spec and its pinned
+     template revision, without building the runtime, and `dataset_category_domain()`, which
+     compiles a dataset's shape against its instance's dimension catalogue.
+   - Every reader of `schema.category_domain` moves to the accessor: `ensure_empty_year`,
+     validation and its hash, materialization, the catalogue's `DatasetMeta`, plausibility labels,
+     both GraphQL `categoryDomain` fields, and dataset snapshots.
+   - Convert the four BISKO `category_domain` blocks into shapes, then remove `category_domain:`
+     authoring and its sync.
+   - Last, in its own commit: remove `DatasetSchema.category_domain` and its types from
+     `kausal_common` (Watch does not use them). Imports tolerate the key in older exports.
+   The dataset rules `required_combinations` and `allowed_combinations` are retired in step 3,
+   when port references take over the requirements.
 3. **Port references.** `shape` and `enforcement` in `input_validation`; required groups and
    closedness evaluated in `value_validation`. Move the hand-written `combinations` of the BISKO
    `input_validation` blocks into shapes, and remove `RequiredValueCombination` from

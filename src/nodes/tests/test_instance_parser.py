@@ -95,17 +95,21 @@ def test_datasets_key_parses_into_typed_catalog_entries():
                 ],
             },
         ],
+        'shapes': [
+            {
+                'id': 'test/regions',
+                'dimensions': ['region'],
+                'combinations': [
+                    {'id': 'region_a', 'categories': {'region': 'a'}},
+                    {'id': 'region_b', 'categories': {'region': 'b'}},
+                ],
+            },
+        ],
         'datasets': [
             {
                 'id': 'test/energy',
                 'is_editable': False,
-                'category_domain': {
-                    'mode': 'open',
-                    'combinations': [
-                        {'id': 'region_a', 'categories': {'region': 'a'}},
-                        {'id': 'region_b', 'categories': {'region': 'b'}},
-                    ],
-                },
+                'shape': 'test/regions',
                 'metrics': [
                     {
                         'id': 'amount',
@@ -137,11 +141,11 @@ def test_datasets_key_parses_into_typed_catalog_entries():
     assert isinstance(value_range, ValueRangeRule)
     assert value_range.min == 0.0
     assert isinstance(required, RequiredCombinationsRule)
-    assert required.groups[0].combinations == [
-        uuid3(instance_uuid, 'dataset:test/energy:category-combination:region_a'),
-        uuid3(instance_uuid, 'dataset:test/energy:category-combination:region_b'),
-    ]
-    assert ds_meta.category_domain_spec is not None
+    # Rule groups name the combinations of the dataset's shape.
+    (shape,) = snapshot.spec.shapes
+    assert ds_meta.shape_id == shape.uuid
+    assert required.groups[0].combinations == [combination.uuid for combination in shape.combinations]
+    assert ds_meta.category_domain_spec is None
 
     # Catalog UUIDs are parse-invented but deterministic per instance.
     again = parse_instance_snapshot(config, instance_uuid=instance_uuid)
@@ -151,6 +155,16 @@ def test_datasets_key_parses_into_typed_catalog_entries():
     bad = dict(config)
     bad['datasets'] = [{'id': 'test/energy', 'metrics': [{'id': 'amount', 'validation_rules': [{'kind': 'nope'}]}]}]
     with pytest.raises(InstanceParseError, match='Invalid validation rule'):
+        parse_instance_snapshot(bad, instance_uuid=instance_uuid)
+
+    bad = dict(config)
+    bad['datasets'] = [{'id': 'test/energy', 'category_domain': {'combinations': []}}]
+    with pytest.raises(InstanceParseError, match='replaced by shapes'):
+        parse_instance_snapshot(bad, instance_uuid=instance_uuid)
+
+    bad = dict(config)
+    bad['datasets'] = [{'id': 'test/energy', 'shape': 'missing'}]
+    with pytest.raises(InstanceParseError, match='unknown shape missing'):
         parse_instance_snapshot(bad, instance_uuid=instance_uuid)
 
     bad = dict(config)

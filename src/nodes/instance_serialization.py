@@ -35,6 +35,7 @@ from kausal_common.i18n.pydantic import (
 )
 
 from datasets.catalogue import dataset_meta_from_model
+from datasets.shape_domain import CategoryDomainResolver
 from datasets.snapshot import DatasetMetricSnapshot, DatasetSnapshot, metric_column_id
 from datasets.transfer import import_instance_datasets
 from nodes.defs.data_entry import DataEntrySpec, data_entry_dataset_ids, remap_data_entry
@@ -1209,12 +1210,14 @@ def _dataset_catalog_for(
     )
     instance_level: list[DatasetMeta] = []
     owned: dict[UUID, list[DatasetMeta]] = {}
+    domains = CategoryDomainResolver()
     for dataset in datasets:
         pin = dataset_revision_pins.get(dataset.pk) if dataset_revision_pins is not None else None
         meta = dataset_meta_from_model(
             dataset,
             primary_language=ic.primary_language,
             pinned_revision_id=pin.revision_id if pin is not None else None,
+            domains=domains,
         )
         owner = node_uuids.get(dataset.scope_id) if dataset.scope_content_type_id == node_ct.pk else None
         if owner is not None:

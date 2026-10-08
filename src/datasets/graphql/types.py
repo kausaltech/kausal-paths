@@ -32,6 +32,7 @@ from datasets.models import (
     PlausibilityReference,
     PlausibilitySource,
 )
+from datasets.shape_domain import dataset_category_domain
 from datasets.validation_rules import (
     AllowedCombinationsRule,
     DimensionSumRule,
@@ -736,12 +737,12 @@ class DatasetType(UserPermissionsMixin):
         prefetch_related_objects([root._model.schema], 'dimensions__dimension__categories')
         return [DatasetDimensionType.from_schema_dimension(sd) for sd in root._model.schema.dimensions.all()]
 
-    @sb.field(description='Meaningful category combinations declared by this dataset schema.')
+    @sb.field(description="The dataset's entry form: the category combinations of its shape, as its instance resolves it.")
     @staticmethod
     def category_domain(root: 'DatasetType') -> DatasetCategoryDomainType:
         if root._model is None or root._model.schema is None:
             return DatasetCategoryDomainType(mode='open', combinations=[])
-        domain = root._model.schema.category_domain
+        domain = dataset_category_domain(root._model)
         return DatasetCategoryDomainType(
             mode=domain.mode,
             combinations=[

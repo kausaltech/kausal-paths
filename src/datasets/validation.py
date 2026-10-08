@@ -31,6 +31,7 @@ from kausal_common.datasets.models import DatasetMetricValidationRule, DatasetSc
 from nodes.constants import YEAR_COLUMN
 
 from .coordinates import DatasetCoordinate, DatasetCoordinateIndex
+from .shape_domain import dataset_category_domain
 from .validation_rules import (
     AllowedCombinationsRule,
     DimensionSumRule,
@@ -189,7 +190,7 @@ def dataset_validation_hash(dataset: Dataset) -> str:
         'WithAnnotations[DatasetSchema, _SchemaValidationContext]',
         DatasetSchema.objects.annotate(current_validation_rules=validation_rules_subquery('pk')).get(pk=dataset.schema_id),
     )
-    return validation_context_hash(schema.current_validation_rules, schema.category_domain)
+    return validation_context_hash(schema.current_validation_rules, dataset_category_domain(dataset))
 
 
 def evaluate_dataset_rules(dataset: Dataset) -> list[RuleViolation]:
@@ -219,8 +220,9 @@ def evaluate_dataset_rules(dataset: Dataset) -> list[RuleViolation]:
     df = pl.DataFrame({col: ppdf.get_column(col) for col in ppdf.columns})
     if dim_cols:
         df = df.with_columns([pl.col(col).cast(pl.Utf8) for col in dim_cols])
-    domain_coordinates = _category_domain_coordinates(dataset)
-    domain_is_closed = schema.category_domain.mode == 'closed'
+    domain = dataset_category_domain(dataset)
+    domain_coordinates = _category_domain_coordinates(dataset, domain)
+    domain_is_closed = domain.mode == 'closed'
 
     violations: list[RuleViolation] = []
     for row in rules:
@@ -293,13 +295,15 @@ def evaluate_rule(
             )
 
 
-def _category_domain_coordinates(dataset: Dataset) -> dict[UUID, dict[str, str]]:
+def _category_domain_coordinates(dataset: Dataset, domain: DatasetCategoryDomain | None = None) -> dict[UUID, dict[str, str]]:
     from kausal_common.datasets.models import DatasetSchemaDimension
 
     from frameworks.catalogue import dimension_scopes
 
     schema = dataset.schema
-    if schema is None or not schema.category_domain.combinations:
+    if domain is None:
+        domain = dataset_category_domain(dataset)
+    if schema is None or not domain.combinations:
         return {}
     instance = dataset.scope_instance
     local_type_id = ContentType.objects.get_for_model(instance).pk
@@ -326,7 +330,7 @@ def _category_domain_coordinates(dataset: Dataset) -> dict[UUID, dict[str, str]]
         if category.identifier is not None
     }
     result: dict[UUID, dict[str, str]] = {}
-    for combination in schema.category_domain.combinations:
+    for combination in domain.combinations:
         coordinates: dict[str, str] = {}
         for dimension_uuid, category_uuid in combination.categories.items():
             dimension_id = next(

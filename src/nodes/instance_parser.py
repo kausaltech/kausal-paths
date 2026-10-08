@@ -24,7 +24,6 @@ from uuid import NAMESPACE_URL, UUID, uuid3, uuid5
 
 from pydantic import TypeAdapter
 
-from kausal_common.datasets.category_domain import DatasetCategoryDomainSpec
 from kausal_common.i18n.pydantic import TranslatedString
 
 from paths.identifiers import identifier_or_none
@@ -229,6 +228,7 @@ class InstanceConfigParser:
         self.node_uuids = node_uuids or {}
         self.port_references = port_references or YamlPortReferenceCatalog()
         self._resolved_node_uuids: dict[str, UUID] = {}
+        self._shapes: list[ShapeSpec] | None = None
         self.default_language: str = config['default_language']
         self.other_languages: list[str] = config.get('supported_languages', [])
         self._terms = InstanceTerms()
@@ -424,7 +424,19 @@ class InstanceConfigParser:
             is_editable = ds_conf.get('is_editable')
             if 'is_editable' in ds_conf and not isinstance(is_editable, bool):
                 raise InstanceParseError(f"Dataset '{ds_id}' field 'is_editable' must be a boolean")
-            domain_spec = self._parse_category_domain_spec(ds_id, ds_conf)
+            if 'category_domain' in ds_conf:
+                raise InstanceParseError(
+                    f"Dataset '{ds_id}': 'category_domain' is replaced by shapes; declare the combinations as a "
+                    "shape and refer to it with 'shape:' (docs/architecture/shapes.md)"
+                )
+            shape_id = None
+            combination_ids: dict[str, UUID] = {}
+            if 'shape' in ds_conf:
+                shape_id = self._shape_uuids().get(ds_conf['shape'])
+                if shape_id is None:
+                    raise InstanceParseError(f"Dataset '{ds_id}' refers to unknown shape {ds_conf['shape']}")
+                shape = resolve_shapes(self._parse_shapes(), self.dimensions)[shape_id]
+                combination_ids = {c.identifier: c.uuid for c in shape.combinations if c.identifier}
             default_quality = None
             if 'default_quality' in ds_conf:
                 try:
@@ -433,7 +445,6 @@ class InstanceConfigParser:
                     raise InstanceParseError(
                         f"Dataset '{ds_id}' field 'default_quality' must name a scheme and a level: {error}"
                     ) from error
-            combination_ids = {combination.id for combination in domain_spec.combinations} if domain_spec else set()
             metrics = [
                 self._parse_dataset_metric(ds_id, combination_ids, metric_config) for metric_config in ds_conf.get('metrics', [])
             ]
@@ -444,44 +455,16 @@ class InstanceConfigParser:
                     schema_id=self._uuid_from_identifiers(['dataset', ds_id, 'schema']),
                     is_editable=is_editable,
                     metrics=tuple(metrics),
-                    category_domain_spec=domain_spec,
+                    shape_id=shape_id,
                     default_quality=default_quality,
                 )
             )
         return entries
 
-    def _parse_category_domain_spec(
-        self,
-        dataset_id: str,
-        dataset_config: dict[str, Any],
-    ) -> DatasetCategoryDomainSpec | None:
-        if 'category_domain' not in dataset_config:
-            return None
-        from pydantic import ValidationError as PydanticValidationError
-
-        try:
-            domain_spec = DatasetCategoryDomainSpec.model_validate(dataset_config['category_domain'])
-        except PydanticValidationError as error:
-            raise InstanceParseError(f"Invalid category domain on dataset '{dataset_id}': {error}") from error
-        for combination in domain_spec.combinations:
-            for dimension_id, category_id in combination.categories.items():
-                dimension = self.dimensions.get(dimension_id)
-                if dimension is None:
-                    raise InstanceParseError(
-                        f"Category combination '{combination.id}' on dataset '{dataset_id}' "
-                        f"references unknown dimension '{dimension_id}'"
-                    )
-                if category_id not in dimension.get_cat_ids():
-                    raise InstanceParseError(
-                        f"Category combination '{combination.id}' on dataset '{dataset_id}' "
-                        f"references unknown category '{dimension_id}:{category_id}'"
-                    )
-        return domain_spec
-
     def _parse_dataset_metric(
         self,
         dataset_id: str,
-        combination_ids: set[str],
+        combination_ids: dict[str, UUID],
         metric_config: dict[str, Any],
     ) -> DatasetMetricMeta:
         from pydantic import ValidationError as PydanticValidationError
@@ -506,13 +489,10 @@ class InstanceConfigParser:
             validation_rules=tuple(rules),
         )
 
-    def _category_combination_uuid(self, dataset_id: str, combination_id: str) -> UUID:
-        return self._uuid_from_identifiers(['dataset', dataset_id, 'category-combination', combination_id])
-
     def _resolve_category_combination_rule_refs(
         self,
         dataset_id: str,
-        combination_ids: set[str],
+        combination_ids: dict[str, UUID],
         authored_rules: object,
     ) -> object:
         if not isinstance(authored_rules, list):
@@ -536,7 +516,7 @@ class InstanceConfigParser:
                         f"Required-combinations rule on dataset '{dataset_id}' references "
                         f'unknown combination(s): {", ".join(unknown)}'
                     )
-                group['combinations'] = [self._category_combination_uuid(dataset_id, ref) for ref in refs]
+                group['combinations'] = [combination_ids[ref] for ref in refs]
                 groups.append(group)
             rule['groups'] = groups
             resolved.append(rule)
@@ -666,7 +646,26 @@ class InstanceConfigParser:
 
     # -- shapes -----------------------------------------------------------------
 
-    def _parse_shapes(self) -> list[ShapeSpec]:  # noqa: C901
+    def _shape_uuids(self) -> dict[str, UUID]:
+        """Map each declared shape identifier to its UUID, minted from this instance unless authored."""
+        uuids: dict[str, UUID] = {}
+        for config in self.config.get('shapes', []):
+            identifier = config.get('id')
+            if not identifier:
+                raise InstanceParseError('A shape must have an id')
+            if identifier in uuids:
+                raise InstanceParseError(f'Shape {identifier} is declared twice')
+            authored = config.get('uuid')
+            uuids[identifier] = UUID(str(authored)) if authored else self._uuid_from_identifiers(['shape', identifier])
+        return uuids
+
+    def _parse_shapes(self) -> list[ShapeSpec]:
+        """Parse `shapes:` once; datasets and the instance spec both need them."""
+        if self._shapes is None:
+            self._shapes = self._read_shapes()
+        return self._shapes
+
+    def _read_shapes(self) -> list[ShapeSpec]:  # noqa: C901
         """
         Read `shapes:`; identifiers become UUIDs minted from this instance.
 
@@ -675,16 +674,7 @@ class InstanceConfigParser:
         inconsistent declaration fails at parse time rather than when a check first runs.
         """
         configs = [dict(item) for item in self.config.get('shapes', [])]
-        uuids: dict[str, UUID] = {}
-        for config in configs:
-            identifier = config.get('id')
-            if not identifier:
-                raise InstanceParseError('A shape must have an id')
-            if identifier in uuids:
-                raise InstanceParseError(f'Shape {identifier} is declared twice')
-            uuids[identifier] = (
-                UUID(str(config['uuid'])) if 'uuid' in config else self._uuid_from_identifiers(['shape', identifier])
-            )
+        uuids = self._shape_uuids()
 
         def shape_uuid(identifier: str, where: str) -> UUID:
             if identifier not in uuids:
