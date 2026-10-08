@@ -523,6 +523,7 @@ class InstanceEditorFields:
         dataset_ports = getattr(root._config, '_annotated_dataset_ports', None)
         if dataset_ports is None:
             dataset_ports = list(_dataset_binding_qs(root._config))
+            root._config._annotated_dataset_ports = dataset_ports
         result = []
         for dp in dataset_ports:
             assert dp.dataset is not None

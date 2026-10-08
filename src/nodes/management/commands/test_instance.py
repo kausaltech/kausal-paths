@@ -297,7 +297,7 @@ class Command(BaseCommand):
     trace_new_objects: bool
     trace_new_object_limit: int
     limit: int
-    ignore_problems: bool
+    ignore_problems: bool = False
 
     def add_arguments(self, parser: CommandParser):
         parser.add_argument('instances', metavar='INSTANCE_ID', type=str, nargs='*')
