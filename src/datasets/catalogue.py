@@ -2,6 +2,7 @@
 
 from typing import TYPE_CHECKING
 
+from datasets.shape_domain import CategoryDomainResolver, dataset_shape_id
 from datasets.snapshot import metric_column_id
 from datasets.validation_rules import validation_rule_adapter
 from frameworks.evidence import DEFAULT_QUALITY_SPEC_KEY, QUALITY_OF_SPEC_KEY
@@ -17,6 +18,7 @@ def dataset_meta_from_model(
     *,
     primary_language: str,
     pinned_revision_id: int | None = None,
+    domains: CategoryDomainResolver | None = None,
 ) -> DatasetMeta:
     """Build the graph catalog entry for one dataset, exactly as snapshots record it."""
     schema = dataset.schema
@@ -51,7 +53,8 @@ def dataset_meta_from_model(
         is_external_placeholder=dataset.is_external_placeholder,
         external_ref=dataset.external_ref,
         revision_id=pinned_revision_id if pinned_revision_id is not None else dataset.latest_revision_id,
-        category_domain=schema.category_domain,
+        category_domain=(domains or CategoryDomainResolver()).for_dataset(dataset),
+        shape_id=dataset_shape_id(dataset),
         default_quality=(
             QualityLevelKey.model_validate(default)
             if (default := (dataset.spec or {}).get(DEFAULT_QUALITY_SPEC_KEY)) is not None

@@ -46,6 +46,8 @@ from nodes.constraints.rules import (
     SameShapeRule,
 )
 from nodes.constraints.tags import tag_operation_is_opaque
+from nodes.constraints.shape_check import check_shape_references
+from nodes.constraints.steps import AssignStep, FilterStep, OpaqueStep, TransformStep, UnitStep
 from nodes.constraints.values import (
     BindingValue,
     ConstraintConflict,
@@ -77,39 +79,6 @@ if TYPE_CHECKING:
 
 MAX_SOLVER_SWEEPS = 100
 
-# --- Resolved transformation steps -------------------------------------------
-
-
-@dataclass(frozen=True, slots=True)
-class FilterStep:
-    dimension_id: UUID
-    selection: frozenset[UUID] | None
-    """Selected category UUIDs; ``None`` when the selection is unresolvable (e.g. groups)."""
-    exclude: bool
-    flatten: bool
-    index: int
-
-
-@dataclass(frozen=True, slots=True)
-class AssignStep:
-    dimension_id: UUID
-    category_id: UUID | None
-    index: int
-
-
-@dataclass(frozen=True, slots=True)
-class UnitStep:
-    unit: Unit
-    index: int
-
-
-@dataclass(frozen=True, slots=True)
-class OpaqueStep:
-    reason: str
-    index: int
-
-
-type TransformStep = FilterStep | AssignStep | UnitStep | OpaqueStep
 
 
 # --- Program ------------------------------------------------------------------
@@ -183,6 +152,8 @@ class ConstraintProgram:
     constraints: tuple[AnyConstraint, ...]
     dataset_sources: tuple[DatasetSourceInfo, ...]
     static_conflicts: tuple[ConstraintConflict, ...]
+    static_notices: tuple[ConstraintConflict, ...] = ()
+    """Checks that could not be made; they block nothing."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -190,6 +161,8 @@ class ConstraintSolveResult:
     shapes: dict[ValueKey, EffectiveValueShape]
     conflicts: tuple[ConstraintConflict, ...]
     converged: bool
+    notices: tuple[ConstraintConflict, ...] = ()
+    """What could not be checked, reported so that it is never taken as passed; blocks nothing."""
 
 
 class GraphOverlay(BaseModel):
@@ -388,6 +361,7 @@ def compile_constraint_program(  # noqa: C901, PLR0912, PLR0915
     constraints: list[AnyConstraint] = []
     dataset_sources: list[DatasetSourceInfo] = []
     static_conflicts: list[ConstraintConflict] = []
+    steps_by_binding: dict[UUID, tuple[TransformStep, ...]] = {}
 
     # Authored input-port dimensions come from bare YAML ``to_dimensions``
     # entries. The runtime asserts, per edge, that the delivered value's
@@ -504,6 +478,7 @@ def compile_constraint_program(  # noqa: C901, PLR0912, PLR0915
             )
             dataset_sources.append(DatasetSourceInfo(binding_id=binding.id, dataset_id=dataset.id, metric_id=metric.id))
         steps = resolve_binding_steps(graph, binding, static_conflicts, dataset_dims=dataset_dims)
+        steps_by_binding[binding.id] = steps
         if isinstance(binding, EdgeBindingDef):
             # The per-edge output-dimension assertion: bare declared entries
             # (on the port for re-synced snapshots, on the binding for legacy
@@ -563,11 +538,13 @@ def compile_constraint_program(  # noqa: C901, PLR0912, PLR0915
             )
         )
 
+    shape_check = check_shape_references(graph, effective_bindings, steps_by_binding)
     return ConstraintProgram(
         seeds=tuple(seeds),
         constraints=tuple(constraints),
         dataset_sources=tuple(dataset_sources),
-        static_conflicts=tuple(static_conflicts),
+        static_conflicts=(*static_conflicts, *shape_check.conflicts),
+        static_notices=shape_check.notices,
     )
 
 
@@ -959,4 +936,6 @@ def solve_constraint_program(  # noqa: C901, PLR0912
             converged = True
             break
 
-    return ConstraintSolveResult(shapes=store.snapshot(), conflicts=store.conflicts, converged=converged)
+    return ConstraintSolveResult(
+        shapes=store.snapshot(), conflicts=store.conflicts, converged=converged, notices=program.static_notices
+    )
