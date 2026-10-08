@@ -5,10 +5,14 @@ from typing import TYPE_CHECKING
 
 from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
+from django.db.models import Q
 
 from kausal_common.datasets.models import Dataset
 
+from datasets.category_reconcile import apply_changes, plan_instance
 from datasets.materialization import refresh_dataset_materialization
+from datasets.placeholders import build_dataset_repo
+from datasets.schema_labels import default_language, set_schema_name
 from datasets.validation import dump_violations, evaluate_dataset_rules
 from datasets.year_slots import ensure_empty_year
 from frameworks.bisko.activation import municipality_nuts3
@@ -107,6 +111,66 @@ def _reconcile_bisko_nuts_codes(framework: Framework) -> None:
         instance.spec = spec
         instance.save(update_fields=['spec'])
         instance.invalidate_cache()
+
+
+def _reconcile_bisko_categories(framework: Framework) -> None:
+    """
+    Merge or delete the template's stored categories that the BISKO module no longer declares.
+
+    The template's dimensions are the ones the framework scope shares, so this covers every
+    municipality that follows the template. It reads the template's draft spec, so it has work
+    only after `sync_instance_to_db` has brought a module change in.
+    """
+    template = framework.template_instance
+    assert template is not None
+    changes = plan_instance(template)
+    for change in changes:
+        print(f'{template.identifier}: {change.describe()}')
+    if changes:
+        apply_changes(changes)
+        template.invalidate_cache()
+
+
+BISKO_NAMED_NAMESPACES = ('de/', 'kommune/')
+
+
+def _reconcile_bisko_dataset_names(framework: Framework) -> None:
+    """
+    Name the BISKO datasets as the DVC metadata at the template's pin names them.
+
+    A dataset's name is copied from DVC only when its placeholder is first created, so a name
+    fixed at the source never reached the rows that already existed. This covers the rows of
+    the framework, the template and every member instance, and changes only names that differ.
+    """
+    template = framework.template_instance
+    assert template is not None
+    repo_spec = template.ensure_spec().dataset_repo
+    if repo_spec is None:
+        return
+    members = FrameworkConfig.objects.filter(framework=framework).values_list('instance_config_id', flat=True)
+    in_scope = Q(scope_content_type=ContentType.objects.get_for_model(InstanceConfig), scope_id__in=[template.pk, *members]) | Q(
+        scope_content_type=ContentType.objects.get_for_model(framework), scope_id=framework.pk
+    )
+    namespaces = Q()
+    for prefix in BISKO_NAMED_NAMESPACES:
+        namespaces |= Q(identifier__startswith=prefix)
+    datasets = Dataset.objects.filter(in_scope & namespaces).select_related('schema')
+    repo = build_dataset_repo(repo_spec)
+    names: dict[str, dict[str, str] | None] = {}
+    seen_schemas: set[int] = set()
+    for dataset in datasets:
+        identifier = dataset.identifier
+        if identifier is None or dataset.schema is None or dataset.schema.pk in seen_schemas:
+            continue
+        seen_schemas.add(dataset.schema.pk)
+        if identifier not in names:
+            metadata = repo.get_dataset_manifest(identifier).metadata if repo.has_dataset(identifier) else None
+            names[identifier] = (metadata or {}).get('name')
+        name = names[identifier]
+        if not name or default_language() not in name:
+            continue
+        if set_schema_name(dataset.schema, name):
+            print(f'{identifier} ({dataset.scope}): named {name[default_language()]!r}')
 
 
 def _reconcile_bisko_weather_defaults(framework: Framework) -> None:
@@ -321,6 +385,8 @@ def setup_bisko(*, template_identifier: str = 'bisko', instance_identifiers: tup
     provision_german_organization_catalogue()
     _check_nuts3_identifiers()
     _reconcile_bisko_nuts_codes(framework)
+    _reconcile_bisko_categories(framework)
+    _reconcile_bisko_dataset_names(framework)
     _reconcile_bisko_weather_defaults(framework)
     _reconcile_bisko_empty_cells(framework)
 
