@@ -312,6 +312,7 @@ def _make_data_dimension(
             MetricCategory(
                 id=cat_id,
                 label=str(cat.label),
+                short_label=str(cat.short_label) if cat.short_label is not None else None,
                 color=cat.color,
                 order=cat.order,
                 original_id=cat.id,
@@ -596,6 +597,7 @@ def from_action_impact(
                 MetricCategory(
                     id=cat_id,
                     label=str(cat.label),
+                    short_label=str(cat.short_label) if cat.short_label is not None else None,
                     color=cat.color,
                     order=cat.order,
                     original_id=cat.id,
@@ -684,6 +686,7 @@ def _make_dimensions_from_context(
                     id=f'{id_prefix}:{dim.id}:cat:{cat.id}',
                     original_id=cat.id,
                     label=str(cat.label),
+                    short_label=str(cat.short_label) if cat.short_label is not None else None,
                     color=cat.color,
                     order=cat.order,
                     group=cat.group,

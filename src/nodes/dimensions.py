@@ -40,6 +40,7 @@ class DimensionCategoryGroup(I18nBaseModel):
 class DimensionCategory(I18nBaseModel):
     id: Identifier
     label: I18nStringInstance
+    short_label: I18nStringInstance | None = None
     color: str | None = None
     group: str | None = None
     order: int | None = None
