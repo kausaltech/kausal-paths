@@ -1154,6 +1154,7 @@ def _dimension_catalog_for(ic: InstanceConfig) -> list[DimensionMeta]:
                 id=category.uuid,
                 identifier=category.identifier,
                 label=translated_string_from_model(category, 'label', ic.primary_language),
+                short_label=translated_string_from_model(category, 'short_label', ic.primary_language),
                 order=category.order,
                 spec=dict(category.spec or {}),
             )
