@@ -37,6 +37,7 @@ from nodes.template_spec import (
     DECLARATION_LISTS,
     compose_instance_spec,
     declaration_identity,
+    ensure_instance_shapes,
     parameters_by_id,
     validate_spec_references,
 )
@@ -397,6 +398,7 @@ def upgrade_template_instance(instance: InstanceConfig, revision: Revision, *, u
             if parameter is None or parameter.owner == ParameterOwner.FRAMEWORK or (old and old.type != parameter.type):
                 override.param_values.pop(identifier)
                 override.parameter_types.pop(identifier, None)
+    ensure_instance_shapes(spec, candidate.spec)
     instance.spec = spec
     instance.save(update_fields=['template_revision', 'node_settings', 'spec'])
     instance.invalidate_cache()

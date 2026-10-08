@@ -46,6 +46,7 @@ from nodes.defs.graph import DatasetMeta, DatasetMetricMeta, DimensionCategoryMe
 from nodes.defs.instance_defs import ActionGroup, DatasetRepoSpec, InstanceFeatures, InstanceMetadata, InstanceTerms
 from nodes.defs.node_defs import ActionHookDef, NodeSpecExtra
 from nodes.defs.port_def import InputPortDef, OutputPortDef
+from nodes.defs.shape_defs import ShapeCombinationSpec, ShapeRequiredGroupSpec, ShapeSpec
 from nodes.dimensions import Dimension
 from nodes.formula import FormulaNode
 from nodes.goals import NodeGoals
@@ -55,6 +56,7 @@ from nodes.instance_serialization import (
     InstanceSnapshot,
     NodeSnapshot,
 )
+from nodes.shapes import ShapeResolutionError, resolve_shapes
 from nodes.units import Unit, unit_registry
 from nodes.value_validation import ValueContract
 from nodes.visualizations import NodeVisualizations
@@ -657,9 +659,95 @@ class InstanceConfigParser:
             params=list(self.global_params.values()),
             action_groups=agcs,
             scenarios=scenarios,
+            shapes=self._parse_shapes(),
             theme_identifier=config.get('theme_identifier'),
             sample_size=config.get('sample_size', 0),
         )
+
+    # -- shapes -----------------------------------------------------------------
+
+    def _parse_shapes(self) -> list[ShapeSpec]:  # noqa: C901
+        """
+        Read `shapes:`; identifiers become UUIDs minted from this instance.
+
+        A required group may name combinations its shape inherits, so groups are resolved after
+        every shape's combinations are known. The result is resolved once here, so an
+        inconsistent declaration fails at parse time rather than when a check first runs.
+        """
+        configs = [dict(item) for item in self.config.get('shapes', [])]
+        uuids: dict[str, UUID] = {}
+        for config in configs:
+            identifier = config.get('id')
+            if not identifier:
+                raise InstanceParseError('A shape must have an id')
+            if identifier in uuids:
+                raise InstanceParseError(f'Shape {identifier} is declared twice')
+            uuids[identifier] = (
+                UUID(str(config['uuid'])) if 'uuid' in config else self._uuid_from_identifiers(['shape', identifier])
+            )
+
+        def shape_uuid(identifier: str, where: str) -> UUID:
+            if identifier not in uuids:
+                raise InstanceParseError(f'{where}: unknown shape {identifier}')
+            return uuids[identifier]
+
+        combination_uuids: dict[str, dict[str, UUID]] = {}
+        parents: dict[str, list[str]] = {}
+        for config in configs:
+            identifier = config['id']
+            parents[identifier] = list(config.get('inherits', []))
+            combination_uuids[identifier] = {
+                item['id']: self._uuid_from_identifiers(['shape', identifier, 'combination', item['id']])
+                for item in config.get('combinations', [])
+            }
+
+        def combination_uuid(shape_id: str, combination_id: str, seen: frozenset[str] = frozenset()) -> UUID | None:
+            if shape_id in seen:
+                return None
+            own = combination_uuids.get(shape_id, {})
+            if combination_id in own:
+                return own[combination_id]
+            for parent in parents.get(shape_id, []):
+                found = combination_uuid(parent, combination_id, seen | {shape_id})
+                if found is not None:
+                    return found
+            return None
+
+        shapes: list[ShapeSpec] = []
+        for config in configs:
+            identifier = config.pop('id')
+            config.pop('uuid', None)
+            where = f'Shape {identifier}'
+            config['inherits'] = [shape_uuid(parent, where) for parent in config.get('inherits', [])]
+            config['combinations'] = [
+                ShapeCombinationSpec(
+                    uuid=combination_uuids[identifier][item['id']], identifier=item['id'], categories=item['categories']
+                )
+                for item in config.get('combinations', [])
+            ]
+            groups: list[ShapeRequiredGroupSpec] = []
+            for item in config.get('required', []):
+                members: list[UUID] = []
+                for member in item['combinations']:
+                    found = combination_uuid(identifier, member)
+                    if found is None:
+                        raise InstanceParseError(f'{where}: required group {item["id"]} names unknown combination {member}')
+                    members.append(found)
+                groups.append(
+                    ShapeRequiredGroupSpec(
+                        uuid=self._uuid_from_identifiers(['shape', identifier, 'required', item['id']]),
+                        identifier=item['id'],
+                        combinations=members,
+                        qualifiers=item.get('qualifiers', {}),
+                    )
+                )
+            config['required'] = groups
+            shapes.append(ShapeSpec.model_validate({'uuid': uuids[identifier], 'identifier': identifier, **config}))
+        try:
+            resolve_shapes(shapes, self.dimensions)
+        except ShapeResolutionError as exc:
+            raise InstanceParseError(str(exc)) from exc
+        return shapes
 
     # -- scenarios --------------------------------------------------------------
 
