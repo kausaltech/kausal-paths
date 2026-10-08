@@ -77,8 +77,8 @@ is independent of visitor customization.
 
 A municipal `InstanceModelSpec` contains local declarations and local years.
 Its global parameter IDs must be disjoint from the template's IDs. Reports,
-pages, impact overviews, normalizations, action groups, and scenarios inherit
-from the pinned revision; local declarations append without shadowing inherited
+pages, impact overviews, normalizations, action groups, scenarios, and shapes
+inherit from the pinned revision; local declarations append without shadowing inherited
 identities. Reports currently use their translated name as identity; groups use
 UUIDs, and the other declarations use their existing identifiers.
 
@@ -87,6 +87,16 @@ definitions, and effective runtime compositions. Municipal lists contain additio
 an empty list adds nothing. Local declarations cannot shadow template identities.
 Years remain wholly local. `dataset_repo` must be absent or `None` in a dependent
 instance and always comes from the template.
+
+Shapes inherit like the other declarations, keyed by UUID, with one addition (see
+[shapes](shapes.md)). A shape the template owns (`owner: framework`) is read-only and cannot
+be redeclared. A shape with `owner: instance` is an extension point: conversion and upgrade
+give each dependent instance its own record of it under the template's UUID, and composition
+uses that record in place of the template's declaration. The record keeps the template's
+identifier, dimensions, `inherits` and closedness, cannot be removed, and adds combinations.
+Inheritance between shapes is resolved at runtime, so moving the pin brings in the standard's
+new combinations without touching the record. A dataset's shape reference follows the pinned
+revision, set on activation and upgrade, so it always names a shape the instance declares.
 
 `features`, `terms`, `theme_identifier`, and `sample_size` may be overridden directly.
 Serialization preserves explicit field presence, including individual feature and
