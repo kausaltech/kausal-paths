@@ -226,7 +226,7 @@ nodes:
 # copy them from bisko standard and remove output node net_emissions - don't forget to put allow_override=true
 - id: industry_emissions
   is_editable: false
-  name_de: Industrie Emissionen
+  name_de: Industrieemissionen
   name_en: Industry emissions
   color: '#737373'
   type: generic.GenericNode
@@ -242,7 +242,7 @@ nodes:
 
 - id: commerce_trade_services_emissions
   is_editable: false
-  name_de: Gewerbe, Handel, Dienstleistungen Emissionen
+  name_de: Emissionen aus Gewerbe, Handel, Dienstleistungen
   name_en: Commerce, trade, services emissions
   color: '#fe8035'
   type: generic.GenericNode

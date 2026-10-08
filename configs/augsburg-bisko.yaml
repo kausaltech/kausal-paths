@@ -361,7 +361,7 @@ result_excels:
 nodes:
 - id: private_household_emissions
   is_editable: false
-  name_de: Private Haushalte Emissionen
+  name_de: Emissionen aus privaten Haushalten
   name_en: Private household emissions
   color: '#203abf'
   type: generic.GenericNode
@@ -390,7 +390,7 @@ nodes:
 
 - id: commerce_trade_services_emissions
   is_editable: false
-  name_de: Gewerbe, Handel, Dienstleistungen Emissionen
+  name_de: Emissionen aus Gewerbe, Handel, Dienstleistungen
   name_en: Commerce, trade, services emissions
   color: *blue
   type: generic.GenericNode
@@ -419,7 +419,7 @@ nodes:
 
 - id: industry_emissions
   is_editable: false
-  name_de: Industrie Emissionen
+  name_de: Industrieemissionen
   name_en: Industry Emissions
   color: *grey
   type: generic.GenericNode

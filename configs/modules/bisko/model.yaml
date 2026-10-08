@@ -2836,7 +2836,7 @@ nodes:
 - id: vehicle_kilometers_ifeu
   is_editable: false
   name_en: Road transport activity by road type according to IFEU
-  name_de: Verkehr Aktivität nach Straßentyp nach IFEU
+  name_de: Fahrleistung nach Straßentyp (IFEU)
   description_en: |
     Municipality-level default road mileage (Fahrleistung) derived by IFEU from GRETA/TREMOD,
     for every German municipality. Motorcycles, cars, light commercial vehicles, trucks and
@@ -3023,7 +3023,7 @@ nodes:
 - id: vehicle_kilometers_ifeu_by_bus_class
   is_editable: false
   name_en: Road transport activity by road type, buses split by class
-  name_de: Verkehr Aktivität nach Straßentyp, Busse nach Klasse getrennt
+  name_de: Fahrleistung nach Straßentyp, Busse nach Klasse getrennt (IFEU)
   description_en: |
     The ifeu municipality defaults with the two raw bus rows replaced by the Linienbus and
     Reisebus split. FL_Bus and FL_Lbus are both consumed by the split and neither appears here,

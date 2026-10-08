@@ -710,7 +710,7 @@ nodes:
     - id: vehicle_type
 
 - id: transport_emissions_for_fuel
-  name_de: Verkehr Emissionen für den Kraftstoffverbrauch
+  name_de: Verkehrsemissionen aus dem Kraftstoffverbrauch
   name_en: Transport emissions for fuel consumption
   type: ch.zuerich.TransportEmissionsForFuel
   quantity: emission_factor

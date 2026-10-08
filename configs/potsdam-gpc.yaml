@@ -308,7 +308,7 @@ nodes:
       values: [trend_scenario]
 
 - id: trend_scenario_emissions
-  name: Trend-Szenario Emissionen
+  name: Emissionen im Trend-Szenario
   name_en: Trend scenario emissions
   type: generic.GenericNode
   quantity: emissions
@@ -344,7 +344,7 @@ nodes:
     operations: multiply,drop_nans,drop_infs
 
 - id: scenario_emissions_data
-  name: Masterplan-Szenario Emissionen Daten
+  name: Emissionsdaten des Masterplan-Szenarios
   name_en: Masterplan scenario emissions data
   type: generic.GenericNode
   quantity: emissions

@@ -553,7 +553,7 @@ nodes:
 
 - id: private_household_emissions
   is_editable: false
-  name_de: Private Haushalte Emissionen
+  name_de: Emissionen aus privaten Haushalten
   name_en: Private household emissions
   description: This is just a placeholder to mask a redundant node.
   color: '#009ebe'  # subsector card color: private households (matches sector "private_households" in outcome graph)
@@ -564,7 +564,7 @@ nodes:
 
 - id: municipal_facilities_emissions
   is_editable: false
-  name_de: Kommunale Einrichtungen Emissionen
+  name_de: Emissionen aus kommunalen Einrichtungen
   name_en: Municipal facilities emissions
   description: This is just a placeholder to mask a redundant node.
   color: '#6bc248'  # subsector card color: municipal facilities (matches sector "municipal_facilities" in outcome graph)
@@ -575,7 +575,7 @@ nodes:
 
 - id: industry_emissions
   is_editable: false
-  name_de: Industrie Emissionen
+  name_de: Industrieemissionen
   name_en: Industry emissions
   description: This is just a placeholder to mask a redundant node.
   color: '#737373'  # subsector card color: industry (matches sector "industry" in outcome graph)
@@ -586,7 +586,7 @@ nodes:
 
 - id: commerce_trade_services_emissions
   is_editable: false
-  name_de: Gewerbe, Handel, Dienstleistungen Emissionen
+  name_de: Emissionen aus Gewerbe, Handel, Dienstleistungen
   name_en: Commerce, trade, services emissions
   description: This is just a placeholder to mask a redundant node.
   color: '#fe8035'  # subsector card color: commerce/trade/services (matches sector "commerce_trade_services" in outcome graph)
@@ -631,7 +631,7 @@ nodes:
 
 - id: heating_emissions
   is_editable: false
-  name_de: Wärme Emissionen
+  name_de: Wärmeemissionen
   name_en: Heating Emissions
   type: formula.FormulaNode
   quantity: emissions
@@ -682,7 +682,7 @@ nodes:
 
 - id: electricity_emissions
   is_editable: false
-  name_de: Strom Emissionen
+  name_de: Stromemissionen
   name_en: Electricity Emissions
   type: generic.GenericNode
   quantity: emissions
