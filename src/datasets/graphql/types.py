@@ -34,10 +34,8 @@ from datasets.models import (
 )
 from datasets.shape_domain import dataset_category_domain
 from datasets.validation_rules import (
-    AllowedCombinationsRule,
     DimensionSumRule,
     NoGapsRule,
-    RequiredCombinationsRule,
     ValidationRuleGQLInterface,
     ValueRangeRule,
     rule_to_gql,
@@ -60,8 +58,6 @@ from users.schema import UserType
 register_strawberry_type(ValueRangeRule.ObjectType)
 register_strawberry_type(DimensionSumRule.ObjectType)
 register_strawberry_type(NoGapsRule.ObjectType)
-register_strawberry_type(RequiredCombinationsRule.ObjectType)
-register_strawberry_type(AllowedCombinationsRule.ObjectType)
 
 if TYPE_CHECKING:
     from collections.abc import Mapping

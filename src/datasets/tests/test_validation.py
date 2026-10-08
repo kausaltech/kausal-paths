@@ -188,29 +188,21 @@ def test_materialization_revalidates_changed_category_domain(
     )
     schema = dataset.schema
     assert schema is not None
-    schema.category_domain = DatasetCategoryDomain(combinations=[combination])
+    schema.category_domain = DatasetCategoryDomain(mode='closed', combinations=[combination])
     schema.save(update_fields=['category_domain'])
-    set_rule(
-        metric,
-        {
-            'kind': 'required_combinations',
-            'enforcement': 'block_submission',
-            'groups': [{'id': 'required', 'combinations': [str(combination.id)]}],
-        },
-    )
     add_point(dataset, metric, 2020, 1, category)
     original = materialize_dataset(dataset)
     assert not original.validation_violations
 
     combination = combination.model_copy(update={'categories': {category.dimension.uuid: other_category.uuid}})
-    schema.category_domain = DatasetCategoryDomain(combinations=[combination])
+    schema.category_domain = DatasetCategoryDomain(mode='closed', combinations=[combination])
     schema.save(update_fields=['category_domain'])
     refreshed = ensure_dataset_materializations([dataset])[dataset.pk]
 
     assert refreshed.generation == original.generation + 1
     (violation,) = load_violations(refreshed.validation_violations)
-    assert violation.categories == {'region': 'b'}
-    assert violation.enforcement == 'block_submission'
+    assert violation.categories == {'region': 'a'}
+    assert violation.enforcement == 'block_edit'
 
 
 def test_value_range_rule_supports_exclusive_bounds(rig):
@@ -291,43 +283,8 @@ def test_dimension_sum_rule(rig):
     assert violations[0].categories == {}
 
 
-def test_required_combinations_rule_locates_missing_domain_cells(rig):
+def test_closed_domain_resolves_framework_scoped_dimensions(rig):
     dataset, metric, cat_a, cat_b = rig
-    dimension = cat_a.dimension
-    combo_a = DatasetCategoryCombination(
-        id=uuid4(),
-        identifier='region_a',
-        categories={dimension.uuid: cat_a.uuid},
-    )
-    combo_b = DatasetCategoryCombination(
-        id=uuid4(),
-        identifier='region_b',
-        categories={dimension.uuid: cat_b.uuid},
-    )
-    dataset.schema.category_domain = DatasetCategoryDomain(combinations=[combo_a, combo_b])
-    dataset.schema.save(update_fields=['category_domain'])
-    set_rule(
-        metric,
-        {
-            'kind': 'required_combinations',
-            'enforcement': 'block_publish',
-            'groups': [{'id': 'region_b', 'combinations': [str(combo_b.id)]}],
-        },
-    )
-    add_point(dataset, metric, 2020, 1, cat_a)
-    add_point(dataset, metric, 2020, 0, cat_b)
-    add_point(dataset, metric, 2021, 2, cat_a)
-
-    (violation,) = evaluate_dataset_rules(dataset)
-
-    assert violation.kind == 'required_combinations'
-    assert violation.years == [2021]
-    assert violation.categories == {'region': 'b'}
-    assert violation.combination_ids == [combo_b.id]
-
-
-def test_required_combinations_resolve_framework_scoped_dimensions(rig):
-    dataset, metric, _cat_a, cat_b = rig
     fwc = FrameworkConfigFactory.create(instance_config=dataset.scope_instance)
     scope = DimensionScope.objects.for_instance_config(fwc.instance_config).get(dimension=cat_b.dimension)
     scope.scope_content_type = ContentType.objects.get_for_model(fwc.framework)
@@ -339,25 +296,18 @@ def test_required_combinations_resolve_framework_scoped_dimensions(rig):
         categories={cat_b.dimension.uuid: cat_b.uuid},
     )
     assert dataset.schema is not None
-    dataset.schema.category_domain = DatasetCategoryDomain(combinations=[combo])
+    dataset.schema.category_domain = DatasetCategoryDomain(mode='closed', combinations=[combo])
     dataset.schema.save(update_fields=['category_domain'])
-    set_rule(
-        metric,
-        {
-            'kind': 'required_combinations',
-            'enforcement': 'block_publish',
-            'groups': [{'id': 'region_b', 'combinations': [str(combo.id)]}],
-        },
-    )
-    add_point(dataset, metric, 2023, None, cat_b)
+    add_point(dataset, metric, 2023, 1, cat_a)
+    add_point(dataset, metric, 2023, 1, cat_b)
 
+    # The framework's category resolves, so only the other one is outside.
     (violation,) = evaluate_dataset_rules(dataset)
-    assert violation.kind == 'required_combinations'
-    assert violation.years == [2023]
-    assert violation.categories == {'region': 'b'}
+    assert violation.kind == 'outside_shape'
+    assert violation.categories == {'region': 'a'}
 
 
-def test_allowed_combinations_rule_rejects_rows_outside_closed_domain(rig):
+def test_closed_domain_rejects_rows_outside_it_without_a_rule(rig):
     dataset, metric, cat_a, cat_b = rig
     dimension = cat_a.dimension
     combo_a = DatasetCategoryCombination(
@@ -367,39 +317,15 @@ def test_allowed_combinations_rule_rejects_rows_outside_closed_domain(rig):
     )
     dataset.schema.category_domain = DatasetCategoryDomain(mode='closed', combinations=[combo_a])
     dataset.schema.save(update_fields=['category_domain'])
-    set_rule(metric, {'kind': 'allowed_combinations', 'enforcement': 'block_edit'})
     add_point(dataset, metric, 2020, 1, cat_a)
     add_point(dataset, metric, 2020, 2, cat_b)
 
     (violation,) = evaluate_dataset_rules(dataset)
 
-    assert violation.kind == 'allowed_combinations'
+    assert violation.kind == 'outside_shape'
+    assert violation.enforcement == 'block_edit'
     assert violation.years == [2020]
     assert violation.categories == {'region': 'b'}
-
-
-def test_required_combinations_rule_outside_domain_is_reported_as_invalid_rule(rig):
-    # The shape an instance copy produces: the domain's category UUIDs belong to the
-    # source instance's dimensions, so no combination resolves against this dataset.
-    dataset, metric, cat_a, _cat_b = rig
-    foreign = DatasetCategoryCombination(id=uuid4(), identifier='region_x', categories={uuid4(): uuid4()})
-    dataset.schema.category_domain = DatasetCategoryDomain(combinations=[foreign])
-    dataset.schema.save(update_fields=['category_domain'])
-    set_rule(
-        metric,
-        {
-            'kind': 'required_combinations',
-            'enforcement': 'block_edit',
-            'groups': [{'id': 'region_x', 'combinations': [str(foreign.id)]}],
-        },
-    )
-    add_point(dataset, metric, 2020, 1, cat_a)
-
-    (violation,) = evaluate_dataset_rules(dataset)
-
-    assert violation.kind == 'invalid_rule'
-    assert violation.enforcement == 'block_publish'
-    assert violation.combination_ids == [foreign.id]
 
 
 def test_dimension_sum_rule_on_missing_dimension_is_reported_as_invalid_rule(rig):
@@ -569,7 +495,6 @@ query DatasetValidation($datasetId: ID!) {
                     code
                     metric
                     years
-                    requirementGroup
                     combinationIds
                     coordinates { dimension category dimensionUuid categoryUuid }
                 }
@@ -629,7 +554,7 @@ def test_set_metric_validation_rules_mutation(gql_client: PathsTestClient, db_in
     }
 
 
-def test_dataset_query_exposes_category_domain_and_required_combination_violations(
+def test_dataset_query_exposes_category_domain_and_its_violations(
     gql_client: PathsTestClient,
     rig,
 ):
@@ -640,16 +565,8 @@ def test_dataset_query_exposes_category_domain_and_required_combination_violatio
         identifier='region_b',
         categories={dimension.uuid: cat_b.uuid},
     )
-    dataset.schema.category_domain = DatasetCategoryDomain(combinations=[combo_b])
+    dataset.schema.category_domain = DatasetCategoryDomain(mode='closed', combinations=[combo_b])
     dataset.schema.save(update_fields=['category_domain'])
-    set_rule(
-        metric,
-        {
-            'kind': 'required_combinations',
-            'enforcement': 'block_publish',
-            'groups': [{'id': 'region_b', 'combinations': [str(combo_b.id)]}],
-        },
-    )
     add_point(dataset, metric, 2021, 1, cat_a)
     materialize_dataset(dataset)
 
@@ -657,7 +574,7 @@ def test_dataset_query_exposes_category_domain_and_required_combination_violatio
     payload = data['instance']['editor']['dataset']
 
     assert payload['categoryDomain'] == {
-        'mode': 'open',
+        'mode': 'closed',
         'combinations': [
             {
                 'id': str(combo_b.id),
@@ -668,17 +585,16 @@ def test_dataset_query_exposes_category_domain_and_required_combination_violatio
     }
     assert payload['validationViolations'] == [
         {
-            'code': 'required_combinations',
+            'code': 'outside_shape',
             'metric': 'amount',
             'years': [2021],
-            'requirementGroup': 'region_b',
-            'combinationIds': [str(combo_b.id)],
+            'combinationIds': [],
             'coordinates': [
                 {
                     'dimension': 'region',
-                    'category': 'b',
+                    'category': 'a',
                     'dimensionUuid': str(dimension.uuid),
-                    'categoryUuid': str(cat_b.uuid),
+                    'categoryUuid': str(cat_a.uuid),
                 }
             ],
         }
@@ -779,24 +695,3 @@ def test_create_data_points_blocked_by_block_edit_rule(gql_client: PathsTestClie
     result = data['instanceEditor']['datasetEditor']['createDataPoints']
     assert result['__typename'] == 'OperationInfo'
     assert not DataPoint.objects.filter(dataset=dataset).exists()
-
-
-def test_required_combination_outside_domain_is_a_reportable_problem(
-    rig: tuple[Dataset, DatasetMetric, DimensionCategory, DimensionCategory],
-) -> None:
-    dataset, metric, cat_a, _cat_b = rig
-    combination = uuid4()
-    set_rule(
-        metric,
-        {
-            'kind': 'required_combinations',
-            'enforcement': 'block_edit',
-            'groups': [{'id': 'missing', 'combinations': [str(combination)]}],
-        },
-    )
-    add_point(dataset, metric, 2020, 1, cat_a)
-    violations = evaluate_dataset_rules(dataset)
-    assert len(violations) == 1
-    assert violations[0].kind == 'invalid_rule'
-    assert violations[0].enforcement == 'block_publish'
-    assert violations[0].combination_ids == [combination]

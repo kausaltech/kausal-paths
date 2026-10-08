@@ -24,7 +24,7 @@ from datasets.plausibility import (
     evaluate_plausibility_cells,
 )
 from datasets.snapshot import DatasetSnapshot
-from datasets.validation import evaluate_rule
+from datasets.validation import evaluate_closed_domain, evaluate_rule
 from frameworks.models import Framework
 from frameworks.qualifiers import attach_evidence_qualifiers, qualifier_catalog_for_instance
 from nodes.constants import VALUE_COLUMN, YEAR_COLUMN
@@ -380,7 +380,7 @@ class DataEntryQuery:
         data = self._data[id]
         meta = data.meta
         frame = data.frame
-        # A required-combination rule must also see wholly empty declared years.
+        # The rules must also see wholly empty declared years.
         # Null rows add years without inventing observed category combinations.
         absent = set(self.years) - set(frame[YEAR_COLUMN].to_list())
         if absent:
@@ -400,6 +400,7 @@ class DataEntryQuery:
         results: list[EntryFinding] = []
         violations = []
         metric_by_name = {metric.identifier: metric for metric in meta.metrics}
+        dim_cols = list(data.dimensions)
         for metric_snapshot in data.snapshot.metrics:
             metric = metric_by_name.get(metric_snapshot.identifier)
             if metric is None:
@@ -407,40 +408,32 @@ class DataEntryQuery:
             column = metric_snapshot.identifier
             if column not in frame.columns:
                 frame = frame.with_columns(pl.lit(None, dtype=pl.Float64).alias(column))
-            for rule in metric_snapshot.validation_rules:
-                for violation in evaluate_rule(
-                    rule.rule,
-                    rule.uuid,
-                    metric.id,
-                    column,
-                    frame,
-                    list(data.dimensions),
-                    domain,
-                    meta.category_domain.mode == 'closed',
-                ):
-                    violations.append(violation)
-                    coordinates = data.coordinates(violation.categories)
-                    selections = tuple(
-                        rectangle({dim: frozenset((cat,)) for dim, cat in data.coordinates(domain[combination])})
-                        for combination in violation.combination_ids
-                        if combination in domain
+            found = [
+                violation
+                for rule in metric_snapshot.validation_rules
+                for violation in evaluate_rule(rule.rule, rule.uuid, metric.id, column, frame, dim_cols)
+            ]
+            if meta.category_domain.mode == 'closed':
+                domain_id = meta.shape_id or meta.schema_id
+                found.extend(evaluate_closed_domain(domain_id, metric.id, column, frame, dim_cols, domain.values()))
+            for violation in found:
+                violations.append(violation)
+                coordinates = data.coordinates(violation.categories)
+                sections = self.affected_sections(
+                    id, metric.id, (rectangle({dim: frozenset((cat,)) for dim, cat in coordinates}),)
+                )
+                results.append(
+                    EntryFinding(
+                        uuid3(id, f'{violation.rule_uuid}:{violation.kind}:{coordinates}'),
+                        violation.kind,
+                        violation.message,
+                        tuple(violation.years),
+                        sections,
+                        id,
+                        metric.id,
+                        coordinates,
                     )
-                    if not selections:
-                        selections = (rectangle({dim: frozenset((cat,)) for dim, cat in coordinates}),)
-                    sections = self.affected_sections(id, metric.id, selections)
-                    key = f'{rule.uuid}:{violation.kind}:{violation.requirement_group}:{coordinates}:{violation.combination_ids}'
-                    results.append(
-                        EntryFinding(
-                            uuid3(id, key),
-                            violation.kind,
-                            violation.message,
-                            tuple(violation.years),
-                            sections,
-                            id,
-                            metric.id,
-                            coordinates,
-                        )
-                    )
+                )
         dataset = self.datasets[id]
         ranges = [rule for rule in applicable_plausibility_ranges(dataset) if rule.metric.uuid in meta.metric_by_id]
         cells = DatasetPlausibilityCells(

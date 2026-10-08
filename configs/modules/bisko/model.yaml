@@ -500,12 +500,12 @@ datasets:
   # which is the certifier's unanswered question under 2.3, "Wo kann ich das bei den Datensätzen
   # einsehen und vkm eingeben?".
   #
-  # Deliberately NOT a `required_combinations` rule. That rule is block_publish only, and a city
-  # relying on the gemeindefeine ifeu defaults supplies nothing here quite legitimately -- so the
-  # rule would refuse publication to every such city. What Prüfschritt 1.5 asks for is conditional
-  # ("Sind für den Verkehrssektor keine Daten voreingetragen"), and the defaults *are*
-  # pre-entered. The obligation that does bite -- a year the city has started must be finished --
-  # is enforced by has_all_road_transport_data, per year, where it belongs.
+  # The shape's required cells are checked at the consuming port (vehicle_kilometers_own) only in
+  # the years the city reports (`years: active`), never on this table: a city relying on the
+  # gemeindefeine ifeu defaults supplies nothing here quite legitimately. What Prüfschritt 1.5 asks
+  # for is conditional ("Sind für den Verkehrssektor keine Daten voreingetragen"), and the defaults
+  # *are* pre-entered. The obligation that does bite -- a year the city has started must be
+  # finished -- is enforced by has_all_road_transport_data, per year, where it belongs.
   shape: bisko/road_mileage
   metrics:
   - id: Value
@@ -537,7 +537,7 @@ datasets:
   # The 38 road cells of the Verbrauchsdaten route, matching
   # de/kategorien_energieverbrauch_strassenverkehr. Road classes only -- rail belongs in
   # kommune/energieverbrauch_uebriger_verkehr. See kommune/fahrleistung_strassenverkehr for why
-  # this is a shape and not a required_combinations rule.
+  # its required cells are checked only in reported years.
   shape: bisko/road_transport_energy
   metrics:
   - id: Value
@@ -550,8 +550,8 @@ datasets:
   is_editable: true
   # The 8 cells Prüfschritt 1.5 and 2.2 ask for: local, long-distance and freight rail each as
   # electric and diesel, inland waterway freight as diesel, and commercial aviation as kerosene.
-  # See kommune/fahrleistung_strassenverkehr for why this is a shape and not a
-  # required_combinations rule.
+  # See kommune/fahrleistung_strassenverkehr for why its required cells are checked only in
+  # reported years.
   shape: bisko/other_transport_energy
   metrics:
   - id: Value

@@ -696,7 +696,7 @@ python manage.py copy_instance zuerich zuerich-copy --dry-run
 
 ### After the copy
 
-`copy_instance` is not the whole setup of a new instance. Three things follow it.
+`copy_instance` is not the whole setup of a new instance. Two things follow it.
 
 - **Run `load_nodes.py -i <dst> --update-instance --update-nodes`** (preview the
   node part with `--update-nodes --dry-run`). In yaml mode the node rows come
@@ -710,12 +710,6 @@ python manage.py copy_instance zuerich zuerich-copy --dry-run
   use, so a fresh copy that reads any dataset from DVC does its first clone and
   fetch inside a web request, which can outlast the gateway (a 502). If the fetch
   hangs, use [*When a DVC fetch hangs*](../data-management.md).
-- **Expect a spurious `invalid_rule` finding** on every copied dataset whose schema
-  declares a category domain (the BISKO `kommune/*` datasets do). The snapshot
-  carries the domain compiled to the source's dimension and category UUIDs, while
-  the import mints new dimensions, so no combination resolves. It does not affect
-  computation. Open: the snapshot should carry the domain by identifier and
-  compile it against the target, as `_apply_declared_category_domain` does on sync.
 
 Copies made before `dcf9594a` (October 2026) have one more defect: the import
 dropped null-valued data points, so a template dataset (all empty cells) arrived

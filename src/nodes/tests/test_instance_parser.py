@@ -74,7 +74,7 @@ def test_yaml_short_description_is_rendered_at_snapshot_boundary():
 
 
 def test_datasets_key_parses_into_typed_catalog_entries():
-    from datasets.validation_rules import NoGapsRule, RequiredCombinationsRule, ValueRangeRule
+    from datasets.validation_rules import NoGapsRule, ValueRangeRule
     from nodes.instance_parser import InstanceParseError
 
     config = {
@@ -116,11 +116,6 @@ def test_datasets_key_parses_into_typed_catalog_entries():
                         'validation_rules': [
                             {'kind': 'no_gaps', 'enforcement': 'block_publish'},
                             {'kind': 'value_range', 'enforcement': 'block_edit', 'min': 0},
-                            {
-                                'kind': 'required_combinations',
-                                'enforcement': 'block_publish',
-                                'groups': [{'id': 'region', 'combinations': ['region_a', 'region_b']}],
-                            },
                         ],
                     },
                 ],
@@ -136,15 +131,12 @@ def test_datasets_key_parses_into_typed_catalog_entries():
     assert ds_meta.is_editable is False
     (metric_meta,) = ds_meta.metrics
     assert metric_meta.identifier == 'amount'
-    no_gaps, value_range, required = metric_meta.validation_rules
+    no_gaps, value_range = metric_meta.validation_rules
     assert isinstance(no_gaps, NoGapsRule)
     assert isinstance(value_range, ValueRangeRule)
     assert value_range.min == 0.0
-    assert isinstance(required, RequiredCombinationsRule)
-    # Rule groups name the combinations of the dataset's shape.
     (shape,) = snapshot.spec.shapes
     assert ds_meta.shape_id == shape.uuid
-    assert required.groups[0].combinations == [combination.uuid for combination in shape.combinations]
     assert ds_meta.category_domain_spec is None
 
     # Catalog UUIDs are parse-invented but deterministic per instance.

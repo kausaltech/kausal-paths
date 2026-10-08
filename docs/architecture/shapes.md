@@ -284,16 +284,15 @@ To be trimmed from this document once built.
      authoring and its sync.
    - Last, in its own commit: remove `DatasetSchema.category_domain` and its types from
      `kausal_common` (Watch does not use them). Imports tolerate the key in older exports.
-   The dataset rules `required_combinations` and `allowed_combinations` are retired in step 3,
-   when port references take over the requirements.
 3. **Port references.**
    - Done: `shape` and `required` in `input_validation` (the contract's existing `enforcement`
      applies to both); required groups and closedness evaluated in `value_validation` and in the
      data-entry findings; the BISKO lists moved into the `bisko/*` shapes as one-combination
      groups; `RequiredValueCombination` removed. Stored contracts in the old form are rewritten
      by `setup_bisko` (`frameworks.bisko.legacy_contracts`, to be removed once staging has run it).
-   - Next: retire the dataset rules `required_combinations` and `allowed_combinations`; a closed
-     shape on a dataset becomes an intrinsic `block_edit` check.
+   - Done: the dataset rules `required_combinations` and `allowed_combinations` are retired. A
+     closed shape on a dataset refuses values outside it without a rule (`outside_shape`,
+     `block_edit`). A migration stops if a rule of either kind is still stored.
 4. **Static check** at sync and publication, reported as instance problems.
 5. **GraphQL** as above.
 6. **BISKO shapes.** Author them from the Methodenpapier and from the six `de/kategorien_*` and

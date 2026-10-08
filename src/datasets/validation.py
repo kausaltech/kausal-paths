@@ -31,25 +31,23 @@ from kausal_common.datasets.models import DatasetMetricValidationRule, DatasetSc
 from nodes.constants import YEAR_COLUMN
 
 from .coordinates import DatasetCoordinate, DatasetCoordinateIndex
-from .shape_domain import dataset_category_domain
+from .shape_domain import dataset_category_domain, dataset_shape_id
 from .validation_rules import (
-    AllowedCombinationsRule,
     DimensionSumRule,
     Enforcement,
     NoGapsRule,
-    RequiredCombinationsRule,
     ValidationRule,
     ValueRangeRule,
     validation_rule_adapter,
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Sequence
+    from collections.abc import Callable, Iterable, Mapping, Sequence
 
     from django_stubs_ext import WithAnnotations
 
     from kausal_common.datasets.category_domain import DatasetCategoryDomain
-    from kausal_common.datasets.models import Dataset
+    from kausal_common.datasets.models import Dataset, DatasetMetric
 
 #: Cap on located violations reported per rule; the remainder is summarized.
 MAX_VIOLATIONS_PER_RULE = 200
@@ -57,6 +55,10 @@ MAX_VIOLATIONS_PER_RULE = 200
 #: ``RuleViolation.kind`` used when a valid rule cannot be applied to the
 #: dataset (e.g. it references a dimension the data no longer has).
 INVALID_RULE_KIND = 'invalid_rule'
+
+#: ``RuleViolation.kind`` of a value outside a closed entry domain. Not a rule: the
+#: dataset's shape is closed, and its ``rule_uuid`` is the shape's.
+OUTSIDE_DOMAIN_KIND = 'outside_shape'
 
 
 class RuleViolation(BaseModel):
@@ -80,17 +82,15 @@ class RuleViolation(BaseModel):
     categories: dict[str, str] = Field(default_factory=dict)
     coordinates: list[DatasetCoordinate] = Field(default_factory=list)
     combination_ids: list[UUID] = Field(default_factory=list)
-    requirement_group: str | None = None
     message: str
 
     @property
-    def key(self) -> tuple[str, str, str, str | None, tuple[str, ...], tuple[tuple[str, str], ...], tuple[int, ...]]:
+    def key(self) -> tuple[str, str, str, tuple[str, ...], tuple[tuple[str, str], ...], tuple[int, ...]]:
         """Stable identity for baseline-diffing violation sets across an edit."""
         return (
             str(self.rule_uuid),
             str(self.metric_uuid),
             self.kind,
-            self.requirement_group,
             tuple(str(combination_id) for combination_id in self.combination_ids),
             tuple(sorted(self.categories.items())),
             tuple(self.years),
@@ -208,7 +208,8 @@ def evaluate_dataset_rules(dataset: Dataset) -> list[RuleViolation]:
         .select_related('metric')
         .order_by('metric__order', 'order'),
     )
-    if not rules:
+    domain = dataset_category_domain(dataset)
+    if not rules and (domain.mode != 'closed' or not schema.metrics.exists()):
         return []
 
     from nodes.datasets import DBDataset
@@ -220,27 +221,17 @@ def evaluate_dataset_rules(dataset: Dataset) -> list[RuleViolation]:
     df = pl.DataFrame({col: ppdf.get_column(col) for col in ppdf.columns})
     if dim_cols:
         df = df.with_columns([pl.col(col).cast(pl.Utf8) for col in dim_cols])
-    domain = dataset_category_domain(dataset)
-    domain_coordinates = _category_domain_coordinates(dataset, domain)
-    domain_is_closed = domain.mode == 'closed'
-
     violations: list[RuleViolation] = []
     for row in rules:
         metric = row.metric
-        column = metric.name or metric.label or str(metric.uuid)
+        column = _metric_column(metric)
         rule = validation_rule_adapter.validate_python(row.rule)
-        violations.extend(
-            evaluate_rule(
-                rule,
-                row.uuid,
-                metric.uuid,
-                column,
-                df,
-                dim_cols,
-                domain_coordinates,
-                domain_is_closed,
-            )
-        )
+        violations.extend(evaluate_rule(rule, row.uuid, metric.uuid, column, df, dim_cols))
+    if domain.mode == 'closed':
+        allowed = list(_category_domain_coordinates(dataset, domain).values())
+        domain_id = dataset_shape_id(dataset) or schema.uuid
+        for metric in schema.metrics.order_by('order'):
+            violations.extend(evaluate_closed_domain(domain_id, metric.uuid, _metric_column(metric), df, dim_cols, allowed))
     coordinate_index = DatasetCoordinateIndex(dataset) if violations else None
     for found in violations:
         found.dataset_uuid = dataset.uuid
@@ -248,6 +239,10 @@ def evaluate_dataset_rules(dataset: Dataset) -> list[RuleViolation]:
         assert coordinate_index is not None
         found.coordinates = coordinate_index.resolve(found.categories)
     return violations
+
+
+def _metric_column(metric: DatasetMetric) -> str:
+    return metric.name or metric.label or str(metric.uuid)
 
 
 def _row_categories(row: dict[str, Any], cols: list[str]) -> dict[str, str]:
@@ -261,8 +256,6 @@ def evaluate_rule(
     column: str,
     df: pl.DataFrame,
     dim_cols: list[str],
-    domain_coordinates: dict[UUID, dict[str, str]],
-    domain_is_closed: bool,
 ) -> list[RuleViolation]:
     if column not in df.columns:
         # The metric has no data points at all; every rule holds vacuously.
@@ -282,17 +275,49 @@ def evaluate_rule(
             return _eval_dimension_sum(rule, violation, column, df, dim_cols)
         case NoGapsRule():
             return _eval_no_gaps(violation, column, df, dim_cols)
-        case RequiredCombinationsRule():
-            return _eval_required_combinations(rule, violation, column, df, domain_coordinates)
-        case AllowedCombinationsRule():
-            return _eval_allowed_combinations(
-                violation,
-                column,
-                df,
-                dim_cols,
-                domain_coordinates,
-                domain_is_closed,
-            )
+
+
+def evaluate_closed_domain(
+    domain_id: UUID,
+    metric_uuid: UUID,
+    column: str,
+    df: pl.DataFrame,
+    dim_cols: list[str],
+    allowed: Iterable[Mapping[str, str]],
+) -> list[RuleViolation]:
+    """
+    Locate values outside a closed entry domain; they are refused when entered.
+
+    ``allowed`` holds the domain's combinations by dimension column.
+    """
+    if column not in df.columns:
+        return []
+    keys = {tuple(sorted(coordinates.items())) for coordinates in allowed}
+
+    def violation(**kwargs) -> RuleViolation:
+        return RuleViolation(
+            rule_uuid=domain_id,
+            kind=OUTSIDE_DOMAIN_KIND,
+            enforcement='block_edit',
+            metric_uuid=metric_uuid,
+            metric=column,
+            **kwargs,
+        )
+
+    offending = [
+        row
+        for row in df.filter(pl.col(column).is_not_null()).sort([YEAR_COLUMN, *dim_cols]).iter_rows(named=True)
+        if tuple(sorted(_row_categories(row, dim_cols).items())) not in keys
+    ]
+    violations = [
+        violation(
+            years=[row[YEAR_COLUMN]],
+            categories=(categories := _row_categories(row, dim_cols)),
+            message=f'{column} uses a category combination outside its shape{_categories_text(categories)}',
+        )
+        for row in offending[:MAX_VIOLATIONS_PER_RULE]
+    ]
+    return _with_overflow(violations, len(offending), violation)
 
 
 def _category_domain_coordinates(dataset: Dataset, domain: DatasetCategoryDomain | None = None) -> dict[UUID, dict[str, str]]:
@@ -344,87 +369,6 @@ def _category_domain_coordinates(dataset: Dataset, domain: DatasetCategoryDomain
         if len(coordinates) == len(combination.categories):
             result[combination.id] = coordinates
     return result
-
-
-def _eval_required_combinations(
-    rule: RequiredCombinationsRule,
-    violation: Callable[..., RuleViolation],
-    column: str,
-    df: pl.DataFrame,
-    domain_coordinates: dict[UUID, dict[str, str]],
-) -> list[RuleViolation]:
-    unknown = [
-        combination for group in rule.groups for combination in group.combinations if combination not in domain_coordinates
-    ]
-    if unknown:
-        return [
-            violation(
-                kind=INVALID_RULE_KIND,
-                enforcement='block_publish',
-                combination_ids=unknown,
-                message='required_combinations rule references combinations outside the dataset schema domain',
-            )
-        ]
-    years = df.select(YEAR_COLUMN).unique().sort(YEAR_COLUMN).get_column(YEAR_COLUMN).to_list()
-    present = df.filter(pl.col(column).is_not_null())
-    violations: list[RuleViolation] = []
-    for group in rule.groups:
-        missing_years: list[int] = []
-        for year in years:
-            candidates = present.filter(pl.col(YEAR_COLUMN) == year)
-            satisfied = False
-            for combination_id in group.combinations:
-                coordinates = domain_coordinates[combination_id]
-                matching = candidates
-                for dimension, category in coordinates.items():
-                    matching = matching.filter(pl.col(dimension).cast(pl.Utf8) == category)
-                if not matching.is_empty():
-                    satisfied = True
-                    break
-            if not satisfied:
-                missing_years.append(year)
-        if missing_years:
-            single_coordinates = domain_coordinates[group.combinations[0]] if len(group.combinations) == 1 else {}
-            violations.append(
-                violation(
-                    years=missing_years,
-                    categories=single_coordinates,
-                    combination_ids=group.combinations,
-                    requirement_group=group.id,
-                    message=(
-                        f'{column} has no value for required category group {group.id} '
-                        f'in year(s) {_years_text(missing_years)}; an explicit 0 counts as a value'
-                    ),
-                )
-            )
-    return violations
-
-
-def _eval_allowed_combinations(
-    violation: Callable[..., RuleViolation],
-    column: str,
-    df: pl.DataFrame,
-    dim_cols: list[str],
-    domain_coordinates: dict[UUID, dict[str, str]],
-    domain_is_closed: bool,
-) -> list[RuleViolation]:
-    if not domain_is_closed:
-        return []
-    allowed = {tuple(sorted(coordinates.items())) for coordinates in domain_coordinates.values()}
-    offending: list[dict[str, Any]] = []
-    for row in df.filter(pl.col(column).is_not_null()).sort([YEAR_COLUMN, *dim_cols]).iter_rows(named=True):
-        categories = _row_categories(row, dim_cols)
-        if tuple(sorted(categories.items())) not in allowed:
-            offending.append(row)
-    violations = [
-        violation(
-            years=[row[YEAR_COLUMN]],
-            categories=(categories := _row_categories(row, dim_cols)),
-            message=f'{column} uses a category combination outside the schema domain{_categories_text(categories)}',
-        )
-        for row in offending[:MAX_VIOLATIONS_PER_RULE]
-    ]
-    return _with_overflow(violations, len(offending), violation)
 
 
 def _eval_value_range(

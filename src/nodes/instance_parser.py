@@ -430,13 +430,10 @@ class InstanceConfigParser:
                     "shape and refer to it with 'shape:' (docs/architecture/shapes.md)"
                 )
             shape_id = None
-            combination_ids: dict[str, UUID] = {}
             if 'shape' in ds_conf:
                 shape_id = self._shape_uuids().get(ds_conf['shape'])
                 if shape_id is None:
                     raise InstanceParseError(f"Dataset '{ds_id}' refers to unknown shape {ds_conf['shape']}")
-                shape = resolve_shapes(self._parse_shapes(), self.dimensions)[shape_id]
-                combination_ids = {c.identifier: c.uuid for c in shape.combinations if c.identifier}
             default_quality = None
             if 'default_quality' in ds_conf:
                 try:
@@ -445,9 +442,7 @@ class InstanceConfigParser:
                     raise InstanceParseError(
                         f"Dataset '{ds_id}' field 'default_quality' must name a scheme and a level: {error}"
                     ) from error
-            metrics = [
-                self._parse_dataset_metric(ds_id, combination_ids, metric_config) for metric_config in ds_conf.get('metrics', [])
-            ]
+            metrics = [self._parse_dataset_metric(ds_id, metric_config) for metric_config in ds_conf.get('metrics', [])]
             entries.append(
                 DatasetMeta(
                     id=self._uuid_from_identifiers(['dataset', ds_id]),
@@ -464,7 +459,6 @@ class InstanceConfigParser:
     def _parse_dataset_metric(
         self,
         dataset_id: str,
-        combination_ids: dict[str, UUID],
         metric_config: dict[str, Any],
     ) -> DatasetMetricMeta:
         from pydantic import ValidationError as PydanticValidationError
@@ -473,12 +467,7 @@ class InstanceConfigParser:
         if not metric_id:
             raise InstanceParseError(f"Metric entry of dataset '{dataset_id}' is missing an 'id'")
         try:
-            authored_rules = self._resolve_category_combination_rule_refs(
-                dataset_id,
-                combination_ids,
-                metric_config.get('validation_rules', []),
-            )
-            rules = rule_list_adapter.validate_python(authored_rules)
+            rules = rule_list_adapter.validate_python(metric_config.get('validation_rules', []))
         except PydanticValidationError as error:
             raise InstanceParseError(
                 f"Invalid validation rule on dataset '{dataset_id}' metric '{metric_id}': {error}",
@@ -488,39 +477,6 @@ class InstanceConfigParser:
             identifier=metric_id,
             validation_rules=tuple(rules),
         )
-
-    def _resolve_category_combination_rule_refs(
-        self,
-        dataset_id: str,
-        combination_ids: dict[str, UUID],
-        authored_rules: object,
-    ) -> object:
-        if not isinstance(authored_rules, list):
-            return authored_rules
-        resolved: list[object] = []
-        for authored_rule in authored_rules:
-            if not isinstance(authored_rule, dict) or authored_rule.get('kind') != 'required_combinations':
-                resolved.append(authored_rule)
-                continue
-            rule = dict(authored_rule)
-            groups: list[object] = []
-            for authored_group in rule.get('groups', []):
-                if not isinstance(authored_group, dict):
-                    groups.append(authored_group)
-                    continue
-                group = dict(authored_group)
-                refs = group.get('combinations', [])
-                unknown = [ref for ref in refs if ref not in combination_ids]
-                if unknown:
-                    raise InstanceParseError(
-                        f"Required-combinations rule on dataset '{dataset_id}' references "
-                        f'unknown combination(s): {", ".join(unknown)}'
-                    )
-                group['combinations'] = [combination_ids[ref] for ref in refs]
-                groups.append(group)
-            rule['groups'] = groups
-            resolved.append(rule)
-        return resolved
 
     def _parse_global_params(self) -> None:
         from params.discover import discover_global_parameters

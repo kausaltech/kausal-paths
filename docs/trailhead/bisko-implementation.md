@@ -443,9 +443,10 @@ Initial reusable rule kinds include:
 
 - `value_range`;
 - `dimension_sum`;
-- `no_gaps`;
-- `allowed_combinations`; and
-- `required_combinations`.
+- `no_gaps`.
+
+(`allowed_combinations` and `required_combinations` were retired for shapes; see
+[shapes](../architecture/shapes.md).)
 
 Intrinsic validation and certification remain distinct:
 

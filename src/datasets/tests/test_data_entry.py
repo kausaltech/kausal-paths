@@ -7,6 +7,7 @@ from django.test.utils import CaptureQueriesContext
 
 import pytest
 
+from kausal_common.datasets.category_domain import DatasetCategoryDomain
 from kausal_common.datasets.models import DatasetMetricValidationRule, DimensionScope
 from kausal_common.datasets.tests.factories import (
     DataPointFactory,
@@ -156,6 +157,17 @@ def test_required_value_contract_counts_an_entirely_empty_inventory_year() -> No
     assert findings[0].code == 'missing_required_value'
     assert findings[0].years == (2024,)
     assert query.findings(None, []) == []
+
+
+def test_a_closed_shape_reports_entered_values_outside_it() -> None:
+    original = make_query()
+    data = original.graph.model_dump()
+    # The table is dimensionless and the domain allows no combination, so every value is outside.
+    data['datasets'][0]['category_domain'] = DatasetCategoryDomain(mode='closed')
+    with set_i18n_context('en', []):
+        query = DataEntryQuery(InstanceGraph.model_validate(data), original.user)
+    findings = [finding for finding in query.findings(None, [2023]) if finding.code == 'outside_shape']
+    assert [finding.years for finding in findings] == [(2023,)]
 
 
 def test_graphql_section_query_and_counts(client: Client) -> None:
