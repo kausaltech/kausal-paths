@@ -26,6 +26,8 @@ from nodes.defs.port_def import InputPortDef, OutputPortDef
 from nodes.graphql.editability import port_editable, runtime_source
 from nodes.graphql.types.constraints import EffectiveShapeType, effective_port_shape
 from nodes.graphql.types.metric import DimensionalMetricType
+from nodes.graphql.types.problems import ProblemEnforcement
+from nodes.graphql.types.shape import ShapeType
 from nodes.metric import DimensionalMetric
 
 if TYPE_CHECKING:
@@ -34,6 +36,7 @@ if TYPE_CHECKING:
     from nodes.defs.port_def import InputPortDeclaration
     from nodes.node import Node
     from nodes.schema import InputPortBinding, NodeEdgeType
+    from nodes.value_validation import ValueContract
     from params.schema import ParameterInterface
 
 
@@ -118,6 +121,7 @@ class InputPortType(StrawberryPydanticType[InputPortDef]):
 
     _node_uuid: sb.Private[UUID | None] = None
     _node: sb.Private['Node | None'] = None
+    _contract: sb.Private['ValueContract | None'] = None
 
     @sb.field(description='Whether this port definition is editable in the current instance and selected graph.')
     @staticmethod
@@ -126,6 +130,24 @@ class InputPortType(StrawberryPydanticType[InputPortDef]):
         if root._mutation_editable is not None:
             return root._mutation_editable
         return port_editable(info, root._node, definition_flag=root._definition_editable)
+
+    @sb.field(description="The shape whose requirements the delivered values must meet, as the port's instance resolves it.")
+    @staticmethod
+    def shape(root: 'InputPortType', info: gql.Info) -> ShapeType | None:
+        if root._contract is None or root._contract.shape is None or root._node is None:
+            return None
+        config = root._node.context.instance.config
+        if config is None:
+            return None
+        return ShapeType.resolve(info, config, root._contract.shape, runtime_source(info, root._node))
+
+    @sb.field(
+        graphql_type=ProblemEnforcement | None,
+        description="What a failure of the port's input contract blocks: publication or submission.",
+    )
+    @staticmethod
+    def contract_enforcement(root: 'InputPortType') -> ProblemEnforcement | None:
+        return ProblemEnforcement(root._contract.effective_enforcement) if root._contract is not None else None
 
     @sb.field(description='Whether the current user can replace or disconnect the bindings of this input.')
     @staticmethod
@@ -169,6 +191,7 @@ class InputPortType(StrawberryPydanticType[InputPortDef]):
             bindings=bindings,
         )
         port._node = node
+        port._contract = spec.validation
         port._definition_editable = spec.is_editable
         port._node_uuid = node_uuid
         return port

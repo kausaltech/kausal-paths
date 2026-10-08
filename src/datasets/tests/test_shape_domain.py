@@ -13,6 +13,8 @@ from kausal_common.datasets.tests.factories import (
     DimensionFactory,
 )
 
+from paths.tests.graphql import PathsTestClient
+
 from datasets.materialization import materializations_with_validation_hashes, refresh_dataset_materialization
 from datasets.shape_domain import SHAPE_SPEC_KEY, CategoryDomainResolver, dataset_category_domain
 from datasets.validation import dataset_validation_hash
@@ -24,6 +26,7 @@ from nodes.models import DatasetMaterialization
 from nodes.template_graph import publish_template_instance
 from nodes.template_spec import ensure_instance_shapes
 from nodes.tests.factories import InstanceConfigFactory
+from users.tests.factories import UserFactory
 
 pytestmark = pytest.mark.django_db
 
@@ -115,3 +118,43 @@ def test_one_resolver_reads_each_instance_once(rig, django_assert_max_num_querie
     resolver.for_dataset(municipal_dataset)
     with django_assert_max_num_queries(1):
         resolver.for_dataset(municipal_dataset)
+
+
+EDITOR_SHAPES = """
+query EditorShapes($datasetId: ID!) {
+    instance {
+        editor {
+            shapes {
+                id identifier owner closed isEditable inherits
+                combinations { identifier originShapeId }
+                effectiveCombinations { identifier originShapeId coordinates { dimension category } }
+            }
+            dataset(id: $datasetId) { shape { id isEditable effectiveCombinations { identifier } } }
+        }
+    }
+}
+"""
+
+
+def test_the_editor_lists_inherited_and_own_shapes(rig, client) -> None:
+    _, municipal_dataset, municipality = rig
+    client.force_login(UserFactory.create(is_superuser=True))
+    gql = PathsTestClient(client)
+    gql.set_instance(municipality)
+
+    data = gql.query_data(EDITOR_SHAPES, variables={'datasetId': str(municipal_dataset.uuid)})
+
+    editor = data['instance']['editor']
+    shapes = {shape['identifier']: shape for shape in editor['shapes']}
+    standard, point = shapes['std/sectors'], shapes['sectors']
+    assert (standard['owner'], standard['isEditable']) == ('FRAMEWORK', False)
+    assert (point['owner'], point['isEditable'], point['closed']) == ('INSTANCE', True, True)
+    assert point['inherits'] == [standard['id']]
+    assert [combination['identifier'] for combination in point['combinations']] == ['industry']
+    assert [(c['identifier'], c['originShapeId'], c['coordinates']) for c in point['effectiveCombinations']] == [
+        ('households', standard['id'], [{'dimension': 'sector', 'category': 'households'}]),
+        ('industry', point['id'], [{'dimension': 'sector', 'category': 'industry'}]),
+    ]
+    shape = editor['dataset']['shape']
+    assert (shape['id'], shape['isEditable']) == (point['id'], True)
+    assert [c['identifier'] for c in shape['effectiveCombinations']] == ['households', 'industry']

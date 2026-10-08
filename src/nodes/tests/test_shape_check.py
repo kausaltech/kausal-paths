@@ -12,6 +12,8 @@ from nodes.defs.node_defs import DatasetPortSpec, NodeSpec, SimpleConfig
 from nodes.defs.port_def import InputPortDef, OutputPortDef
 from nodes.defs.shape_defs import ShapeCombinationSpec, ShapeRequiredGroupSpec, ShapeSpec
 from nodes.defs.transform_def import FilterDimensionOp, TagOperationOp
+from nodes.graphql.types.problems import ProblemEnforcement
+from nodes.graphql.types.spec import InputPortType
 from nodes.instance_graph import build_instance_graph
 from nodes.instance_serialization import DatasetPortSnapshot, InstanceSnapshot, NodeSnapshot, unified_binding_snapshots
 from nodes.units import unit_registry
@@ -144,3 +146,15 @@ def test_a_binding_that_cannot_be_projected_is_a_notice_not_a_pass() -> None:
     assert codes == []
     (notice,) = notices
     assert 'cannot be checked' in notice
+
+
+def test_an_input_port_exposes_what_its_contract_blocks() -> None:
+    shape_id = uuid4()
+    port = InputPortDef(
+        id=uuid4(),
+        unit=unit_registry.parse_units('kWh'),
+        validation=ValueContract(shape=shape_id, enforcement='block_publish'),
+    )
+    assert InputPortType.contract_enforcement(InputPortType.from_def(port, [])) == ProblemEnforcement.BLOCK_PUBLISH
+    bare = InputPortType.from_def(InputPortDef(id=uuid4(), unit=unit_registry.parse_units('kWh')), [])
+    assert InputPortType.contract_enforcement(bare) is None

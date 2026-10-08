@@ -241,7 +241,14 @@ checks, applies once the instance is synced to the database.
   name, `owner`, `closed`, `inherits`, `isEditable`, its own combinations and required groups, and its
   **effective** combinations with each combination's origin shape. A combination exposes its
   categories as dimension and category identities.
-- A dataset exposes its shape reference, and an input port its reference and enforcement.
+- A dataset exposes the shape of its entry form (`shape`), and an input port the shape its
+  contract refers to (`shape`) and what a failure of the contract blocks (`contractEnforcement`).
+  Both resolve to the same `Shape` as the editor's list, from the request's instance graph.
+- The editor's `constraintNotices` lists what the structural checks could not verify, such as an
+  unprojectable binding; `constraintConflicts` and `problems` carry the static check's findings.
+
+All of it is on the instance editor (`instance { editor { shapes … } }`), where both the model
+editor and the data-entry UI read.
 
 This answers the data-entry UI's question "which combinations are valid for BISKO": the rows of an
 entry table are its dataset's effective shape, and each row's origin says whether BISKO defines it
@@ -308,7 +315,9 @@ To be trimmed from this document once built.
 4. **Static check.** Done: `check_shape_references`, run with the constraint program; its
    conflicts block publication, and its notices are recorded by `test_instance`. The editor shows
    the conflicts; exposing the notices there belongs to step 5.
-5. **GraphQL** as above.
+5. **GraphQL.** Done: `InstanceEditor.shapes` (own and effective content, origins, `isEditable`),
+   `Dataset.shape`, `InputPort.shape` and `contractEnforcement`, and
+   `InstanceEditor.constraintNotices`.
 6. **BISKO shapes.** Author them from the Methodenpapier and from the six `de/kategorien_*` and
    `de/pflichtkategorien_*` lists, which nothing reads since the availability graphs were
    replaced. Reference them from the `kommune/*` datasets and the consuming ports. Recompare
