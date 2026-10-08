@@ -218,6 +218,7 @@ class MetricCategory(BaseModel):
     id: str
     original_id: str
     label: str
+    short_label: str | None = None
     color: str | None
     order: int | None
     group: str | None = None
