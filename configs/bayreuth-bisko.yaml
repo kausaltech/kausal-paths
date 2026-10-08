@@ -175,8 +175,6 @@ category_overrides:
       order: 41
     geothermal:
       order: 42
-    geothermatl:
-      order: 43
     solar_thermal:
       color: *viridis15_4    # renewable: Solarthermie (yellow-green range)
       order: 44
@@ -209,8 +207,6 @@ category_overrides:
       color: *viridis_blue  # sector color: main outcome graph + heating_emissions node (switched: Wärme → viridis_blue)
     sinks:
       color: *viridis_green  # sector color: main outcome graph + sinks node
-    ghg_neutral_administration:
-      label_de: "THG-neutrale Verwaltung"
   vehicle_type:
     walking:
       color: *viridis15_1    # personal: walking
