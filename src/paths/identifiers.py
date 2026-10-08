@@ -33,6 +33,8 @@ ActionGroupIdentifier = Annotated[str, Field(pattern=LOWER_IDENTIFIER_PATTERN)]
 DimensionIdentifier = Annotated[str, Field(pattern=LOWER_IDENTIFIER_PATTERN)]
 DimensionCategoryIdentifier = Annotated[str, Field(pattern=LOWER_IDENTIFIER_PATTERN)]
 ParameterLocalId = Annotated[str, Field(pattern=LOWER_IDENTIFIER_PATTERN)]
+# Shapes share the dataset pattern so a framework can prefix its own (`bisko/end_energy`); nothing parses it.
+ShapeIdentifier = Annotated[str, Field(pattern=DATASET_IDENTIFIER_PATTERN)]
 ParameterGlobalId = Annotated[str, Field(pattern=GLOBAL_PARAMETER_ID_PATTERN)]
 ScenarioIdentifier = Annotated[str, Field(pattern=LOWER_IDENTIFIER_PATTERN)]
 MetricIdentifier = Annotated[str, Field(pattern=MIXED_IDENTIFIER_PATTERN)]

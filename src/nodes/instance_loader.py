@@ -24,6 +24,7 @@ from kausal_common.i18n.pydantic import TranslatedString, get_i18n_context, gett
 
 from nodes.actions.action import ActionNode
 from nodes.exceptions import NodeError
+from nodes.shapes import resolve_shapes
 from params.discover import discover_global_parameters
 
 if TYPE_CHECKING:
@@ -169,6 +170,20 @@ class InstanceYAMLConfig:
             allow_override=allow_override,
             is_editable=is_editable,
         )
+
+    @staticmethod
+    def _merge_include_shapes(
+        existing: list[CommentedMap], included: list[CommentedMap], *, allow_override: bool, config_path: Path
+    ) -> None:
+        """Merge a module's shapes; an instance's own declaration wins only where overriding is allowed."""
+        own = {shape['id'] for shape in existing}
+        for shape in included:
+            if shape['id'] in own:
+                if allow_override:
+                    continue
+                raise ValueError(f'{config_path}: shape {shape["id"]} is already declared')
+            existing.append(shape)
+            own.add(shape['id'])
 
     @staticmethod
     def _merge_include_dataset_config(
@@ -340,6 +355,7 @@ class InstanceYAMLConfig:
 
         dimensions = data.get('dimensions', [])
         datasets = data.get('datasets', [])
+        shapes = data.get('shapes', [])
 
         self._init_group(nodes)
         self._init_group(emission_sectors)
@@ -388,6 +404,7 @@ class InstanceYAMLConfig:
                 idata.get('datasets', []),
                 dataset_replacements,
             )
+            self._merge_include_shapes(shapes, idata.get('shapes', []), allow_override=allow_override, config_path=ifn)
             self._merge_include_config(
                 dimensions,
                 idata.get('dimensions', []),
@@ -411,6 +428,8 @@ class InstanceYAMLConfig:
 
         # Make sure that assignment works even if they are originally empty.
         self._set_merged_collections(data, nodes=nodes, actions=actions, dimensions=dimensions, datasets=datasets)
+        if shapes:
+            data['shapes'] = shapes
 
         # Serialize and deserialize to get rid of Ruamel extras
         data = json.loads(json.dumps(data))
@@ -1630,6 +1649,10 @@ class InstanceLoader:
             seen.add(spec.id)
             self.context.impact_overviews.append(ImpactOverview(spec, self.context))
 
+    def setup_shapes(self) -> None:
+        """Resolve the composed spec's shapes; inheritance is resolved here, never stored."""
+        self.context.shapes = resolve_shapes(self.snapshot.spec.shapes, self.context.dimensions)
+
     def setup_normalizations(self):
         from paths.refs import ValidationContext
 
@@ -1860,6 +1883,7 @@ class InstanceLoader:
         self.dataset_payload_store = None
         self.setup_node_explanations()
         self.setup_dimensions()
+        self.setup_shapes()
         self.setup_global_parameters()
         self.load_db_datasets()
         self.setup_nodes()

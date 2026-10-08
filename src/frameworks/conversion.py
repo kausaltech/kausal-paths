@@ -31,6 +31,7 @@ from nodes.legacy_specs import local_spec_from_template, migrate_inherited_node_
 from nodes.models import InputPortBindingSet, NodeConfig, NodeInputPortBinding
 from nodes.template_reference_data import remap_json
 from nodes.template_settings import InheritedNodeSettings
+from nodes.template_spec import ensure_instance_shapes
 from nodes.units import unit_registry
 from pages.models import OutcomePage
 from params.base import ParameterOwner
@@ -666,6 +667,7 @@ def convert_to_framework(instance: InstanceConfig, framework: Framework, revisio
             organization_name=instance.organization.name,
         )
         instance.spec = local_spec_from_template(instance.ensure_spec(), base)
+        ensure_instance_shapes(instance.spec, base.spec)
         instance.template_revision = revision
         instance.node_settings = migrate_inherited_node_settings(instance.spec, settings, base)
         instance.save(update_fields=['template_revision', 'node_settings', 'spec'])

@@ -32,6 +32,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Generator
     from datetime import datetime
     from types import FrameType
+    from uuid import UUID
 
     import dvc_pandas
     import networkx  # noqa: ICN001
@@ -46,6 +47,7 @@ if TYPE_CHECKING:
     from datasets.prepared import PreparedDatasetStore
     from nodes.defs.instance_defs import DatasetRepoSpec
     from nodes.explanations import NodeExplanationSystem
+    from nodes.shapes import EffectiveShape
     from params import Parameter
     from params.storage import SettingStorage
 
@@ -133,6 +135,9 @@ class Context:
     """
 
     dimensions: dict[str, Dimension]
+
+    shapes: dict[UUID, EffectiveShape]
+    """Declared category shapes with their inheritance resolved, keyed by shape UUID."""
     """Global dimensions available for nodes."""
 
     target_year: int
@@ -250,6 +255,7 @@ class Context:
         self.active_normalization = None
         self.impact_overviews = []
         self.dimensions = {}
+        self.shapes = {}
         self.options = {}
         self.normalizations = {}
         self.instance = instance

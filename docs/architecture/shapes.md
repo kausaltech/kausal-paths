@@ -244,7 +244,9 @@ To be trimmed from this document once built.
    origin, union by category tuple, cycle and dimension checks. Composition with the template
    revision: framework-owned shapes read-only, no shadowing, provenance like other declarations.
    Instance-owned extension points: the local record created on conversion and on upgrade when
-   missing, not removable, with `dimensions`, `inherits` and `closed` fixed. Snapshot version bump.
+   missing, not removable, with `dimensions`, `inherits` and `closed` fixed. No snapshot version
+   bump: the list defaults to empty and is left out of the serialized spec when empty, so the
+   content hashes of revisions published before shapes stay valid.
 2. **Dataset references.** `shape:` in dataset metadata compiles into `DatasetSchema.category_domain`
    at sync, replacing `_apply_declared_category_domain`'s authoring input. A closed shape adds
    the `block_edit` allowed check. Convert the four BISKO `category_domain` blocks and drop
