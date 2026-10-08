@@ -124,21 +124,27 @@ type ScenarioId = Literal['default', 'baseline']
 
 
 class ProblemDetail(BaseModel):
-    kind: Literal['constraint_conflict', 'dataset_validation_violation', 'node_value_validation_violation']
+    kind: Literal['constraint_conflict', 'constraint_notice', 'dataset_validation_violation', 'node_value_validation_violation']
     code: str
     message: str
     severity: Literal['error', 'warning']
     details: dict[str, JsonValue]
 
     @classmethod
-    def from_conflict(cls, conflict: ConstraintConflict) -> ProblemDetail:
+    def from_conflict(cls, conflict: ConstraintConflict, *, notice: bool = False) -> ProblemDetail:
         details = TypeAdapter(dict[str, JsonValue]).validate_json(json.dumps(asdict(conflict), default=str))
         # BindingValue and DatasetSourceValue have identical fields; retain their distinct identities.
         details['value_kind'] = type(conflict.value).__name__ if conflict.value is not None else None
         origins = details['origins']
         assert isinstance(origins, list)
         details['origins'] = sorted(origins, key=lambda origin: json.dumps(origin, sort_keys=True))
-        return cls(kind='constraint_conflict', code=conflict.code, message=conflict.message, severity='error', details=details)
+        return cls(
+            kind='constraint_notice' if notice else 'constraint_conflict',
+            code=conflict.code,
+            message=conflict.message,
+            severity='warning' if notice else 'error',
+            details=details,
+        )
 
     @classmethod
     def from_violation(cls, violation: RuleViolation) -> ProblemDetail:
@@ -1163,6 +1169,8 @@ class Command(BaseCommand):
         violations = collect_instance_dataset_violations(ic)
         result = solve_instance_constraints(ic, graph, source)
         problems = [ProblemDetail.from_conflict(conflict) for conflict in result.conflicts]
+        # What the solver could not check blocks nothing, but is recorded so it is never taken as passed.
+        problems.extend(ProblemDetail.from_conflict(notice, notice=True) for notice in result.notices)
         problems.extend(ProblemDetail.from_violation(violation) for violation in violations)
         problems.extend(
             ProblemDetail(

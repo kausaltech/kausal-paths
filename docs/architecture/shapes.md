@@ -219,8 +219,20 @@ The same comparison against a pin's observed `DatasetShapeProfile` answers a dif
 does the data present satisfy the declaration? That is what the runtime port check already does
 on delivered values.
 
-Findings are instance problems: they are reported by `test_instance`, shown in the editor, and
-block publication. A modeller's half-finished draft still syncs.
+When the port's required groups are checked, the projections of every binding into the port are
+united first, so two entry tables may share a requirement. A port that also receives a node's
+output or an unshaped dataset is not checked for requirements at all: the other route may well
+deliver them, and only the runtime check on delivered values can tell.
+
+Findings are constraint conflicts (`outside_shape`, `shape_requirement_unreachable`,
+`shape_dimension_missing`, `unknown_shape`), computed while the constraint program is compiled
+(`nodes/constraints/shape_check.py`). So they block publication, reject a binding edit that
+introduces one, and appear wherever conflicts do: in the editor and in `test_instance`. A
+modeller's half-finished draft still syncs. An unprojectable binding is a `shape_unchecked`
+notice on the solve result; it blocks nothing, and `test_instance` records it as a warning.
+
+A graph parsed from YAML has no dimension catalogue, so the check, like the other dimension
+checks, applies once the instance is synced to the database.
 
 
 ## GraphQL
@@ -293,7 +305,9 @@ To be trimmed from this document once built.
    - Done: the dataset rules `required_combinations` and `allowed_combinations` are retired. A
      closed shape on a dataset refuses values outside it without a rule (`outside_shape`,
      `block_edit`). A migration stops if a rule of either kind is still stored.
-4. **Static check** at sync and publication, reported as instance problems.
+4. **Static check.** Done: `check_shape_references`, run with the constraint program; its
+   conflicts block publication, and its notices are recorded by `test_instance`. The editor shows
+   the conflicts; exposing the notices there belongs to step 5.
 5. **GraphQL** as above.
 6. **BISKO shapes.** Author them from the Methodenpapier and from the six `de/kategorien_*` and
    `de/pflichtkategorien_*` lists, which nothing reads since the availability graphs were
