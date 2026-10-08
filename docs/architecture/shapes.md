@@ -43,9 +43,10 @@ shapes:
   each of them, and nothing else.
 - **`combinations`** are the category tuples the shape defines. Each has its own identity, because
   required groups and data-entry rows refer to it.
-- **`required`** lists groups. A group is satisfied when at least one of its combinations has a
-  value, and its qualifier requirements are met when stated. Groups express "heat from oil *or*
-  gas", which a flat list of required cells cannot.
+- **`required`** lists groups. A group is satisfied in a year when at least one of its
+  combinations has a value, and all of the group's values meet its qualifier requirements when
+  stated. Groups express "heat from oil *or* gas", or BISKO's "electricity for the whole
+  municipality, in whatever sectors it is reported", which a flat list of required cells cannot.
 - **`closed`** (default `false`) says whether the shape's combinations are the *only* ones allowed.
   An open shape is a minimum: other combinations are accepted, just not as part of the shape.
 - **`inherits`** lists shapes this one extends; see below.
@@ -187,7 +188,7 @@ about a shape. Neither is a value in each year whatever its categories, which is
 ```
 
 A group with several combinations is satisfied in a year when one of them has values and all
-of that combination's values meet the group's qualifiers.
+of the group's values meet its qualifiers.
 
 ### Where to declare a reference
 
@@ -318,10 +319,18 @@ To be trimmed from this document once built.
 5. **GraphQL.** Done: `InstanceEditor.shapes` (own and effective content, origins, `isEditable`),
    `Dataset.shape`, `InputPort.shape` and `contractEnforcement`, and
    `InstanceEditor.constraintNotices`.
-6. **BISKO shapes.** Author them from the Methodenpapier and from the six `de/kategorien_*` and
-   `de/pflichtkategorien_*` lists, which nothing reads since the availability graphs were
-   replaced. Reference them from the `kommune/*` datasets and the consuming ports. Recompare
-   node outputs. Then retire the six datasets: remove the declarations, sync, and run
-   `delete_dataset` with a dump.
+6. **BISKO shapes.** Done. The standard shapes hold what the Methodenpapier and the
+   Prüfprotokoll define and mandate. BISKO has no matrix of mandatory sector x carrier cells, so
+   end energy is required as one group per carrier that any sector satisfies, with the grade-A
+   rule of the grid-bound carriers holding for every value of the group. Transport means are
+   required per mode rather than per carrier, trams and the consumption-data route not at all.
+   District heating plants and generation variants got their shapes, and so an entry form. Each
+   open standard shape has a closed extension point that the `kommune/*` datasets and the
+   consuming ports refer to. The six `de/kategorien_*` and `de/pflichtkategorien_*` lists are no
+   longer declared. Their rows stay where published template revisions pin them.
+
+   Before merging: converting the existing BISKO instances to the template must add the carriers
+   they use beyond the standard (e.g. Düsseldorf's sector totals) to their records of the
+   extension points, since those are closed.
 7. **Documentation.** Shapes among the declarations in [template inheritance](template-inheritance.md);
    remove this plan.

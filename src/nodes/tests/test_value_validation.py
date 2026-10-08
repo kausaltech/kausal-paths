@@ -365,7 +365,7 @@ def test_a_group_is_satisfied_by_any_of_its_combinations() -> None:
     assert _problems(_frame([(2020, 'electricity', 1.0)]), ValueContract(), shape) == [('missing_required_value', [2021], {})]
 
 
-def test_a_group_needs_one_member_that_meets_its_qualifiers() -> None:
+def test_a_group_qualifier_holds_for_all_of_its_values() -> None:
     catalog = qualifiers.QualifierCatalog((
         *qualifiers.BUILTIN_QUALIFIERS.definitions,
         qualifiers.QualifierDefinition('assessment', qualifiers.Propagation.COVERED_SCORE),
@@ -382,9 +382,9 @@ def test_a_group_needs_one_member_that_meets_its_qualifiers() -> None:
         ).alias('Value__qual')
     )
     graded = _shape(('gas', 'electricity'), qualifiers={'assessment.score': QualifierRequirement(min=1)})
-    assert _problems(frame, ValueContract(years='active'), graded) == []
-    ungraded = frame.filter(pl.col('carrier') == 'electricity')
-    assert [p[0] for p in _problems(ungraded, ValueContract(years='active'), graded)] == ['required_qualifier']
+    # Gas meets the grade, electricity does not: one well-graded member does not carry the group.
+    assert [p[0] for p in _problems(frame, ValueContract(years='active'), graded)] == ['required_qualifier']
+    assert _problems(frame.filter(pl.col('carrier') == 'gas'), ValueContract(years='active'), graded) == []
 
 
 def test_a_closed_shape_reports_values_outside_it() -> None:

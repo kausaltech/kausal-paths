@@ -170,17 +170,14 @@ def requirement_failures(
     """
     Check one requirement in one year, given each alternative's present rows.
 
-    Satisfied when some alternative has values that meet the qualifiers. Otherwise the
-    failures of the alternatives that do have values are reported, or a missing value when
-    none has any.
+    Satisfied when some alternative has values and all of the group's values meet the
+    qualifiers: a quality grade required of grid-bound electricity holds for every sector
+    that reports it, not for one of them.
     """
-    outcomes = [(rows, required_value_failures(rows, qualifiers)) for rows in rows_by_alternative]
-    if any(not failures for _, failures in outcomes):
-        return []
-    reported = [failure for rows, failures in outcomes if not rows.is_empty() for failure in failures]
-    if not reported:
+    present = [rows for rows in rows_by_alternative if not rows.is_empty()]
+    if not present:
         return [('missing_required_value', 'No value')]
-    return list(dict.fromkeys(reported))
+    return required_value_failures(pl.concat(present, how='vertical_relaxed'), qualifiers)
 
 
 def _matching_combinations(df: pl.DataFrame, categories: Mapping[str, str]) -> pl.DataFrame:
