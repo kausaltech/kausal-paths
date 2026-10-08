@@ -63,7 +63,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
@@ -71,8 +70,8 @@ import ruamel.yaml
 from rich import print
 
 from kausal_common.datasets.models import Dataset
-from kausal_common.i18n.pydantic import TranslatedString, get_modeltrans_attrs_from_str
 
+from datasets.schema_labels import default_language, set_schema_name
 from nodes.models import InstanceConfig, InstanceRevisionDatasetPin, NodeDataset, NodeInputPortBinding
 
 if TYPE_CHECKING:
@@ -145,16 +144,6 @@ def _scope_label(dataset: Dataset) -> str:
     if isinstance(scope, InstanceConfig):
         return scope.identifier
     return str(scope)
-
-
-def default_language() -> str:
-    """
-    Return the language whose value lives in the model's own column rather than in ``i18n``.
-
-    ``modeltrans`` reads the plain field for the active language when it *is* the default,
-    so this is the one label that cannot be left behind.
-    """
-    return settings.LANGUAGE_CODE.split('-')[0].lower()
 
 
 def _validate_labels(labels: dict[str, str], plan: RenamePlan) -> None:
@@ -302,23 +291,10 @@ def check_cross_plan_collisions(plans: list[RenamePlan]) -> None:
 
 
 def _write_labels(dataset: Dataset, labels: dict[str, str]) -> None:
-    """
-    Store the label on the dataset's schema, split the way ``modeltrans`` reads it back.
-
-    ``get_modeltrans_attrs_from_str`` puts the default language's value in the plain
-    column and the rest under ``name_<lang>`` keys, and converts the language codes to
-    the format ``modeltrans`` expects -- which is the part that is easy to get wrong by
-    hand, and is why this does not build the dict itself.
-    """
+    """Store the label on the dataset's schema, split the way ``modeltrans`` reads it back."""
     schema = dataset.schema
     assert schema is not None
-    lang = default_language()
-    translated = TranslatedString(**labels, default_language=lang)
-    name, i18n = get_modeltrans_attrs_from_str(translated, 'name', lang)
-    schema.name = name
-    # Merge rather than replace: the schema's i18n may carry other translated fields.
-    schema.i18n = {**(schema.i18n or {}), **i18n}
-    schema.save(update_fields=['name', 'i18n'])
+    set_schema_name(schema, labels)
 
 
 def print_rename_plan(plan: RenamePlan) -> None:
