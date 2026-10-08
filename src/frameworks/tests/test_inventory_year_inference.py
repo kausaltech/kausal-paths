@@ -14,7 +14,7 @@ from nodes.instance_serialization import build_instance_snapshot
 from nodes.models import InstanceConfig, NodeInputPortBinding
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory, NodeConfigFactory
 from nodes.units import unit_registry
-from nodes.value_validation import RequiredValueCombination, ValueContract
+from nodes.value_validation import ValueContract
 
 pytestmark = pytest.mark.django_db
 
@@ -47,7 +47,7 @@ def _instance(activity_years: list[int]) -> InstanceConfig:
                     unit=unit,
                     quantity='emissions',
                     binding_owner='instance',
-                    validation=ValueContract(combinations=[RequiredValueCombination(categories={})]),
+                    validation=ValueContract(required=True),
                 ),
                 InputPortDef(id=factor_port, unit=unit, quantity='emissions', binding_owner='instance'),
             ],

@@ -2,11 +2,11 @@
 
 A **shape** is a named, declared set of category combinations, together with the combinations
 among them that are required. It states a fact about data that flows through the model: "end
-energy in BISKO is broken down into these 28 sector × carrier cells, and these 21 must be
-reported". Datasets and input ports *refer* to a shape instead of each carrying their own copy of
-the list.
+energy in BISKO is broken down into these sectors and carriers, and electricity must be reported
+for the whole municipality". Datasets and input ports *refer* to a shape instead of each carrying
+their own copy of the list.
 
-Shapes replace three mechanisms that each held part of this fact, attached to the wrong thing:
+Shapes replaced three mechanisms that each held part of this fact, attached to the wrong thing:
 
 - the `category_domain` declared on a dataset, which describes the rows a dataset may hold but
   says nothing once a framework instance replaces that dataset with a calculation;
@@ -28,24 +28,23 @@ shapes:
   name_en: End energy use, BISKO
   dimensions: [sector, energy_carrier]
   combinations:
-  - {id: phh_electricity, categories: {sector: private_households, energy_carrier: electricity}}
-  - {id: phh_natural_gas, categories: {sector: private_households, energy_carrier: natural_gas}}
+  - {id: private_households_electricity, categories: {sector: private_households, energy_carrier: electricity}}
+  - {id: industry_electricity, categories: {sector: industry, energy_carrier: electricity}}
   # ...
   required:
-  - id: phh_electricity
-    combinations: [phh_electricity]
-    qualifiers: {bisko_quality.coverage: {min: 1}}
-  - id: phh_heat
-    combinations: [phh_natural_gas, phh_heating_oil]   # satisfied by either one
+  - id: electricity                   # satisfied by any sector that reports it
+    combinations: [private_households_electricity, industry_electricity]
+    qualifiers: {bisko_quality.coverage: {min: 1}, bisko_quality.score: {min: 1}}
 ```
 
 - **`dimensions`** are the dimensions the shape constrains. Every combination names a category in
   each of them, and nothing else.
 - **`combinations`** are the category tuples the shape defines. Each has its own identity, because
   required groups and data-entry rows refer to it.
-- **`required`** lists groups. A group is satisfied when at least one of its combinations has a
-  value, and its qualifier requirements are met when stated. Groups express "heat from oil *or*
-  gas", which a flat list of required cells cannot.
+- **`required`** lists groups. A group is satisfied in a year when at least one of its
+  combinations has a value, and all of the group's values meet its qualifier requirements when
+  stated. Groups express "heat from oil *or* gas", or BISKO's "electricity for the whole
+  municipality, in whatever sectors it is reported", which a flat list of required cells cannot.
 - **`closed`** (default `false`) says whether the shape's combinations are the *only* ones allowed.
   An open shape is a minimum: other combinations are accepted, just not as part of the shape.
 - **`inherits`** lists shapes this one extends; see below.
@@ -136,11 +135,22 @@ datasets:
 
 A dataset reference uses the shape's **combinations** only:
 
-- they define the **entry form**: sync compiles the effective combinations into the schema's
-  `DatasetSchema.category_domain`, which is what the data-entry UI renders as rows. The
-  `category_domain` field stays as the stored, UUID-compiled form; it stops being authored by
-  hand;
+- they define the **entry form**: the cells an empty year is given, and the rows the data-entry
+  UI renders (`categoryDomain` in GraphQL, which keeps its form);
 - if the shape is closed, a value outside it is refused when entered (`block_edit`).
+
+The reference is stored on the dataset row (`Dataset.spec['shape']`, beside `default_quality`)
+and **resolved on read**, in the dataset's own instance. The effective combinations are never
+stored. They cannot be: municipalities share their `kommune/*` schemas with the template, and
+each municipality's record of an extension point may add different combinations, so a domain
+compiled onto the shared schema could hold only one of them. Resolving on read also means
+nothing derived goes stale when a municipality edits its record or upgrades its template.
+`datasets.shape_domain.dataset_category_domain()` is the one accessor every reader uses.
+
+This replaces `DatasetSchema.category_domain`. Only BISKO ever declared a domain, and it was used
+for exactly this, the entry grid; observed combinations of external datasets live in
+`DatasetShapeProfile` and never used it. The column is still read for a dataset without a shape
+reference, until production instances have synced theirs; then it goes from `kausal_common`.
 
 A dataset reference does **not** enforce required groups. Whether a required cell is missing is
 a question about what the model receives, not about what one table holds: a municipality that
@@ -165,7 +175,19 @@ value contracts (`nodes/value_validation.py`), so it surfaces in instance proble
 
 Conditions that are about a port's siblings stay on the port, beside the reference:
 `required_if_positive`, `combinations_from_positive`, value ranges and `max_rows` are not facts
-about a shape.
+about a shape. Neither is a value in each year whatever its categories, which is
+`required: true` (with `qualifiers:` when the value must also meet them):
+
+```yaml
+  input_validation:
+    data:
+      years: active
+      required: true
+      min: 1
+```
+
+A group with several combinations is satisfied in a year when one of them has values and all
+of the group's values meet its qualifiers.
 
 ### Where to declare a reference
 
@@ -177,13 +199,14 @@ what can be typed in; a reference on the consuming port defines what the model n
 
 ## The static check
 
-At sync and at publication, every binding from a dataset with a shape reference to a port with
-one is checked without reading data:
+Whenever the constraint program is compiled (at publication, for a binding edit, in the editor
+and in `test_instance`), every binding from a dataset with a shape reference to a port with one
+is checked without reading data:
 
 1. Take the dataset's effective combinations.
 2. Push them forward through the binding's transformations. Filters restrict the set, assigning
-   a dimension adds a fixed coordinate, a rename renames, and a flattening filter drops the
-   dimension and merges the combinations that become identical.
+   a dimension adds a fixed coordinate, and a flattening filter drops the dimension and merges
+   the combinations that become identical.
 3. If the port's shape is closed, every projected combination must belong to it.
 4. Every required group of the port's shape must contain at least one projected combination, or
    the data-entry route cannot satisfy it.
@@ -197,8 +220,20 @@ The same comparison against a pin's observed `DatasetShapeProfile` answers a dif
 does the data present satisfy the declaration? That is what the runtime port check already does
 on delivered values.
 
-Findings are instance problems: they are reported by `test_instance`, shown in the editor, and
-block publication. A modeller's half-finished draft still syncs.
+When the port's required groups are checked, the projections of every binding into the port are
+united first, so two entry tables may share a requirement. A port that also receives a node's
+output or an unshaped dataset is not checked for requirements at all: the other route may well
+deliver them, and only the runtime check on delivered values can tell.
+
+Findings are constraint conflicts (`outside_shape`, `shape_requirement_unreachable`,
+`shape_dimension_missing`, `unknown_shape`), computed while the constraint program is compiled
+(`nodes/constraints/shape_check.py`). So they block publication, reject a binding edit that
+introduces one, and appear wherever conflicts do: in the editor and in `test_instance`. A
+modeller's half-finished draft still syncs. An unprojectable binding is a `shape_unchecked`
+notice on the solve result; it blocks nothing, and `test_instance` records it as a warning.
+
+A graph parsed from YAML has no dimension catalogue, so the check, like the other dimension
+checks, applies once the instance is synced to the database.
 
 
 ## GraphQL
@@ -207,19 +242,18 @@ block publication. A modeller's half-finished draft still syncs.
   name, `owner`, `closed`, `inherits`, `isEditable`, its own combinations and required groups, and its
   **effective** combinations with each combination's origin shape. A combination exposes its
   categories as dimension and category identities.
-- A dataset exposes its shape reference, and an input port its reference and enforcement.
+- A dataset exposes the shape of its entry form (`shape`), and an input port the shape its
+  contract refers to (`shape`) and what a failure of the contract blocks (`contractEnforcement`).
+  Both resolve to the same `Shape` as the editor's list, from the request's instance graph.
+- The editor's `constraintNotices` lists what the structural checks could not verify, such as an
+  unprojectable binding; `constraintConflicts` and `problems` carry the static check's findings.
+
+All of it is on the instance editor (`instance { editor { shapes … } }`), where both the model
+editor and the data-entry UI read.
 
 This answers the data-entry UI's question "which combinations are valid for BISKO": the rows of an
 entry table are its dataset's effective shape, and each row's origin says whether BISKO defines it
 or the municipality added it.
-
-
-## Open: requirements added by a municipality
-
-Whether an extension point's owner may add required groups as well as combinations. Adding a
-requirement cannot weaken the standard's, and a Land's reporting rules may demand more than BISKO.
-But it lets a municipality's own declaration block its submission. Until decided, a municipality
-adds combinations only.
 
 
 ## Conformance at the output surface, never inside the graph
@@ -235,32 +269,28 @@ selects the shape's, and reports what it left out (at least as a remainder total
 can always see that the conformant figure is not the whole one.
 
 
-## Implementation plan
+## In the BISKO module
 
-To be trimmed from this document once built.
+`configs/modules/bisko/model.yaml` declares the standard shapes (`bisko/*`) from the
+Methodenpapier and the certification's Prüfprotokoll, and the YAML comments cite them. BISKO has
+no matrix of mandatory sector × carrier cells: it requires a value per carrier for the whole
+municipality, so end energy is required as one group per carrier that any sector satisfies, with
+the grade-A rule of the grid-bound carriers holding for every value of the group. Transport is
+required per transport means rather than per carrier. District heating plants and generation
+variants are shapes without requirements, because each is one of three permitted routes to the
+district heating factor.
 
-1. **Spec and parsing.** `ShapeSpec` (with `owner`) and `InstanceModelSpec.shapes`; a top-level
-   `shapes:` section in YAML. Resolution of effective shapes at runtime build: inheritance,
-   origin, union by category tuple, cycle and dimension checks. Composition with the template
-   revision: framework-owned shapes read-only, no shadowing, provenance like other declarations.
-   Instance-owned extension points: the local record created on conversion and on upgrade when
-   missing, not removable, with `dimensions`, `inherits` and `closed` fixed. No snapshot version
-   bump: the list defaults to empty and is left out of the serialized spec when empty, so the
-   content hashes of revisions published before shapes stay valid.
-2. **Dataset references.** `shape:` in dataset metadata compiles into `DatasetSchema.category_domain`
-   at sync, replacing `_apply_declared_category_domain`'s authoring input. A closed shape adds
-   the `block_edit` allowed check. Convert the four BISKO `category_domain` blocks and drop
-   `category_domain:` authoring; no other config uses it.
-3. **Port references.** `shape` and `enforcement` in `input_validation`; required groups and
-   closedness evaluated in `value_validation`. Move the hand-written `combinations` of the BISKO
-   `input_validation` blocks into shapes, and remove `RequiredValueCombination` from
-   `ValueContract` once nothing uses it.
-4. **Static check** at sync and publication, reported as instance problems.
-5. **GraphQL** as above.
-6. **BISKO shapes.** Author them from the Methodenpapier and from the six `de/kategorien_*` and
-   `de/pflichtkategorien_*` lists, which nothing reads since the availability graphs were
-   replaced. Reference them from the `kommune/*` datasets and the consuming ports. Recompare
-   node outputs. Then retire the six datasets: remove the declarations, sync, and run
-   `delete_dataset` with a dump.
-7. **Documentation.** Shapes among the declarations in [template inheritance](template-inheritance.md);
-   remove this plan.
+Each open standard shape has a closed extension point (`end_energy`, `road_mileage`,
+`road_transport_energy`, `other_transport_energy`, `district_heating_plants`), and the
+`kommune/*` datasets and the ports that consume them refer to those.
+
+
+## Open
+
+- **Requirements added by a municipality.** Whether an extension point's owner may add required
+  groups as well as combinations. Adding a requirement cannot weaken the standard's, and a Land's
+  reporting rules may demand more than BISKO. But it lets a municipality's own declaration block
+  its submission. Until decided, a municipality adds combinations only.
+- **Converting the existing BISKO instances.** Their records of the closed extension points must
+  take the carriers and sectors they use beyond the standard, such as Düsseldorf's sector totals.
+- **Editable `inherits`**, for shared computation modules; see *Ownership*.

@@ -6,7 +6,8 @@ from uuid import UUID, uuid3
 
 from kausal_common.i18n.pydantic import TranslatedString
 
-from nodes.constraints.solver import AssignStep, FilterStep, OpaqueStep, resolve_binding_steps
+from nodes.constraints.solver import resolve_binding_steps
+from nodes.constraints.steps import AssignStep, FilterStep, OpaqueStep
 from nodes.defs.binding_def import DatasetBindingDef, EdgeBindingDef
 from nodes.defs.data_entry import (
     ComposedDataEntrySpec,

@@ -149,7 +149,6 @@ class DatasetFindingInterface:
 )
 class DatasetValidationViolationType(InstanceProblemInterface, DatasetFindingInterface):
     enforcement: ProblemEnforcement
-    requirement_group: str | None = sb.field(description='Named required-combination group, when applicable.')
 
     @classmethod
     def from_violation(cls, violation: RuleViolation) -> Self:
@@ -166,7 +165,6 @@ class DatasetValidationViolationType(InstanceProblemInterface, DatasetFindingInt
             years=list(violation.years),
             coordinates=[DatasetDimensionCoordinateType.from_coordinate(coordinate) for coordinate in violation.coordinates],
             combination_ids=list(violation.combination_ids),
-            requirement_group=violation.requirement_group,
         )
 
 

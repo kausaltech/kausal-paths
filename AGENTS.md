@@ -175,6 +175,10 @@ implement a new policy.
 - **Framework**: Calculation methodologies (GPC, NZC, etc.)
 - **Measures**: Templates for actions within frameworks
 - **Sections**: Organizational units within frameworks
+- **Shapes**: declared category combinations and the groups among them that are required (e.g.
+  what BISKO mandates for end energy). Datasets refer to one for their entry form and input
+  ports for their requirements; a template's extension points are closed and extended per
+  municipality. See [`docs/architecture/shapes.md`](docs/architecture/shapes.md).
 
 #### Real-Time Features
 - Django Channels for WebSocket connections
