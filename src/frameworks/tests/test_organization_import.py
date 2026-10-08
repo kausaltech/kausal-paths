@@ -42,7 +42,7 @@ from frameworks.organization_access import accessible_organizations, user_can_ac
 from frameworks.population import population_aggregates, replace_population_projection
 from frameworks.roles import framework_admin_role
 from frameworks.tests.factories import FrameworkConfigFactory
-from nodes.defs.instance_defs import YearsSpec
+from nodes.defs.instance_defs import InstanceModelSpec, YearsSpec
 from nodes.defs.port_def import InputPortDef
 from nodes.instance_serialization import DatasetMetricSource, build_instance_snapshot
 from nodes.membership import retention_date
@@ -245,7 +245,13 @@ def test_nine_delegated_accounts_cover_only_their_subtrees(tmp_path: Path) -> No
 
 
 def test_provision_bisko_test_accounts_is_repeatable(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:  # noqa: PLR0915
-    InstanceConfigFactory.create(identifier='bisko', name='BISKO', config_source='database')
+    InstanceConfigFactory.create(
+        identifier='bisko',
+        name='BISKO',
+        config_source='database',
+        owner='Test Owner',
+        spec=InstanceModelSpec(years=YearsSpec(reference=2020, min_historical=2010, max_historical=2023, target=2035)),
+    )
     framework = setup_bisko()
     import_bkg_organizations(snapshot(tmp_path), framework=framework)
     publish_bisko_template(framework)
@@ -354,7 +360,13 @@ def test_provision_bisko_test_accounts_is_repeatable(tmp_path: Path, monkeypatch
 
 
 def test_provision_bisko_test_accounts_rejects_changed_grant_atomically(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    InstanceConfigFactory.create(identifier='bisko', name='BISKO', config_source='database')
+    InstanceConfigFactory.create(
+        identifier='bisko',
+        name='BISKO',
+        config_source='database',
+        owner='Test Owner',
+        spec=InstanceModelSpec(years=YearsSpec(reference=2020, min_historical=2010, max_historical=2023, target=2035)),
+    )
     framework = setup_bisko()
     import_bkg_organizations(snapshot(tmp_path), framework=framework)
     publish_bisko_template(framework)
@@ -384,7 +396,13 @@ def test_activate_bisko_municipality_requires_published_template(tmp_path: Path)
 def test_weather_defaults_seed_on_activation_and_setup_backfills_empty_slot(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    template = InstanceConfigFactory.create(identifier='bisko', name='BISKO', config_source='database')
+    template = InstanceConfigFactory.create(
+        identifier='bisko',
+        name='BISKO',
+        config_source='database',
+        owner='Test Owner',
+        spec=InstanceModelSpec(years=YearsSpec(reference=2020, min_historical=2010, max_historical=2023, target=2035)),
+    )
     framework = setup_bisko()
     import_bkg_organizations(snapshot(tmp_path), framework=framework)
     publish_bisko_template(framework)
@@ -437,7 +455,13 @@ def test_weather_defaults_seed_on_activation_and_setup_backfills_empty_slot(
 
 
 def test_activate_framework_organization_is_scoped_and_repeatable(tmp_path: Path, client: Client) -> None:  # noqa: PLR0915
-    InstanceConfigFactory.create(identifier='bisko', name='BISKO', config_source='database')
+    InstanceConfigFactory.create(
+        identifier='bisko',
+        name='BISKO',
+        config_source='database',
+        owner='Test Owner',
+        spec=InstanceModelSpec(years=YearsSpec(reference=2020, min_historical=2010, max_historical=2023, target=2035)),
+    )
     framework = setup_bisko()
     import_bkg_organizations(snapshot(tmp_path), framework=framework)
     publish_bisko_template(framework)
