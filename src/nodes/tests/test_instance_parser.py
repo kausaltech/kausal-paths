@@ -510,8 +510,12 @@ def test_yaml_dataset_binding_ownership_and_value_contract_are_persisted_on_the_
                     'quantity': 'energy',
                     'unit': 'kWh',
                     'input_datasets': [{'id': 'test/activity', 'column': 'Value', 'tags': ['data'], 'binding_owner': 'instance'}],
-                    'input_validation': {'data': {'combinations': [{'categories': {}}]}},
+                    'input_validation': {'data': {'required': True, 'shape': 'activity'}},
                 }
+            ],
+            'dimensions': [{'id': 'carrier', 'label': 'Carrier', 'categories': [{'id': 'gas', 'label': 'Gas'}]}],
+            'shapes': [
+                {'id': 'activity', 'dimensions': ['carrier'], 'combinations': [{'id': 'gas', 'categories': {'carrier': 'gas'}}]}
             ],
         },
         instance_uuid=uuid4(),
@@ -521,8 +525,9 @@ def test_yaml_dataset_binding_ownership_and_value_contract_are_persisted_on_the_
     (port,) = spec.input_ports
     assert port.binding_owner == 'instance'
     assert port.validation is not None
-    assert port.validation.combinations[0].categories == {}
-    assert spec.model_dump(mode='json')['input_ports'][0]['validation']['combinations'] == [{'categories': {}, 'qualifiers': {}}]
+    assert port.validation.required
+    assert port.validation.shape == snapshot.spec.shapes[0].uuid
+    assert spec.model_dump(mode='json')['input_ports'][0]['validation']['shape'] == str(snapshot.spec.shapes[0].uuid)
 
 
 def test_default_scenario_does_not_rewrite_parameter_declarations() -> None:

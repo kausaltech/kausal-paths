@@ -16,15 +16,16 @@ from nodes.constants import VALUE_COLUMN, YEAR_COLUMN
 from nodes.defs.instance_defs import InstanceModelSpec, YearsSpec
 from nodes.defs.node_defs import NodeSpec, SimpleConfig
 from nodes.defs.port_def import InputPortDef, OutputPortDef
+from nodes.defs.shape_defs import ShapeCombinationSpec, ShapeRequiredGroupSpec, ShapeSpec
 from nodes.instance_loader import InstanceLoader
-from nodes.instance_parser import parse_instance_snapshot
+from nodes.instance_parser import InstanceParseError, parse_instance_snapshot
 from nodes.models import NodeInputPortBinding
+from nodes.shapes import resolve_shapes
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory, NodeConfigFactory
 from nodes.units import unit_registry
 from nodes.value_validation import (
     InstanceValueValidationError,
     QualifierRequirement,
-    RequiredValueCombination,
     ValueContract,
     collect_instance_value_violations,
     validate_value_contract,
@@ -32,6 +33,7 @@ from nodes.value_validation import (
 
 if TYPE_CHECKING:
     from common.polars import PathsDataFrame
+    from nodes.shapes import EffectiveShape
 
 pytestmark = pytest.mark.django_db
 
@@ -46,39 +48,72 @@ def _frame(rows: list[tuple[int, str, float | None]]) -> PathsDataFrame:
     )
 
 
-def _problems(frame: PathsDataFrame, contract: ValueContract) -> list[tuple[str, list[int], dict[str, str]]]:
+def _shape(
+    *required: str | tuple[str, ...],
+    allowed: tuple[str, ...] = (),
+    closed: bool = False,
+    qualifiers: dict[str, QualifierRequirement] | None = None,
+) -> EffectiveShape:
+    """Build a carrier shape; each required entry is a group, and a tuple offers alternatives."""
+    groups = [(entry,) if isinstance(entry, str) else entry for entry in required]
+    carriers = list(dict.fromkeys([*allowed, *(carrier for group in groups for carrier in group)]))
+    combinations = {
+        carrier: ShapeCombinationSpec(uuid=uuid4(), identifier=carrier, categories={'carrier': carrier}) for carrier in carriers
+    }
+    spec = ShapeSpec(
+        uuid=uuid4(),
+        identifier='carriers',
+        dimensions=['carrier'],
+        closed=closed,
+        combinations=list(combinations.values()),
+        required=[
+            ShapeRequiredGroupSpec(
+                uuid=uuid4(),
+                identifier='_'.join(group),
+                combinations=[combinations[carrier].uuid for carrier in group],
+                qualifiers=qualifiers or {},
+            )
+            for group in groups
+        ],
+    )
+    return resolve_shapes([spec])[spec.uuid]
+
+
+def _problems(
+    frame: PathsDataFrame, contract: ValueContract, shape: EffectiveShape | None = None
+) -> list[tuple[str, list[int], dict[str, str]]]:
+    if shape is not None:
+        contract = contract.model_copy(update={'shape': shape.uuid})
     return [
         (p.code, p.years, p.categories)
-        for p in validate_value_contract(frame, contract, [2020, 2021], node_uuid=uuid4(), port_uuid=uuid4())
+        for p in validate_value_contract(frame, contract, [2020, 2021], node_uuid=uuid4(), port_uuid=uuid4(), shape=shape)
     ]
 
 
 @pytest.mark.parametrize('missing', [None, float('nan'), float('inf')])
 def test_null_and_nonfinite_cells_cannot_satisfy_requirements(missing: float | None) -> None:
-    contract = ValueContract(combinations=[RequiredValueCombination(categories={'carrier': 'gas'})])
-    assert _problems(_frame([(2020, 'gas', missing), (2021, 'gas', 0.0)]), contract) == [
+    assert _problems(_frame([(2020, 'gas', missing), (2021, 'gas', 0.0)]), ValueContract(), _shape('gas')) == [
         ('missing_required_value', [2020], {'carrier': 'gas'})
     ]
 
 
 def test_missing_combinations_and_entire_years_are_detected_after_null_dropping() -> None:
-    contract = ValueContract(combinations=[RequiredValueCombination(categories={'carrier': c}) for c in ['gas', 'electricity']])
-    assert _problems(_frame([(2020, 'gas', 0.0)]), contract) == [
+    shape = _shape('gas', 'electricity')
+    assert _problems(_frame([(2020, 'gas', 0.0)]), ValueContract(), shape) == [
         ('missing_required_value', [2021], {'carrier': 'gas'}),
         ('missing_required_value', [2020], {'carrier': 'electricity'}),
         ('missing_required_value', [2021], {'carrier': 'electricity'}),
     ]
-    assert len(_problems(_frame([]), contract)) == 4
+    assert len(_problems(_frame([]), ValueContract(), shape)) == 4
 
 
 def test_optional_route_is_checked_only_in_reported_years() -> None:
-    contract = ValueContract(
-        years='active', combinations=[RequiredValueCombination(categories={'carrier': c}) for c in ['gas', 'electricity']]
-    )
     frame = _frame([(2020, 'gas', 3.0), (2021, 'gas', 0.0)]).with_columns(
         qualifiers.make(reported=pl.col(YEAR_COLUMN) == 2020).alias('Value__qual')
     )
-    assert _problems(frame, contract) == [('missing_required_value', [2020], {'carrier': 'electricity'})]
+    assert _problems(frame, ValueContract(years='active'), _shape('gas', 'electricity')) == [
+        ('missing_required_value', [2020], {'carrier': 'electricity'})
+    ]
 
 
 def test_zero_activity_requires_a_grade_but_does_not_turn_grade_d_into_missing() -> None:
@@ -93,24 +128,10 @@ def test_zero_activity_requires_a_grade_but_does_not_turn_grade_d_into_missing()
             assessments={'assessment': qualifiers.covered_score(pl.lit(0.0), pl.lit(1.0))},
         ).alias('Value__qual')
     )
-    contract = ValueContract(
-        combinations=[
-            RequiredValueCombination(
-                categories={'carrier': 'gas'}, qualifiers={'assessment.coverage': QualifierRequirement(min=1)}
-            )
-        ]
-    )
-    assert _problems(frame, contract) == []
-    contract = contract.model_copy(
-        update={
-            'combinations': [
-                RequiredValueCombination(
-                    categories={'carrier': 'gas'}, qualifiers={'assessment.score': QualifierRequirement(min=1)}
-                )
-            ]
-        }
-    )
-    assert [p[0] for p in _problems(frame, contract)] == ['required_qualifier', 'required_qualifier']
+    coverage = _shape('gas', qualifiers={'assessment.coverage': QualifierRequirement(min=1)})
+    assert _problems(frame, ValueContract(), coverage) == []
+    score = _shape('gas', qualifiers={'assessment.score': QualifierRequirement(min=1)})
+    assert [p[0] for p in _problems(frame, ValueContract(), score)] == ['required_qualifier', 'required_qualifier']
 
 
 def _computed_binding_config() -> dict[str, Any]:
@@ -148,10 +169,19 @@ def _computed_binding_config() -> dict[str, Any]:
                 'unit': 'kWh',
                 'input_dimensions': ['carrier'],
                 'output_dimensions': ['carrier'],
-                'input_validation': {
-                    'computed': {'combinations': [{'categories': {'carrier': 'gas'}}, {'categories': {'carrier': 'electricity'}}]}
-                },
+                'input_validation': {'computed': {'shape': 'carriers'}},
             },
+        ],
+        'shapes': [
+            {
+                'id': 'carriers',
+                'dimensions': ['carrier'],
+                'combinations': [
+                    {'id': 'gas', 'categories': {'carrier': 'gas'}},
+                    {'id': 'electricity', 'categories': {'carrier': 'electricity'}},
+                ],
+                'required': [{'id': 'gas', 'combinations': ['gas']}, {'id': 'electricity', 'combinations': ['electricity']}],
+            }
         ],
     }
 
@@ -184,9 +214,11 @@ def test_undeclared_calendar_is_reported_once_but_evaluated_for_the_model() -> N
 
 def test_tier_follows_what_the_contract_guards() -> None:
     frame = _frame([(2020, 'gas', -1.0)])
-    static = ValueContract(min=0, combinations=[RequiredValueCombination(categories={'carrier': 'oil'})])
+    oil = _shape('oil')
+    static = ValueContract(min=0, shape=oil.uuid)
     assert [
-        (p.code, p.enforcement) for p in validate_value_contract(frame, static, [2020], node_uuid=uuid4(), port_uuid=uuid4())
+        (p.code, p.enforcement)
+        for p in validate_value_contract(frame, static, [2020], node_uuid=uuid4(), port_uuid=uuid4(), shape=oil)
     ] == [
         ('missing_required_value', 'block_submission'),
         ('value_range', 'block_publish'),
@@ -201,14 +233,9 @@ def test_tier_follows_what_the_contract_guards() -> None:
 
 def test_a_conditional_contract_can_declare_that_it_only_blocks_submission() -> None:
     """Heat output missing for plant fuel input sends the year to a fallback route; the result is not wrong."""
-    contract = ValueContract(required_if_positive=uuid4(), enforcement='block_submission')
-    problems = validate_value_contract(
-        _frame([]),
-        contract.model_copy(update={'combinations': [RequiredValueCombination(categories={'carrier': 'gas'})]}),
-        [2020],
-        node_uuid=uuid4(),
-        port_uuid=uuid4(),
-    )
+    gas = _shape('gas')
+    contract = ValueContract(required_if_positive=uuid4(), enforcement='block_submission', shape=gas.uuid)
+    problems = validate_value_contract(_frame([]), contract, [2020], node_uuid=uuid4(), port_uuid=uuid4(), shape=gas)
     assert [(p.code, p.enforcement) for p in problems] == [('missing_required_value', 'block_submission')]
 
 
@@ -242,7 +269,7 @@ def test_publication_validates_delivered_dataset_values_atomically(value: Decima
                     id=port_id,
                     unit=unit,
                     quantity='emissions',
-                    validation=ValueContract(combinations=[RequiredValueCombination(categories={})]),
+                    validation=ValueContract(required=True),
                 )
             ],
             output_ports=[OutputPortDef(id=uuid4(), unit=unit, quantity='emissions')],
@@ -304,7 +331,7 @@ def test_factor_is_required_only_in_years_with_positive_consumption(consumption:
                 'quantity': 'energy',
                 'unit': 'kWh',
                 'params': {'formula': 'activity * factor'},
-                'input_validation': {'factor': {'required_if_positive': 'activity', 'combinations': [{'categories': {}}]}},
+                'input_validation': {'factor': {'required_if_positive': 'activity', 'required': True}},
             },
         ],
     }
@@ -324,9 +351,52 @@ def test_factors_are_required_for_every_positive_activity_cell() -> None:
 
 
 def test_variant_contract_rejects_two_simultaneously_declared_variants() -> None:
-    contract = ValueContract(years='active', combinations=[RequiredValueCombination(categories={})], min=1, max=1, max_rows=1)
+    contract = ValueContract(years='active', required=True, min=1, max=1, max_rows=1)
     assert _problems(_frame([(2020, 'gas', 1.0), (2020, 'electricity', 1.0)]), contract) == [('row_count', [2020], {})]
 
 
 def test_bounds_reject_nonfinite_values_even_without_static_combination_requirements() -> None:
     assert _problems(_frame([(2020, 'gas', float('inf'))]), ValueContract(min=0)) == [('value_range', [2020], {})]
+
+
+def test_a_group_is_satisfied_by_any_of_its_combinations() -> None:
+    shape = _shape(('gas', 'electricity'))
+    assert _problems(_frame([(2020, 'electricity', 1.0), (2021, 'gas', 0.0)]), ValueContract(), shape) == []
+    assert _problems(_frame([(2020, 'electricity', 1.0)]), ValueContract(), shape) == [('missing_required_value', [2021], {})]
+
+
+def test_a_group_needs_one_member_that_meets_its_qualifiers() -> None:
+    catalog = qualifiers.QualifierCatalog((
+        *qualifiers.BUILTIN_QUALIFIERS.definitions,
+        qualifiers.QualifierDefinition('assessment', qualifiers.Propagation.COVERED_SCORE),
+    ))
+    frame = _frame([(2020, 'gas', 1.0), (2020, 'electricity', 1.0)]).with_columns(
+        qualifiers.make(
+            catalog=catalog,
+            reported=pl.lit(value=True),
+            assessments={
+                'assessment': qualifiers.covered_score(
+                    pl.when(pl.col('carrier') == 'gas').then(pl.lit(1.0)).otherwise(pl.lit(0.0)), pl.lit(1.0)
+                )
+            },
+        ).alias('Value__qual')
+    )
+    graded = _shape(('gas', 'electricity'), qualifiers={'assessment.score': QualifierRequirement(min=1)})
+    assert _problems(frame, ValueContract(years='active'), graded) == []
+    ungraded = frame.filter(pl.col('carrier') == 'electricity')
+    assert [p[0] for p in _problems(ungraded, ValueContract(years='active'), graded)] == ['required_qualifier']
+
+
+def test_a_closed_shape_reports_values_outside_it() -> None:
+    shape = _shape('gas', allowed=('electricity',), closed=True)
+    frame = _frame([(2020, 'gas', 1.0), (2021, 'gas', 1.0), (2020, 'hydrogen', 1.0), (2021, 'hydrogen', None)])
+    assert _problems(frame, ValueContract(), shape) == [('outside_shape', [2020], {'carrier': 'hydrogen'})]
+    # An open shape is a minimum: the same values pass.
+    assert _problems(frame, ValueContract(), _shape('gas', allowed=('electricity',))) == []
+
+
+def test_an_input_contract_must_name_a_declared_shape() -> None:
+    config = _computed_binding_config()
+    config['nodes'][1]['input_validation'] = {'computed': {'shape': 'missing'}}
+    with pytest.raises(InstanceParseError, match='unknown shape missing'):
+        parse_instance_snapshot(config, instance_uuid=uuid4())

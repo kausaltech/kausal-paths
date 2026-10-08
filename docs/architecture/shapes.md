@@ -175,7 +175,19 @@ value contracts (`nodes/value_validation.py`), so it surfaces in instance proble
 
 Conditions that are about a port's siblings stay on the port, beside the reference:
 `required_if_positive`, `combinations_from_positive`, value ranges and `max_rows` are not facts
-about a shape.
+about a shape. Neither is a value in each year whatever its categories, which is
+`required: true` (with `qualifiers:` when the value must also meet them):
+
+```yaml
+  input_validation:
+    data:
+      years: active
+      required: true
+      min: 1
+```
+
+A group with several combinations is satisfied in a year when one of them has values and all
+of that combination's values meet the group's qualifiers.
 
 ### Where to declare a reference
 
@@ -274,10 +286,14 @@ To be trimmed from this document once built.
      `kausal_common` (Watch does not use them). Imports tolerate the key in older exports.
    The dataset rules `required_combinations` and `allowed_combinations` are retired in step 3,
    when port references take over the requirements.
-3. **Port references.** `shape` and `enforcement` in `input_validation`; required groups and
-   closedness evaluated in `value_validation`. Move the hand-written `combinations` of the BISKO
-   `input_validation` blocks into shapes, and remove `RequiredValueCombination` from
-   `ValueContract` once nothing uses it.
+3. **Port references.**
+   - Done: `shape` and `required` in `input_validation` (the contract's existing `enforcement`
+     applies to both); required groups and closedness evaluated in `value_validation` and in the
+     data-entry findings; the BISKO lists moved into the `bisko/*` shapes as one-combination
+     groups; `RequiredValueCombination` removed. Stored contracts in the old form are rewritten
+     by `setup_bisko` (`frameworks.bisko.legacy_contracts`, to be removed once staging has run it).
+   - Next: retire the dataset rules `required_combinations` and `allowed_combinations`; a closed
+     shape on a dataset becomes an intrinsic `block_edit` check.
 4. **Static check** at sync and publication, reported as instance problems.
 5. **GraphQL** as above.
 6. **BISKO shapes.** Author them from the Methodenpapier and from the six `de/kategorien_*` and

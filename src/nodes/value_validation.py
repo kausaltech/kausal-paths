@@ -1,6 +1,7 @@
 """Validate delivered values independently of whether a binding comes from a dataset or a node."""
 
 from contextlib import nullcontext
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal
 from uuid import UUID
 
@@ -16,9 +17,12 @@ from nodes.exceptions import NodeError
 from nodes.units import unit_registry
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping, Sequence
+
     from common.polars import PathsDataFrame
     from nodes.instance import Instance
     from nodes.node import Node
+    from nodes.shapes import EffectiveShape
 
 
 type ValueEnforcement = Literal['block_publish', 'block_submission']
@@ -47,17 +51,18 @@ class QualifierRequirement(BaseModel):
         return self
 
 
-class RequiredValueCombination(BaseModel):
-    model_config = ConfigDict(extra='forbid', frozen=True)
-
-    categories: dict[str, str]
-    qualifiers: dict[str, QualifierRequirement] = Field(default_factory=dict)
-
-
 class ValueContract(BaseModel):
     model_config = ConfigDict(extra='forbid', frozen=True)
 
-    combinations: list[RequiredValueCombination] = Field(default_factory=list)
+    shape: UUID | None = None
+    """
+    A shape the delivered values must conform to: each of its required groups needs a value,
+    and when it is closed, no value may fall outside its combinations.
+    """
+    required: bool = False
+    """A value is required in each checked year, whatever its categories."""
+    qualifiers: dict[str, QualifierRequirement] = Field(default_factory=dict)
+    """What the year's values must meet besides being present; only with `required`."""
     years: Literal['inventory', 'active'] = 'inventory'
     required_if_positive: UUID | None = None
     combinations_from_positive: UUID | None = None
@@ -71,6 +76,8 @@ class ValueContract(BaseModel):
     def validate_bounds(self) -> ValueContract:
         if self.min is not None and self.max is not None and self.min > self.max:
             raise ValueError('Minimum must not exceed maximum')
+        if self.qualifiers and not self.required:
+            raise ValueError('Qualifier requirements apply to a required value; set required')
         return self
 
     @property
@@ -124,8 +131,60 @@ def _qualifier_satisfies(rows: pl.DataFrame, path: str, requirement: QualifierRe
     return valid.all()
 
 
-def _matching_combinations(df: pl.DataFrame, combination: RequiredValueCombination) -> pl.DataFrame:
-    for dimension, category in combination.categories.items():
+@dataclass(frozen=True, slots=True)
+class ValueRequirement:
+    """A value in at least one of the alternatives, meeting the qualifiers; one alternative is the usual case."""
+
+    alternatives: tuple[Mapping[str, str], ...]
+    qualifiers: Mapping[str, QualifierRequirement]
+    identifier: str | None = None
+    """The required group's identifier, when the requirement comes from a shape."""
+
+    @property
+    def categories(self) -> dict[str, str]:
+        """The single alternative's categories, or none when the group offers a choice."""
+        return dict(self.alternatives[0]) if len(self.alternatives) == 1 else {}
+
+
+def contract_requirements(contract: ValueContract, shape: EffectiveShape | None) -> list[ValueRequirement]:
+    """Return the contract's unconditional requirements: its year-level one and its shape's required groups."""
+    requirements: list[ValueRequirement] = []
+    if contract.required:
+        requirements.append(ValueRequirement(alternatives=({},), qualifiers=contract.qualifiers))
+    if shape is not None:
+        categories = {combination.uuid: combination.categories for combination in shape.combinations}
+        requirements.extend(
+            ValueRequirement(
+                alternatives=tuple(categories[member] for member in group.combinations),
+                qualifiers=group.qualifiers,
+                identifier=group.identifier,
+            )
+            for group in shape.required
+        )
+    return requirements
+
+
+def requirement_failures(
+    rows_by_alternative: Sequence[pl.DataFrame], qualifiers: Mapping[str, QualifierRequirement]
+) -> list[tuple[str, str]]:
+    """
+    Check one requirement in one year, given each alternative's present rows.
+
+    Satisfied when some alternative has values that meet the qualifiers. Otherwise the
+    failures of the alternatives that do have values are reported, or a missing value when
+    none has any.
+    """
+    outcomes = [(rows, required_value_failures(rows, qualifiers)) for rows in rows_by_alternative]
+    if any(not failures for _, failures in outcomes):
+        return []
+    reported = [failure for rows, failures in outcomes if not rows.is_empty() for failure in failures]
+    if not reported:
+        return [('missing_required_value', 'No value')]
+    return list(dict.fromkeys(reported))
+
+
+def _matching_combinations(df: pl.DataFrame, categories: Mapping[str, str]) -> pl.DataFrame:
+    for dimension, category in categories.items():
         if dimension not in df.columns:
             return df.clear()
         df = df.filter(pl.col(dimension).cast(pl.String) == category)
@@ -146,9 +205,13 @@ def _out_of_range_years(df: pl.DataFrame, contract: ValueContract, years: list[i
 
 
 def _contract_requirements(
-    df: PathsDataFrame, contract: ValueContract, years: list[int], required_values: PathsDataFrame | None
-) -> list[tuple[RequiredValueCombination, list[int]]]:
-    requirements = [(combination, years) for combination in contract.combinations]
+    df: PathsDataFrame,
+    contract: ValueContract,
+    shape: EffectiveShape | None,
+    years: list[int],
+    required_values: PathsDataFrame | None,
+) -> list[tuple[ValueRequirement, list[int]]]:
+    requirements = [(requirement, years) for requirement in contract_requirements(contract, shape)]
     if required_values is None:
         return requirements
     dimensions = [dimension for dimension in df.dim_ids if dimension in required_values.dim_ids]
@@ -164,22 +227,28 @@ def _contract_requirements(
         year = row[YEAR_COLUMN]
         if year in years:
             requirements.append((
-                RequiredValueCombination(categories={dimension: row[dimension] for dimension in dimensions}),
+                ValueRequirement(alternatives=({dimension: row[dimension] for dimension in dimensions},), qualifiers={}),
                 [year],
             ))
     return requirements
 
 
-def _describe_categories(categories: dict[str, str]) -> str:
-    """Name a required combination for a message; a year-level requirement names none."""
-    if not categories:
-        return ''
-    return ' for ' + ', '.join(f'{dimension}={category}' for dimension, category in categories.items())
+def _describe_categories(categories: Mapping[str, str]) -> str:
+    return ', '.join(f'{dimension}={category}' for dimension, category in categories.items())
+
+
+def _describe_requirement(requirement: ValueRequirement) -> str:
+    """Name a requirement for a message; a year-level requirement names none."""
+    if len(requirement.alternatives) == 1:
+        categories = requirement.alternatives[0]
+        return f' for {_describe_categories(categories)}' if categories else ''
+    choices = ' or '.join(f'({_describe_categories(categories)})' for categories in requirement.alternatives)
+    return f' for {requirement.identifier}: any of {choices}'
 
 
 def required_value_failures(
     rows: pl.DataFrame,
-    requirements: dict[str, QualifierRequirement],
+    requirements: Mapping[str, QualifierRequirement],
 ) -> list[tuple[str, str]]:
     """Check required values and assessments for both delivered values and source-entry views."""
     if rows.is_empty():
@@ -200,6 +269,7 @@ def validate_value_contract(
     port_uuid: UUID,
     binding_uuid: UUID | None = None,
     required_values: PathsDataFrame | None = None,
+    shape: EffectiveShape | None = None,
 ) -> list[ValueValidationViolation]:
     """Missing rows and nulls both fail a declared requirement; zero is an ordinary value."""
     present = df.filter(pl.col(VALUE_COLUMN).is_not_null() & pl.col(VALUE_COLUMN).is_finite())
@@ -211,11 +281,11 @@ def validate_value_contract(
             active = present
         years = sorted(set(years) & set(active[YEAR_COLUMN].to_list()))
     problems: list[ValueValidationViolation] = []
-    for combination, combination_years in _contract_requirements(df, contract, years, required_values):
-        candidates = _matching_combinations(present, combination)
-        for year in combination_years:
-            rows = candidates.filter(pl.col(YEAR_COLUMN) == year)
-            failures = required_value_failures(rows, combination.qualifiers)
+    for requirement, requirement_years in _contract_requirements(df, contract, shape, years, required_values):
+        candidates = [_matching_combinations(present, categories) for categories in requirement.alternatives]
+        for year in requirement_years:
+            rows_by_alternative = [rows.filter(pl.col(YEAR_COLUMN) == year) for rows in candidates]
+            failures = requirement_failures(rows_by_alternative, requirement.qualifiers)
             for code, message in failures:
                 problems.append(
                     ValueValidationViolation(
@@ -223,13 +293,69 @@ def validate_value_contract(
                         port_uuid=port_uuid,
                         binding_uuid=binding_uuid,
                         code=code,
-                        message=f'{message} in {year}{_describe_categories(combination.categories)}',
+                        message=f'{message} in {year}{_describe_requirement(requirement)}',
                         years=[year],
-                        categories=combination.categories,
+                        categories=requirement.categories,
                         enforcement=contract.effective_enforcement,
                     )
                 )
+    if shape is not None and shape.closed:
+        problems.extend(
+            _outside_shape_violations(
+                present, shape, years, contract, node_uuid=node_uuid, port_uuid=port_uuid, binding_uuid=binding_uuid
+            )
+        )
     problems.extend(_bounds_violations(df, contract, years, node_uuid=node_uuid, port_uuid=port_uuid, binding_uuid=binding_uuid))
+    return problems
+
+
+def _outside_shape_violations(
+    present: pl.DataFrame,
+    shape: EffectiveShape,
+    years: list[int],
+    contract: ValueContract,
+    *,
+    node_uuid: UUID,
+    port_uuid: UUID,
+    binding_uuid: UUID | None,
+) -> list[ValueValidationViolation]:
+    """Values a closed shape does not allow, one violation per category tuple."""
+
+    def violation(code: str, message: str, violation_years: list[int], categories: dict[str, str]) -> ValueValidationViolation:
+        return ValueValidationViolation(
+            node_uuid=node_uuid,
+            port_uuid=port_uuid,
+            binding_uuid=binding_uuid,
+            code=code,
+            message=message,
+            years=violation_years,
+            categories=categories,
+            enforcement=contract.effective_enforcement,
+        )
+
+    present = present.filter(pl.col(YEAR_COLUMN).is_in(years))
+    if present.is_empty():
+        return []
+    missing = [dimension for dimension in shape.dimensions if dimension not in present.columns]
+    if missing:
+        message = f'Delivered values have no {", ".join(missing)} dimension, which shape {shape.spec.label} constrains'
+        return [violation('shape_dimension_missing', message, sorted(set(present[YEAR_COLUMN].to_list())), {})]
+    allowed = shape.combination_keys()
+    dimensions = list(shape.dimensions)
+    tuples = (
+        present
+        .select([pl.col(YEAR_COLUMN), *[pl.col(dimension).cast(pl.String) for dimension in dimensions]])
+        .group_by(dimensions)
+        .agg(pl.col(YEAR_COLUMN).unique().sort())
+        .sort(dimensions)
+    )
+    problems: list[ValueValidationViolation] = []
+    for row in tuples.iter_rows(named=True):
+        categories = {dimension: row[dimension] for dimension in dimensions}
+        if tuple(sorted(categories.items())) in allowed:
+            continue
+        message = f'Value outside shape {shape.spec.label} for {_describe_categories(categories)}'
+        problems.append(violation('outside_shape', message, list(row[YEAR_COLUMN]), categories))
     return problems
 
 
@@ -284,7 +410,17 @@ def _positive_input_years(target: Node, port_id: UUID, years: list[int]) -> list
     return sorted(active.intersection(years))
 
 
-def collect_instance_value_violations(  # noqa: C901, PLR0912
+def _unknown_shape(node_uuid: UUID, port_uuid: UUID, shape_id: UUID, years: list[int]) -> ValueValidationViolation:
+    return ValueValidationViolation(
+        node_uuid=node_uuid,
+        port_uuid=port_uuid,
+        code='unknown_shape',
+        message=f'The input contract refers to shape {shape_id}, which is not declared',
+        years=years,
+    )
+
+
+def collect_instance_value_violations(  # noqa: C901, PLR0912, PLR0915
     instance: Instance, *, node_uuid: UUID | None = None, undeclared: Literal['report', 'evaluate'] = 'report'
 ) -> list[ValueValidationViolation]:
     """
@@ -398,6 +534,10 @@ def collect_instance_value_violations(  # noqa: C901, PLR0912
                         )
                     )
                     continue
+                shape = graph.shapes.get(port.validation.shape) if port.validation.shape is not None else None
+                if port.validation.shape is not None and shape is None:
+                    problems.append(_unknown_shape(meta.id, port.id, port.validation.shape, years))
+                    continue
                 problems.extend(
                     validate_value_contract(
                         value,
@@ -406,6 +546,7 @@ def collect_instance_value_violations(  # noqa: C901, PLR0912
                         node_uuid=meta.id,
                         port_uuid=port.id,
                         required_values=required_values,
+                        shape=shape,
                     )
                 )
     return problems

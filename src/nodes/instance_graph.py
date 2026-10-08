@@ -21,6 +21,7 @@ from nodes.defs.graph import (
 from nodes.defs.instance_defs import InstanceMetadata, InstanceModelSpec  # noqa: TC001
 from nodes.defs.node_defs import ActionConfig, FormulaConfig, NodeSpec, PipelineConfig, SimpleConfig, TypeConfig
 from nodes.defs.port_def import pair_input_ports_to_outputs
+from nodes.shapes import resolve_shapes
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -34,6 +35,7 @@ if TYPE_CHECKING:
     from nodes.defs.port_def import InputPortDef, OutputPortDef
     from nodes.instance_serialization import InstanceSnapshot
     from nodes.node import Node
+    from nodes.shapes import EffectiveShape
 
 
 # v5: canonical edge order is creation (pk) order, not NodeEdge.Meta ordering;
@@ -311,6 +313,11 @@ class InstanceGraph(FrozenGraphModel):
             raise ValueError('Duplicate dataset metric UUID in InstanceGraph')
 
     _solve_cache: dict[Any, ConstraintSolveResult] = PrivateAttr(default_factory=dict)
+
+    @cached_property
+    def shapes(self) -> dict[UUID, EffectiveShape]:
+        """The composed spec's shapes with their inheritance resolved. Derived, not serialized."""
+        return resolve_shapes(self.spec.shapes)
 
     @cached_property
     def data_entry(self) -> EntryLayout:

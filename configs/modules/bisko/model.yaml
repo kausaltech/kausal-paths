@@ -104,8 +104,9 @@ data_entry:
 # swapping `kommune/endenergieverbrauch` for `<city>/final_energy` carries the class with it. No
 # city currently replaces a locked dataset.
 # --- Shapes: the category combinations BISKO defines for the municipal inputs ---------------
-# The entry form of each `kommune/*` table refers to one (see docs/architecture/shapes.md).
-# All open for now: other combinations are accepted, just not as BISKO ones.
+# The entry form of each `kommune/*` table refers to one, and so does the input contract of the
+# port it feeds, which checks the required groups (see docs/architecture/shapes.md). All open for
+# now: other combinations are accepted, just not as BISKO ones.
 shapes:
 - id: bisko/end_energy
   name_de: Endenergieverbrauch
@@ -140,6 +141,28 @@ shapes:
   - {id: municipal_facilities_biomass, categories: {sector: municipal_facilities, energy_carrier: biomass}}
   - {id: municipal_facilities_solar_thermal, categories: {sector: municipal_facilities, energy_carrier: solar_thermal}}
   - {id: municipal_facilities_environmental_heat, categories: {sector: municipal_facilities, energy_carrier: environmental_heat}}
+  required:
+  - {id: private_households_electricity, combinations: [private_households_electricity], qualifiers: {bisko_quality.coverage: {min: 1}, bisko_quality.score: {min: 1}}}
+  - {id: private_households_natural_gas, combinations: [private_households_natural_gas], qualifiers: {bisko_quality.coverage: {min: 1}, bisko_quality.score: {min: 1}}}
+  - {id: private_households_district_heating, combinations: [private_households_district_heating], qualifiers: {bisko_quality.coverage: {min: 1}, bisko_quality.score: {min: 1}}}
+  - {id: private_households_heating_oil, combinations: [private_households_heating_oil], qualifiers: {bisko_quality.coverage: {min: 1}}}
+  - {id: private_households_biomass, combinations: [private_households_biomass], qualifiers: {bisko_quality.coverage: {min: 1}}}
+  - {id: private_households_solar_thermal, combinations: [private_households_solar_thermal], qualifiers: {bisko_quality.coverage: {min: 1}}}
+  - {id: private_households_environmental_heat, combinations: [private_households_environmental_heat], qualifiers: {bisko_quality.coverage: {min: 1}}}
+  - {id: commerce_trade_services_electricity, combinations: [commerce_trade_services_electricity], qualifiers: {bisko_quality.coverage: {min: 1}, bisko_quality.score: {min: 1}}}
+  - {id: commerce_trade_services_natural_gas, combinations: [commerce_trade_services_natural_gas], qualifiers: {bisko_quality.coverage: {min: 1}, bisko_quality.score: {min: 1}}}
+  - {id: commerce_trade_services_district_heating, combinations: [commerce_trade_services_district_heating], qualifiers: {bisko_quality.coverage: {min: 1}, bisko_quality.score: {min: 1}}}
+  - {id: commerce_trade_services_heating_oil, combinations: [commerce_trade_services_heating_oil], qualifiers: {bisko_quality.coverage: {min: 1}}}
+  - {id: commerce_trade_services_biomass, combinations: [commerce_trade_services_biomass], qualifiers: {bisko_quality.coverage: {min: 1}}}
+  - {id: commerce_trade_services_solar_thermal, combinations: [commerce_trade_services_solar_thermal], qualifiers: {bisko_quality.coverage: {min: 1}}}
+  - {id: commerce_trade_services_environmental_heat, combinations: [commerce_trade_services_environmental_heat], qualifiers: {bisko_quality.coverage: {min: 1}}}
+  - {id: industry_electricity, combinations: [industry_electricity], qualifiers: {bisko_quality.coverage: {min: 1}, bisko_quality.score: {min: 1}}}
+  - {id: industry_natural_gas, combinations: [industry_natural_gas], qualifiers: {bisko_quality.coverage: {min: 1}, bisko_quality.score: {min: 1}}}
+  - {id: industry_district_heating, combinations: [industry_district_heating], qualifiers: {bisko_quality.coverage: {min: 1}, bisko_quality.score: {min: 1}}}
+  - {id: industry_heating_oil, combinations: [industry_heating_oil], qualifiers: {bisko_quality.coverage: {min: 1}}}
+  - {id: industry_biomass, combinations: [industry_biomass], qualifiers: {bisko_quality.coverage: {min: 1}}}
+  - {id: industry_solar_thermal, combinations: [industry_solar_thermal], qualifiers: {bisko_quality.coverage: {min: 1}}}
+  - {id: industry_environmental_heat, combinations: [industry_environmental_heat], qualifiers: {bisko_quality.coverage: {min: 1}}}
 
 - id: bisko/road_mileage
   name_de: Fahrleistung Straßenverkehr
@@ -161,6 +184,22 @@ shapes:
   - {id: local_buses_all_road_types, categories: {vehicle_type: local_buses, road_type: all_road_types}}
   - {id: coach_buses_all_road_types, categories: {vehicle_type: coach_buses, road_type: all_road_types}}
   - {id: tram_all_road_types, categories: {vehicle_type: tram, road_type: all_road_types}}
+  required:
+  - {id: passenger_cars_highway, combinations: [passenger_cars_highway]}
+  - {id: passenger_cars_rural_roads, combinations: [passenger_cars_rural_roads]}
+  - {id: passenger_cars_urban_roads, combinations: [passenger_cars_urban_roads]}
+  - {id: motorcycles_highway, combinations: [motorcycles_highway]}
+  - {id: motorcycles_rural_roads, combinations: [motorcycles_rural_roads]}
+  - {id: motorcycles_urban_roads, combinations: [motorcycles_urban_roads]}
+  - {id: vans_highway, combinations: [vans_highway]}
+  - {id: vans_rural_roads, combinations: [vans_rural_roads]}
+  - {id: vans_urban_roads, combinations: [vans_urban_roads]}
+  - {id: trucks_highway, combinations: [trucks_highway]}
+  - {id: trucks_rural_roads, combinations: [trucks_rural_roads]}
+  - {id: trucks_urban_roads, combinations: [trucks_urban_roads]}
+  - {id: local_buses_all_road_types, combinations: [local_buses_all_road_types]}
+  - {id: coach_buses_all_road_types, combinations: [coach_buses_all_road_types]}
+  - {id: tram_all_road_types, combinations: [tram_all_road_types]}
 
 - id: bisko/road_transport_energy
   name_de: Energieverbrauch Straßenverkehr
@@ -205,6 +244,45 @@ shapes:
   - {id: vans_lpg, categories: {vehicle_type: vans, energy_carrier: lpg}}
   - {id: vans_petrol, categories: {vehicle_type: vans, energy_carrier: petrol}}
   - {id: tram_electricity, categories: {vehicle_type: tram, energy_carrier: electricity}}
+  required:
+  - {id: coach_buses_biodiesel, combinations: [coach_buses_biodiesel]}
+  - {id: coach_buses_cng_bio, combinations: [coach_buses_cng_bio]}
+  - {id: coach_buses_cng_fossil, combinations: [coach_buses_cng_fossil]}
+  - {id: coach_buses_diesel, combinations: [coach_buses_diesel]}
+  - {id: coach_buses_electricity, combinations: [coach_buses_electricity]}
+  - {id: coach_buses_lpg, combinations: [coach_buses_lpg]}
+  - {id: local_buses_biodiesel, combinations: [local_buses_biodiesel]}
+  - {id: local_buses_cng_bio, combinations: [local_buses_cng_bio]}
+  - {id: local_buses_cng_fossil, combinations: [local_buses_cng_fossil]}
+  - {id: local_buses_diesel, combinations: [local_buses_diesel]}
+  - {id: local_buses_electricity, combinations: [local_buses_electricity]}
+  - {id: local_buses_lpg, combinations: [local_buses_lpg]}
+  - {id: motorcycles_bio_petrol, combinations: [motorcycles_bio_petrol]}
+  - {id: motorcycles_electricity, combinations: [motorcycles_electricity]}
+  - {id: motorcycles_petrol, combinations: [motorcycles_petrol]}
+  - {id: passenger_cars_bio_petrol, combinations: [passenger_cars_bio_petrol]}
+  - {id: passenger_cars_biodiesel, combinations: [passenger_cars_biodiesel]}
+  - {id: passenger_cars_cng_bio, combinations: [passenger_cars_cng_bio]}
+  - {id: passenger_cars_cng_fossil, combinations: [passenger_cars_cng_fossil]}
+  - {id: passenger_cars_diesel, combinations: [passenger_cars_diesel]}
+  - {id: passenger_cars_electricity, combinations: [passenger_cars_electricity]}
+  - {id: passenger_cars_lpg, combinations: [passenger_cars_lpg]}
+  - {id: passenger_cars_petrol, combinations: [passenger_cars_petrol]}
+  - {id: trucks_biodiesel, combinations: [trucks_biodiesel]}
+  - {id: trucks_cng_bio, combinations: [trucks_cng_bio]}
+  - {id: trucks_cng_fossil, combinations: [trucks_cng_fossil]}
+  - {id: trucks_diesel, combinations: [trucks_diesel]}
+  - {id: trucks_electricity, combinations: [trucks_electricity]}
+  - {id: trucks_lpg, combinations: [trucks_lpg]}
+  - {id: vans_bio_petrol, combinations: [vans_bio_petrol]}
+  - {id: vans_biodiesel, combinations: [vans_biodiesel]}
+  - {id: vans_cng_bio, combinations: [vans_cng_bio]}
+  - {id: vans_cng_fossil, combinations: [vans_cng_fossil]}
+  - {id: vans_diesel, combinations: [vans_diesel]}
+  - {id: vans_electricity, combinations: [vans_electricity]}
+  - {id: vans_lpg, combinations: [vans_lpg]}
+  - {id: vans_petrol, combinations: [vans_petrol]}
+  - {id: tram_electricity, combinations: [tram_electricity]}
 
 - id: bisko/other_transport_energy
   name_de: Energieverbrauch übriger Verkehr
@@ -219,6 +297,15 @@ shapes:
   - {id: cargo_trains_diesel, categories: {vehicle_type: cargo_trains, energy_carrier: diesel}}
   - {id: inland_waterway_shipping_diesel, categories: {vehicle_type: inland_waterway_shipping, energy_carrier: diesel}}
   - {id: air_transport_kerosene, categories: {vehicle_type: air_transport, energy_carrier: kerosene}}
+  required:
+  - {id: local_trains_electricity, combinations: [local_trains_electricity]}
+  - {id: local_trains_diesel, combinations: [local_trains_diesel]}
+  - {id: long_distance_trains_electricity, combinations: [long_distance_trains_electricity]}
+  - {id: long_distance_trains_diesel, combinations: [long_distance_trains_diesel]}
+  - {id: cargo_trains_electricity, combinations: [cargo_trains_electricity]}
+  - {id: cargo_trains_diesel, combinations: [cargo_trains_diesel]}
+  - {id: inland_waterway_shipping_diesel, combinations: [inland_waterway_shipping_diesel]}
+  - {id: air_transport_kerosene, combinations: [air_transport_kerosene]}
 
 datasets:
 
@@ -1495,151 +1582,7 @@ nodes:
     formula: remove_subset(data * correction, municipal) - heat_pumps
   input_validation:
     data:
-      combinations:
-      - categories:
-          sector: private_households
-          energy_carrier: electricity
-        qualifiers:
-          bisko_quality.coverage:
-            min: 1
-          bisko_quality.score:
-            min: 1
-      - categories:
-          sector: private_households
-          energy_carrier: natural_gas
-        qualifiers:
-          bisko_quality.coverage:
-            min: 1
-          bisko_quality.score:
-            min: 1
-      - categories:
-          sector: private_households
-          energy_carrier: district_heating
-        qualifiers:
-          bisko_quality.coverage:
-            min: 1
-          bisko_quality.score:
-            min: 1
-      - categories:
-          sector: private_households
-          energy_carrier: heating_oil
-        qualifiers:
-          bisko_quality.coverage:
-            min: 1
-      - categories:
-          sector: private_households
-          energy_carrier: biomass
-        qualifiers:
-          bisko_quality.coverage:
-            min: 1
-      - categories:
-          sector: private_households
-          energy_carrier: solar_thermal
-        qualifiers:
-          bisko_quality.coverage:
-            min: 1
-      - categories:
-          sector: private_households
-          energy_carrier: environmental_heat
-        qualifiers:
-          bisko_quality.coverage:
-            min: 1
-      - categories:
-          sector: commerce_trade_services
-          energy_carrier: electricity
-        qualifiers:
-          bisko_quality.coverage:
-            min: 1
-          bisko_quality.score:
-            min: 1
-      - categories:
-          sector: commerce_trade_services
-          energy_carrier: natural_gas
-        qualifiers:
-          bisko_quality.coverage:
-            min: 1
-          bisko_quality.score:
-            min: 1
-      - categories:
-          sector: commerce_trade_services
-          energy_carrier: district_heating
-        qualifiers:
-          bisko_quality.coverage:
-            min: 1
-          bisko_quality.score:
-            min: 1
-      - categories:
-          sector: commerce_trade_services
-          energy_carrier: heating_oil
-        qualifiers:
-          bisko_quality.coverage:
-            min: 1
-      - categories:
-          sector: commerce_trade_services
-          energy_carrier: biomass
-        qualifiers:
-          bisko_quality.coverage:
-            min: 1
-      - categories:
-          sector: commerce_trade_services
-          energy_carrier: solar_thermal
-        qualifiers:
-          bisko_quality.coverage:
-            min: 1
-      - categories:
-          sector: commerce_trade_services
-          energy_carrier: environmental_heat
-        qualifiers:
-          bisko_quality.coverage:
-            min: 1
-      - categories:
-          sector: industry
-          energy_carrier: electricity
-        qualifiers:
-          bisko_quality.coverage:
-            min: 1
-          bisko_quality.score:
-            min: 1
-      - categories:
-          sector: industry
-          energy_carrier: natural_gas
-        qualifiers:
-          bisko_quality.coverage:
-            min: 1
-          bisko_quality.score:
-            min: 1
-      - categories:
-          sector: industry
-          energy_carrier: district_heating
-        qualifiers:
-          bisko_quality.coverage:
-            min: 1
-          bisko_quality.score:
-            min: 1
-      - categories:
-          sector: industry
-          energy_carrier: heating_oil
-        qualifiers:
-          bisko_quality.coverage:
-            min: 1
-      - categories:
-          sector: industry
-          energy_carrier: biomass
-        qualifiers:
-          bisko_quality.coverage:
-            min: 1
-      - categories:
-          sector: industry
-          energy_carrier: solar_thermal
-        qualifiers:
-          bisko_quality.coverage:
-            min: 1
-      - categories:
-          sector: industry
-          energy_carrier: environmental_heat
-        qualifiers:
-          bisko_quality.coverage:
-            min: 1
+      shape: bisko/end_energy
       years: inventory
       min: 0
 
@@ -2196,8 +2139,7 @@ nodes:
   input_validation:
     data:
       years: active
-      combinations:
-      - categories: {}
+      required: true
       min: 1
       max: 1
       max_rows: 1
@@ -2375,9 +2317,7 @@ nodes:
   input_validation:
     district_heating_emission_factor:
       required_if_positive: final_energy_use
-      combinations:
-      - categories:
-          energy_carrier: district_heating
+      required: true
       min: 0
 
 - id: stationary_emissions
@@ -2794,52 +2734,7 @@ nodes:
     formula: extend_all(mileage)
   input_validation:
     data:
-      combinations:
-      - categories:
-          vehicle_type: passenger_cars
-          road_type: highway
-      - categories:
-          vehicle_type: passenger_cars
-          road_type: rural_roads
-      - categories:
-          vehicle_type: passenger_cars
-          road_type: urban_roads
-      - categories:
-          vehicle_type: motorcycles
-          road_type: highway
-      - categories:
-          vehicle_type: motorcycles
-          road_type: rural_roads
-      - categories:
-          vehicle_type: motorcycles
-          road_type: urban_roads
-      - categories:
-          vehicle_type: vans
-          road_type: highway
-      - categories:
-          vehicle_type: vans
-          road_type: rural_roads
-      - categories:
-          vehicle_type: vans
-          road_type: urban_roads
-      - categories:
-          vehicle_type: trucks
-          road_type: highway
-      - categories:
-          vehicle_type: trucks
-          road_type: rural_roads
-      - categories:
-          vehicle_type: trucks
-          road_type: urban_roads
-      - categories:
-          vehicle_type: local_buses
-          road_type: all_road_types
-      - categories:
-          vehicle_type: coach_buses
-          road_type: all_road_types
-      - categories:
-          vehicle_type: tram
-          road_type: all_road_types
+      shape: bisko/road_mileage
       years: active
       min: 0
 
@@ -2917,121 +2812,7 @@ nodes:
     formula: extend_all(energy)
   input_validation:
     data:
-      combinations:
-      - categories:
-          vehicle_type: coach_buses
-          energy_carrier: biodiesel
-      - categories:
-          vehicle_type: coach_buses
-          energy_carrier: cng_bio
-      - categories:
-          vehicle_type: coach_buses
-          energy_carrier: cng_fossil
-      - categories:
-          vehicle_type: coach_buses
-          energy_carrier: diesel
-      - categories:
-          vehicle_type: coach_buses
-          energy_carrier: electricity
-      - categories:
-          vehicle_type: coach_buses
-          energy_carrier: lpg
-      - categories:
-          vehicle_type: local_buses
-          energy_carrier: biodiesel
-      - categories:
-          vehicle_type: local_buses
-          energy_carrier: cng_bio
-      - categories:
-          vehicle_type: local_buses
-          energy_carrier: cng_fossil
-      - categories:
-          vehicle_type: local_buses
-          energy_carrier: diesel
-      - categories:
-          vehicle_type: local_buses
-          energy_carrier: electricity
-      - categories:
-          vehicle_type: local_buses
-          energy_carrier: lpg
-      - categories:
-          vehicle_type: motorcycles
-          energy_carrier: bio_petrol
-      - categories:
-          vehicle_type: motorcycles
-          energy_carrier: electricity
-      - categories:
-          vehicle_type: motorcycles
-          energy_carrier: petrol
-      - categories:
-          vehicle_type: passenger_cars
-          energy_carrier: bio_petrol
-      - categories:
-          vehicle_type: passenger_cars
-          energy_carrier: biodiesel
-      - categories:
-          vehicle_type: passenger_cars
-          energy_carrier: cng_bio
-      - categories:
-          vehicle_type: passenger_cars
-          energy_carrier: cng_fossil
-      - categories:
-          vehicle_type: passenger_cars
-          energy_carrier: diesel
-      - categories:
-          vehicle_type: passenger_cars
-          energy_carrier: electricity
-      - categories:
-          vehicle_type: passenger_cars
-          energy_carrier: lpg
-      - categories:
-          vehicle_type: passenger_cars
-          energy_carrier: petrol
-      - categories:
-          vehicle_type: trucks
-          energy_carrier: biodiesel
-      - categories:
-          vehicle_type: trucks
-          energy_carrier: cng_bio
-      - categories:
-          vehicle_type: trucks
-          energy_carrier: cng_fossil
-      - categories:
-          vehicle_type: trucks
-          energy_carrier: diesel
-      - categories:
-          vehicle_type: trucks
-          energy_carrier: electricity
-      - categories:
-          vehicle_type: trucks
-          energy_carrier: lpg
-      - categories:
-          vehicle_type: vans
-          energy_carrier: bio_petrol
-      - categories:
-          vehicle_type: vans
-          energy_carrier: biodiesel
-      - categories:
-          vehicle_type: vans
-          energy_carrier: cng_bio
-      - categories:
-          vehicle_type: vans
-          energy_carrier: cng_fossil
-      - categories:
-          vehicle_type: vans
-          energy_carrier: diesel
-      - categories:
-          vehicle_type: vans
-          energy_carrier: electricity
-      - categories:
-          vehicle_type: vans
-          energy_carrier: lpg
-      - categories:
-          vehicle_type: vans
-          energy_carrier: petrol
-      - categories:
-          vehicle_type: tram
-          energy_carrier: electricity
+      shape: bisko/road_transport_energy
       years: active
       min: 0
 
@@ -3340,31 +3121,7 @@ nodes:
     formula: extend_all(energy)
   input_validation:
     data:
-      combinations:
-      - categories:
-          vehicle_type: local_trains
-          energy_carrier: electricity
-      - categories:
-          vehicle_type: local_trains
-          energy_carrier: diesel
-      - categories:
-          vehicle_type: long_distance_trains
-          energy_carrier: electricity
-      - categories:
-          vehicle_type: long_distance_trains
-          energy_carrier: diesel
-      - categories:
-          vehicle_type: cargo_trains
-          energy_carrier: electricity
-      - categories:
-          vehicle_type: cargo_trains
-          energy_carrier: diesel
-      - categories:
-          vehicle_type: inland_waterway_shipping
-          energy_carrier: diesel
-      - categories:
-          vehicle_type: air_transport
-          energy_carrier: kerosene
+      shape: bisko/other_transport_energy
       years: active
       min: 0
 
@@ -4735,8 +4492,7 @@ nodes:
     # formula only needs the total.
     district_heating_energy_use:
       required_if_positive: district_heating_emissions_exergetic
-      combinations:
-      - categories: {}
+      required: true
       enforcement: block_submission
 - id: district_heating_emission_factor_standard
   is_editable: false

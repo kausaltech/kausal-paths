@@ -32,13 +32,14 @@ from nodes.data_entry import EntryResolver, EntrySelection, Rectangle, intersect
 from nodes.datasets import JSONDataset
 from nodes.defs.binding_def import DatasetBindingDef
 from nodes.models import DatasetMaterialization, InstanceConfig
-from nodes.value_validation import required_value_failures
+from nodes.value_validation import contract_requirements, requirement_failures
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping
 
     from nodes.defs.graph import DatasetMeta
     from nodes.instance_graph import InstanceGraph
+    from nodes.value_validation import ValueContract, ValueRequirement
     from users.models import User
 
 
@@ -272,9 +273,7 @@ class DataEntryQuery:
             )
         )
 
-    def contract_findings(  # noqa: C901, PLR0912
-        self, data: EntryDatasetData
-    ) -> list[EntryFinding]:
+    def contract_findings(self, data: EntryDatasetData) -> list[EntryFinding]:
         """Project declared input completeness onto source coordinates, without filling data."""
         results: list[EntryFinding] = []
         resolver = EntryResolver(self.graph)
@@ -292,61 +291,86 @@ class DataEntryQuery:
                 # Model-level validation evaluates these dependencies. A reminder
                 # about the evaluator is not a finding about the entered data.
                 continue
-            for combination in contract.combinations:
-                selection: dict[UUID, frozenset[UUID]] = {}
-                for dimension, category in combination.categories.items():
-                    dim = self.graph.dimension_by_identifier[dimension]
-                    category_id = next(c.id for c in dim.categories if c.identifier == category)
-                    selection[dim.id] = frozenset((category_id,))
-                source, reasons = resolver.translate(binding, rectangle(selection))
-                if source is None:
-                    continue
-                if reasons:
-                    results.append(
-                        EntryFinding(
-                            uuid3(binding.id, f'unresolved-contract:{selection}'),
-                            'unresolved_contract',
-                            'Input requirements cannot be translated to dataset coordinates',
-                            (),
-                            self.affected_sections(data.meta.id, metric.id, ((),)),
-                            data.meta.id,
-                            metric.id,
-                        )
+            shape = self.graph.shapes.get(contract.shape) if contract.shape is not None else None
+            for requirement in contract_requirements(contract, shape):
+                results.extend(self._requirement_findings(resolver, binding, data, metric.id, column, contract, requirement))
+        return results
+
+    def _requirement_findings(
+        self,
+        resolver: EntryResolver,
+        binding: DatasetBindingDef,
+        data: EntryDatasetData,
+        metric_id: UUID,
+        column: str,
+        contract: ValueContract,
+        requirement: ValueRequirement,
+    ) -> list[EntryFinding]:
+        """
+        Locate one port requirement in the dataset that feeds the port.
+
+        A requirement with an alternative this binding cannot deliver is skipped: another
+        binding of the port may satisfy it.
+        """
+        alternatives: list[tuple[pl.DataFrame, tuple[tuple[UUID, UUID], ...], Rectangle]] = []
+        for categories in requirement.alternatives:
+            selection: dict[UUID, frozenset[UUID]] = {}
+            for dimension, category in categories.items():
+                dim = self.graph.dimension_by_identifier[dimension]
+                category_id = next(c.id for c in dim.categories if c.identifier == category)
+                selection[dim.id] = frozenset((category_id,))
+            source, reasons = resolver.translate(binding, rectangle(selection))
+            if source is None:
+                return []
+            if reasons:
+                return [
+                    EntryFinding(
+                        uuid3(binding.id, f'unresolved-contract:{selection}'),
+                        'unresolved_contract',
+                        'Input requirements cannot be translated to dataset coordinates',
+                        (),
+                        self.affected_sections(data.meta.id, metric_id, ((),)),
+                        data.meta.id,
+                        metric_id,
                     )
-                    continue
-                source = rectangle({dim: cats for dim, cats in source if dim in data.meta.declared_dimension_ids})
-                rows = data.frame
-                for dim, cats in source:
-                    dimension_column = next(name for name, id in data.dimensions.items() if id == dim)
-                    labels = [label for (name, label), id in data.categories.items() if name == dimension_column and id in cats]
-                    rows = rows.filter(pl.col(dimension_column).is_in(labels))
-                coordinates = tuple((dim, next(iter(cats))) for dim, cats in source if len(cats) == 1)
-                sections = self.affected_sections(data.meta.id, metric.id, (source,))
-                for year in self.years:
-                    present = rows.filter(
-                        (pl.col(YEAR_COLUMN) == year) & pl.col(column).is_not_null() & pl.col(column).is_finite()
-                    )
-                    if contract.years == 'active' and present.is_empty():
-                        continue
-                    renamed = {column: VALUE_COLUMN}
-                    qualifier_column = qualifiers.qualifier_column(column)
-                    if qualifier_column in present.columns:
-                        renamed[qualifier_column] = qualifiers.qualifier_column(VALUE_COLUMN)
-                    assessment_rows = present.select(list(renamed)).rename(renamed)
-                    failures = required_value_failures(assessment_rows, combination.qualifiers)
-                    for code, message in failures:
-                        results.append(
-                            EntryFinding(
-                                uuid3(binding.id, f'{code}:{message}:{coordinates}:{year}'),
-                                code,
-                                message,
-                                (year,),
-                                sections,
-                                data.meta.id,
-                                metric.id,
-                                coordinates,
-                            )
-                        )
+                ]
+            source = rectangle({dim: cats for dim, cats in source if dim in data.meta.declared_dimension_ids})
+            rows = data.frame
+            for dim, cats in source:
+                dimension_column = next(name for name, id in data.dimensions.items() if id == dim)
+                labels = [label for (name, label), id in data.categories.items() if name == dimension_column and id in cats]
+                rows = rows.filter(pl.col(dimension_column).is_in(labels))
+            coordinates = tuple((dim, next(iter(cats))) for dim, cats in source if len(cats) == 1)
+            alternatives.append((rows, coordinates, source))
+        sections = self.affected_sections(data.meta.id, metric_id, tuple(source for _, _, source in alternatives))
+        coordinates = alternatives[0][1] if len(alternatives) == 1 else ()
+        key = coordinates if len(alternatives) == 1 else requirement.identifier
+        renamed = {column: VALUE_COLUMN}
+        qualifier_column = qualifiers.qualifier_column(column)
+        if qualifier_column in data.frame.columns:
+            renamed[qualifier_column] = qualifiers.qualifier_column(VALUE_COLUMN)
+        results: list[EntryFinding] = []
+        for year in self.years:
+            present = [
+                rows.filter((pl.col(YEAR_COLUMN) == year) & pl.col(column).is_not_null() & pl.col(column).is_finite())
+                for rows, _, _ in alternatives
+            ]
+            if contract.years == 'active' and all(rows.is_empty() for rows in present):
+                continue
+            assessments = [rows.select(list(renamed)).rename(renamed) for rows in present]
+            results.extend(
+                EntryFinding(
+                    uuid3(binding.id, f'{code}:{message}:{key}:{year}'),
+                    code,
+                    message,
+                    (year,),
+                    sections,
+                    data.meta.id,
+                    metric_id,
+                    coordinates,
+                )
+                for code, message in requirement_failures(assessments, requirement.qualifiers)
+            )
         return results
 
     def dataset_findings(self, id: UUID) -> tuple[EntryFinding, ...]:  # noqa: C901

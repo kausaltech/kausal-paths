@@ -43,7 +43,7 @@ from nodes.models import InstanceConfig, NodeInputPortBinding
 from nodes.spec_sync import sync_parsed_instance_to_db
 from nodes.tests.factories import InstanceConfigFactory, NodeConfigFactory
 from nodes.units import unit_registry
-from nodes.value_validation import QualifierRequirement, RequiredValueCombination, ValueContract
+from nodes.value_validation import QualifierRequirement, ValueContract
 from users.tests.factories import UserFactory
 
 if TYPE_CHECKING:
@@ -150,9 +150,7 @@ def test_permission_denial_removes_points_and_counts() -> None:
 
 def test_required_value_contract_counts_an_entirely_empty_inventory_year() -> None:
     query = make_query()
-    query.graph.nodes[0].spec.input_ports[0].validation = ValueContract(
-        combinations=[RequiredValueCombination(categories={})],
-    )
+    query.graph.nodes[0].spec.input_ports[0].validation = ValueContract(required=True)
     findings = query.findings(None, [2024])
     assert len(findings) == 1
     assert findings[0].code == 'missing_required_value'
@@ -249,12 +247,7 @@ def test_required_grade_uses_evidence_from_the_selected_payload() -> None:
     scheme = DataQualityScheme.objects.create(framework=framework, identifier='quality', version='1', name='Quality')
     level = DataQualityLevel.objects.create(scheme=scheme, identifier='A', name='Measured', score=1, order=0)
     query.graph.nodes[0].spec.input_ports[0].validation = ValueContract(
-        combinations=[
-            RequiredValueCombination(
-                categories={},
-                qualifiers={'entry_quality.coverage': QualifierRequirement(min=1)},
-            )
-        ]
+        required=True, qualifiers={'entry_quality.coverage': QualifierRequirement(min=1)}
     )
     assert [finding.code for finding in query.findings(None, [2023])] == ['required_qualifier']
     dataset = next(iter(query.datasets.values()))
