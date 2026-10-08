@@ -191,11 +191,6 @@ category_overrides:
       color: *grey
     sinks:
       color: *green
-    ghg_neutral_administration:
-      color: *lime
-      label_de: "THG-neutrale Verwaltung"
-    food_and_land_use:
-      color: *green
   energy_carrier:
     hard_coal:
       color: *black
