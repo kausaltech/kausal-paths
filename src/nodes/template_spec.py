@@ -11,9 +11,12 @@ from params.base import ParameterOwner
 from params.param import ValidationError as ParameterValidationError
 
 if TYPE_CHECKING:
+    from uuid import UUID
+
     from pydantic import BaseModel
 
     from nodes.defs.instance_defs import InstanceModelSpec
+    from nodes.defs.shape_defs import ShapeSpec
     from nodes.instance_serialization import NodeSnapshot
     from params import Parameter
 
@@ -24,6 +27,7 @@ DECLARATION_KEYS = {
     'impact_overviews': 'id',
     'normalizations': 'normalizer_node_id',
     'action_groups': 'uuid',
+    'shapes': 'uuid',
 }
 DECLARATION_LISTS = tuple(DECLARATION_KEYS)
 
@@ -46,6 +50,54 @@ def parameters_by_id(spec: InstanceModelSpec, nodes: list[NodeSnapshot]) -> dict
             node.spec.params = node_class_for_spec(node.spec).parameters_for_spec(node.spec)
             parameters.update({f'{node.identifier}.{parameter.local_id}': parameter for parameter in node.spec.params})
     return parameters
+
+
+def compose_shapes(inherited: list[ShapeSpec], local: list[ShapeSpec]) -> list[ShapeSpec]:
+    """
+    Compose template and local shapes; an instance's record replaces the template's extension point.
+
+    Only a shape the template declares with `owner: instance` may have a local record, and the
+    record keeps the template's identity, dimensions, inheritance and closedness: what the
+    instance owns is its own combinations. Inheritance stays unresolved here; it is resolved
+    when the runtime is built, so a template upgrade reaches every record.
+    """
+    template = {shape.uuid: shape for shape in inherited}
+    records: dict[UUID, ShapeSpec] = {}
+    additions: list[ShapeSpec] = []
+    for shape in local:
+        declared = template.get(shape.uuid)
+        if declared is None:
+            additions.append(shape)
+            continue
+        if declared.owner != 'instance':
+            raise ValueError(f'Shape {declared.label} belongs to the template and cannot be redefined locally')
+        if (shape.identifier, shape.owner, shape.fixed_fields()) != (
+            declared.identifier,
+            declared.owner,
+            declared.fixed_fields(),
+        ):
+            raise ValueError(
+                f"The local record of shape {declared.label} must keep the template's identifier, dimensions, "
+                'inheritance and closedness'
+            )
+        records[shape.uuid] = shape
+    return [records.get(shape.uuid, shape).model_copy(deep=True) for shape in inherited] + [
+        shape.model_copy(deep=True) for shape in additions
+    ]
+
+
+def ensure_instance_shapes(local: InstanceModelSpec, base: InstanceModelSpec) -> list[str]:
+    """
+    Give a dependent instance its own record of every extension-point shape it lacks.
+
+    Called when an instance starts following a template and when it upgrades. The record is
+    the template's declaration as written, inheritance unresolved; it cannot be removed
+    afterwards. Return the labels of the shapes added.
+    """
+    present = {shape.uuid for shape in local.shapes}
+    added = [shape.model_copy(deep=True) for shape in base.shapes if shape.owner == 'instance' and shape.uuid not in present]
+    local.shapes.extend(added)
+    return [shape.label for shape in added]
 
 
 def compose_instance_spec(  # noqa: C901, PLR0912, PLR0915
@@ -71,6 +123,9 @@ def compose_instance_spec(  # noqa: C901, PLR0912, PLR0915
         raise ValueError('Local parameter declarations cannot shadow template parameters')
     result.params.extend(parameter.model_copy(deep=True) for parameter in local.params)
     for field in DECLARATION_LISTS:
+        if field == 'shapes':
+            result.shapes = compose_shapes(result.shapes, local.shapes)
+            continue
         inherited = getattr(result, field)
         additions = getattr(local, field)
         inherited_ids = {declaration_identity(field, item) for item in inherited}

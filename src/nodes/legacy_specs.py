@@ -65,7 +65,7 @@ def upgrade_formula_specs_v13(  # noqa: C901, PLR0912
                     del values[identifier]
 
 
-def local_spec_from_template(local: InstanceModelSpec, base: InstanceSnapshot) -> InstanceModelSpec:  # noqa: C901, PLR0912
+def local_spec_from_template(local: InstanceModelSpec, base: InstanceSnapshot) -> InstanceModelSpec:  # noqa: C901, PLR0912, PLR0915
     """Turn an old copied spec into additions and explicit differences against its pinned edition."""
     result = InstanceModelSpec(years=local.years.model_copy(deep=True))
     template_params = parameters_by_id(base.spec, base.nodes)
@@ -120,6 +120,10 @@ def local_spec_from_template(local: InstanceModelSpec, base: InstanceSnapshot) -
                 if declaration_identity(field, item) not in inherited_ids
             ],
         )
+    # A YAML instance mints its shape UUIDs from its own identity, so the shapes it took from the
+    # template's module only match by identifier, as its copied nodes do.
+    template_shapes = {shape.identifier for shape in base.spec.shapes if shape.identifier}
+    result.shapes = [shape for shape in result.shapes if shape.identifier not in template_shapes]
     for field in ('terms', 'theme_identifier', 'sample_size'):
         value = getattr(local, field)
         inherited = getattr(base.spec, field)
