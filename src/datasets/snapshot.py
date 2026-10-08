@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 from kausal_common.datasets.category_domain import DatasetCategoryDomain
 from kausal_common.i18n.pydantic import TranslatedString  # noqa: TC002 - Pydantic field
 
+from datasets.shape_domain import dataset_category_domain
 from datasets.validation_rules import (
     ValidationRule,
     validation_rule_adapter,
@@ -310,7 +311,7 @@ class DatasetSnapshot(ModelSnapshot['Dataset']):
             dimensions=dimensions,
             dimension_columns=dimension_columns,
             metrics=metrics,
-            category_domain=schema.category_domain if schema is not None else DatasetCategoryDomain(),
+            category_domain=dataset_category_domain(obj) if schema is not None else DatasetCategoryDomain(),
             data=data,
             data_sources=data_sources,
             source_references=source_references,

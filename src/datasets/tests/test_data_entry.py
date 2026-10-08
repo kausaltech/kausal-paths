@@ -7,6 +7,7 @@ from django.test.utils import CaptureQueriesContext
 
 import pytest
 
+from kausal_common.datasets.category_domain import DatasetCategoryDomain
 from kausal_common.datasets.models import DatasetMetricValidationRule, DimensionScope
 from kausal_common.datasets.tests.factories import (
     DataPointFactory,
@@ -43,7 +44,7 @@ from nodes.models import InstanceConfig, NodeInputPortBinding
 from nodes.spec_sync import sync_parsed_instance_to_db
 from nodes.tests.factories import InstanceConfigFactory, NodeConfigFactory
 from nodes.units import unit_registry
-from nodes.value_validation import QualifierRequirement, RequiredValueCombination, ValueContract
+from nodes.value_validation import QualifierRequirement, ValueContract
 from users.tests.factories import UserFactory
 
 if TYPE_CHECKING:
@@ -150,14 +151,23 @@ def test_permission_denial_removes_points_and_counts() -> None:
 
 def test_required_value_contract_counts_an_entirely_empty_inventory_year() -> None:
     query = make_query()
-    query.graph.nodes[0].spec.input_ports[0].validation = ValueContract(
-        combinations=[RequiredValueCombination(categories={})],
-    )
+    query.graph.nodes[0].spec.input_ports[0].validation = ValueContract(required=True)
     findings = query.findings(None, [2024])
     assert len(findings) == 1
     assert findings[0].code == 'missing_required_value'
     assert findings[0].years == (2024,)
     assert query.findings(None, []) == []
+
+
+def test_a_closed_shape_reports_entered_values_outside_it() -> None:
+    original = make_query()
+    data = original.graph.model_dump()
+    # The table is dimensionless and the domain allows no combination, so every value is outside.
+    data['datasets'][0]['category_domain'] = DatasetCategoryDomain(mode='closed')
+    with set_i18n_context('en', []):
+        query = DataEntryQuery(InstanceGraph.model_validate(data), original.user)
+    findings = [finding for finding in query.findings(None, [2023]) if finding.code == 'outside_shape']
+    assert [finding.years for finding in findings] == [(2023,)]
 
 
 def test_graphql_section_query_and_counts(client: Client) -> None:
@@ -249,12 +259,7 @@ def test_required_grade_uses_evidence_from_the_selected_payload() -> None:
     scheme = DataQualityScheme.objects.create(framework=framework, identifier='quality', version='1', name='Quality')
     level = DataQualityLevel.objects.create(scheme=scheme, identifier='A', name='Measured', score=1, order=0)
     query.graph.nodes[0].spec.input_ports[0].validation = ValueContract(
-        combinations=[
-            RequiredValueCombination(
-                categories={},
-                qualifiers={'entry_quality.coverage': QualifierRequirement(min=1)},
-            )
-        ]
+        required=True, qualifiers={'entry_quality.coverage': QualifierRequirement(min=1)}
     )
     assert [finding.code for finding in query.findings(None, [2023])] == ['required_qualifier']
     dataset = next(iter(query.datasets.values()))

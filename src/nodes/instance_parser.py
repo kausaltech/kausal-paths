@@ -24,7 +24,6 @@ from uuid import NAMESPACE_URL, UUID, uuid3, uuid5
 
 from pydantic import TypeAdapter
 
-from kausal_common.datasets.category_domain import DatasetCategoryDomainSpec
 from kausal_common.i18n.pydantic import TranslatedString
 
 from paths.identifiers import identifier_or_none
@@ -230,6 +229,7 @@ class InstanceConfigParser:
         self.node_uuids = node_uuids or {}
         self.port_references = port_references or YamlPortReferenceCatalog()
         self._resolved_node_uuids: dict[str, UUID] = {}
+        self._shapes: list[ShapeSpec] | None = None
         self.default_language: str = config['default_language']
         self.other_languages: list[str] = config.get('supported_languages', [])
         self._terms = InstanceTerms()
@@ -425,7 +425,16 @@ class InstanceConfigParser:
             is_editable = ds_conf.get('is_editable')
             if 'is_editable' in ds_conf and not isinstance(is_editable, bool):
                 raise InstanceParseError(f"Dataset '{ds_id}' field 'is_editable' must be a boolean")
-            domain_spec = self._parse_category_domain_spec(ds_id, ds_conf)
+            if 'category_domain' in ds_conf:
+                raise InstanceParseError(
+                    f"Dataset '{ds_id}': 'category_domain' is replaced by shapes; declare the combinations as a "
+                    "shape and refer to it with 'shape:' (docs/architecture/shapes.md)"
+                )
+            shape_id = None
+            if 'shape' in ds_conf:
+                shape_id = self._shape_uuids().get(ds_conf['shape'])
+                if shape_id is None:
+                    raise InstanceParseError(f"Dataset '{ds_id}' refers to unknown shape {ds_conf['shape']}")
             default_quality = None
             if 'default_quality' in ds_conf:
                 try:
@@ -434,10 +443,7 @@ class InstanceConfigParser:
                     raise InstanceParseError(
                         f"Dataset '{ds_id}' field 'default_quality' must name a scheme and a level: {error}"
                     ) from error
-            combination_ids = {combination.id for combination in domain_spec.combinations} if domain_spec else set()
-            metrics = [
-                self._parse_dataset_metric(ds_id, combination_ids, metric_config) for metric_config in ds_conf.get('metrics', [])
-            ]
+            metrics = [self._parse_dataset_metric(ds_id, metric_config) for metric_config in ds_conf.get('metrics', [])]
             entries.append(
                 DatasetMeta(
                     id=self._uuid_from_identifiers(['dataset', ds_id]),
@@ -445,44 +451,15 @@ class InstanceConfigParser:
                     schema_id=self._uuid_from_identifiers(['dataset', ds_id, 'schema']),
                     is_editable=is_editable,
                     metrics=tuple(metrics),
-                    category_domain_spec=domain_spec,
+                    shape_id=shape_id,
                     default_quality=default_quality,
                 )
             )
         return entries
 
-    def _parse_category_domain_spec(
-        self,
-        dataset_id: str,
-        dataset_config: dict[str, Any],
-    ) -> DatasetCategoryDomainSpec | None:
-        if 'category_domain' not in dataset_config:
-            return None
-        from pydantic import ValidationError as PydanticValidationError
-
-        try:
-            domain_spec = DatasetCategoryDomainSpec.model_validate(dataset_config['category_domain'])
-        except PydanticValidationError as error:
-            raise InstanceParseError(f"Invalid category domain on dataset '{dataset_id}': {error}") from error
-        for combination in domain_spec.combinations:
-            for dimension_id, category_id in combination.categories.items():
-                dimension = self.dimensions.get(dimension_id)
-                if dimension is None:
-                    raise InstanceParseError(
-                        f"Category combination '{combination.id}' on dataset '{dataset_id}' "
-                        f"references unknown dimension '{dimension_id}'"
-                    )
-                if category_id not in dimension.get_cat_ids():
-                    raise InstanceParseError(
-                        f"Category combination '{combination.id}' on dataset '{dataset_id}' "
-                        f"references unknown category '{dimension_id}:{category_id}'"
-                    )
-        return domain_spec
-
     def _parse_dataset_metric(
         self,
         dataset_id: str,
-        combination_ids: set[str],
         metric_config: dict[str, Any],
     ) -> DatasetMetricMeta:
         from pydantic import ValidationError as PydanticValidationError
@@ -491,12 +468,7 @@ class InstanceConfigParser:
         if not metric_id:
             raise InstanceParseError(f"Metric entry of dataset '{dataset_id}' is missing an 'id'")
         try:
-            authored_rules = self._resolve_category_combination_rule_refs(
-                dataset_id,
-                combination_ids,
-                metric_config.get('validation_rules', []),
-            )
-            rules = rule_list_adapter.validate_python(authored_rules)
+            rules = rule_list_adapter.validate_python(metric_config.get('validation_rules', []))
         except PydanticValidationError as error:
             raise InstanceParseError(
                 f"Invalid validation rule on dataset '{dataset_id}' metric '{metric_id}': {error}",
@@ -506,42 +478,6 @@ class InstanceConfigParser:
             identifier=metric_id,
             validation_rules=tuple(rules),
         )
-
-    def _category_combination_uuid(self, dataset_id: str, combination_id: str) -> UUID:
-        return self._uuid_from_identifiers(['dataset', dataset_id, 'category-combination', combination_id])
-
-    def _resolve_category_combination_rule_refs(
-        self,
-        dataset_id: str,
-        combination_ids: set[str],
-        authored_rules: object,
-    ) -> object:
-        if not isinstance(authored_rules, list):
-            return authored_rules
-        resolved: list[object] = []
-        for authored_rule in authored_rules:
-            if not isinstance(authored_rule, dict) or authored_rule.get('kind') != 'required_combinations':
-                resolved.append(authored_rule)
-                continue
-            rule = dict(authored_rule)
-            groups: list[object] = []
-            for authored_group in rule.get('groups', []):
-                if not isinstance(authored_group, dict):
-                    groups.append(authored_group)
-                    continue
-                group = dict(authored_group)
-                refs = group.get('combinations', [])
-                unknown = [ref for ref in refs if ref not in combination_ids]
-                if unknown:
-                    raise InstanceParseError(
-                        f"Required-combinations rule on dataset '{dataset_id}' references "
-                        f'unknown combination(s): {", ".join(unknown)}'
-                    )
-                group['combinations'] = [self._category_combination_uuid(dataset_id, ref) for ref in refs]
-                groups.append(group)
-            rule['groups'] = groups
-            resolved.append(rule)
-        return resolved
 
     def _parse_global_params(self) -> None:
         from params.discover import discover_global_parameters
@@ -667,7 +603,26 @@ class InstanceConfigParser:
 
     # -- shapes -----------------------------------------------------------------
 
-    def _parse_shapes(self) -> list[ShapeSpec]:  # noqa: C901
+    def _shape_uuids(self) -> dict[str, UUID]:
+        """Map each declared shape identifier to its UUID, minted from this instance unless authored."""
+        uuids: dict[str, UUID] = {}
+        for config in self.config.get('shapes', []):
+            identifier = config.get('id')
+            if not identifier:
+                raise InstanceParseError('A shape must have an id')
+            if identifier in uuids:
+                raise InstanceParseError(f'Shape {identifier} is declared twice')
+            authored = config.get('uuid')
+            uuids[identifier] = UUID(str(authored)) if authored else self._uuid_from_identifiers(['shape', identifier])
+        return uuids
+
+    def _parse_shapes(self) -> list[ShapeSpec]:
+        """Parse `shapes:` once; datasets and the instance spec both need them."""
+        if self._shapes is None:
+            self._shapes = self._read_shapes()
+        return self._shapes
+
+    def _read_shapes(self) -> list[ShapeSpec]:  # noqa: C901
         """
         Read `shapes:`; identifiers become UUIDs minted from this instance.
 
@@ -676,16 +631,7 @@ class InstanceConfigParser:
         inconsistent declaration fails at parse time rather than when a check first runs.
         """
         configs = [dict(item) for item in self.config.get('shapes', [])]
-        uuids: dict[str, UUID] = {}
-        for config in configs:
-            identifier = config.get('id')
-            if not identifier:
-                raise InstanceParseError('A shape must have an id')
-            if identifier in uuids:
-                raise InstanceParseError(f'Shape {identifier} is declared twice')
-            uuids[identifier] = (
-                UUID(str(config['uuid'])) if 'uuid' in config else self._uuid_from_identifiers(['shape', identifier])
-            )
+        uuids = self._shape_uuids()
 
         def shape_uuid(identifier: str, where: str) -> UUID:
             if identifier not in uuids:
@@ -1653,6 +1599,52 @@ class InstanceConfigParser:
                 entry.id = f'{node_id}:{counter[0]}'
                 counter[0] += 1
 
+    def _apply_input_validation(self, parsed: _ParsedNode) -> None:
+        """Attach each `input_validation` contract to the input port its selector names."""
+        for selector, contract in parsed.config.get('input_validation', {}).items():
+            port = self._validated_port(parsed, selector)
+            index = parsed.input_ports.index(port)
+            contract_data = dict(contract)
+            for condition_field in ('required_if_positive', 'combinations_from_positive'):
+                condition = contract_data.get(condition_field)
+                if condition is not None:
+                    condition_ports = [
+                        candidate
+                        for candidate in parsed.input_ports
+                        if str(condition) in (str(candidate.id), candidate.identifier, candidate.role, str(candidate._from_node))
+                    ]
+                    if len(condition_ports) != 1:
+                        raise InstanceParseError(f'{parsed.identifier}: conditional input validation must name one input port')
+                    contract_data[condition_field] = condition_ports[0].id
+            if 'shape' in contract_data:
+                shape_id = self._shape_uuids().get(contract_data['shape'])
+                if shape_id is None:
+                    raise InstanceParseError(
+                        f'{parsed.identifier}: input validation of {selector!r} refers to unknown shape {contract_data["shape"]}'
+                    )
+                contract_data['shape'] = shape_id
+            parsed.input_ports[index] = port.model_copy(update={'validation': ValueContract.model_validate(contract_data)})
+
+    def _validated_port(self, parsed: _ParsedNode, selector: str) -> InputPortDef:
+        """Find the one input port an `input_validation` selector names."""
+        matches = [port for port in parsed.input_ports if selector in (port.identifier, port.role)]
+        if not matches:
+            dataset_ports = self._build_dataset_input_ports(parsed)
+            offset = 0
+            matching_ids: set[UUID] = set()
+            for dataset in parsed.dataset_defs:
+                count = len(self._dataset_binding_columns(parsed, dataset))
+                if selector == dataset.id or selector in dataset.tags:
+                    matching_ids.update(port.id for port in dataset_ports[offset : offset + count])
+                offset += count
+            matches = [port for port in parsed.input_ports if port.id in matching_ids]
+        if not matches:
+            # Legacy authoring names its operands through binding tags.
+            matches = [port for port in parsed.input_ports if port._from_node is not None and str(port._from_node) == selector]
+        if len(matches) != 1:
+            raise InstanceParseError(f'{parsed.identifier}: input validation selector {selector!r} matches {len(matches)} ports')
+        return matches[0]
+
     def _build_node_snapshot(self, parsed: _ParsedNode) -> NodeSnapshot:
         """Mirror ``export_node_spec`` (with ``node.db_obj`` unset, as during sync)."""
         config = parsed.config
@@ -1662,42 +1654,7 @@ class InstanceConfigParser:
         description = _make_trans_string(config, 'description')
 
         uuid = self._node_uuid(parsed.identifier, config.get('uuid'))
-        for selector, contract in config.get('input_validation', {}).items():
-            matches = [port for port in parsed.input_ports if selector in (port.identifier, port.role)]
-            if not matches:
-                dataset_ports = self._build_dataset_input_ports(parsed)
-                offset = 0
-                matching_ids: set[UUID] = set()
-                for dataset in parsed.dataset_defs:
-                    count = len(self._dataset_binding_columns(parsed, dataset))
-                    if selector == dataset.id or selector in dataset.tags:
-                        matching_ids.update(port.id for port in dataset_ports[offset : offset + count])
-                    offset += count
-                matches = [port for port in parsed.input_ports if port.id in matching_ids]
-            if not matches:
-                # Legacy authoring names its operands through binding tags.
-                candidates = [
-                    port for port in parsed.input_ports if port._from_node is not None and str(port._from_node) == selector
-                ]
-                matches = candidates
-            if len(matches) != 1:
-                raise InstanceParseError(
-                    f'{parsed.identifier}: input validation selector {selector!r} matches {len(matches)} ports'
-                )
-            index = parsed.input_ports.index(matches[0])
-            contract_data = dict(contract)
-            for condition_field in ('required_if_positive', 'combinations_from_positive'):
-                condition = contract_data.get(condition_field)
-                if condition is not None:
-                    condition_ports = [
-                        port
-                        for port in parsed.input_ports
-                        if str(condition) in (str(port.id), port.identifier, port.role, str(port._from_node))
-                    ]
-                    if len(condition_ports) != 1:
-                        raise InstanceParseError(f'{parsed.identifier}: conditional input validation must name one input port')
-                    contract_data[condition_field] = condition_ports[0].id
-            parsed.input_ports[index] = matches[0].model_copy(update={'validation': ValueContract.model_validate(contract_data)})
+        self._apply_input_validation(parsed)
         spec = NodeSpec(
             type_config=type_config,
             input_ports=parsed.input_ports,
