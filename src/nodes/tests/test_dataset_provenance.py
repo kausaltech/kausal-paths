@@ -23,6 +23,7 @@ from kausal_common.datasets.tests.factories import (
 
 from datasets.snapshot import DatasetSnapshot
 from datasets.transfer import import_dataset
+from nodes.models import DatasetMaterialization
 from nodes.tests.factories import InstanceConfigFactory
 from users.tests.factories import UserFactory
 
@@ -116,8 +117,6 @@ def test_dataset_provenance_unknown_user_uuid_is_dropped():
 
 def test_empty_cells_survive_the_round_trip():
     """A template's empty cells are data points with a null value, and the copy keeps them."""
-    from nodes.models import DatasetMaterialization
-
     src = InstanceConfigFactory.create(name='tmpl-src', config_source='database')
     ct = ContentType.objects.get_for_model(src)
     schema = DatasetSchemaFactory.create()
@@ -133,8 +132,8 @@ def test_empty_cells_survive_the_round_trip():
 
     dst = InstanceConfigFactory.create(name='tmpl-dst', config_source='database')
     dst_ct = ContentType.objects.get_for_model(dst)
-    new_template = _import_dataset(dst, DatasetSnapshot.from_model_for_instance(template, src), dst_ct, {})
-    new_mixed = _import_dataset(dst, DatasetSnapshot.from_model_for_instance(mixed, src), dst_ct, {})
+    new_template = import_dataset(dst, DatasetSnapshot.from_model(template, src), dst_ct, {})
+    new_mixed = import_dataset(dst, DatasetSnapshot.from_model(mixed, src), dst_ct, {})
 
     assert sorted(new_template.data_points.values_list('date__year', 'value')) == [(2022, None), (2023, None)]
     assert sorted(new_mixed.data_points.values_list('date__year', 'value')) == [(2022, Decimal(5)), (2023, None)]

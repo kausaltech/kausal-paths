@@ -14,11 +14,14 @@ bug and fails loudly instead of degrading into a violation.
 
 import hashlib
 import json
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypedDict, cast
 from uuid import UUID
 
 from django.contrib.contenttypes.models import ContentType
+from django.contrib.postgres.expressions import ArraySubquery
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db.models import F, OuterRef
+from django.db.models.functions import JSONObject
 from pydantic import BaseModel, Field, TypeAdapter
 
 import polars as pl
@@ -40,8 +43,11 @@ from .validation_rules import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Sequence
 
+    from django_stubs_ext import WithAnnotations
+
+    from kausal_common.datasets.category_domain import DatasetCategoryDomain
     from kausal_common.datasets.models import Dataset
 
 #: Cap on located violations reported per rule; the remainder is summarized.
@@ -137,6 +143,38 @@ class InstanceDatasetValidationError(Exception):
         super().__init__(f'{len(violations)} dataset validation violation(s): {preview}{more}')
 
 
+class ValidationRuleFingerprint(TypedDict):
+    uuid: UUID | str
+    rule: object
+    metric__uuid: UUID | str
+    metric__name: str | None
+    metric__label: str
+
+
+class _SchemaValidationContext(TypedDict):
+    current_validation_rules: list[ValidationRuleFingerprint]
+
+
+def validation_rules_subquery(schema_id_field: str) -> ArraySubquery:
+    """Project ordered rule definitions alongside a bulk materialization query."""
+    return ArraySubquery(
+        DatasetMetricValidationRule.objects
+        .filter(metric__schema_id=OuterRef(schema_id_field))
+        .order_by('metric__order', 'metric__uuid', 'order', 'uuid')
+        .annotate(fingerprint=JSONObject(**{field: F(field) for field in ValidationRuleFingerprint.__annotations__}))
+        .values('fingerprint')
+    )
+
+
+def validation_context_hash(rules: Sequence[ValidationRuleFingerprint], domain: DatasetCategoryDomain | None) -> str:
+    payload = json.dumps(
+        {'rules': rules, 'domain': domain.model_dump(mode='json') if domain is not None else None},
+        sort_keys=True,
+        default=str,
+    )
+    return hashlib.sha256(payload.encode()).hexdigest()
+
+
 def dataset_validation_hash(dataset: Dataset) -> str:
     """
     Fingerprint current rule definitions independently of dataset modification time.
@@ -145,23 +183,13 @@ def dataset_validation_hash(dataset: Dataset) -> str:
     changed without touching any of its datasets. Include the category domain
     because it defines the meaning of combination rules.
     """
-    rules = (
-        list(
-            DatasetMetricValidationRule.objects
-            .filter(metric__schema_id=dataset.schema_id)
-            .order_by('metric__order', 'metric__uuid', 'order', 'uuid')
-            .values('uuid', 'rule', 'metric__uuid', 'metric__name', 'metric__label')
-        )
-        if dataset.schema_id is not None
-        else []
+    if dataset.schema_id is None:
+        return validation_context_hash([], None)
+    schema = cast(
+        'WithAnnotations[DatasetSchema, _SchemaValidationContext]',
+        DatasetSchema.objects.annotate(current_validation_rules=validation_rules_subquery('pk')).get(pk=dataset.schema_id),
     )
-    domain = (
-        DatasetSchema.objects.get(pk=dataset.schema_id).category_domain.model_dump(mode='json')
-        if dataset.schema_id is not None
-        else None
-    )
-    payload = json.dumps({'rules': rules, 'domain': domain}, sort_keys=True, default=str)
-    return hashlib.sha256(payload.encode()).hexdigest()
+    return validation_context_hash(schema.current_validation_rules, schema.category_domain)
 
 
 def evaluate_dataset_rules(dataset: Dataset) -> list[RuleViolation]:

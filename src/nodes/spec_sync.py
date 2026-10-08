@@ -844,6 +844,7 @@ def sync_parsed_instance_to_db(
                         for dataset in _get_db_datasets(ic).values()
                     ],
                 )
+                assert ic.spec is not None
                 ic.spec.data_entry = resolved.spec.data_entry
                 ic.save(update_fields=['spec'])
             promoted = _promote_dataset_forecast_defaults(ic) if promote_forecast_defaults else 0

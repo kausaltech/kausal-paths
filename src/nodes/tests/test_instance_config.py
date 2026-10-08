@@ -205,8 +205,11 @@ def test_hydrated_instance_reuses_source_instance_config() -> None:
         assert instance.config is ic
 
     instance_config_queries = [
-        query['sql'] for query in query_ctx.captured_queries if 'FROM "nodes_instanceconfig"' in query['sql']
+        query['sql']
+        for query in query_ctx.captured_queries
+        if 'SELECT "nodes_instanceconfig".' in query['sql'] and 'FROM "nodes_instanceconfig"' in query['sql']
     ]
+    # Template-role existence checks do not hydrate another InstanceConfig.
     assert instance_config_queries == []
 
 
