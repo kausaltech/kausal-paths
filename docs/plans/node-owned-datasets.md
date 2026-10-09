@@ -9,7 +9,8 @@ into steps 3–6 were agreed on 2026-09-27. On 2026-10-09 steps 4–6 were moved
 ahead of step 2 and the rest of step 3: lossless export and import are needed
 for other work too, and step 4 depends on neither (see step 4). The step 3
 stopgap is done (ca60343a), as is the re-import identity that step 4 assumes
-(881c9a1a). Step 4 is next.
+(881c9a1a). Step 4 is built (7c60201e; see *As built* there).
+Step 5 is next.
 
 ## Why
 
@@ -289,15 +290,68 @@ bump, so stored revisions are upgraded and content hashes change once.
   rounds to 10 significant digits (`double_precision=10`), while
   `DataPoint.value` is `Decimal(32, 16)`. Replace it with a Pydantic model:
   long form, one entry per data point (uuid, date, metric and category uuid
-  references, `Decimal` value), with comments, evidence and source references
+  references, float value), with comments, evidence and source references
   nested under it instead of matched by natural key. The model converts to and
-  from `PathsDataFrame`; `JSONDataset` delegates to it. If long form is too
-  large for revision storage, the model can store columns without changing its
-  interface.
-- **One upgrader.** `DatasetSnapshot` is also the materialization content, the
-  hash input and the published revision payload (`serialize_dataset`). The
-  `schema_version` upgrader converts stored revisions; every content hash
-  changes once, here.
+  from `PathsDataFrame`; `JSONDataset` delegates to it.
+  - *Long form, not columns* (decided 2026-10-09). Columns would be smaller, but
+    these payloads get diffed (revision diffs, change history, the future sync
+    diff): in parallel arrays one inserted point shifts every index after it,
+    while deepdiff with `group_by='id'` reports a long-form point by its uuid.
+    Long form costs about what the wide table does today (~250-300 bytes a point).
+    `categories` is a dimension-to-category mapping, so each point describes itself.
+  - *Floats, not `Decimal`* (decided 2026-10-09). The amounts are not exact
+    anyway. The database rounds to 16 decimal places, so a round trip is exact
+    after the first pass through it and within tolerance before; comparisons use
+    deepdiff's float tolerance.
+- **One upgrader, applied by a data migration** (decided 2026-10-09).
+  `DatasetSnapshot` is also the materialization content, the hash input and the
+  published revision payload (`serialize_dataset`). A migration rewrites the
+  stored payloads once, so the database holds one format and the reading code
+  carries no legacy path; the upgrade code goes when the migrations are next
+  squashed. Materializations are re-serialized; dataset revisions are upgraded,
+  and both hash chains restamped: the pin's content hash in
+  `InstanceSnapshot.dataset_revisions`, and `template_content_hash` in the
+  revisions composed from a template (precedent:
+  `frameworks/bisko/legacy_contracts.py`). Export files cannot be migrated, so
+  the same upgrade function reads them.
+  - Upgrading on read was rejected: besides keeping two formats, it could not
+    borrow uuids from live data points without an old revision reading
+    differently as the live data changes.
+- **The `InstanceSnapshot` bump rides along** (decided 2026-10-09). `revision_id`
+  leaving `DatasetMeta` changes it too; both bumps land in one migration, so the
+  hash chains are restamped once.
+
+**As built** (2026-10-09): `DatasetSnapshot` v2 in `datasets/snapshot.py`, snapshot
+v15, migration `nodes/0085_dataset_snapshot_v2`, the v1 reader in
+`datasets/legacy_snapshot.py`. Verified on the local `paths-de` database: all 126
+dataset revisions and 17 instance revisions upgraded with both hash chains intact,
+and `test_instance --compare` against outputs recorded before the change matched for
+all seven database instances. Where it differs from the text above, or adds to it:
+
+- **The frame needs a dimension catalog.** A payload names dimensions and categories
+  by uuid only, so `DatasetSnapshot.to_frame(dimensions)` takes the catalog of the
+  graph that reads it; the payload stores look it up in the loader's snapshot.
+  `datasets/tests/test_snapshot_frame.py` holds it equal to `DBDataset.deserialize_df`.
+- **The graph carries the pins** (`InstanceGraph.pinned_revisions`). This also
+  removed a fallback that made `DatasetMeta.revision_id` the dataset's latest
+  published revision in the draft, so after a first publication data entry would
+  have served every dataset's published copy, read-only.
+- **A validation rule in the catalog carries its row's uuid** (`ValidationRuleMeta`),
+  which data entry needs for a violation's identity; a rule declared in YAML has none.
+- **`QualityLevelRef` carries the grade's score**, so a frozen revision computes the
+  quality columns it computed when published.
+- **The export keeps whole snapshots**, structure included, instead of bodies only.
+  The structure then appears twice in an export, but both copies come from
+  `dataset_meta_from_model`, so they cannot disagree, which was decision 14's point.
+- **The migration deletes the materializations** instead of upgrading them: they are
+  derived, and `ensure_dataset_materializations` rebuilds them on first use.
+- **Retired rule kinds are dropped from frozen catalogs.** Three old revisions of
+  `bisko` still held `required_combinations` rules, which made them unreadable since
+  the rules became shapes.
+- **Export files are upgraded on read**, with derived uuids, so a production export
+  can be imported locally while production still runs v1. This goes with the
+  migration at the next squash.
+
   - Revisions frozen before this have no data-point uuids, and the true ones
     cannot be recovered. The upgrader borrows the uuid of the live data point
     with the same coordinates where one still exists, and derives one
@@ -316,6 +370,14 @@ bump, so stored revisions are upgraded and content hashes change once.
   natural key, because the source has no uuids.
 
 ### Step 5: lossless export and import
+
+- **Import only into a database that does not hold the instance** (decided
+  2026-10-09). Uuid fields are checked by kind (see step 6): an *identity*
+  must not exist in the target, a *reference* to something the export does not
+  own (framework dimensions and schemas, the template revision) must exist with
+  the same uuid and match, by content hash where there is one. Either failure
+  aborts the import. A user reference that does not resolve becomes null, as
+  today. Updating an existing instance waits for the sync diff (*Later*).
 
 - `instance_serialization.py` writes and reads the instance scope in about ten
   places (export ranking and dataset query around :1655-1671, and creation at
@@ -384,6 +446,13 @@ while the draft lists every row in the scope), and whether a mutation's result i
 built from the row it wrote or from a refreshed request graph.
 
 ### Later
+
+- **Sync with a diff.** Pushing a local instance to a remote deployment that
+  already holds it should first show what would change there. Until then step 5
+  refuses an existing instance.
+- **Importing frameworks.** A framework lives in one regional deployment today.
+  Its dimension uuids should be stable anyway; importing a framework is not
+  designed yet, and step 5 aborts on a framework mismatch.
 
 - **Generated dimension and category identifiers** (decision 15), on the
   instance-level `DimensionMeta`. Authored identifiers are more deliberate and

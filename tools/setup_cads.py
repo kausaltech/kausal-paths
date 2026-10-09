@@ -155,8 +155,12 @@ def ensure_template_datasets() -> None:
     source = InstanceConfig.objects.get(identifier=SOURCE_TEMPLATE_IDENTIFIER)
     target = InstanceConfig.objects.get(identifier=TEMPLATE_INSTANCE_IDENTIFIER)
     source_export = export_instance(source)
-    source_datasets = [ds for ds in source_export.datasets if ds.identifier is not None and ds.data is not None]
-    source_dataset_ids = {ds.identifier for ds in source_datasets if ds.identifier is not None}
+    source_datasets = [
+        ds
+        for ds in source_export.datasets
+        if ds.meta.identifier is not None and not ds.meta.is_external_placeholder and ds.meta.metrics
+    ]
+    source_dataset_ids = {ds.meta.identifier for ds in source_datasets if ds.meta.identifier is not None}
     if not source_dataset_ids:
         print(f'No real datasets found in source template: {source}')
         return
@@ -182,7 +186,7 @@ def ensure_template_datasets() -> None:
 
     copied = import_instance_datasets(
         target,
-        [ds for ds in source_datasets if ds.identifier in missing_dataset_ids],
+        [ds for ds in source_datasets if ds.meta.identifier in missing_dataset_ids],
         rewire_dataset_ports=True,
         replace_placeholders=True,
         create_missing_dimensions=True,

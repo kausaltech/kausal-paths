@@ -4,7 +4,7 @@ from uuid import UUID
 
 from pydantic import ConfigDict, Field, PrivateAttr
 
-from kausal_common.datasets.category_domain import DatasetCategoryDomain, DatasetCategoryDomainSpec
+from kausal_common.datasets.category_domain import DatasetCategoryDomain
 from kausal_common.i18n.pydantic import I18nBaseModel, I18nString
 
 from datasets.validation_rules import ValidationRule
@@ -64,6 +64,14 @@ class DimensionMeta(FrozenGraphModel):
     categories: tuple[DimensionCategoryMeta, ...] = ()
 
 
+class ValidationRuleMeta(FrozenGraphModel):
+    """A validation rule on a metric, with the identity of its row where it has one."""
+
+    id: UUID | None = None
+    """The rule row's uuid; None for a rule declared in YAML that has no row yet."""
+    rule: ValidationRule
+
+
 class DatasetMetricMeta(FrozenGraphModel):
     id: UUID
     identifier: str | None = None
@@ -72,7 +80,7 @@ class DatasetMetricMeta(FrozenGraphModel):
     quantity: str | None = None
     """Quantity-kind id of what the metric measures; None means any quantity."""
     order: int | None = None
-    validation_rules: tuple[ValidationRule, ...] = ()
+    validation_rules: tuple[ValidationRuleMeta, ...] = ()
     quality_of: UUID | None = None
     """The metric whose grades this metric holds, as scores; see `frameworks.evidence.QUALITY_OF_SPEC_KEY`."""
 
@@ -85,18 +93,27 @@ class QualityLevelKey(FrozenGraphModel):
 
 
 class DatasetMeta(FrozenGraphModel):
+    """
+    A dataset's structure: what it is, not what it holds.
+
+    The graph catalog entry, and the structural half of a `DatasetSnapshot`. Which
+    revision of the dataset a graph reads is binding state, not structure, and lives
+    in the instance's `dataset_revisions` pins.
+    """
+
     id: UUID
     identifier: str | None = None
+    name: I18nString | None = None
     schema_id: UUID
     is_editable: bool | None = None
     metrics: tuple[DatasetMetricMeta, ...] = ()
     declared_dimension_ids: tuple[UUID, ...] = ()
+    time_resolution: str = 'yearly'
+    forecast_from: int | None = None
+    """The dataset's own first forecast year, which bindings inherit unless they set one."""
     is_external_placeholder: bool = False
     external_ref: dict[str, Any] | None = None
-    revision_id: int | None = None
     category_domain: DatasetCategoryDomain = Field(default_factory=DatasetCategoryDomain)
-    category_domain_spec: DatasetCategoryDomainSpec | None = None
-    """Deprecated: no longer authored (see `shape_id`). Kept so revisions frozen with it keep their content hash."""
     # Left out when absent, so revisions frozen before shapes keep their content hash.
     shape_id: UUID | None = Field(default=None, exclude_if=lambda value: value is None)
     """The shape this dataset's entry form follows, resolved in the dataset's own instance."""

@@ -230,5 +230,4 @@ def test_sync_dataset_creates_final_materialization():
     dataset = Dataset.objects.get(identifier='test/import')
     materialization = DatasetMaterialization.objects.get(dataset=dataset)
     assert materialization.generation == 1
-    assert materialization.content['data'] is not None
-    assert len(materialization.content['data']['data']) == 2
+    assert len(materialization.content['points']) == 2

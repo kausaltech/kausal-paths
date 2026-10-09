@@ -5,12 +5,11 @@ from functools import cached_property
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid3
 
-from django.db.models import Prefetch
 from wagtail.models import Revision
 
 import polars as pl
 
-from kausal_common.datasets.models import DataPoint, Dataset, DimensionCategory
+from kausal_common.datasets.models import Dataset
 from kausal_common.i18n.pydantic import set_i18n_context
 
 from common import qualifiers
@@ -23,8 +22,7 @@ from datasets.plausibility import (
     applicable_plausibility_ranges,
     evaluate_plausibility_cells,
 )
-from datasets.runtime import JSONDataset
-from datasets.snapshot import DatasetSnapshot
+from datasets.snapshot import DataPointEvidenceSnapshot, DatasetSnapshot
 from datasets.validation import evaluate_closed_domain, evaluate_rule
 from frameworks.models import Framework
 from frameworks.qualifiers import attach_evidence_qualifiers, qualifier_catalog_for_instance
@@ -76,6 +74,7 @@ class EntryDatasetData:
     dimensions: dict[str, UUID]
     categories: dict[tuple[str, str], UUID]
     point_ids: dict[tuple[UUID, int, tuple[UUID, ...]], UUID] = field(default_factory=dict)
+    evidence: dict[tuple[UUID, int, tuple[UUID, ...]], DataPointEvidenceSnapshot] = field(default_factory=dict)
 
     def coordinates(self, row: Mapping[str, object]) -> tuple[tuple[UUID, UUID], ...]:
         return tuple(
@@ -102,7 +101,6 @@ class DataEntryQuery:
         self._data: dict[UUID, EntryDatasetData] = {}
         self._findings: dict[UUID, tuple[EntryFinding, ...]] = {}
         self.plausibility: dict[UUID, list[PlausibilityFinding]] = {}
-        self._point_ids_loaded: set[tuple[UUID, int]] = set()
 
     @property
     def years(self) -> list[int]:
@@ -132,7 +130,7 @@ class DataEntryQuery:
         return {dataset.uuid: dataset for dataset in rows}
 
     def is_editable(self, id: UUID) -> bool:
-        if self.published or self.graph.dataset_by_id[id].revision_id is not None:
+        if self.published or id in self.graph.pinned_revisions:
             return False
         dataset = self.datasets[id]
         return bool(
@@ -141,85 +139,64 @@ class DataEntryQuery:
             and dataset.permission_policy().user_has_perm(self.user, 'change', dataset)
         )
 
+    def _contents(self, wanted: set[UUID]) -> dict[UUID, dict]:
+        """Each dataset's payload in this edition: its pinned revision, else its live draft."""
+        pins = self.graph.pinned_revisions
+        current = {
+            row.dataset.uuid: row.content
+            for row in DatasetMaterialization.objects.filter(
+                dataset__uuid__in=[id for id in wanted if id not in pins],
+            ).select_related('dataset')
+        }
+        pinned = [pins[id] for id in wanted if id in pins]
+        revisions = {revision.pk: revision for revision in Revision.objects.filter(pk__in=pinned)}
+        contents: dict[UUID, dict] = {}
+        for id in wanted:
+            revision_id = pins.get(id)
+            if self.published and revision_id is None:
+                raise ValueError(f'Published dataset {id} has no revision pin')
+            if revision_id is None:
+                content = current.get(id)
+                contents[id] = content if content is not None else serialize_dataset(self.datasets[id])
+                continue
+            revision = revisions.get(revision_id)
+            dataset = self.datasets[id]
+            if revision is None or revision.object_id != str(dataset.pk) or revision.content_type.model_class() is not Dataset:
+                raise ValueError(f'Dataset revision pin is unavailable for {id}')
+            contents[id] = revision.content
+        return contents
+
     def load(self, dataset_ids: Iterable[UUID]) -> None:
         wanted = set(dataset_ids) & self.datasets.keys() - self._data.keys()
         if not wanted:
             return
-        current = {
-            row.dataset.uuid: row.content
-            for row in DatasetMaterialization.objects.filter(
-                dataset__uuid__in=[id for id in wanted if self.graph.dataset_by_id[id].revision_id is None],
-            ).select_related('dataset')
-        }
-        pinned = {self.graph.dataset_by_id[id].revision_id for id in wanted} - {None}
-        revisions = {revision.pk: revision for revision in Revision.objects.filter(pk__in=pinned)}
-        for id in wanted:
+        for id, content in self._contents(wanted).items():
             meta = self.graph.dataset_by_id[id]
-            if self.published and meta.revision_id is None:
-                raise ValueError(f'Published dataset {id} has no revision pin')
-            if meta.revision_id is not None:
-                revision = revisions.get(meta.revision_id)
-                dataset = self.datasets[id]
-                if (
-                    revision is None
-                    or revision.object_id != str(dataset.pk)
-                    or revision.content_type.model_class() is not Dataset
-                ):
-                    raise ValueError(f'Dataset revision pin is unavailable for {id}')
-                content = revision.content
-            else:
-                content = current.get(id)
-                if content is None:
-                    content = serialize_dataset(self.datasets[id])
             with set_i18n_context(self.graph.metadata.primary_language, self.graph.metadata.other_languages):
                 snapshot = DatasetSnapshot.model_validate(content)
-            if snapshot.data is not None:
-                frame = pl.DataFrame(
-                    attach_evidence_qualifiers(
-                        JSONDataset.deserialize_df(snapshot.data),
-                        snapshot.evidence,
-                        self.qualifier_catalog,
-                    )
-                )
-            else:
-                frame = pl.DataFrame(
-                    schema={YEAR_COLUMN: pl.Int64, **{m.identifier: pl.Float64 for m in meta.metrics if m.identifier}}
-                )
+            catalog = self.graph.dimension_by_id
+            frame = pl.DataFrame(
+                attach_evidence_qualifiers(snapshot.to_frame(catalog), snapshot.cell_grades(catalog), self.qualifier_catalog)
+            )
             dimensions: dict[str, UUID] = {}
             categories: dict[tuple[str, str], UUID] = {}
             for dim_id in meta.declared_dimension_ids:
                 dim = self.graph.dimension_by_id[dim_id]
-                column = snapshot.dimension_columns.get(dim.identifier, dim.identifier)
+                column = snapshot.dimension_columns.get(dim.id, dim.identifier)
                 dimensions[column] = dim.id
                 categories.update({(column, cat.identifier or str(cat.id)): cat.id for cat in dim.categories})
                 if column not in frame.columns:
                     frame = frame.with_columns(pl.lit(None, dtype=pl.String).alias(column))
                 else:
                     frame = frame.with_columns(pl.col(column).cast(pl.String))
-            self._data[id] = EntryDatasetData(meta, snapshot, frame, dimensions, categories)
-
-    def load_point_ids(self, dataset_ids: Iterable[UUID], years: list[int]) -> None:
-        missing = {
-            (id, year)
-            for id in set(dataset_ids) & self.datasets.keys()
-            for year in years
-            if (id, year) not in self._point_ids_loaded and self.graph.dataset_by_id[id].revision_id is None
-        }
-        wanted = {id for id, _ in missing}
-        if not wanted:
-            return
-        rows = (
-            DataPoint.objects
-            .filter(dataset__uuid__in=wanted)
-            .select_related('dataset', 'metric')
-            .prefetch_related(
-                Prefetch('dimension_categories', queryset=DimensionCategory.objects.only('uuid')),
-            )
-        )
-        for point in rows:
-            key = (point.metric.uuid, point.date.year, tuple(sorted(cat.uuid for cat in point.dimension_categories.all())))
-            self._data[point.dataset.uuid].point_ids[key] = point.uuid
-        self._point_ids_loaded.update(missing)
+            data = EntryDatasetData(meta, snapshot, frame, dimensions, categories)
+            declared = set(meta.declared_dimension_ids)
+            for point in snapshot.points:
+                key = (point.metric, point.date.year, tuple(sorted(c for d, c in point.categories.items() if d in declared)))
+                data.point_ids[key] = point.id
+                if point.evidence is not None:
+                    data.evidence[key] = point.evidence
+            self._data[id] = data
 
     def points(self, selections: tuple[EntrySelection, ...], years: list[int] | None) -> list[EntryPoint]:
         selected = self.selected_years(years)
@@ -227,14 +204,9 @@ class DataEntryQuery:
             return []
         dataset_ids = {item.dataset_id for item in selections}
         self.load(dataset_ids)
-        self.load_point_ids(dataset_ids, selected)
         result: dict[tuple[UUID, UUID, int, tuple[tuple[UUID, UUID], ...]], EntryPoint] = {}
         for id in dataset_ids & self.datasets.keys():
             data = self._data[id]
-            evidence = {
-                (item.point.metric, item.point.year, tuple(sorted(item.point.categories))): item
-                for item in data.snapshot.evidence
-            }
             for row in data.frame.filter(pl.col(YEAR_COLUMN).is_in(selected)).iter_rows(named=True):
                 coords = data.coordinates(row)
                 year = int(row[YEAR_COLUMN])
@@ -243,12 +215,12 @@ class DataEntryQuery:
                         continue
                     if metric.identifier not in row:
                         continue
-                    labels = tuple(sorted(str(row[column]) for column in data.dimensions))
-                    proof = evidence.get((metric.identifier, year, labels))
+                    key = (metric.id, year, tuple(sorted(cat for _, cat in coords)))
+                    proof = data.evidence.get(key)
                     quality = proof.quality_level if proof else None
                     value = row[metric.identifier]
                     point = EntryPoint(
-                        data.point_ids.get((metric.id, year, tuple(sorted(cat for _, cat in coords)))),
+                        data.point_ids.get(key),
                         id,
                         metric.id,
                         year,
@@ -401,9 +373,9 @@ class DataEntryQuery:
         violations = []
         metric_by_name = {metric.identifier: metric for metric in meta.metrics}
         dim_cols = list(data.dimensions)
-        for metric_snapshot in data.snapshot.metrics:
+        for metric_snapshot in data.snapshot.meta.metrics:
             metric = metric_by_name.get(metric_snapshot.identifier)
-            if metric is None:
+            if metric is None or metric_snapshot.identifier is None:
                 continue
             column = metric_snapshot.identifier
             if column not in frame.columns:
@@ -411,7 +383,8 @@ class DataEntryQuery:
             found = [
                 violation
                 for rule in metric_snapshot.validation_rules
-                for violation in evaluate_rule(rule.rule, rule.uuid, metric.id, column, frame, dim_cols)
+                if rule.id is not None  # a rule row always has one; only YAML-declared rules lack it
+                for violation in evaluate_rule(rule.rule, rule.id, metric.id, column, frame, dim_cols)
             ]
             if meta.category_domain.mode == 'closed':
                 domain_id = meta.shape_id or meta.schema_id

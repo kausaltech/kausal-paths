@@ -11,7 +11,7 @@ import polars as pl
 import pytest
 
 from common import polars as ppl, qualifiers
-from datasets.snapshot import DataPointEvidenceSnapshot, DataPointKey, QualityLevelRef
+from datasets.snapshot import CellLabels, QualityLevelRef
 from frameworks.models import DataQualityLevel, DataQualityScheme
 from frameworks.qualifiers import attach_evidence_qualifiers, qualifier_catalog_for_framework, qualifier_catalog_for_instance
 from frameworks.tests.factories import FrameworkConfigFactory, FrameworkFactory
@@ -72,13 +72,10 @@ def test_evidence_is_attached_to_its_scheme_without_reinterpreting_old_grades() 
         pl.DataFrame({'Year': [2020, 2021], 'Value': [10.0, 20.0]}),
         meta=ppl.DataFrameMeta(units={'Value': unit_registry.parse_units('MWh/a')}, primary_keys=['Year']),
     )
-    evidence = [
-        DataPointEvidenceSnapshot(
-            point=DataPointKey(year=2020, metric='Value'),
-            quality_level=QualityLevelRef(uuid=grade.uuid, scheme='completeness', scheme_version='1', level='B'),
-        )
-    ]
-    result = attach_evidence_qualifiers(frame, evidence, catalog)
+    grades: dict[CellLabels, QualityLevelRef] = {
+        (2020, 'Value', ()): QualityLevelRef(uuid=grade.uuid, scheme='completeness', scheme_version='1', level='B')
+    }
+    result = attach_evidence_qualifiers(frame, grades, catalog)
     rows = result['Value__qual'].to_list()
     assert rows[0]['bisko_completeness'] == {'score': 0.25, 'coverage': 1.0}
     assert rows[0]['bisko_quality'] is None
@@ -90,10 +87,10 @@ def test_evidence_is_attached_to_its_scheme_without_reinterpreting_old_grades() 
     other = FrameworkFactory.create(identifier='other')
     foreign = DataQualityScheme.objects.create(framework=other, identifier='completeness', version='1', name='Other')
     foreign_grade = DataQualityLevel.objects.create(scheme=foreign, identifier='B', name='B', score=Decimal('0.9'))
-    evidence[0].quality_level = QualityLevelRef(
-        uuid=str(foreign_grade.uuid), scheme='completeness', scheme_version='1', level='B'
-    )
-    ignored = attach_evidence_qualifiers(frame, evidence, catalog)
+    grades = {
+        (2020, 'Value', ()): QualityLevelRef(uuid=str(foreign_grade.uuid), scheme='completeness', scheme_version='1', level='B'),
+    }
+    ignored = attach_evidence_qualifiers(frame, grades, catalog)
     assert ignored['Value__qual'][0]['bisko_completeness'] is None
 
 
@@ -105,13 +102,10 @@ def test_portable_historical_scheme_name_is_resolved_in_the_current_framework() 
         pl.DataFrame({'Year': [2020], 'Value': [10.0]}),
         meta=ppl.DataFrameMeta(units={'Value': unit_registry.parse_units('MWh/a')}, primary_keys=['Year']),
     )
-    evidence = [
-        DataPointEvidenceSnapshot(
-            point=DataPointKey(year=2020, metric='Value'),
-            quality_level=QualityLevelRef(uuid='different-deployment', scheme='bisko', scheme_version='1', level='B'),
-        )
-    ]
-    result = attach_evidence_qualifiers(frame, evidence, qualifier_catalog_for_framework(framework), portable=True)
+    portable: dict[CellLabels, QualityLevelRef] = {
+        (2020, 'Value', ()): QualityLevelRef(uuid='different-deployment', scheme='bisko', scheme_version='1', level='B')
+    }
+    result = attach_evidence_qualifiers(frame, portable, qualifier_catalog_for_framework(framework), portable=True)
     assert result['Value__qual'][0]['bisko_quality'] == {'score': 0.5, 'coverage': 1.0}
 
 

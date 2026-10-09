@@ -176,8 +176,8 @@ class EntryDatasetType:
     @sb.field
     def name(self) -> str:
         self._query.load([self.id])
-        snapshot = self._query._data[self.id].snapshot
-        return str(snapshot.name or snapshot.identifier or self.id)
+        meta = self._query._data[self.id].snapshot.meta
+        return str(meta.name or meta.identifier or self.id)
 
     @sb.field
     def dimensions(self) -> list[DatasetDimensionType]:
@@ -220,7 +220,7 @@ class EntryDatasetType:
     def metrics(self) -> list[DatasetMetricType]:
         self._query.load([self.id])
         snapshot = self._query._data[self.id].snapshot
-        rules = {metric.identifier: metric.validation_rules for metric in snapshot.metrics}
+        rules = {metric.identifier: metric.validation_rules for metric in snapshot.meta.metrics}
         return [
             DatasetMetricType(
                 id=sb.ID(str(metric.id)),
@@ -231,8 +231,9 @@ class EntryDatasetType:
                 next_sibling=None,
                 quality_of=sb.ID(str(metric.quality_of)) if metric.quality_of else None,
                 validation_rules=[
-                    MetricValidationRuleType(id=sb.ID(str(rule.uuid)), rule=rule_to_gql(rule.rule))
-                    for rule in rules.get(metric.identifier or '', [])
+                    MetricValidationRuleType(id=sb.ID(str(rule.id)), rule=rule_to_gql(rule.rule))
+                    for rule in rules.get(metric.identifier, ())
+                    if rule.id is not None
                 ],
             )
             for metric in self._query.graph.dataset_by_id[self.id].metrics

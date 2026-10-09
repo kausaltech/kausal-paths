@@ -48,13 +48,15 @@ def test_empty_dataset_has_typed_calculation_payload() -> None:
 
     from datasets.materialization import materialize_dataset
     from datasets.payloads import CurrentDatasetPayloadStore, DatasetPayloadRef
-    from datasets.runtime import JSONDataset
+    from datasets.snapshot import DatasetSnapshot
+    from nodes.defs.graph import DimensionMeta
 
     dataset = DatasetFactory.create(identifier='kommune/empty')
-    DatasetSchemaDimensionFactory.create(schema=dataset.schema, dimension=DimensionFactory.create())
+    dimension = DimensionFactory.create()
+    DatasetSchemaDimensionFactory.create(schema=dataset.schema, dimension=dimension)
     DatasetMetricFactory.create(schema=dataset.schema, name='Value', unit='MWh')
     materialization = materialize_dataset(dataset)
-    assert materialization.content['data']['data'] == []
+    assert DatasetSnapshot.model_validate(materialization.content).points == []
     ref = DatasetPayloadRef(
         payload_id=materialization.pk,
         dataset_pk=dataset.pk,
@@ -64,20 +66,37 @@ def test_empty_dataset_has_typed_calculation_payload() -> None:
         generation=materialization.generation,
         forecast_from=None,
     )
-    frame = CurrentDatasetPayloadStore([ref]).get_dataframe(ref)
+    catalog = {dimension.uuid: DimensionMeta(id=dimension.uuid, identifier='sector')}
+    frame = CurrentDatasetPayloadStore([ref], catalog).get_dataframe(ref)
     assert 'Value' in frame.columns
     assert frame.is_empty()
     assert 'Value' in frame.get_meta().units
-    assert len(frame.dim_ids) == 1
-    assert frame.schema[frame.dim_ids[0]] == pl.String
-    assert JSONDataset.deserialize_df(materialization.content['data']).is_empty()
+    assert frame.dim_ids == ['sector']
+    # Typed, as the live reader types it, rather than null: an empty dataset still joins.
+    assert frame.schema['sector'] == pl.Categorical
 
 
-def test_empty_dataset_without_metrics_has_no_calculation_payload() -> None:
-    from datasets.transfer import export_dataset_data_safe
+def test_empty_dataset_without_metrics_has_no_calculation_frame() -> None:
+    from datasets.materialization import materialize_dataset
+    from datasets.payloads import CurrentDatasetPayloadStore, DatasetPayloadRef
+    from datasets.snapshot import DatasetSnapshot
 
     dataset = DatasetFactory.create(identifier='kommune/not-configured')
-    assert export_dataset_data_safe(dataset) is None
+    materialization = materialize_dataset(dataset)
+    snapshot = DatasetSnapshot.model_validate(materialization.content)
+    assert snapshot.meta.metrics == ()
+    assert snapshot.points == []
+    ref = DatasetPayloadRef(
+        payload_id=materialization.pk,
+        dataset_pk=dataset.pk,
+        dataset_uuid=str(dataset.uuid),
+        identifier=dataset.identifier or '',
+        content_hash=materialization.content_hash,
+        generation=materialization.generation,
+        forecast_from=None,
+    )
+    with pytest.raises(RuntimeError, match='has no metrics'):
+        CurrentDatasetPayloadStore([ref], {}).get_dataframe(ref)
 
 
 CREATE_DATA_POINT = """
