@@ -18,7 +18,7 @@ from strawberry.scalars import JSON
 from kausal_common.strawberry.pydantic import StrawberryPydanticType, pydantic_type
 
 from paths import gql
-from paths.refs import DimensionRef
+from paths.refs import DimensionIdentifierRef
 
 from nodes.defs.instance_defs import DatasetRepoSpec, InstanceModelSpec, YearsSpec
 from nodes.defs.node_defs import OutputMetricDef
@@ -118,7 +118,7 @@ class InputPortType(StrawberryPydanticType[InputPortDef]):
     validation: JSON | None = None
     _definition_editable: sb.Private[bool] = True
     _mutation_editable: sb.Private[bool | None] = None
-    required_dimensions: list[DimensionRef]
+    required_dimensions: list[DimensionIdentifierRef]
     bindings: list[Annotated['InputPortBinding', sb.lazy('nodes.schema')]] = sb.field(default_factory=list)
 
     _node_uuid: sb.Private[UUID | None] = None
@@ -210,7 +210,7 @@ class OutputPortType(StrawberryPydanticType[OutputPortDef]):
     column_id: auto
     _definition_editable: sb.Private[bool] = True
     _mutation_editable: sb.Private[bool | None] = None
-    dimensions: list[DimensionRef]
+    dimensions: list[DimensionIdentifierRef]
     edges: list[Annotated['NodeEdgeType', sb.lazy('nodes.schema')]] = sb.field(default_factory=list)
 
     _node: sb.Private['Node | None'] = None

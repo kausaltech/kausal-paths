@@ -5,16 +5,26 @@ See `docs/architecture/shapes.md`. These are the stored declarations of the inst
 `nodes.shapes` resolves their inheritance into the effective shapes the runtime uses.
 """
 
-from typing import Literal
-from uuid import UUID
+from typing import TYPE_CHECKING, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from kausal_common.i18n.pydantic import I18nBaseModel, I18nStringInstance
 
-from paths.identifiers import DimensionCategoryIdentifier, DimensionIdentifier, ShapeIdentifier
+from paths.identifiers import (
+    DimensionCategoryIdentifier,
+    DimensionIdentifier,
+    ShapeCombinationId,
+    ShapeId,
+    ShapeIdentifier,
+    ShapeRequiredGroupId,
+)
+from paths.refs import ShapeCombinationRef, ShapeRef
 
 from nodes.value_validation import QualifierRequirement
+
+if TYPE_CHECKING:
+    from uuid import UUID
 
 type ShapeOwner = Literal['framework', 'instance']
 """
@@ -30,7 +40,7 @@ class ShapeCombinationSpec(BaseModel):
 
     model_config = ConfigDict(extra='forbid', frozen=True)
 
-    uuid: UUID
+    uuid: ShapeCombinationId
     identifier: str | None = None
     categories: dict[DimensionIdentifier, DimensionCategoryIdentifier]
 
@@ -40,9 +50,9 @@ class ShapeRequiredGroupSpec(BaseModel):
 
     model_config = ConfigDict(extra='forbid', frozen=True)
 
-    uuid: UUID
+    uuid: ShapeRequiredGroupId
     identifier: str | None = None
-    combinations: list[UUID] = Field(min_length=1)
+    combinations: list[ShapeCombinationRef] = Field(min_length=1)
     qualifiers: dict[str, QualifierRequirement] = Field(default_factory=dict)
 
 
@@ -51,13 +61,13 @@ class ShapeSpec(I18nBaseModel):
 
     model_config = ConfigDict(extra='forbid')
 
-    uuid: UUID
+    uuid: ShapeId
     identifier: ShapeIdentifier | None = None
     name: I18nStringInstance | None = None
     owner: ShapeOwner = 'framework'
     dimensions: list[DimensionIdentifier] = Field(default_factory=list)
     """Required unless the shape inherits; a child constrains the same dimensions as its parents."""
-    inherits: list[UUID] = Field(default_factory=list)
+    inherits: list[ShapeRef] = Field(default_factory=list)
     closed: bool = False
     combinations: list[ShapeCombinationSpec] = Field(default_factory=list)
     required: list[ShapeRequiredGroupSpec] = Field(default_factory=list)

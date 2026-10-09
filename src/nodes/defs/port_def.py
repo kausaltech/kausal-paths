@@ -8,8 +8,8 @@ from pydantic import Field, PrivateAttr
 
 from kausal_common.i18n.pydantic import I18nBaseModel, I18nString
 
-from paths.identifiers import MixedCaseIdentifier
-from paths.refs import DimensionRef, NodeRef, QuantityKindRef, UniqueList
+from paths.identifiers import MixedCaseIdentifier, NodeIdentifier, PortId
+from paths.refs import DimensionIdentifierRef, PortRef, QuantityKindRef, UniqueList
 
 from nodes.units import Unit
 from nodes.value_validation import ValueContract
@@ -139,7 +139,7 @@ class OutputPortDeclaration:
 class InputPortDef(I18nBaseModel):
     """Definition of a node input port (stored in NodeConfig.input_ports JSONField)."""
 
-    id: UUID
+    id: PortId
     identifier: MixedCaseIdentifier | None = None
     """
     Optional human-readable name for the port, unique among the node's input
@@ -162,7 +162,7 @@ class InputPortDef(I18nBaseModel):
     unit: Unit | None = None
     multi: bool = False
     """When True, the port accepts multiple connections (aggregated by the node's computation)."""
-    paired_output_port_id: UUID | None = None
+    paired_output_port_id: PortRef | None = None
     """Output port produced from this input by nodes with paired metric impacts."""
     is_editable: bool = True
     """Whether the port definition itself may be edited; bindings remain independently editable.
@@ -170,14 +170,14 @@ class InputPortDef(I18nBaseModel):
     A paired input can also edit label, unit and quantity through its editable output,
     even when this flag protects the rest of its generated definition.
     """
-    required_dimensions: UniqueList[DimensionRef] = Field(default_factory=list)
+    required_dimensions: UniqueList[DimensionIdentifierRef] = Field(default_factory=list)
     binding_owner: Literal['framework', 'instance'] = 'framework'
     """In a framework release, who may replace the bindings. Local-node inputs remain instance-owned."""
     validation: ValueContract | None = None
     """Consumer-owned requirements on the delivered dataset or upstream-node value."""
 
     # These are used only temporarily at export time to store the node reference and metric ID.
-    _from_node: NodeRef | None = PrivateAttr(default=None)
+    _from_node: NodeIdentifier | None = PrivateAttr(default=None)
     _edge_metric_id: str | None = PrivateAttr(default=None)
 
 
@@ -190,7 +190,7 @@ class OutputPortDef(I18nBaseModel):
     be connected to zero or more edges.
     """
 
-    id: UUID
+    id: PortId
     identifier: MixedCaseIdentifier | None = None
     """
     Optional human-readable name for the port, unique among the node's output
@@ -208,7 +208,7 @@ class OutputPortDef(I18nBaseModel):
     """DataFrame column name for this port. When None, inferred by the loader."""
     is_editable: bool = True
     """Whether the user can modify this port in the model editor."""
-    dimensions: UniqueList[DimensionRef] = Field(default_factory=list)
+    dimensions: UniqueList[DimensionIdentifierRef] = Field(default_factory=list)
 
     _metric_id: str | None = PrivateAttr(default=None)
 

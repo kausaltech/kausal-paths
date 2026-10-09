@@ -187,6 +187,10 @@ implement a new policy.
 - Each city/region has its own `Instance` with specific configuration
 - Instance configurations stored in database as `InstanceConfig`
 - Context objects provide runtime parameters and scenarios
+- An export keeps every uuid when imported; a copy is the export rekeyed to new uuids
+  (`import_instance_copy`). Every uuid field's type says whether it defines, references or
+  records the provenance of an entity, and nothing in a snapshot may be ordered by pk. See
+  [`docs/architecture/export-import-and-copies.md`](docs/architecture/export-import-and-copies.md).
 - A city that includes a shared module restyles the module's dimensions with a
   top-level `category_overrides: {<dimension>: {<category>: {color, order, label_<lang>}}}`
   block, resolved after the includes are merged (`InstanceYAMLConfig._apply_category_overrides`).

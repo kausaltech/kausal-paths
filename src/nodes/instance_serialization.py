@@ -19,8 +19,8 @@ from __future__ import annotations
 
 from copy import deepcopy
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Literal, Self, cast
-from uuid import UUID, uuid3, uuid4
+from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Literal, Self, cast
+from uuid import UUID, uuid3
 
 from django.db import transaction
 from django.db.models import Q
@@ -34,11 +34,25 @@ from kausal_common.i18n.pydantic import (
     get_modeltrans_attrs_from_str,
 )
 
+from paths.identifiers import BindingId, NodeId  # noqa: TC002 - Pydantic field
+from paths.refs import (
+    DatasetMetricRef,
+    DatasetRef,
+    FrameworkCategoryRef,
+    FrameworkRef,
+    InstanceCopyOf,
+    MeasureTemplateRef,
+    NodeCopyOf,
+    NodeRef,
+    PortRef,
+)
+from paths.uuid_kinds import Token
+
 from datasets.catalogue import dataset_meta_from_model
 from datasets.shape_domain import CategoryDomainResolver
 from datasets.snapshot import DatasetSnapshot, metric_column_id
-from datasets.transfer import import_instance_datasets
-from nodes.defs.data_entry import DataEntrySpec, data_entry_dataset_ids, remap_data_entry
+from datasets.transfer import import_instance_datasets, save_in_order
+from nodes.defs.data_entry import data_entry_dataset_ids
 from nodes.defs.graph import (
     DatasetMeta,
     DimensionCategoryMeta,
@@ -53,7 +67,7 @@ from nodes.page_snapshot import PageSnapshot
 from nodes.snapshot_base import ModelSnapshot, apply_translated, translated_string_from_model
 
 if TYPE_CHECKING:
-    from collections.abc import Hashable, Iterable, Mapping, Sequence
+    from collections.abc import Callable, Hashable, Iterable, Mapping, Sequence
 
     from django.contrib.contenttypes.models import ContentType
     from django.db.models import QuerySet
@@ -61,8 +75,11 @@ if TYPE_CHECKING:
 
     from kausal_common.datasets.models import (
         Dataset as DatasetModel,
-        DimensionCategory,
     )
+    from kausal_common.i18n.pydantic import I18nString
+
+    from paths.rekey import Rekeying
+    from paths.uuid_kinds import UuidEntity
 
     from frameworks.models import FrameworkConfig
     from nodes.models import InstanceConfig, NodeConfig, NodeInputPortBinding, NodeLayout
@@ -95,7 +112,7 @@ if TYPE_CHECKING:
 #   v15: a dataset catalog entry is pure structure: its pinned revision lives only in
 #        ``dataset_revisions``, it carries the dataset's name, forecast year and time
 #        resolution, and each metric validation rule carries its row's uuid.
-SNAPSHOT_SCHEMA_VERSION = 15
+SNAPSHOT_SCHEMA_VERSION = 17
 
 _MARKDOWN = MarkdownIt('commonmark', {'html': True})
 
@@ -122,7 +139,7 @@ class NodeLayoutSnapshot(ModelSnapshot['NodeLayout']):
 class InheritedNodeSettings(BaseModel):
     """Local selections for inherited nodes, retained in authoring snapshots."""
 
-    node_uuid: UUID
+    node_uuid: NodeRef
     goals: NodeGoals | None = None
     layout: NodeLayoutSnapshot | None = None
     parameter_values: dict[str, bool | float | str | None] = Field(default_factory=dict)
@@ -130,13 +147,13 @@ class InheritedNodeSettings(BaseModel):
 
 
 class InputBindingOverrideSnapshot(BaseModel):
-    node_uuid: UUID
-    port_uuid: UUID
+    node_uuid: NodeRef
+    port_uuid: PortRef
     bindings: list['InputBindingSnapshot'] = Field(default_factory=list)
 
 
 class NodeSnapshot(ModelSnapshot['NodeConfig']):
-    uuid: UUID
+    uuid: NodeId
     identifier: str | None = None
     name: TranslatedString | None = None
     short_name: TranslatedString | None = None
@@ -149,8 +166,8 @@ class NodeSnapshot(ModelSnapshot['NodeConfig']):
     is_visible: bool = True
     is_editable: bool | None = None
     template_revision_id: int | None = None
-    indicator_node: UUID | None = None
-    copy_of: UUID | None = None
+    indicator_node: NodeRef | None = None
+    copy_of: NodeCopyOf | None = None
     body: list[Any] | None = None
     """Raw StreamField data of ``NodeConfig.body``. Admin-authored only, so
     parse-side snapshots never carry it; row-side snapshots preserve it so
@@ -382,6 +399,54 @@ def upgrade_dataset_catalog_v15(data: dict[str, Any]) -> None:
             metric['validation_rules'] = [rule for rule in rules if rule['rule'].get('kind') not in _RETIRED_RULE_KINDS]
 
 
+def upgrade_node_references_v16(nodes: Iterable[dict[str, Any]], uuid_by_identifier: Mapping[str, UUID | str]) -> bool:
+    """
+    Turn an action's parent and hook targets from node identifiers into uuids, in place.
+
+    Returns whether anything changed. An identifier that ``uuid_by_identifier`` does not
+    name raises: the target is not in this snapshot, so its uuid cannot be known here.
+    """
+    changed = False
+    for node in nodes:
+        type_config = (node.get('spec') or {}).get('type_config') or {}
+        if type_config.get('kind') != 'action':
+            continue
+        refs = [type_config, *(type_config.get('hooks') or [])]
+        for holder, key in ((ref, 'parent' if ref is type_config else 'node') for ref in refs):
+            value = holder.get(key)
+            if not value or _is_uuid(value):
+                continue
+            if value not in uuid_by_identifier:
+                raise ValueError(f'Node {node.get("identifier")}: {key} {value!r} is not a node of this snapshot')
+            holder[key] = str(uuid_by_identifier[value])
+            changed = True
+    return changed
+
+
+def drop_dead_node_spec_fields_v17(spec: dict[str, Any]) -> bool:
+    """
+    Remove ``NodeSpec.pipeline`` and ``NodeSpecExtra.other`` from a stored spec, in place.
+
+    Nothing wrote either field with content or read it, and ``NodeSpec`` forbids unknown
+    keys. Returns whether anything changed.
+    """
+    changed = 'pipeline' in spec
+    spec.pop('pipeline', None)
+    extra = spec.get('extra')
+    if isinstance(extra, dict) and 'other' in extra:
+        del extra['other']
+        changed = True
+    return changed
+
+
+def _is_uuid(value: object) -> bool:
+    try:
+        UUID(str(value))
+    except ValueError:
+        return False
+    return True
+
+
 def _upgrade_bindings_v9(data: dict[str, Any]) -> None:
     """Merge the legacy ``edges`` + ``dataset_ports`` arrays into one positioned binding list."""
     edges = [EdgeSnapshot.model_validate(e) for e in data.pop('edges', [])]
@@ -496,8 +561,8 @@ class NodePortSource(BaseModel):
     """An input-binding source: another node's output port."""
 
     kind: Literal['node'] = 'node'
-    node_id: UUID
-    port_id: UUID
+    node_id: NodeRef
+    port_id: PortRef
 
 
 class DatasetMetricSource(BaseModel):
@@ -512,8 +577,8 @@ class DatasetMetricSource(BaseModel):
     kind: Literal['dataset'] = 'dataset'
     dataset: str
     metric: str
-    dataset_uuid: UUID | None = None
-    metric_uuid: UUID | None = None
+    dataset_uuid: DatasetRef | None = None
+    metric_uuid: DatasetMetricRef | None = None
     dataset_revision: int | None = None
 
 
@@ -530,9 +595,9 @@ class InputBindingSnapshot(ModelSnapshot['NodeInputPortBinding']):
     loadable; the keys are ignored (``I18nBaseModel`` ignores extra keys).
     """
 
-    uuid: UUID | None = None
-    node_id: UUID
-    port_id: UUID
+    uuid: BindingId | None = None
+    node_id: NodeRef
+    port_id: PortRef
     position: int = 0
     source: InputBindingSource = Field(discriminator='kind')
     transformations: list[PortTransformOp] = Field(default_factory=list)
@@ -840,7 +905,7 @@ def existing_dataset_port_identities(ic: InstanceConfig) -> list[tuple[tuple[Has
 
 
 class DatasetRevisionPinSnapshot(BaseModel):
-    dataset_uuid: UUID
+    dataset_uuid: DatasetRef
     identifier: str | None = None
     revision_id: int
     content_hash: str
@@ -872,7 +937,8 @@ class InstanceSnapshot(BaseModel):
     # still deserialize.
     metadata: InstanceMetadata = Field(default_factory=InstanceMetadata)
     spec: InstanceModelSpec
-    copy_of: str | None = None  # uuid of the InstanceConfig this was copied from
+    copy_of: InstanceCopyOf | None = None
+    """The uuid of the InstanceConfig this was copied from."""
     nodes: list[NodeSnapshot] = Field(default_factory=list)
     bindings: list[InputBindingSnapshot] = Field(default_factory=list)
     dataset_revisions: list[DatasetRevisionPinSnapshot] = Field(default_factory=list)
@@ -926,6 +992,12 @@ class InstanceSnapshot(BaseModel):
             self._provenance.get(f'parameter_defaults/{identifier}'),
         )
 
+    def rekey_finish(self, original: Self, rekeying: Rekeying) -> Self:
+        """Record the instance a copy was copied from."""
+        if self.metadata.uuid == original.metadata.uuid:
+            return self
+        return self.model_copy(update={'copy_of': original.metadata.uuid})
+
     def resolve(self, template: InstanceSnapshot | None = None) -> Self:
         """Compose frozen authoring inputs without consulting either instance's live draft."""
         if self.snapshot_kind != 'authored' or self.template_revision_id is None:
@@ -946,27 +1018,46 @@ class InstanceSnapshot(BaseModel):
             return snapshot.resolve() if compose else snapshot
 
         data = deepcopy(data)
-        nodes = data.get('nodes', [])
-
-        if schema_version < 3:
-            _upgrade_node_references_v3(data, nodes)
-        if schema_version < 4:
-            _upgrade_node_metadata_v4(nodes)
-        if schema_version < 9:
-            _upgrade_bindings_v9(data)
-        if schema_version < 10:
-            _upgrade_action_group_references_v10(data)
-        if schema_version < 11:
-            _upgrade_bindings_v11(data)
-
-        if schema_version < 13:
-            upgrade_formula_specs_v13(data)
-        if schema_version < 15:
-            upgrade_dataset_catalog_v15(data)
-
+        _upgrade_snapshot_data(data, schema_version)
         data['schema_version'] = SNAPSHOT_SCHEMA_VERSION
         data['snapshot_kind'] = 'legacy'
         return cls.model_validate(data)
+
+
+def _node_list(data: dict[str, Any]) -> list[dict[str, Any]]:
+    return data.setdefault('nodes', [])
+
+
+def _drop_dead_node_spec_fields_v17(data: dict[str, Any]) -> None:
+    for node in _node_list(data):
+        if isinstance(node.get('spec'), dict):
+            drop_dead_node_spec_fields_v17(node['spec'])
+
+
+_SNAPSHOT_UPGRADERS: tuple[tuple[int, Callable[[dict[str, Any]], object]], ...] = (
+    (3, lambda data: _upgrade_node_references_v3(data, _node_list(data))),
+    (4, lambda data: _upgrade_node_metadata_v4(_node_list(data))),
+    (9, _upgrade_bindings_v9),
+    (10, _upgrade_action_group_references_v10),
+    (11, _upgrade_bindings_v11),
+    (13, upgrade_formula_specs_v13),
+    (15, upgrade_dataset_catalog_v15),
+    (
+        16,
+        lambda data: upgrade_node_references_v16(
+            _node_list(data), {n['identifier']: n['uuid'] for n in _node_list(data) if n.get('identifier')}
+        ),
+    ),
+    (17, _drop_dead_node_spec_fields_v17),
+)
+"""Upgrader ``N`` brings serialized snapshot data older than version ``N`` up to it, in place."""
+
+
+def _upgrade_snapshot_data(data: dict[str, Any], schema_version: int) -> None:
+    """Upgrade serialized snapshot data from ``schema_version`` to the current one, in place."""
+    for version, upgrade in _SNAPSHOT_UPGRADERS:
+        if schema_version < version:
+            upgrade(data)
 
 
 def reconcile_snapshot_node_metadata(
@@ -994,6 +1085,74 @@ def reconcile_snapshot_node_metadata(
     return snapshot.model_copy(update={'nodes': nodes})
 
 
+class MeasureDataPointSnapshot(BaseModel):
+    year: int
+    value: float | None = None
+    default_value: float | None = None
+    probable_lower_bound: float | None = None
+    probable_upper_bound: float | None = None
+
+
+class MeasureSnapshot(BaseModel):
+    """A municipality's value for one of its framework's measure templates."""
+
+    template: MeasureTemplateRef
+    unit: str | None = None
+    internal_notes: str = ''
+    data_points: list[MeasureDataPointSnapshot] = Field(default_factory=list)
+
+
+class FrameworkMembershipSnapshot(BaseModel):
+    """
+    The instance's membership of a framework (`FrameworkConfig`), which the framework itself is not part of.
+
+    An import finds the framework by uuid and refuses without it. The config's access token
+    belongs to the database that issued it and is not carried.
+    """
+
+    framework: FrameworkRef
+    framework_identifier: str
+    organization_name: str | None = None
+    organization_identifier: str | None = None
+    organization_slug: str | None = None
+    extra: dict[str, Any] = Field(default_factory=dict)
+    categories: list[FrameworkCategoryRef] = Field(default_factory=list)
+    measures: list[MeasureSnapshot] = Field(default_factory=list)
+
+    @classmethod
+    def from_model(cls, config: FrameworkConfig) -> Self:
+        measures = (
+            config.measures.select_related('measure_template').prefetch_related('data_points').order_by('measure_template__uuid')
+        )
+        return cls(
+            framework=config.framework.uuid,
+            framework_identifier=config.framework.identifier,
+            organization_name=config.organization_name,
+            organization_identifier=config.organization_identifier,
+            organization_slug=config.organization_slug,
+            extra=dict(config.extra or {}),
+            categories=sorted(category.uuid for category in config.categories.all()),
+            measures=[
+                MeasureSnapshot(
+                    template=measure.measure_template.uuid,
+                    unit=str(measure.unit) if measure.unit is not None else None,
+                    internal_notes=measure.internal_notes,
+                    data_points=[
+                        MeasureDataPointSnapshot(
+                            year=point.year,
+                            value=point.value,
+                            default_value=point.default_value,
+                            probable_lower_bound=point.probable_lower_bound,
+                            probable_upper_bound=point.probable_upper_bound,
+                        )
+                        for point in sorted(measure.data_points.all(), key=lambda point: point.year)
+                    ],
+                )
+                for measure in measures
+            ],
+        )
+
+
 class InstanceExport(BaseModel):
     """
     Self-contained export: snapshot + dataset bodies.
@@ -1003,10 +1162,16 @@ class InstanceExport(BaseModel):
     Each ``DatasetSnapshot`` carries its data points, keyed by uuid.
     """
 
+    # A copy refers to the bundled template rather than copying it, and pages name nodes
+    # by identifier.
+    __rekey_foreign__: ClassVar[frozenset[str]] = frozenset({'template', 'pages'})
+
     schema_version: int = SNAPSHOT_SCHEMA_VERSION
     instance: InstanceSnapshot
     template: 'InstanceExport | None' = None
     datasets: list[DatasetSnapshot] = Field(default_factory=list)
+    framework: FrameworkMembershipSnapshot | None = None
+    """The instance's framework membership, when it has one."""
     # Wagtail page tree, for verification only (not used on import — pages are
     # copied/restored via Wagtail's own machinery). Node references are by identifier.
     pages: list[PageSnapshot] = Field(default_factory=list)
@@ -1019,12 +1184,43 @@ class InstanceExport(BaseModel):
         default=None,
         description='Base URL of the backend that produced this document.',
     )
-    draft_head_token: UUID | None = Field(
+    draft_head_token: Annotated[UUID, Token()] | None = Field(
         default=None,
         description='Optimistic-locking token of the source draft at export time; null if it had no edits.',
     )
 
     model_config = {'arbitrary_types_allowed': True}
+
+    def rekeyed(self, *, seed: Mapping[UUID, UUID] | None = None) -> tuple[Self, Rekeying]:
+        """
+        Return this export with new uuids for everything the instance owns, as a copy.
+
+        The bundled template, the framework's dimensions and schemas, and the template's
+        entities the instance overrides keep their uuids. ``seed`` fixes new uuids in
+        advance, such as the instance's own when its row is created first.
+        """
+        from paths.rekey import rekeyed
+
+        if self.instance.template_revision_id is not None and self.template is None:
+            raise ValueError('Rekeying an instance built on a template needs the template bundled, to tell overrides apart')
+        return rekeyed(self, seed=seed)
+
+    def rekey_finish(self, original: Self, rekeying: Rekeying) -> Self:
+        """Restamp the pins of the instance's own datasets, whose content hashes cover their uuids."""
+        from datasets.materialization import hash_dataset_content
+
+        def content_hash(body: DatasetSnapshot) -> str:
+            return hash_dataset_content(body.model_dump(mode='json', exclude_unset=True))
+
+        bodies = {body.meta.id: body for body in self.datasets}
+        pins = self.instance.dataset_revisions
+        restamped = [
+            pin.model_copy(update={'content_hash': content_hash(bodies[pin.dataset_uuid])}) if pin.dataset_uuid in bodies else pin
+            for pin in pins
+        ]
+        if all(new.content_hash == old.content_hash for new, old in zip(restamped, pins, strict=True)):
+            return self
+        return self.model_copy(update={'instance': self.instance.model_copy(update={'dataset_revisions': restamped})})
 
     @classmethod
     def from_serialized_data(cls, data: dict[str, Any]) -> Self:
@@ -1198,6 +1394,10 @@ def build_instance_snapshot(
                 tags=list(row.tags or []),
             )
         )
+    # A node's inputs go in the order its ports are declared, which a copy keeps; its port
+    # uuids are new there, so their order is not.
+    declared = {(n.uuid, port.id): idx for n in nodes if n.spec is not None for idx, port in enumerate(n.spec.input_ports)}
+    bindings.sort(key=lambda b: (str(b.node_id), declared.get((b.node_id, b.port_id), len(declared)), str(b.port_id), b.position))
 
     dimensions = _dimension_catalog_for(ic)
     datasets, owned_datasets = _dataset_catalog_for(
@@ -1210,7 +1410,7 @@ def build_instance_snapshot(
     snapshot = InstanceSnapshot(
         metadata=InstanceMetadata.from_model(ic),
         spec=ic.spec,
-        copy_of=str(ic.copy_of.uuid) if ic.copy_of else None,
+        copy_of=ic.copy_of.uuid if ic.copy_of else None,
         nodes=nodes,
         bindings=bindings,
         dataset_revisions=list(dataset_revision_pins.values()) if dataset_revision_pins is not None else [],
@@ -1229,7 +1429,13 @@ def build_instance_snapshot(
 def _dimension_catalog_for(ic: InstanceConfig) -> list[DimensionMeta]:
     from frameworks.catalogue import dimension_scopes
 
-    scopes = dimension_scopes(ic).select_related('dimension').prefetch_related('dimension__categories').order_by('order')
+    scopes = (
+        dimension_scopes(ic)
+        .select_related('dimension', 'scope_content_type')
+        .prefetch_related('dimension__categories')
+        .order_by('order')
+    )
+    framework_scoped = {scope.dimension_id for scope in scopes if scope.scope_content_type.model == 'framework'}
     dimensions: list[DimensionMeta] = []
     for scope in scopes:
         dimension = scope.dimension
@@ -1254,6 +1460,7 @@ def _dimension_catalog_for(ic: InstanceConfig) -> list[DimensionMeta]:
                 order=scope.order,
                 spec=dict(dimension.spec or {}),
                 categories=categories,
+                scope='framework' if dimension.pk in framework_scoped else 'instance',
             )
         )
     return dimensions
@@ -1289,8 +1496,9 @@ def _dataset_catalog_for(
             )
         )
         .select_related('schema')
-        .prefetch_related('schema__metrics__validation_rules', 'schema__dimensions__dimension')
-        .order_by('pk')
+        .prefetch_related('schema__metrics__validation_rules', 'schema__dimensions__dimension', 'schema__scopes')
+        # Not by pk, which differs between databases: an export and its import list alike.
+        .order_by('identifier', 'uuid')
     )
     instance_level: list[DatasetMeta] = []
     owned: dict[UUID, list[DatasetMeta]] = {}
@@ -1324,7 +1532,8 @@ def binding_qs_for(ic: InstanceConfig) -> QuerySet[NodeInputPortBinding]:
         # nodes; hydrating every binding's NodeConfig.spec would parse the
         # heaviest column in the schema twice per edge for nothing.
         .defer('node__spec', 'source_node__spec')
-        .order_by('node_id', 'port_id', 'position')
+        # By uuid, not pk: the same in every database the model is imported into.
+        .order_by('node__uuid', 'port_id', 'position')
     )
 
 
@@ -1408,6 +1617,7 @@ def export_instance(ic: InstanceConfig, *, exported_from: str | None = None) -> 
         instance=snapshot,
         template=template_export,
         datasets=datasets,
+        framework=FrameworkMembershipSnapshot.from_model(ic.framework_config) if ic.has_framework_config() else None,
         pages=build_instance_page_snapshots(ic),
         exported_at=timezone.now(),
         exported_from=exported_from,
@@ -1430,57 +1640,76 @@ def _template_dataset_bodies(base: InstanceSnapshot, revisions: dict[int, Revisi
     return list(bodies.values())
 
 
-def _import_dimensions(
-    ic: InstanceConfig,
-    export: InstanceExport,
-    ic_ct: ContentType,
-) -> dict[str, DimensionCategory]:
+def _import_dimensions(ic: InstanceConfig, export: InstanceExport) -> None:
     """
-    Create Dimension + DimensionCategory + DimensionScope ORM objects.
+    Create the instance's own dimensions and categories from the export's catalog, with their uuids.
 
-    Returns a lookup: (dimension_id, category_id) → DimensionCategory.
-    The lookup key is flattened as "dim_id/cat_id" for convenience.
+    A framework's dimension is not created but checked: it must be here, under the same uuid,
+    with every category the export names under the same uuid and identifier. Labels and order
+    may differ, since a framework's presentation may have moved on.
     """
-    from kausal_common.datasets.models import (
-        Dimension,
-        DimensionCategory as DimensionCategoryModel,
-        DimensionScope,
-    )
+    from django.contrib.contenttypes.models import ContentType
 
-    cat_lookup: dict[str, DimensionCategoryModel] = {}
+    from kausal_common.datasets.models import Dimension, DimensionCategory as DimensionCategoryModel, DimensionScope
 
-    for dim_dict in export.instance.spec.dimensions:
-        dim_id = dim_dict['id']
-        label = dim_dict.get('label', dim_id)
-        if isinstance(label, dict):
-            name = next(iter(label.values()), dim_id)
-        else:
-            name = str(label)
-
-        dim_obj = Dimension.objects.create(name=name)
-        DimensionScope.objects.create(
-            dimension=dim_obj,
-            identifier=dim_id,
-            scope_content_type=ic_ct,
-            scope_id=ic.pk,
+    ic_ct = ContentType.objects.get_for_model(ic)
+    language = ic.primary_language
+    for dimension_meta in export.instance.dimensions:
+        if dimension_meta.scope == 'framework':
+            _check_framework_dimension(dimension_meta)
+            continue
+        fields: dict[str, Any] = {}
+        i18n: dict[str, str] = {}
+        _apply_i18n_value(fields, i18n, dimension_meta.label, 'name', language)
+        dimension = Dimension.objects.create(
+            uuid=dimension_meta.id,
+            name=fields.get('name') or dimension_meta.identifier,
+            spec=dict(dimension_meta.spec),
+            i18n=i18n,
         )
-
-        for cat_dict in dim_dict.get('categories', []):
-            cat_id = cat_dict['id']
-            cat_label = cat_dict.get('label', cat_id)
-            if isinstance(cat_label, dict):
-                cat_name = next(iter(cat_label.values()), cat_id)
-            else:
-                cat_name = str(cat_label)
-
-            cat_obj = DimensionCategoryModel.objects.create(
-                dimension=dim_obj,
-                identifier=cat_id,
-                label=cat_name,
+        save_in_order(
+            DimensionScope(dimension=dimension, identifier=dimension_meta.identifier, scope_content_type=ic_ct, scope_id=ic.pk),
+            dimension_meta.order or 0,
+        )
+        for idx, category_meta in enumerate(dimension_meta.categories):
+            fields = {}
+            i18n = {}
+            _apply_i18n_value(fields, i18n, category_meta.label, 'label', language)
+            _apply_i18n_value(fields, i18n, category_meta.short_label, 'short_label', language)
+            category = DimensionCategoryModel(
+                uuid=category_meta.id,
+                dimension=dimension,
+                identifier=category_meta.identifier,
+                label=fields.get('label') or category_meta.identifier or '',
+                short_label=fields.get('short_label'),
+                spec=dict(category_meta.spec),
+                i18n=i18n,
             )
-            cat_lookup[f'{dim_id}/{cat_id}'] = cat_obj
+            save_in_order(category, category_meta.order if category_meta.order is not None else idx)
 
-    return cat_lookup
+
+def _check_framework_dimension(dimension_meta: DimensionMeta) -> None:
+    from kausal_common.datasets.models import Dimension
+
+    dimension = Dimension.objects.filter(uuid=dimension_meta.id).prefetch_related('categories').first()
+    if dimension is None:
+        raise ValueError(f'Framework dimension {dimension_meta.identifier} ({dimension_meta.id}) is not here')
+    here = {category.uuid: category.identifier for category in dimension.categories.all()}
+    differing = [
+        category.identifier or str(category.id)
+        for category in dimension_meta.categories
+        if here.get(category.id, ...) != category.identifier
+    ]
+    if differing:
+        raise ValueError(f'Framework dimension {dimension_meta.identifier} differs here in categories {differing}')
+
+
+def _apply_i18n_value(fields: dict[str, Any], i18n: dict[str, str], value: I18nString | None, name: str, language: str) -> None:
+    """Set a modeltrans field from a snapshot value, which may be a translated string or a plain one."""
+    if value is None or isinstance(value, TranslatedString):
+        apply_translated(fields, i18n, value, name, language)
+    else:
+        fields[name] = str(value)
 
 
 def import_instance_nodes(ic: InstanceConfig, export: InstanceExport) -> dict[UUID, NodeConfig]:
@@ -1504,30 +1733,23 @@ def import_instance_edges_and_ports(
     ic: InstanceConfig,
     export: InstanceExport,
     nodes_by_uuid: dict[UUID, NodeConfig],
-    datasets_by_id: dict[str, DatasetModel],
 ) -> None:
     """
     Recreate the editor graph bindings (``NodeInputPortBinding``) for ``ic``.
 
     Companion to :func:`import_instance_nodes` for callers that build the DB
     mirror piecemeal (yaml-mode copies) rather than through the full
-    :func:`import_instance`. Edges and ports are matched by node UUID and dataset
-    identifier, so references that don't resolve in ``ic`` (e.g. a DVC dataset
-    not materialised in the DB) are skipped rather than erroring. Does not touch
-    ``config_source`` or the instance spec — these rows are dormant for
+    :func:`import_instance`. A binding whose node or dataset is not here (a DVC
+    dataset not materialised in the DB) is skipped rather than erroring. Does not
+    touch ``config_source`` or the instance spec — these rows are dormant for
     ``config_source='yaml'`` (the runtime loads the YAML) but are read by the
     Trailhead editor, so a copy should mirror whatever the source has.
     """
-    _import_bindings(ic, export, nodes_by_uuid, datasets_by_id)
+    _import_bindings(ic, export, nodes_by_uuid)
 
 
-def _import_nodes(
-    ic: InstanceConfig,
-    export: InstanceExport,
-    *,
-    preserve_uuids: bool = False,
-) -> dict[UUID, NodeConfig]:
-    """Create NodeConfig objects. Returns UUID → NodeConfig map."""
+def _import_nodes(ic: InstanceConfig, export: InstanceExport) -> dict[UUID, NodeConfig]:
+    """Create the NodeConfig rows under their uuids. Returns UUID → NodeConfig map."""
     from nodes.models import NodeConfig, NodeLayout, NodeLayoutSource
 
     primary_lang = ic.primary_language
@@ -1543,8 +1765,8 @@ def _import_nodes(
         apply_translated(fields, i18n_dict, n.description, 'description', primary_lang)
         apply_translated(fields, i18n_dict, n.goal, 'goal', primary_lang)
 
-        fields.update({'uuid': n.uuid} if preserve_uuids else {})
         nc = NodeConfig.objects.create(
+            uuid=n.uuid,
             instance=ic,
             identifier=n.identifier,
             color=n.color,
@@ -1588,64 +1810,47 @@ def _import_nodes(
     return nodes_by_uuid
 
 
-def _import_bindings(
-    ic: InstanceConfig,
-    export: InstanceExport,
-    nodes_by_uuid: dict[UUID, NodeConfig],
-    datasets_by_id: dict[str, DatasetModel],
-) -> None:
+def _import_bindings(ic: InstanceConfig, export: InstanceExport, nodes_by_uuid: dict[UUID, NodeConfig]) -> None:
     """
-    Create the copy's ``NodeInputPortBinding`` rows from the export snapshot.
+    Create the instance's ``NodeInputPortBinding`` rows from the export snapshot, under their uuids.
 
-    References that don't resolve in ``ic`` (a node not copied, a DVC dataset
-    not materialised in the DB) are skipped; that may leave position gaps on a
-    port, which is harmless — only relative order is semantic. Fresh UUIDs are
-    minted: a copy's bindings are new identities.
+    A binding whose node or dataset is not here (a node not copied, a DVC dataset not
+    materialised in the DB) is skipped; that may leave position gaps on a port, which is
+    harmless, since only relative order is semantic.
     """
+    from kausal_common.datasets.models import Dataset, DatasetMetric
+
     from nodes.models import NodeInputPortBinding
 
+    items = list(export.instance.bindings_with_positions())
+    dataset_ids = {item.source.dataset_uuid for item, _ in items if isinstance(item.source, DatasetMetricSource)}
+    metric_ids = {item.source.metric_uuid for item, _ in items if isinstance(item.source, DatasetMetricSource)}
+    datasets = Dataset.objects.in_bulk(dataset_ids - {None}, field_name='uuid')
+    metrics = DatasetMetric.objects.in_bulk(metric_ids - {None}, field_name='uuid')
     rows: list[NodeInputPortBinding] = []
-    for item, position in export.instance.bindings_with_positions():
+    for item, position in items:
+        node = nodes_by_uuid.get(item.node_id)
+        if node is None:
+            continue
+        common: dict[str, Any] = {
+            **({'uuid': item.uuid} if item.uuid is not None else {}),
+            'instance': ic,
+            'node': node,
+            'port_id': item.port_id,
+            'position': position,
+            'transformations': list(item.transformations),
+            'tags': list(item.tags),
+        }
         source = item.source
         if isinstance(source, NodePortSource):
             from_node = nodes_by_uuid.get(source.node_id)
-            to_node = nodes_by_uuid.get(item.node_id)
-            if from_node is None or to_node is None:
-                continue
-            rows.append(
-                NodeInputPortBinding(
-                    instance=ic,
-                    node=to_node,
-                    port_id=item.port_id,
-                    position=position,
-                    source_node=from_node,
-                    source_port_id=source.port_id,
-                    transformations=list(item.transformations),
-                    tags=list(item.tags),
-                )
-            )
+            if from_node is not None:
+                rows.append(NodeInputPortBinding(**common, source_node=from_node, source_port_id=source.port_id))
             continue
-        node = nodes_by_uuid.get(item.node_id)
-        dataset = datasets_by_id.get(source.dataset)
-        if node is None or dataset is None:
-            continue
-        # Resolve metric by name within the dataset's schema
-        assert dataset.schema is not None
-        metric = dataset.schema.metrics.filter(name=source.metric).first()
-        if metric is None:
-            continue
-        rows.append(
-            NodeInputPortBinding(
-                instance=ic,
-                node=node,
-                port_id=item.port_id,
-                position=position,
-                dataset=dataset,
-                metric=metric,
-                transformations=list(item.transformations),
-                tags=list(item.tags),
-            )
-        )
+        dataset = datasets.get(source.dataset_uuid) if source.dataset_uuid is not None else None
+        metric = metrics.get(source.metric_uuid) if source.metric_uuid is not None else None
+        if dataset is not None and metric is not None:
+            rows.append(NodeInputPortBinding(**common, dataset=dataset, metric=metric))
     NodeInputPortBinding.objects.bulk_create(rows)
 
 
@@ -1691,7 +1896,7 @@ def _import_template_revision(export: InstanceExport, *, organization_id: int) -
             config_source='database',
             spec=base.spec,
         )
-        import_instance(template, export.template, preserve_node_uuids=True)
+        import_instance(template, export.template)
     base = _import_template_dataset_pins(template, export.template)
     snapshot.template_content_hash = snapshot_content_hash(base)
     revision = Revision.objects.create(
@@ -1741,14 +1946,6 @@ def _import_template_dataset_pins(template: InstanceConfig, export: InstanceExpo
     from datasets.materialization import hash_dataset_content
 
     base = export.instance.model_copy(deep=True)
-    # Dataset UUIDs in the frozen catalog must address imported bodies on this backend.
-    catalog = {item.identifier: item for item in base.all_datasets()}
-    for dataset in Dataset.objects.for_instance_config(template):
-        meta = catalog.get(dataset.identifier)
-        if meta is not None and dataset.uuid != meta.id:
-            if Dataset.objects.filter(uuid=meta.id).exists():
-                raise ValueError('Imported template dataset UUID conflicts with an existing dataset')
-            Dataset.objects.filter(pk=dataset.pk).update(uuid=meta.id)
     pins = []
     for pin in base.dataset_revisions:
         dataset = Dataset.objects.get(uuid=pin.dataset_uuid)
@@ -1780,29 +1977,62 @@ def import_instance(
     ic: InstanceConfig,
     export: InstanceExport,
     framework_config: FrameworkConfig | None = None,
-    *,
-    preserve_node_uuids: bool = False,
 ) -> None:
     """
-    Populate an InstanceConfig with computation model objects from an InstanceExport.
+    Populate an InstanceConfig with the model of an InstanceExport, keeping every uuid.
 
-    The InstanceConfig must already exist (with identifier, org, etc.).
-    This function creates all related objects: nodes, edges, datasets, ports.
+    ``ic`` must already exist under the export's instance uuid. A copy within this database
+    rekeys the export first (`InstanceExport.rekeyed`), seeded with the new row's uuid. The
+    import refuses an export whose own entities are already here, or that refers to
+    something that is not (`check_import`). ``framework_config``, when given, is the
+    membership the caller created; otherwise the export's own is recreated.
     """
-    from django.contrib.contenttypes.models import ContentType
-
-    ic_ct = ContentType.objects.get_for_model(ic)
+    meta = export.instance.metadata
+    if ic.uuid != meta.uuid:
+        raise ValueError(f'Instance {ic.identifier} is {ic.uuid}, the export is {meta.uuid}; rekey the export to copy it')
     if export.instance.snapshot_kind == 'composed':
         raise ValueError('Import requires an authoring snapshot, not a composed runtime model')
+    check_import(export, instance=ic)
     template_revision_id = _import_template_revision(export, organization_id=ic.organization_id)
 
+    _import_instance_metadata(ic, export, template_revision_id, framework_config)
+
+    # Resolve copy_of by uuid (restore fidelity; absent source → stays null).
+    if export.instance.copy_of:
+        from nodes.models import InstanceConfig as _InstanceConfig
+
+        src_ic = _InstanceConfig.objects.filter(uuid=export.instance.copy_of).first()
+        if src_ic is not None:
+            ic.copy_of = src_ic
+            ic.save(update_fields=['copy_of'])
+
+    # Membership first: it is what makes the framework's dimensions and schemas visible here.
+    if framework_config is None and export.framework is not None:
+        _import_framework_membership(ic, export.framework)
+    _import_dimensions(ic, export)
+    import_instance_datasets(
+        ic, export.datasets, dimensions={dimension.id: dimension for dimension in export.instance.dimensions}
+    )
+    nodes_by_uuid = _import_nodes(ic, export)
+    _import_dataset_ownership(export.instance, nodes_by_uuid)
+    _import_bindings(ic, export, nodes_by_uuid)
+    if template_revision_id is not None:
+        _import_binding_overrides(ic, export.instance)
+
+
+def _import_instance_metadata(
+    ic: InstanceConfig,
+    export: InstanceExport,
+    template_revision_id: int | None,
+    framework_config: FrameworkConfig | None,
+) -> None:
+    meta = export.instance.metadata
     # Store the computation spec. Copy the template's language metadata onto
     # the InstanceConfig row so i18n-bearing data (ActionGroup names, etc.)
     # stays loadable — the spec's TranslatedStrings are authored under the
     # template's primary_language and would be filtered out if the
     # InstanceConfig used a different language.
     ic.spec = export.instance.spec.model_copy()
-    meta = export.instance.metadata
     ic.primary_language = meta.primary_language
     ic.other_languages = list(meta.other_languages)
     ic.config_source = 'database'
@@ -1815,8 +2045,6 @@ def import_instance(
     owner_src = meta.owner
     if framework_config is not None:
         owner_src = str(framework_config.organization_name)
-        ic.uuid = framework_config.uuid
-        update_fields.append('uuid')
     i18n = dict(ic.i18n or {})
     ic.owner = ''
     if owner_src:
@@ -1841,131 +2069,138 @@ def import_instance(
     update_fields += ['owner', 'i18n']
     ic.save(update_fields=update_fields)
 
-    # Resolve copy_of by uuid (restore fidelity; absent source → stays null).
-    if export.instance.copy_of:
-        from nodes.models import InstanceConfig as _InstanceConfig
 
-        src_ic = _InstanceConfig.objects.filter(uuid=export.instance.copy_of).first()
-        if src_ic is not None:
-            ic.copy_of = src_ic
-            ic.save(update_fields=['copy_of'])
+def import_instance_copy(ic: InstanceConfig, export: InstanceExport, framework_config: FrameworkConfig | None = None) -> None:
+    """
+    Populate ``ic`` with a copy of the exported instance, under new uuids and ``ic``'s own.
 
-    # Dimensions first — datasets and data points reference them
-    _import_dimensions(ic, export, ic_ct)
+    The copy refers to the same template, framework and other shared entities as the source,
+    and records the source as what it was copied from.
+    """
+    copy, _ = export.rekeyed(seed={export.instance.metadata.uuid: ic.uuid})
+    import_instance(ic, copy, framework_config)
 
-    # Datasets (with data points)
-    datasets = import_instance_datasets(
-        ic,
-        export.datasets,
-        create_missing_dimensions=True,
-        dimensions={dimension.id: dimension for dimension in export.instance.dimensions},
+
+_ROW_MODELS: dict[UuidEntity, tuple[str, str]] = {
+    'instance': ('nodes', 'InstanceConfig'),
+    'node': ('nodes', 'NodeConfig'),
+    'binding': ('nodes', 'NodeInputPortBinding'),
+    'dimension': ('datasets', 'Dimension'),
+    'category': ('datasets', 'DimensionCategory'),
+    'dataset': ('datasets', 'Dataset'),
+    'dataset_schema': ('datasets', 'DatasetSchema'),
+    'metric': ('datasets', 'DatasetMetric'),
+    'validation_rule': ('datasets', 'DatasetMetricValidationRule'),
+    'data_point': ('datasets', 'DataPoint'),
+    'comment': ('datasets', 'DataPointComment'),
+    'data_source': ('datasets', 'DataSource'),
+    'source_reference': ('datasets', 'DatasetSourceReference'),
+    'framework': ('frameworks', 'Framework'),
+    'framework_category': ('frameworks', 'FrameworkDimensionCategory'),
+    'measure_template': ('frameworks', 'MeasureTemplate'),
+}
+"""The entities that are database rows, which an import can check; the rest live inside specs."""
+
+
+def check_import(export: InstanceExport, *, instance: InstanceConfig | None = None) -> None:
+    """
+    Refuse an export this database cannot take as it is, before anything is written.
+
+    Every entity the export owns must be new here, and every entity it refers to without
+    bundling it (a framework's dimensions and schemas, a template revision it does not
+    carry) must already be here. ``instance`` is the row created for the import, which
+    holds the export's instance uuid already.
+    """
+    from django.apps import apps
+
+    from paths.rekey import survey
+
+    rekeying = survey(export)
+    problems: list[str] = []
+    for entity, ids in rekeying.owned.items():
+        if entity not in _ROW_MODELS:
+            continue
+        model = apps.get_model(*_ROW_MODELS[entity])
+        taken = model._default_manager.filter(uuid__in=ids)
+        if entity == 'instance' and instance is not None:
+            taken = taken.exclude(pk=instance.pk)
+        if found := sorted(str(uuid) for uuid in taken.values_list('uuid', flat=True)):
+            problems.append(f'{len(found)} {entity} already here, e.g. {found[0]}')
+    for entity, ids in rekeying.outside().items():
+        if entity not in _ROW_MODELS:
+            continue
+        model = apps.get_model(*_ROW_MODELS[entity])
+        missing = ids - set(model._default_manager.filter(uuid__in=ids).values_list('uuid', flat=True))
+        if missing:
+            problems.append(f'{len(missing)} {entity} referred to but not here, e.g. {min(map(str, missing))}')
+    if problems:
+        raise ValueError('Cannot import this export here: ' + '; '.join(problems))
+
+
+def _import_framework_membership(ic: InstanceConfig, membership: FrameworkMembershipSnapshot) -> None:
+    """Make ``ic`` a member of the export's framework again, with its measures."""
+    from frameworks.models import (
+        Framework,
+        FrameworkConfig,
+        FrameworkDimensionCategory,
+        Measure,
+        MeasureDataPoint,
+        MeasureTemplate,
     )
-    # ``identifier`` may be None for datasets keyed only by uuid; skip those
-    # here since node→dataset wiring goes through identifier.
-    datasets_by_id = {ds.identifier: ds for ds in datasets if ds.identifier is not None}
 
-    # Nodes
-    nodes_by_uuid = _import_nodes(ic, export, preserve_uuids=preserve_node_uuids)
-    _remap_imported_data_entry(ic, export, nodes_by_uuid, datasets, preserve_node_uuids=preserve_node_uuids)
-
-    _import_dataset_ownership(ic, export.instance, nodes_by_uuid, datasets_by_id)
-
-    # Input bindings (edges and dataset ports)
-    _import_bindings(ic, export, nodes_by_uuid, datasets_by_id)
-    if template_revision_id is not None:
-        _import_binding_overrides(ic, export.instance, nodes_by_uuid, datasets_by_id)
-
-
-def _remap_imported_data_entry(
-    ic: InstanceConfig,
-    export: InstanceExport,
-    nodes_by_uuid: dict[UUID, NodeConfig],
-    datasets: list[DatasetModel],
-    *,
-    preserve_node_uuids: bool,
-) -> None:
-    if ic.spec is not None and isinstance(ic.spec.data_entry, DataEntrySpec):
-        identities = {original: node.uuid for original, node in nodes_by_uuid.items()}
-        new_dimensions = {dim.identifier: dim for dim in _dimension_catalog_for(ic)}
-        for original in export.instance.dimensions:
-            target = new_dimensions.get(original.identifier)
-            if target is None:
-                continue
-            identities[original.id] = target.id
-            categories = {cat.identifier: cat.id for cat in target.categories}
-            identities.update({cat.id: categories[cat.identifier] for cat in original.categories if cat.identifier in categories})
-        targets = {original.meta.id: dataset for original, dataset in zip(export.datasets, datasets, strict=True)}
-        targets_by_identifier = {dataset.identifier: dataset for dataset in datasets if dataset.identifier is not None}
-        for original in export.instance.all_datasets():
-            target_dataset = targets.get(original.id) or (
-                targets_by_identifier.get(original.identifier) if original.identifier is not None else None
-            )
-            if target_dataset is None:
-                continue
-            identities[original.id] = target_dataset.uuid
-            target_metrics = (
-                {metric.name: metric.uuid for metric in target_dataset.schema.metrics.all()} if target_dataset.schema else {}
-            )
-            identities.update({
-                metric.id: target_metrics[metric.identifier] for metric in original.metrics if metric.identifier in target_metrics
-            })
-        if not preserve_node_uuids:
-            identities.update({section.id: uuid4() for section in ic.spec.data_entry.sections})
-            identities.update({table.id: uuid4() for section in ic.spec.data_entry.sections for table in section.tables})
-            # An amendment may replace an inherited entry or add a locally owned one.
-            inherited_layout = export.template.instance.spec.data_entry if export.template else None
-            inherited_tables = (
-                {table.id for section in inherited_layout.sections for table in section.tables}
-                if isinstance(inherited_layout, DataEntrySpec)
-                else set()
-            )
-            identities.update({
-                table.id: uuid4()
-                for amendment in ic.spec.data_entry.amendments
-                for table in amendment.tables
-                if table.id not in inherited_tables
-            })
-        ic.spec.data_entry = remap_data_entry(ic.spec.data_entry, identities)
-        ic.save(update_fields=['spec'])
+    framework = Framework.objects.filter(uuid=membership.framework).first()
+    if framework is None:
+        raise ValueError(f'Framework {membership.framework_identifier} ({membership.framework}) is not here')
+    config = FrameworkConfig.objects.create(
+        uuid=ic.uuid,
+        framework=framework,
+        instance_config=ic,
+        organization_name=membership.organization_name,
+        organization_identifier=membership.organization_identifier,
+        organization_slug=membership.organization_slug,
+        extra=dict(membership.extra),
+    )
+    config.categories.set(FrameworkDimensionCategory.objects.filter(uuid__in=membership.categories))
+    templates = MeasureTemplate.objects.in_bulk([measure.template for measure in membership.measures], field_name='uuid')
+    for measure_snapshot in membership.measures:
+        measure = Measure.objects.create(
+            framework_config=config,
+            measure_template=templates[measure_snapshot.template],
+            unit=measure_snapshot.unit,
+            internal_notes=measure_snapshot.internal_notes,
+        )
+        MeasureDataPoint.objects.bulk_create([
+            MeasureDataPoint(measure=measure, **point.model_dump()) for point in measure_snapshot.data_points
+        ])
 
 
-def _import_dataset_ownership(
-    ic: InstanceConfig,
-    snapshot: InstanceSnapshot,
-    nodes_by_uuid: dict[UUID, NodeConfig],
-    datasets_by_id: dict[str, DatasetModel],
-) -> None:
+def _import_dataset_ownership(snapshot: InstanceSnapshot, nodes_by_uuid: dict[UUID, NodeConfig]) -> None:
+    """Scope each node's own datasets to the node, as the export records it."""
     from django.contrib.contenttypes.models import ContentType
+
+    from kausal_common.datasets.models import Dataset
 
     from nodes.models import NodeConfig
 
     node_ct = ContentType.objects.get_for_model(NodeConfig)
     for node in snapshot.nodes:
-        for owned in node.datasets:
-            dataset = datasets_by_id.get(owned.identifier) if owned.identifier is not None else None
-            if dataset is not None:
-                type(dataset).objects.filter(pk=dataset.pk).update(
-                    scope_content_type=node_ct, scope_id=nodes_by_uuid[node.uuid].pk
-                )
+        if node.datasets:
+            Dataset.objects.filter(uuid__in=[owned.id for owned in node.datasets]).update(
+                scope_content_type=node_ct, scope_id=nodes_by_uuid[node.uuid].pk
+            )
 
 
-def _import_binding_overrides(
-    ic: InstanceConfig,
-    snapshot: InstanceSnapshot,
-    nodes_by_uuid: dict[UUID, NodeConfig],
-    datasets_by_id: dict[str, DatasetModel],
-) -> None:
-    from nodes.models import InputPortBindingSet
+def _import_binding_overrides(ic: InstanceConfig, snapshot: InstanceSnapshot) -> None:
+    """Record the instance's selections for the template's input ports, against this database's dataset revisions."""
+    from nodes.models import InputPortBindingSet, NodeInputPortBinding
+    from nodes.template_graph import template_snapshot
 
-    def remap_node(identifier: UUID) -> UUID:
-        node = nodes_by_uuid.get(identifier)
-        return node.uuid if node is not None else identifier
-
+    own_nodes = {node.uuid for node in snapshot.nodes}
     selections = list(snapshot.binding_overrides)
     inherited_ports = {
         (binding.node_id, binding.port_id)
         for binding in snapshot.bindings
-        if isinstance(binding.source, NodePortSource) and binding.source.node_id not in nodes_by_uuid
+        if isinstance(binding.source, NodePortSource) and binding.source.node_id not in own_nodes
     }
     selections.extend(
         InputBindingOverrideSnapshot(
@@ -1975,30 +2210,18 @@ def _import_binding_overrides(
         )
         for node_id, port_id in inherited_ports
     )
-    from nodes.models import NodeInputPortBinding
-    from nodes.template_graph import template_snapshot
-
+    # Revision ids are database-local: point pinned template datasets at this database's revisions.
     pins = {pin.dataset_uuid: pin.revision_id for pin in template_snapshot(ic).dataset_revisions}
     for override in selections:
         bindings = []
         for item in override.bindings:
             source = item.source
-            if isinstance(source, NodePortSource):
-                source = source.model_copy(update={'node_id': remap_node(source.node_id)})
-            else:
-                dataset = datasets_by_id.get(source.dataset)
-                if dataset is not None:
-                    assert dataset.schema is not None
-                    metric = dataset.schema.metrics.get(name=source.metric)
-                    source = source.model_copy(
-                        update={'dataset_uuid': dataset.uuid, 'metric_uuid': metric.uuid, 'dataset_revision': None}
-                    )
-            if isinstance(source, DatasetMetricSource) and source.dataset_uuid in pins:
-                source = source.model_copy(update={'dataset_revision': pins[source.dataset_uuid]})
-            bindings.append(item.model_copy(update={'node_id': remap_node(item.node_id), 'source': source}))
-        NodeInputPortBinding.objects.filter(
-            instance=ic, node__uuid=remap_node(override.node_uuid), port_id=override.port_uuid
-        ).delete()
+            if isinstance(source, DatasetMetricSource):
+                source = source.model_copy(
+                    update={'dataset_revision': pins.get(source.dataset_uuid)} if source.dataset_uuid else {}
+                )
+            bindings.append(item.model_copy(update={'source': source}))
+        NodeInputPortBinding.objects.filter(instance=ic, node__uuid=override.node_uuid, port_id=override.port_uuid).delete()
         InputPortBindingSet.objects.create(
-            instance=ic, node_uuid=remap_node(override.node_uuid), port_uuid=override.port_uuid, bindings=bindings
+            instance=ic, node_uuid=override.node_uuid, port_uuid=override.port_uuid, bindings=bindings
         )

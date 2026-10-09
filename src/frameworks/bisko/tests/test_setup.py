@@ -252,7 +252,11 @@ def test_default_quality_release_is_idempotent_and_keeps_member_pins() -> None: 
         scope=template,
         identifier='de/fahrleistung_strassenverkehr',
         is_external_placeholder=True,
-        external_ref={'dataset_id': 'de/fahrleistung_strassenverkehr'},
+        external_ref={
+            'repo_url': 'https://example.com/data.git',
+            'commit': 'abc123',
+            'dataset_id': 'de/fahrleistung_strassenverkehr',
+        },
         spec={'preserved': True},
     )
     assert dataset.schema is not None

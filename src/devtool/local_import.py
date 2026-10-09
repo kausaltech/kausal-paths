@@ -43,6 +43,7 @@ def import_export_file(
     organization: str | None = None,
     name: str | None = None,
     dry_run: bool = False,
+    replace: bool = False,
 ) -> str:
     """Load ``path`` into the local database and return a one-line summary."""
     _ensure_repo_root_on_path()
@@ -63,7 +64,7 @@ def import_export_file(
 
     try:
         with transaction.atomic():
-            ic = import_instance_export(export, identifier=identifier, organization=organization, name=name)
+            ic = import_instance_export(export, identifier=identifier, organization=organization, name=name, replace=replace)
             summary = (
                 f'{"Would import" if dry_run else "Imported"} {len(export.instance.nodes)} nodes and '
                 f'{len(export.datasets)} datasets into instance {ic.identifier!r} (uuid {ic.uuid}).'

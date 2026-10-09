@@ -302,9 +302,10 @@ class FrameworkMutation:
             pp.admin_role.assign_user(ic, user)
 
             if template_export is not None:
-                from nodes.instance_serialization import import_instance
+                from nodes.instance_serialization import import_instance_copy
 
-                import_instance(ic, export=template_export, framework_config=fwc)
+                # A new instance is a copy of the template, under new uuids and the config's own.
+                import_instance_copy(ic, template_export, framework_config=fwc)
             else:
                 spec = ic.spec
                 assert spec is not None

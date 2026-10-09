@@ -1,40 +1,45 @@
 """Authored data-entry layout, independent of datasets and observations."""
 
-from typing import Annotated, Any, Literal
-from uuid import UUID
+from typing import TYPE_CHECKING, Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, SerializerFunctionWrapHandler, model_serializer, model_validator
 
 from kausal_common.i18n.pydantic import I18nBaseModel, I18nString
 
+from paths.identifiers import DataEntrySectionId, DataEntryTableId
+from paths.refs import DataEntrySectionRef, DatasetMetricRef, DatasetRef, DimensionCategoryRef, DimensionRef, NodeRef, PortRef
+
+if TYPE_CHECKING:
+    from uuid import UUID
+
 
 class DataEntrySliceSpec(BaseModel):
-    categories: dict[UUID, list[UUID]] = Field(default_factory=dict)
+    categories: dict[DimensionRef, list[DimensionCategoryRef]] = Field(default_factory=dict)
 
 
 class DataEntryAnchorSpec(BaseModel):
-    node_id: UUID
-    output_port_id: UUID
+    node_id: NodeRef
+    output_port_id: PortRef
     slices: list[DataEntrySliceSpec] = Field(default_factory=list)
 
 
 class DataEntryTableBase(BaseModel):
     model_config = ConfigDict(extra='forbid')
 
-    id: UUID
+    id: DataEntryTableId
 
 
 class DataEntryPlacementSpec(DataEntryTableBase):
     kind: Literal['input_port'] = 'input_port'
-    node_id: UUID
-    port_id: UUID
+    node_id: NodeRef
+    port_id: PortRef
     slices: list[DataEntrySliceSpec] = Field(default_factory=list)
 
 
 class DataEntryDatasetSpec(DataEntryTableBase):
     kind: Literal['dataset'] = 'dataset'
-    dataset_id: UUID
-    metric_ids: list[UUID] | None = None
+    dataset_id: DatasetRef
+    metric_ids: list[DatasetMetricRef] | None = None
     slices: list[DataEntrySliceSpec] = Field(default_factory=list)
 
 
@@ -51,7 +56,7 @@ type DataEntryTableSpec = Annotated[
 class DataEntrySectionSpec(I18nBaseModel):
     model_config = ConfigDict(extra='forbid')
 
-    id: UUID
+    id: DataEntrySectionId
     identifier: str | None = None
     name: I18nString
     description: I18nString | None = None
@@ -61,7 +66,7 @@ class DataEntrySectionSpec(I18nBaseModel):
 class DataEntrySectionAmendmentSpec(I18nBaseModel):
     model_config = ConfigDict(extra='forbid')
 
-    section_id: UUID
+    section_id: DataEntrySectionRef
     name: I18nString | None = None
     description: I18nString | None = None
     tables: list[DataEntryTableSpec] = Field(default_factory=list)

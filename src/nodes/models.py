@@ -750,7 +750,7 @@ class InstanceConfig(
     @transaction.atomic
     @copy_signature(models.Model.delete)
     def delete(self, **kwargs):
-        from kausal_common.datasets.models import Dataset
+        from kausal_common.datasets.models import Dataset, DataSource, Dimension, DimensionScope
 
         root_page = self.root_page
         if root_page is not None:
@@ -771,6 +771,8 @@ class InstanceConfig(
         # This explicit instance FK lets full instance deletion release all pins
         # before its owned datasets and their generic Wagtail revisions cascade.
         self.dataset_revision_pins.all().delete()
+        # Its port selections protect the nodes and datasets they name, so they go before them.
+        self.binding_overrides.all().delete()
         # A queryset delete skips NodeConfig.delete(), so the nodes' datasets go first.
         NodeConfig.objects.filter(instance=self).delete_related()
         self.nodes.all().delete()
@@ -806,6 +808,20 @@ class InstanceConfig(
         DatasetSchema.objects.get_queryset().filter(
             pk__in=affected_schema_ids, scopes__isnull=True, datasets__isnull=True
         ).delete()
+        # Its dimensions and data sources go the same way, once nothing left uses them: a
+        # dimension shared through another scope (a framework's), declared by a kept schema or
+        # categorising a kept data point stays, as does a source a kept dataset cites.
+        own_dimension_ids = set(DimensionScope.objects.filter(own_scope).values_list('dimension_id', flat=True))
+        DimensionScope.objects.filter(own_scope).delete()
+        # A schema that no scope and no dataset holds is unreachable; left over from older
+        # operations, it would otherwise keep the instance's dimensions alive.
+        DatasetSchema.objects.get_queryset().filter(
+            dimensions__dimension_id__in=own_dimension_ids, scopes__isnull=True, datasets__isnull=True
+        ).delete()
+        Dimension.objects.filter(pk__in=own_dimension_ids, scopes__isnull=True, schemas__isnull=True).exclude(
+            categories__data_point_links__isnull=False
+        ).delete()
+        DataSource.objects.filter(own_scope, references__isnull=True).delete()
         super().delete(**kwargs)
 
     def natural_key(self):

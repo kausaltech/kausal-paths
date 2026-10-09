@@ -970,8 +970,24 @@ class Node:
         return dfs
 
     def bind_runtime_inputs(self, bindings: Sequence[RuntimeInputBinding], *, node_meta: NodeMeta | None = None) -> None:
-        """Attach the request-local projections of this node's graph bindings."""
-        self.runtime_input_bindings = tuple(sorted(bindings, key=lambda binding: (binding.position, str(binding.id))))
+        """
+        Attach the request-local projections of this node's graph bindings.
+
+        A role's bindings go in the order the node declares their ports, and within a port by
+        position. A position counts within its port only, and a binding's uuid is arbitrary,
+        so neither may order bindings on different ports.
+        """
+        declared = {port.id: idx for idx, port in enumerate(node_meta.spec.input_ports)} if node_meta is not None else {}
+        self.runtime_input_bindings = tuple(
+            sorted(
+                bindings,
+                key=lambda binding: (
+                    declared.get(binding.target_port_id, len(declared)) if binding.target_port_id is not None else len(declared),
+                    binding.position,
+                    str(binding.id),
+                ),
+            )
+        )
         self.runtime_node_meta = node_meta
 
     def _check_input_declaration(self, port: InputPortDeclaration) -> None:

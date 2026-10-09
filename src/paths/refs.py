@@ -11,14 +11,9 @@ from pydantic_core import PydanticCustomError
 from .identifiers import (
     DimensionCategoryIdentifier,
     DimensionIdentifier,
-    NodeIdentifier,
-    NodeOutputDimensionIdentifier,
-    NodeOutputMetricIdentifier,
-    ParameterGlobalId,
-    ParameterLocalId,
     QuantityKindIdentifier,
-    ScenarioIdentifier,
 )
+from .uuid_kinds import Provenance, Ref
 
 """
 Reference-oriented validation helpers for Paths domain objects.
@@ -96,38 +91,6 @@ def require_dimension_context(info: ValidationInfo) -> Dimension:
     return ctx.dimension
 
 
-def validate_node_id(v: str, info: ValidationInfo) -> str:
-    ctx = get_validation_context(info)
-    if ctx is None:
-        return v
-    context = ctx.context
-    if v not in context.nodes:
-        raise ValueError(f'Node with id {v} not found')
-    return v
-
-
-def validate_scenario_id(v: str, info: ValidationInfo) -> str:
-    ctx = get_validation_context(info)
-    if ctx is None:
-        return v
-    context = ctx.context
-    if v not in context.scenarios:
-        raise ValueError(f'Scenario with id {v} not found')
-    return v
-
-
-def validate_node_output_metric_id(v: str, info: ValidationInfo) -> str:
-    ctx = get_validation_context(info)
-    if ctx is None:
-        return v
-    node = ctx.node
-    if node is None:
-        raise InvalidContextError('Node context is required')
-    if v not in node.output_metrics:
-        raise ValueError(f'Metric with id {v} not found')
-    return v
-
-
 def validate_dimension_id(v: Any, info: ValidationInfo) -> Any:
     ctx = get_validation_context(info)
     if ctx is None:
@@ -135,18 +98,6 @@ def validate_dimension_id(v: Any, info: ValidationInfo) -> Any:
     context = ctx.context
     if v not in context.dimensions:
         raise ValueError(f'Dimension with id {v} not found')
-    return v
-
-
-def validate_node_output_dimension_id(v: str, info: ValidationInfo) -> str:
-    ctx = get_validation_context(info)
-    if ctx is None:
-        return v
-    node = ctx.node
-    if node is None:
-        raise InvalidContextError('Node context is required')
-    if v not in node.output_dimensions:
-        raise ValueError(f'Node {node.id} does not have a dimension with id {v}')
     return v
 
 
@@ -159,28 +110,6 @@ def validate_dimension_category_id(v: str, info: ValidationInfo) -> str:
         raise InvalidContextError('Dimension context is required')
     if v not in dimension.cat_map:
         raise ValueError(f'Dimension {dimension.id} does not have a category with id {v}')
-    return v
-
-
-def validate_parameter_global_id(v: str, info: ValidationInfo) -> str:
-    ctx = get_validation_context(info)
-    if ctx is None:
-        return v
-    context = ctx.context
-    if context.get_parameter(v, required=False) is None:
-        raise ValueError(f'Parameter {v} not found')
-    return v
-
-
-def validate_parameter_local_id(v: str, info: ValidationInfo) -> str:
-    ctx = get_validation_context(info)
-    if ctx is None:
-        return v
-    node = ctx.node
-    if node is None:
-        raise InvalidContextError('Node context is required')
-    if node.get_parameter(v, required=False) is None:
-        raise ValueError(f'Local parameter {v} not found for node {node.id}')
     return v
 
 
@@ -211,13 +140,32 @@ def validate_quantity_kind_ref(v: str, info: ValidationInfo) -> str:
     return v
 
 
-NodeRef = Annotated[NodeIdentifier, AfterValidator(validate_node_id)]
-ScenarioRef = Annotated[ScenarioIdentifier, AfterValidator(validate_scenario_id)]
-NodeOutputMetricRef = Annotated[NodeOutputMetricIdentifier, AfterValidator(validate_node_output_metric_id)]
-DimensionRef = Annotated[DimensionIdentifier, AfterValidator(validate_dimension_id)]
-NodeOutputDimensionRef = Annotated[NodeOutputDimensionIdentifier, AfterValidator(validate_node_output_dimension_id)]
-DimensionCategoryRef = Annotated[DimensionCategoryIdentifier, AfterValidator(validate_dimension_category_id)]
-ParameterGlobalRef = Annotated[ParameterGlobalId, AfterValidator(validate_parameter_global_id)]
-ParameterLocalRef = Annotated[ParameterLocalId, AfterValidator(validate_parameter_local_id)]
-ActionGroupRef = Annotated[UUID, AfterValidator(validate_action_group_ref)]
+# -- uuids that point at an entity (see `paths.uuid_kinds`) ---------------------
+# A copy rewrites each when its target was copied with it. None is checked against the
+# runtime context, which indexes nodes and dimensions by identifier only; `ActionGroupRef`
+# is, because action groups are kept by uuid.
+
+NodeRef = Annotated[UUID, Ref('node'), Field(description='The uuid of a node.')]
+PortRef = Annotated[UUID, Ref('port')]
+ActionGroupRef = Annotated[UUID, Ref('action_group'), AfterValidator(validate_action_group_ref)]
+DimensionRef = Annotated[UUID, Ref('dimension')]
+DimensionCategoryRef = Annotated[UUID, Ref('category')]
+DatasetRef = Annotated[UUID, Ref('dataset')]
+DatasetMetricRef = Annotated[UUID, Ref('metric')]
+ShapeRef = Annotated[UUID, Ref('shape')]
+ShapeCombinationRef = Annotated[UUID, Ref('shape_combination')]
+DataSourceRef = Annotated[UUID, Ref('data_source')]
+DataEntrySectionRef = Annotated[UUID, Ref('data_entry_section')]
+FrameworkRef = Annotated[UUID, Ref('framework')]
+FrameworkCategoryRef = Annotated[UUID, Ref('framework_category')]
+MeasureTemplateRef = Annotated[UUID, Ref('measure_template')]
+
+InstanceCopyOf = Annotated[UUID, Provenance('instance')]
+NodeCopyOf = Annotated[UUID, Provenance('node')]
+
+# -- references by identifier ----------------------------------------------------
+# Checked against the runtime context when one is given.
+
+DimensionIdentifierRef = Annotated[DimensionIdentifier, AfterValidator(validate_dimension_id)]
+DimensionCategoryIdentifierRef = Annotated[DimensionCategoryIdentifier, AfterValidator(validate_dimension_category_id)]
 QuantityKindRef = Annotated[QuantityKindIdentifier, AfterValidator(validate_quantity_kind_ref)]

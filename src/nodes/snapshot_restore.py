@@ -4,8 +4,6 @@ from typing import TYPE_CHECKING, Any
 
 from django.db import transaction
 
-from kausal_common.datasets.models import Dataset
-
 from nodes.instance_serialization import InstanceExport, NodePortSource, _import_bindings
 from nodes.legacy_specs import authoring_snapshot_from_legacy
 from nodes.models import InputPortBindingSet, InstanceConfig, NodeConfig, NodeLayout, NodeLayoutSource
@@ -31,14 +29,7 @@ def restore_instance_definition(instance: InstanceConfig, snapshot: InstanceSnap
     locked.binding_overrides.all().delete()
     locked.input_bindings.all().delete()
     nodes = _restore_nodes(locked, snapshot)
-    datasets = {
-        item.identifier: item
-        for item in Dataset.objects.filter(
-            uuid__in=[item.id for item in snapshot.all_datasets()],
-        )
-        if item.identifier is not None
-    }
-    _import_bindings(locked, InstanceExport(instance=snapshot), nodes, datasets)
+    _import_bindings(locked, InstanceExport(instance=snapshot), nodes)
     for override in snapshot.binding_overrides:
         InputPortBindingSet.objects.create(
             instance=locked, node_uuid=override.node_uuid, port_uuid=override.port_uuid, bindings=override.bindings

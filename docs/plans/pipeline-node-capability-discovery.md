@@ -56,8 +56,9 @@ There are three partially overlapping representations:
 2. `PipelineNodeIR` adds runtime-only bindings and is already used to compare
    lowered AdditiveNode and MultiplicativeNode execution with their legacy
    implementations.
-3. `PipelineConfig.operations` is still a placeholder, while
-   `NodeSpec.pipeline` is a separate loosely typed field.
+3. `PipelineConfig.operations` is still a placeholder. (The loosely typed
+   `NodeSpec.pipeline` field it duplicated was never written and is removed in
+   snapshot schema v17.)
 
 Before authored pipelines are persisted, (1) and (3) need one canonical stored
 schema. Discovery and parity lowering can use `PipelineNodeIR` before that
@@ -273,8 +274,8 @@ conditional expressions, and output mappings should be extracted instead.
 
 ### 1. Canonical authoring model
 
-- Replace placeholder `PipelineConfig.operations` and the parallel loose
-  `NodeSpec.pipeline` field with one typed, versionable specification.
+- Replace placeholder `PipelineConfig.operations` with one typed, versionable
+  specification.
 - Use `PortInputRef` as the ordinary source reference.
 - Define stable intermediate and output-port references, including several
   output metrics from one pipeline.
