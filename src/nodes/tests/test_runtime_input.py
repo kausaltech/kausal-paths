@@ -10,10 +10,10 @@ import pytest
 from kausal_common.i18n.pydantic import TranslatedString
 
 from common.polars import DataFrameMeta, to_ppdf
+from datasets.runtime import FixedDataset
 from nodes.actions.simple import AdditiveAction
 from nodes.actions.values import BudgetingAction
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
-from nodes.datasets import FixedDataset
 from nodes.defs.instance_defs import InstanceMetadata, InstanceModelSpec
 from nodes.defs.node_defs import ActionConfig, NodeSpec
 from nodes.defs.port_def import InputPort, InputPortDeclaration, InputPortDef, OutputPortDef, pair_input_ports_to_outputs

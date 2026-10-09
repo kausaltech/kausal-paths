@@ -31,6 +31,7 @@ from kausal_common.i18n.pydantic import TranslatedString
 from common import polars as ppl
 from datasets.materialization import refresh_dataset_materialization
 from datasets.placeholders import make_external_dataset_ref, sync_dataset_placeholder
+from datasets.runtime import JSONDataset
 from nodes.constants import (
     COMMENT_SEPARATOR,
     FORECAST_COLUMN,
@@ -40,7 +41,6 @@ from nodes.constants import (
     SOURCE_TARGET_DATASET,
     YEAR_COLUMN,
 )
-from nodes.datasets import JSONDataset
 from nodes.models import InstanceConfig
 
 if TYPE_CHECKING:

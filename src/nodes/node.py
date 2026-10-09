@@ -25,6 +25,7 @@ from paths.identifiers import validate_identifier
 
 from common import polars as ppl
 from common.utils import hash_unit
+from datasets.runtime import JSONDataset
 from nodes.constants import (
     DEFAULT_METRIC,
     FORECAST_COLUMN,
@@ -39,7 +40,6 @@ from nodes.defs.transform_def import FlattenTransformation
 from nodes.goals import NodeGoals
 from nodes.transforms import PipelineEnv, apply_port_transformations
 
-from .datasets import JSONDataset
 from .edges import Edge
 from .exceptions import NodeComputationError, NodeError, NodeMissingDefaultUnitError
 from .units import Quantity, Unit, unit_registry
@@ -58,6 +58,7 @@ if typing.TYPE_CHECKING:
     from paths.identifiers import MixedCaseIdentifier, NodeIdentifier
 
     from common.cache import CacheResult
+    from datasets.runtime import Dataset
     from nodes.constraints.port_roles import PortRoleInferenceResult
     from nodes.constraints.rules import AnyShapeRule
     from nodes.defs.binding_def import AnyPortBindingDef
@@ -73,7 +74,6 @@ if typing.TYPE_CHECKING:
     from params import Parameter
 
     from .context import Context
-    from .datasets import Dataset
     from .dimensions import Dimension
     from .models import NodeConfig
     from .node_cache import NodeHasher

@@ -851,7 +851,7 @@ class DatasetType(UserPermissionsMixin):
         """Load the full dataset as DimensionalMetric objects (one per metric column)."""
         if root._model is None:
             return []
-        from nodes.datasets import DBDataset
+        from datasets.runtime import DBDataset
 
         df = DBDataset.deserialize_df(root._model)
 

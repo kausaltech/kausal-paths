@@ -1595,7 +1595,7 @@ class PathsExt:
         )
         return df.filter(~pl.col(FORECAST_COLUMN))
 
-    # Copied from nodes.datasets.py
+    # Copied from datasets/runtime/dvc.py
     def _linear_interpolate(self, df: ppl.PathsDataFrame, context: Context) -> ppl.PathsDataFrame:
         """Alias of the canonical ``interpolate`` operation; deprecated."""
         from nodes.transforms import PipelineEnv, interpolate_years
@@ -1715,7 +1715,7 @@ class PathsExt:
         - Is a mixture of using historical values and forecast values and strange conditions for replacing.
         - We should get rid of this.
         """
-        from nodes.datasets import GenericDataset
+        from datasets.runtime import GenericDataset
 
         drop_cols = [col for col in ['Description', 'Quantity'] if col in df.columns]
         for col in list(set(df.columns) - set(drop_cols)):

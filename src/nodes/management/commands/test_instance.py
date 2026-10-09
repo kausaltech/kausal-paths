@@ -28,10 +28,10 @@ from kausal_common.logging.warnings import register_warning_handler
 from kausal_common.perf.perf_context import estimate_size_bytes
 
 from datasets.materialization import collect_instance_dataset_violations
+from datasets.runtime import JSONDataset
 from frameworks.models import Framework
 from nodes.constants import FORECAST_COLUMN, YEAR_COLUMN
 from nodes.constraints.validation import solve_instance_constraints
-from nodes.datasets import JSONDataset
 from nodes.exceptions import NodeError
 from nodes.instance_graph_cache import get_instance_graph, resolve_instance_source
 from nodes.models import InstanceConfig, PreferredInstanceSource
@@ -761,8 +761,8 @@ class Command(BaseCommand):
             return
 
         from common.polars import PathsDataFrame
+        from datasets.runtime import Dataset
         from nodes.context import Context
-        from nodes.datasets import Dataset
         from nodes.instance import Instance
         from nodes.node import Node
 
@@ -920,7 +920,7 @@ class Command(BaseCommand):
     @staticmethod
     def object_sort_key(obj: Any) -> tuple[int, str]:
         from common.polars import PathsDataFrame
-        from nodes.datasets import Dataset
+        from datasets.runtime import Dataset
 
         if isinstance(obj, PathsDataFrame):
             size = estimate_size_bytes(obj) or 0
@@ -933,7 +933,7 @@ class Command(BaseCommand):
 
     def log_new_object_detail(self, instance_id: str, index: int, obj: Any, after_objects: list[Any], top_objects: list[Any]):
         from common.polars import PathsDataFrame
-        from nodes.datasets import Dataset
+        from datasets.runtime import Dataset
 
         extra: dict[str, Any]
         if isinstance(obj, PathsDataFrame):
@@ -978,7 +978,7 @@ class Command(BaseCommand):
             return
 
         from common.polars import PathsDataFrame
-        from nodes.datasets import Dataset
+        from datasets.runtime import Dataset
 
         gc.collect()
         after_objects = gc.get_objects()

@@ -36,8 +36,8 @@ if TYPE_CHECKING:
 
     import pint
 
+    from datasets.runtime import Dataset as RuntimeDataset
     from nodes.context import Context
-    from nodes.datasets import Dataset as RuntimeDataset
     from nodes.defs.port_def import OutputPortDef
     from nodes.edges import Edge
     from nodes.scenario import Scenario

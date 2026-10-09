@@ -25,9 +25,9 @@ from nodes.units import unit_registry
 if TYPE_CHECKING:
     from paths.tests.graphql import PathsTestClient
 
+    from datasets.runtime import DatasetWithFilters
     from nodes.actions.action import ActionNode
     from nodes.context import Context
-    from nodes.datasets import DatasetWithFilters
     from nodes.models import InstanceConfig
 
 

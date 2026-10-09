@@ -212,7 +212,7 @@ def evaluate_dataset_rules(dataset: Dataset) -> list[RuleViolation]:
     if not rules and (domain.mode != 'closed' or not schema.metrics.exists()):
         return []
 
-    from nodes.datasets import DBDataset
+    from datasets.runtime import DBDataset
 
     ppdf = DBDataset.deserialize_df(dataset)
     dim_cols = [col for col in ppdf.primary_keys if col != YEAR_COLUMN]

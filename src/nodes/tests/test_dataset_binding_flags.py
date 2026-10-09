@@ -153,7 +153,7 @@ def test_generic_dataset_applies_default_fills_at_execution_time():
     """
     from typing import cast
 
-    from nodes.datasets import GenericDataset
+    from datasets.runtime import GenericDataset
     from nodes.defs.transform_def import IndexTemporalOp, InterpolateOp
 
     ds = GenericDataset(id='some/data', context=cast('Any', None), transformations=[IndexTemporalOp()])

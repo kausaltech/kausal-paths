@@ -40,7 +40,7 @@ if TYPE_CHECKING:
 
     from paths.identifiers import NodePortIdentifier
 
-    from nodes.datasets import Dataset
+    from datasets.runtime import Dataset
     from nodes.edges import Edge
     from nodes.instance_graph import NodeMeta
     from nodes.pipeline.ir import PipelinePortBinding
@@ -773,7 +773,7 @@ so that a combination missing from the data altogether is reported as missing ra
             ds.transformations = without_transformations(ds.transformations, 'interpolate', 'backfill', 'extend')
 
     def compute(self) -> ppl.PathsDataFrame:
-        from nodes.datasets import FixedDataset
+        from datasets.runtime import FixedDataset
 
         if self.input_nodes:
             raise NodeError(

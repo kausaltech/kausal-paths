@@ -20,7 +20,7 @@ from nodes.units import unit_registry
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
 
-    from nodes.datasets import Dataset
+    from datasets.runtime import Dataset
     from nodes.defs.port_def import InputPortDeclaration
 
 
