@@ -9,7 +9,7 @@ Produces a self-contained, DB-backed copy under a new identifier:
 Two copy representations, selected with ``--mode`` (default ``auto`` follows
 the source's ``config_source``):
 
-  db   — ``export_instance`` → ``import_instance`` into a fresh
+  db   — ``export_instance`` → ``import_instance_copy`` (rekeyed) into a fresh
          ``config_source='database'`` InstanceConfig, copying spec, nodes,
          edges, dimensions, datasets and datapoints. Self-contained snapshot
          of the source's *current DB state*; the right choice for instances
@@ -64,7 +64,7 @@ from datasets.transfer import import_instance_datasets
 from nodes.blocks import NodeChooserBlock
 from nodes.instance_serialization import (
     export_instance,
-    import_instance,
+    import_instance_copy,
     import_instance_edges_and_ports,
     import_instance_nodes,
 )
@@ -507,12 +507,11 @@ class Command(BaseCommand):
         )
         ic_copy.save()
         self.stdout.write(f'Created InstanceConfig {dest!r}; importing model…')
-        import_instance(ic_copy, export)
+        # A copy is the source under new uuids; it also points the copy and its nodes at
+        # the source via copy_of.
+        import_instance_copy(ic_copy, export)
         ic_copy.refresh_from_db()
         self.stdout.write(f'  imported {ic_copy.nodes.count()} nodes, {len(export.datasets)} datasets.')
-
-        # 3. Point the copy and its nodes at the source via copy_of.
-        self._set_copy_of(ic_src, ic_copy)
 
         # 4. Copy the Wagtail content.
         if not options['no_pages']:
@@ -572,24 +571,22 @@ class Command(BaseCommand):
         # (admin-edited) datasets come from the snapshot too; DVC datasets ride
         # along by reference in the YAML and are not copied.
         if ic_src.spec is not None:
-            export = export_instance(ic_src)
+            export, _ = export_instance(ic_src).rekeyed(seed={ic_src.uuid: ic_copy.uuid})
             nodes_by_id = import_instance_nodes(ic_copy, export)
             db_datasets = [d for d in export.datasets if not d.meta.is_external_placeholder and d.meta.metrics]
-            datasets_by_id: dict[str, Any] = {}
             if db_datasets:
-                imported = import_instance_datasets(
+                import_instance_datasets(
                     ic_copy,
                     db_datasets,
                     create_missing_dimensions=True,
                     dimensions={dimension.id: dimension for dimension in export.instance.dimensions},
                 )
-                datasets_by_id = {ds.identifier: ds for ds in imported if ds.identifier is not None}
                 self.stdout.write(f'  copied {len(db_datasets)} DB-resident dataset(s).')
             # Recreate the editor graph (NodeInputPortBinding) so the copy's DB
             # mirror matches the source's — not just its node rows. Dormant for
             # config_source='yaml' (the runtime loads the YAML), but the Trailhead
             # editor reads them.
-            import_instance_edges_and_ports(ic_copy, export, nodes_by_id, datasets_by_id)
+            import_instance_edges_and_ports(ic_copy, export, nodes_by_id)
             self.stdout.write(f'  imported {ic_copy.nodes.count()} node rows (+ edges/ports) from snapshot.')
             self.stdout.write(
                 self.style.WARNING(

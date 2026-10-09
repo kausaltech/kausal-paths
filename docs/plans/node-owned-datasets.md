@@ -9,8 +9,9 @@ into steps 3–6 were agreed on 2026-09-27. On 2026-10-09 steps 4–6 were moved
 ahead of step 2 and the rest of step 3: lossless export and import are needed
 for other work too, and step 4 depends on neither (see step 4). The step 3
 stopgap is done (ca60343a), as is the re-import identity that step 4 assumes
-(881c9a1a). Step 4 is built (7c60201e; see *As built* there).
-Step 5 is next.
+(881c9a1a). Step 4 is built (7c60201e; see *As built* there). Step 6 was moved
+ahead of step 5 and is built (8f41f6e9), and so is step 5 (see *As built* there).
+Steps 2 and the rest of 3 remain.
 
 ## Why
 
@@ -369,52 +370,131 @@ all seven database instances. Where it differs from the text above, or adds to i
   conversion) should be written. The DVC boundary is the right place for a
   natural key, because the source has no uuids.
 
+### Step 6: copy by rekeying (built first)
+
+Built before step 5 (decided 2026-10-09): steps 5 and 6 are one change, because an
+import that keeps uuids breaks both callers that copy (`copy_instance` and the framework
+"create instance" mutation) until they can rekey first. Today `copy_instance` is export
+plus an import that mints fresh uuids, which is what `DataPointKey` served.
+
+As built (77b1a022, 8f41f6e9; preceded by 51caa1ad and 5d37e157):
+
+- **Every uuid field says what it is**, in its `Annotated` type (`paths.uuid_kinds`):
+  `Identity`, `Ref`, `Provenance` or `Token`, each naming its entity. Identities are in
+  `paths.identifiers` (`NodeId`, `DatasetId`, ...), references and provenance in
+  `paths.refs` (`NodeRef`, `NodeCopyOf`, ...). `*Ref` always means a uuid; the
+  identifier references are `*IdentifierRef`. `unmarked_uuid_fields(InstanceExport)` is
+  empty and a test keeps it so. `DatasetCategoryCombination` (kausal_common) gets its
+  kinds through `register_uuid_kinds`.
+- **`NodeRef` became a uuid** first (51caa1ad): `ActionConfig.parent` and
+  `ActionHookDef.node`, snapshot v16, migration 0086.
+- **The `Any` clean-up** (5d37e157) found no uuids in the untyped fields. It removed the
+  dead `NodeSpec.pipeline` and `NodeSpecExtra.other` (v17, migration 0087) and typed
+  `DatasetMeta.external_ref`. Still untyped: `InstanceModelSpec.dimensions` (step 5
+  replaces it), `DimensionMeta.spec`/`DimensionCategoryMeta.spec` (with it), node and
+  page `body` (Wagtail's; only block ids), scenario `param_values` (formulas name ports
+  by identifier, which matters to a single-node copy only).
+- **`paths.rekey.rekeyed(document, seed=...)`** walks by the marks in two passes and
+  reports what it kept (`Rekeying.outside()`: what the target must already hold).
+  Models customize it with optional hooks rather than a base class:
+  `__rekey_foreign__` (fields referred to, not owned: the bundled template, pages),
+  `rekey_owns(field, owned)` and `rekey_finish(original, rekeying)`.
+- **Ownership is not only structural.** `DimensionMeta.scope` and
+  `DatasetMeta.schema_scope` mark a framework's dimensions and schemas (a schema's
+  metrics go with it). And an identity the bundled template also carries is the
+  template's wherever it appears: a municipality closes a template shape, and replaces a
+  template binding, under the template's uuid, and its copy overrides the same entity.
+  So `InstanceExport.rekeyed()` refuses a template-built instance without its template.
+- **Provenance** is set generically where a model holds its own identity
+  (`NodeSnapshot.copy_of`), and by `InstanceSnapshot.rekey_finish` for the instance.
+- **Checked** on tampere-c4c, cork-nzc, bisko and two municipalities: each rekeys in
+  under 0.3 s, validates back, and holds no source identity outside provenance. A
+  municipality refers outside itself only to a framework schema its template does not
+  bundle, with that schema's metrics and rules.
+
+Not done here, because it needs step 5's import: `copy_instance` and the framework
+mutation do not rekey yet. A single-node copy is the same call with a smaller scope; it
+must also rename identifiers and rewrite identifier references, which the marks do not
+cover yet.
+
 ### Step 5: lossless export and import
 
-- **Import only into a database that does not hold the instance** (decided
-  2026-10-09). Uuid fields are checked by kind (see step 6): an *identity*
-  must not exist in the target, a *reference* to something the export does not
-  own (framework dimensions and schemas, the template revision) must exist with
-  the same uuid and match, by content hash where there is one. Either failure
-  aborts the import. A user reference that does not resolve becomes null, as
-  today. Updating an existing instance waits for the sync diff (*Later*).
+Decided 2026-10-09:
 
-- `instance_serialization.py` writes and reads the instance scope in about ten
-  places (export ranking and dataset query around :1655-1671, and creation at
-  :1752, 1813, 1848, 1865, 1927, 2101, 2112, 2197-2207, 2248). Owned datasets
-  carry their node's uuid, and import resolves it to the node row by uuid.
-- **Import is lossless: `export(import(x)) == x`.** A model developer imports
-  an instance locally, edits it, and exports it to a remote deployment, so
-  import keeps every uuid and every value. The remote push is
-  `instance_export_sync`, which today matches nodes by uuid or identifier and
-  datasets by identifier only; it matches everything by uuid. The round-trip
-  test is the contract.
+- **Import only into a database that does not hold the instance.** An *identity* the
+  export owns must not exist in the target. A *reference* it does not own must exist
+  with the same uuid and match: framework dimensions by category uuids with the same
+  identifiers (labels and order may differ), the template revision by content hash.
+  Either failure aborts the import. A user reference that does not resolve becomes
+  null, as today.
+- **The template is bundled, not only referenced:** the import installs it when its
+  instance is missing and finds the revision with the matching hash when present, as it
+  does today. That is the same rule applied to what the export carries.
+- **The export records framework membership** (the framework's uuid and identifier and
+  the `FrameworkConfig` fields), and which dimensions and schemas are the framework's
+  (`scope`, `schema_scope`, built in step 6).
+- **`--replace` on the local import** deletes an existing instance of the same uuid
+  first (`InstanceConfig.delete()` already takes its nodes, datasets and pages).
+- **The contract** is `export(import(x)) == x` over the instance snapshot, the dataset
+  snapshots and the template; pages, publication state (the import is an unpublished
+  draft) and provenance (`exported_at`, `exported_from`) are outside it. The goal is
+  that a remote import of a local export reproduces the model configuration faithfully.
+- **`instance_export_sync`** (pushing onto an existing instance) stays as it is; matching
+  everything by uuid belongs to the sync diff (*Later*).
 
-### Step 6: copy by rekeying
+As built (see `docs/architecture/export-import-and-copies.md` for the rules as they stand):
 
-Today `copy_instance` is export plus an import that mints fresh uuids, which is
-what `DataPointKey` served. With step 5's identity-preserving import, a copy
-rekeys the export first and then imports it as usual.
+- **The import keeps every uuid** the export defines, and refuses before writing anything
+  when one is already here or when something it refers to without bundling it is not
+  (`check_import`, by entity kind, through `paths.rekey.survey`). `preserve_node_uuids`
+  and the data-entry remapping are gone; bindings, node-owned datasets and binding
+  overrides resolve by uuid.
+- **Copies rekey first**: `import_instance_copy` (`copy_instance` in database mode, the
+  framework "create instance" mutation), and the export rekeyed directly in `copy_instance`'s
+  YAML mode and `tools/setup_cads.py`. A copy of one dataset alone still names its
+  source's dimensions; `_ensure_dataset_dimensions` gives the target its own, under new
+  uuids where the snapshot's are taken.
+- **Dimensions come from the typed catalog** (`InstanceSnapshot.dimensions`), with their
+  translations, order and spec, which the old import read from `spec.dimensions` and lost.
+  A framework's dimension is checked, not created. `spec.dimensions` itself is still
+  copied with the spec and read by the loader; retiring it into `DimensionMeta` is left.
+- **Framework membership travels** (`InstanceExport.framework`): the framework reference,
+  the config's fields and categories, and its measures with their data points. The
+  config's access token does not.
+- **`--replace`** deletes the instance of the same uuid first and points the references
+  the deletion nulls (the framework whose template it is, copies, users' selections) at
+  the new row. It refuses an instance others inherit from: their pins name its row's
+  revisions.
+- **Losses found and fixed on the way:** a metric's `quality_of`, a dataset's shape and
+  `default_quality`, `Dataset.spec` keys the catalog does not model (now
+  `DatasetMeta.extra_spec`, such as the BISKO weather seeding stamp), the instance name's
+  translations, and every `order` that `OrderedModel` replaced on creation.
+- **`InstanceConfig.delete()`** now also removes the instance's binding sets (which
+  protected its nodes, so deleting a municipality with local selections failed), its
+  dimensions and data sources once nothing kept uses them, and schemas nothing holds that
+  declare its dimensions. Each left a row a re-import collided with.
+- **Nothing in a snapshot is ordered by pk any more**: catalog datasets by identifier and
+  uuid, bindings by node uuid, declared port order and position, override sets by uuid.
+  At runtime, `Node.bind_runtime_inputs` orders a role's bindings by declared port before
+  position; it used to break ties between ports by binding uuid, which is random, so a
+  copy multiplied its factors the other way round.
 
-- **`ModelSnapshot.rekeyed(mapping)`**, used by `copy_instance` and a future
-  single-node copy.
-  - Uuid fields are one of three kinds, marked on the field type:
-    - *identity*: minted anew, with the old→new pair added to the mapping;
-    - *reference*: rewritten if its target is in the mapping and kept if not
-      (template datasets, framework schemas);
-    - *provenance* (`copy_of`): never rewritten; a copy sets it to the source.
-    A generic walker that replaced every uuid found in the mapping would
-    rewrite `copy_of` wrongly, so the kinds are needed.
-  - References cross snapshot boundaries (binding → node, dataset or metric;
-    `NodeSnapshot.datasets`; `dataset_revisions`), so the mapping is shared
-    across one call: first collect identities and mint their new uuids, then
-    rewrite references.
-  - Uuids inside untyped `dict[str, Any]` fields (`spec`, `data`,
-    `external_ref`) are invisible to the walker. The `Any` clean-up makes them
-    typed.
-- **Invariant test:** in a rekeyed dump of a real instance, no source identity
-  uuid appears except in provenance fields. It scans the JSON text for
-  uuid-shaped strings, so it also catches uuids that are not typed as such.
+Checked on real instances in scratch copies of `paths-fi` and `paths-de-data-studio`:
+`tampere-c4c`, `aarhus-c4c`, `equalia`, `ostersund-c4c`, `cork-nzc`, `climaville-c4c`
+(a framework template), `gragnano` (NZC measures) and six BISKO municipalities each
+export, restore with `--replace` and export again identically. `test_instance --compare
+--all-nodes` finds every restored instance computing as the original, and the runtime
+order fix leaves the originals' outputs unchanged. A copy of `tampere-c4c` matches its
+source in every column, values to within float rounding (4e-16 relative).
+
+Found, not fixed here:
+
+- `MultiplicativeNode` keeps only the first factor's qualifier columns, so which qualifiers
+  a product carries depends on the input order. The order is now the declared one, which
+  makes it stable, but not right.
+- `copy_instance` refuses an instance without node rows of its own, so a BISKO
+  municipality is copied only through the framework mutation.
+- Matching by uuid in `instance_export_sync` is left for the sync diff (*Later*).
 
 ### Afterwards: the editor reads datasets from its edition
 
@@ -447,6 +527,10 @@ built from the row it wrote or from a refreshed request graph.
 
 ### Later
 
+- **Retire `InstanceModelSpec.dimensions`** into typed `DimensionMeta` fields (`groups`,
+  `is_internal`, `help_text`, category colours and aliases), so the loader builds its
+  dimensions from the same catalog the import writes. It is the last untyped dict in an
+  export that describes model structure.
 - **Sync with a diff.** Pushing a local instance to a remote deployment that
   already holds it should first show what would change there. Until then step 5
   refuses an existing instance.
