@@ -315,10 +315,6 @@ class StaticPage(PathsPage):
     ]
 
 
-class OutcomePageQuerySet(PageQuerySet['OutcomePage']):
-    pass
-
-
 class OutcomePageManager(PathsPageManager['OutcomePage']):
     pass
 
