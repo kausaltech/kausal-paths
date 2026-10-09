@@ -64,10 +64,6 @@ action_groups:
   name: Sähkön kulutus
   name_en: Electricity consumption
   color: '#F4D240'
-- id: industry_and_machinery
-  name: Teollisuus ja työkoneet
-  name_en: Industry and machinery
-  color: '#E8B455'
 - id: parameters
   name: Parametrit
   name_en: Parameters
@@ -2866,18 +2862,6 @@ nodes:
       categories: [carbon_shadow]
     - id: owner
       categories: [society]
-  - id: emissions_cost_reductions
-    to_dimensions:
-    - id: cost_type
-      categories: [carbon_shadow]
-    - id: owner
-      categories: [society]
-  - id: emissions_cost_increases
-    to_dimensions:
-    - id: cost_type
-      categories: [carbon_shadow]
-    - id: owner
-      categories: [society]
 
 - id: net_price
   name: Kokonaiskustannus
@@ -2930,21 +2914,6 @@ nodes:
   output_dimensions: [cost_type]
   output_nodes:
   - id: net_price
-
-- id: industry_and_machinery_price
-  name: Teollisuuden ja työkoneiden kustannukset
-  name_en: Industry and machinery cost
-  type: simple.AdditiveNode
-  color: '#E8B455'
-  quantity: currency
-  unit: EUR/a
-  input_dimensions: [cost_type, owner]
-  output_dimensions: [cost_type, owner]
-  output_nodes:
-  - id: net_price
-    from_dimensions:
-    - id: owner
-      flatten: true
 
 - id: electricity_consumption_price
   name: Sähkön kulutuksen kustannukset
@@ -3370,71 +3339,6 @@ nodes:
   output_nodes:
   - id: total_costs
 
-# ----- Emissions
-
-- id: emissions_impacts
-  name: Emissions impacts
-  name_en: Emissions impacts
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t_co2e/a
-  input_dimensions: [action]
-  output_dimensions: [action]
-  output_nodes:
-  - id: emissions_reductions
-    tags: [make_nonpositive]
-  - id: emissions_increases
-    tags: [make_nonnegative]
-
-- id: emissions_reductions
-  name: Emissions reductions
-  name_en: Emissions reductions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t_co2e/a
-  input_dimensions: [action]
-  output_dimensions: [action]
-  output_nodes:
-  - id: emissions_cost_reductions
-    to_dimensions:
-    - id: action
-
-- id: emissions_increases
-  name: Emissions increases
-  name_en: Emissions increases
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t_co2e/a
-  input_dimensions: [action]
-  output_dimensions: [action]
-  output_nodes:
-  - id: emissions_cost_increases
-    to_dimensions:
-    - id: action
-
-- id: emissions_cost_reductions
-  name: Emissions cost reductions
-  name_en: Emissions cost reductions
-  type: simple.MultiplicativeNode
-  quantity: currency
-  unit: EUR/a
-  input_dimensions: [cost_type, owner, action]
-  output_dimensions: [cost_type, owner, action]
-  output_nodes:
-  - id: total_benefits
-
-- id: emissions_cost_increases
-  name: Emissions cost increases
-  name_en: Emissions cost increases
-  type: simple.MultiplicativeNode
-  quantity: currency
-  unit: EUR/a
-  input_dimensions: [cost_type, owner, action]
-  output_dimensions: [cost_type, owner, action]
-  output_nodes:
-  - id: total_costs
-
-
 # ----- Outcome
 
 - id: promoting_walking_and_cycling_cost_benefit
@@ -3657,44 +3561,6 @@ nodes:
   short_name: Sähkön kulutus
   short_name_en: Electricity consumption
   color: '#F4D240'
-  type: simple.AdditiveNode
-  quantity: currency
-  unit: MEUR/a
-  input_dimensions: [cost_type, owner, action]
-  output_dimensions: [cost_type, owner, action]
-  output_nodes:
-  - id: cost_benefit
-
-
-- id: replacing_fossil_fuels_with_res_in_city_machinery_cost_benefit
-  name: Fossiilisista polttoaineista luopuminen kaupungin työkoneissa
-  name_en: Replacing fossil fuels with renewables in the city's own machinery
-  color: '#E8B455'
-  type: formula.FormulaNode
-  quantity: currency
-  unit: MEUR/a
-  input_dimensions: [cost_type, owner, action]
-  output_dimensions: [cost_type, owner, action]
-  params:
-    formula: total_costs + total_benefits
-  input_nodes:
-  - id: total_costs
-    from_dimensions:
-    - id: action
-      categories: [replacing_fossil_fuels_with_res_in_city_machinery]
-  - id: total_benefits
-    from_dimensions:
-    - id: action
-      categories: [replacing_fossil_fuels_with_res_in_city_machinery]
-  output_nodes:
-  - id: industry_and_machinery_cost_benefit
-
-- id: industry_and_machinery_cost_benefit
-  name: Teollisuus ja työkoneet kustannukset ja hyödyt
-  name_en: Industry and machinery costs and benefits
-  short_name: Teollisuus ja työkoneet
-  short_name_en: Industry and machinery
-  color: '#E8B455'
   type: simple.AdditiveNode
   quantity: currency
   unit: MEUR/a
@@ -3999,28 +3865,6 @@ nodes:
   quantity: currency
   unit: EUR/a
   order: 5
-  is_outcome: true
-  input_dimensions: []
-  output_dimensions: []
-
-- id: replacing_fossil_fuels_with_res_in_city_machinery_emissions
-  name: Vaikutus (Päästöt)
-  name_en: Impact (Emissions)
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t_co2e/a
-  order: 3
-  is_outcome: true
-  input_dimensions: []
-  output_dimensions: []
-
-- id: replacing_fossil_fuels_with_res_in_city_machinery_currency
-  name: Vaikutus (Kustannus)
-  name_en: Impact (Costs)
-  type: simple.AdditiveNode
-  quantity: currency
-  unit: EUR/a
-  order: 4
   is_outcome: true
   input_dimensions: []
   output_dimensions: []
@@ -5557,121 +5401,6 @@ actions:
     - id: heating
       flatten: true
     - id: energy_carrier
-      flatten: true
-    - id: scope
-      flatten: true
-
-# ----- Teollisuus ja Työkoneet
-- id: replacing_fossil_fuels_with_res_in_city_machinery
-  name: 'KAUPUNKI: Fossiilisista polttoaineista luopuminen kaupungin työkoneissa'
-  name_en: 'CITY: Replacing fossil fuels with renewables in the city''s own machinery'
-  type: simple.AdditiveAction
-  group: industry_and_machinery
-  input_dimensions: [action, cost_type, owner, ghg, scope]
-  output_dimensions: [action, cost_type, owner, ghg, scope]
-  params:
-    allow_null_categories: true
-  input_datasets:
-  - id: tampere/stationary_actions
-    forecast_from: 2024
-    filters:
-    - column: sector
-    - dimension: action
-      categories: [replacing_fossil_fuels_with_res_in_city_machinery]
-    - column: heating
-    - column: energy_carrier
-  output_metrics:
-  - id: emissions
-    unit: t_co2e/a
-    quantity: emissions
-  - id: currency
-    unit: EUR/a
-    quantity: currency
-  output_nodes:
-  - id: industry_and_machinery_emissions
-    metrics: [emissions]
-    from_dimensions:
-    - id: action
-      flatten: true
-    - id: cost_type
-      flatten: true
-    - id: owner
-      flatten: true
-    to_dimensions:
-    - id: ghg
-    - id: scope
-  - id: emissions_impacts
-    metrics: [emissions]
-    from_dimensions:
-    - id: cost_type
-      flatten: true
-    - id: owner
-      flatten: true
-    - id: ghg
-      flatten: true
-    - id: scope
-      flatten: true
-    to_dimensions:
-    - id: action
-  - id: industry_and_machinery_price
-    metrics: [currency]
-    from_dimensions:
-    - id: action
-      flatten: true
-    - id: ghg
-      flatten: true
-    - id: scope
-      flatten: true
-    to_dimensions:
-    - id: cost_type
-    - id: owner
-  - id: total_costs
-    metrics: [currency]
-    tags: [make_nonnegative]
-    from_dimensions:
-    - id: ghg
-      flatten: true
-    - id: scope
-      flatten: true
-    to_dimensions:
-    - id: action
-    - id: cost_type
-    - id: owner
-  - id: total_benefits
-    metrics: [currency]
-    tags: [make_nonpositive]
-    from_dimensions:
-    - id: ghg
-      flatten: true
-    - id: scope
-      flatten: true
-    to_dimensions:
-    - id: action
-    - id: cost_type
-    - id: owner
-  - id: replacing_fossil_fuels_with_res_in_city_machinery_emissions
-    metrics: [emissions]
-    from_dimensions:
-    - id: action
-      flatten: true
-    - id: cost_type
-      flatten: true
-    - id: owner
-      flatten: true
-    - id: ghg
-      flatten: true
-    - id: scope
-      flatten: true
-  - id: replacing_fossil_fuels_with_res_in_city_machinery_currency
-    metrics: [currency]
-    from_dimensions:
-    - id: action
-      flatten: true
-    - id: cost_type
-      flatten: true
-    - id: owner
-      flatten: true
-    - id: ghg
       flatten: true
     - id: scope
       flatten: true
