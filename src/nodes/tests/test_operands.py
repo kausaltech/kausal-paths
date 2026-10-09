@@ -225,15 +225,30 @@ def test_reference_role_binding_is_ignored_by_the_additive_port():
     assert annotated.get_output_pl()[VALUE_COLUMN].to_list() == plain.get_output_pl()[VALUE_COLUMN].to_list()
 
 
+def test_assigning_input_port_declarations_in_a_class_body_is_refused():
+    """The attribute is computed from `declared_input_ports`; assigning it would be lost silently."""
+    from nodes.defs.port_def import InputPort
+    from nodes.node import Node
+
+    with pytest.raises(TypeError, match='declared_input_ports'):
+
+        class OldStyleNode(Node):
+            input_port = InputPort.one('input')
+            input_port_declarations = (input_port,)
+
+
 def test_reference_port_is_declared_on_every_node_class():
     """The role is universal, so any class can hold a half-constructed edge."""
+    from nodes.actions.simple import GpcTrajectoryAction
     from nodes.constants import REFERENCE_ROLE
     from nodes.formula import FormulaNode
     from nodes.generic import GenericNode
     from nodes.node import Node
     from nodes.simple import AdditiveNode, MultiplicativeNode
 
-    for cls in (Node, GenericNode, FormulaNode, AdditiveNode, MultiplicativeNode):
+    # GpcTrajectoryAction inherits its declarations from another class, which is where a
+    # second reference port would slip in.
+    for cls in (Node, GenericNode, FormulaNode, AdditiveNode, MultiplicativeNode, GpcTrajectoryAction):
         roles = [declaration.role for declaration in cls.input_port_declarations]
         assert REFERENCE_ROLE in roles, cls.__name__
         assert roles.count(REFERENCE_ROLE) == 1, cls.__name__

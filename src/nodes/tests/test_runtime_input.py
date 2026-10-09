@@ -350,6 +350,45 @@ def test_reference_tagged_edge_resolves_to_the_reference_role() -> None:
     assert [d.code for d in target.port_role_diagnostics if d.code == 'unclassified_port_role'] == []
 
 
+def test_a_dataset_tagged_reference_is_not_a_reference_port() -> None:
+    """
+    `reference` marks a node edge only; on a dataset it is an ordinary label.
+
+    Formula configs name a dataset term `reference` (``... + reference``), and the value
+    has to keep reaching the formula rather than being classified out of the arithmetic.
+    """
+    config = {
+        'id': 'reference_dataset_tag',
+        'default_language': 'en',
+        'supported_languages': [],
+        'name': 'Reference dataset tag',
+        'owner': 'Owner',
+        'target_year': 2030,
+        'minimum_historical_year': 2020,
+        'maximum_historical_year': 2020,
+        'reference_year': 2020,
+        'nodes': [
+            {
+                'id': 'target',
+                'type': 'nodes.simple.AdditiveNode',
+                'name': 'Target',
+                'unit': 'kt/a',
+                'quantity': 'emissions',
+                'input_datasets': [{'id': 'test/reported', 'tags': ['reference']}],
+            },
+        ],
+    }
+    snapshot = parse_instance_snapshot(config, instance_uuid=uuid4())
+    loader = object.__new__(InstanceLoader)
+    loader.instance_config = None
+    loader._stash_snapshot_bindings(snapshot)
+    target = next(meta for meta in loader._instance_graph.nodes if meta.identifier == 'target')
+
+    dataset_ports = [binding.target_port for binding in target.input_bindings if not isinstance(binding, EdgeBindingDef)]
+    assert dataset_ports
+    assert [target.role_for_input_port(port) for port in dataset_ports] == ['additive']
+
+
 def test_additive_action_receives_inline_values_through_its_input_port() -> None:
     config = {
         'id': 'runtime_action_input',

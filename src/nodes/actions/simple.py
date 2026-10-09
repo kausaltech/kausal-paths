@@ -465,7 +465,7 @@ class GpcTrajectoryAction(TrajectoryAction, DatasetNode):
     GpcTrajectoryAction is a trajectory action that uses the DatasetNode to fetch the dataset.
     """)
     allowed_parameters = [*TrajectoryAction.allowed_parameters, *DatasetNode.allowed_parameters]
-    declared_input_ports = DatasetNode.input_port_declarations
+    declared_input_ports = DatasetNode.declared_input_ports
     legacy_fixed_dataset_input_role = DatasetNode.legacy_fixed_dataset_input_role
     legacy_untagged_dataset_input_role = DatasetNode.legacy_untagged_dataset_input_role
 

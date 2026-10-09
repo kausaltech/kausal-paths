@@ -429,6 +429,10 @@ class Node:
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
+        # Assigning the computed attribute in a class body would be overwritten on the next
+        # line, and the class would silently lose every role it meant to declare.
+        if 'input_port_declarations' in cls.__dict__:
+            raise TypeError(f'{cls.__qualname__} assigns input_port_declarations; declare its ports in declared_input_ports')
         cls.input_port_declarations = (*cls.declared_input_ports, Node.reference_port)
 
     legacy_fixed_dataset_input_role: ClassVar[str | None] = None

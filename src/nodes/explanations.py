@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any, Literal, cast
 
 from kausal_common.i18n.pydantic import gettext_lazy as _
 
-from .constants import REFERENCE_TAG, TIME_INTERVAL
+from .constants import ARGUMENT_QUANTITY, REFERENCE_TAG, TIME_INTERVAL
 from .defs.transform_def import (
     AssignDimensionOp,
     DropNullsOp,
@@ -1341,10 +1341,11 @@ class BasketRule(ValidationRule):
         assert nes is not None
 
         for edge in node.inputs:
-            if REFERENCE_TAG in edge.tags:
-                continue
             input_id = edge.source_id
             input_node = nes.graph.nodes.get(input_id)
+            # Neither a reference edge nor an argument node takes part in the arithmetic.
+            if REFERENCE_TAG in edge.tags or (input_node is not None and input_node.quantity == ARGUMENT_QUANTITY):
+                continue
             func_tags = [tag for tag in edge.tags if tag in TAG_DESCRIPTIONS and tag not in TAG_TO_BASKET]
             label_tag = next((tag for tag in edge.tags if tag not in TAG_TO_BASKET and tag not in TAG_DESCRIPTIONS), None)
             if not func_tags or label_tag is None:

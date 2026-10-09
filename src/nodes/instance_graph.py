@@ -108,7 +108,8 @@ class NodeMeta(InstanceGraphBoundModel):
         remaining: list[InputPortDef] = []
         for port in candidates:
             bindings = self.bindings_for_port(port.id)
-            if bindings and all(REFERENCE_TAG in binding.tags for binding in bindings):
+            # Edges only: a dataset tagged `reference` is a formula term, not a reference.
+            if bindings and all(isinstance(b, EdgeBindingDef) and REFERENCE_TAG in b.tags for b in bindings):
                 roles[port.id] = REFERENCE_ROLE
             else:
                 remaining.append(port)
