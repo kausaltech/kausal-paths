@@ -26,9 +26,9 @@ if TYPE_CHECKING:
     from paths.gql import Info
     from paths.tests.graphql import PathsTestClient
 
+    from datasets.runtime import DatasetWithFilters
     from nodes.actions.action import ActionNode
     from nodes.context import Context
-    from nodes.datasets import DatasetWithFilters
     from nodes.instance_graph import InstanceGraph
     from nodes.models import InstanceConfig
 

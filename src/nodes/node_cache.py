@@ -19,7 +19,7 @@ from kausal_common.logging.errors import capture_error
 
 from common.polars import PathsDataFrame
 from common.qualifiers import QUALIFIER_VERSION
-from nodes.datasets import DVCDataset
+from datasets.runtime import DVCDataset
 from nodes.exceptions import NodeError, NodeHashingError
 
 if TYPE_CHECKING:

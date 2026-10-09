@@ -243,7 +243,7 @@ class DatasetPortType(EditableEntity):
                 matched_ds = ds
                 break
             if ds_uuid is not None:
-                from nodes.datasets import DBDataset
+                from datasets.runtime import DBDataset
 
                 if isinstance(ds, DBDataset) and ds.db_dataset_obj is not None and str(ds.db_dataset_obj.uuid) == ds_uuid:
                     matched_ds = ds

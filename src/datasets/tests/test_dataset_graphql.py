@@ -48,7 +48,7 @@ def test_empty_dataset_has_typed_calculation_payload() -> None:
 
     from datasets.materialization import materialize_dataset
     from datasets.payloads import CurrentDatasetPayloadStore, DatasetPayloadRef
-    from nodes.datasets import JSONDataset
+    from datasets.runtime import JSONDataset
 
     dataset = DatasetFactory.create(identifier='kommune/empty')
     DatasetSchemaDimensionFactory.create(schema=dataset.schema, dimension=DimensionFactory.create())

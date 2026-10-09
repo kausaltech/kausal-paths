@@ -1788,7 +1788,7 @@ class InstanceConfig(
         return InstanceHostname.objects.create(instance=self, hostname=hostname, base_path=base_path)
 
     def sync_nodes(self, update_existing=False, delete_stale=False, overwrite=False, skip_descriptions=False):
-        from nodes.datasets import DBDataset
+        from datasets.runtime import DBDataset
 
         instance = self.get_instance()
         node_configs = {n.identifier: n for n in self.nodes.all()}
@@ -2563,7 +2563,7 @@ class NodeConfig(PathsModel[InstanceConfig], EditableInstanceChild, index.Indexe
             self.update_relations_from_node(node)
 
     def update_relations_from_node(self, node: Node):
-        from nodes.datasets import DBDataset
+        from datasets.runtime import DBDataset
 
         current_dss = {ds.pk for ds in self.datasets.all()}
         for dataset in node.input_dataset_instances:

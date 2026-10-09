@@ -90,7 +90,7 @@ Two loose ends follow from that, neither blocking:
 ### The forecast flag is a format gap, not a missing fact
 
 `DataPoint` has no forecast field, but the boundary is not lost: it lives in
-`Dataset.spec['forecast_from']` (read at `nodes/datasets.py:1117`) and
+`Dataset.spec['forecast_from']` (read at `datasets/runtime/db.py`, `DBDataset.from_def`) and
 `DatasetSnapshot.forecast_from` already maps it. It is a dataset-level attribute
 with nowhere to go in the CSV format, which is §4 rather than a separate problem. §4 now
 gives it one.
@@ -124,7 +124,7 @@ to express metric-specific provenance, and it is intended.
 What follows from it was expected to be harmless — an empty row, dropped on load. It is
 not what happens. The importer makes a data point for every metric of *both* rows, so a
 real value and a null land under one natural key; and `DBDataset.deserialize_df`
-(`nodes/datasets.py:1255`) resolves that collision like this:
+(`datasets/runtime/db.py`) resolves that collision like this:
 
 ```python
 dupes = df.group_by(uniq_cols).agg(pl.count()...).filter(pl.col('_count') > 1)

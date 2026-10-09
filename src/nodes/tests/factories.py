@@ -9,10 +9,10 @@ from factory.django import DjangoModelFactory
 
 from kausal_common.i18n.pydantic import TranslatedString
 
+from datasets.runtime import FixedDataset
 from nodes.actions.action import ActionNode
 from nodes.actions.simple import AdditiveAction
 from nodes.context import Context
-from nodes.datasets import FixedDataset
 from nodes.defs.node_defs import NodeSpec, SimpleConfig
 from nodes.defs.port_def import OutputPortDef
 from nodes.instance import Instance
