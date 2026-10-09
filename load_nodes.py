@@ -186,7 +186,7 @@ else:
 
 
 def print_db_datasets():
-    from nodes.datasets import DBDataset, DVCDataset
+    from datasets.runtime import DBDataset, DVCDataset
 
     if TYPE_CHECKING:
         from nodes.node import Node

@@ -57,7 +57,7 @@ def metric_column_id(metric: DatasetMetric) -> str:
     both create them as ``name=label=<column>``. A metric authored in the editor has
     no ``name`` at all, and its column is built from the label — see the
     ``Coalesce(name, label, uuid)`` in ``DBDataset.deserialize_df``
-    (``nodes/datasets.py``), which is the writer this function has to agree with.
+    (``datasets/runtime/db.py``), which is the writer this function has to agree with.
     Build SQL selectors with ``metric_column_id_expr()``, its twin below.
 
     **Falling through to the uuid is never a working answer.** No dataframe column is

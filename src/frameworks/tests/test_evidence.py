@@ -25,12 +25,12 @@ from kausal_common.datasets.tests.factories import (
 
 from paths.tests.graphql import PathsTestClient
 
+from datasets.runtime import DBDataset
 from datasets.snapshot import DatasetSnapshot
 from datasets.transfer import import_dataset
 from frameworks.evidence import QUALITY_OF_SPEC_KEY
 from frameworks.models import DataEvidenceKind, DataPointEvidence, DataQualityLevel, DataQualityScheme
 from frameworks.tests.factories import FrameworkConfigFactory, FrameworkFactory
-from nodes.datasets import DBDataset
 from nodes.defs.instance_defs import InstanceModelSpec, YearsSpec
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory
 from users.tests.factories import UserFactory

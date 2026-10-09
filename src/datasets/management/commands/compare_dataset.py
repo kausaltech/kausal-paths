@@ -14,8 +14,8 @@ from kausal_common.datasets.models import Dataset as DBDatasetModel
 
 from common import polars as ppl
 from datasets.diff import compute_row_diff, compute_schema_diff
+from datasets.runtime import DBDataset, FixedDataset
 from nodes.constants import YEAR_COLUMN
-from nodes.datasets import DBDataset, FixedDataset
 from nodes.models import InstanceConfig
 
 if TYPE_CHECKING:

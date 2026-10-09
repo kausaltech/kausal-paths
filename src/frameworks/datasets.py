@@ -7,9 +7,9 @@ import polars as pl
 from pint import DimensionalityError
 
 from common import polars as ppl
+from datasets.runtime import DVCDataset, GenericDataset
 from frameworks.models import MeasureDataPoint
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
-from nodes.datasets import DVCDataset, GenericDataset
 
 if TYPE_CHECKING:
     from kausal_common.datasets.models import Dataset as DBDatasetModel
@@ -233,7 +233,7 @@ class FrameworkMeasureDVCDataset2(DVCDataset):
             assert self.payload_store is not None
             df = self.payload_store.get_dataframe(self.payload_ref).copy()
         else:
-            from nodes.datasets import DBDataset
+            from datasets.runtime import DBDataset
 
             assert self.db_dataset_obj is not None
             df = DBDataset.deserialize_df(self.db_dataset_obj)
@@ -269,7 +269,7 @@ class FrameworkMeasureDVCDataset2(DVCDataset):
             assert self.payload_store is not None
             df = self.payload_store.get_dataframe(self.payload_ref).copy()
         elif self.db_dataset_obj is not None:
-            from nodes.datasets import DBDataset
+            from datasets.runtime import DBDataset
 
             df = DBDataset.deserialize_df(self.db_dataset_obj)
         else:

@@ -23,9 +23,9 @@ from paths.const import MODEL_CACHE_OP, MODEL_CALC_OP
 
 from common import base32_crockford, qualifiers
 from common.cache import Cache
+from datasets.runtime import DVCDataset, FixedDataset
 from nodes.exceptions import ParameterError
 
-from .datasets import DVCDataset, FixedDataset
 from .units import unit_registry
 
 if TYPE_CHECKING:
@@ -45,6 +45,7 @@ if TYPE_CHECKING:
     from common import polars as ppl
     from common.qualifiers import QualifierCatalog
     from datasets.prepared import PreparedDatasetStore
+    from datasets.runtime import Dataset
     from nodes.defs.instance_defs import DatasetRepoSpec
     from nodes.explanations import NodeExplanationSystem
     from nodes.shapes import EffectiveShape
@@ -52,7 +53,6 @@ if TYPE_CHECKING:
     from params.storage import SettingStorage
 
     from .actions.action import ActionNode, ImpactOverview
-    from .datasets import Dataset
     from .dimensions import Dimension
     from .graph_layout import NodeGraphClassifier, NodeGraphClusterer
     from .instance import Instance

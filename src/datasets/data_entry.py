@@ -23,13 +23,13 @@ from datasets.plausibility import (
     applicable_plausibility_ranges,
     evaluate_plausibility_cells,
 )
+from datasets.runtime import JSONDataset
 from datasets.snapshot import DatasetSnapshot
 from datasets.validation import evaluate_closed_domain, evaluate_rule
 from frameworks.models import Framework
 from frameworks.qualifiers import attach_evidence_qualifiers, qualifier_catalog_for_instance
 from nodes.constants import VALUE_COLUMN, YEAR_COLUMN
 from nodes.data_entry import EntryResolver, EntrySelection, Rectangle, intersect, rectangle
-from nodes.datasets import JSONDataset
 from nodes.defs.binding_def import DatasetBindingDef
 from nodes.models import DatasetMaterialization, InstanceConfig
 from nodes.value_validation import contract_requirements, requirement_failures
