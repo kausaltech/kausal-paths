@@ -540,6 +540,9 @@ dimensions:
   - id: energy_efficiency_renovations_in_private_buildings
     label: Korjausrakentaminen yksityisissä kiinteistöissä
     label_en: Energy efficiency renovations in private buildings
+  - id: steering_private_new_construction
+    label: Yksityisen uudisrakentamisen ohjaus
+    label_en: Steering private new construction
 
 # ----- Kelicobe
 
