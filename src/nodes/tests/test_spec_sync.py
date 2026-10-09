@@ -129,6 +129,18 @@ def test_store_instance_spec_marks_published_instance_as_having_unpublished_chan
     assert db_instance.spec.years.min_historical == 2010
 
 
+def test_store_instance_spec_leaves_never_published_instance_unflagged(db_instance):
+    assert db_instance.live_revision_id is None
+    snapshot = InstanceSnapshot(spec=InstanceModelSpec(years=YearsSpec(target=2040, min_historical=2010)))
+
+    _store_instance_spec(db_instance, snapshot)
+
+    db_instance.refresh_from_db()
+    assert not db_instance.has_unpublished_changes
+    assert db_instance.spec is not None
+    assert db_instance.spec.years.min_historical == 2010
+
+
 def test_uuid_matched_rename_does_not_mark_row_stale(db_instance):
     """
     A uuid-matched node under a new identifier must not stale the row it updated.

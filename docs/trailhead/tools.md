@@ -547,24 +547,32 @@ workflow:
 ### A sync writes the draft; the public site serves the published revision
 
 Once a database-sourced instance has been published, every request without a
-`preview` argument — every anonymous visitor — is served its **live revision**
-(`_resolve_preview_source` in `paths/schema_context.py`), a frozen snapshot of the
-model at publication. A sync rewrites the spec, nodes and bindings, which is the
-**draft**, so nothing it changes is public until the instance is published again,
-from the model editor or with `InstanceConfig.publish_instance()`. Before
-then, it looks as if the sync did nothing — new scenario names, new years and new
-nodes all stay invisible.
+`preview` argument, including every anonymous visitor's, is served the instance's
+**live revision** (`_resolve_preview_source` in `paths/schema_context.py`). The live
+revision is a snapshot of the model taken when it was published. A sync updates the
+spec, nodes and bindings, which together make up the **draft**, so none of its
+changes are public until the instance is published again, either from the model
+editor or with `InstanceConfig.publish_instance()`. Until then, the sync can appear
+to have had no effect: new scenario names, years and nodes are not yet visible.
 
-The sync marks the instance `has_unpublished_changes` so the editor offers the
-publish. It does so on every sync, including one that changed nothing. Check which
-case you are in before blaming the sync:
+To make this clear in the model editor, a sync of a published instance sets
+`has_unpublished_changes`, and the editor then shows the Publish button. This
+happens on every sync, including one that changed nothing.
+
+A sync of an instance that has never been published leaves the flag unchanged.
+Such an instance has no live revision, so visitors already see its draft. The editor
+labels it "Public draft" and shows a "Publish first revision" button.
+
+If a sync seems to have had no effect, this command shows which of these cases
+applies:
 
 ```bash
 python manage.py shell_plus --quiet-load -c "ic=InstanceConfig.objects.get(identifier='<instance>'); print(ic.live_revision_id, ic.has_unpublished_changes, ic.spec.years.model_dump())"
 ```
 
-A `live_revision_id` with the new values in the spec means: publish. `None` means
-the draft is what is served, and the cause is elsewhere.
+If `live_revision_id` is set and the spec shows the new values, the sync worked and
+the instance needs to be published. If `live_revision_id` is `None`, visitors are
+already seeing the draft, so the cause lies elsewhere.
 
 ### What a sync does not overwrite: the instance name and owner
 

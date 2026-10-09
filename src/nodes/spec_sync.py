@@ -344,17 +344,22 @@ def _apply_metadata_columns(ic: InstanceConfig, snapshot: InstanceSnapshot) -> N
 
 def _store_instance_spec(ic: InstanceConfig, snapshot: InstanceSnapshot) -> None:
     """
-    Write the parsed spec and metadata onto the instance row as its draft.
+    Write the parsed spec and metadata to the instance row as its draft.
 
-    Public reads of a published instance are served from its live revision, so
-    a sync changes nothing visible until the instance is published again. Flag
-    the draft as ahead of that revision -- as ``save_revision`` would -- so the
-    editor offers the publish instead of reporting the instance as up to date.
+    Once an instance has been published, the public site serves its live
+    revision, so changes from a sync stay hidden until the instance is
+    published again. Mark the draft as having unpublished changes -- as
+    ``save_revision`` does -- so that the model editor shows the Publish
+    button rather than reporting the instance as up to date.
+
+    An instance that has never been published has no live revision, and the
+    public site serves its draft directly, so the flag is left unchanged.
     """
     _apply_metadata_columns(ic, snapshot)
     ic.spec = snapshot.spec
     ic.config_source = 'database'
-    ic.has_unpublished_changes = True
+    if ic.live_revision_id is not None:
+        ic.has_unpublished_changes = True
     ic.invalidate_cache(save=False)
     ic.save()
 
