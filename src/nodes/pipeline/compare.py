@@ -4,8 +4,8 @@ from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel, Field
 
+from datasets.runtime import JSONDataset
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN
-from nodes.datasets import JSONDataset
 
 from .executor import execute_pipeline_ir
 from .ir import compile_pipeline_ir_to_spec

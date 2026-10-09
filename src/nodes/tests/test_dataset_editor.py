@@ -355,7 +355,7 @@ def test_nameless_metric_column_matches_the_serialized_dataframe(db_instance_con
     which has no ``name`` -- produced a selector no column could match. Regression for
     ``longmont-dev``'s ``diversion_rate``.
     """
-    from nodes.datasets import DBDataset
+    from datasets.runtime import DBDataset
 
     dataset, _ = _make_dataset(db_instance_config)
     assert dataset.schema is not None

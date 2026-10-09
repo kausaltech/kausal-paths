@@ -49,7 +49,7 @@ class DatasetPayloadStore(ABC):
         data = content.get('data')
         if data is None:
             raise RuntimeError(f'Dataset {ref.identifier} has no serialized dataframe payload')
-        from nodes.datasets import JSONDataset
+        from datasets.runtime import JSONDataset
 
         df = JSONDataset.deserialize_df(data)
         self._dataframes[(ref.generation is None, ref.payload_id)] = df

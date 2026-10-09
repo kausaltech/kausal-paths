@@ -9,9 +9,9 @@ from polars.testing import assert_frame_equal
 from common import polars as ppl
 from datasets.models import PreparedDataset
 from datasets.prepared import PreparedDatasetStore, PreparedRecipe, deserialize_frame, serialize_frame
+from datasets.runtime import DVCDataset
 from datasets.tests.test_manifests import SPEC, manifest_for
 from nodes.context import Context
-from nodes.datasets import DVCDataset
 from nodes.defs.transform_def import FilterColumnOp, RemapLegacyYearsOp, SelectMetricOp, TagOperationOp
 from nodes.units import unit_registry
 

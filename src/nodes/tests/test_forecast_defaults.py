@@ -7,7 +7,7 @@ from uuid import uuid4
 
 import pytest
 
-from nodes.datasets import DatasetWithFilters, DVCDataset
+from datasets.runtime import DatasetWithFilters, DVCDataset
 from nodes.defs.node_defs import InputDatasetDef
 from nodes.defs.transform_def import SetForecastFromOp
 from nodes.instance_loader import InstanceLoader

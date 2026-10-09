@@ -40,8 +40,8 @@ if TYPE_CHECKING:
 
     import dvc_pandas
 
+    from datasets.runtime import DVCDataset
     from nodes.context import Context
-    from nodes.datasets import DVCDataset
     from nodes.defs.instance_defs import DatasetRepoSpec
     from nodes.defs.node_defs import DatasetPortSpec, NodeSpec
     from nodes.dimensions import Dimension as DimensionSpec, DimensionCategory as DimensionCategorySpec
@@ -109,7 +109,7 @@ def _collect_placeholder_metric_units_from_node_bindings(
     first unit seen. ``DatasetMetric.unit`` doesn't drive runtime interpretation for legacy
     DVC datasets; nodes carry their own ``output_metric.unit``.
     """
-    from nodes.datasets import DVCDataset
+    from datasets.runtime import DVCDataset
 
     metric_units: dict[str, Unit] = {}
 

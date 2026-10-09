@@ -36,7 +36,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Container
 
     from common.polars import PathsDataFrame
-    from nodes.datasets import Dataset
+    from datasets.runtime import Dataset
     from nodes.node import Node
     from nodes.units import Unit
 

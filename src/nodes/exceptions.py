@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, ClassVar, Literal
 if TYPE_CHECKING:
     import rich.repr
 
-    from nodes.datasets import Dataset
+    from datasets.runtime import Dataset
     from params import Parameter
 
     from .node import Node

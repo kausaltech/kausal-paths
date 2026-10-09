@@ -9,7 +9,7 @@
 | `name` | **Column identifier** — maps directly to the DataFrame column name used in calculations | Snake-case identifier matching the DVC column name, e.g. `share_of_trucks_fully_electric` |
 | `label` | **Display label** — human-readable, translatable | Anything readable, e.g. `"Share of trucks fully electric"` |
 
-`nodes/datasets.py:DBDataset.deserialize_df` uses `metric.name` as the pivot column name when it reconstructs a `PathsDataFrame` from database `DataPoint` rows. If `name` is a human-readable label instead of the DVC column identifier, the resulting DataFrame will have wrong column names and any node that references the dataset by its DVC column ID will raise `DatasetError: Column '...' not found`.
+`datasets/runtime/db.py:DBDataset.deserialize_df` uses `metric.name` as the pivot column name when it reconstructs a `PathsDataFrame` from database `DataPoint` rows. If `name` is a human-readable label instead of the DVC column identifier, the resulting DataFrame will have wrong column names and any node that references the dataset by its DVC column ID will raise `DatasetError: Column '...' not found`.
 
 ## How datasets are created — two paths
 

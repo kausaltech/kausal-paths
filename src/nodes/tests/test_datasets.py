@@ -10,7 +10,7 @@ import pytest
 from kausal_common.datasets.tests.factories import DatasetFactory, DatasetMetricFactory, DatasetSchemaFactory
 
 from common import polars as ppl
-from nodes.datasets import DBDataset, DVCDataset
+from datasets.runtime import DBDataset, DVCDataset
 from nodes.defs.transform_def import AssignDimensionOp, FilterColumnOp, InterpolateOp, RemapLegacyYearsOp
 
 if TYPE_CHECKING:

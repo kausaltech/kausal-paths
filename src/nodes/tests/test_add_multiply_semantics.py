@@ -24,8 +24,8 @@ import pytest
 from kausal_common.i18n.pydantic import TranslatedString
 
 from common.polars import DataFrameMeta, to_ppdf
+from datasets.runtime import Dataset
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
-from nodes.datasets import Dataset
 from nodes.defs.transform_def import BackfillOp, ExtendOp, InterpolateOp, PortTransformOp
 from nodes.dimensions import Dimension, DimensionCategory
 from nodes.edges import Edge
