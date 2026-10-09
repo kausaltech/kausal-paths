@@ -646,7 +646,7 @@ class InstanceLoader:
     _node_classes: dict[str, type[Node]]
     _input_nodes: dict[str, list[dict[str, Any] | str]]
     _output_nodes: dict[str, list[dict[str, Any] | str]]
-    _subactions: dict[str, list[str]]
+    _subactions: dict[UUID, list[str]]
     _scenario_values: dict[str, list[tuple[Parameter, Any]]]
     _node_visualizations: dict[str, list[dict[str, Any]]]
     # Snapshot-path dataset-binding stash (see _stash_snapshot_bindings).
@@ -1389,9 +1389,10 @@ class InstanceLoader:
             if not isinstance(action, ActionNode):
                 continue
             for definition in type_config.hooks:
+                target_id = self._node_identifier_by_uuid.get(definition.node, str(definition.node))
                 try:
-                    target = ctx.get_node(definition.node)
-                    target_spec = specs[definition.node]
+                    target = ctx.get_node(target_id)
+                    target_spec = specs[target_id]
                     from_dims, to_dims = self._edge_dimensions_from_transforms(
                         list(definition.transformations), list(target.output_dimensions), target
                     )
@@ -1414,7 +1415,7 @@ class InstanceLoader:
                         reads_base=action.reads_hook_base(target),
                     )
                 except Exception as e:
-                    self._init_failure(action, 'Invalid hook on %s: %s' % (definition.node, e), cause=e)
+                    self._init_failure(action, 'Invalid hook on %s: %s' % (target_id, e), cause=e)
                     continue
                 target.hooks.append(hook)
                 action.hook_targets.append(hook)
@@ -1537,14 +1538,15 @@ class InstanceLoader:
         from nodes.actions.parent import ParentActionNode
 
         ctx = self.context
-        for parent_id, subs in self._subactions.items():
-            parent = ctx.nodes.get(parent_id)
+        for parent_uuid, subs in self._subactions.items():
+            parent_id = self._node_identifier_by_uuid.get(parent_uuid)
+            parent = ctx.nodes.get(parent_id) if parent_id is not None else None
             if parent is None:
                 # No parent node to attribute to; record on each subaction that references it.
                 for sub_id in subs:
                     sub = ctx.nodes.get(sub_id)
                     if sub is not None:
-                        self._init_failure(sub, "Parent action '%s' not found" % parent_id)
+                        self._init_failure(sub, "Parent action '%s' not found" % (parent_id or parent_uuid))
                 continue
             if not isinstance(parent, ParentActionNode):
                 self._init_failure(parent, "Action '%s' is marked as a parent but is not a ParentActionNode" % parent_id)
@@ -1792,6 +1794,10 @@ class InstanceLoader:
         for node_id, viz_config in self._node_visualizations.items():
             node = self.context.get_node(node_id)
             self._make_node_visualizations(node, viz_config)
+
+    @cached_property
+    def _node_identifier_by_uuid(self) -> dict[UUID, str]:
+        return {n.uuid: n.identifier for n in self.snapshot.nodes if n.identifier is not None}
 
     @cached_property
     def _dimension_catalog(self) -> dict[UUID, DimensionMeta]:

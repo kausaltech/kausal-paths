@@ -8,8 +8,8 @@ from pydantic import Field, PrivateAttr
 
 from kausal_common.i18n.pydantic import I18nBaseModel, I18nString
 
-from paths.identifiers import MixedCaseIdentifier
-from paths.refs import DimensionRef, NodeRef, QuantityKindRef, UniqueList
+from paths.identifiers import MixedCaseIdentifier, NodeIdentifier
+from paths.refs import DimensionRef, QuantityKindRef, UniqueList
 
 from nodes.units import Unit
 from nodes.value_validation import ValueContract
@@ -163,7 +163,7 @@ class InputPortDef(I18nBaseModel):
     """Consumer-owned requirements on the delivered dataset or upstream-node value."""
 
     # These are used only temporarily at export time to store the node reference and metric ID.
-    _from_node: NodeRef | None = PrivateAttr(default=None)
+    _from_node: NodeIdentifier | None = PrivateAttr(default=None)
     _edge_metric_id: str | None = PrivateAttr(default=None)
 
 

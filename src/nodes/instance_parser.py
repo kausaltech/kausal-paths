@@ -261,6 +261,13 @@ class InstanceConfigParser:
             self._resolved_node_uuids[identifier] = node_uuid
         return node_uuid
 
+    def _node_ref(self, identifier: str, *, referrer: str) -> UUID:
+        """Return the uuid of the parsed node ``identifier``, which ``referrer`` refers to."""
+        target = self.nodes.get(identifier)
+        if target is None:
+            raise InstanceParseError(f'Node {referrer}: refers to unknown node {identifier!r}')
+        return self._node_uuid(identifier, target.config.get('uuid'))
+
     def _action_group_uuid(self, identifier: str) -> UUID:
         return self._uuid_from_identifiers(['action-group', identifier])
 
@@ -1198,7 +1205,7 @@ class InstanceConfigParser:
                     raise InstanceParseError(f'Node {parsed.identifier}: no output metric {edge.metrics[0]!r}')
             hooks.append(
                 ActionHookDef(
-                    node=edge.to_node,
+                    node=self._node_ref(edge.to_node, referrer=parsed.identifier),
                     port=port,
                     from_port=from_port,
                     transformations=self._edge_to_transforms(edge),
@@ -1526,7 +1533,7 @@ class InstanceConfigParser:
             formula=parsed.formula,
             decision_level=decision_level,
             group=self._action_group_uuid(group) if group is not None else None,
-            parent=config.get('parent'),
+            parent=self._node_ref(config['parent'], referrer=parsed.identifier) if config.get('parent') else None,
             no_effect_value=no_effect_value,
             node_class=node_class,
             hooks=self._resolve_hooks(parsed),

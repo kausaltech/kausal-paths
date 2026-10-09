@@ -34,6 +34,9 @@ from kausal_common.i18n.pydantic import (
     get_modeltrans_attrs_from_str,
 )
 
+from paths.identifiers import NodeId  # noqa: TC002 - Pydantic field
+from paths.refs import NodeRef  # noqa: TC002 - Pydantic field
+
 from datasets.catalogue import dataset_meta_from_model
 from datasets.shape_domain import CategoryDomainResolver
 from datasets.snapshot import DatasetSnapshot, metric_column_id
@@ -95,7 +98,7 @@ if TYPE_CHECKING:
 #   v15: a dataset catalog entry is pure structure: its pinned revision lives only in
 #        ``dataset_revisions``, it carries the dataset's name, forecast year and time
 #        resolution, and each metric validation rule carries its row's uuid.
-SNAPSHOT_SCHEMA_VERSION = 15
+SNAPSHOT_SCHEMA_VERSION = 16
 
 _MARKDOWN = MarkdownIt('commonmark', {'html': True})
 
@@ -136,7 +139,7 @@ class InputBindingOverrideSnapshot(BaseModel):
 
 
 class NodeSnapshot(ModelSnapshot['NodeConfig']):
-    uuid: UUID
+    uuid: NodeId
     identifier: str | None = None
     name: TranslatedString | None = None
     short_name: TranslatedString | None = None
@@ -149,7 +152,7 @@ class NodeSnapshot(ModelSnapshot['NodeConfig']):
     is_visible: bool = True
     is_editable: bool | None = None
     template_revision_id: int | None = None
-    indicator_node: UUID | None = None
+    indicator_node: NodeRef | None = None
     copy_of: UUID | None = None
     body: list[Any] | None = None
     """Raw StreamField data of ``NodeConfig.body``. Admin-authored only, so
@@ -380,6 +383,38 @@ def upgrade_dataset_catalog_v15(data: dict[str, Any]) -> None:
                 for rule in metric.get('validation_rules', [])
             ]
             metric['validation_rules'] = [rule for rule in rules if rule['rule'].get('kind') not in _RETIRED_RULE_KINDS]
+
+
+def upgrade_node_references_v16(nodes: Iterable[dict[str, Any]], uuid_by_identifier: Mapping[str, UUID | str]) -> bool:
+    """
+    Turn an action's parent and hook targets from node identifiers into uuids, in place.
+
+    Returns whether anything changed. An identifier that ``uuid_by_identifier`` does not
+    name raises: the target is not in this snapshot, so its uuid cannot be known here.
+    """
+    changed = False
+    for node in nodes:
+        type_config = (node.get('spec') or {}).get('type_config') or {}
+        if type_config.get('kind') != 'action':
+            continue
+        refs = [type_config, *(type_config.get('hooks') or [])]
+        for holder, key in ((ref, 'parent' if ref is type_config else 'node') for ref in refs):
+            value = holder.get(key)
+            if not value or _is_uuid(value):
+                continue
+            if value not in uuid_by_identifier:
+                raise ValueError(f'Node {node.get("identifier")}: {key} {value!r} is not a node of this snapshot')
+            holder[key] = str(uuid_by_identifier[value])
+            changed = True
+    return changed
+
+
+def _is_uuid(value: object) -> bool:
+    try:
+        UUID(str(value))
+    except ValueError:
+        return False
+    return True
 
 
 def _upgrade_bindings_v9(data: dict[str, Any]) -> None:
@@ -946,27 +981,33 @@ class InstanceSnapshot(BaseModel):
             return snapshot.resolve() if compose else snapshot
 
         data = deepcopy(data)
-        nodes = data.get('nodes', [])
-
-        if schema_version < 3:
-            _upgrade_node_references_v3(data, nodes)
-        if schema_version < 4:
-            _upgrade_node_metadata_v4(nodes)
-        if schema_version < 9:
-            _upgrade_bindings_v9(data)
-        if schema_version < 10:
-            _upgrade_action_group_references_v10(data)
-        if schema_version < 11:
-            _upgrade_bindings_v11(data)
-
-        if schema_version < 13:
-            upgrade_formula_specs_v13(data)
-        if schema_version < 15:
-            upgrade_dataset_catalog_v15(data)
-
+        _upgrade_snapshot_data(data, schema_version)
         data['schema_version'] = SNAPSHOT_SCHEMA_VERSION
         data['snapshot_kind'] = 'legacy'
         return cls.model_validate(data)
+
+
+def _upgrade_snapshot_data(data: dict[str, Any], schema_version: int) -> None:
+    """Upgrade serialized snapshot data from ``schema_version`` to the current one, in place."""
+    nodes = data.get('nodes', [])
+
+    if schema_version < 3:
+        _upgrade_node_references_v3(data, nodes)
+    if schema_version < 4:
+        _upgrade_node_metadata_v4(nodes)
+    if schema_version < 9:
+        _upgrade_bindings_v9(data)
+    if schema_version < 10:
+        _upgrade_action_group_references_v10(data)
+    if schema_version < 11:
+        _upgrade_bindings_v11(data)
+
+    if schema_version < 13:
+        upgrade_formula_specs_v13(data)
+    if schema_version < 15:
+        upgrade_dataset_catalog_v15(data)
+    if schema_version < 16:
+        upgrade_node_references_v16(nodes, {n['identifier']: n['uuid'] for n in nodes if n.get('identifier')})
 
 
 def reconcile_snapshot_node_metadata(

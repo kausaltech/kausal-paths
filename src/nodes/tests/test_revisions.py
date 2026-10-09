@@ -2415,8 +2415,35 @@ def test_a_v11_snapshot_upgrades_with_no_node_owned_datasets(empty_db_instance: 
         del node['datasets']
 
     upgraded = InstanceSnapshot.from_serialized_data(data)
-    assert upgraded.schema_version == SNAPSHOT_SCHEMA_VERSION == 15
+    assert upgraded.schema_version == SNAPSHOT_SCHEMA_VERSION == 16
     assert [node.datasets for node in upgraded.nodes] == [[]]
+
+
+def test_a_v15_snapshot_refers_to_parent_and_hook_targets_by_uuid(empty_db_instance: InstanceConfig):
+    from nodes.instance_serialization import InstanceSnapshot, build_instance_snapshot
+
+    target = NodeConfigFactory.create(instance=empty_db_instance, identifier='target', name='Target')
+    parent = NodeConfigFactory.create(instance=empty_db_instance, identifier='parent', name='Parent')
+    NodeConfigFactory.create(
+        instance=empty_db_instance,
+        identifier='child',
+        name='Child',
+        spec=NodeSpec(type_config=ActionConfig(node_class='nodes.actions.simple.AdditiveAction')),
+    )
+    data = build_instance_snapshot(empty_db_instance).model_dump(mode='json')
+    data['schema_version'] = 15
+    (child,) = (node for node in data['nodes'] if node['identifier'] == 'child')
+    child['spec']['type_config'] |= {'parent': 'parent', 'hooks': [{'node': 'target'}]}
+
+    upgraded = InstanceSnapshot.from_serialized_data(data)
+    (type_config,) = (node.spec.type_config for node in upgraded.nodes if node.identifier == 'child' and node.spec)
+    assert isinstance(type_config, ActionConfig)
+    assert type_config.parent == parent.uuid
+    assert [hook.node for hook in type_config.hooks] == [target.uuid]
+
+    child['spec']['type_config']['parent'] = 'elsewhere'
+    with pytest.raises(ValueError, match="parent 'elsewhere' is not a node of this snapshot"):
+        InstanceSnapshot.from_serialized_data(data)
 
 
 def test_the_graph_rejects_another_node_binding_a_node_owned_dataset(empty_db_instance: InstanceConfig):

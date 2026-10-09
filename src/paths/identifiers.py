@@ -28,6 +28,8 @@ DATASET_IDENTIFIER_PATTERN = r'^[A-Za-z0-9_/-]+$'
 MixedCaseIdentifier = Annotated[str, Field(pattern=MIXED_IDENTIFIER_PATTERN)]
 Identifier = Annotated[str, Field(pattern=LOWER_IDENTIFIER_PATTERN)]
 
+# A node's uuid. The runtime `Node.id` is its human-readable `NodeIdentifier`, not this.
+NodeId = UUID
 NodeIdentifier = Annotated[str, Field(pattern=LOWER_IDENTIFIER_PATTERN)]
 ActionGroupIdentifier = Annotated[str, Field(pattern=LOWER_IDENTIFIER_PATTERN)]
 DimensionIdentifier = Annotated[str, Field(pattern=LOWER_IDENTIFIER_PATTERN)]

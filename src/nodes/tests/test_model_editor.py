@@ -1379,7 +1379,7 @@ def test_runtime_rebuild_preserves_action_group_and_zero_no_effect_value(db_inst
 
 def test_runtime_rebuild_preserves_action_parent_link(db_instance_config: InstanceConfig):
     unit = unit_registry.parse_units('kt/a')
-    NodeConfigFactory.create(
+    parent_node = NodeConfigFactory.create(
         instance=db_instance_config,
         identifier='parent_action',
         name='Parent Action',
@@ -1394,7 +1394,7 @@ def test_runtime_rebuild_preserves_action_parent_link(db_instance_config: Instan
         name='Child Action',
         spec=NodeSpec(
             type_config=ActionConfig(
-                node_class=ACTION_NODE_CLASS, decision_level=DecisionLevel.MUNICIPALITY, parent='parent_action'
+                node_class=ACTION_NODE_CLASS, decision_level=DecisionLevel.MUNICIPALITY, parent=parent_node.uuid
             ),
             output_ports=[OutputPortDef(id=_port_uuid('default'), unit=unit, quantity='emissions')],
         ),
