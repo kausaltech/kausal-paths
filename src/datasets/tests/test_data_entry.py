@@ -8,7 +8,7 @@ from django.test.utils import CaptureQueriesContext
 import pytest
 
 from kausal_common.datasets.category_domain import DatasetCategoryDomain
-from kausal_common.datasets.models import DatasetMetricValidationRule, DimensionScope
+from kausal_common.datasets.models import DataPoint, DatasetMetricValidationRule, DimensionScope
 from kausal_common.datasets.tests.factories import (
     DataPointFactory,
     DatasetFactory,
@@ -23,6 +23,7 @@ from kausal_common.i18n.pydantic import set_i18n_context
 from paths.tests.graphql import PathsTestClient
 
 from datasets.data_entry import DataEntryQuery
+from datasets.materialization import materialize_dataset
 from datasets.validation import InstanceDatasetValidationError
 from frameworks.models import DataPointEvidence, DataQualityLevel, DataQualityScheme
 from frameworks.tests.factories import FrameworkConfigFactory, FrameworkFactory
@@ -99,10 +100,10 @@ def make_query(*, pinned: bool = False) -> DataEntryQuery:
                 DatasetMeta(
                     id=dataset.uuid,
                     schema_id=schema.uuid,
-                    revision_id=revision.pk if revision else None,
                     metrics=(DatasetMetricMeta(id=metric.uuid, identifier='Value', unit='kWh'),),
                 ),
             ),
+            pinned_revisions={dataset.uuid: revision.pk} if revision else {},
             bindings=(
                 DatasetBindingDef(
                     id=uuid4(),
@@ -132,13 +133,19 @@ def test_pinned_data_does_not_read_newer_observations() -> None:
     query = make_query(pinned=True)
     points = query.points(query.graph.data_entry.sections[0].selections, [2023])
     assert points[0].value == 8
-    assert points[0].id is None  # immutable snapshots do not carry mutable point IDs
+    # The revision records each cell's data point, so a pinned edition names the same cell
+    # the draft does, and a comment thread can follow it from one to the other.
+    assert points[0].id == DataPoint.objects.get(date__year=2023, dataset__uuid=query.graph.datasets[0].id).uuid
 
 
-def test_summary_does_not_hydrate_point_identities() -> None:
+def test_summary_reads_no_data_point_rows() -> None:
+    """Findings come from the payload; the data point table is not read for a summary."""
     query = make_query()
-    query.findings(None, [2023])
-    assert not query._point_ids_loaded
+    for dataset in query.datasets.values():
+        materialize_dataset(dataset)
+    with CaptureQueriesContext(connection) as queries:
+        query.findings(None, [2023])
+    assert not [q for q in queries.captured_queries if 'datasets_datapoint' in q['sql']]
 
 
 def test_permission_denial_removes_points_and_counts() -> None:

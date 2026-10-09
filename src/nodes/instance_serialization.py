@@ -36,7 +36,7 @@ from kausal_common.i18n.pydantic import (
 
 from datasets.catalogue import dataset_meta_from_model
 from datasets.shape_domain import CategoryDomainResolver
-from datasets.snapshot import DatasetMetricSnapshot, DatasetSnapshot, metric_column_id
+from datasets.snapshot import DatasetSnapshot, metric_column_id
 from datasets.transfer import import_instance_datasets
 from nodes.defs.data_entry import DataEntrySpec, data_entry_dataset_ids, remap_data_entry
 from nodes.defs.graph import (
@@ -92,7 +92,10 @@ if TYPE_CHECKING:
 #        snapshots have no node-owned datasets, so the default ``[]`` upgrades them.
 #   v13: formulas belong to type_config; scenarios carry only authored deviations.
 #   v14: revisions retain local authoring inputs, a verified template pin and local selections.
-SNAPSHOT_SCHEMA_VERSION = 14
+#   v15: a dataset catalog entry is pure structure: its pinned revision lives only in
+#        ``dataset_revisions``, it carries the dataset's name, forecast year and time
+#        resolution, and each metric validation rule carries its row's uuid.
+SNAPSHOT_SCHEMA_VERSION = 15
 
 _MARKDOWN = MarkdownIt('commonmark', {'html': True})
 
@@ -347,6 +350,36 @@ class DatasetPortSnapshot(BaseModel):
 
 type BindingSnapshot = EdgeSnapshot | DatasetPortSnapshot
 """One entry of ``InstanceSnapshot.bindings``, discriminated by ``kind``."""
+
+
+_RETIRED_RULE_KINDS = ('required_combinations', 'allowed_combinations')
+
+
+def upgrade_dataset_catalog_v15(data: dict[str, Any]) -> None:
+    """
+    Make each dataset catalog entry pure structure, in place.
+
+    The pinned revision moves out (``dataset_revisions`` already holds it), the deprecated
+    ``category_domain_spec`` goes, and a validation rule becomes ``{id, rule}``. The rule
+    uuids, name, forecast year and time resolution that v15 adds are not in a v14
+    snapshot; the migration that rewrites stored revisions fills them from the database.
+
+    Rules of a retired kind are dropped. ``required_combinations`` and
+    ``allowed_combinations`` became shapes (datasets migration 0003 refuses to drop a
+    stored rule row of either kind), but revisions published before that froze them into
+    their catalog, where nothing can evaluate them any more and they only make the
+    revision unreadable.
+    """
+    entries = [*data.get('datasets', []), *(item for node in data.get('nodes', []) for item in node.get('datasets', []))]
+    for entry in entries:
+        entry.pop('revision_id', None)
+        entry.pop('category_domain_spec', None)
+        for metric in entry.get('metrics', []):
+            rules = [
+                rule if isinstance(rule, dict) and 'rule' in rule else {'rule': rule}
+                for rule in metric.get('validation_rules', [])
+            ]
+            metric['validation_rules'] = [rule for rule in rules if rule['rule'].get('kind') not in _RETIRED_RULE_KINDS]
 
 
 def _upgrade_bindings_v9(data: dict[str, Any]) -> None:
@@ -928,6 +961,8 @@ class InstanceSnapshot(BaseModel):
 
         if schema_version < 13:
             upgrade_formula_specs_v13(data)
+        if schema_version < 15:
+            upgrade_dataset_catalog_v15(data)
 
         data['schema_version'] = SNAPSHOT_SCHEMA_VERSION
         data['snapshot_kind'] = 'legacy'
@@ -965,7 +1000,7 @@ class InstanceExport(BaseModel):
 
     Used for cloning template instances and any standalone import/export
     flow where dataset data needs to travel with the model structure.
-    Each ``DatasetSnapshot`` carries its DataPoints in its ``data`` field.
+    Each ``DatasetSnapshot`` carries its data points, keyed by uuid.
     """
 
     schema_version: int = SNAPSHOT_SCHEMA_VERSION
@@ -1000,12 +1035,63 @@ class InstanceExport(BaseModel):
         Pydantic alone and skip its schema-version upgraders; route it through
         ``InstanceSnapshot.from_serialized_data`` so documents saved under an
         older snapshot schema still load.
+
+        Dataset bodies written before `DatasetSnapshot` v2 are upgraded against the
+        export's own catalog (`datasets.legacy_snapshot`); a deployment still on v1
+        exports them. That changes their content, so the hashes covering it are
+        recomputed: the template's pins, and the template hash the instance records.
         """
         data = dict(data)
+        template_data = data.get('template')
+        template = cls.from_serialized_data(template_data) if isinstance(template_data, dict) else None
+        data['template'] = template
         instance_data = data.get('instance')
-        if isinstance(instance_data, dict):
-            data['instance'] = InstanceSnapshot.from_serialized_data(instance_data, compose=False)
-        return cls.model_validate(data)
+        if not isinstance(instance_data, dict):
+            return cls.model_validate(data)
+        instance = InstanceSnapshot.from_serialized_data(instance_data, compose=False)
+        data['instance'] = instance
+        bodies = data.get('datasets') or []
+        if any(body.get('schema_version', 1) < 2 for body in bodies):
+            data['datasets'] = _upgrade_export_bodies(instance, bodies)
+        export = cls.model_validate(data)
+        if template is not None and instance.template_content_hash is not None and instance_data.get('schema_version', 1) < 15:
+            # template_graph imports this module.
+            from nodes.template_graph import snapshot_content_hash
+
+            instance.template_content_hash = snapshot_content_hash(template.instance)
+        return export
+
+
+def _upgrade_export_bodies(instance: InstanceSnapshot, bodies: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """
+    Upgrade an export's v1 dataset bodies, and the instance snapshot's records of them, in place.
+
+    A deployment still on v1 exports such bodies; see `InstanceExport.from_serialized_data`.
+    """
+    from datasets.legacy_snapshot import complete_catalog_entry, upgrade_dataset_snapshot_v1
+    from datasets.materialization import hash_dataset_content
+
+    catalog = {entry.id: entry for entry in instance.all_datasets()}
+    by_identifier = {entry.identifier: entry for entry in catalog.values() if entry.identifier is not None}
+    upgraded_bodies: list[dict[str, Any]] = []
+    upgraded: dict[UUID, DatasetSnapshot] = {}
+    for body in bodies:
+        if body.get('schema_version', 1) >= 2:
+            upgraded_bodies.append(body)
+            continue
+        identifier = body.get('identifier')
+        base = catalog.get(UUID(body['uuid'])) if body.get('uuid') else by_identifier.get(identifier) if identifier else None
+        content = upgrade_dataset_snapshot_v1(body, base=base, dimensions=instance.dimensions)
+        upgraded_bodies.append(content)
+        snapshot = DatasetSnapshot.model_validate(content)
+        upgraded[snapshot.meta.id] = snapshot
+    for pin in instance.dataset_revisions:
+        if pin.dataset_uuid in upgraded:
+            pin.content_hash = hash_dataset_content(upgraded[pin.dataset_uuid].model_dump(mode='json'))
+    instance.datasets = [complete_catalog_entry(entry, upgraded.get(entry.id)) for entry in instance.datasets]
+    for node in instance.nodes:
+        node.datasets = [complete_catalog_entry(entry, upgraded.get(entry.id)) for entry in node.datasets]
+    return upgraded_bodies
 
 
 # ---------------------------------------------------------------------------
@@ -1117,7 +1203,6 @@ def build_instance_snapshot(
     datasets, owned_datasets = _dataset_catalog_for(
         ic,
         dataset_ids=dataset_ids,
-        dataset_revision_pins=dataset_revision_pins,
         node_uuids={nc.pk: nc.uuid for nc in node_configs},
     )
     nodes = [node.model_copy(update={'datasets': owned_datasets.get(node.uuid, [])}) for node in nodes]
@@ -1178,7 +1263,6 @@ def _dataset_catalog_for(
     ic: InstanceConfig,
     *,
     dataset_ids: set[int],
-    dataset_revision_pins: dict[int, DatasetRevisionPinSnapshot] | None,
     node_uuids: dict[int, UUID],
 ) -> tuple[list[DatasetMeta], dict[UUID, list[DatasetMeta]]]:
     """
@@ -1212,13 +1296,7 @@ def _dataset_catalog_for(
     owned: dict[UUID, list[DatasetMeta]] = {}
     domains = CategoryDomainResolver()
     for dataset in datasets:
-        pin = dataset_revision_pins.get(dataset.pk) if dataset_revision_pins is not None else None
-        meta = dataset_meta_from_model(
-            dataset,
-            primary_language=ic.primary_language,
-            pinned_revision_id=pin.revision_id if pin is not None else None,
-            domains=domains,
-        )
+        meta = dataset_meta_from_model(dataset, primary_language=ic.primary_language, domains=domains)
         owner = node_uuids.get(dataset.scope_id) if dataset.scope_content_type_id == node_ct.pk else None
         if owner is not None:
             owned.setdefault(owner, []).append(meta)
@@ -1343,36 +1421,12 @@ def export_instance(ic: InstanceConfig, *, exported_from: str | None = None) -> 
 
 
 def _template_dataset_bodies(base: InstanceSnapshot, revisions: dict[int, Revision]) -> list[DatasetSnapshot]:
+    """Return the template's pinned dataset revisions, and an empty body for each of its other datasets."""
     bodies = {
         pin.dataset_uuid: DatasetSnapshot.model_validate(revisions[pin.revision_id].content) for pin in base.dataset_revisions
     }
-    dimensions = {item.id: item.identifier for item in base.dimensions}
     for dataset in base.all_datasets():
-        if dataset.id in bodies:
-            continue
-        bodies[dataset.id] = DatasetSnapshot(
-            identifier=dataset.identifier,
-            is_external_placeholder=dataset.is_external_placeholder,
-            external_ref=dataset.external_ref,
-            is_editable=dataset.is_editable if dataset.is_editable is not None else True,
-            dimensions=[dimensions[item] for item in dataset.declared_dimension_ids],
-            category_domain=dataset.category_domain,
-            metrics=[
-                DatasetMetricSnapshot(
-                    identifier=item.identifier or str(item.id),
-                    unit=item.unit,
-                    label=(
-                        item.label
-                        if isinstance(item.label, TranslatedString)
-                        else TranslatedString(str(item.label), default_language=base.metadata.primary_language)
-                        if item.label is not None
-                        else None
-                    ),
-                    quantity=item.quantity,
-                )
-                for item in dataset.metrics
-            ],
-        )
+        bodies.setdefault(dataset.id, DatasetSnapshot(meta=dataset))
     return list(bodies.values())
 
 
@@ -1698,7 +1752,7 @@ def _import_template_dataset_pins(template: InstanceConfig, export: InstanceExpo
     pins = []
     for pin in base.dataset_revisions:
         dataset = Dataset.objects.get(uuid=pin.dataset_uuid)
-        body = next(item for item in export.datasets if item.identifier == pin.identifier)
+        body = next(item for item in export.datasets if item.meta.id == pin.dataset_uuid)
         if hash_dataset_content(body.model_dump(mode='json', exclude_unset=True)) != pin.content_hash:
             raise ValueError('Bundled template dataset does not match its pinned content hash')
         revision = Revision.objects.create(
@@ -1710,11 +1764,8 @@ def _import_template_dataset_pins(template: InstanceConfig, export: InstanceExpo
         )
         pins.append(pin.model_copy(update={'revision_id': revision.pk}))
     base = base.model_copy(update={'dataset_revisions': pins})
-    # Revision IDs are database-local. Retarget both the catalogs and input payload references.
+    # Revision IDs are database-local. The pins are retargeted above; retarget the input payload references too.
     ids = {pin.dataset_uuid: pin.revision_id for pin in pins}
-    base.datasets = [item.model_copy(update={'revision_id': ids.get(item.id, item.revision_id)}) for item in base.datasets]
-    for node in base.nodes:
-        node.datasets = [item.model_copy(update={'revision_id': ids.get(item.id, item.revision_id)}) for item in node.datasets]
     base.bindings = [
         item.model_copy(update={'source': item.source.model_copy(update={'dataset_revision': ids[item.source.dataset_uuid]})})
         if isinstance(item.source, DatasetMetricSource) and item.source.dataset_uuid in ids
@@ -1803,7 +1854,12 @@ def import_instance(
     _import_dimensions(ic, export, ic_ct)
 
     # Datasets (with data points)
-    datasets = import_instance_datasets(ic, export.datasets, create_missing_dimensions=True)
+    datasets = import_instance_datasets(
+        ic,
+        export.datasets,
+        create_missing_dimensions=True,
+        dimensions={dimension.id: dimension for dimension in export.instance.dimensions},
+    )
     # ``identifier`` may be None for datasets keyed only by uuid; skip those
     # here since node→dataset wiring goes through identifier.
     datasets_by_id = {ds.identifier: ds for ds in datasets if ds.identifier is not None}
@@ -1838,11 +1894,7 @@ def _remap_imported_data_entry(
             identities[original.id] = target.id
             categories = {cat.identifier: cat.id for cat in target.categories}
             identities.update({cat.id: categories[cat.identifier] for cat in original.categories if cat.identifier in categories})
-        targets = {
-            original.uuid: dataset
-            for original, dataset in zip(export.datasets, datasets, strict=True)
-            if original.uuid is not None
-        }
+        targets = {original.meta.id: dataset for original, dataset in zip(export.datasets, datasets, strict=True)}
         targets_by_identifier = {dataset.identifier: dataset for dataset in datasets if dataset.identifier is not None}
         for original in export.instance.all_datasets():
             target_dataset = targets.get(original.id) or (

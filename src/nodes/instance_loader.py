@@ -38,7 +38,7 @@ if TYPE_CHECKING:
 
     from datasets.runtime import Dataset
     from nodes.context import Context
-    from nodes.defs.graph import DatasetMeta
+    from nodes.defs.graph import DatasetMeta, DimensionMeta
     from nodes.defs.node_defs import InputDatasetDef, NodeSpec
     from nodes.defs.transform_def import EdgeTransformOp
     from nodes.edges import Edge
@@ -1793,6 +1793,11 @@ class InstanceLoader:
             node = self.context.get_node(node_id)
             self._make_node_visualizations(node, viz_config)
 
+    @cached_property
+    def _dimension_catalog(self) -> dict[UUID, DimensionMeta]:
+        """The dimensions dataset payloads name their frames' columns and categories from."""
+        return {dimension.id: dimension for dimension in self.snapshot.dimensions}
+
     def load_db_datasets(self):
         from kausal_common.datasets.models import Dataset as DBDatasetModel
 
@@ -1801,7 +1806,7 @@ class InstanceLoader:
 
             self.db_datasets = {}
             self.db_dataset_refs = {ref.identifier: ref for ref in self.supplied_dataset_payload_refs}
-            self.dataset_payload_store = RevisionDatasetPayloadStore(self.supplied_dataset_payload_refs)
+            self.dataset_payload_store = RevisionDatasetPayloadStore(self.supplied_dataset_payload_refs, self._dimension_catalog)
             return
 
         ic = self.instance.config
@@ -1861,9 +1866,14 @@ class InstanceLoader:
                     forecast_from=pin.forecast_from,
                 )
                 self.db_dataset_refs[ref.identifier] = ref
-            self.dataset_payload_store = MixedDatasetPayloadStore(list(self.db_dataset_refs.values()))
+            self.dataset_payload_store = MixedDatasetPayloadStore(list(self.db_dataset_refs.values()), self._dimension_catalog)
         else:
-            self.dataset_payload_store = CurrentDatasetPayloadStore(refs)
+            # Live rows name the dimensions of the live scopes. A YAML-sourced snapshot
+            # carries no dimension catalog of its own, so the snapshot's cannot be used.
+            from nodes.instance_serialization import _dimension_catalog_for
+
+            live_dimensions = {dimension.id: dimension for dimension in _dimension_catalog_for(ic)}
+            self.dataset_payload_store = CurrentDatasetPayloadStore(refs, live_dimensions)
 
     def _finish_init(self) -> None:
         """Run the setup sequence for the natively built instance."""

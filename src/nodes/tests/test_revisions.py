@@ -803,10 +803,9 @@ def test_dataset_serializable_data_bridges_to_paths():
     data = ds.serializable_data()
     # Round-trips as DatasetSnapshot
     snap = DatasetSnapshot.model_validate(data)
-    assert snap.schema_version == 1
-    assert any(m.identifier == 'm1' for m in snap.metrics)
-    # data field is included (though None when there are no datapoints yet)
-    assert 'data' in data
+    assert snap.schema_version == 2
+    assert any(m.identifier == 'm1' for m in snap.meta.metrics)
+    assert snap.points == []
 
 
 def test_dataset_serializable_data_includes_forecast_from():
@@ -821,7 +820,7 @@ def test_dataset_serializable_data_includes_forecast_from():
     ds = DatasetFactory.create(scope=source, identifier='forecasted', spec={'forecast_from': 2025})
 
     snap = DatasetSnapshot.from_model(ds, source)
-    assert snap.forecast_from == 2025
+    assert snap.meta.forecast_from == 2025
 
     from django.contrib.contenttypes.models import ContentType
 
@@ -884,10 +883,11 @@ def _make_materialized_dataset(instance_config: InstanceConfig, identifier: str,
 
 
 def _materialized_df_value(content: dict[str, Any]) -> float:
-    from datasets.runtime import JSONDataset
+    from datasets.snapshot import DatasetSnapshot
 
-    df = JSONDataset.deserialize_df(content['data'])
-    return float(df['value'][0])
+    (point,) = DatasetSnapshot.model_validate(content).points
+    assert point.value is not None
+    return point.value
 
 
 def test_publish_pins_current_dataset_materialization(empty_db_instance: InstanceConfig):
@@ -950,6 +950,82 @@ def test_published_runtime_rejects_missing_relational_dataset_pin(empty_db_insta
 
     with pytest.raises(RuntimeError, match='dataset manifest mismatch'):
         empty_db_instance._create_from_config(source=PreferredInstanceSource.PUBLISHED)
+
+
+def test_the_draft_reads_a_published_dataset_live(empty_db_instance: InstanceConfig):
+    """
+    Publishing pins a dataset revision in the published edition only; the draft keeps reading the live rows.
+
+    The draft's catalog entry used to take the dataset's latest published revision as its
+    `revision_id`, so after the first publication data entry treated every dataset as
+    pinned: it served the published copy and refused edits.
+    """
+    from nodes.instance_graph import build_instance_graph
+    from nodes.instance_serialization import build_instance_snapshot
+
+    dataset, metric, _point, _materialization = _make_materialized_dataset(empty_db_instance, 'live', '10')
+    node = NodeConfigFactory.create(instance=empty_db_instance, identifier='owner', name='Owner')
+    NodeInputPortBinding.objects.create(
+        instance=empty_db_instance, node=node, port_id=uuid.uuid4(), dataset=dataset, metric=metric
+    )
+    empty_db_instance.publish_instance()
+    empty_db_instance.refresh_from_db()
+    dataset.refresh_from_db()
+    assert dataset.latest_revision_id is not None
+
+    draft = build_instance_graph(build_instance_snapshot(empty_db_instance))
+    assert draft.pinned_revisions == {}
+    assert empty_db_instance.live_revision is not None
+    structured = empty_db_instance.live_revision.content['model_snapshot']['structured']
+    published = build_instance_graph(InstanceSnapshot.from_serialized_data(structured))
+    assert published.pinned_revisions == {dataset.uuid: dataset.latest_revision_id}
+
+
+def test_live_datasets_read_without_a_dimension_catalog_in_the_snapshot(empty_db_instance: InstanceConfig):
+    """
+    A YAML-sourced instance reads its database rows by the live dimension scopes.
+
+    The YAML parse carries no dimension catalog, so naming a payload's columns from the
+    snapshot's catalog failed on the first dimensioned dataset.
+    """
+    from datetime import date
+    from decimal import Decimal
+
+    from django.contrib.contenttypes.models import ContentType
+
+    from kausal_common.datasets.models import DimensionScope
+    from kausal_common.datasets.tests.factories import (
+        DataPointFactory,
+        DatasetFactory,
+        DatasetMetricFactory,
+        DatasetSchemaDimensionFactory,
+        DimensionCategoryFactory,
+        DimensionFactory,
+    )
+
+    from nodes.instance_loader import InstanceLoader
+    from nodes.instance_serialization import build_instance_snapshot
+
+    dimension = DimensionFactory.create(name='sector')
+    DimensionScope.objects.create(
+        dimension=dimension,
+        scope_content_type=ContentType.objects.get_for_model(empty_db_instance),
+        scope_id=empty_db_instance.pk,
+        identifier='sector',
+    )
+    homes = DimensionCategoryFactory.create(dimension=dimension, identifier='homes', label='Homes')
+    dataset = DatasetFactory.create(identifier='test/sectors', scope=empty_db_instance)
+    DatasetSchemaDimensionFactory.create(schema=dataset.schema, dimension=dimension)
+    metric = DatasetMetricFactory.create(schema=dataset.schema, name='energy', unit='MWh')
+    point = DataPointFactory.create(dataset=dataset, metric=metric, date=date(2020, 1, 1), value=Decimal(5))
+    point.dimension_categories.set([homes])
+
+    snapshot = build_instance_snapshot(empty_db_instance).model_copy(update={'dimensions': []})
+    loader = InstanceLoader(snapshot=snapshot, instance_config=empty_db_instance)
+    loader.load_db_datasets()
+    assert loader.dataset_payload_store is not None
+    df = loader.dataset_payload_store.get_dataframe(loader.db_dataset_refs['test/sectors'])
+    assert df.select('sector', 'energy').rows() == [('homes', 5.0)]
 
 
 def test_published_dataset_payload_is_isolated_from_later_draft_edit(empty_db_instance: InstanceConfig):
@@ -1093,7 +1169,7 @@ def test_current_dataset_payload_store_bulk_loads_once(empty_db_instance: Instan
             )
         )
 
-    store = CurrentDatasetPayloadStore(refs)
+    store = CurrentDatasetPayloadStore(refs, {})
     with CaptureQueriesContext(connection) as queries:
         assert float(store.get_dataframe(refs[0])['value'][0]) == 1
         assert float(store.get_dataframe(refs[1])['value'][0]) == 2
@@ -1138,7 +1214,7 @@ def test_revision_dataset_payload_store_bulk_loads_once(empty_db_instance: Insta
         for pin in snapshot.dataset_revisions
     ]
 
-    store = RevisionDatasetPayloadStore(refs)
+    store = RevisionDatasetPayloadStore(refs, {})
     with CaptureQueriesContext(connection) as queries:
         assert sorted(float(store.get_dataframe(ref)['value'][0]) for ref in refs) == [1, 2]
         assert float(store.get_dataframe(refs[0])['value'][0]) in {1, 2}
@@ -1195,7 +1271,7 @@ def test_export_instance_includes_placeholder(empty_db_instance: InstanceConfig)
 
     export = export_instance(empty_db_instance)
 
-    assert [(ds.identifier, ds.is_external_placeholder) for ds in export.datasets] == [('external/source', True)]
+    assert [(ds.meta.identifier, ds.meta.is_external_placeholder) for ds in export.datasets] == [('external/source', True)]
 
 
 def test_import_instance_datasets_replaces_the_instances_placeholder(empty_db_instance: InstanceConfig):
@@ -1341,11 +1417,10 @@ def test_import_instance_datasets_preserves_dimension_column_name(empty_db_insta
         dimension_categories=[category],
     )
 
-    snapshot = next(ds for ds in export_instance(source).datasets if ds.identifier == 'actions/source')
-    assert snapshot.dimensions == ['green_mobility_action']
-    assert snapshot.dimension_columns == {'green_mobility_action': 'action'}
-    assert snapshot.data is not None
-    assert snapshot.data['schema']['primaryKey'] == ['Year', 'action']
+    snapshot = next(ds for ds in export_instance(source).datasets if ds.meta.identifier == 'actions/source')
+    assert snapshot.meta.declared_dimension_ids == (dimension.uuid,)
+    assert snapshot.dimension_columns == {dimension.uuid: 'action'}
+    assert [point.categories for point in snapshot.points] == [{dimension.uuid: category.uuid}]
 
     imported = import_instance_datasets(target, [snapshot], create_missing_dimensions=True)
     assert len(imported) == 1
@@ -1420,9 +1495,9 @@ def test_import_instance_preserves_dataset_only_dimension(empty_db_instance: Ins
 
     export = export_instance(source)
     assert 'green_mobility_action' not in {dim['id'] for dim in export.instance.spec.dimensions}
-    snapshot = next(ds for ds in export.datasets if ds.identifier == 'actions/source')
-    assert snapshot.dimensions == ['green_mobility_action']
-    assert snapshot.dimension_columns == {'green_mobility_action': 'action'}
+    snapshot = next(ds for ds in export.datasets if ds.meta.identifier == 'actions/source')
+    assert snapshot.meta.declared_dimension_ids == (dimension.uuid,)
+    assert snapshot.dimension_columns == {dimension.uuid: 'action'}
 
     import_instance(target, export)
 
@@ -2340,7 +2415,7 @@ def test_a_v11_snapshot_upgrades_with_no_node_owned_datasets(empty_db_instance: 
         del node['datasets']
 
     upgraded = InstanceSnapshot.from_serialized_data(data)
-    assert upgraded.schema_version == SNAPSHOT_SCHEMA_VERSION == 14
+    assert upgraded.schema_version == SNAPSHOT_SCHEMA_VERSION == 15
     assert [node.datasets for node in upgraded.nodes] == [[]]
 
 
