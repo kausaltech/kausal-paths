@@ -701,7 +701,7 @@ class Command(BaseCommand):
         # A valueless cell is a data point, and the uploader drops blank cells unless told
         # not to. Without the flag the row simply is not in the parquet, and the cell comes
         # back from the next import as absent rather than as empty -- which is the very
-        # distinction `create_data_points` goes out of its way to keep.
+        # distinction `sync_data_points` goes out of its way to keep.
         has_empty = any(r.value is None for r in export.records)
         if has_empty:
             n_empty = sum(1 for r in export.records if r.value is None)

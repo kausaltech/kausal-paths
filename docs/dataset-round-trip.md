@@ -12,8 +12,8 @@ values, dimensions, units, comments and provenance included.
 **Status.** §7's steps 1-5 are built and tested. §2 is the survey that motivated them,
 kept because it names what the older tools still lose. §3.1 was thought to be a defect and
 is not — it is the empty-template mechanism, and the documentation has been corrected to
-match. §3.2 is open: the representation is intended, what the importer and the loader then
-do with it loses values, and the measurement is recorded there.
+match. §3.2 is settled: the representation is intended, and the importer now lands one
+data point per cell, taking the value from the row that has one.
 
 ## 1. What already round-trips
 
@@ -104,7 +104,7 @@ fill.** A `Comment` is scoped to its row, a row spans every metric, and a commen
 only reached cells which already held values could not say "we need this, here is where
 to get it".
 
-So `create_data_points` attaching a row's `Source` and `Comment` to every metric of that
+So `sync_data_points` attaching a row's `Source` and `Comment` to every metric of that
 row, empty cells included, is correct. `dataset-csv-format.md` said "every **non-null**
 metric's data point"; that wording was the error and has been corrected.
 `test_provenance_reaches_valueless_cells` now holds the behaviour in place rather than
@@ -113,8 +113,8 @@ flagging it.
 ### 3.2 A split row duplicates a cell, and the duplicate is resolved against the value
 
 Held by `test_metric_specific_provenance_does_not_duplicate_a_cell` and
-`test_a_split_row_does_not_lose_the_value_a_node_reads`, both `xfail(strict=True)`.
-**Undecided, and recorded here with the measurement rather than as a verdict.**
+`test_a_split_row_does_not_lose_the_value_a_node_reads`. **Settled in October 2026 by the
+fix sketched at the end of this section**; the measurement is kept as the reason for it.
 
 The representation is not in question. When two metrics of one (Year, dimensions) carry
 different provenance they cannot share a row in a table that is wide by metric, so the
@@ -158,6 +158,15 @@ fills the cell, so the empty row with its instruction is still the one that land
 Metric-specific provenance still works, because each metric's point still takes the
 provenance of the row it came from. The duplicate, the Sentry report and the coin-flip
 disappear.
+
+**As built.** The rule lives in `DBDataset.upsert_df` (`datasets/runtime/db.py`), the
+writer `load_dvc_dataset` now goes through, which matches cells against the existing data
+points instead of recreating them. Two things were added to the sketch. Two rows giving
+one cell *different* values is an error, not a choice. And "the first row" among empty
+repeats is made to be the one carrying provenance: `sync_data_points` sorts such rows
+first. Without that, a wide template loses its instruction, because the row carrying
+it is expanded to every year of its series, and for the year it is about it competes
+with the series row's empty cell.
 
 ### 3.3 Two asymmetries that are not defects
 
@@ -278,10 +287,10 @@ All five done on 2026-08-30.
 3. **The `<name>_dataset.csv` sidecar**, plus `metadata['dataset']` in
    `upload_new_dataset` (`--dataset-csv`, `build_dvc_metadata`) and the reader in
    `load_dvc_dataset` (`apply_dataset_attributes`).
-4. **The round-trip test** — `nodes/tests/test_dataset_round_trip.py`. Seven passing, four
-   `xfail(strict=True)` for §3.1 and §3.2 across both formats. It does not push to DVC:
+4. **The round-trip test** — `nodes/tests/test_dataset_round_trip.py`. It began with four
+   `xfail(strict=True)` tests for §3.1 and §3.2 across both formats; all now pass. It does not push to DVC:
    `build_dvc_frame` (split out of `process_dataset` for this) produces exactly the frame
-   that would be stored, and the test hands it to `create_data_points` with the units and
+   that would be stored, and the test hands it to `sync_data_points` with the units and
    index columns the push would have recorded. Every transformation that can lose
    something is on this side of the store.
 5. **The `UUID` row in `dataset-csv-format.md` §1** corrected, with the history from §3.
@@ -293,9 +302,6 @@ One incidental tidy: `SOURCE_NAME_SEPARATOR`, `COMMENT_SEPARATOR` and
 
 ### Still open
 
-- **§3.2**, the split-row collision. A change in `create_data_points`, sketched at the end
-  of that section. It changes what `load_dvc_dataset --force` writes for every city, so it
-  wants its own review.
 - **The legacy `UUID` special case** in the `plain_csv_wide` branch
   (`non_index = {'Value', 'Unit', 'UUID'}`), to be checked against remaining
   `plain_csv_wide` users and probably removed.

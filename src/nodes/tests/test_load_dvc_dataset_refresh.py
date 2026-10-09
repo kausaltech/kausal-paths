@@ -9,12 +9,13 @@ from uuid import UUID
 import polars as pl
 import pytest
 
-from kausal_common.datasets.models import DataPoint, Dataset, DatasetMetric
+from kausal_common.datasets.models import DataPoint, DataPointComment, Dataset, DatasetMetric
 
 from common import polars as ppl
 from datasets.management.commands.load_dvc_dataset import Command, build_dataset_plan, count_incoming_cells
 from nodes.models import NodeConfig, NodeInputPortBinding
 from nodes.tests.factories import InstanceConfigFactory, NodeConfigFactory
+from users.tests.factories import UserFactory
 
 pytestmark = pytest.mark.django_db
 
@@ -251,7 +252,7 @@ def test_the_plan_counts_empty_cells_the_way_the_import_creates_them():
     """
     The plan's two sides have to be counted alike, or every partly-empty dataset looks stale.
 
-    `create_data_points` writes a DataPoint per (row, metric) cell, null value included, so
+    `sync_data_points` writes a DataPoint per (row, metric) cell, null value included, so
     `Dataset.data_points.count()` counts empty cells. The incoming side must too; the valued
     count is carried separately rather than substituted for it.
     """
@@ -293,3 +294,72 @@ def test_a_template_import_over_a_filled_in_row_is_flagged_as_blanking_it():
         incoming_valued_cells=1,
     )
     assert not unchanged.would_blank_values
+
+
+def test_force_reimport_keeps_the_identity_of_surviving_cells():
+    """
+    A re-import upserts: a cell on both sides keeps its data point, a gone one loses it.
+
+    The data point's uuid is what comments, evidence and source references hang off, and
+    what a published revision and the editor will refer to a cell by. Recreating every
+    point on each import gave every cell a new identity and deleted everything entered
+    against the old one.
+    """
+    ic = InstanceConfigFactory.create(name='refresh-identity', config_source='database')
+    first = pl.DataFrame({'Year': [2020, 2021, 2022], 'value': [1.0, 2.0, 3.0]})
+    Command().sync_dataset(ic, make_context(first, {'value': 'kt'}), DS_ID)
+    dataset = Dataset.objects.get(identifier=DS_ID)
+    before = {dp.date.year: dp.uuid for dp in DataPoint.objects.filter(dataset=dataset)}
+    DataPointComment.objects.create(data_point=DataPoint.objects.get(dataset=dataset, date__year=2020), text='checked')
+
+    second = pl.DataFrame({'Year': [2020, 2021, 2023], 'value': [1.0, 20.0, 4.0]})
+    Command().sync_dataset(ic, make_context(second, {'value': 'kt'}), DS_ID, force=True)
+
+    after = {dp.date.year: dp for dp in DataPoint.objects.filter(dataset=dataset)}
+    assert set(after) == {2020, 2021, 2023}, 'the dataset must match the incoming data exactly'
+    assert after[2020].uuid == before[2020], 'an unchanged cell keeps its data point'
+    assert after[2021].uuid == before[2021], 'a changed value is written in place'
+    assert float(cast('Any', after[2021].value)) == 20.0
+    assert DataPointComment.objects.filter(data_point=after[2020]).count() == 1, 'what hangs off a kept cell survives'
+
+
+def test_reimport_replaces_imported_comments_and_keeps_authored_ones():
+    """
+    A comment in the DVC data replaces the comments nobody authored; a user's comment stays.
+
+    Unauthored comments are the ones an earlier import created, so re-importing the same
+    comment must not duplicate it, and a changed one replaces it. A row without a comment
+    says nothing about its cell, so its data point's comments are left alone.
+    """
+    ic = InstanceConfigFactory.create(name='refresh-comments', config_source='database')
+    user = UserFactory.create()
+    first = pl.DataFrame({'Year': [2020, 2021], 'value': [1.0, 2.0], 'comment': ['from the 2023 report', 'estimate']})
+    Command().sync_dataset(ic, make_context(first, {'value': 'kt'}), DS_ID)
+    dataset = Dataset.objects.get(identifier=DS_ID)
+    point_2020 = DataPoint.objects.get(dataset=dataset, date__year=2020)
+    point_2021 = DataPoint.objects.get(dataset=dataset, date__year=2021)
+    imported_2020 = DataPointComment.objects.get(data_point=point_2020)
+    DataPointComment.objects.create(data_point=point_2020, text='confirmed with the utility', created_by=user)
+
+    second = pl.DataFrame({'Year': [2020, 2021], 'value': [1.0, 2.0], 'comment': ['from the 2024 report', None]})
+    Command().sync_dataset(ic, make_context(second, {'value': 'kt'}), DS_ID, force=True)
+    texts_2020 = set(DataPointComment.objects.filter(data_point=point_2020).values_list('text', flat=True))
+    assert texts_2020 == {'from the 2024 report', 'confirmed with the utility'}
+    assert list(DataPointComment.objects.filter(data_point=point_2021).values_list('text', flat=True)) == ['estimate']
+
+    Command().sync_dataset(ic, make_context(second, {'value': 'kt'}), DS_ID, force=True)
+    current = DataPointComment.objects.get(data_point=point_2020, created_by__isnull=True)
+    assert current.text == 'from the 2024 report', 'an unchanged comment is not duplicated'
+    assert current.uuid != imported_2020.uuid
+    Command().sync_dataset(ic, make_context(second, {'value': 'kt'}), DS_ID, force=True)
+    assert DataPointComment.objects.get(data_point=point_2020, created_by__isnull=True).uuid == current.uuid, (
+        'an unchanged comment keeps its identity'
+    )
+
+
+def test_two_values_for_one_cell_are_refused():
+    """Rows may repeat a cell to carry different provenance, but not to disagree about its value."""
+    ic = InstanceConfigFactory.create(name='refresh-conflict', config_source='database')
+    df = pl.DataFrame({'Year': [2020, 2020], 'value': [1.0, 2.0], 'comment': ['one', 'two']})
+    with pytest.raises(ValueError, match='two values'):
+        Command().sync_dataset(ic, make_context(df, {'value': 'kt'}), DS_ID)

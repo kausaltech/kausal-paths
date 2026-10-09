@@ -6,7 +6,7 @@ through the transformation ``upload_new_dataset`` would push to DVC, imports the
 with ``load_dvc_dataset``, and asserts the two databases agree.
 
 The DVC hop itself is not exercised, deliberately: it needs a repository and a network,
-and what it does between ``build_dvc_frame`` and ``create_data_points`` is store the
+and what it does between ``build_dvc_frame`` and ``sync_data_points`` is store the
 frame and hand it back. Every transformation that can lose something is on this side of
 that store, and every one of them runs here.
 
@@ -102,7 +102,7 @@ def make_dataset(
     add(value, 2020, 'residential', 'gas', 10.5)
     add(value, 2021, 'residential', 'gas', 11.25)
     # A null value is a data point that exists and has no number, which is not the same
-    # as an absent row -- see the comment in load_dvc_dataset.create_data_points.
+    # as an absent row -- see the comment in load_dvc_dataset.sync_data_points.
     add(value, 2020, 'industry', 'electricity', None)
     graded = add(quality, 2020, 'residential', 'gas', 3)
     # The commented point is the only metric at its (year, dimensions), so its provenance
@@ -175,7 +175,7 @@ def across_the_dvc_boundary(frame: pl.DataFrame, units: dict[str, str]):
     `push_to_dvc` writes the frame with these units and this index-column set, and the
     reading path hands back a `PathsDataFrame` carrying them. Reproducing the two lines
     that decide them -- rather than the storage -- is what keeps this test about the
-    transformations while still handing `create_data_points` the shape it really sees.
+    transformations while still handing `sync_data_points` the shape it really sees.
     """
     index_columns = [c for c in frame.columns if c not in units and c.lower() not in RESERVED_ROW_COLUMNS]
     meta = DataFrameMeta(
@@ -237,7 +237,7 @@ def round_trip(ic: InstanceConfig, dataset: Dataset, tmp_path: Path, fmt: str) -
         scope_content_type=dataset.scope_content_type,
         scope_id=dataset.scope_id,
     )
-    LoadCommand().create_data_points(ic, stored, target, metrics, sources_meta=sources_meta)
+    LoadCommand().sync_data_points(ic, stored, target, sources_meta=sources_meta)
     return target
 
 
@@ -256,8 +256,8 @@ def test_db_to_csv_to_db_preserves_everything(tmp_path: Path, fmt: str):
     """
     The claim the plan's title makes: nothing that was in the database fails to come back.
 
-    What the round trip *adds* is a separate question, and the two xfail tests below are
-    where it is asked. This one is about loss.
+    What the round trip *adds* is a separate question, asked by the split-row tests below.
+    This one is about loss.
     """
     ic = InstanceConfigFactory.create(name='round-trip', config_source='database')
     dataset = make_dataset(ic)
@@ -299,19 +299,14 @@ def test_provenance_reaches_valueless_cells(tmp_path: Path, fmt: str):
 
 
 @pytest.mark.parametrize('fmt', ['wide', 'long'])
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        'Open question recorded in docs/dataset-round-trip.md §3.2. Splitting a row is the '
-        'only way to give two metrics of one cell different provenance, and that is intended. '
-        'What follows from it is not: the importer makes a data point for every metric of '
-        '*both* rows, so a real value and a null end up under one natural key, and '
-        '`DBDataset.deserialize_df` then keeps whichever `.group_by().first()` returns -- the '
-        'null wins about half the time and the value is gone before any node sees it. It also '
-        'reports every load to Sentry as duplicate rows.'
-    ),
-)
 def test_metric_specific_provenance_does_not_duplicate_a_cell(tmp_path: Path, fmt: str):
+    """
+    A split row lands as one data point per cell, with the provenance of the row it came from.
+
+    Splitting a row is the only way to give two metrics of one cell different provenance in
+    a table that is wide by metric, and each half holds the other metric's cell empty. See
+    docs/dataset-round-trip.md §3.2 and `DBDataset.upsert_df`.
+    """
     ic = InstanceConfigFactory.create(name='split-provenance', config_source='database')
     dataset = make_dataset(ic, split_metric_provenance=True)
     before = snapshot(dataset)
@@ -324,19 +319,14 @@ def test_metric_specific_provenance_does_not_duplicate_a_cell(tmp_path: Path, fm
     assert_originals_survive(before, after)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason='Same cause as test_metric_specific_provenance_does_not_duplicate_a_cell; see §3.2.',
-)
 def test_a_split_row_does_not_lose_the_value_a_node_reads(tmp_path: Path):
     """
-    The consequence that matters: the duplicate is resolved against the value, not for it.
+    The consequence that mattered: a duplicate used to be resolved against the value.
 
-    `DBDataset.deserialize_df` collapses duplicate natural keys with
-    `group_by(uniq_cols).first()` after sorting on `[Year, dimensions, metric]`. The value
-    is not in that sort key, so which of the two rows survives is arbitrary -- and when the
-    null one wins, the number is gone before any node reads the dataset. This asserts on
-    the frame a node actually gets, not on the rows in the table.
+    The import made a data point for every metric of both halves of a split row, and
+    `DBDataset.deserialize_df` collapses duplicate natural keys with an arbitrary
+    `group_by().first()`, so the null won about half the time and the number was gone
+    before any node read it. This asserts on the frame a node actually gets.
     """
     ic = InstanceConfigFactory.create(name='split-loss', config_source='database')
     dataset = make_dataset(ic, split_metric_provenance=True)
