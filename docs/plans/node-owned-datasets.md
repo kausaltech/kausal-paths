@@ -4,8 +4,12 @@ Status: agreed with Juha 2026-09-24. Step 1 is done (95b8af88, 2026-09-25):
 scope types, `Dataset.scope_instance`/`scope_node`, the query split, the
 scope-delegating policy with dataset `ObjectRole`s, `NodeSnapshot.datasets`
 (snapshot v12), graph-level exclusive binding, deletion, and `Dataset.scope`
-NOT NULL with the backfill. Step 2 is next. Decisions 13–15 and the split of
-the former step 3 into steps 3–6 were agreed on 2026-09-27.
+NOT NULL with the backfill. Decisions 13–15 and the split of the former step 3
+into steps 3–6 were agreed on 2026-09-27. On 2026-10-09 steps 4–6 were moved
+ahead of step 2 and the rest of step 3: lossless export and import are needed
+for other work too, and step 4 depends on neither (see step 4). The step 3
+stopgap is done (ca60343a), as is the re-import identity that step 4 assumes
+(881c9a1a). Step 4 is next.
 
 ## Why
 
@@ -294,6 +298,22 @@ bump, so stored revisions are upgraded and content hashes change once.
   hash input and the published revision payload (`serialize_dataset`). The
   `schema_version` upgrader converts stored revisions; every content hash
   changes once, here.
+  - Revisions frozen before this have no data-point uuids, and the true ones
+    cannot be recovered. The upgrader borrows the uuid of the live data point
+    with the same coordinates where one still exists, and derives one
+    (`uuid3(dataset_uuid, coordinates)`) where it does not. Old revisions are
+    lossless only where that is possible.
+- **Order.** This step does not depend on step 2: the only part of step 2 it
+  uses is "uuids in `DatasetSnapshot`", which it delivers itself by containing
+  `DatasetMeta`. Nor does it depend on step 3: long-form data refers to metrics
+  by uuid, so the snapshot no longer depends on column names at all.
+- **Prerequisite (done, 881c9a1a).** Uuid-keyed data is only worth having if
+  a data point keeps its uuid while its cell exists. `load_dvc_dataset --force`
+  used to delete every data point and create it again; it now upserts by
+  coordinates through `DBDataset.upsert_df` (`datasets/runtime/db.py`), which
+  is also where a frame from any other source (`extract_node_dataset`, framework
+  conversion) should be written. The DVC boundary is the right place for a
+  natural key, because the source has no uuids.
 
 ### Step 5: lossless export and import
 
@@ -333,6 +353,35 @@ rekeys the export first and then imports it as usual.
 - **Invariant test:** in a rekeyed dump of a real instance, no source identity
   uuid appears except in provenance fields. It scans the JSON text for
   uuid-shaped strings, so it also catches uuids that are not typed as such.
+
+### Afterwards: the editor reads datasets from its edition
+
+Not part of this plan, but it waits on step 4, so it is recorded here. The editor's
+`Dataset` type reads every field from the live row, so a query against a published
+revision (`InstanceEditorFields._source`) already returns the draft's dataset
+metadata and data; `editor.dataset(s)`, the dataset of a port binding and
+`Node.datasets` all ignore the source. `DataEntryQuery.load()` already resolves the
+right edition per dataset (the live row when unpinned in the draft, the pinned
+revision otherwise), but only for the data-entry views, which is why
+`DataEntryDataset` duplicates `Dataset`.
+
+After step 4 a `DatasetSnapshot` is "`DatasetMeta` plus body", so the refactor is:
+
+- a request-scoped resolver in `InstanceRequestResources` (next to
+  `dataset_models_for_graph`), keyed by `ResolvedInstanceSource`, returning each
+  dataset's edition: the meta, the snapshot (lazily) and the live row only for an
+  unpinned draft dataset. `DataEntryQuery` uses it instead of owning it.
+- `DatasetType` rooted on the edition. Content fields (name, dimensions, metrics,
+  category domain, `shape` from `graph.shapes`, data) come from the meta and the
+  snapshot even in the draft, so draft and published cannot read differently. Fields
+  that only exist live (permissions, editability, timestamps) come from the row and
+  are false or null without one. `portBindings` comes from `graph.bindings`.
+- every `Dataset` reference resolved through the edition of the editor's source;
+  `DataEntryTable.dataset` becomes a `Dataset` and `DataEntryDataset` is deprecated.
+
+Open: what `editor.datasets` lists in a frozen edition (only the graph's datasets,
+while the draft lists every row in the scope), and whether a mutation's result is
+built from the row it wrote or from a refreshed request graph.
 
 ### Later
 
