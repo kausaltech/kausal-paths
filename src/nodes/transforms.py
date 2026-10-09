@@ -56,8 +56,8 @@ if TYPE_CHECKING:
 
     from pydantic import JsonValue
 
+    from datasets.runtime import Dataset
     from nodes.context import Context
-    from nodes.datasets import Dataset
     from nodes.defs.transform_def import PortTransformOp
     from nodes.node import Node
 

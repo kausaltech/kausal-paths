@@ -275,7 +275,7 @@ def load_from_db(instance_id: str, dataset_id: str) -> pl.DataFrame:
     """Load a dataset from the database for the given instance."""
     from kausal_common.datasets.models import Dataset as DBDatasetModel
 
-    from nodes.datasets import DBDataset
+    from datasets.runtime import DBDataset
     from nodes.models import InstanceConfig
 
     ic = InstanceConfig.objects.get(identifier=instance_id)
