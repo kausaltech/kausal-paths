@@ -2813,14 +2813,10 @@ nodes:
   - id: energy_cost_reductions
     to_dimensions:
     - id: energy_carrier
-    - id: owner
-      categories: [private]
     - id: cost_type
   - id: energy_cost_increases
     to_dimensions:
     - id: energy_carrier
-    - id: owner
-      categories: [private]
     - id: cost_type
 
 - id: fuel_unit_prices
@@ -3095,23 +3091,27 @@ nodes:
   type: simple.AdditiveNode
   quantity: energy
   unit: GWh/a
-  input_dimensions: [energy_carrier, action]
-  output_dimensions: [energy_carrier, action]
+  input_dimensions: [energy_carrier, action, owner]
+  output_dimensions: [energy_carrier, action, owner]
   output_nodes:
   - id: energy_cost_reductions
     tags: [make_nonpositive]
     to_dimensions:
     - id: energy_carrier
     - id: action
+    - id: owner
   - id: energy_cost_increases
     tags: [make_nonnegative]
     to_dimensions:
     - id: energy_carrier
     - id: action
+    - id: owner
   - id: heating_emissions_impacts
     from_dimensions:
     - id: energy_carrier
       categories: [district_heat, fuel_oil, natural_gas]
+    - id: owner
+      flatten: true
     to_dimensions:
     - id: energy_carrier
     - id: action
@@ -3119,6 +3119,8 @@ nodes:
     from_dimensions:
     - id: energy_carrier
       categories: [electricity]
+    - id: owner
+      flatten: true
     to_dimensions:
     - id: energy_carrier
     - id: action
@@ -4671,8 +4673,6 @@ actions:
     from_dimensions:
     - id: cost_type
       flatten: true
-    - id: owner
-      flatten: true
     - id: heating
       flatten: true
     - id: scope
@@ -4680,6 +4680,7 @@ actions:
     to_dimensions:
     - id: action
     - id: energy_carrier
+    - id: owner
   - id: building_heating_price
     metrics: [currency]
     from_dimensions:
@@ -4850,8 +4851,6 @@ actions:
     from_dimensions:
     - id: cost_type
       flatten: true
-    - id: owner
-      flatten: true
     - id: heating
       flatten: true
     - id: scope
@@ -4859,6 +4858,7 @@ actions:
     to_dimensions:
     - id: action
     - id: energy_carrier
+    - id: owner
   - id: building_heating_price
     metrics: [currency]
     from_dimensions:
@@ -5031,8 +5031,6 @@ actions:
     from_dimensions:
     - id: cost_type
       flatten: true
-    - id: owner
-      flatten: true
     - id: heating
       flatten: true
     - id: scope
@@ -5040,6 +5038,7 @@ actions:
     to_dimensions:
     - id: action
     - id: energy_carrier
+    - id: owner
   - id: total_costs
     metrics: [currency]
     tags: [make_nonnegative]
@@ -5178,13 +5177,12 @@ actions:
     from_dimensions:
     - id: cost_type
       flatten: true
-    - id: owner
-      flatten: true
     - id: scope
       flatten: true
     to_dimensions:
     - id: action
     - id: energy_carrier
+    - id: owner
   - id: electricity_consumption_price
     metrics: [currency]
     from_dimensions:
@@ -5311,13 +5309,12 @@ actions:
     from_dimensions:
     - id: cost_type
       flatten: true
-    - id: owner
-      flatten: true
     - id: scope
       flatten: true
     to_dimensions:
     - id: action
     - id: energy_carrier
+    - id: owner
   - id: electricity_consumption_price
     metrics: [currency]
     from_dimensions:
@@ -5462,8 +5459,6 @@ actions:
     from_dimensions:
     - id: cost_type
       flatten: true
-    - id: owner
-      flatten: true
     - id: heating
       flatten: true
     - id: scope
@@ -5471,6 +5466,7 @@ actions:
     to_dimensions:
     - id: action
     - id: energy_carrier
+    - id: owner
   - id: total_costs
     metrics: [currency]
     tags: [make_nonnegative]
