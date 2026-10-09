@@ -13,6 +13,7 @@ from .identifiers import (
     DimensionIdentifier,
     QuantityKindIdentifier,
 )
+from .uuid_kinds import Provenance, Ref
 
 """
 Reference-oriented validation helpers for Paths domain objects.
@@ -139,9 +140,29 @@ def validate_quantity_kind_ref(v: str, info: ValidationInfo) -> str:
     return v
 
 
-# A node by its uuid. Unchecked: the runtime context indexes nodes by identifier only.
-NodeRef = Annotated[UUID, Field(description='The uuid of a node.')]
-DimensionRef = Annotated[DimensionIdentifier, AfterValidator(validate_dimension_id)]
-DimensionCategoryRef = Annotated[DimensionCategoryIdentifier, AfterValidator(validate_dimension_category_id)]
-ActionGroupRef = Annotated[UUID, AfterValidator(validate_action_group_ref)]
+# -- uuids that point at an entity (see `paths.uuid_kinds`) ---------------------
+# A copy rewrites each when its target was copied with it. None is checked against the
+# runtime context, which indexes nodes and dimensions by identifier only; `ActionGroupRef`
+# is, because action groups are kept by uuid.
+
+NodeRef = Annotated[UUID, Ref('node'), Field(description='The uuid of a node.')]
+PortRef = Annotated[UUID, Ref('port')]
+ActionGroupRef = Annotated[UUID, Ref('action_group'), AfterValidator(validate_action_group_ref)]
+DimensionRef = Annotated[UUID, Ref('dimension')]
+DimensionCategoryRef = Annotated[UUID, Ref('category')]
+DatasetRef = Annotated[UUID, Ref('dataset')]
+DatasetMetricRef = Annotated[UUID, Ref('metric')]
+ShapeRef = Annotated[UUID, Ref('shape')]
+ShapeCombinationRef = Annotated[UUID, Ref('shape_combination')]
+DataSourceRef = Annotated[UUID, Ref('data_source')]
+DataEntrySectionRef = Annotated[UUID, Ref('data_entry_section')]
+
+InstanceCopyOf = Annotated[UUID, Provenance('instance')]
+NodeCopyOf = Annotated[UUID, Provenance('node')]
+
+# -- references by identifier ----------------------------------------------------
+# Checked against the runtime context when one is given.
+
+DimensionIdentifierRef = Annotated[DimensionIdentifier, AfterValidator(validate_dimension_id)]
+DimensionCategoryIdentifierRef = Annotated[DimensionCategoryIdentifier, AfterValidator(validate_dimension_category_id)]
 QuantityKindRef = Annotated[QuantityKindIdentifier, AfterValidator(validate_quantity_kind_ref)]

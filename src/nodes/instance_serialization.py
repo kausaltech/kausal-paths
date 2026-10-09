@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Literal, Self, cast
+from typing import TYPE_CHECKING, Annotated, Any, Literal, Self, cast
 from uuid import UUID, uuid3, uuid4
 
 from django.db import transaction
@@ -34,8 +34,16 @@ from kausal_common.i18n.pydantic import (
     get_modeltrans_attrs_from_str,
 )
 
-from paths.identifiers import NodeId  # noqa: TC002 - Pydantic field
-from paths.refs import NodeRef  # noqa: TC002 - Pydantic field
+from paths.identifiers import BindingId, NodeId  # noqa: TC002 - Pydantic field
+from paths.refs import (
+    DatasetMetricRef,
+    DatasetRef,
+    InstanceCopyOf,
+    NodeCopyOf,
+    NodeRef,
+    PortRef,
+)
+from paths.uuid_kinds import Token
 
 from datasets.catalogue import dataset_meta_from_model
 from datasets.shape_domain import CategoryDomainResolver
@@ -125,7 +133,7 @@ class NodeLayoutSnapshot(ModelSnapshot['NodeLayout']):
 class InheritedNodeSettings(BaseModel):
     """Local selections for inherited nodes, retained in authoring snapshots."""
 
-    node_uuid: UUID
+    node_uuid: NodeRef
     goals: NodeGoals | None = None
     layout: NodeLayoutSnapshot | None = None
     parameter_values: dict[str, bool | float | str | None] = Field(default_factory=dict)
@@ -133,8 +141,8 @@ class InheritedNodeSettings(BaseModel):
 
 
 class InputBindingOverrideSnapshot(BaseModel):
-    node_uuid: UUID
-    port_uuid: UUID
+    node_uuid: NodeRef
+    port_uuid: PortRef
     bindings: list['InputBindingSnapshot'] = Field(default_factory=list)
 
 
@@ -153,7 +161,7 @@ class NodeSnapshot(ModelSnapshot['NodeConfig']):
     is_editable: bool | None = None
     template_revision_id: int | None = None
     indicator_node: NodeRef | None = None
-    copy_of: UUID | None = None
+    copy_of: NodeCopyOf | None = None
     body: list[Any] | None = None
     """Raw StreamField data of ``NodeConfig.body``. Admin-authored only, so
     parse-side snapshots never carry it; row-side snapshots preserve it so
@@ -547,8 +555,8 @@ class NodePortSource(BaseModel):
     """An input-binding source: another node's output port."""
 
     kind: Literal['node'] = 'node'
-    node_id: UUID
-    port_id: UUID
+    node_id: NodeRef
+    port_id: PortRef
 
 
 class DatasetMetricSource(BaseModel):
@@ -563,8 +571,8 @@ class DatasetMetricSource(BaseModel):
     kind: Literal['dataset'] = 'dataset'
     dataset: str
     metric: str
-    dataset_uuid: UUID | None = None
-    metric_uuid: UUID | None = None
+    dataset_uuid: DatasetRef | None = None
+    metric_uuid: DatasetMetricRef | None = None
     dataset_revision: int | None = None
 
 
@@ -581,9 +589,9 @@ class InputBindingSnapshot(ModelSnapshot['NodeInputPortBinding']):
     loadable; the keys are ignored (``I18nBaseModel`` ignores extra keys).
     """
 
-    uuid: UUID | None = None
-    node_id: UUID
-    port_id: UUID
+    uuid: BindingId | None = None
+    node_id: NodeRef
+    port_id: PortRef
     position: int = 0
     source: InputBindingSource = Field(discriminator='kind')
     transformations: list[PortTransformOp] = Field(default_factory=list)
@@ -891,7 +899,7 @@ def existing_dataset_port_identities(ic: InstanceConfig) -> list[tuple[tuple[Has
 
 
 class DatasetRevisionPinSnapshot(BaseModel):
-    dataset_uuid: UUID
+    dataset_uuid: DatasetRef
     identifier: str | None = None
     revision_id: int
     content_hash: str
@@ -923,7 +931,8 @@ class InstanceSnapshot(BaseModel):
     # still deserialize.
     metadata: InstanceMetadata = Field(default_factory=InstanceMetadata)
     spec: InstanceModelSpec
-    copy_of: str | None = None  # uuid of the InstanceConfig this was copied from
+    copy_of: InstanceCopyOf | None = None
+    """The uuid of the InstanceConfig this was copied from."""
     nodes: list[NodeSnapshot] = Field(default_factory=list)
     bindings: list[InputBindingSnapshot] = Field(default_factory=list)
     dataset_revisions: list[DatasetRevisionPinSnapshot] = Field(default_factory=list)
@@ -1089,7 +1098,7 @@ class InstanceExport(BaseModel):
         default=None,
         description='Base URL of the backend that produced this document.',
     )
-    draft_head_token: UUID | None = Field(
+    draft_head_token: Annotated[UUID, Token()] | None = Field(
         default=None,
         description='Optimistic-locking token of the source draft at export time; null if it had no edits.',
     )
@@ -1280,7 +1289,7 @@ def build_instance_snapshot(
     snapshot = InstanceSnapshot(
         metadata=InstanceMetadata.from_model(ic),
         spec=ic.spec,
-        copy_of=str(ic.copy_of.uuid) if ic.copy_of else None,
+        copy_of=ic.copy_of.uuid if ic.copy_of else None,
         nodes=nodes,
         bindings=bindings,
         dataset_revisions=list(dataset_revision_pins.values()) if dataset_revision_pins is not None else [],
@@ -1299,7 +1308,13 @@ def build_instance_snapshot(
 def _dimension_catalog_for(ic: InstanceConfig) -> list[DimensionMeta]:
     from frameworks.catalogue import dimension_scopes
 
-    scopes = dimension_scopes(ic).select_related('dimension').prefetch_related('dimension__categories').order_by('order')
+    scopes = (
+        dimension_scopes(ic)
+        .select_related('dimension', 'scope_content_type')
+        .prefetch_related('dimension__categories')
+        .order_by('order')
+    )
+    framework_scoped = {scope.dimension_id for scope in scopes if scope.scope_content_type.model == 'framework'}
     dimensions: list[DimensionMeta] = []
     for scope in scopes:
         dimension = scope.dimension
@@ -1324,6 +1339,7 @@ def _dimension_catalog_for(ic: InstanceConfig) -> list[DimensionMeta]:
                 order=scope.order,
                 spec=dict(dimension.spec or {}),
                 categories=categories,
+                scope='framework' if dimension.pk in framework_scoped else 'instance',
             )
         )
     return dimensions
@@ -1359,7 +1375,7 @@ def _dataset_catalog_for(
             )
         )
         .select_related('schema')
-        .prefetch_related('schema__metrics__validation_rules', 'schema__dimensions__dimension')
+        .prefetch_related('schema__metrics__validation_rules', 'schema__dimensions__dimension', 'schema__scopes')
         .order_by('pk')
     )
     instance_level: list[DatasetMeta] = []

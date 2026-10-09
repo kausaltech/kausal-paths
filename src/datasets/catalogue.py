@@ -2,6 +2,8 @@
 
 from typing import TYPE_CHECKING
 
+from django.contrib.contenttypes.models import ContentType
+
 from datasets.shape_domain import CategoryDomainResolver, dataset_shape_id
 from datasets.snapshot import metric_column_id
 from datasets.validation_rules import validation_rule_adapter
@@ -10,7 +12,11 @@ from nodes.defs.graph import DatasetMeta, DatasetMetricMeta, QualityLevelKey, Va
 from nodes.snapshot_base import translated_string_from_model
 
 if TYPE_CHECKING:
-    from kausal_common.datasets.models import Dataset as DatasetModel
+    from kausal_common.datasets.models import Dataset as DatasetModel, DatasetSchemaScope
+
+
+def _is_framework(scope: DatasetSchemaScope) -> bool:
+    return ContentType.objects.get_for_id(scope.scope_content_type_id).model == 'framework'
 
 
 def dataset_meta_from_model(
@@ -47,6 +53,7 @@ def dataset_meta_from_model(
         identifier=dataset.identifier,
         name=translated_string_from_model(schema, 'name', primary_language),
         schema_id=schema.uuid,
+        schema_scope='framework' if any(_is_framework(scope) for scope in schema.scopes.all()) else 'instance',
         is_editable=schema.is_editable,
         metrics=metrics,
         declared_dimension_ids=declared_dimension_ids,

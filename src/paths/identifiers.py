@@ -5,6 +5,8 @@ from uuid import UUID
 
 from pydantic import Field, TypeAdapter, ValidationError
 
+from .uuid_kinds import Identity
+
 """
 Canonical identifier shapes for Paths domain objects.
 
@@ -28,8 +30,6 @@ DATASET_IDENTIFIER_PATTERN = r'^[A-Za-z0-9_/-]+$'
 MixedCaseIdentifier = Annotated[str, Field(pattern=MIXED_IDENTIFIER_PATTERN)]
 Identifier = Annotated[str, Field(pattern=LOWER_IDENTIFIER_PATTERN)]
 
-# A node's uuid. The runtime `Node.id` is its human-readable `NodeIdentifier`, not this.
-NodeId = UUID
 NodeIdentifier = Annotated[str, Field(pattern=LOWER_IDENTIFIER_PATTERN)]
 ActionGroupIdentifier = Annotated[str, Field(pattern=LOWER_IDENTIFIER_PATTERN)]
 DimensionIdentifier = Annotated[str, Field(pattern=LOWER_IDENTIFIER_PATTERN)]
@@ -79,3 +79,29 @@ def validate_identifier(s: str, mixed: bool = False):
     if mixed:
         return MixedCaseIdentifierAdapter.validate_python(s)
     return IdentifierAdapter.validate_python(s)
+
+
+# -- uuids that define an entity (see `paths.uuid_kinds`) ----------------------
+# A copy mints a new uuid for each. The `*Ref` types in `paths.refs` point at them.
+
+InstanceId = Annotated[UUID, Identity('instance')]
+NodeId = Annotated[UUID, Identity('node')]
+"""A node's uuid. The runtime `Node.id` is its human-readable `NodeIdentifier`, not this."""
+PortId = Annotated[UUID, Identity('port')]
+BindingId = Annotated[UUID, Identity('binding')]
+ActionGroupId = Annotated[UUID, Identity('action_group')]
+DimensionId = Annotated[UUID, Identity('dimension')]
+DimensionCategoryId = Annotated[UUID, Identity('category')]
+DatasetId = Annotated[UUID, Identity('dataset')]
+DatasetSchemaId = Annotated[UUID, Identity('dataset_schema')]
+DatasetMetricId = Annotated[UUID, Identity('metric')]
+ValidationRuleId = Annotated[UUID, Identity('validation_rule')]
+ShapeId = Annotated[UUID, Identity('shape')]
+ShapeCombinationId = Annotated[UUID, Identity('shape_combination')]
+ShapeRequiredGroupId = Annotated[UUID, Identity('shape_required_group')]
+DataPointId = Annotated[UUID, Identity('data_point')]
+DataPointCommentId = Annotated[UUID, Identity('comment')]
+DataSourceId = Annotated[UUID, Identity('data_source')]
+SourceReferenceId = Annotated[UUID, Identity('source_reference')]
+DataEntrySectionId = Annotated[UUID, Identity('data_entry_section')]
+DataEntryTableId = Annotated[UUID, Identity('data_entry_table')]

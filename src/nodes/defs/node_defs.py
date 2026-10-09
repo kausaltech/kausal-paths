@@ -2,15 +2,14 @@ from __future__ import annotations
 
 from enum import StrEnum
 from functools import cached_property
-from typing import Annotated, Any, Literal, cast
-from uuid import UUID
+from typing import TYPE_CHECKING, Annotated, Any, Literal, cast
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from kausal_common.i18n.pydantic import I18nBaseModel, I18nString
 
 from paths.identifiers import DatasetIdentifier, MetricIdentifier, MixedCaseIdentifier
-from paths.refs import ActionGroupRef, NodeRef, QuantityKindRef
+from paths.refs import ActionGroupRef, NodeRef, PortRef, QuantityKindRef
 
 from nodes.constants import DecisionLevel
 from nodes.goals import NodeGoals
@@ -43,6 +42,9 @@ from .transform_def import (
     unit_from_transformations,
     without_transformations,
 )
+
+if TYPE_CHECKING:
+    from uuid import UUID
 
 
 class ColumnDatasetFilterDef(BaseModel):
@@ -446,9 +448,9 @@ class ActionHookDef(BaseModel):
 
     node: NodeRef
     """The target node."""
-    port: UUID | None = None
+    port: PortRef | None = None
     """The target's output port; may be omitted when the target has a single output."""
-    from_port: UUID | None = None
+    from_port: PortRef | None = None
     """The action's output port; may be omitted when the action has a single output."""
     transformations: list[EdgeTransformOp] = Field(default_factory=list)
     """Dimension operations applied to the action's output, as on an ordinary edge."""

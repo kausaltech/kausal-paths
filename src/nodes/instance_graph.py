@@ -783,7 +783,7 @@ def build_instance_graph(
     return InstanceGraph(
         disconnected_inputs=tuple((item.node_uuid, item.port_uuid) for item in snapshot.binding_overrides if not item.bindings),
         instance_id=snapshot.metadata.uuid,
-        copy_of_id=UUID(snapshot.copy_of) if snapshot.copy_of is not None else None,
+        copy_of_id=snapshot.copy_of,
         metadata=snapshot.metadata,
         spec=snapshot.spec,
         composition_errors=tuple(snapshot.composition_errors),

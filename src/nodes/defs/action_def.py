@@ -6,7 +6,7 @@ from pydantic import model_validator
 
 from kausal_common.i18n.pydantic import I18nBaseModel, I18nStringInstance
 
-from paths.refs import DimensionRef
+from paths.refs import DimensionIdentifierRef
 
 from nodes.units import Unit
 
@@ -36,8 +36,8 @@ class ImpactOverviewSpec(I18nBaseModel):
     invert_effect: bool = False
     indicator_cutpoint: float | None = None
     cost_cutpoint: float | None = None
-    stakeholder_dimension_id: DimensionRef | None = None
-    outcome_dimension_id: DimensionRef | None = None
+    stakeholder_dimension_id: DimensionIdentifierRef | None = None
+    outcome_dimension_id: DimensionIdentifierRef | None = None
     label: I18nStringInstance | None = None
     cost_category_label: I18nStringInstance | None = None
     effect_category_label: I18nStringInstance | None = None

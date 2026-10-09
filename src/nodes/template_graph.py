@@ -264,6 +264,7 @@ def _effective_datasets(
         .prefetch_related(
             'schema__metrics__validation_rules',
             'schema__dimensions__dimension',
+            'schema__scopes',
         )
     )
     for dataset in missing_datasets:

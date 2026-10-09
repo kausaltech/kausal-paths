@@ -9,6 +9,8 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 import polars as pl
 
+from paths.refs import PortRef, ShapeRef
+
 from common import qualifiers
 from common.polars import DataFrameMeta, to_ppdf
 from common.validation import blocks_operation
@@ -54,7 +56,7 @@ class QualifierRequirement(BaseModel):
 class ValueContract(BaseModel):
     model_config = ConfigDict(extra='forbid', frozen=True)
 
-    shape: UUID | None = None
+    shape: ShapeRef | None = None
     """
     A shape the delivered values must conform to: each of its required groups needs a value,
     and when it is closed, no value may fall outside its combinations.
@@ -64,8 +66,8 @@ class ValueContract(BaseModel):
     qualifiers: dict[str, QualifierRequirement] = Field(default_factory=dict)
     """What the year's values must meet besides being present; only with `required`."""
     years: Literal['inventory', 'active'] = 'inventory'
-    required_if_positive: UUID | None = None
-    combinations_from_positive: UUID | None = None
+    required_if_positive: PortRef | None = None
+    combinations_from_positive: PortRef | None = None
     max_rows: int | None = Field(default=None, ge=1)
     min: float | None = None
     max: float | None = None

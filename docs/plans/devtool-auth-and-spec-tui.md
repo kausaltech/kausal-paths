@@ -45,7 +45,7 @@ These came out of the design discussion; the phases below implement them.
    missing descriptions surfacing as blank help text is a feature — it shows
    where the models are underdocumented.
 5. **Ref metadata lives in the type annotations.** `paths/refs.py` already
-   has the `Annotated[...]` pattern (`NodeRef`, `DimensionRef`); it grows
+   has the `Annotated[...]` pattern (`NodeRef`, `DimensionIdentifierRef`); it grows
    markers that declare a reference's target entity and resolution
    semantics, projected into the GraphQL schema (named scalars or a
    directive) so a remote client sees the same information through

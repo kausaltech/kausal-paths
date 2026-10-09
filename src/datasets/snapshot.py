@@ -11,13 +11,15 @@ built from it (`DatasetSnapshot.to_frame`), never of the stored form.
 from collections import defaultdict
 from datetime import date
 from typing import TYPE_CHECKING, Literal, Self
-from uuid import UUID
 
 from django.db.models import CharField, F, Value
 from django.db.models.functions import Cast, Coalesce, NullIf
 from pydantic import BaseModel, Field
 
 import polars as pl
+
+from paths.identifiers import DataPointCommentId, DataPointId, DataSourceId, SourceReferenceId
+from paths.refs import DatasetMetricRef, DataSourceRef, DimensionCategoryRef, DimensionRef
 
 from common import polars as ppl
 from nodes.constants import YEAR_COLUMN
@@ -27,6 +29,7 @@ from nodes.units import unit_registry
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
+    from uuid import UUID
 
     from kausal_common.datasets.models import (
         DataPointComment,
@@ -79,7 +82,7 @@ def metric_column_id_expr(prefix: str = '') -> Coalesce:
 class DataSourceSnapshot(ModelSnapshot['DataSource']):
     """A data source cited by the dataset or by its data points."""
 
-    id: UUID
+    id: DataSourceId
     name: str
     edition: str | None = None
     authority: str | None = None
@@ -101,8 +104,8 @@ class DataSourceSnapshot(ModelSnapshot['DataSource']):
 class SourceReferenceSnapshot(ModelSnapshot['DatasetSourceReference']):
     """A citation of a data source, by the dataset or by the data point it is listed under."""
 
-    id: UUID
-    data_source: UUID
+    id: SourceReferenceId
+    data_source: DataSourceRef
 
     @classmethod
     def from_model(cls, obj: DatasetSourceReference) -> Self:
@@ -112,7 +115,7 @@ class SourceReferenceSnapshot(ModelSnapshot['DatasetSourceReference']):
 class DataPointCommentSnapshot(ModelSnapshot['DataPointComment']):
     """A (non-soft-deleted) comment on a data point. Users are referenced by uuid."""
 
-    id: UUID
+    id: DataPointCommentId
     text: str
     is_sticky: bool = False
     is_review: bool = False
@@ -184,10 +187,10 @@ class DataPointEvidenceSnapshot(ModelSnapshot['DataPointEvidence']):
 class DataPointSnapshot(BaseModel):
     """One data point, with everything attached to it."""
 
-    id: UUID
+    id: DataPointId
     date: date
-    metric: UUID
-    categories: dict[UUID, UUID] = Field(default_factory=dict)
+    metric: DatasetMetricRef
+    categories: dict[DimensionRef, DimensionCategoryRef] = Field(default_factory=dict)
     """Dimension uuid to category uuid; a dimension the point is not classified by is absent."""
     value: float | None = None
     """A null value is a cell that exists and holds no number, which is not an absent cell."""
@@ -215,7 +218,7 @@ class DatasetSnapshot(ModelSnapshot['Dataset']):
 
     schema_version: Literal[2] = 2
     meta: DatasetMeta
-    dimension_columns: dict[UUID, str] = Field(default_factory=dict)
+    dimension_columns: dict[DimensionRef, str] = Field(default_factory=dict)
     """
     A dimension's column in the external source, where it differs from the dimension's identifier.
 
