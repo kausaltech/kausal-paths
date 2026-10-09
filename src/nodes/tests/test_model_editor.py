@@ -2386,18 +2386,18 @@ def test_dataset_port_forecast_from_promotes_to_dataset_default(db_instance_conf
     materialization = DatasetMaterialization.objects.get(dataset=promoted_dataset)
     assert materialization.generation == original_materialization.generation + 1
     assert materialization.forecast_from == 2025
-    assert materialization.content['forecast_from'] == 2025
+    assert materialization.content['meta']['forecast_from'] == 2025
 
     # Repair materializations left inconsistent by syncs that predate the atomic refresh.
     materialization.forecast_from = None
-    materialization.content['forecast_from'] = None
+    materialization.content['meta']['forecast_from'] = None
     materialization.save(update_fields=['forecast_from', 'content'])
 
     assert _promote_dataset_forecast_defaults(db_instance_config) == 0
     materialization.refresh_from_db()
     assert materialization.generation == original_materialization.generation + 2
     assert materialization.forecast_from == 2025
-    assert materialization.content['forecast_from'] == 2025
+    assert materialization.content['meta']['forecast_from'] == 2025
 
 
 def test_dataset_port_forecast_from_not_promoted_for_external_placeholder(db_instance_config: InstanceConfig):

@@ -58,10 +58,13 @@ def test_dataset_provenance_round_trip():
     # --- Export ---
     snap = DatasetSnapshot.from_model(ds, src)
     assert [s.name for s in snap.data_sources] == ['Census']
-    assert len(snap.source_references) == 2
-    assert {r.point is None for r in snap.source_references} == {True, False}
-    assert len(snap.comments) == 1  # soft-deleted one excluded
-    comment_snap = snap.comments[0]
+    (point,) = snap.points
+    assert point.id == dp.uuid
+    # The dataset's own citation is listed on the dataset, the data point's under the data point.
+    assert [r.data_source for r in snap.source_references] == [source.uuid]
+    assert [r.data_source for r in point.sources] == [source.uuid]
+    assert len(point.comments) == 1  # soft-deleted one excluded
+    comment_snap = point.comments[0]
     assert comment_snap.text == 'looks off'
     assert comment_snap.created_by == str(author.uuid)  # user carried by uuid
     assert comment_snap.last_modified_by == str(author.uuid)
@@ -139,4 +142,4 @@ def test_empty_cells_survive_the_round_trip():
     assert sorted(new_mixed.data_points.values_list('date__year', 'value')) == [(2022, Decimal(5)), (2023, None)]
     # The runtime reads the materialized payload; a template copied without its cells had none.
     materialization = DatasetMaterialization.objects.get(dataset=new_template)
-    assert materialization.content.get('data') is not None
+    assert [point['value'] for point in materialization.content['points']] == [None, None]

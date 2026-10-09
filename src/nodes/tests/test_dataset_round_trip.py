@@ -11,8 +11,8 @@ frame and hand it back. Every transformation that can lose something is on this 
 that store, and every one of them runs here.
 
 Data points are compared by natural key -- ``(year, metric, sorted category ids)`` -- not
-by UUID, following ``DataPointKey`` in ``nodes/instance_serialization.py``. A re-import
-mints new point UUIDs by design; see the plan's §3.
+by UUID: the round trip imports into a second dataset row, whose points are new. A CSV
+carries no point identity; see the plan's §3.
 """
 
 from __future__ import annotations

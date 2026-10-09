@@ -41,7 +41,14 @@ from nodes.defs import (
     SimpleConfig,
     YearsSpec,
 )
-from nodes.defs.graph import DatasetMeta, DatasetMetricMeta, DimensionCategoryMeta, DimensionMeta, QualityLevelKey
+from nodes.defs.graph import (
+    DatasetMeta,
+    DatasetMetricMeta,
+    DimensionCategoryMeta,
+    DimensionMeta,
+    QualityLevelKey,
+    ValidationRuleMeta,
+)
 from nodes.defs.instance_defs import ActionGroup, DatasetRepoSpec, InstanceFeatures, InstanceMetadata, InstanceTerms
 from nodes.defs.node_defs import ActionHookDef, NodeSpecExtra
 from nodes.defs.port_def import InputPortDef, OutputPortDef
@@ -475,7 +482,7 @@ class InstanceConfigParser:
         return DatasetMetricMeta(
             id=self._uuid_from_identifiers(['dataset', dataset_id, 'metric', metric_id]),
             identifier=metric_id,
-            validation_rules=tuple(rules),
+            validation_rules=tuple(ValidationRuleMeta(rule=rule) for rule in rules),
         )
 
     def _parse_global_params(self) -> None:

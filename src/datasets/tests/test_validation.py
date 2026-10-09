@@ -394,9 +394,9 @@ def test_snapshot_carries_validation_rules(rig):
 
     snapshot = DatasetSnapshot.from_model(dataset)
 
-    (metric_snapshot,) = snapshot.metrics
+    (metric_snapshot,) = snapshot.meta.metrics
     (rule_snapshot,) = metric_snapshot.validation_rules
-    assert rule_snapshot.uuid == rule.uuid
+    assert rule_snapshot.id == rule.uuid
     assert rule_snapshot.rule.model_dump(mode='json') == blob
 
 

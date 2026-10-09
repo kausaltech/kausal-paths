@@ -61,8 +61,6 @@ def snapshot_content_hash(snapshot: InstanceSnapshot) -> str:
     data.pop('snapshot_kind', None)
     for pin in data['dataset_revisions']:
         pin.pop('revision_id', None)
-    for dataset in [*data['datasets'], *(item for node in data['nodes'] for item in node['datasets'])]:
-        dataset.pop('revision_id', None)
     for binding in data['bindings']:
         binding['source'].pop('dataset_revision', None)
     content = json.dumps(data, sort_keys=True, separators=(',', ':')).encode()
@@ -106,9 +104,6 @@ def compose_template_snapshot(
     )
     local.dimensions = [item for item in local.dimensions if item.id not in {dimension.id for dimension in base.dimensions}]
     pins = {pin.dataset_uuid: pin for pin in (dataset_revision_pins or {}).values()}
-    local.datasets = [
-        item.model_copy(update={'revision_id': pins[item.id].revision_id}) if item.id in pins else item for item in local.datasets
-    ]
     for override in local.binding_overrides:
         override.bindings = [
             binding.model_copy(

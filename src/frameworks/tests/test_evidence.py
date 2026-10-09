@@ -284,7 +284,8 @@ def test_evidence_survives_snapshot_round_trip(setup: Setup) -> None:
     DataPointEvidence.objects.create(data_point=zero, kind=DataEvidenceKind.EXPLICIT_ZERO)
 
     snap = DatasetSnapshot.from_model(dataset, setup.ic)
-    assert {(ev.kind, ev.quality_level.level if ev.quality_level else None) for ev in snap.evidence} == {
+    evidence = [point.evidence for point in snap.points if point.evidence is not None]
+    assert {(ev.kind, ev.quality_level.level if ev.quality_level else None) for ev in evidence} == {
         ('observed', 'A'),
         ('explicit_zero', None),
     }

@@ -485,7 +485,7 @@ def _sync_dataset_metadata_from_snapshot(ic: InstanceConfig, snapshot: InstanceS
                     '(check for a typo if the metric is meant to be there)'
                 )
                 continue
-            dataset_changed |= _apply_declared_metric_rules(metric, list(metric_meta.validation_rules))
+            dataset_changed |= _apply_declared_metric_rules(metric, [item.rule for item in metric_meta.validation_rules])
         if dataset_changed and not dataset.is_external_placeholder:
             # Rules ride in the materialized snapshot and their violations are
             # persisted there; re-evaluate under the new rule set.

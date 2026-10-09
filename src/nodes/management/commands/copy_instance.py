@@ -574,10 +574,15 @@ class Command(BaseCommand):
         if ic_src.spec is not None:
             export = export_instance(ic_src)
             nodes_by_id = import_instance_nodes(ic_copy, export)
-            db_datasets = [d for d in export.datasets if not d.is_external_placeholder and d.data is not None]
+            db_datasets = [d for d in export.datasets if not d.meta.is_external_placeholder and d.meta.metrics]
             datasets_by_id: dict[str, Any] = {}
             if db_datasets:
-                imported = import_instance_datasets(ic_copy, db_datasets, create_missing_dimensions=True)
+                imported = import_instance_datasets(
+                    ic_copy,
+                    db_datasets,
+                    create_missing_dimensions=True,
+                    dimensions={dimension.id: dimension for dimension in export.instance.dimensions},
+                )
                 datasets_by_id = {ds.identifier: ds for ds in imported if ds.identifier is not None}
                 self.stdout.write(f'  copied {len(db_datasets)} DB-resident dataset(s).')
             # Recreate the editor graph (NodeInputPortBinding) so the copy's DB

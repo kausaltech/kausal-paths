@@ -269,6 +269,8 @@ class InstanceGraph(FrozenGraphModel):
     bindings: tuple[GraphBinding, ...] = ()
     dimensions: tuple[DimensionMeta, ...] = ()
     datasets: tuple[DatasetMeta, ...] = ()
+    pinned_revisions: dict[UUID, int] = Field(default_factory=dict)
+    """The dataset revision this graph reads, by dataset uuid; a dataset not here reads its live draft."""
 
     @property
     def is_template(self) -> bool:
@@ -789,4 +791,5 @@ def build_instance_graph(
         bindings=tuple(bindings),
         dimensions=dimensions,
         datasets=datasets,
+        pinned_revisions={pin.dataset_uuid: pin.revision_id for pin in snapshot.dataset_revisions},
     )

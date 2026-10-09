@@ -6,7 +6,7 @@ from datasets.shape_domain import CategoryDomainResolver, dataset_shape_id
 from datasets.snapshot import metric_column_id
 from datasets.validation_rules import validation_rule_adapter
 from frameworks.evidence import DEFAULT_QUALITY_SPEC_KEY, QUALITY_OF_SPEC_KEY
-from nodes.defs.graph import DatasetMeta, DatasetMetricMeta, QualityLevelKey
+from nodes.defs.graph import DatasetMeta, DatasetMetricMeta, QualityLevelKey, ValidationRuleMeta
 from nodes.snapshot_base import translated_string_from_model
 
 if TYPE_CHECKING:
@@ -17,7 +17,6 @@ def dataset_meta_from_model(
     dataset: DatasetModel,
     *,
     primary_language: str,
-    pinned_revision_id: int | None = None,
     domains: CategoryDomainResolver | None = None,
 ) -> DatasetMeta:
     """Build the graph catalog entry for one dataset, exactly as snapshots record it."""
@@ -33,7 +32,7 @@ def dataset_meta_from_model(
             quantity=(metric.spec or {}).get('quantity'),
             order=metric.order,
             validation_rules=tuple(
-                validation_rule_adapter.validate_python(rule.rule)
+                ValidationRuleMeta(id=rule.uuid, rule=validation_rule_adapter.validate_python(rule.rule))
                 # Meta.ordering is (metric, order), so .all() hits the
                 # prefetch cache already in rule order.
                 for rule in metric.validation_rules.all()
@@ -46,13 +45,15 @@ def dataset_meta_from_model(
     return DatasetMeta(
         id=dataset.uuid,
         identifier=dataset.identifier,
+        name=translated_string_from_model(schema, 'name', primary_language),
         schema_id=schema.uuid,
         is_editable=schema.is_editable,
         metrics=metrics,
         declared_dimension_ids=declared_dimension_ids,
+        time_resolution=schema.time_resolution,
+        forecast_from=(dataset.spec or {}).get('forecast_from'),
         is_external_placeholder=dataset.is_external_placeholder,
         external_ref=dataset.external_ref,
-        revision_id=pinned_revision_id if pinned_revision_id is not None else dataset.latest_revision_id,
         category_domain=(domains or CategoryDomainResolver()).for_dataset(dataset),
         shape_id=dataset_shape_id(dataset),
         default_quality=(
