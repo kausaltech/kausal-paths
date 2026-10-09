@@ -63,10 +63,10 @@ avoid being read as a dimension. That dataset is gone. The one exception still s
 is `non_index = {'Value', 'Unit', 'UUID'}` in the `plain_csv_wide` branch of
 `upload_new_dataset`, which is legacy.
 
-It is **not** a data-point identifier, and nothing reads it back as one. Data points
-are identified by natural key — `(year, metric, sorted category ids)`, see
-`DataPointKey` in `nodes/instance_serialization.py` — and `load_dvc_dataset` mints a
-fresh `DataPoint.uuid` on every import by design. See
+It is **not** a data-point identifier, and nothing reads it back as one. In a CSV a
+row is located by its natural key — year, metric and categories — and
+`load_dvc_dataset` matches it against the dataset's data points by that key, keeping
+the data point (and its uuid) of every cell that survives the import. See
 [`dataset-round-trip.md`](dataset-round-trip.md) §3.
 
 | column | meaning |

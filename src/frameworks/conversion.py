@@ -23,6 +23,8 @@ from kausal_common.datasets.models import (
 from kausal_common.i18n.pydantic import set_i18n_context
 
 from datasets.materialization import ensure_dataset_materializations, refresh_dataset_materialization
+from datasets.snapshot import DatasetSnapshot
+from datasets.transfer import SourceDimensions, comparable_cells
 from frameworks.models import FrameworkConfig
 from nodes.defs.port_def import InputPortDef
 from nodes.instance_graph import build_instance_graph
@@ -424,7 +426,11 @@ def _superseded_datasets(instance: InstanceConfig, base: InstanceSnapshot) -> li
             )
         elif target.id in revisions:
             materialization = ensure_dataset_materializations([dataset])[dataset.pk]
-            equal = materialization.content.get('data') == Revision.objects.get(pk=revisions[target.id]).content.get('data')
+            current = DatasetSnapshot.model_validate(materialization.content)
+            pinned = DatasetSnapshot.model_validate(Revision.objects.get(pk=revisions[target.id]).content)
+            source = SourceDimensions()
+            source.resolve([current, pinned])
+            equal = comparable_cells(current, source) == comparable_cells(pinned, source)
         else:
             equal = False
         if not equal:

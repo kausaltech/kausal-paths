@@ -20,6 +20,7 @@ from kausal_common.i18n.pydantic import TranslatedString
 
 from paths.tests.graphql import PathsTestClient
 
+from datasets.materialization import hash_dataset_content
 from frameworks.models import FrameworkConfig
 from frameworks.tests.factories import FrameworkFactory
 from nodes.defs.instance_defs import InstanceModelSpec, InstanceResultExcelSpec, YearsSpec
@@ -691,15 +692,19 @@ def test_export_uses_pinned_template_dataset_body_and_import_remaps_payload_revi
     exported = export_instance(municipality)
     assert exported.template is not None
     body = exported.template.datasets[0]
-    assert body.data is not None
-    assert body.data['data'][0]['Value'] == 42
+    assert [point.value for point in body.points] == [42]
     base = exported.template.instance
     base.metadata.uuid = uuid4()
     base.metadata.identifier = 'portable-data-template'
     base.metadata.name = 'Portable data template'
     base.nodes[0].uuid = uuid4()
     base.datasets[0] = base.datasets[0].model_copy(update={'id': uuid4()})
-    base.dataset_revisions[0] = base.dataset_revisions[0].model_copy(update={'dataset_uuid': base.datasets[0].id})
+    # A rekey moves the bundled body with its catalog entry, and the pin follows the body's content.
+    body = body.model_copy(update={'meta': body.meta.model_copy(update={'id': base.datasets[0].id})})
+    exported.template.datasets[0] = body
+    base.dataset_revisions[0] = base.dataset_revisions[0].model_copy(
+        update={'dataset_uuid': base.datasets[0].id, 'content_hash': hash_dataset_content(body.model_dump(mode='json'))}
+    )
     binding = base.bindings[0]
     assert isinstance(binding.source, DatasetMetricSource)
     base.bindings[0] = binding.model_copy(
@@ -718,7 +723,7 @@ def test_export_uses_pinned_template_dataset_body_and_import_remaps_payload_revi
     effective = build_instance_snapshot(clone)
     pin = effective.dataset_revisions[0]
     assert pin.revision_id != base.dataset_revisions[0].revision_id
-    assert Revision.objects.get(pk=pin.revision_id).content['data']['data'][0]['Value'] == 42
+    assert [point['value'] for point in Revision.objects.get(pk=pin.revision_id).content['points']] == [42]
     assert effective.template_content_hash == content_hash
     assert isinstance(effective.bindings[0].source, DatasetMetricSource)
     assert effective.bindings[0].source.dataset_revision == pin.revision_id
@@ -818,7 +823,7 @@ def test_node_owned_dataset_round_trip_preserves_local_ownership(
     DataPointFactory.create(dataset=dataset, metric=metric, date=date(2020, 1, 1), value=13)
     NodeInputPortBinding.objects.create(instance=municipality, node=local, port_id=port.id, dataset=dataset, metric=metric)
     exported = export_instance(municipality)
-    assert any(item.identifier == 'owned-input' for item in exported.datasets)
+    assert any(item.meta.identifier == 'owned-input' for item in exported.datasets)
     clone = InstanceConfigFactory.create(
         name='Owner clone', owner='Test owner', config_source='database', spec=InstanceModelSpec()
     )

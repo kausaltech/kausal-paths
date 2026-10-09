@@ -131,13 +131,14 @@ def test_datasets_key_parses_into_typed_catalog_entries():
     assert ds_meta.is_editable is False
     (metric_meta,) = ds_meta.metrics
     assert metric_meta.identifier == 'amount'
-    no_gaps, value_range = metric_meta.validation_rules
+    no_gaps, value_range = (item.rule for item in metric_meta.validation_rules)
     assert isinstance(no_gaps, NoGapsRule)
     assert isinstance(value_range, ValueRangeRule)
     assert value_range.min == 0.0
+    # A rule declared in YAML has no row yet, so no identity.
+    assert {item.id for item in metric_meta.validation_rules} == {None}
     (shape,) = snapshot.spec.shapes
     assert ds_meta.shape_id == shape.uuid
-    assert ds_meta.category_domain_spec is None
 
     # Catalog UUIDs are parse-invented but deterministic per instance.
     again = parse_instance_snapshot(config, instance_uuid=instance_uuid)

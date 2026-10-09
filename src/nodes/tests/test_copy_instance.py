@@ -496,7 +496,7 @@ def test_dataset_binding_fanout_group_survives_export_import(db_source):
     export = export_instance(ic_src)
     ic_copy = InstanceConfigFactory.create(identifier='copytest-dst', name='dst', config_source='yaml')
     nodes_by_id = import_instance_nodes(ic_copy, export)
-    db_datasets = [d for d in export.datasets if not d.is_external_placeholder and d.data is not None]
+    db_datasets = [d for d in export.datasets if not d.meta.is_external_placeholder and d.meta.metrics]
     imported = import_instance_datasets(ic_copy, db_datasets, create_missing_dimensions=True)
     datasets_by_id = {d.identifier: d for d in imported if d.identifier is not None}
     import_instance_edges_and_ports(ic_copy, export, nodes_by_id, datasets_by_id)
@@ -578,50 +578,3 @@ def test_export_includes_page_snapshot_with_node_identifiers(db_source):
     assert outcome_pages, 'page snapshot should include the OutcomePage'
     # The node reference is expressed by identifier (so source/copy compare equal).
     assert outcome_pages[0].outcome_node == src_node.identifier
-
-
-# ---------------------------------------------------------------------------
-# Dataset round-trip: metric-column resolution (datapoints must survive import)
-# ---------------------------------------------------------------------------
-
-
-def _make_snapshot(metrics, fields):
-    from datasets.snapshot import DatasetSnapshot
-
-    return DatasetSnapshot(
-        identifier='ds',
-        dimensions=['building_use'],
-        metrics=metrics,
-        data={'schema': {'fields': fields}, 'data': []},
-    )
-
-
-def test_resolve_metric_data_columns_falls_back_to_label():
-    """
-    A metric with no ``name`` (identifier == uuid) is keyed to its label column.
-
-    Regression: ``DBDataset.deserialize_df`` names the value column
-    ``Coalesce(name, label, uuid)``, so a nameless-but-labelled metric's data
-    lives under the label, not the uuid — previously every datapoint was
-    dropped on import.
-    """
-    from kausal_common.i18n.pydantic import TranslatedString
-
-    from datasets.snapshot import DatasetMetricSnapshot
-    from datasets.transfer import resolve_metric_data_columns
-
-    label = TranslatedString('Floor Area', default_language='en')
-    metrics = [DatasetMetricSnapshot(identifier='461f-uuid', label=label, unit='m**2')]
-    fields = [{'name': 'Year'}, {'name': 'building_use'}, {'name': 'Floor Area', 'unit': 'm**2'}]
-    cols = resolve_metric_data_columns(_make_snapshot(metrics, fields), ['461f-uuid'], {'building_use': 'building_use'})
-    assert cols == {'461f-uuid': 'Floor Area'}
-
-
-def test_resolve_metric_data_columns_prefers_identifier_when_present():
-    from datasets.snapshot import DatasetMetricSnapshot
-    from datasets.transfer import resolve_metric_data_columns
-
-    metrics = [DatasetMetricSnapshot(identifier='floor_area', label=None, unit='m**2')]
-    fields = [{'name': 'Year'}, {'name': 'building_use'}, {'name': 'floor_area', 'unit': 'm**2'}]
-    cols = resolve_metric_data_columns(_make_snapshot(metrics, fields), ['floor_area'], {'building_use': 'building_use'})
-    assert cols == {'floor_area': 'floor_area'}

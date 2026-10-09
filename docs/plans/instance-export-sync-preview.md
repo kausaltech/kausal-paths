@@ -278,7 +278,7 @@ Initial identities:
 | Dimension | scoped dimension identifier/UUID contract |
 | Dimension category | parent dimension + category identifier/UUID contract |
 | Dataset reference | dataset UUID where available, otherwise identifier |
-| Data point | `DataPointKey`: year + metric + sorted dimension categories |
+| Data point | data-point UUID (`DatasetSnapshot` v2) |
 | Data source | data-source UUID |
 
 List order is reported as an order-field or ordering change, not as delete and
@@ -319,7 +319,7 @@ Keeping `incoming` distinct from `after` makes preservation visible:
 Dataset changes are divided into schema, payload, and provenance:
 
 - schema: name, time resolution, dimensions/column names, metrics and units;
-- payload: datapoints matched by `DataPointKey`;
+- payload: data points matched by UUID;
 - provenance: data sources, source references, and comments.
 
 The preview summary reports payload row counts, hashes, and aggregate
