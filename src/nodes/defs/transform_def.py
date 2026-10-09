@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, SerializerFunctionWrapHandler, model_serializer
 
-from paths.refs import DimensionCategoryRef, DimensionRef
+from paths.refs import DimensionCategoryIdentifierRef, DimensionIdentifierRef
 
 from nodes.units import Unit
 
@@ -97,9 +97,9 @@ class FilterDimensionOp(PortTransformOpBase):
     persistent_cache_safe = True
 
     kind: Literal['filter_dimension'] = 'filter_dimension'
-    dimension: DimensionRef
+    dimension: DimensionIdentifierRef
     groups: list[str] = Field(default_factory=list)
-    categories: list[DimensionCategoryRef] = Field(default_factory=list)
+    categories: list[DimensionCategoryIdentifierRef] = Field(default_factory=list)
     exclude: bool = False
     flatten: bool = False
     allow_empty: bool = False
@@ -118,8 +118,8 @@ class AssignDimensionOp(PortTransformOpBase):
     persistent_cache_safe = True
 
     kind: Literal['assign_dimension'] = 'assign_dimension'
-    dimension: DimensionRef
-    category: DimensionCategoryRef
+    dimension: DimensionIdentifierRef
+    category: DimensionCategoryIdentifierRef
 
     def cache_hash_data(self, context: Context) -> dict[str, Any]:
         data = super().cache_hash_data(context)
@@ -380,8 +380,8 @@ class SelectCategoriesTransformation(PortTransformOpBase):
     applies_to = EDGE_ONLY
 
     kind: Literal['select_categories'] = 'select_categories'
-    dimension: DimensionRef
-    categories: list[DimensionCategoryRef] = Field(default_factory=list)
+    dimension: DimensionIdentifierRef
+    categories: list[DimensionCategoryIdentifierRef] = Field(default_factory=list)
     flatten: bool = False
     exclude: bool = False
 
@@ -392,8 +392,8 @@ class AssignCategoryTransformation(PortTransformOpBase):
     applies_to = EDGE_ONLY
 
     kind: Literal['assign_category'] = 'assign_category'
-    dimension: DimensionRef
-    category: DimensionCategoryRef
+    dimension: DimensionIdentifierRef
+    category: DimensionCategoryIdentifierRef
 
 
 class FlattenTransformation(PortTransformOpBase):
@@ -408,7 +408,7 @@ class FlattenTransformation(PortTransformOpBase):
     applies_to = EDGE_ONLY
 
     kind: Literal['flatten'] = 'flatten'
-    dimension: DimensionRef
+    dimension: DimensionIdentifierRef
 
 
 type EdgeTransformation = SelectCategoriesTransformation | AssignCategoryTransformation | FlattenTransformation

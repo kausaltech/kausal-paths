@@ -5,7 +5,6 @@ from decimal import Decimal
 from io import StringIO
 from typing import TYPE_CHECKING, Any
 
-from django.contrib.contenttypes.models import ContentType
 from django.core.management import call_command
 from django.db import transaction
 
@@ -23,6 +22,7 @@ from kausal_common.datasets.tests.factories import (
     DimensionFactory,
 )
 
+from paths.rekey import rekeyed
 from paths.tests.graphql import PathsTestClient
 
 from datasets.runtime import DBDataset
@@ -292,7 +292,7 @@ def test_evidence_survives_snapshot_round_trip(setup: Setup) -> None:
 
     # Another member of the same framework resolves the grade.
     member = make_member(setup.framework)
-    new_ds = import_dataset(member, snap, ContentType.objects.get_for_model(member), {})
+    new_ds = import_dataset(member, rekeyed(snap)[0])
     imported = {
         (ev.data_point.value, ev.kind, ev.quality_level.identifier if ev.quality_level else None, ev.created_by_id)
         for ev in DataPointEvidence.objects.filter(data_point__dataset=new_ds).select_related('data_point', 'quality_level')
@@ -301,7 +301,7 @@ def test_evidence_survives_snapshot_round_trip(setup: Setup) -> None:
 
     # An instance outside the framework keeps the kind and drops the grade.
     outsider = make_instance()
-    new_ds = import_dataset(outsider, snap, ContentType.objects.get_for_model(outsider), {})
+    new_ds = import_dataset(outsider, rekeyed(snap)[0])
     kinds = set(DataPointEvidence.objects.filter(data_point__dataset=new_ds).values_list('kind', 'quality_level'))
     assert kinds == {('observed', None), ('explicit_zero', None)}
 

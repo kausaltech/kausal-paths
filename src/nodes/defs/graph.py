@@ -1,16 +1,20 @@
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Self
-from uuid import UUID
+from typing import TYPE_CHECKING, Any, Literal, Self
 
 from pydantic import ConfigDict, Field, PrivateAttr
 
-from kausal_common.datasets.category_domain import DatasetCategoryDomain
+from kausal_common.datasets.category_domain import DatasetCategoryCombination, DatasetCategoryDomain
 from kausal_common.i18n.pydantic import I18nBaseModel, I18nString
+
+from paths.identifiers import DatasetId, DatasetMetricId, DatasetSchemaId, DimensionCategoryId, DimensionId, ValidationRuleId
+from paths.refs import DatasetMetricRef, DimensionRef, ShapeRef
+from paths.uuid_kinds import DictOf, Ref, UuidLeaf, register_uuid_kinds
 
 from datasets.validation_rules import ValidationRule
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
+    from uuid import UUID
 
     from nodes.instance_graph import InstanceGraph
 
@@ -39,14 +43,33 @@ class InstanceGraphBoundModel(I18nBaseModel):
         return super().model_copy(update=update, deep=deep)
 
 
+# A combination of a shape-derived domain carries the shape combination's uuid; one of a
+# schema's stored domain has an id nothing else refers to, which a copy keeps.
+register_uuid_kinds(
+    DatasetCategoryCombination,
+    id=UuidLeaf(Ref('shape_combination')),
+    categories=DictOf(UuidLeaf(Ref('dimension')), UuidLeaf(Ref('category'))),
+)
+
+
 class FrozenGraphModel(I18nBaseModel):
     """Serializable graph catalog value with no graph back-reference."""
 
     model_config = ConfigDict(frozen=True)
 
 
+class DatasetExternalRef(FrozenGraphModel):
+    """Where a dataset's data comes from outside the database: a path in a DVC repository."""
+
+    repo_url: str
+    commit: str | None = None
+    """The commit the data was read from; None when the repository was not pinned."""
+    dataset_id: str
+    """The dataset's path in the repository, without extension."""
+
+
 class DimensionCategoryMeta(FrozenGraphModel):
-    id: UUID
+    id: DimensionCategoryId
     identifier: str | None = None
     label: I18nString | None = None
     # Left out when absent, so revisions frozen before short labels keep their content hash.
@@ -55,25 +78,35 @@ class DimensionCategoryMeta(FrozenGraphModel):
     spec: dict[str, Any] = Field(default_factory=dict)
 
 
+type CatalogScope = Literal['instance', 'framework']
+"""Who owns a catalog entry: the instance itself, or the framework the instance belongs to."""
+
+
 class DimensionMeta(FrozenGraphModel):
-    id: UUID
+    id: DimensionId
     identifier: str
     label: I18nString | None = None
     order: int | None = None
     spec: dict[str, Any] = Field(default_factory=dict)
     categories: tuple[DimensionCategoryMeta, ...] = ()
+    # Left out when the instance owns it, so content hashes from before scopes were recorded hold.
+    scope: CatalogScope = Field(default='instance', exclude_if=lambda value: value == 'instance')
+    """A framework's dimension is shared by every instance of it; a copy refers to it rather than copying it."""
+
+    def rekey_owns(self, field: str, owned: bool) -> bool:
+        return owned and self.scope == 'instance'
 
 
 class ValidationRuleMeta(FrozenGraphModel):
     """A validation rule on a metric, with the identity of its row where it has one."""
 
-    id: UUID | None = None
+    id: ValidationRuleId | None = None
     """The rule row's uuid; None for a rule declared in YAML that has no row yet."""
     rule: ValidationRule
 
 
 class DatasetMetricMeta(FrozenGraphModel):
-    id: UUID
+    id: DatasetMetricId
     identifier: str | None = None
     label: I18nString | None = None
     unit: str = ''
@@ -81,7 +114,7 @@ class DatasetMetricMeta(FrozenGraphModel):
     """Quantity-kind id of what the metric measures; None means any quantity."""
     order: int | None = None
     validation_rules: tuple[ValidationRuleMeta, ...] = ()
-    quality_of: UUID | None = None
+    quality_of: DatasetMetricRef | None = None
     """The metric whose grades this metric holds, as scores; see `frameworks.evidence.QUALITY_OF_SPEC_KEY`."""
 
 
@@ -101,23 +134,28 @@ class DatasetMeta(FrozenGraphModel):
     in the instance's `dataset_revisions` pins.
     """
 
-    id: UUID
+    id: DatasetId
     identifier: str | None = None
     name: I18nString | None = None
-    schema_id: UUID
+    schema_id: DatasetSchemaId
+    schema_scope: CatalogScope = Field(default='instance', exclude_if=lambda value: value == 'instance')
+    """A framework's schema may be shared by datasets in several instances; a copy refers to it."""
     is_editable: bool | None = None
     metrics: tuple[DatasetMetricMeta, ...] = ()
-    declared_dimension_ids: tuple[UUID, ...] = ()
+    declared_dimension_ids: tuple[DimensionRef, ...] = ()
     time_resolution: str = 'yearly'
     forecast_from: int | None = None
     """The dataset's own first forecast year, which bindings inherit unless they set one."""
     is_external_placeholder: bool = False
-    external_ref: dict[str, Any] | None = None
+    external_ref: DatasetExternalRef | None = None
     category_domain: DatasetCategoryDomain = Field(default_factory=DatasetCategoryDomain)
     # Left out when absent, so revisions frozen before shapes keep their content hash.
-    shape_id: UUID | None = Field(default=None, exclude_if=lambda value: value is None)
+    shape_id: ShapeRef | None = Field(default=None, exclude_if=lambda value: value is None)
     """The shape this dataset's entry form follows, resolved in the dataset's own instance."""
     default_quality: QualityLevelKey | None = None
+    # Left out when empty, so content hashes from before it was recorded hold.
+    extra_spec: dict[str, Any] = Field(default_factory=dict, exclude_if=lambda value: not value)
+    """`Dataset.spec` keys the catalog does not model, such as a provider's seeding stamp; carried verbatim."""
     """
     The grade of every value in the dataset that has no grade of its own.
 
@@ -128,3 +166,9 @@ class DatasetMeta(FrozenGraphModel):
     @cached_property
     def metric_by_id(self) -> dict[UUID, DatasetMetricMeta]:
         return {metric.id: metric for metric in self.metrics}
+
+    def rekey_owns(self, field: str, owned: bool) -> bool:
+        # A schema's metrics are the schema's: a framework's schema brings its own.
+        if field in ('schema_id', 'metrics'):
+            return owned and self.schema_scope == 'instance'
+        return owned

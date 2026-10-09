@@ -9,10 +9,10 @@ from paths.identifiers import (
     DatasetIdentifier,
     Identifier,
     NodeIdentifier,
-    NodePortIdentifier,
     ParameterGlobalId,
     ParameterLocalId,
 )
+from paths.refs import PortRef
 
 from nodes.units import Unit
 
@@ -20,7 +20,7 @@ from nodes.units import Unit
 class PortInputRef(BaseModel):
     """Reference to a node input port."""
 
-    port: NodePortIdentifier
+    port: PortRef
 
 
 class IntermediateInputRef(BaseModel):

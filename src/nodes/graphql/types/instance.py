@@ -1170,7 +1170,7 @@ class InstanceType:
     )
     def copy_of(self) -> UUID | None:
         if self._snapshot is not None:
-            return UUID(self._snapshot.copy_of) if self._snapshot.copy_of is not None else None
+            return self._snapshot.copy_of
 
         from nodes.models import InstanceConfig as _InstanceConfig
 

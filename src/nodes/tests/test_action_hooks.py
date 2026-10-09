@@ -259,3 +259,18 @@ def test_interpolate_is_one_operation_in_formulas_and_pipelines() -> None:
     expected = {2020: 0.5, 2021: 0.56, 2022: 0.62, 2023: 0.68, 2024: 0.74, 2025: 0.8}
     for df in (by_formula, by_alias, by_pipeline):
         assert _values(df, years=years) == pytest.approx(expected)
+
+
+def test_a_hook_names_its_target_by_uuid() -> None:
+    from nodes.defs.node_defs import ActionConfig
+
+    snapshot = parse_instance_snapshot(_config(actions=[_saving()]), instance_uuid=uuid4())
+    by_identifier = {node.identifier: node for node in snapshot.nodes}
+    type_config = by_identifier['saving'].spec.type_config if by_identifier['saving'].spec else None
+    assert isinstance(type_config, ActionConfig)
+    assert [hook.node for hook in type_config.hooks] == [by_identifier['demand'].uuid]
+
+
+def test_an_unknown_parent_action_is_a_parse_error() -> None:
+    with pytest.raises(InstanceParseError, match="refers to unknown node 'nowhere'"):
+        parse_instance_snapshot(_config(actions=[_saving(parent='nowhere')]), instance_uuid=uuid4())

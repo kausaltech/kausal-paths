@@ -69,6 +69,9 @@ def build_parser() -> argparse.ArgumentParser:
     imp.add_argument('--organization', help='Organization UUID or name for a newly created instance')
     imp.add_argument('--name', help='Name for a newly created instance (default: from the document)')
     imp.add_argument('--dry-run', action='store_true', help='Run the import inside a transaction and roll it back')
+    imp.add_argument(
+        '--replace', action='store_true', help='Delete the instance of the same uuid first, with its model, data and pages'
+    )
     return parser
 
 
@@ -111,6 +114,7 @@ def import_command(args: argparse.Namespace) -> int:
         organization=args.organization,
         name=args.name,
         dry_run=args.dry_run,
+        replace=args.replace,
     )
     print(summary)
     return 0

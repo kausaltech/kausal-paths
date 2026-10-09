@@ -14,7 +14,7 @@ Related plans and docs:
 1. **The pipeline is the stored form.** A typed `PipelineConfig` built on the
    existing `nodes.pipeline.PipelineSpec` becomes the one canonical, persisted
    computation schema, replacing the placeholder `PipelineConfig.operations`
-   and the loose `NodeSpec.pipeline` field. This answers the discovery plan's
+   (the loose `NodeSpec.pipeline` field is already gone, schema v17). This answers the discovery plan's
    request for one stored schema.
 2. **A formula is a lossless, canonically formatted text view of it.** Experts
    may edit either the structured pipeline or the formula text; both edit the
@@ -154,7 +154,6 @@ Not done yet:
   path.
 - An editor mutation that takes formula text and reports `FormulaError`
   positions, and a rendered `formula` field next to `operations`.
-- `NodeSpec.pipeline` (`list[dict] | None`) is still there, unused.
 - Shape rules for dataset and hook-base inputs (`pipeline_compile` notes
   them as not compilable).
 

@@ -300,7 +300,7 @@ class InputPortDef(I18nBaseModel):
     id: UUID
     identifier: NodePortIdentifier | None = None
     role: MixedCaseIdentifier | None = None
-    required_dimensions: UniqueList[DimensionRef] = []   # authored lower bound
+    required_dimensions: UniqueList[DimensionIdentifierRef] = []   # authored lower bound
     unit: Unit | None = None
     quantity: QuantityKindRef | None = None
     multi: bool = False
@@ -310,7 +310,7 @@ class OutputPortDef(I18nBaseModel):
     id: UUID
     identifier: MixedCaseIdentifier | None = None
     role: MixedCaseIdentifier | None = None
-    dimensions: UniqueList[DimensionRef] = []             # seeds the output when non-empty
+    dimensions: UniqueList[DimensionIdentifierRef] = []             # seeds the output when non-empty
     unit: Unit
     quantity: QuantityKindRef | None = None
 ```
@@ -699,13 +699,13 @@ Constraint provenance uses node, port and binding UUIDs, and the `InstanceGraph`
 carries a UUID catalog of dimensions, categories, datasets and metrics
 (snapshot v8), so that a published graph does not drift after a rename.
 `InstanceGraph.describe_uuid()` turns those back into identifiers for
-diagnostics only. The `DimensionRef` and `DimensionCategoryRef` identifier
+diagnostics only. The `DimensionIdentifierRef` and `DimensionCategoryIdentifierRef` identifier
 vocabulary remains at the authored YAML/`NodeSpec` boundary; the solver
 resolves it once against the graph's dimension catalog. This proposal does
 not make identifiers into a new durable graph identity. If dimensions later
 become renameable editor objects, their existing ORM UUIDs should become the
 stored references through an explicit snapshot-version migration rather than
-by silently changing the meaning of `DimensionRef`.
+by silently changing the meaning of `DimensionIdentifierRef`.
 
 
 ### Transformations attach to the consuming port
