@@ -826,11 +826,14 @@ def test_local_action_acts_on_an_inherited_node(release: TemplateEdition, depend
     from nodes.defs.port_def import OutputPortDef
     from nodes.instance_loader import InstanceLoader
 
+    template = release.framework.template_instance
+    assert template is not None
+    shared_uuid = template.nodes.get(identifier='shared').uuid
     NodeConfigFactory.create(
         instance=dependent_instance,
         identifier='measure',
         spec=NodeSpec(
-            type_config=ActionConfig(node_class='nodes.actions.simple.AdditiveAction', hooks=[ActionHookDef(node='shared')]),
+            type_config=ActionConfig(node_class='nodes.actions.simple.AdditiveAction', hooks=[ActionHookDef(node=shared_uuid)]),
             output_ports=[OutputPortDef(id=uuid4(), unit=unit_registry.parse_units('kt/a'), quantity='emissions')],
         ),
     )
@@ -838,8 +841,6 @@ def test_local_action_acts_on_an_inherited_node(release: TemplateEdition, depend
     shared, measure = context.get_node('shared'), context.get_action('measure')
     assert [hook.action for hook in shared.hooks] == [measure]
     assert measure.is_connected_to(shared)
-    template = release.framework.template_instance
-    assert template is not None
     assert not template.nodes.get(identifier='shared').input_bindings.exists()
 
 

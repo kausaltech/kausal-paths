@@ -22,6 +22,7 @@ if TYPE_CHECKING:
     from kausal_common.datasets.models import Dataset as DatasetModel, DatasetMetric
 
     from nodes.defs.binding_def import EdgeBindingDef
+    from nodes.defs.graph import DatasetExternalRef
     from nodes.defs.instance_defs import ActionGroup
     from nodes.graphql.types.change_history import InstanceModelLogEntryType
     from nodes.graphql.types.node import ActionNodeType
@@ -406,28 +407,16 @@ def action_group_type(
     raise ValueError(f'Action group {group.uuid} is not among its siblings')
 
 
-def dataset_external_ref_to_gql(external_ref: object) -> DatasetExternalRefType | None:
-    if not isinstance(external_ref, dict):
+def dataset_external_ref_to_gql(external_ref: DatasetExternalRef | None) -> DatasetExternalRefType | None:
+    if external_ref is None:
         return None
-    repo_url = external_ref.get('repo_url')
-    dataset_id = external_ref.get('dataset_id')
-    if not isinstance(repo_url, str) or not isinstance(dataset_id, str):
-        return None
-    commit = external_ref.get('commit')
-    return DatasetExternalRefType(
-        repo_url=repo_url,
-        commit=commit if isinstance(commit, str) else None,
-        dataset_id=dataset_id,
-    )
+    return DatasetExternalRefType(repo_url=external_ref.repo_url, commit=external_ref.commit, dataset_id=external_ref.dataset_id)
 
 
 def external_dataset_id_from_dataset(dataset: DatasetModel | DatasetBindingDef) -> str | None:
     if isinstance(dataset, DatasetBindingDef):
-        external_ref = dataset.dataset_external_ref
-        if isinstance(external_ref, dict):
-            dataset_id = external_ref.get('dataset_id')
-            if isinstance(dataset_id, str):
-                return dataset_id
+        if dataset.dataset_external_ref is not None:
+            return dataset.dataset_external_ref.dataset_id
         return dataset.external_dataset_id
 
     external_ref = dataset.external_ref

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Self
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 from pydantic import (
     BaseModel,
@@ -22,7 +22,7 @@ from kausal_common.i18n.pydantic import (
     get_translated_string_from_modeltrans,
 )
 
-from paths.identifiers import ActionGroupIdentifier
+from paths.identifiers import ActionGroupId, ActionGroupIdentifier, InstanceId
 
 from nodes.constants import KNOWN_QUANTITIES
 from nodes.defs.shape_defs import ShapeSpec
@@ -106,7 +106,7 @@ class DatasetRepoSpec(I18nBaseModel):
 class ActionGroup(I18nBaseModel):
     """A named group of action nodes."""
 
-    uuid: UUID
+    uuid: ActionGroupId
     id: ActionGroupIdentifier
     name: I18nString | None = None
     color: str | None = None
@@ -321,7 +321,7 @@ class InstanceMetadata(I18nBaseModel):
     for the computation half. Build it from a row with ``from_model``.
     """
 
-    uuid: UUID = Field(default_factory=uuid4)
+    uuid: InstanceId = Field(default_factory=uuid4)
     identifier: str = ''
     is_template: bool = False
     name: I18nString = ''

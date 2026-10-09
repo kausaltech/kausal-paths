@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from paths.identifiers import DatasetIdentifier, NodeIdentifier, NodePortIdentifier
 
-from .graph import InstanceGraphBoundModel
+from .graph import DatasetExternalRef, InstanceGraphBoundModel
 from .transform_def import PortTransformOp, forecast_from_transformations, modernized_transformations
 
 if TYPE_CHECKING:
@@ -124,7 +124,7 @@ class DatasetBindingDef(PortBindingDef):
         default=False,
         description='Whether the bound dataset object is only a placeholder without imported datapoints.',
     )
-    dataset_external_ref: dict[str, str | None] | None = Field(
+    dataset_external_ref: DatasetExternalRef | None = Field(
         default=None,
         description='External source reference for the bound dataset object.',
     )

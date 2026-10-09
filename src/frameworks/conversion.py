@@ -26,6 +26,7 @@ from datasets.materialization import ensure_dataset_materializations, refresh_da
 from datasets.snapshot import DatasetSnapshot
 from datasets.transfer import SourceDimensions, comparable_cells
 from frameworks.models import FrameworkConfig
+from nodes.defs.graph import DatasetExternalRef
 from nodes.defs.port_def import InputPortDef
 from nodes.instance_graph import build_instance_graph
 from nodes.instance_serialization import InputBindingSnapshot, InstanceSnapshot, build_instance_snapshot
@@ -388,7 +389,7 @@ def _same_dataset_repo(left: DatasetRepoSpec | None, right: DatasetRepoSpec | No
     return (left.url, left.commit) == (right.url, right.commit)
 
 
-def _same_external_dataset(left: dict[str, str | None] | None, right: dict[str, str | None] | None) -> bool:
+def _same_external_dataset(left: DatasetExternalRef | None, right: DatasetExternalRef | None) -> bool:
     """
     Whether two placeholders name the same external dataset.
 
@@ -398,7 +399,7 @@ def _same_external_dataset(left: dict[str, str | None] | None, right: dict[str, 
     """
     if left is None or right is None:
         return False
-    return (left.get('repo_url'), left.get('dataset_id')) == (right.get('repo_url'), right.get('dataset_id'))
+    return (left.repo_url, left.dataset_id) == (right.repo_url, right.dataset_id)
 
 
 def _superseded_datasets(instance: InstanceConfig, base: InstanceSnapshot) -> list[tuple[Dataset, DatasetMeta]]:
@@ -422,7 +423,12 @@ def _superseded_datasets(instance: InstanceConfig, base: InstanceSnapshot) -> li
             continue
         if dataset.is_external_placeholder:
             equal = (
-                target.is_external_placeholder and same_pin and _same_external_dataset(dataset.external_ref, target.external_ref)
+                target.is_external_placeholder
+                and same_pin
+                and _same_external_dataset(
+                    DatasetExternalRef.model_validate(dataset.external_ref) if dataset.external_ref else None,
+                    target.external_ref,
+                )
             )
         elif target.id in revisions:
             materialization = ensure_dataset_materializations([dataset])[dataset.pk]
