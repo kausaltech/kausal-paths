@@ -27,6 +27,8 @@ include:
   allow_override: true
 - file: modules/moral_argumentation/value_weights.yaml
   allow_override: true
+- file: modules/moral_argumentation/objections.yaml
+  allow_override: true
 
 params:
 - id: municipality_name
@@ -62,6 +64,12 @@ action_groups:
   name_de: Verkehr
   name_fi: Liikenne
   color: '#014B30'
+- id: objections
+  name: Objections
+  name_en: Objections
+  name_de: Einwände
+  name_fi: Vastaväitteet
+  color: '#C0392B'
 - id: moral_values
   name: Moral values
   name_en: Moral values

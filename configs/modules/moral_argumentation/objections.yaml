@@ -1,0 +1,458 @@
+# Objection register — argumentation layer
+#
+# Documents the objections a city coordinator meets, classified so that the
+# classification tells them what to do. See docs/architecture/argumentation.md
+# for the taxonomy (locus / scheme / delay family / model role) and the
+# reference list. Read that before adding an entry.
+#
+# Conventions:
+#   - Objection nodes are generic.ConstantNode with constant 0 and
+#     quantity: argument. They contribute no numbers. ConstantNode (rather than
+#     GenericNode + a DVC "zeros" dataset, as in congestion_charge.yaml) keeps
+#     this module free of DVC dependencies.
+#   - Argument-node edges need NO tags and NO dimension matching. A node with
+#     quantity: argument is excluded from every arithmetic operation structurally
+#     (nodes.operands.is_non_computational), so it can be attached directly to
+#     the node whose number it disputes, whatever dimensions that node carries.
+#   - Descriptions follow the Toulmin-shaped register schema: Claim, Grounds
+#     (steelmanned), Warrant, classification, Where this holds, What fails here,
+#     Consistency test, What would vindicate it.
+#   - Parameters an objector is meant to set are simple.ValueAction, not node
+#     params: node params marked is_customizable do not reach a site visitor.
+#   - Objections are documented, never toggled. There is no switch that removes
+#     one from the register.
+#
+# Requires action_groups with id: objections. Include after value_weights.yaml.
+#
+# The consistency test is structural: it needs only the threshold the objector
+# sets, plus a global total for context. No distribution of emitters is
+# required, because the result follows from the warrant rather than from who
+# actually emits what. An empirical strengthening (what share of world
+# emissions is held by actors below the threshold) would need a sourced
+# emitter distribution and is deliberately left out until one exists.
+
+actions:
+
+- id: negligibility_threshold
+  name: Below what share of global emissions may an actor disregard its own?
+  description: |
+    <h3>Set the threshold yourself</h3>
+    <p>The "too small to matter" objection needs a threshold: some share of
+    global emissions below which an actor is entitled to disregard its own
+    contribution. This slider does not argue about where that line belongs.
+    Put it wherever you would be willing to defend it in public.</p>
+    <p>The consequence of your choice is computed in
+    <code>emissions_exempt_under_this_rule</code>: the share of world emissions
+    that carries no obligation to act, once the same rule is granted to every
+    actor equally entitled to invoke it.</p>
+  type: simple.ValueAction
+  quantity: fraction
+  unit: dimensionless
+  group: objections
+  output_nodes:
+  - id: negligibility_threshold_effective
+    tags: [slider]
+  params:
+  - id: constant
+    value: 0.001
+    # Must stay strictly above zero: this value is a divisor in
+    # exempt_partition_count. negligibility_threshold_effective clamps the
+    # action's off state (0) as well, but an enabled slider should not be able
+    # to reach the singularity either. The step is fine enough to explore the
+    # region where the city's own share crosses the threshold.
+    min_value: 0.000001
+    max_value: 0.05
+    step: 0.00001
+    unit: dimensionless
+    is_customizable: true
+    is_visible: true
+    label: Negligibility threshold (share of global emissions)
+
+nodes:
+
+# ===== THE CONSISTENCY TEST FOR THE PART-WHOLE OBJECTION =====
+#
+# Concede that the city is small; apply the objector's own rule generally.
+# The unit of analysis is the city, because that is the unit the objection
+# chose. See docs/architecture/argumentation.md section 4.
+
+- id: global_total_emissions
+  name: Global total greenhouse gas emissions
+  description: |
+    Annual global total, used as the denominator for shares. Set this from a
+    source you are willing to cite; the default is an order-of-magnitude
+    placeholder and is not a sourced figure.
+  type: generic.ConstantNode
+  quantity: emissions
+  unit: Gt_co2e/a
+  params:
+  - id: constant
+    value: 53.0
+    unit: Gt_co2e/a
+    label: Global annual emissions (set from a cited source)
+
+- id: negligibility_threshold_effective
+  name: Negligibility threshold actually used
+  description: |
+    <p>The threshold from <code>negligibility_threshold</code>, clamped to a
+    small positive floor.</p>
+    <p><strong>Why the clamp is here.</strong> The threshold is a divisor in
+    <code>exempt_partition_count</code>, and every action has an off state whose
+    output is <code>ValueAction.no_effect_value</code> = 0. The baseline
+    scenario is that off state, so without this floor the BAU value of the
+    partition count is <code>1/0</code> = infinity, and its Impact reading is
+    minus infinity. The floor is a guard against that singularity, not a
+    modelling claim: any threshold an objector would actually defend is orders
+    of magnitude above it.</p>
+    <p><strong>Do not read the BAU or Impact columns on the nodes downstream of
+    this one.</strong> There is no business-as-usual value of a rhetorical
+    premise &mdash; the negligibility rule is either invoked or it is not &mdash;
+    so the counterfactual those columns compute against is meaningless here. Read
+    the scenario value alone.</p>
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: dimensionless
+  params:
+  - id: formula
+    value: max(slider, constant)
+  - id: constant
+    value: 0.000001
+    unit: dimensionless
+
+- id: exempt_partition_count
+  name: How many individually blameless units the world divides into
+  description: |
+    <h3>The structural consistency test</h3>
+    <p>Under the rule "an actor is exempt when its share falls below the
+    threshold", the largest an exempt actor may be is the threshold times the
+    global total. So the world's emissions can be divided into roughly
+    <em>1 / threshold</em> units, <strong>every one of which is individually
+    exempt</strong>, and which together account for all global emissions.</p>
+    <p>This needs no data about who actually emits what. It is a property of the
+    warrant, not an empirical claim: the rule is sensitive to the arbitrary
+    choice of accounting unit, and therefore exempts any total whatsoever when
+    the unit is drawn small enough.</p>
+  type: formula.FormulaNode
+  quantity: number
+  unit: dimensionless
+  is_outcome: true
+  input_nodes:
+  - id: negligibility_threshold_effective
+    tags: [threshold]
+  params:
+  - id: formula
+    value: constant / threshold
+  - id: constant
+    value: 1
+    unit: dimensionless
+
+- id: max_exempt_emitter_size
+  name: Largest emitter that is still exempt under your rule
+  description: |
+    Threshold times the global total: the emissions an actor may have while
+    still, by its own account, having no obligation to reduce them.
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: kt_co2e/a
+  input_nodes:
+  - id: global_total_emissions
+    tags: [total]
+  - id: negligibility_threshold_effective
+    tags: [threshold]
+  params:
+    formula: total * threshold
+
+- id: our_share_of_global
+  name: This city's share of global emissions
+  description: |
+    Where this city actually sits relative to the threshold. The objection is
+    right about this number, and it is not in dispute.
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: dimensionless
+  is_outcome: true
+  input_nodes:
+  - id: net_emissions
+    tags: [ours]
+  - id: global_total_emissions
+    tags: [total]
+  input_dimensions: [energy_carrier, sector]
+  params:
+    formula: sum_dim(sum_dim(ours, energy_carrier), sector) / total
+
+- id: we_are_exempt_under_this_rule
+  name: Are we exempt under our own rule?
+  description: |
+    1 if this city's share falls below the negligibility threshold, 0 otherwise.
+    Almost always 1 &mdash; which is the point. The objection's premise holds;
+    its warrant is what fails.
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: dimensionless
+  input_nodes:
+  - id: our_share_of_global
+    tags: [share]
+  - id: negligibility_threshold_effective
+    tags: [threshold]
+  params:
+    formula: share <= threshold
+
+# ===== OBJECTION REGISTER =====
+
+- id: obj_too_small_to_matter
+  name: 'OBJ-1: Our city is too small to make a difference'
+  description: |
+    <h3>Objection: our contribution is negligible</h3>
+
+    <p><strong>Claim:</strong> Acting here is a meaningless gesture. Even
+    eliminating this city's emissions entirely would not measurably change
+    global outcomes.</p>
+
+    <p><strong>Grounds:</strong> This city emits a small fraction of one
+    percent of the global total. Global emissions are still rising. The
+    difference our full decarbonisation would make to global temperature is
+    below the resolution of any climate model. <em>All of this is true, and is
+    granted without qualification.</em></p>
+
+    <p><strong>Warrant:</strong> An actor whose share of a global total falls
+    below some threshold has no obligation to reduce its contribution.</p>
+
+    <p><strong>Locus:</strong> conjecture (magnitude) &mdash;
+    <strong>Scheme:</strong> part&ndash;whole / division &mdash;
+    <strong>Delay family:</strong> redirect responsibility (free-rider excuse)
+    &mdash; <strong>Model role:</strong> refutable</p>
+
+    <p><strong>Where this reasoning holds:</strong> For harms with a
+    concentration or damage threshold, where a single contribution genuinely
+    falls below the level at which anything happens and contributions do not
+    accumulate. One vehicle on an empty rural road really does not affect local
+    air quality, and it would be unreasonable to demand that it stop. The
+    warrant is sound for that class of problem.</p>
+
+    <p><strong>What fails here:</strong> Well-mixed long-lived greenhouse gases
+    are not that class of problem. Over the relevant range their effect is close
+    to linear in emitted mass and additive across sources, and the resulting
+    warming tracks <em>cumulative</em> emissions. There is no threshold below
+    which a tonne stops contributing. In the model this is carried not by a node
+    but by the absence of one: the city's emissions enter the global total with
+    a coefficient of exactly one, and there is no parameter anywhere on that
+    path to adjust. The disanalogy with the rural road &mdash; not the size of
+    the city &mdash; is what decides the objection.</p>
+
+    <p><strong>Consistency test:</strong> Set the threshold yourself in
+    <code>negligibility_threshold</code> and read
+    <code>exempt_partition_count</code>. At a threshold of 0.1%, the world's
+    emissions divide into about a thousand units, every one of which is
+    individually exempt and which together are all of global emissions. The
+    rule is sensitive to the arbitrary choice of accounting unit, so it exempts
+    any total whatsoever when the unit is drawn small enough. It cannot be held
+    by everyone equally entitled to hold it.</p>
+    <p><code>we_are_exempt_under_this_rule</code> confirms that this city does
+    fall below the threshold. That is conceded, not contested.</p>
+
+    <p><strong>What would vindicate it:</strong> Evidence that the climate
+    response to emissions is threshold-like rather than cumulative at the
+    relevant scale &mdash; that below some level of contribution, a tonne has no
+    effect. No such threshold is known, and the objection is not usually
+    advanced as an empirical claim about atmospheric physics.</p>
+
+    <p><strong>Note on tactics:</strong> Do not dispute the grounds. They are
+    correct, and they are the only part of this objection that cannot be
+    defeated. Dispute the warrant.</p>
+  type: generic.ConstantNode
+  quantity: argument
+  unit: dimensionless
+  output_nodes:
+  - id: exempt_partition_count
+  params:
+  - id: constant
+    value: 0
+    unit: dimensionless
+
+- id: obj_not_our_emissions
+  name: 'OBJ-2: Those are not our emissions'
+  description: |
+    <h3>Objection: the emissions belong to someone else</h3>
+
+    <p><strong>Claim:</strong> The figure attributed to this city overstates our
+    responsibility. Electricity emissions belong to the utility that generates
+    the power; emissions from goods we import belong where they were produced;
+    through-traffic on the motorway belongs to the region.</p>
+
+    <p><strong>Grounds:</strong> The city does not own the generating plant, does
+    not operate the motorway, and cannot control what its residents buy. Each of
+    those emissions is already counted in someone else's inventory, and counting
+    it here as well double-counts it somewhere in the global total.</p>
+
+    <p><strong>Warrant:</strong> Emissions should be attributed to the actor
+    that physically emits them, or that owns the emitting installation.</p>
+
+    <p><strong>Locus:</strong> definition (boundary) &mdash;
+    <strong>Delay family:</strong> redirect responsibility &mdash;
+    <strong>Model role:</strong> refutable</p>
+
+    <p><strong>Where this reasoning holds:</strong> In a global accounting
+    system that must sum to the world total exactly once, territorial
+    attribution by point of emission is the correct convention, and it is the
+    one national inventories under the UNFCCC use for exactly that reason.
+    Applied to national reporting the warrant is not merely defensible, it is
+    mandatory.</p>
+
+    <p><strong>What fails here:</strong> A city inventory is not an
+    apportionment of the global total; it is a decision-support boundary. Its
+    purpose is to cover the emissions a council's instruments can move, which is
+    why every established municipal protocol (GPC, BISKO) counts purchased
+    electricity and heat as within scope. The objection applies a convention
+    built for one purpose to an instrument built for another. Double-counting
+    between a city and a national inventory is not an error here, because the
+    two are not summed.</p>
+
+    <p><strong>Consistency test:</strong> Apply the warrant consistently and the
+    city's inventory reduces to its own vehicle fleet and buildings &mdash;
+    while the council continues to set building codes, planning permission,
+    procurement rules and transport policy that determine most of the rest. The
+    warrant does not identify who can act; it identifies who holds the smokestack.</p>
+
+    <p><strong>What would vindicate it:</strong> A specific double-count
+    <em>within</em> this inventory &mdash; the same emission appearing under two
+    of its own line items. That is a real and findable error, distinct from the
+    intended overlap with regional and national inventories, and worth checking
+    when raised.</p>
+
+    <p><strong>Note on tactics:</strong> This is a dispute about definition, not
+    magnitude. Settle it by naming the convention and showing the total under
+    both conventions, not by arguing about the number.</p>
+  type: generic.ConstantNode
+  quantity: argument
+  unit: dimensionless
+  output_nodes:
+  - id: net_emissions
+  params:
+  - id: constant
+    value: 0
+    unit: dimensionless
+
+- id: obj_regressive_burden
+  name: 'OBJ-3: This hurts poor households hardest'
+  description: |
+    <h3>Objection: the measure is regressive</h3>
+
+    <p><strong>Claim:</strong> The costs fall disproportionately on
+    low-income households, who spend a larger share of their income on energy
+    and transport and have least ability to substitute.</p>
+
+    <p><strong>Grounds:</strong> Energy and mobility costs are a larger fraction
+    of a low income. Poorer households are less able to absorb a price signal by
+    buying a new appliance or vehicle, live in worse-insulated housing they
+    often do not own, and may have no viable alternative to the trip being
+    priced. <em>This is frequently correct and should be granted.</em></p>
+
+    <p><strong>Warrant:</strong> A measure whose costs fall regressively should
+    not be adopted.</p>
+
+    <p><strong>Locus:</strong> quality (evaluation) &mdash;
+    <strong>Scheme:</strong> argument from consequences &mdash;
+    <strong>Delay family:</strong> emphasise the downsides (appeal to
+    well-being of the poor) &mdash; <strong>Model role:</strong> boundable</p>
+
+    <p><strong>Where this reasoning holds:</strong> Wherever the distributional
+    effect is real and unmitigated. The concern is not a rhetorical device; it is
+    a legitimate distributive claim, and identical in structure to the one a
+    climate policy itself rests on. A register that treated it as an obstacle
+    rather than as a constraint would deserve to be distrusted.</p>
+
+    <p><strong>What fails here:</strong> Only the step from <em>regressive</em>
+    to <em>therefore not adopted</em>. Incidence is a property of the measure
+    <em>and its revenue treatment together</em>, and the two are separable
+    design choices. The model answers this with a computation rather than a
+    reassurance: see the floor-constrained and Atkinson welfare nodes specified
+    in docs/architecture/value_profiles.md. State the floor, compute whether any
+    group falls below it, and report the result &mdash; including when it is
+    unfavourable.</p>
+
+    <p><strong>Consistency test:</strong> Applied generally, the warrant blocks
+    any measure with regressive gross incidence, including several the objector
+    is likely to support. It also blocks inaction, whose costs fall regressively
+    too: climate damages and energy price volatility are borne hardest by the
+    same households. The comparison is between distributions, never between a
+    distribution and nothing.</p>
+
+    <p><strong>What would vindicate it:</strong> A computed distributional
+    result showing a group below the stated floor under every revenue treatment
+    considered. That is a real finding and should change the design of the
+    measure, not be argued away.</p>
+
+    <p><strong>Note on tactics:</strong> Do not treat this as a delay tactic by
+    default. Compute it. A coordinator who has already run the floor
+    constraint and can name the floor is in a far stronger position than one
+    who offers assurances.</p>
+  type: generic.ConstantNode
+  quantity: argument
+  unit: dimensionless
+  params:
+  - id: constant
+    value: 0
+    unit: dimensionless
+
+- id: obj_not_our_business
+  name: 'OBJ-4: Climate is not our business'
+  description: |
+    <h3>Objection: this is not the council's job</h3>
+
+    <p><strong>Claim:</strong> Climate policy belongs to national government and
+    international agreement. The council should attend to the services it is
+    responsible for.</p>
+
+    <p><strong>Grounds:</strong> The council has no treaty powers, no carbon
+    price, no energy policy, and a finite budget with statutory duties attached
+    to most of it.</p>
+
+    <p><strong>Warrant:</strong> An actor should act only within its own
+    mandate, and climate is not within this one.</p>
+
+    <p><strong>Locus:</strong> place (forum/authority) <em>and</em> quality
+    (evaluation) &mdash; <strong>Scheme:</strong> practical reasoning &mdash;
+    <strong>Delay family:</strong> redirect responsibility &mdash;
+    <strong>Model role:</strong> mixed &mdash; the jurisdictional claim is
+    refutable, the value claim is <code>value_only</code></p>
+
+    <p><strong>Two claims, which must be separated:</strong></p>
+
+    <p><em>1. The jurisdictional claim &mdash; not our mandate.</em> This is
+    factual and checkable, and the model answers it from its own structure: the
+    actions in this model <em>are</em> the council's instruments. Summing the
+    impact of every available action against <code>net_emissions</code> gives
+    the share of the inventory the council can actually move, through powers it
+    already holds &mdash; building codes, planning, procurement, transport,
+    waste, its own estate. That is an answer about instruments rather than a
+    claim about statute, and it is usually decisive.</p>
+
+    <p><em>2. The value claim &mdash; we care about other things more.</em> No
+    computation settles this, and the model must not pretend otherwise. The
+    honest treatment is to let the position be held: set
+    <code>value_stewardship</code> to zero and read the resulting priority
+    ranking. "Here is the plan implied by placing no weight on future
+    generations &mdash; adopt it if you are willing to defend it" is stronger
+    than any refutation, and it leaves the decision where it belongs.</p>
+
+    <p><strong>Consistency test</strong> (jurisdictional claim only): applied
+    generally, the warrant would also remove public health, economic
+    development and flood protection from the council's business, each of which
+    it pursues without a treaty power.</p>
+
+    <p><strong>What would vindicate it:</strong> A finding that the council's
+    instruments cover a negligible share of the inventory. The model computes
+    this, and it is not a foregone conclusion &mdash; for some inventories and
+    some governance arrangements it may be the right answer.</p>
+
+    <p><strong>Note on tactics:</strong> Answer the jurisdictional claim with
+    the instrument-coverage number. Do not answer the value claim at all.
+    Attempting to refute it is how a coordinator loses the room; see caveat C6
+    in docs/architecture/value_profiles.md.</p>
+  type: generic.ConstantNode
+  quantity: argument
+  unit: dimensionless
+  params:
+  - id: constant
+    value: 0
+    unit: dimensionless

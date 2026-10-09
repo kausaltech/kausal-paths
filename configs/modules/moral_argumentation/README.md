@@ -163,6 +163,7 @@ To combine moral priorities with economic and other criteria: build the moral va
 **Files in this module:**
 
 - `value_weights.yaml` — ValueActions (VAL-1–VAL-9), utility nodes, placeholder contribution/risk nodes, `risk_premium_cost`, and `total_utility`. No global weight params; each value's weight is the ValueAction's slider.
+- `objections.yaml` — the **objection register**: the arguments a city coordinator meets, each classified and reconstructed against a fixed schema, plus the computed consistency test for the "too small to matter" family. See [`docs/architecture/argumentation.md`](../../../docs/architecture/argumentation.md) for the taxonomy and the literature it comes from — read that before adding an entry. Included in `equalia`; all its nodes compute. The consistency test is structural and needs no dataset — see §4 and §7 of the architecture doc for why that is a property of the argument rather than a shortcut.
 
 ### Including the module
 
@@ -184,3 +185,29 @@ include:
 - The instance must define duty nodes `emissions_acceptable` and `fair_share_met`, and action_groups with `id: moral_values`. If your instance uses different duty node IDs, override the utility nodes’ `input_nodes`.
 
 **Priorities:** Add an impact_overview with effect_node = total_utility (or the instance's moral value profile node). Users change each value's slider (ValueAction constant param); the profile and ranking update automatically.
+
+## 6. Objections (the other half)
+
+`value_weights.yaml` answers "what do we owe, and how much does each value
+matter to us". It does not help a coordinator who is being *argued at*. That is
+what `objections.yaml` is for.
+
+The two are complements: a value the user weights at zero changes the priority
+ranking, and an objection is what someone says out loud in a committee meeting.
+The register documents the objection in its own terms, classifies it by what is
+actually in dispute (fact / definition / value / authority), by the inference
+pattern it uses, and by what the model can legitimately contribute — including
+`value_only` and `out_of_scope`, which are recorded rather than answered.
+
+The design rule that matters: **the target is the third party, not the
+objector.** Arguments are documented and refuted so that they stop persuading
+the undecided, which requires granting each objection its strongest form and
+conceding the ones that are correct. Objections are documented, never toggled.
+
+A second register, `modules/fair_share/objections.md`, works the other way round.
+It takes the objections to one claim, the city's fair share of the carbon budget,
+and computes what is still owed when each objection is granted as far as it can
+be defended, with the disputed premises as settings. This register classifies
+and reconstructs arguments; that one quantifies their effect on a single claim.
+An objection that has a quantitative answer belongs there as well, and the two
+entries should point at each other.
