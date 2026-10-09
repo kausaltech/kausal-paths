@@ -11,8 +11,10 @@ from common import qualifiers
 from frameworks.models import DataQualityScheme, Framework
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from common.polars import PathsDataFrame
-    from datasets.snapshot import DataPointEvidenceSnapshot, QualityLevelRef
+    from datasets.snapshot import CellLabels, QualityLevelRef
     from nodes.models import InstanceConfig
 
 
@@ -78,27 +80,30 @@ def _portable_grade(
 
 def attach_evidence_qualifiers(
     frame: PathsDataFrame,
-    evidence: list[DataPointEvidenceSnapshot],
+    grades: Mapping[CellLabels, QualityLevelRef],
     catalog: qualifiers.QualifierCatalog,
     *,
     portable: bool = False,
 ) -> PathsDataFrame:
-    """Attach assessments by immutable grade UUID and the payload's natural cell key."""
+    """
+    Attach assessments by immutable grade UUID to the cells of ``frame``.
+
+    ``grades`` names each graded cell as the frame does (`DatasetSnapshot.cell_grades`,
+    `DBDataset.cell_grades`).
+    """
     levels = {
         level.uuid: (definition.identifier, level.score)
         for definition in catalog.assessments
         for scheme in definition.schemes
         for level in scheme.levels
     }
-    by_cell: dict[tuple[int, str, tuple[str, ...]], tuple[str, float]] = {}
-    for item in evidence:
-        if item.quality_level is None:
-            continue
-        resolved = levels.get(item.quality_level.uuid)
+    by_cell: dict[CellLabels, tuple[str, float]] = {}
+    for cell, grade in grades.items():
+        resolved = levels.get(grade.uuid)
         if resolved is None and portable:
-            resolved = _portable_grade(item.quality_level, catalog)
+            resolved = _portable_grade(grade, catalog)
         if resolved is not None:
-            by_cell[(item.point.year, item.point.metric, tuple(sorted(item.point.categories)))] = resolved
+            by_cell[cell] = resolved
     keys = [int(row[0]) for row in frame.select('Year').iter_rows()]
     categories = (
         [tuple(sorted(str(c) for c in row if c is not None)) for row in frame.select(frame.dim_ids).iter_rows()]

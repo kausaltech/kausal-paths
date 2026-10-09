@@ -1400,7 +1400,16 @@ class Command(BaseCommand):
             if options['skip'] and iid in options['skip']:
                 continue
 
-            ic = InstanceConfig.objects.get(identifier=iid)
+            try:
+                ic = InstanceConfig.objects.get(identifier=iid)
+            except InstanceConfig.DoesNotExist:
+                self.logger.error('Instance %s does not exist' % iid)
+                failed_instances.append(iid)
+                self.nr_fails += 1
+                if self.maxfail > 0 and self.nr_fails >= self.maxfail:
+                    self.logger.error('Maximum number of failures reached, stopping')
+                    break
+                continue
             succeeded = self.check_instance(ic)
             if not succeeded:
                 failed_instances.append(iid)

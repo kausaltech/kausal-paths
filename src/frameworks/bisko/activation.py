@@ -9,7 +9,7 @@ from django.db import transaction
 from kausal_common.datasets.models import Dataset
 
 from datasets.materialization import refresh_dataset_materialization
-from datasets.snapshot import metric_column_id
+from datasets.snapshot import DatasetSnapshot
 from datasets.year_slots import ensure_empty_year
 from frameworks import submissions
 from frameworks.bisko.weather import WEATHER_DATASET, load_weather_source, seed_weather_defaults
@@ -92,16 +92,15 @@ def _ensure_local_inputs(instance: InstanceConfig) -> None:  # noqa: C901
             if year is not None:
                 ensure_empty_year(dataset, year, prototype=source)
         if not dataset.data_points.exists():
+            # An empty dataset's payload still has to describe its metrics, with their current
+            # units, or inherited inputs cannot read it as missing municipal data.
             materialization = DatasetMaterialization.objects.filter(dataset=dataset).first()
-            data = materialization.content.get('data') if materialization is not None else None
-            fields = {field['name']: field for field in data['schema']['fields']} if data is not None else {}
-            if (
-                data is None
-                or any(field['type'] == 'any' for field in fields.values())
-                or any(
-                    fields.get(metric_column_id(metric), {}).get('unit') != metric.unit for metric in dataset.schema.metrics.all()
-                )
-            ):
+            units = (
+                {metric.id: metric.unit for metric in DatasetSnapshot.model_validate(materialization.content).meta.metrics}
+                if materialization is not None
+                else None
+            )
+            if units != {metric.uuid: metric.unit for metric in dataset.schema.metrics.all()}:
                 refresh_dataset_materialization(dataset, touch=False)
         local[identifier] = dataset
 

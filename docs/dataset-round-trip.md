@@ -54,19 +54,24 @@ file and nothing generates it.
 The first two subsections correct an earlier draft of this plan, and are kept rather than
 quietly dropped. The rest are what building it turned up.
 
-### Data-point UUIDs are not an identity hole
+### Data-point UUIDs, and the natural key at the CSV boundary
 
-`load_dvc_dataset` mints a fresh `DataPoint.uuid` on every import
-(`load_dvc_dataset.py:785` — `DataPoint.objects.create(dataset, date, metric,
-value)`), and that is correct rather than lossy. The codebase has already chosen
-natural-key identity for data points: `DataPointKey` in
-`nodes/instance_serialization.py:189` is documented as *"Natural key locating a
-DataPoint within its dataset (id-free, restore-stable)"* and is
-`(year, metric identifier, sorted category ids)`. The export/import layer
-deliberately does not use point UUIDs, and a CSV row **is** that natural key.
+*Rewritten October 2026.* This section used to argue that data points had no identity
+worth keeping: `load_dvc_dataset` minted a fresh `DataPoint.uuid` on every import, and
+the snapshot located a point by the natural key `DataPointKey` (year, metric, sorted
+category ids). Both have changed.
 
-So the round trip needs no point identifier, and `load_dvc_dataset` should not
-grow one.
+- A data point **is** its uuid now. The dataset payload (`DatasetSnapshot` v2) lists
+  every data point by uuid, with its comments, evidence and source references under it,
+  so a published revision names the same cell as the draft does.
+  `docs/plans/node-owned-datasets.md` (step 4) has the reasons.
+- A CSV row is still located by its natural key, and should be: the DVC source has no
+  uuids, so the boundary is where a natural key belongs. `load_dvc_dataset` matches each
+  incoming cell against the dataset's data points by (metric, year, categories) and
+  keeps the data point, and its uuid, of every cell that survives
+  (`DBDataset.upsert_df`); only the cells gone from the source lose theirs.
+
+So the CSV round trip still needs no point identifier column, and should not grow one.
 
 The `UUID` *column* is a separate, older thing and must not be conscripted for
 this. It exists for the NZC framework, where it matched city-level framework
