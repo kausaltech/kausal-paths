@@ -1185,6 +1185,8 @@ class Command(BaseCommand):
         return sorted(problems, key=ProblemDetail.comparison_key)
 
     def check_problems(self, logger: loguru.Logger, instance_id: str, problems: list[ProblemDetail]) -> bool:
+        if self.ignore_problems:
+            return True
         logger.info('Validation problems for {instance_id}: {count}', instance_id=instance_id, count=len(problems))
         for problem in problems:
             logger.warning(
