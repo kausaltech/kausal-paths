@@ -23,11 +23,11 @@ from nodes.units import unit_registry
 pytestmark = pytest.mark.django_db
 
 
-def test_create_data_points_links_source_and_comment():
+def test_sync_data_points_links_source_and_comment():
     instance_config = InstanceConfigFactory.create(name='prov-cmd', config_source='database')
     schema = DatasetSchemaFactory.create()
     dataset = DatasetFactory.create(schema=schema)
-    metric = DatasetMetric.objects.create(schema=schema, name='value', label='Value', unit='kt')
+    DatasetMetric.objects.create(schema=schema, name='value', label='Value', unit='kt')
 
     df = to_ppdf(
         pl.DataFrame({
@@ -44,7 +44,7 @@ def test_create_data_points_links_source_and_comment():
     ]
 
     cmd = Command()
-    cmd.create_data_points(instance_config, df, dataset, {'value': metric}, sources_meta=sources_meta)
+    cmd.sync_data_points(instance_config, df, dataset, sources_meta=sources_meta)
 
     assert DataPoint.objects.filter(dataset=dataset).count() == 2
     assert DatasetSourceReference.objects.filter(data_point__dataset=dataset).count() == 2
@@ -58,7 +58,7 @@ def test_create_data_points_links_source_and_comment():
     assert comments.get().text == 'from appendix 2'
 
     # Re-running (e.g. a re-sync) must reuse the same DataSource row, not duplicate it.
-    cmd.create_data_points(instance_config, df, dataset, {'value': metric}, sources_meta=sources_meta)
+    cmd.sync_data_points(instance_config, df, dataset, sources_meta=sources_meta)
     assert DataSource.objects.filter(name='NPF').count() == 1
 
 
@@ -80,10 +80,10 @@ def test_dataset_level_sources_attach_to_the_dataset_not_its_points():
     instance_config = InstanceConfigFactory.create(name='prov-dataset-level', config_source='database')
     schema = DatasetSchemaFactory.create()
     dataset = DatasetFactory.create(schema=schema)
-    metric = DatasetMetric.objects.create(schema=schema, name='value', label='Value', unit='kt')
+    DatasetMetric.objects.create(schema=schema, name='value', label='Value', unit='kt')
 
     cmd = Command()
-    cmd.create_data_points(instance_config, _plain_df(), dataset, {'value': metric}, sources_meta=DATASET_LEVEL_META)
+    cmd.sync_data_points(instance_config, _plain_df(), dataset, sources_meta=DATASET_LEVEL_META)
 
     refs = DatasetSourceReference.objects.filter(dataset=dataset)
     assert sorted(r.data_source.name for r in refs) == ['Energiebilanz', 'Verkehrsmodell']
@@ -102,11 +102,11 @@ def test_reimport_replaces_dataset_level_sources_without_duplicating_them():
     instance_config = InstanceConfigFactory.create(name='prov-dataset-reimport', config_source='database')
     schema = DatasetSchemaFactory.create()
     dataset = DatasetFactory.create(schema=schema)
-    metric = DatasetMetric.objects.create(schema=schema, name='value', label='Value', unit='kt')
+    DatasetMetric.objects.create(schema=schema, name='value', label='Value', unit='kt')
 
     cmd = Command()
-    cmd.create_data_points(instance_config, _plain_df(), dataset, {'value': metric}, sources_meta=DATASET_LEVEL_META)
-    cmd.create_data_points(instance_config, _plain_df(), dataset, {'value': metric}, sources_meta=DATASET_LEVEL_META)
+    cmd.sync_data_points(instance_config, _plain_df(), dataset, sources_meta=DATASET_LEVEL_META)
+    cmd.sync_data_points(instance_config, _plain_df(), dataset, sources_meta=DATASET_LEVEL_META)
 
     assert DatasetSourceReference.objects.filter(dataset=dataset).count() == 2
 
@@ -121,7 +121,7 @@ def test_reimport_replaces_dataset_level_sources_without_duplicating_them():
             'target': 'dataset',
         },
     ]
-    cmd.create_data_points(instance_config, _plain_df(), dataset, {'value': metric}, sources_meta=revised)
+    cmd.sync_data_points(instance_config, _plain_df(), dataset, sources_meta=revised)
 
     refs = DatasetSourceReference.objects.filter(dataset=dataset)
     assert [r.data_source.name for r in refs] == ['Energiebilanz']
@@ -136,14 +136,14 @@ def test_a_dataset_level_source_is_not_linked_to_rows_that_cite_it():
     instance_config = InstanceConfigFactory.create(name='prov-mixed-target', config_source='database')
     schema = DatasetSchemaFactory.create()
     dataset = DatasetFactory.create(schema=schema)
-    metric = DatasetMetric.objects.create(schema=schema, name='value', label='Value', unit='kt')
+    DatasetMetric.objects.create(schema=schema, name='value', label='Value', unit='kt')
     df = to_ppdf(
         pl.DataFrame({'Year': [2020], 'value': [1.0], 'source': ['Energiebilanz']}),
         DataFrameMeta(units={'value': unit_registry.parse_units('kt')}, primary_keys=[]),
     )
 
     cmd = Command()
-    cmd.create_data_points(instance_config, df, dataset, {'value': metric}, sources_meta=DATASET_LEVEL_META[:1])
+    cmd.sync_data_points(instance_config, df, dataset, sources_meta=DATASET_LEVEL_META[:1])
 
     assert DatasetSourceReference.objects.filter(dataset=dataset).count() == 1
     assert DatasetSourceReference.objects.filter(data_point__dataset=dataset).count() == 0
@@ -154,14 +154,14 @@ def test_sources_without_a_target_key_attach_to_data_points():
     instance_config = InstanceConfigFactory.create(name='prov-legacy-meta', config_source='database')
     schema = DatasetSchemaFactory.create()
     dataset = DatasetFactory.create(schema=schema)
-    metric = DatasetMetric.objects.create(schema=schema, name='value', label='Value', unit='kt')
+    DatasetMetric.objects.create(schema=schema, name='value', label='Value', unit='kt')
     df = to_ppdf(
         pl.DataFrame({'Year': [2020], 'value': [1.0], 'source': ['NPF']}),
         DataFrameMeta(units={'value': unit_registry.parse_units('kt')}, primary_keys=[]),
     )
 
     cmd = Command()
-    cmd.create_data_points(instance_config, df, dataset, {'value': metric}, sources_meta=[{'name': 'NPF'}])
+    cmd.sync_data_points(instance_config, df, dataset, sources_meta=[{'name': 'NPF'}])
 
     assert DatasetSourceReference.objects.filter(data_point__dataset=dataset).count() == 1
     assert DatasetSourceReference.objects.filter(dataset=dataset).count() == 0
@@ -171,10 +171,10 @@ def test_plan_reports_the_dataset_level_sources_it_would_add_and_drop():
     instance_config = InstanceConfigFactory.create(name='prov-plan', config_source='database')
     schema = DatasetSchemaFactory.create()
     dataset = DatasetFactory.create(schema=schema)
-    metric = DatasetMetric.objects.create(schema=schema, name='value', label='Value', unit='kt')
+    DatasetMetric.objects.create(schema=schema, name='value', label='Value', unit='kt')
 
     cmd = Command()
-    cmd.create_data_points(instance_config, _plain_df(), dataset, {'value': metric}, sources_meta=DATASET_LEVEL_META)
+    cmd.sync_data_points(instance_config, _plain_df(), dataset, sources_meta=DATASET_LEVEL_META)
 
     plan = build_dataset_plan(
         ds_id='test/plan',
