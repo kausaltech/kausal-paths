@@ -712,7 +712,7 @@ emission_sectors:
 
 - id: waste_treatment_emissions
   name: Jätehuollon päästöt
-  name_en: Waste treatment
+  name_en: Waste treatment emissions
   part_of: net_emissions
   color: '#397368'
   goals:
@@ -731,7 +731,7 @@ emission_sectors:
 # ----- Agriculture
 
 - id: agriculture_emissions
-  name_en: Agriculture
+  name_en: Agriculture emissions
   name: Maatalouden päästöt
   part_of: net_emissions
   color: '#ABC872'
@@ -880,7 +880,7 @@ nodes:
 # ----- BUILDING HEATING ------------------------------------------------------
 
 - id: heating_emission_factors
-  name: Lämmityspäästökerroin
+  name: Lämmityksen päästökertoimet
   name_en: Heating emission factors
   type: simple.AdditiveNode
   quantity: emission_factor
@@ -1030,8 +1030,8 @@ nodes:
 # ----- Separate Heating
 
 - id: gas_heating_energy_consumption
-  name: Kaasulämmityksen energiankulutus
-  name_en: Gas heating energy consumption
+  name: Maakaasulämmityksen energiankulutus
+  name_en: Natural gas heating energy consumption
   type: simple.AdditiveNode
   quantity: energy
   unit: GWh/a
@@ -1757,7 +1757,7 @@ nodes:
     - column: scope
 
 - id: baseline_bus_propulsion_mix
-  name: Baseline bus propulsion mix
+  name: 'Bussiliikenteen käyttövoimajakauma: nykykehitys'
   name_en: Baseline bus propulsion mix
   type: simple.AdditiveNode
   quantity: mix
@@ -1833,7 +1833,7 @@ nodes:
   - id: bus_propulsion_mix
 
 - id: bus_electricity_consumption
-  name: Bus electricity consumption
+  name: Bussiliikenteen sähkön kulutus
   name_en: Bus electricity consumption
   type: simple.MultiplicativeNode
   quantity: energy
@@ -1845,7 +1845,7 @@ nodes:
   - id: onroad_transportation_electricity_factors
 
 - id: bus_fuel_consumption
-  name: Bus fuel consumption
+  name: Bussiliikenteen polttoaineen kulutus
   name_en: Bus fuel consumption
   type: simple.MultiplicativeNode
   quantity: fuel_consumption
@@ -1857,7 +1857,7 @@ nodes:
   - id: onroad_transportation_fuel_factors
 
 - id: bus_fuel_emission_factors
-  name: Bus fuel emission factors
+  name: Bussiliikenteen polttoaineiden päästökertoimet
   name_en: Bus fuel emission factors
   type: simple.AdditiveNode
   quantity: emission_factor
@@ -1966,7 +1966,7 @@ nodes:
 # ----- Local Trains
 
 - id: local_train_kilometers
-  name: Paikallisjunasuorite
+  name: Lähijunasuorite
   name_en: Local train kilometers
   type: simple.AdditiveNode
   quantity: mileage
@@ -2108,7 +2108,7 @@ nodes:
     - column: scope
 
 - id: baseline_car_propulsion_mix
-  name: Baseline passenger car propulsion mix
+  name: 'Henkilöautojen käyttövoimajakauma: nykykehitys'
   name_en: Baseline passenger car propulsion mix
   type: simple.AdditiveNode
   quantity: mix
@@ -2128,7 +2128,7 @@ nodes:
     - column: sector
 
 - id: car_propulsion_percentage_electric
-  name: 'Passenger car propulsion percentage: electric'
+  name: 'Henkilöautojen käyttövoimaosuus: sähkön osuus'
   name_en: 'Passenger car propulsion percentage: electric'
   type: simple.AdditiveNode
   quantity: mix
@@ -2142,7 +2142,7 @@ nodes:
       categories: [electricity]
 
 - id: car_propulsion_percentage_non_electric
-  name: 'Passenger car propulsion percentage: non-electric'
+  name: 'Henkilöautojen käyttövoimaosuus: ei-sähkö'
   name_en: 'Passenger car propulsion percentage: non-electric'
   type: simple.AdditiveNode
   quantity: mix
@@ -2163,7 +2163,7 @@ nodes:
     to_dimensions: []
 
 - id: baseline_car_propulsion_mix_non_electric
-  name: 'Baseline passenger car propulsion mix: non-electric'
+  name: 'Henkilöautojen käyttövoimajakauma (nykykehitys): ei-sähkö'
   name_en: 'Baseline passenger car propulsion mix: non-electric'
   type: simple.MixNode
   quantity: mix
@@ -2179,7 +2179,7 @@ nodes:
       exclude: true
 
 - id: car_propulsion_mix
-  name: Passenger car propulsion mix
+  name: Henkilöautoliikenteen käyttövoimajakauma
   name_en: Passenger car propulsion mix
   type: formula.FormulaNode
   quantity: mix
@@ -2198,7 +2198,7 @@ nodes:
     tags: [mix_non_electric]
 
 - id: car_kilometers_by_propulsion
-  name: Passenger car kilometers by propulsion
+  name: Henkilöautojen suoritteet käyttövoimakohtaisesti
   name_en: Passenger car kilometers by propulsion
   type: simple.MultiplicativeNode
   quantity: mileage
@@ -2213,7 +2213,7 @@ nodes:
   - id: car_propulsion_mix
 
 - id: car_electricity_consumption
-  name: Passenger car electricity consumption
+  name: Henkilöautoliikenteen sähkön kulutus
   name_en: Passenger car electricity consumption
   type: simple.MultiplicativeNode
   quantity: energy
@@ -2476,7 +2476,7 @@ nodes:
     - column: scope
 
 - id: baseline_van_propulsion_mix
-  name: Baseline van propulsion mix
+  name: 'Pakettiautojen käyttövoimajakauma: nykykehitys'
   name_en: Baseline van propulsion mix
   type: simple.AdditiveNode
   quantity: mix
@@ -2581,7 +2581,7 @@ nodes:
   - id: van_propulsion_mix
 
 - id: van_electricity_consumption
-  name: Van electricity consumption
+  name: Pakettiautojen sähkön kulutus
   name_en: Van electricity consumption
   type: simple.MultiplicativeNode
   quantity: energy
@@ -2593,7 +2593,7 @@ nodes:
   - id: onroad_transportation_electricity_factors
 
 - id: van_fuel_emission_factors
-  name: Van fuel emission factors
+  name: Pakettiautojen polttoaineiden päästökertoimet
   name_en: Van fuel emission factors
   type: simple.AdditiveNode
   quantity: emission_factor
@@ -2802,7 +2802,7 @@ nodes:
 # ----- ECONOMY ---------------------------------------------------------------
 
 - id: energy_unit_prices
-  name: Energy unit prices
+  name: Energian yksikköhinta
   name_en: Energy unit prices
   type: simple.AdditiveNode
   quantity: unit_price
@@ -2833,8 +2833,8 @@ nodes:
   output_dimensions: [energy_carrier, cost_type]
 
 - id: carbon_unit_price
-  name: Hiilen varjohinta
-  name_en: Shadow cost of carbon
+  name: Päästövähennyksen rahallinen arvo
+  name_en: Monetary value of emission reduction
   type: simple.AdditiveNode
   quantity: unit_price
   unit: EUR/t_co2e
@@ -3080,7 +3080,7 @@ nodes:
 
 - id: cost_benefit_analysis
   name: Kustannukset ja hyödyt
-  name_en: Cost-benefit analysis
+  name_en: Costs and benefits
   type: simple.AdditiveNode
   quantity: currency
   unit: kEUR/a
@@ -3124,7 +3124,7 @@ nodes:
     - id: action
 
 - id: energy_cost_reductions
-  name: Energy cost reductions
+  name: Energian kustannusvähennykset
   name_en: Energy cost reductions
   type: simple.MultiplicativeNode
   quantity: currency
@@ -3208,7 +3208,7 @@ nodes:
     - id: action
 
 - id: energy_emissions_cost_reductions
-  name: Energian päästöjen kustannussäästöt
+  name: Energian päästöjen kustannusvähennykset
   name_en: Energy emissions cost reductions
   type: simple.MultiplicativeNode
   quantity: currency
@@ -3252,7 +3252,7 @@ nodes:
 # ----- Mileage
 
 - id: transport_kilometer_impacts
-  name: Kilometer impacts
+  name: Vaikutukset kilometrisuoritteisiin
   name_en: Kilometer impacts
   type: simple.AdditiveNode
   quantity: mileage
@@ -3711,7 +3711,7 @@ nodes:
 # ----- ACTION HELPERS --------------------------------------------------------
 
 - id: heating_electricity_emission_factor_impact
-  name: Heating electricity emission factor impact
+  name: Päästökerroinvaikutus lämmityssähköön
   name_en: Heating electricity emission factor impact
   type: formula.FormulaNode
   quantity: emission_factor
@@ -4025,7 +4025,7 @@ nodes:
 actions:
 # ----- Liikenne
 - id: electrification_of_bus_traffic
-  name: Bussiliikenteen sähköistyminen
+  name: 'KAUPUNKI: Bussiliikenteen sähköistyminen'
   name_en: Electrification of bus traffic
   type: simple.ParameterAction
   group: transportation
@@ -4072,7 +4072,7 @@ actions:
       categories: [buses]
 
 - id: electrification_of_private_cars
-  name: Henkilöautojen sähköistyminen
+  name: 'YKSITYINEN: Henkilöautojen sähköistyminen'
   name_en: Electrification of private cars
   type: simple.ParameterAction
   group: transportation
@@ -4112,8 +4112,8 @@ actions:
     tags: [arithmetic_inverse]
 
 - id: improving_the_service_level_of_public_transport
-  name: Joukkoliikenteen palvelutason nosto
-  name_en: Improving the service level of public transport
+  name: 'KAUPUNKI: Joukkoliikenteen palvelutason nosto'
+  name_en: 'CITY: Improving the service level of public transport'
   type: simple.AdditiveAction
   group: transportation
   unit: Mvkm/a
@@ -4145,8 +4145,8 @@ actions:
     - id: vehicle_type
 
 - id: promoting_walking_and_cycling
-  name: Kävelyn ja pyöräilyn edistäminen
-  name_en: Promoting walking and cycling
+  name: 'KAUPUNKI: Pyöräilyn edistäminen'
+  name_en: 'CITY: Promoting cycling'
   type: simple.AdditiveAction
   group: transportation
   input_dimensions: [action, cost_type, owner, vehicle_type]
@@ -4263,8 +4263,8 @@ actions:
       flatten: true
 
 - id: parking_policy_to_support_sustainable_mobility
-  name: Kestävää liikkumista tukeva pysäköintipolitiikka
-  name_en: Parking policy to support sustainable mobility
+  name: 'KAUPUNKI: Kestävää liikkumista tukeva pysäköintipolitiikka'
+  name_en: 'CITY: Parking policy to support sustainable mobility'
   type: simple.AdditiveAction
   group: transportation
   unit: Mvkm/a
@@ -4296,7 +4296,7 @@ actions:
     - id: vehicle_type
 
 - id: plusbus_investments
-  name: Plusbussi-investoinnit
+  name: 'KAUPUNKI: Plusbussi-investoinnit'
   name_en: Plusbus investments
   type: simple.AdditiveAction
   group: transportation
@@ -4459,8 +4459,8 @@ actions:
       flatten: true
 
 - id: tramline_3_construction
-  name: Ratikan 3 vaihe (2028-2030)
-  name_en: Tramline 3 construction (2028-2030)
+  name: 'KAUPUNKI: Ratikan 3. rakennusvaihe'
+  name_en: 'CITY: Tramline 3 construction'
   type: simple.AdditiveAction
   group: transportation
   input_dimensions: [action, cost_type, owner, vehicle_type, scope]
@@ -4626,8 +4626,8 @@ actions:
 
 # ----- Rakennuksen Lämmitys
 - id: aahps_in_municipal_building_stock
-  name: AAHPs in municipal building stock
-  name_en: AAHPs in municipal building stock
+  name: 'YKSITYINEN: Ilmalämpöpumppuinvestoinnit koko kaupungin rakennuskannassa'
+  name_en: 'PRIVATE: Air-to-air heat pump investments across the municipal building stock'
   type: simple.AdditiveAction
   group: building_heating
   input_dimensions: [action, cost_type, owner, heating, energy_carrier, scope]
@@ -4773,8 +4773,8 @@ actions:
       flatten: true
 
 - id: geothermal_and_awhps_in_municipal_building_stock
-  name: Geothermal and AWHPs in municipal building stock
-  name_en: Geothermal and AWHPs in municipal building stock
+  name: 'YKSITYINEN: Öljylämmityksestä luopuminen koko kaupungin rakennuskannassa'
+  name_en: 'PRIVATE: Replacing oil heating across the municipal building stock'
   type: simple.AdditiveAction
   group: building_heating
   input_dimensions: [action, cost_type, owner, heating, energy_carrier, scope]
@@ -4968,8 +4968,8 @@ actions:
       flatten: true
 
 - id: energy_efficiency_renovations_in_buildings
-  name: Korjausrakentaminen kaupungin kiinteistössä
-  name_en: Energy efficiency renovations in city's building stock
+  name: 'KAUPUNKI: Korjausrakentaminen kaupungin kiinteistössä'
+  name_en: 'CITY: Energy efficiency renovations in city''s building stock'
   type: simple.AdditiveAction
   group: building_heating
   input_dimensions: [action, cost_type, owner, heating, energy_carrier, scope]
@@ -5133,8 +5133,8 @@ actions:
 
 # ----- Sähkön Kulutus
 - id: build_renewable_electricity_production
-  name: Hajautettu uusiutuva energia (aurinkosähkö)
-  name_en: Building renewable electricity production (PV)
+  name: 'YKSITYINEN: Hajautettu uusiutuva energia (aurinkosähkö)'
+  name_en: 'PRIVATE: Building renewable electricity production (PV)'
   type: simple.AdditiveAction
   group: electricity_consumption
   input_dimensions: [action, cost_type, owner, energy_carrier, scope]
@@ -5266,8 +5266,8 @@ actions:
       flatten: true
 
 - id: change_streetlights_to_led
-  name: Katuvalaistuksen vaihtaminen LED-valaisimiksi
-  name_en: Replacing street lighting with LEDs
+  name: 'KAUPUNKI: Katuvalaistuksen vaihtaminen LED-valaisimiksi'
+  name_en: 'CITY: Replacing street lighting with LEDs'
   type: simple.AdditiveAction
   group: electricity_consumption
   input_dimensions: [action, cost_type, owner, energy_carrier, scope]
@@ -5399,8 +5399,8 @@ actions:
       flatten: true
 
 - id: energy_efficiency_of_new_construction
-  name: Uusien rakennusten energiatehokkuustoimet
-  name_en: Energy efficiency measures for new construction projects
+  name: 'KAUPUNKI: Uusien rakennusten energiatehokkuustoimet kaupungin kiinteistöissä'
+  name_en: 'CITY: Energy efficiency measures for new construction projects in city''s own building stock'
   type: simple.AdditiveAction
   group: electricity_consumption
   input_dimensions: [action, cost_type, owner, heating, energy_carrier, scope]
@@ -5564,8 +5564,8 @@ actions:
 
 # ----- Teollisuus ja Työkoneet
 - id: replacing_fossil_fuels_with_res_in_city_machinery
-  name: Fossiilisista polttoaineista luopuminen kaupungin työkoneissa
-  name_en: Replacing fossil fuels with renewables in the city's own machinery
+  name: 'KAUPUNKI: Fossiilisista polttoaineista luopuminen kaupungin työkoneissa'
+  name_en: 'CITY: Replacing fossil fuels with renewables in the city''s own machinery'
   type: simple.AdditiveAction
   group: industry_and_machinery
   input_dimensions: [action, cost_type, owner, ghg, scope]
@@ -5724,7 +5724,7 @@ actions:
 
 - id: parameter_discount_rate
   name: Diskonttokorko
-  name_en: Discount rate
+  name_en: 'PARAMETER: Discount rate'
   type: simple.ParameterAction
   group: parameters
   unit: '%'
@@ -5795,7 +5795,7 @@ actions:
 
 - id: parameter_district_heating_price
   name: Kaukolämmön hinta
-  name_en: District heating price
+  name_en: 'PARAMETER: District heating price'
   type: simple.ParameterAction
   group: parameters
   unit: EUR/MWh
@@ -5835,7 +5835,7 @@ actions:
 
 - id: parameter_electricity_price
   name: Sähkön hinta
-  name_en: Electricity price
+  name_en: 'PARAMETER: Electricity price'
   type: simple.ParameterAction
   group: parameters
   unit: centiEUR/kWh
@@ -5875,7 +5875,7 @@ actions:
 
 - id: parameter_oil_price
   name: Öljyn hinta
-  name_en: Oil price
+  name_en: 'PARAMETER: Oil price'
   type: simple.ParameterAction
   group: parameters
   unit: centiEUR/kWh
