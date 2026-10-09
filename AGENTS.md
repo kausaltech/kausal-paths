@@ -82,6 +82,30 @@ CLI DAP debugger.
 return type, quick attribute checks, anything where the question is about
 *what* not *how we got here*.
 
+### Worktrees for concurrent work
+
+Agents working in parallel each get a worktree of their own:
+
+```bash
+kausal_common/development/tools/worktree.sh new <name> [--base REF] [--db-template paths-fi]
+kausal_common/development/tools/worktree.sh list
+kausal_common/development/tools/worktree.sh rm <name> [--delete-branch]
+```
+
+`new` creates `../worktrees/kausal-paths/<name>` on branch `<name>` with the
+submodules, its own `.venv`, a database cloned from the main checkout's (or
+from `--db-template`) and its own Redis database. The database is a copy, so
+migrations and data changes stay in the worktree.
+
+- Work from the worktree only, and from a fresh shell: a shell inherited from
+  the main checkout carries its `VIRTUAL_ENV`, and `python` then silently runs
+  the main checkout's code.
+- `DATABASE_URL` and `REDIS_URL` live in `.env.db` and `.env.redis`. Never put
+  them in `.env`: settings read it first and never overwrite a variable that is
+  already set.
+- `rm` refuses while there are uncommitted changes, and `--delete-branch` keeps
+  a branch that is not merged.
+
 ### GraphQL API
 - GraphQL endpoint: `http://127.0.0.1:8000/v1/graphql/`
 
