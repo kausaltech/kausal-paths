@@ -36,7 +36,8 @@ if TYPE_CHECKING:
 
 # v5: canonical edge order is creation (pk) order, not NodeEdge.Meta ordering;
 #     binding positions built from a snapshot change accordingly.
-INSTANCE_GRAPH_FORMAT_VERSION = 6
+# v7: a dataset input port takes the dataset's authored unit before the node's own.
+INSTANCE_GRAPH_FORMAT_VERSION = 7
 
 
 class InstanceGraphDiagnostic(FrozenGraphModel):
