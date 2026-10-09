@@ -836,6 +836,79 @@ def test_node_owned_dataset_round_trip_preserves_local_ownership(
     assert len(effective.bindings) == 1
 
 
+def _strings_outside_provenance(value: object) -> set[str]:
+    """Every string and key in a dumped document, except under a ``copy_of`` key."""
+    if isinstance(value, dict):
+        found = {str(key) for key in value}
+        for key, item in value.items():
+            if key != 'copy_of':
+                found |= _strings_outside_provenance(item)
+        return found
+    if isinstance(value, list):
+        return set().union(*(_strings_outside_provenance(item) for item in value))
+    return {value} if isinstance(value, str) else set()
+
+
+def test_a_rekeyed_municipality_copies_its_own_and_refers_to_the_template(
+    municipal: tuple[InstanceConfig, InstanceConfig, User],
+) -> None:
+    """A copy mints the municipality's own uuids and keeps every reference into the template."""
+    template, municipality, _ = municipal
+    shared = template.nodes.get_queryset().with_spec().get()
+    assert shared.spec is not None
+    local = NodeConfigFactory.create(instance=municipality, identifier='local_target')
+    assert local.spec is not None
+    edge_port = InputPortDef(id=uuid4(), unit=shared.spec.output_ports[0].unit, binding_owner='instance')
+    data_port = InputPortDef(id=uuid4(), unit=local.spec.output_ports[0].unit)
+    local.spec.input_ports = [edge_port, data_port]
+    local.save(update_fields=['spec'])
+    NodeInputPortBinding.objects.create(
+        instance=municipality, node=local, port_id=edge_port.id, source_node=shared, source_port_id=shared.spec.output_ports[0].id
+    )
+    schema = DatasetSchemaFactory.create()
+    metric = DatasetMetricFactory.create(schema=schema, name='Value', unit=str(data_port.unit))
+    dataset = DatasetFactory.create(
+        schema=schema, scope_content_type=ContentType.objects.get_for_model(type(local)), scope_id=local.pk, identifier='owned'
+    )
+    point = DataPointFactory.create(dataset=dataset, metric=metric, date=date(2020, 1, 1), value=13)
+    NodeInputPortBinding.objects.create(instance=municipality, node=local, port_id=data_port.id, dataset=dataset, metric=metric)
+    exported = export_instance(municipality)
+
+    copy, rekeying = exported.rekeyed()
+
+    assert copy.template == exported.template
+    assert rekeying.outside() == {}, 'everything outside the municipality travels in the bundled template'
+    owned = {local.uuid, edge_port.id, data_port.id, dataset.uuid, metric.uuid, point.uuid, municipality.uuid}
+    assert owned <= rekeying.mapping.keys()
+    assert shared.uuid not in rekeying.mapping
+    assert {str(item) for item in owned}.isdisjoint(
+        _strings_outside_provenance(copy.model_dump(mode='json', exclude={'template'}))
+    )
+    assert copy.instance.copy_of == municipality.uuid
+    (copied_local,) = (node for node in copy.instance.nodes if node.identifier == 'local_target')
+    assert copied_local.uuid == rekeying.mapping[local.uuid]
+    (edge,) = (binding for binding in copy.instance.bindings if binding.port_id == rekeying.mapping[edge_port.id])
+    assert edge.node_id == copied_local.uuid
+    assert isinstance(edge.source, NodePortSource)
+    assert edge.source.node_id == shared.uuid
+    (body,) = (item for item in copy.datasets if item.meta.identifier == 'owned')
+    assert body.meta.id == rekeying.mapping[dataset.uuid]
+    assert [p.id for p in body.points] == [rekeying.mapping[point.uuid]]
+
+    clone = InstanceConfigFactory.create(
+        name='Rekeyed clone', owner='Test owner', config_source='database', spec=InstanceModelSpec()
+    )
+    import_instance(clone, InstanceExport.from_serialized_data(copy.model_dump(mode='json')))
+    assert clone.nodes.get().identifier == 'local_target'
+
+
+def test_rekeying_needs_the_template_bundled(municipal: tuple[InstanceConfig, InstanceConfig, User]) -> None:
+    _, municipality, _ = municipal
+    exported = export_instance(municipality).model_copy(update={'template': None})
+    with pytest.raises(ValueError, match='needs the template bundled'):
+        exported.rekeyed()
+
+
 def test_local_scenario_values_preserve_framework_authored_values(
     municipal: tuple[InstanceConfig, InstanceConfig, User],
 ) -> None:

@@ -221,3 +221,27 @@ def test_a_document_with_v1_dataset_bodies_still_imports(db_instance: InstanceCo
     imported = Dataset.objects.get(scope_id=ic.pk, identifier='city/energy')
     assert list(imported.data_points.values_list('value', flat=True)) == [Decimal(7)]
     assert list(DataPointComment.objects.filter(data_point__dataset=imported).values_list('text', flat=True)) == ['metered']
+
+
+def test_every_uuid_in_an_export_says_what_it_is() -> None:
+    """A copy can only rekey what it can classify; a new uuid field needs a kind (`paths.uuid_kinds`)."""
+    from paths.uuid_kinds import unmarked_uuid_fields
+
+    assert unmarked_uuid_fields(InstanceExport) == []
+
+
+def test_a_rekeyed_export_takes_the_seeded_instance_uuid(db_instance: InstanceConfig) -> None:
+    from uuid import uuid4
+
+    target = uuid4()
+    exported = export_instance(db_instance)
+    copy, rekeying = exported.rekeyed(seed={db_instance.uuid: target})
+
+    assert copy.instance.metadata.uuid == target
+    assert copy.instance.copy_of == db_instance.uuid
+    assert {node.identifier for node in copy.instance.nodes} == {'first_node', 'second_node'}
+    assert {node.uuid for node in copy.instance.nodes}.isdisjoint({node.uuid for node in exported.instance.nodes})
+    assert all(node.copy_of == source.uuid for node, source in zip(copy.instance.nodes, exported.instance.nodes, strict=True))
+    assert rekeying.outside() == {}
+    reloaded = InstanceExport.from_serialized_data(json.loads(json.dumps(copy.model_dump(mode='json'))))
+    assert reloaded.model_dump(mode='json') == copy.model_dump(mode='json')

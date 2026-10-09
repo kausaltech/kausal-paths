@@ -93,6 +93,9 @@ class DimensionMeta(FrozenGraphModel):
     scope: CatalogScope = Field(default='instance', exclude_if=lambda value: value == 'instance')
     """A framework's dimension is shared by every instance of it; a copy refers to it rather than copying it."""
 
+    def rekey_owns(self, field: str, owned: bool) -> bool:
+        return owned and self.scope == 'instance'
+
 
 class ValidationRuleMeta(FrozenGraphModel):
     """A validation rule on a metric, with the identity of its row where it has one."""
@@ -160,3 +163,9 @@ class DatasetMeta(FrozenGraphModel):
     @cached_property
     def metric_by_id(self) -> dict[UUID, DatasetMetricMeta]:
         return {metric.id: metric for metric in self.metrics}
+
+    def rekey_owns(self, field: str, owned: bool) -> bool:
+        # A schema's metrics are the schema's: a framework's schema brings its own.
+        if field in ('schema_id', 'metrics'):
+            return owned and self.schema_scope == 'instance'
+        return owned

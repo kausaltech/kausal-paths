@@ -399,6 +399,35 @@ def test_import_remaps_section_and_anchor_node_identity() -> None:
     assert restored.sections[0].tables[0].anchors[0].output_port_id == definition.tables[0].anchors[0].output_port_id
 
 
+def test_rekeying_gives_a_layout_new_identities_that_follow_its_node() -> None:
+    source = InstanceConfigFactory.create(name='Source', config_source='database', spec=InstanceModelSpec())
+    node = NodeConfigFactory.create(instance=source)
+    assert node.spec is not None
+    port_id = node.spec.output_ports[0].id
+    with set_i18n_context(source.primary_language, source.other_languages):
+        definition = DataEntrySectionSpec(
+            id=uuid4(),
+            name='Input',
+            tables=[
+                DataEntryAutodiscoverSpec(id=uuid4(), anchors=[DataEntryAnchorSpec(node_id=node.uuid, output_port_id=port_id)])
+            ],
+        )
+    assert source.spec is not None
+    source.spec.data_entry = DataEntrySpec(sections=[definition])
+    source.save(update_fields=['spec'])
+
+    copy, rekeying = export_instance(source).rekeyed()
+
+    entry = copy.instance.spec.data_entry
+    assert isinstance(entry, DataEntrySpec)
+    (section,) = entry.sections
+    (table,) = section.tables
+    assert isinstance(table, DataEntryAutodiscoverSpec)
+    assert section.id == rekeying.mapping[definition.id]
+    assert table.id == rekeying.mapping[definition.tables[0].id]
+    assert (table.anchors[0].node_id, table.anchors[0].output_port_id) == (rekeying.mapping[node.uuid], rekeying.mapping[port_id])
+
+
 def test_discovery_expands_in_place_and_manual_table_reserves_cells(graph: InstanceGraph) -> None:
     graph, _, output = anchored_graph(graph)
     dim = graph.dimensions[0]

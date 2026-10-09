@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from datetime import datetime
-from typing import TYPE_CHECKING, Annotated, Any, Literal, Self, cast
+from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Literal, Self, cast
 from uuid import UUID, uuid3, uuid4
 
 from django.db import transaction
@@ -74,6 +74,8 @@ if TYPE_CHECKING:
         Dataset as DatasetModel,
         DimensionCategory,
     )
+
+    from paths.rekey import Rekeying
 
     from frameworks.models import FrameworkConfig
     from nodes.models import InstanceConfig, NodeConfig, NodeInputPortBinding, NodeLayout
@@ -986,6 +988,12 @@ class InstanceSnapshot(BaseModel):
             self._provenance.get(f'parameter_defaults/{identifier}'),
         )
 
+    def rekey_finish(self, original: Self, rekeying: Rekeying) -> Self:
+        """Record the instance a copy was copied from."""
+        if self.metadata.uuid == original.metadata.uuid:
+            return self
+        return self.model_copy(update={'copy_of': original.metadata.uuid})
+
     def resolve(self, template: InstanceSnapshot | None = None) -> Self:
         """Compose frozen authoring inputs without consulting either instance's live draft."""
         if self.snapshot_kind != 'authored' or self.template_revision_id is None:
@@ -1082,6 +1090,10 @@ class InstanceExport(BaseModel):
     Each ``DatasetSnapshot`` carries its data points, keyed by uuid.
     """
 
+    # A copy refers to the bundled template rather than copying it, and pages name nodes
+    # by identifier.
+    __rekey_foreign__: ClassVar[frozenset[str]] = frozenset({'template', 'pages'})
+
     schema_version: int = SNAPSHOT_SCHEMA_VERSION
     instance: InstanceSnapshot
     template: 'InstanceExport | None' = None
@@ -1104,6 +1116,37 @@ class InstanceExport(BaseModel):
     )
 
     model_config = {'arbitrary_types_allowed': True}
+
+    def rekeyed(self, *, seed: Mapping[UUID, UUID] | None = None) -> tuple[Self, Rekeying]:
+        """
+        Return this export with new uuids for everything the instance owns, as a copy.
+
+        The bundled template, the framework's dimensions and schemas, and the template's
+        entities the instance overrides keep their uuids. ``seed`` fixes new uuids in
+        advance, such as the instance's own when its row is created first.
+        """
+        from paths.rekey import rekeyed
+
+        if self.instance.template_revision_id is not None and self.template is None:
+            raise ValueError('Rekeying an instance built on a template needs the template bundled, to tell overrides apart')
+        return rekeyed(self, seed=seed)
+
+    def rekey_finish(self, original: Self, rekeying: Rekeying) -> Self:
+        """Restamp the pins of the instance's own datasets, whose content hashes cover their uuids."""
+        from datasets.materialization import hash_dataset_content
+
+        def content_hash(body: DatasetSnapshot) -> str:
+            return hash_dataset_content(body.model_dump(mode='json', exclude_unset=True))
+
+        bodies = {body.meta.id: body for body in self.datasets}
+        pins = self.instance.dataset_revisions
+        restamped = [
+            pin.model_copy(update={'content_hash': content_hash(bodies[pin.dataset_uuid])}) if pin.dataset_uuid in bodies else pin
+            for pin in pins
+        ]
+        if all(new.content_hash == old.content_hash for new, old in zip(restamped, pins, strict=True)):
+            return self
+        return self.model_copy(update={'instance': self.instance.model_copy(update={'dataset_revisions': restamped})})
 
     @classmethod
     def from_serialized_data(cls, data: dict[str, Any]) -> Self:
