@@ -94,7 +94,6 @@ NEUTRAL_TAG_OPERATIONS = frozenset({
     'extrapolate',
     'fill_metrics_nan_null_zero',
     'forecast_only',
-    'ignore_content',
     'inventory_only',
     'linear_interpolate',
     'make_nonnegative',

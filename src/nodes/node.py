@@ -29,12 +29,14 @@ from nodes.constants import (
     DEFAULT_METRIC,
     FORECAST_COLUMN,
     NODE_COLUMN,
+    REFERENCE_ROLE,
     UNCERTAINTY_COLUMN,
     VALUE_COLUMN,
     YEAR_COLUMN,
     ensure_known_quantity,
     get_quantity_icon,
 )
+from nodes.defs.port_def import InputPortDeclaration
 from nodes.defs.transform_def import FlattenTransformation
 from nodes.goals import NodeGoals
 from nodes.transforms import PipelineEnv, apply_port_transformations
@@ -61,7 +63,7 @@ if typing.TYPE_CHECKING:
     from nodes.constraints.port_roles import PortRoleInferenceResult
     from nodes.constraints.rules import AnyShapeRule
     from nodes.defs.node_defs import NodeKind, NodeSpec
-    from nodes.defs.port_def import InputPortDeclaration, InputPortDef, OutputPortDeclaration
+    from nodes.defs.port_def import InputPortDef, OutputPortDeclaration
     from nodes.gpc import DatasetNode
     from nodes.instance_graph import NodeMeta
     from nodes.instance_loader import ConfigLocation
@@ -363,7 +365,48 @@ class Node:
     by the whole baseline. See ``MeasureType._get_placeholder_df``, which withholds a value
     it cannot present honestly."""
 
-    input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = ()
+    reference_port: ClassVar[InputPortDeclaration] = InputPortDeclaration(
+        role=REFERENCE_ROLE,
+        multi=True,
+        required=False,
+        min_count=0,
+        default_count=0,
+        label=_('Reference'),
+    )
+    """A link that documents a dependency without asserting an algebra for it.
+
+    Available on every node class, because a half-constructed model is a state any node
+    can be in: the modeller knows this input bears on the result and does not yet know
+    how. No shape rule names this role, so it carries no unit, quantity or dimension
+    expectation, and no operation resolves it, so a value bound here is never computed
+    with. The edge stays in the graph, the editor and the explanations.
+
+    Distinct from ``quantity: argument``, which is node-scoped — an argument node never
+    computes anywhere. This is edge-scoped: both endpoints compute, this one link does
+    not. See ``nodes.operands.is_non_computational`` for the node-scoped rule and
+    ``docs/architecture/argumentation.md`` for how the two differ.
+
+    ``min_count``/``default_count`` of zero keep it out of ``_plan_declared_input_port``,
+    so a plain connect never lands here: a reference is always authored deliberately.
+    """
+
+    declared_input_ports: ClassVar[tuple[InputPortDeclaration, ...]] = ()
+    """Semantic input roles this class declares. Subclasses replace this wholesale.
+
+    Read ``input_port_declarations`` instead unless you specifically mean "roles this
+    class computes with": that property is this tuple plus the universal
+    ``reference_port``, and an empty tuple *here* is still what marks a class as not yet
+    migrated to port-based inputs (see ``instance_loader._setup_runtime_inputs``).
+    """
+
+    input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = (reference_port,)
+    """Every input role the class offers: ``declared_input_ports`` plus ``reference_port``.
+
+    Computed per subclass in ``__init_subclass__`` rather than merged on read, so the
+    declaration objects stay identical — ``_check_input_declaration`` compares by
+    identity, and every consumer sees one stable tuple.
+    """
+
     output_port_declarations: ClassVar[tuple[OutputPortDeclaration, ...]] = ()
     """Semantic role declarations shared by future get_input() and shape_rules()."""
 
@@ -383,6 +426,10 @@ class Node:
     the per-class completion marker for the input-port migration; see
     docs/plans/node-input-port-runtime-migration.md.
     """
+
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        super().__init_subclass__(**kwargs)
+        cls.input_port_declarations = (*cls.declared_input_ports, Node.reference_port)
 
     legacy_fixed_dataset_input_role: ClassVar[str | None] = None
     """Temporary role for inline historical/forecast values absent from InstanceGraph."""
@@ -937,6 +984,22 @@ class Node:
         self._check_input_declaration(port)
         return (binding for binding in self.runtime_input_bindings if binding.port_role == port.role)
 
+    def iter_computational_input_bindings(self, port: InputPortDeclaration) -> Iterator[RuntimeInputBinding]:
+        """
+        Like ``iter_input_bindings``, minus the bindings that never take part in arithmetic.
+
+        Argument nodes are bound like any other input so that the edge shows in the graph,
+        the editor and explanations, but they carry no value to compute with. Every
+        arithmetic path resolves inputs through this accessor; structure-facing callers
+        (ports, specs, the graph) use ``iter_input_bindings`` and see everything.
+        """
+        from .operands import is_non_computational
+
+        for binding in self.iter_input_bindings(port):
+            if isinstance(binding.source, Node) and is_non_computational(binding.source):
+                continue
+            yield binding
+
     def iter_input_ports(self, declaration: InputPortDeclaration) -> Iterator[RuntimeInputPort]:
         """Yield instantiated ports without collapsing a repeatable role into anonymous values."""
         from collections import defaultdict
@@ -1021,7 +1084,7 @@ class Node:
     def iter_inputs(self, port: InputPortDeclaration) -> Iterator[ppl.PathsDataFrame]:
         """Yield every value bound to a semantic input role in stable binding order."""
         self._check_input_declaration(port)
-        bindings = tuple(self.iter_input_bindings(port))
+        bindings = tuple(self.iter_computational_input_bindings(port))
         if not bindings and port.required:
             raise NodeError(self, f'Required input role {port.role!r} has no bindings')
 
@@ -1108,6 +1171,20 @@ class Node:
         df = df.paths._add_missing_years(df, context)
         df = df.paths._extend_values(df, context)
         return df
+
+    def _drop_non_computational[T](self, nodes: list[Node], paired: list[T]) -> tuple[list[Node], list[T]]:
+        """
+        Drop inputs that never take part in arithmetic, keeping ``paired`` aligned.
+
+        Both rules apply: argument nodes (node-scoped) and reference edges into this node
+        (edge-scoped). ``self`` is the target, which is what makes the edge lookup possible.
+
+        Deferred import: ``nodes.operands`` reaches this module through
+        ``explanations`` -> ``formula``, so importing it at module scope is circular.
+        """
+        from .operands import drop_non_computational
+
+        return drop_non_computational(nodes, paired, target=self)
 
     def get_input_nodes(self, tag: str | None = None, quantity: str | None = None) -> list[Node]:
         matching_nodes = []
@@ -1384,9 +1461,7 @@ class Node:
         else:
             raise NodeError(self, 'No connection to target node %s' % target_node.id)
         for tag in edge.tags:
-            if tag == 'ignore_content':
-                df = df.paths._ignore_content(df, target_node)
-            elif df.paths.has_operation(tag):
+            if df.paths.has_operation(tag):
                 df = df.paths.get_operation(tag)(df, self.context)
         return df
 
@@ -1939,6 +2014,9 @@ class Node:
         # Pair each multiplier with its node up front, so skipping a node keeps the rest aligned.
         apply_mult = bool(node_multipliers)
         mults = node_multipliers if node_multipliers is not None else [1.0] * len(nodes)
+        # Argument nodes and reference edges never take part in arithmetic; drop them
+        # before the dimension and unit tests they would otherwise have to satisfy.
+        nodes, mults = self._drop_non_computational(nodes, mults)
 
         if not nodes:
             if df is None:
@@ -2053,6 +2131,7 @@ class Node:
         An outer join keyed on dimensions, with values coalesced: each node's own value wins
         wherever it has one, and ``df``'s existing value survives only where the node has none.
         """
+        nodes, _ = self._drop_non_computational(nodes, nodes)
         for node in nodes:
             node_df = node.get_output_pl(self)
             if set(df.dim_ids) != set(node_df.dim_ids):
@@ -2110,6 +2189,7 @@ class Node:
         # Imported here, not at module scope: `nodes.operands` reaches back into this module.
         from .operands import Operand, complement_partial_factor
 
+        nodes, _ = self._drop_non_computational(nodes, nodes)
         if len(nodes) == 0:
             if df is None:
                 return None

@@ -199,7 +199,7 @@ def test_a_series_given_in_per_cent_is_converted():
 def test_the_physical_inputs_are_ports_not_parameters():
     """The method is an agreement and stays a parameter; everything describing the plant is data."""
     allowed = {p.local_id for p in ChpNode.allowed_parameters}
-    roles = {d.role for d in ChpNode.input_port_declarations}
+    roles = {d.role for d in ChpNode.declared_input_ports}
 
     assert 'method' in allowed
     assert not allowed & set(INPUT_UNITS)
@@ -311,7 +311,7 @@ def test_bisko_node_computes_the_same_split_as_the_generic_node_set_to_bisko():
 def test_bisko_node_has_no_settings_and_no_ports_for_what_the_standard_fixes():
     """The loader rejects unknown parameters and cannot route a binding to an undeclared port."""
     allowed = {p.local_id for p in BiskoChpNode.allowed_parameters}
-    roles = {d.role for d in BiskoChpNode.input_port_declarations}
+    roles = {d.role for d in BiskoChpNode.declared_input_ports}
 
     assert 'method' not in allowed
     assert not allowed & set(INPUT_UNITS)

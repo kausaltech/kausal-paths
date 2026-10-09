@@ -732,7 +732,6 @@ nodes:
   - id: transportation/zeros
   output_nodes:
   - id: spillover_factor
-    tags: [ignore_content]
 
 # SCALE AND EFFECTIVENESS ARGUMENTS
 
@@ -761,7 +760,6 @@ nodes:
   - id: transportation/zeros
   output_nodes:
   - id: road_transportation_emissions
-    tags: [ignore_content]
 
 - id: obj_g1_drop_in_ocean
   name: 'OBJ-G1: Drop in the ocean'
@@ -787,7 +785,6 @@ nodes:
   - id: transportation/zeros
   output_nodes:
   - id: road_transportation_emissions
-    tags: [ignore_content]
 
 - id: obj_cc17_negligible_emission_impact
   name: 'OBJ-CC17: Negligible emission impact'
@@ -821,9 +818,7 @@ nodes:
   - id: transportation/zeros
   output_nodes:
   - id: total_vehicle_km
-    tags: [ignore_content]
   - id: spillover_factor
-    tags: [ignore_content]
 
 # ECONOMIC EFFICIENCY ARGUMENTS
 
@@ -858,9 +853,7 @@ nodes:
   - id: transportation/zeros
   output_nodes:
   - id: total_vehicle_km
-    tags: [ignore_content]
   - id: vehicles_in_zone
-    tags: [ignore_content]
 
 - id: obj_g10_opportunity_cost
   name: 'OBJ-G10: Opportunity cost'
@@ -888,7 +881,6 @@ nodes:
   - id: transportation/zeros
   output_nodes:
   - id: total_charge_revenue
-    tags: [ignore_content]
 
 # REVENUE CONCERNS
 
@@ -919,9 +911,7 @@ nodes:
   - id: transportation/zeros
   output_nodes:
   - id: total_charge_revenue
-    tags: [ignore_content]
   - id: revenue_to_general_fund
-    tags: [ignore_content]
   - id: arg_26_revenue_recycling
 
 - id: obj_cc29_revenue_addiction
@@ -956,9 +946,7 @@ nodes:
   - id: transportation/zeros
   output_nodes:
   - id: total_charge_revenue
-    tags: [ignore_content]
   - id: vehicles_in_zone
-    tags: [ignore_content]
 
 # EQUITY OBJECTIONS
 
@@ -996,9 +984,7 @@ nodes:
   - id: transportation/zeros
   output_nodes:
   - id: driver_costs_by_income
-    tags: [ignore_content]
   - id: per_capita_cost_by_income
-    tags: [ignore_content]
 
 - id: obj_cc7_business_decline
   name: 'OBJ-CC7: Business revenue decline'
@@ -1026,9 +1012,7 @@ nodes:
   - id: transportation/zeros
   output_nodes:
   - id: vehicles_in_zone
-    tags: [ignore_content]
   - id: total_charge_revenue
-    tags: [ignore_content]
 
 - id: obj_cc14_transit_crowding
   name: "OBJ-CC14: Transit can't handle demand"
@@ -1057,9 +1041,7 @@ nodes:
   - id: transportation/zeros
   output_nodes:
   - id: transit_demand_from_mode_shift
-    tags: [ignore_content]
   - id: transit_crowding_level
-    tags: [ignore_content]
 
 # REVENUE RECYCLING BENEFITS
 
@@ -1103,9 +1085,6 @@ nodes:
   - id: transportation/zeros
   output_nodes:
   - id: revenue_to_transit
-    tags: [ignore_content]
   - id: transit_investment_from_revenue
-    tags: [ignore_content]
   - id: total_charge_revenue
-    tags: [ignore_content]
 
