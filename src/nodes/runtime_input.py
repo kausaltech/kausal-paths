@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from uuid import UUID
 
     from common.polars import PathsDataFrame
-    from nodes.datasets import Dataset
+    from datasets.runtime import Dataset
     from nodes.defs.binding_def import DatasetBindingDef, EdgeBindingDef, PortBindingDef
     from nodes.defs.port_def import InputPortDef, OutputPortDef
     from nodes.node import Node
@@ -150,7 +150,7 @@ class RuntimeInputBinding:
         target: object,
     ) -> RuntimeInputBinding:
         """Pair a graph definition with its request-local runtime source."""
-        from nodes.datasets import Dataset
+        from datasets.runtime import Dataset
         from nodes.defs.binding_def import DatasetBindingDef, EdgeBindingDef
         from nodes.node import Node
 

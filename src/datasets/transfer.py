@@ -168,7 +168,7 @@ def _import_dataset_evidence(
 
 def _export_dataset_data(ds: DatasetModel) -> dict[str, Any]:
     """Serialize dataset DataPoints into JSON Table Schema format."""
-    from nodes.datasets import DBDataset, JSONDataset
+    from datasets.runtime import DBDataset, JSONDataset
 
     df = DBDataset.deserialize_df(ds)
     return JSONDataset.serialize_df(df)

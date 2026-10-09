@@ -28,7 +28,7 @@ from nodes.models import NodeInputPortBinding
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory, NodeConfigFactory
 
 if TYPE_CHECKING:
-    from nodes.datasets import DatasetWithFilters
+    from datasets.runtime import DatasetWithFilters
     from nodes.models import InstanceConfig
 
 
@@ -884,7 +884,7 @@ def _make_materialized_dataset(instance_config: InstanceConfig, identifier: str,
 
 
 def _materialized_df_value(content: dict[str, Any]) -> float:
-    from nodes.datasets import JSONDataset
+    from datasets.runtime import JSONDataset
 
     df = JSONDataset.deserialize_df(content['data'])
     return float(df['value'][0])
@@ -993,7 +993,7 @@ def test_draft_and_published_runtime_share_serialized_dataset_path(empty_db_inst
     from django.db import transaction
 
     from datasets.materialization import refresh_dataset_materialization
-    from nodes.datasets import SerializedDBDataset
+    from datasets.runtime import SerializedDBDataset
     from nodes.defs.node_defs import SimpleConfig
     from nodes.defs.port_def import InputPortDef, OutputPortDef
     from nodes.models import NodeConfig, PreferredInstanceSource
@@ -1301,8 +1301,8 @@ def test_import_instance_datasets_preserves_dimension_column_name(empty_db_insta
         DimensionFactory,
     )
 
+    from datasets.runtime import DBDataset
     from datasets.transfer import import_instance_datasets
-    from nodes.datasets import DBDataset
     from nodes.instance_serialization import export_instance
 
     source = empty_db_instance
@@ -1382,7 +1382,7 @@ def test_import_instance_preserves_dataset_only_dimension(empty_db_instance: Ins
         DimensionFactory,
     )
 
-    from nodes.datasets import DBDataset
+    from datasets.runtime import DBDataset
     from nodes.instance_serialization import export_instance, import_instance
 
     source = empty_db_instance

@@ -36,8 +36,8 @@ if TYPE_CHECKING:
     from kausal_common.datasets.models import Dataset as DBDatasetModel
     from kausal_common.i18n.pydantic import I18nString
 
+    from datasets.runtime import Dataset
     from nodes.context import Context
-    from nodes.datasets import Dataset
     from nodes.defs.graph import DatasetMeta
     from nodes.defs.node_defs import InputDatasetDef, NodeSpec
     from nodes.defs.transform_def import EdgeTransformOp
@@ -730,7 +730,7 @@ class InstanceLoader:
         )
 
     def _make_node_datasets(self, config: dict[str, Any], node_class: type[Node], unit: Unit | None) -> list[Dataset]:  # noqa: C901, PLR0912, PLR0915
-        from nodes.datasets import DBDataset, DVCDataset, FixedDataset, GenericDataset
+        from datasets.runtime import DBDataset, DVCDataset, FixedDataset, GenericDataset
         from nodes.defs.node_defs import InputDatasetDef
         from nodes.generic import GenericNode
         from nodes.simple import AdditiveNode
@@ -818,7 +818,7 @@ class InstanceLoader:
                 ds_db_obj = self.db_datasets.get(ds_def.id)
                 payload_ref = self.db_dataset_refs.get(ds_def.id)
                 if payload_ref is not None:
-                    from nodes.datasets import SerializedDBDataset
+                    from datasets.runtime import SerializedDBDataset
 
                     assert self.dataset_payload_store is not None
                     ds_obj = SerializedDBDataset.from_def(
@@ -1491,7 +1491,7 @@ class InstanceLoader:
             bindings = bindings_by_target.get(node_id, [])
             fixed_role = node.legacy_fixed_dataset_input_role
             if fixed_role is not None:
-                from nodes.datasets import FixedDataset
+                from datasets.runtime import FixedDataset
 
                 bindings.extend(
                     RuntimeInputBinding.from_legacy_fixed_dataset(dataset, target=node, port_role=fixed_role)
