@@ -44,7 +44,7 @@ nodes:
   historical_values: [[2010, 200], [2023, 100]]
   input_nodes:
   - id: protected_forest_area
-    tags: [ignore_content]
+    tags: [reference]
 
 - id: forest_biodiversity_channels
   name: Rikkaan metsäluonnon yhdyskäytävät Etelä-Suomessa
@@ -77,14 +77,14 @@ nodes:
   historical_values: [[2010, 50], [2023, 150]]
   input_nodes:
   - id: rich_forest_biodiversity_area
-    tags: [ignore_content]
+    tags: [reference]
   - id: forest_biodiversity_channels
-    tags: [ignore_content]
+    tags: [reference]
   - id: forest_grazing
-    tags: [ignore_content]
+    tags: [reference]
   output_nodes:
   - id: diversity_of_habitat
-    tags: [ignore_content]
+    tags: [reference]
 
 # ---------------------------- Suomen metsänielukeskustelu
 
@@ -129,7 +129,7 @@ nodes:
   input_nodes:
   - id: pulp_production_capacity
   - id: forest_harvest_volume
-    tags: [ignore_content]
+    tags: [reference]
 
 - id: high_price_wood_production
   name: Korkean jalostusasteen puutuotteiden valmistusmäärä Suomessa
@@ -266,10 +266,10 @@ nodes:
     column: technical_row_to_make_sure_uuid_is_not_dropped_fraction
   input_nodes:
   - id: biodiversity_in_forests
-    tags: [ignore_content]
+    tags: [reference]
   output_nodes:
   - id: forestry_utility
-    tags: [ignore_content]
+    tags: [reference]
 
 - id: forestry_utility
   name: Metsien utiliteetti
@@ -278,7 +278,7 @@ nodes:
   unit: Ut/a
   output_nodes:
   - id: total_utility
-    tags: [ignore_content]
+    tags: [reference]
 
 # - id: uncertain_node
 #   name: Uncertain node

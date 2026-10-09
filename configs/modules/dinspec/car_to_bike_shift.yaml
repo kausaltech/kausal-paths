@@ -71,7 +71,7 @@ actions:
       value: Municipal Package Delivery by Bicycle
   output_nodes:
   - id: fraction_of_car_trips
-    tags: [additive, ignore_content]
+    tags: [reference]
     from_dimensions:
     - id: action_type
       flatten: true

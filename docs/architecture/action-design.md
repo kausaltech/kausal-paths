@@ -140,9 +140,9 @@ Two mechanics worth knowing:
 Worth knowing before concluding that a formula node cannot receive an action.
 `FormulaNode` adds **every input node the formula does not name** to the result after
 evaluating it, and an input tagged `add_to_existing_dims` is added explicitly
-(`src/nodes/formula.py`). Only `impute`, which overlays, and `ignore_content` are left
-out. So a rule 1 absolute change attaches to a formula node the same way it attaches to
-an `AdditiveNode2`, carrying the node's full dimension set, and the formula string does
+(`src/nodes/formula.py`). Only `impute`, which overlays, an edge tagged `reference` and
+an argument node (`quantity: argument`) are left out. So a rule 1 absolute change
+attaches to a formula node the same way it attaches to an `AdditiveNode2`, carrying the node's full dimension set, and the formula string does
 not have to mention it.
 
 This matters most for a shared module: a city can hang a measure on a formula node in

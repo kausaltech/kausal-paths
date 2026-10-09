@@ -149,7 +149,7 @@ Top-level sections include `actions` and `nodes`.
 
 ### Tags usage
 
-Tags serve multiple functions. For **semantic documentation** (when there is no formula), use tags like `increase`, `decrease`, `ignore_content` to document direction of effect. For **variable naming**, use tags like `price`, `elasticity`, `baseline` to reference input nodes in formulas. You can combine both on the same input (e.g. `tags: [increase, price]`), but if there is a formula, semantic tags are just documentation.
+Tags serve multiple functions. For **semantic documentation** (when there is no formula), use tags like `increase` and `decrease` to document direction of effect. An edge that matters but whose mathematics is not yet known is `reference` instead: it is shown and documented, and no value is computed from it. For **variable naming**, use tags like `price`, `elasticity`, `baseline` to reference input nodes in formulas. You can combine both on the same input (e.g. `tags: [increase, price]`), but if there is a formula, semantic tags are just documentation.
 
 ### Unit handling
 

@@ -176,7 +176,7 @@ class Command(BaseCommand):
             node = graph.node_by_id.get(diagnostic.node_id) if diagnostic.node_id else None
             if node is None:
                 continue
-            declares = bool(node.node_class.input_port_declarations)
+            declares = bool(node.node_class.declared_input_ports)
             recorder.records.append({
                 'instance': iid,
                 'layer': 'graph',

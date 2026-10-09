@@ -1315,7 +1315,7 @@ class CoalesceNode(GenericNode):
     DEFAULT_OPERATIONS = 'multiply,coalesce,add'
     primary_port = InputPortDeclaration(role='primary', required=False, label=_('Primary input'))
     secondary_port = InputPortDeclaration(role='secondary', required=False, label=_('Secondary input'))
-    input_port_declarations = (primary_port, secondary_port)
+    declared_input_ports = (primary_port, secondary_port)
 
     @classmethod
     def infer_legacy_port_roles(cls, meta: NodeMeta, candidates: Sequence[InputPortDef]) -> PortRoleInferenceResult:
@@ -1736,7 +1736,7 @@ class DatasetReduceNode(GenericNode):
     ]
     historical_port = InputPortDeclaration(role='historical', required=True, label=_('Historical input'))
     goal_port = InputPortDeclaration(role='goal', required=True, label=_('Goal input'))
-    input_port_declarations = (historical_port, goal_port)
+    declared_input_ports = (historical_port, goal_port)
 
     @classmethod
     def infer_legacy_port_roles(cls, meta: NodeMeta, candidates: Sequence[InputPortDef]) -> PortRoleInferenceResult:
@@ -1974,7 +1974,7 @@ class ChpNode(GenericNode):
     heat_reference_efficiency_port = InputPortDeclaration(
         role='heat_reference_efficiency', required=False, min_count=0, label=_('Efficiency of producing heat separately')
     )
-    input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = (
+    declared_input_ports: ClassVar[tuple[InputPortDeclaration, ...]] = (
         electricity_fraction_port,
         t_supply_port,
         t_return_port,
@@ -2222,7 +2222,7 @@ class BiskoChpNode(ChpNode):
     FIXED_METHOD = 'bisko'
 
     t_supply_port = InputPortDeclaration(role='t_supply', label=_('Supply temperature of the district heating flow'))
-    input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = (ChpNode.electricity_fraction_port, t_supply_port)
+    declared_input_ports: ClassVar[tuple[InputPortDeclaration, ...]] = (ChpNode.electricity_fraction_port, t_supply_port)
 
     allowed_parameters = [*GenericNode.allowed_parameters]
 

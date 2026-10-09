@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any, Literal, cast
 
 from kausal_common.i18n.pydantic import gettext_lazy as _
 
-from .constants import TIME_INTERVAL
+from .constants import ARGUMENT_QUANTITY, REFERENCE_TAG, TIME_INTERVAL
 from .defs.transform_def import (
     AssignDimensionOp,
     DropNullsOp,
@@ -133,7 +133,6 @@ TAG_DESCRIPTIONS = {
     'goal': _('The node is used as the goal for the action.'),
     'goal_gap': _("Compute gap = actual - goal from the single input node's output and goals."),
     'historical': _('The node is used as the historical starting point.'),
-    'ignore_content': _('Show edge on graphs but ignore upstream content.'),
     'impute': _(
         'Overlay this input onto the result, outer-joined on dimensions: the input value replaces the '
         "result's own value wherever the input has one, and the result's own value is used elsewhere."
@@ -158,6 +157,10 @@ TAG_DESCRIPTIONS = {
     'ratio_to_last_historical_value': _('Take the ratio of the values compared with the last historical value.'),
     'ratio_to_max_hist_year': _(
         'Take the ratio of the forecasted values compared with the maximum historical' + ' year (historical values = 1).'
+    ),
+    'reference': _(
+        'The upstream node bears on this result, but how is not (yet) defined: the edge is shown '
+        'and documented, and no value is computed from it.'
     ),
     'prefer_by_year': _('Use the first option for every year it has data for, and the second option for the remaining years.'),
     'removing': _('This is the rate of stock removal.'),
@@ -215,7 +218,7 @@ FORMULA_FUNCTION_UNIT_OVERRIDES = {
     # Invert unit (1 / unit).
     'geometric_inverse': _unit_geometric_inverse,
     # Keep unit unchanged.
-    'ignore_content': _unit_passthrough,
+    'reference': _unit_passthrough,
 }
 
 
@@ -826,7 +829,7 @@ class NodeExplanationSystem:
         """Return a dictionary of node 'baskets' categorized by type."""
         baskets: dict[str, dict[str, list[str]]] = {}
         # Special tags that should be skipped completely
-        skip_tags = {'ignore_content'}
+        skip_tags = {REFERENCE_TAG}
 
         for node_id, node in self.graph.nodes.items():
             baskets[node_id] = {}
@@ -1338,10 +1341,11 @@ class BasketRule(ValidationRule):
         assert nes is not None
 
         for edge in node.inputs:
-            if 'ignore_content' in edge.tags:
-                continue
             input_id = edge.source_id
             input_node = nes.graph.nodes.get(input_id)
+            # Neither a reference edge nor an argument node takes part in the arithmetic.
+            if REFERENCE_TAG in edge.tags or (input_node is not None and input_node.quantity == ARGUMENT_QUANTITY):
+                continue
             func_tags = [tag for tag in edge.tags if tag in TAG_DESCRIPTIONS and tag not in TAG_TO_BASKET]
             label_tag = next((tag for tag in edge.tags if tag not in TAG_TO_BASKET and tag not in TAG_DESCRIPTIONS), None)
             if not func_tags or label_tag is None:
