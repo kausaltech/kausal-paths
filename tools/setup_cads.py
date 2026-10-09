@@ -154,7 +154,8 @@ def ensure_template_datasets() -> None:
 
     source = InstanceConfig.objects.get(identifier=SOURCE_TEMPLATE_IDENTIFIER)
     target = InstanceConfig.objects.get(identifier=TEMPLATE_INSTANCE_IDENTIFIER)
-    source_export = export_instance(source)
+    # The target gets copies of the source's datasets, under uuids of their own.
+    source_export, _ = export_instance(source).rekeyed()
     source_datasets = [
         ds
         for ds in source_export.datasets
@@ -190,6 +191,7 @@ def ensure_template_datasets() -> None:
         rewire_dataset_ports=True,
         replace_placeholders=True,
         create_missing_dimensions=True,
+        dimensions={dimension.id: dimension for dimension in source_export.instance.dimensions},
     )
     print(f'Copied {len(copied)} dataset(s) from {source.identifier} to {target.identifier}')
     ensure_template_dataset_ports(source, target, source_dataset_ids)

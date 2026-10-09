@@ -426,10 +426,10 @@ def test_yaml_mode_imports_editor_edges_from_snapshot(db_source):
         position=0,
     )
 
-    export = export_instance(ic_src)
+    export, _ = export_instance(ic_src).rekeyed()
     ic_copy = InstanceConfigFactory.create(identifier='copytest-dst', name='dst', config_source='yaml')
     nodes_by_id = import_instance_nodes(ic_copy, export)
-    import_instance_edges_and_ports(ic_copy, export, nodes_by_id, {})
+    import_instance_edges_and_ports(ic_copy, export, nodes_by_id)
 
     edge = NodeInputPortBinding.objects.get(instance=ic_copy)
     assert edge.source_node is not None
@@ -493,13 +493,12 @@ def test_dataset_binding_fanout_group_survives_export_import(db_source):
             position=0,
         )
 
-    export = export_instance(ic_src)
+    export, _ = export_instance(ic_src).rekeyed()
     ic_copy = InstanceConfigFactory.create(identifier='copytest-dst', name='dst', config_source='yaml')
     nodes_by_id = import_instance_nodes(ic_copy, export)
     db_datasets = [d for d in export.datasets if not d.meta.is_external_placeholder and d.meta.metrics]
-    imported = import_instance_datasets(ic_copy, db_datasets, create_missing_dimensions=True)
-    datasets_by_id = {d.identifier: d for d in imported if d.identifier is not None}
-    import_instance_edges_and_ports(ic_copy, export, nodes_by_id, datasets_by_id)
+    import_instance_datasets(ic_copy, db_datasets, create_missing_dimensions=True)
+    import_instance_edges_and_ports(ic_copy, export, nodes_by_id)
 
     copy_pks = set(ic_copy.nodes.values_list('pk', flat=True))
     rows = list(NodeInputPortBinding.objects.filter(instance=ic_copy).select_related('node', 'dataset', 'metric'))

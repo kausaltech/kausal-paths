@@ -21,6 +21,8 @@ from kausal_common.datasets.tests.factories import (
     DatasetSchemaFactory,
 )
 
+from paths.rekey import rekeyed
+
 from datasets.snapshot import DatasetSnapshot
 from datasets.transfer import import_dataset
 from nodes.models import DatasetMaterialization
@@ -72,7 +74,7 @@ def test_dataset_provenance_round_trip():
     # --- Import into a fresh instance ---
     dst = InstanceConfigFactory.create(name='prov-dst', config_source='database')
     dst_ct = ContentType.objects.get_for_model(dst)
-    new_ds = import_dataset(dst, snap, dst_ct, {})
+    new_ds = import_dataset(dst, rekeyed(snap)[0])
 
     # DataSource recreated, scoped to the copy, with a fresh uuid.
     new_sources = DataSource.objects.filter(scope_content_type=dst_ct, scope_id=dst.pk, name='Census')
@@ -111,7 +113,7 @@ def test_dataset_provenance_unknown_user_uuid_is_dropped():
     author.delete()
 
     dst = InstanceConfigFactory.create(name='prov-dst2', config_source='database')
-    new_ds = import_dataset(dst, snap, ContentType.objects.get_for_model(dst), {})
+    new_ds = import_dataset(dst, rekeyed(snap)[0])
 
     new_comment = DataPointComment.objects.get(data_point__dataset=new_ds)
     assert new_comment.text == 'note'
@@ -134,9 +136,8 @@ def test_empty_cells_survive_the_round_trip():
     DataPointFactory.create(dataset=mixed, metric=mixed_metric, date=date(2023, 1, 1), value=None)
 
     dst = InstanceConfigFactory.create(name='tmpl-dst', config_source='database')
-    dst_ct = ContentType.objects.get_for_model(dst)
-    new_template = import_dataset(dst, DatasetSnapshot.from_model(template, src), dst_ct, {})
-    new_mixed = import_dataset(dst, DatasetSnapshot.from_model(mixed, src), dst_ct, {})
+    new_template = import_dataset(dst, rekeyed(DatasetSnapshot.from_model(template, src))[0])
+    new_mixed = import_dataset(dst, rekeyed(DatasetSnapshot.from_model(mixed, src))[0])
 
     assert sorted(new_template.data_points.values_list('date__year', 'value')) == [(2022, None), (2023, None)]
     assert sorted(new_mixed.data_points.values_list('date__year', 'value')) == [(2022, Decimal(5)), (2023, None)]
