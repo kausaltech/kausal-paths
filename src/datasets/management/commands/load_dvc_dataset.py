@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import date
 from typing import TYPE_CHECKING
 
 from django.contrib.contenttypes.models import ContentType
@@ -14,7 +14,6 @@ from rich import print
 from kausal_common.datasets.models import (
     DataPoint,
     DataPointComment,
-    DataPointDimensionCategory,
     Dataset,
     DatasetMetric,
     DatasetSchema,
@@ -31,7 +30,7 @@ from kausal_common.i18n.pydantic import TranslatedString
 from common import polars as ppl
 from datasets.materialization import refresh_dataset_materialization
 from datasets.placeholders import make_external_dataset_ref, sync_dataset_placeholder
-from datasets.runtime import JSONDataset
+from datasets.runtime import DBDataset
 from nodes.constants import (
     COMMENT_SEPARATOR,
     FORECAST_COLUMN,
@@ -163,7 +162,7 @@ def count_incoming_cells(df: ppl.PathsDataFrame, metric_cols: Sequence[str]) -> 
     Count what an import of ``df`` would create: (data points, of which carry a value).
 
     The first number is every (row, metric) cell, because that is what
-    ``create_data_points`` creates -- a cell with no value becomes a ``DataPoint`` with a
+    ``sync_data_points`` creates -- a cell with no value becomes a ``DataPoint`` with a
     null ``value``, deliberately, so the city can see it and fill it in. It is therefore
     the only number comparable with ``Dataset.data_points.count()``.
 
@@ -382,34 +381,6 @@ def _parse_column_dimension_mappings(values: list[str]) -> dict[str, str]:
     return mappings
 
 
-class CategoryLookup:
-    """
-    The instance's dimension categories by identifier, each dimension loaded on first use.
-
-    One query per dimension an import touches, rather than one per cell. Built per import,
-    not cached at module level: the categories it serves can be created by the same run.
-    """
-
-    def __init__(self, instance_config: InstanceConfig):
-        self.instance_config = instance_config
-        self.by_dimension: dict[str, dict[str, DimensionCategory]] = {}
-
-    def get(self, dimension_identifier: str, identifier: str) -> DimensionCategory:
-        categories = self.by_dimension.get(dimension_identifier)
-        if categories is None:
-            scope = DimensionScope.objects.get(
-                scope_content_type=ContentType.objects.get_for_model(self.instance_config),
-                scope_id=self.instance_config.pk,
-                identifier=dimension_identifier,
-            )
-            categories = {category.identifier: category for category in scope.dimension.categories.all() if category.identifier}
-            self.by_dimension[dimension_identifier] = categories
-        category = categories.get(identifier)
-        if category is None:
-            raise DimensionCategory.DoesNotExist(f"Dimension category '{identifier}' not found in {dimension_identifier}")
-        return category
-
-
 class Command(BaseCommand):
     help = 'Create a dataset in DB based on a DVC dataset'
 
@@ -607,7 +578,7 @@ class Command(BaseCommand):
                 metric.unit = incoming_unit
                 metric.save(update_fields=['unit'])
 
-        df, column_dimensions = self.sync_dimensions(
+        df = self.sync_dimensions(
             schema=schema,
             instance_config=instance_config,
             ctx=ctx,
@@ -618,14 +589,7 @@ class Command(BaseCommand):
         for col, dt in df.schema.items():
             if dt == pl.Categorical:
                 df = df.with_columns(pl.col(col).cast(pl.Utf8))
-        self.create_data_points(
-            instance_config,
-            df,
-            dataset,
-            metrics,
-            column_dimensions=column_dimensions,
-            sources_meta=dvc_metadata.get('sources'),
-        )
+        self.sync_data_points(instance_config, df, dataset, sources_meta=dvc_metadata.get('sources'))
         refresh_dataset_materialization(dataset)
 
     def create_dataset_schema(
@@ -664,7 +628,7 @@ class Command(BaseCommand):
         default_language: str,
     ) -> DatasetSchema:
         """
-        Replace a dataset's contents while keeping the row itself.
+        Prepare a dataset for new contents while keeping the row itself.
 
         Deleting and recreating the row is the older strategy, and it is destructive in
         ways that are easy to miss: ``NodeInputPortBinding``, ``NodeDataset`` and
@@ -676,11 +640,12 @@ class Command(BaseCommand):
         schema = dataset.schema
         assert schema is not None
 
-        deleted, _ = dataset.data_points.all().delete()
-        print(f'Deleted {deleted} row(s) of existing data')
-
+        # The data points themselves are upserted later (`sync_data_points`), which keeps the
+        # identity of every cell that survives. Only a dropped metric's points go now: the
+        # metric holds them under PROTECT.
         for name, port_count in plan.dropped_metrics:
             assert not port_count, 'bound metrics are refused before we get here'
+            dataset.data_points.filter(metric__schema=schema, metric__name=name).delete()
             if plan.schema_shared_with > 1:
                 print(f"Keeping stale metric '{name}': the schema is shared with other datasets")
                 continue
@@ -822,32 +787,36 @@ class Command(BaseCommand):
         """Split comment_cell (COMMENT_SEPARATOR-joined for >1) into one note per DataPointComment."""
         return [text for part in comment_cell.split(COMMENT_SEPARATOR) if (text := part.strip())]
 
-    def create_data_points(
+    def sync_data_points(
         self,
         instance_config: InstanceConfig,
         df: ppl.PathsDataFrame,
         dataset: Dataset,
-        metrics: dict[str, DatasetMetric],
         *,
-        column_dimensions: dict[str, str] | None = None,
         sources_meta: list[dict[str, str | None]] | None = None,
-    ):
+    ) -> None:
         """
-        Create the dataset's data points, and with them everything the metadata says about provenance.
+        Make the dataset's data points match ``df``, and with them everything the metadata says about provenance.
+
+        The data points are upserted (`DBDataset.upsert_df`): a cell present before and after
+        keeps its data point and so its uuid, its evidence and whatever was said about it in
+        the admin; a cell gone from the DVC data loses its data point. A valueless cell
+        becomes a null data point, deliberately; `upsert_df` says why.
 
         The dataset-level source references are (re)built here too, rather than beside the
         caller: both levels are resolved from the one ``sources_meta`` list, and doing them
         together is what keeps a source from being attached twice under two different names
         for the same row set.
+
+        The DVC data speaks only for the provenance it carries. A row with a comment replaces
+        the comments nobody authored (the ones an earlier import created) on its data points,
+        and a row citing sources does the same with their source references; a row with
+        neither leaves its data points' provenance as it is. Comments and references a user
+        wrote are never touched.
         """
-        column_dimensions = column_dimensions or {}
         data_sources = self.get_or_create_data_sources(instance_config, sources_meta)
         self.sync_dataset_source_references(dataset, data_sources)
         meta = df.get_meta()
-        table = JSONDataset.serialize_df(df)
-        # We might not need to serialize `df` to create the data points, but I didn't check what the manipulations
-        # of `df` above and the serialization do, so I'll take the serialization like the old version of
-        # this management command did.
         # 'Source'/'Comment' (or, for plain_csv_wide, 'Description') are reserved per-row columns:
         # not dimensions, read back here into DataSource/DataPointComment links.
         #
@@ -862,75 +831,86 @@ class Command(BaseCommand):
                 f"Use 'Comment' only, joining several notes with '{COMMENT_SEPARATOR}'."
             )
         comment_col = comment_cols[0] if comment_cols else None
-        categories = CategoryLookup(instance_config)
-        # Everything is written in one bulk insert per table, because row-at-a-time ORM writes
-        # cost several round trips per cell: an 8000-cell dataset took most of a minute.
-        data_points: list[DataPoint] = []
-        point_categories: list[list[DimensionCategory]] = []
-        point_sources: list[list[DataSource]] = []
-        point_comments: list[list[str]] = []
+        provenance_cols = [col for col in (source_col, comment_col) if col is not None]
+        if provenance_cols:
+            # A row split to carry metric-specific provenance repeats its cell empty in the
+            # other half, and an empty template cell's instruction arrives on such a row too.
+            # Among empty repeats the first row wins (`upsert_df`), so the one that says
+            # something about the cell goes first.
+            df = df.sort(pl.all_horizontal(pl.col(provenance_cols).is_null()), maintain_order=True)
+
+        try:
+            upsert = DBDataset.upsert_df(dataset, df)
+        except DimensionCategory.DoesNotExist as e:
+            raise CommandError(f'{e}. Did you run --update-instance?') from e
+        print(
+            f'Data points: {upsert.created} created, {upsert.updated} updated, '
+            f'{upsert.unchanged} unchanged, {upsert.deleted} deleted'
+        )
+
+        point_sources: dict[DataPoint, list[DataSource]] = {}
+        point_comments: dict[DataPoint, list[str]] = {}
         sources_by_cell: dict[str, list[DataSource]] = {}
-        for row in table['data']:
-            year = date(year=row['Year'], month=1, day=1)
-            row_categories: list[DimensionCategory] = []
-            for column in meta.dim_ids:
-                dim_cat_identifier = row[column]
-                if not dim_cat_identifier:
-                    continue
-                try:
-                    cat = categories.get(column_dimensions.get(column, column), dim_cat_identifier)
-                except DimensionCategory.DoesNotExist:
-                    print(f"Dimension category '{dim_cat_identifier}' not found. Did you run --update-instance?")
-                    raise
-                if cat not in row_categories:
-                    row_categories.append(cat)
+        for index, row in enumerate(df.iter_rows(named=True)):
             source_cell = row.get(source_col) if source_col else None
             if source_cell and source_cell not in sources_by_cell:
                 sources_by_cell[source_cell] = self.resolve_data_point_sources(source_cell, data_sources)
             row_sources = sources_by_cell[source_cell] if source_cell else []
             comment_cell = row.get(comment_col) if comment_col else None
             row_comments = self.comment_texts(comment_cell) if comment_cell else []
-            for metric_identifier, metric in metrics.items():
-                # A valueless cell is created as a DataPoint with a null value rather than
-                # skipped. `DataPoint.value` is nullable, GraphQL types it `float | None`, and
-                # DataAvailabilityNode tests `is_not_null()` — so an empty cell reads as
-                # "no data" while still existing as a row the city can see, comment on and
-                # fill in. Skipping it lost the cell, its dimension categories, its source
-                # link and its comment, which is why BISKO template datasets had to ship
-                # zeros: a pre-filled 0 is indistinguishable from a municipality-confirmed 0,
-                # and the certifier's Pruefschritt 1.4 tests exactly that.
-                data_points.append(DataPoint(dataset=dataset, date=year, metric=metric, value=row[metric_identifier]))
-                point_categories.append(row_categories)
-                point_sources.append(row_sources)
-                point_comments.append(row_comments)
+            for column in meta.metric_cols:
+                point = upsert.points.get((index, column))
+                if point is None:
+                    continue  # the cell was taken from another row, and its provenance with it
+                if row_sources:
+                    point_sources[point] = row_sources
+                if row_comments:
+                    point_comments[point] = row_comments
+        self.sync_point_source_references(point_sources)
+        self.sync_point_comments(point_comments)
 
-        DataPoint.objects.bulk_create(data_points, batch_size=BULK_BATCH_SIZE)
-        DataPointDimensionCategory.objects.bulk_create(
-            [
-                DataPointDimensionCategory(data_point=data_point, dimension_category=cat)
-                for data_point, cats in zip(data_points, point_categories, strict=True)
-                for cat in cats
-            ],
-            batch_size=BULK_BATCH_SIZE,
-        )
-        DatasetSourceReference.objects.bulk_create(
-            [
-                DatasetSourceReference(data_point=data_point, data_source=source)
-                for data_point, sources in zip(data_points, point_sources, strict=True)
-                for source in sources
-            ],
-            batch_size=BULK_BATCH_SIZE,
-        )
-        DataPointComment.objects.bulk_create(
-            [
-                DataPointComment(data_point=data_point, text=text)
-                for data_point, texts in zip(data_points, point_comments, strict=True)
-                for text in texts
-            ],
-            batch_size=BULK_BATCH_SIZE,
-        )
-        num_created = len(data_points)
-        print(f'Created {num_created} data points')
+    @staticmethod
+    def sync_point_source_references(point_sources: dict[DataPoint, list[DataSource]]) -> None:
+        """Give each data point the DVC row's sources, in place of the references nobody authored."""
+        if not point_sources:
+            return
+        references: defaultdict[int, list[DatasetSourceReference]] = defaultdict(list)
+        for reference in DatasetSourceReference.objects.filter(data_point__in=point_sources).order_by('id'):
+            assert reference.data_point_id is not None
+            references[reference.data_point_id].append(reference)
+        stale: list[int] = []
+        new: list[DatasetSourceReference] = []
+        for point, sources in point_sources.items():
+            imported = [ref for ref in references[point.pk] if ref.created_by_id is None]
+            if [ref.data_source_id for ref in imported] == [source.pk for source in sources]:
+                continue
+            authored = {ref.data_source_id for ref in references[point.pk] if ref.created_by_id is not None}
+            stale.extend(ref.pk for ref in imported)
+            new.extend(DatasetSourceReference(data_point=point, data_source=s) for s in sources if s.pk not in authored)
+        if stale:
+            DatasetSourceReference.objects.filter(pk__in=stale).delete()
+        DatasetSourceReference.objects.bulk_create(new, batch_size=BULK_BATCH_SIZE)
+
+    @staticmethod
+    def sync_point_comments(point_comments: dict[DataPoint, list[str]]) -> None:
+        """Give each data point the DVC row's comments, in place of the comments nobody authored."""
+        if not point_comments:
+            return
+        imported: defaultdict[int, list[DataPointComment]] = defaultdict(list)
+        for comment in DataPointComment.objects.filter(data_point__in=point_comments, created_by__isnull=True).order_by('id'):
+            assert comment.data_point_id is not None
+            imported[comment.data_point_id].append(comment)
+        stale: list[int] = []
+        new: list[DataPointComment] = []
+        for point, texts in point_comments.items():
+            current = imported[point.pk]
+            if [comment.text for comment in current] == texts:
+                continue  # unchanged, so it keeps its uuid and whatever review state it has
+            stale.extend(comment.pk for comment in current)
+            new.extend(DataPointComment(data_point=point, text=text) for text in texts)
+        if stale:
+            DataPointComment.objects.filter(pk__in=stale).delete()
+        DataPointComment.objects.bulk_create(new, batch_size=BULK_BATCH_SIZE)
 
     def rename_value_columns(self, df: ppl.PathsDataFrame):
         meta = df.get_meta()
@@ -958,7 +938,7 @@ class Command(BaseCommand):
         ctx: Context,
         df: ppl.PathsDataFrame,
         create_dimensions_from_columns: dict[str, str],
-    ) -> tuple[ppl.PathsDataFrame, dict[str, str]]:
+    ) -> ppl.PathsDataFrame:
         df_metadata = df.get_meta()
         dim_ids = set(df_metadata.dim_ids)
         for column in create_dimensions_from_columns:
@@ -968,7 +948,6 @@ class Command(BaseCommand):
                     + f'Available dimension columns: {", ".join(sorted(dim_ids))}'
                 )
 
-        column_dimensions: dict[str, str] = {}
         for col in df_metadata.dim_ids:
             if dimension_identifier := create_dimensions_from_columns.get(col):
                 self.remove_schema_dimensions_for_column(
@@ -984,7 +963,6 @@ class Command(BaseCommand):
                     dimension_identifier=dimension_identifier,
                     category_identifiers=self.get_category_identifiers_from_column(df, col),
                 )
-                column_dimensions[col] = dimension_identifier
                 continue
 
             self.get_or_create_dimension(
@@ -1000,7 +978,7 @@ class Command(BaseCommand):
             # assert new_col.equals(df[col])
             df = df.with_columns(new_col)
 
-        return df, column_dimensions
+        return df
 
     def create_metric(
         self, col: str, unit: Unit, schema: DatasetSchema, default_language: str, label_i18n: dict[str, str] | None
