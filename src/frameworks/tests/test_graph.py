@@ -321,7 +321,7 @@ def test_publication_retains_framework_data_revision(
     dependent_instance.publish_instance()
     published_pin = InstanceRevisionDatasetPin.objects.get(instance_revision_id=dependent_instance.live_revision_id)
     assert published_pin.dataset_revision_id == pin.revision_id
-    assert published_pin.dataset_revision.content['data']['data'][0]['Value'] == 42
+    assert [point['value'] for point in published_pin.dataset_revision.content['points']] == [42]
 
 
 def test_shared_output_can_feed_local_node_and_retains_it(

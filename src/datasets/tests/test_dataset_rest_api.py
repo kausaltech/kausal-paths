@@ -2022,7 +2022,11 @@ def test_rest_comment_write_refreshes_provenance(api_client, dataset_test_data):
     assert response.status_code == 201
     materialization.refresh_from_db()
     assert materialization.generation == 2
-    assert any(comment['text'] == 'Materialized REST comment' for comment in materialization.content['comments'])
+    assert any(
+        comment['text'] == 'Materialized REST comment'
+        for point in materialization.content['points']
+        for comment in point['comments']
+    )
 
 
 def test_rest_source_reference_write_refreshes_provenance(api_client, dataset_test_data):
@@ -2040,7 +2044,7 @@ def test_rest_source_reference_write_refreshes_provenance(api_client, dataset_te
     assert response.status_code == 201
     materialization.refresh_from_db()
     assert materialization.generation == 2
-    assert any(source['uuid'] == str(data_source.uuid) for source in materialization.content['data_sources'])
+    assert any(source['id'] == str(data_source.uuid) for source in materialization.content['data_sources'])
 
 
 def test_rest_schema_update_refreshes_all_datasets(api_client, dataset_test_data):
@@ -2068,8 +2072,8 @@ def test_rest_schema_update_refreshes_all_datasets(api_client, dataset_test_data
     second_materialization.refresh_from_db()
     assert first_materialization.generation == 2
     assert second_materialization.generation == 2
-    assert first_materialization.content['name']['en'] == 'Materialized schema name'
-    assert second_materialization.content['name']['en'] == 'Materialized schema name'
+    assert first_materialization.content['meta']['name']['en'] == 'Materialized schema name'
+    assert second_materialization.content['meta']['name']['en'] == 'Materialized schema name'
 
 
 def test_rest_data_source_update_refreshes_all_referencing_datasets(api_client, dataset_test_data):

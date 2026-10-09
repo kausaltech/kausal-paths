@@ -154,3 +154,70 @@ def test_import_needs_an_organization_choice_when_ambiguous(db_instance: Instanc
 
     ic = import_instance_export(export, identifier='chosen', organization=str(other.uuid))
     assert ic.organization == other
+
+
+def test_a_document_with_v1_dataset_bodies_still_imports(db_instance: InstanceConfig) -> None:
+    """
+    A deployment still on `DatasetSnapshot` v1 exports wide tables keyed by identifier.
+
+    `InstanceExport.from_serialized_data` upgrades them against the export's own catalog,
+    so a production export can be imported locally across the change.
+    """
+    import datetime
+    from decimal import Decimal
+
+    from django.contrib.contenttypes.models import ContentType
+
+    from kausal_common.datasets.models import DataPointComment, Dataset, DimensionScope
+    from kausal_common.datasets.tests.factories import (
+        DataPointFactory,
+        DatasetFactory,
+        DatasetMetricFactory,
+        DatasetSchemaDimensionFactory,
+        DimensionCategoryFactory,
+        DimensionFactory,
+    )
+
+    dimension = DimensionFactory.create(name='Sector')
+    DimensionScope.objects.create(
+        dimension=dimension,
+        scope_content_type=ContentType.objects.get_for_model(db_instance),
+        scope_id=db_instance.pk,
+        identifier='sector',
+    )
+    homes = DimensionCategoryFactory.create(dimension=dimension, identifier='homes', label='Homes')
+    dataset = DatasetFactory.create(identifier='city/energy', scope=db_instance)
+    DatasetSchemaDimensionFactory.create(schema=dataset.schema, dimension=dimension)
+    metric = DatasetMetricFactory.create(schema=dataset.schema, name='energy', label='Energy', unit='MWh')
+    DataPointFactory.create(
+        dataset=dataset, metric=metric, date=datetime.date(2020, 1, 1), value=Decimal(7), dimension_categories=[homes]
+    )
+
+    document = json.loads(export_instance(db_instance).model_dump_json())
+    document['instance']['schema_version'] = 14
+    v1_body = {
+        'schema_version': 1,
+        'uuid': str(dataset.uuid),
+        'identifier': 'city/energy',
+        'name': {'en': 'Energy'},
+        'dimensions': ['sector'],
+        'metrics': [{'identifier': 'energy', 'label': {'en': 'Energy'}, 'unit': 'MWh', 'validation_rules': []}],
+        'data': {
+            'schema': {'fields': [{'name': 'Year'}, {'name': 'sector'}, {'name': 'energy', 'unit': 'MWh'}]},
+            'data': [{'Year': 2020, 'sector': 'homes', 'energy': 7.0}],
+        },
+        'comments': [{'point': {'year': 2020, 'metric': 'energy', 'categories': ['homes']}, 'text': 'metered'}],
+    }
+    document['datasets'] = [v1_body]
+    document['instance']['metadata'] |= {'identifier': 'downloaded', 'uuid': '00000000-0000-4000-8000-000000000002'}
+
+    export = InstanceExport.from_serialized_data(document)
+    (body,) = export.datasets
+    assert body.schema_version == 2
+    (point,) = body.points
+    assert (point.value, point.categories) == (7.0, {dimension.uuid: homes.uuid})
+
+    ic = import_instance_export(export, organization=str(db_instance.organization.uuid))
+    imported = Dataset.objects.get(scope_id=ic.pk, identifier='city/energy')
+    assert list(imported.data_points.values_list('value', flat=True)) == [Decimal(7)]
+    assert list(DataPointComment.objects.filter(data_point__dataset=imported).values_list('text', flat=True)) == ['metered']

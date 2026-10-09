@@ -1,51 +1,44 @@
-"""Dataset revision and portable export snapshot shapes."""
+"""
+Dataset revision and portable export snapshot shapes.
 
-from typing import TYPE_CHECKING, Any, Self
-from uuid import UUID  # noqa: TC003 - Pydantic field
+A `DatasetSnapshot` is a dataset's structure (a `DatasetMeta`, the same entry the
+instance graph catalogs) and its body: one entry per data point, each carrying its
+own uuid and the comments, evidence and source references attached to it. Everything
+is referred to by uuid; column names and category labels are a property of the frame
+built from it (`DatasetSnapshot.to_frame`), never of the stored form.
+"""
+
+from collections import defaultdict
+from datetime import date
+from typing import TYPE_CHECKING, Literal, Self
+from uuid import UUID
 
 from django.db.models import CharField, F, Value
 from django.db.models.functions import Cast, Coalesce, NullIf
 from pydantic import BaseModel, Field
 
-from kausal_common.datasets.category_domain import DatasetCategoryDomain
-from kausal_common.i18n.pydantic import TranslatedString  # noqa: TC002 - Pydantic field
+import polars as pl
 
-from datasets.shape_domain import dataset_category_domain
-from datasets.validation_rules import (
-    ValidationRule,
-    validation_rule_adapter,
-)
-from nodes.snapshot_base import ModelSnapshot, translated_string_from_model
+from common import polars as ppl
+from nodes.constants import YEAR_COLUMN
+from nodes.defs.graph import DatasetMeta  # noqa: TC001 - Pydantic field
+from nodes.snapshot_base import ModelSnapshot
+from nodes.units import unit_registry
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from kausal_common.datasets.models import (
-        DataPoint,
         DataPointComment,
         Dataset,
         DatasetMetric,
-        DatasetMetricValidationRule,
         DatasetSourceReference,
         DataSource,
     )
 
     from frameworks.models import DataPointEvidence
+    from nodes.defs.graph import DimensionMeta
     from nodes.models import InstanceConfig
-
-
-class MetricValidationRuleSnapshot(ModelSnapshot['DatasetMetricValidationRule']):
-    """
-    One validation rule bound to a metric.
-
-    ``rule`` parses the stored blob strictly against the schema in
-    ``datasets.validation_rules``; ``uuid`` records the source row's identity.
-    """
-
-    uuid: UUID
-    rule: ValidationRule
-
-    @classmethod
-    def from_model(cls, obj: DatasetMetricValidationRule) -> Self:
-        return cls(uuid=obj.uuid, rule=validation_rule_adapter.validate_python(obj.rule))
 
 
 def metric_column_id(metric: DatasetMetric) -> str:
@@ -83,44 +76,10 @@ def metric_column_id_expr(prefix: str = '') -> Coalesce:
     )
 
 
-class DatasetMetricSnapshot(ModelSnapshot['DatasetMetric']):
-    identifier: str
-    label: TranslatedString | None = None
-    unit: str
-    quantity: str | None = None
-    validation_rules: list[MetricValidationRuleSnapshot] = Field(default_factory=list)
-
-    @classmethod
-    def from_model(cls, obj: DatasetMetric, primary_language: str = 'en') -> Self:
-        return cls(
-            identifier=metric_column_id(obj),
-            label=translated_string_from_model(obj, 'label', primary_language),
-            unit=obj.unit,
-            quantity=(obj.spec or {}).get('quantity'),
-            validation_rules=[MetricValidationRuleSnapshot.from_model(rule) for rule in obj.validation_rules.order_by('order')],
-        )
-
-
-class DataPointKey(BaseModel):
-    """Natural key locating a DataPoint within its dataset (id-free, restore-stable)."""
-
-    year: int
-    metric: str  # metric identifier (name or uuid)
-    categories: list[str] = Field(default_factory=list)  # sorted dimension-category ids
-
-    @classmethod
-    def from_model(cls, obj: DataPoint) -> Self:
-        return cls(
-            year=obj.date.year,
-            metric=metric_column_id(obj.metric),
-            categories=sorted(category.identifier or str(category.uuid) for category in obj.dimension_categories.all()),
-        )
-
-
 class DataSourceSnapshot(ModelSnapshot['DataSource']):
-    """A published data source referenced by a dataset or its data points."""
+    """A data source cited by the dataset or by its data points."""
 
-    uuid: str  # source DataSource uuid; the join key for references within the snapshot
+    id: UUID
     name: str
     edition: str | None = None
     authority: str | None = None
@@ -130,7 +89,7 @@ class DataSourceSnapshot(ModelSnapshot['DataSource']):
     @classmethod
     def from_model(cls, obj: DataSource) -> Self:
         return cls(
-            uuid=str(obj.uuid),
+            id=obj.uuid,
             name=obj.name,
             edition=obj.edition,
             authority=obj.authority,
@@ -140,23 +99,20 @@ class DataSourceSnapshot(ModelSnapshot['DataSource']):
 
 
 class SourceReferenceSnapshot(ModelSnapshot['DatasetSourceReference']):
-    """Links a data source to the dataset (``point`` is None) or to one data point."""
+    """A citation of a data source, by the dataset or by the data point it is listed under."""
 
-    data_source: str  # DataSourceSnapshot.uuid
-    point: DataPointKey | None = None
+    id: UUID
+    data_source: UUID
 
     @classmethod
     def from_model(cls, obj: DatasetSourceReference) -> Self:
-        return cls(
-            data_source=str(obj.data_source.uuid),
-            point=DataPointKey.from_model(obj.data_point) if obj.data_point is not None else None,
-        )
+        return cls(id=obj.uuid, data_source=obj.data_source.uuid)
 
 
 class DataPointCommentSnapshot(ModelSnapshot['DataPointComment']):
     """A (non-soft-deleted) comment on a data point. Users are referenced by uuid."""
 
-    point: DataPointKey
+    id: UUID
     text: str
     is_sticky: bool = False
     is_review: bool = False
@@ -168,9 +124,8 @@ class DataPointCommentSnapshot(ModelSnapshot['DataPointComment']):
 
     @classmethod
     def from_model(cls, obj: DataPointComment) -> Self:
-        assert obj.data_point is not None
         return cls(
-            point=DataPointKey.from_model(obj.data_point),
+            id=obj.uuid,
             text=obj.text,
             is_sticky=obj.is_sticky,
             is_review=obj.is_review,
@@ -187,19 +142,21 @@ class QualityLevelRef(BaseModel):
     A framework quality grade, by UUID and by authored identity.
 
     The UUID is exact within one deployment; the identifiers let a snapshot
-    resolve against a framework provisioned elsewhere.
+    resolve against a framework provisioned elsewhere. The score is the grade's
+    as it stood when the snapshot was taken, so a frozen revision computes the
+    quality columns it computed then.
     """
 
     uuid: str
     scheme: str
     scheme_version: str
     level: str
+    score: float | None = None
 
 
 class DataPointEvidenceSnapshot(ModelSnapshot['DataPointEvidence']):
     """What is asserted about one data point's value. Users are referenced by uuid."""
 
-    point: DataPointKey
     kind: str | None = None
     quality_level: QualityLevelRef | None = None
     created_by: str | None = None  # user uuid
@@ -209,13 +166,13 @@ class DataPointEvidenceSnapshot(ModelSnapshot['DataPointEvidence']):
     def from_model(cls, obj: DataPointEvidence) -> Self:
         level = obj.quality_level
         return cls(
-            point=DataPointKey.from_model(obj.data_point),
             kind=obj.kind,
             quality_level=QualityLevelRef(
                 uuid=str(level.uuid),
                 scheme=level.scheme.identifier,
                 scheme_version=level.scheme.version,
                 level=level.identifier,
+                score=float(level.score) if level.score is not None else None,
             )
             if level is not None
             else None,
@@ -224,102 +181,233 @@ class DataPointEvidenceSnapshot(ModelSnapshot['DataPointEvidence']):
         )
 
 
+class DataPointSnapshot(BaseModel):
+    """One data point, with everything attached to it."""
+
+    id: UUID
+    date: date
+    metric: UUID
+    categories: dict[UUID, UUID] = Field(default_factory=dict)
+    """Dimension uuid to category uuid; a dimension the point is not classified by is absent."""
+    value: float | None = None
+    """A null value is a cell that exists and holds no number, which is not an absent cell."""
+    comments: list[DataPointCommentSnapshot] = Field(default_factory=list)
+    evidence: DataPointEvidenceSnapshot | None = None
+    sources: list[SourceReferenceSnapshot] = Field(default_factory=list)
+
+
+type CellLabels = tuple[int, str, tuple[str, ...]]
+"""A cell as a frame names it: year, metric column and the sorted category labels."""
+
+
+class DatasetFrameError(ValueError):
+    """The snapshot refers to a dimension or category the given catalog does not have."""
+
+
 class DatasetSnapshot(ModelSnapshot['Dataset']):
     """
-    Pydantic representation of a ``Dataset`` ORM row.
+    A dataset: its structure and every data point, keyed by uuid.
 
-    Includes its DataPoints. Used both as the Wagtail revision payload for Dataset
-    (via ``Dataset.serializable_data`` bridged in Paths) and as the
-    dataset-body carrier inside ``InstanceExport``.
+    The Wagtail revision payload of a `Dataset`, its materialization (the content
+    the current runtime reads, and the content hash) and the dataset body of an
+    `InstanceExport` are all this.
     """
 
-    schema_version: int = 1
-    uuid: UUID | None = None  # source identity for remapping layout references when copied
-    identifier: str | None = None
-    name: TranslatedString | None = None
-    forecast_from: int | None = None
-    is_external_placeholder: bool = False
-    external_ref: dict[str, Any] | None = None
-    time_resolution: str = 'yearly'
-    is_editable: bool = True
-    dimensions: list[str] = Field(default_factory=list)
-    dimension_columns: dict[str, str] = Field(default_factory=dict)
-    metrics: list[DatasetMetricSnapshot] = Field(default_factory=list)
-    category_domain: DatasetCategoryDomain = Field(default_factory=DatasetCategoryDomain)
-    data: dict[str, Any] | None = None
+    schema_version: Literal[2] = 2
+    meta: DatasetMeta
+    dimension_columns: dict[UUID, str] = Field(default_factory=dict)
+    """
+    A dimension's column in the external source, where it differs from the dimension's identifier.
+
+    External-source metadata (see decision 13 of docs/plans/node-owned-datasets.md):
+    the frame built from the snapshot uses it, so that the dataset reads as it did
+    when it was imported.
+    """
+    points: list[DataPointSnapshot] = Field(default_factory=list)
     data_sources: list[DataSourceSnapshot] = Field(default_factory=list)
+    """Every data source cited, by the dataset or by a data point."""
     source_references: list[SourceReferenceSnapshot] = Field(default_factory=list)
-    comments: list[DataPointCommentSnapshot] = Field(default_factory=list)
-    evidence: list[DataPointEvidenceSnapshot] = Field(default_factory=list)
+    """The dataset's own citations; a data point's are listed under the data point."""
 
     @classmethod
     def from_model(cls, obj: Dataset, instance_config: InstanceConfig | None = None) -> Self:
-        from kausal_common.datasets.models import DatasetSchemaDimension, DimensionScope
-
-        from datasets.transfer import export_dataset_data_safe, export_dataset_evidence, export_dataset_provenance
-
-        schema = obj.schema
-        metrics: list[DatasetMetricSnapshot] = []
-        dimensions: list[str] = []
-        dimension_columns: dict[str, str] = {}
-        name_ts: TranslatedString | None = None
-        time_resolution = 'yearly'
-        is_editable = True
-        primary_language = instance_config.primary_language if instance_config is not None else _primary_language_for_dataset(obj)
-
-        if schema is not None:
-            time_resolution = schema.time_resolution
-            is_editable = schema.is_editable
-            name_ts = translated_string_from_model(schema, 'name', primary_language)
-            metrics = [
-                DatasetMetricSnapshot.from_model(metric, primary_language) for metric in schema.metrics.all().order_by('order')
-            ]
-            dimension_instance = instance_config or obj.scope_instance
-            for schema_dimension in (
-                DatasetSchemaDimension.objects.filter(schema=schema).select_related('dimension').order_by('order')
-            ):
-                scope = (
-                    DimensionScope.objects
-                    .for_instance_config(dimension_instance)
-                    .filter(dimension=schema_dimension.dimension)
-                    .first()
-                )
-                if scope and scope.identifier:
-                    dimensions.append(scope.identifier)
-                    if schema_dimension.column_name and schema_dimension.column_name != scope.identifier:
-                        dimension_columns[scope.identifier] = schema_dimension.column_name
-
-        data: dict[str, Any] | None = None
-        data_sources: list[DataSourceSnapshot] = []
-        source_references: list[SourceReferenceSnapshot] = []
-        comments: list[DataPointCommentSnapshot] = []
-        evidence: list[DataPointEvidenceSnapshot] = []
-        if not obj.is_external_placeholder:
-            data = export_dataset_data_safe(obj, has_metrics=bool(metrics))
-            data_sources, source_references, comments = export_dataset_provenance(obj)
-            evidence = export_dataset_evidence(obj)
-
-        return cls(
-            uuid=obj.uuid,
-            identifier=obj.identifier,
-            name=name_ts,
-            forecast_from=(obj.spec or {}).get('forecast_from'),
-            is_external_placeholder=obj.is_external_placeholder,
-            external_ref=obj.external_ref,
-            time_resolution=time_resolution,
-            is_editable=is_editable,
-            dimensions=dimensions,
-            dimension_columns=dimension_columns,
-            metrics=metrics,
-            category_domain=dataset_category_domain(obj) if schema is not None else DatasetCategoryDomain(),
-            data=data,
-            data_sources=data_sources,
-            source_references=source_references,
-            comments=comments,
-            evidence=evidence,
+        from kausal_common.datasets.models import (
+            DataPoint,
+            DataPointComment,
+            DataPointDimensionCategory,
+            DatasetSchemaDimension,
+            DatasetSourceReference,
         )
 
+        from datasets.catalogue import dataset_meta_from_model
+        from frameworks.models import DataPointEvidence
 
-def _primary_language_for_dataset(obj: Dataset) -> str:
-    """Resolve the primary language for a Dataset via its scope's InstanceConfig."""
-    return obj.scope_instance.primary_language or 'en'
+        instance = instance_config or obj.scope_instance
+        meta = dataset_meta_from_model(obj, primary_language=instance.primary_language or 'en')
+        dimension_columns = {
+            schema_dimension.dimension.uuid: schema_dimension.column_name
+            for schema_dimension in DatasetSchemaDimension.objects.filter(schema=obj.schema).select_related('dimension')
+            if schema_dimension.column_name
+        }
+
+        sources: dict[UUID, DataSourceSnapshot] = {}
+
+        def cite(reference: DatasetSourceReference) -> SourceReferenceSnapshot:
+            if reference.data_source.uuid not in sources:
+                sources[reference.data_source.uuid] = DataSourceSnapshot.from_model(reference.data_source)
+            return SourceReferenceSnapshot.from_model(reference)
+
+        dataset_references = [
+            cite(reference)
+            for reference in DatasetSourceReference.objects.filter(dataset=obj).select_related('data_source').order_by('uuid')
+        ]
+        points: list[DataPointSnapshot] = []
+        if not obj.is_external_placeholder:
+            categories: defaultdict[int, dict[UUID, UUID]] = defaultdict(dict)
+            for point_pk, dimension_uuid, category_uuid in DataPointDimensionCategory.objects.filter(
+                data_point__dataset=obj
+            ).values_list('data_point_id', 'dimension_category__dimension__uuid', 'dimension_category__uuid'):
+                categories[point_pk][dimension_uuid] = category_uuid
+            comments: defaultdict[int, list[DataPointCommentSnapshot]] = defaultdict(list)
+            for comment in (
+                DataPointComment.objects  # the default manager leaves out soft-deleted comments
+                .filter(data_point__dataset=obj)
+                .select_related('created_by', 'last_modified_by', 'resolved_by')
+                .order_by('created_at', 'uuid')
+            ):
+                assert comment.data_point_id is not None
+                comments[comment.data_point_id].append(DataPointCommentSnapshot.from_model(comment))
+            point_sources: defaultdict[int, list[SourceReferenceSnapshot]] = defaultdict(list)
+            for reference in (
+                DatasetSourceReference.objects.filter(data_point__dataset=obj).select_related('data_source').order_by('uuid')
+            ):
+                assert reference.data_point_id is not None
+                point_sources[reference.data_point_id].append(cite(reference))
+            evidence = {
+                item.data_point_id: DataPointEvidenceSnapshot.from_model(item)
+                for item in DataPointEvidence.objects.filter(data_point__dataset=obj).select_related(
+                    'quality_level__scheme', 'created_by', 'last_modified_by'
+                )
+            }
+            metric_order = {metric.id: index for index, metric in enumerate(meta.metrics)}
+            for pk, uuid, point_date, value, metric_uuid in DataPoint.objects.filter(dataset=obj).values_list(
+                'pk', 'uuid', 'date', 'value', 'metric__uuid'
+            ):
+                points.append(
+                    DataPointSnapshot(
+                        id=uuid,
+                        date=point_date,
+                        metric=metric_uuid,
+                        categories=categories.get(pk, {}),
+                        value=float(value) if value is not None else None,
+                        comments=comments.get(pk, []),
+                        evidence=evidence.get(pk),
+                        sources=point_sources.get(pk, []),
+                    )
+                )
+            # An order that does not depend on row pks, so that the same data hashes alike in any database.
+            points.sort(
+                key=lambda point: (
+                    point.date,
+                    metric_order.get(point.metric, len(metric_order)),
+                    str(point.metric),
+                    sorted(str(category) for category in point.categories.values()),
+                    str(point.id),
+                )
+            )
+        return cls(
+            meta=meta,
+            dimension_columns=dimension_columns,
+            points=points,
+            data_sources=sorted(sources.values(), key=lambda source: str(source.id)),
+            source_references=dataset_references,
+        )
+
+    def _columns(self, dimensions: Mapping[UUID, DimensionMeta]) -> dict[UUID, tuple[str, dict[UUID, str]]]:
+        """Each declared dimension's frame column, and its categories' labels in it."""
+        result: dict[UUID, tuple[str, dict[UUID, str]]] = {}
+        for dimension_id in self.meta.declared_dimension_ids:
+            dimension = dimensions.get(dimension_id)
+            if dimension is None:
+                raise DatasetFrameError(
+                    f'Dataset {self.meta.identifier or self.meta.id} refers to unknown dimension {dimension_id}'
+                )
+            column = self.dimension_columns.get(dimension_id) or dimension.identifier
+            result[dimension_id] = (
+                column,
+                {category.id: category.identifier or str(category.id) for category in dimension.categories},
+            )
+        return result
+
+    def _labels(self, point: DataPointSnapshot, columns: Mapping[UUID, tuple[str, dict[UUID, str]]]) -> dict[str, str]:
+        labels: dict[str, str] = {}
+        for dimension_id, category_id in point.categories.items():
+            if dimension_id not in columns:
+                continue  # classified by a dimension the schema no longer declares; the frame has no column for it
+            column, categories = columns[dimension_id]
+            label = categories.get(category_id)
+            if label is None:
+                raise DatasetFrameError(
+                    f'Dataset {self.meta.identifier or self.meta.id}: data point {point.id} '
+                    f'refers to unknown category {category_id}'
+                )
+            labels[column] = label
+        return labels
+
+    def to_frame(self, dimensions: Mapping[UUID, DimensionMeta]) -> ppl.PathsDataFrame:
+        """
+        Build the frame the computation reads: one row per year and categories, one column per metric.
+
+        ``dimensions`` is the catalog the frame's column names and category labels come
+        from, normally the dimensions of the graph that reads the dataset. It is the same
+        frame `DBDataset.deserialize_df` builds from the live rows: a metric whose grades
+        another metric holds (`DatasetMetricMeta.quality_of`) reads the scores of the
+        graded metric's evidence instead of data points of its own, and a metric without
+        data points is a typed, empty column.
+        """
+        columns = self._columns(dimensions)
+        dim_columns = [column for column, _ in columns.values()]
+        metric_columns = {metric.id: metric.identifier or str(metric.id) for metric in self.meta.metrics}
+        projections = {metric.id: metric.quality_of for metric in self.meta.metrics if metric.quality_of is not None}
+        graded = set(projections.values())
+        rows: dict[tuple[int, tuple[str | None, ...]], dict[str, object]] = {}
+        for point in self.points:
+            if point.metric in projections or point.metric not in metric_columns:
+                continue
+            labels = self._labels(point, columns)
+            key = (point.date.year, tuple(labels.get(column) for column in dim_columns))
+            row = rows.setdefault(key, {YEAR_COLUMN: point.date.year, **{column: labels.get(column) for column in dim_columns}})
+            column = metric_columns[point.metric]
+            if column in row and row[column] is not None and point.value is None:
+                continue  # a duplicate cell; the valued one wins
+            row[column] = point.value
+            if point.metric in graded:
+                level = point.evidence.quality_level if point.evidence is not None else None
+                for projected, of in projections.items():
+                    if of == point.metric and level is not None and level.score is not None:
+                        row[metric_columns[projected]] = level.score
+        schema: dict[str, pl.DataType | type[pl.DataType]] = {
+            YEAR_COLUMN: pl.Int64,
+            **dict.fromkeys(dim_columns, pl.String),
+            **dict.fromkeys(metric_columns.values(), pl.Float64),
+        }
+        df = pl.from_dicts(list(rows.values()), schema=schema).sort([YEAR_COLUMN, *dim_columns])
+        if dim_columns:
+            df = df.with_columns([pl.col(column).cast(pl.Categorical) for column in dim_columns])
+        meta = ppl.DataFrameMeta(
+            units={metric_columns[metric.id]: unit_registry.parse_units(metric.unit) for metric in self.meta.metrics},
+            primary_keys=[YEAR_COLUMN, *dim_columns],
+        )
+        return ppl.to_ppdf(df, meta)
+
+    def cell_grades(self, dimensions: Mapping[UUID, DimensionMeta]) -> dict[CellLabels, QualityLevelRef]:
+        """Return the grade of every graded data point, by the cell the frame from `to_frame` names it with."""
+        columns = self._columns(dimensions)
+        metric_columns = {metric.id: metric.identifier or str(metric.id) for metric in self.meta.metrics}
+        grades: dict[CellLabels, QualityLevelRef] = {}
+        for point in self.points:
+            if point.evidence is None or point.evidence.quality_level is None or point.metric not in metric_columns:
+                continue
+            labels = tuple(sorted(self._labels(point, columns).values()))
+            grades[point.date.year, metric_columns[point.metric], labels] = point.evidence.quality_level
+        return grades

@@ -35,6 +35,7 @@ if TYPE_CHECKING:
     )
 
     from datasets.payloads import DatasetPayloadRef, DatasetPayloadStore
+    from datasets.snapshot import CellLabels, QualityLevelRef
     from nodes.context import Context
     from nodes.defs.node_defs import InputDatasetDef
 
@@ -72,14 +73,10 @@ class SerializedDBDataset(DatasetWithFilters):
         assert self.payload_ref is not None
         assert self.payload_store is not None
         df = self.payload_store.get_dataframe(self.payload_ref).copy()
-        from datasets.snapshot import DataPointEvidenceSnapshot
         from frameworks.qualifiers import attach_evidence_qualifiers
 
-        evidence = [
-            DataPointEvidenceSnapshot.model_validate(item)
-            for item in self.payload_store.get_content(self.payload_ref).get('evidence', [])
-        ]
-        df = attach_evidence_qualifiers(df, evidence, self.context.qualifiers, portable=True)
+        grades = self.payload_store.get_cell_grades(self.payload_ref)
+        df = attach_evidence_qualifiers(df, grades, self.context.qualifiers, portable=True)
         df = self._filter_and_process_df(df)
         df = self.after_transformations(df)
         self.df = df
@@ -148,11 +145,10 @@ class DBDataset(DatasetWithFilters):
             df = self.deserialize_df(ds_obj)
             self.context.db_dataset_dfs[ds_obj.pk] = df
         df = df.copy()
-        from datasets.transfer import export_dataset_evidence
         from frameworks.qualifiers import attach_evidence_qualifiers
 
-        evidence = export_dataset_evidence(ds_obj) if self.context.qualifiers.assessments else []
-        df = attach_evidence_qualifiers(df, evidence, self.context.qualifiers)
+        grades = self.cell_grades(ds_obj) if self.context.qualifiers.assessments else {}
+        df = attach_evidence_qualifiers(df, grades, self.context.qualifiers)
         df = self._filter_and_process_df(df)
         df = self.after_transformations(df)
         self.df = df
@@ -295,6 +291,39 @@ class DBDataset(DatasetWithFilters):
         pdf = ppl.to_ppdf(df, meta)
 
         return pdf
+
+    @classmethod
+    def cell_grades(cls, ds: DBDatasetModel) -> dict[CellLabels, QualityLevelRef]:
+        """
+        Return the grade of every graded data point, by the cell `deserialize_df` names it with.
+
+        The live twin of `DatasetSnapshot.cell_grades`: a cell is its year, its metric's
+        column and its categories' labels in the dimensions `dimension_columns` names.
+        """
+        from datasets.snapshot import DataPointEvidenceSnapshot, metric_column_id
+        from frameworks.models import DataPointEvidence
+
+        declared = {dimension.pk for dimension, _ in cls.dimension_columns(ds)}
+        evidence = (
+            DataPointEvidence.objects
+            .filter(data_point__dataset=ds, quality_level__isnull=False)
+            .select_related('data_point__metric', 'quality_level__scheme')
+            .prefetch_related('data_point__dimension_categories')
+        )
+        grades: dict[CellLabels, QualityLevelRef] = {}
+        for item in evidence:
+            point = item.data_point
+            labels = tuple(
+                sorted(
+                    category.identifier or str(category.uuid)
+                    for category in point.dimension_categories.all()
+                    if category.dimension_id in declared
+                )
+            )
+            level = DataPointEvidenceSnapshot.from_model(item).quality_level
+            assert level is not None
+            grades[point.date.year, metric_column_id(point.metric), labels] = level
+        return grades
 
     @staticmethod
     def dimension_columns(ds: DBDatasetModel) -> list[tuple[Dimension, str]]:
