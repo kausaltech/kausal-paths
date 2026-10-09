@@ -56,7 +56,7 @@ from nodes.page_snapshot import PageSnapshot
 from nodes.snapshot_base import ModelSnapshot, apply_translated, translated_string_from_model
 
 if TYPE_CHECKING:
-    from collections.abc import Hashable, Iterable, Mapping, Sequence
+    from collections.abc import Callable, Hashable, Iterable, Mapping, Sequence
 
     from django.contrib.contenttypes.models import ContentType
     from django.db.models import QuerySet
@@ -98,7 +98,7 @@ if TYPE_CHECKING:
 #   v15: a dataset catalog entry is pure structure: its pinned revision lives only in
 #        ``dataset_revisions``, it carries the dataset's name, forecast year and time
 #        resolution, and each metric validation rule carries its row's uuid.
-SNAPSHOT_SCHEMA_VERSION = 16
+SNAPSHOT_SCHEMA_VERSION = 17
 
 _MARKDOWN = MarkdownIt('commonmark', {'html': True})
 
@@ -406,6 +406,22 @@ def upgrade_node_references_v16(nodes: Iterable[dict[str, Any]], uuid_by_identif
                 raise ValueError(f'Node {node.get("identifier")}: {key} {value!r} is not a node of this snapshot')
             holder[key] = str(uuid_by_identifier[value])
             changed = True
+    return changed
+
+
+def drop_dead_node_spec_fields_v17(spec: dict[str, Any]) -> bool:
+    """
+    Remove ``NodeSpec.pipeline`` and ``NodeSpecExtra.other`` from a stored spec, in place.
+
+    Nothing wrote either field with content or read it, and ``NodeSpec`` forbids unknown
+    keys. Returns whether anything changed.
+    """
+    changed = 'pipeline' in spec
+    spec.pop('pipeline', None)
+    extra = spec.get('extra')
+    if isinstance(extra, dict) and 'other' in extra:
+        del extra['other']
+        changed = True
     return changed
 
 
@@ -987,27 +1003,40 @@ class InstanceSnapshot(BaseModel):
         return cls.model_validate(data)
 
 
+def _node_list(data: dict[str, Any]) -> list[dict[str, Any]]:
+    return data.setdefault('nodes', [])
+
+
+def _drop_dead_node_spec_fields_v17(data: dict[str, Any]) -> None:
+    for node in _node_list(data):
+        if isinstance(node.get('spec'), dict):
+            drop_dead_node_spec_fields_v17(node['spec'])
+
+
+_SNAPSHOT_UPGRADERS: tuple[tuple[int, Callable[[dict[str, Any]], object]], ...] = (
+    (3, lambda data: _upgrade_node_references_v3(data, _node_list(data))),
+    (4, lambda data: _upgrade_node_metadata_v4(_node_list(data))),
+    (9, _upgrade_bindings_v9),
+    (10, _upgrade_action_group_references_v10),
+    (11, _upgrade_bindings_v11),
+    (13, upgrade_formula_specs_v13),
+    (15, upgrade_dataset_catalog_v15),
+    (
+        16,
+        lambda data: upgrade_node_references_v16(
+            _node_list(data), {n['identifier']: n['uuid'] for n in _node_list(data) if n.get('identifier')}
+        ),
+    ),
+    (17, _drop_dead_node_spec_fields_v17),
+)
+"""Upgrader ``N`` brings serialized snapshot data older than version ``N`` up to it, in place."""
+
+
 def _upgrade_snapshot_data(data: dict[str, Any], schema_version: int) -> None:
     """Upgrade serialized snapshot data from ``schema_version`` to the current one, in place."""
-    nodes = data.get('nodes', [])
-
-    if schema_version < 3:
-        _upgrade_node_references_v3(data, nodes)
-    if schema_version < 4:
-        _upgrade_node_metadata_v4(nodes)
-    if schema_version < 9:
-        _upgrade_bindings_v9(data)
-    if schema_version < 10:
-        _upgrade_action_group_references_v10(data)
-    if schema_version < 11:
-        _upgrade_bindings_v11(data)
-
-    if schema_version < 13:
-        upgrade_formula_specs_v13(data)
-    if schema_version < 15:
-        upgrade_dataset_catalog_v15(data)
-    if schema_version < 16:
-        upgrade_node_references_v16(nodes, {n['identifier']: n['uuid'] for n in nodes if n.get('identifier')})
+    for version, upgrade in _SNAPSHOT_UPGRADERS:
+        if schema_version < version:
+            upgrade(data)
 
 
 def reconcile_snapshot_node_metadata(

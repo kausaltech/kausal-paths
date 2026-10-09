@@ -285,7 +285,7 @@ def import_dataset(
         identifier=meta.identifier,
         spec={'forecast_from': meta.forecast_from} if meta.forecast_from is not None else {},
         is_external_placeholder=meta.is_external_placeholder,
-        external_ref=meta.external_ref,
+        external_ref=meta.external_ref.model_dump() if meta.external_ref is not None else None,
         scope_content_type=ic_ct,
         scope_id=ic.pk,
         schema=schema,

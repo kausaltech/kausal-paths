@@ -45,6 +45,16 @@ class FrozenGraphModel(I18nBaseModel):
     model_config = ConfigDict(frozen=True)
 
 
+class DatasetExternalRef(FrozenGraphModel):
+    """Where a dataset's data comes from outside the database: a path in a DVC repository."""
+
+    repo_url: str
+    commit: str | None = None
+    """The commit the data was read from; None when the repository was not pinned."""
+    dataset_id: str
+    """The dataset's path in the repository, without extension."""
+
+
 class DimensionCategoryMeta(FrozenGraphModel):
     id: UUID
     identifier: str | None = None
@@ -112,7 +122,7 @@ class DatasetMeta(FrozenGraphModel):
     forecast_from: int | None = None
     """The dataset's own first forecast year, which bindings inherit unless they set one."""
     is_external_placeholder: bool = False
-    external_ref: dict[str, Any] | None = None
+    external_ref: DatasetExternalRef | None = None
     category_domain: DatasetCategoryDomain = Field(default_factory=DatasetCategoryDomain)
     # Left out when absent, so revisions frozen before shapes keep their content hash.
     shape_id: UUID | None = Field(default=None, exclude_if=lambda value: value is None)

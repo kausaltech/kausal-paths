@@ -2415,8 +2415,23 @@ def test_a_v11_snapshot_upgrades_with_no_node_owned_datasets(empty_db_instance: 
         del node['datasets']
 
     upgraded = InstanceSnapshot.from_serialized_data(data)
-    assert upgraded.schema_version == SNAPSHOT_SCHEMA_VERSION == 16
+    assert upgraded.schema_version == SNAPSHOT_SCHEMA_VERSION == 17
     assert [node.datasets for node in upgraded.nodes] == [[]]
+
+
+def test_a_v16_snapshot_loses_the_dead_node_spec_fields(empty_db_instance: InstanceConfig):
+    from nodes.instance_serialization import InstanceSnapshot, build_instance_snapshot
+
+    NodeConfigFactory.create(instance=empty_db_instance, identifier='plain', name='Plain')
+    data = build_instance_snapshot(empty_db_instance).model_dump(mode='json')
+    data['schema_version'] = 16
+    (node,) = data['nodes']
+    node['spec']['pipeline'] = None
+    node['spec']['extra']['other'] = {}
+
+    (upgraded,) = InstanceSnapshot.from_serialized_data(data).nodes
+    assert upgraded.spec is not None
+    assert 'pipeline' not in upgraded.spec.model_dump()
 
 
 def test_a_v15_snapshot_refers_to_parent_and_hook_targets_by_uuid(empty_db_instance: InstanceConfig):

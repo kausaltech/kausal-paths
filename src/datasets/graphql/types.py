@@ -948,13 +948,16 @@ class DatasetType(UserPermissionsMixin):
 
     @classmethod
     def from_model(cls, dataset: DatasetModel) -> DatasetType:
+        from nodes.defs.graph import DatasetExternalRef
         from nodes.graphql.types.graph import dataset_external_ref_to_gql
 
         obj = cls(
             id=sb.ID(str(dataset.uuid)),
             identifier=dataset.identifier,
             is_external_placeholder=dataset.is_external_placeholder,
-            external_ref=dataset_external_ref_to_gql(dataset.external_ref),
+            external_ref=dataset_external_ref_to_gql(
+                DatasetExternalRef.model_validate(dataset.external_ref) if dataset.external_ref else None
+            ),
             last_modified_at=dataset.last_modified_at,
             last_modified_by=dataset.last_modified_by,
             created_at=dataset.created_at,

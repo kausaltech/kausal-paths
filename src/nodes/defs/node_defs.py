@@ -495,8 +495,6 @@ class NodeSpecExtra(BaseModel):
     forecast_values: list[tuple[int, float]] | None = None
     input_dataset_processors: list[str] = Field(default_factory=list)
     tags: list[str] = Field(default_factory=list)
-    # Catch-all for anything else the node config had
-    other: dict[str, Any] = Field(default_factory=dict)
 
 
 class NodeSpec(I18nBaseModel):
@@ -528,7 +526,6 @@ class NodeSpec(I18nBaseModel):
     output_dimensions: list[str] = Field(default_factory=list)
 
     # Computation
-    pipeline: list[dict[str, object]] | None = None
     params: list[AnyParameter] = Field(default_factory=list)
     goals: NodeGoals = Field(default_factory=NodeGoals)
     visualizations: NodeVisualizations = Field(default_factory=NodeVisualizations)

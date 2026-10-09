@@ -1164,7 +1164,6 @@ class InstanceLoader:
             is_visible=n.is_visible,
             is_outcome=spec.is_outcome,
             minimum_year=spec.minimum_year,
-            target_year_goal=extra.other.get('target_year_goal'),
             goals=spec.goals.model_dump(exclude_none=True) if spec.goals.root else None,
             allow_nulls=spec.allow_nulls,
             input_datasets=datasets,
