@@ -498,32 +498,38 @@ Found, not fixed here:
 
 ### Afterwards: the editor reads datasets from its edition
 
-Not part of this plan, but it waits on step 4, so it is recorded here. The editor's
-`Dataset` type reads every field from the live row, so a query against a published
-revision (`InstanceEditorFields._source`) already returns the draft's dataset
-metadata and data; `editor.dataset(s)`, the dataset of a port binding and
-`Node.datasets` all ignore the source. `DataEntryQuery.load()` already resolves the
-right edition per dataset (the live row when unpinned in the draft, the pinned
-revision otherwise), but only for the data-entry views, which is why
-`DataEntryDataset` duplicates `Dataset`.
+Built on 10 Oct 2026, after step 4. The editor's `Dataset` type used to read every field
+from the live row, so a query against a published revision returned the draft's dataset
+metadata and data. It now reads from the dataset's edition in the selected source.
 
-After step 4 a `DatasetSnapshot` is "`DatasetMeta` plus body", so the refactor is:
+- `datasets/editions.py`: `DatasetEditions` makes the choice once per instance source and
+  request, cached in `InstanceRequestResources.require_dataset_editions` next to the graph.
+  A `DatasetEdition` is the graph's `DatasetMeta`, the pinned revision or the live row as
+  content, and the row itself in every source for identity and permissions. It is *live*
+  only when it is the draft's and unpinned. `DataEntryQuery` takes its datasets from it.
+- `DatasetType` is rooted on the edition. Structure comes from the meta; content (data
+  points, citations, evidence, `data`) from the snapshot, in the draft too, so draft and
+  published cannot read differently. Permissions and editability exist only for a live
+  edition. `portBindings` come from the edition's graph, `shape` from its shapes.
+  `DatasetType.from_model(row)` reads one row alone, for mutation results.
+- Rules and plausibility have edition-native evaluators (`evaluate_edition_rules`,
+  `evaluate_edition_plausibility`, `edition_plausibility_ranges`). Rules are the ones the
+  content was recorded with; the category domain is the one the instance resolves.
+  Curated plausibility ranges and population stay live: they are reference data.
+- `editor.dataset(s)`, `Node.datasets`, the dataset of a port binding and
+  `DataEntryTable.dataset` all resolve through the edition of the editor's source.
+  `DataEntryDataset` is gone; `DataEntryTable.dataset` is a `Dataset`.
 
-- a request-scoped resolver in `InstanceRequestResources` (next to
-  `dataset_models_for_graph`), keyed by `ResolvedInstanceSource`, returning each
-  dataset's edition: the meta, the snapshot (lazily) and the live row only for an
-  unpinned draft dataset. `DataEntryQuery` uses it instead of owning it.
-- `DatasetType` rooted on the edition. Content fields (name, dimensions, metrics,
-  category domain, `shape` from `graph.shapes`, data) come from the meta and the
-  snapshot even in the draft, so draft and published cannot read differently. Fields
-  that only exist live (permissions, editability, timestamps) come from the row and
-  are false or null without one. `portBindings` comes from `graph.bindings`.
-- every `Dataset` reference resolved through the edition of the editor's source;
-  `DataEntryTable.dataset` becomes a `Dataset` and `DataEntryDataset` is deprecated.
+What a frozen edition does not record, it says so rather than inventing it:
+comments are live (a thread follows its cell by uuid), a citation whose row has been
+deleted is left out, and evidence's `lastModifiedAt` is the time the edition was saved.
 
-Open: what `editor.datasets` lists in a frozen edition (only the graph's datasets,
-while the draft lists every row in the scope), and whether a mutation's result is
-built from the row it wrote or from a refreshed request graph.
+Settled: `editor.datasets` lists every readable row in scope in the draft, and only the
+graph's datasets elsewhere. A mutation's result is built from the row it wrote.
+
+Still open: the port lists themselves (`datasetPorts`, `inputPorts` on a non-template
+instance) are read from the draft's binding rows whatever the source; only the dataset
+each port names follows the source.
 
 ### Later
 

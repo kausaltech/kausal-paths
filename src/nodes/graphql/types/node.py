@@ -151,11 +151,9 @@ class NodeSpecType(StrawberryPydanticType[NodeSpec]):
             ]
         else:
             bindings = info.context.require_instance_graph(config, source=runtime_source(info, node)).bindings_for_node(node_uuid)
-        models_by_uuid = getattr(node.db_obj, '_annotated_dataset_models_by_uuid', None)
-        if config.template_revision_id is not None:
-            resources = info.context.instance_resources
-            assert resources is not None
-            models_by_uuid = resources.dataset_models_for_graph(config, runtime_source(info, node))
+        resources = info.context.instance_resources
+        assert resources is not None
+        editions = resources.require_dataset_editions(config, runtime_source(info, node))
         ports = []
         for port in root._original_model.input_ports:
             members: list[NodeEdgeType | DatasetPortType] = []
@@ -169,7 +167,7 @@ class NodeSpecType(StrawberryPydanticType[NodeSpec]):
                         DatasetPortType.from_binding(
                             binding,
                             node=node,
-                            dataset_models_by_uuid=models_by_uuid,
+                            editions=editions,
                         )
                     )
             ports.append(InputPortType.from_def(port, bindings=members, node_uuid=node_uuid, node=node))
@@ -314,7 +312,7 @@ class NodeEditorFields:
             .filter(scope_content_type=ContentType.objects.get_for_model(NodeConfig), scope_id=nc.pk)
             .viewable_by(info.context.user)
             .select_related('schema', 'created_by', 'last_modified_by')
-            .prefetch_related('schema__metrics__validation_rules', 'schema__dimensions__dimension__categories')
+            .prefetch_related('schema__metrics__validation_rules', 'schema__dimensions__dimension__categories', 'schema__scopes')
             .order_by('created_at', 'pk')
         )
         return [DatasetType.from_model(ds) for ds in qs]
