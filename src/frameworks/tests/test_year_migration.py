@@ -2,7 +2,7 @@ from importlib import import_module
 
 import pytest
 
-from nodes.defs import InstanceModelSpec, YearsSpec
+from nodes.defs.instance_defs import InstanceModelSpec, YearsSpec
 
 pytestmark = pytest.mark.django_db
 

@@ -12,7 +12,7 @@ Related plans and docs:
 ## Decisions
 
 1. **The pipeline is the stored form.** A typed `PipelineConfig` built on the
-   existing `nodes.pipeline.PipelineSpec` becomes the one canonical, persisted
+   existing `nodes.pipeline.ir.PipelineSpec` becomes the one canonical, persisted
    computation schema, replacing the placeholder `PipelineConfig.operations`
    (the loose `NodeSpec.pipeline` field is already gone, schema v17). This answers the discovery plan's
    request for one stored schema.
