@@ -53,3 +53,4 @@ celerybeat-schedule
 mise.local.toml
 /docs/wip/
 /scratchpad/
+/.codegraph/
