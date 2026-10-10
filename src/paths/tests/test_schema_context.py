@@ -5,6 +5,7 @@ from django.core.cache import cache
 
 import pytest
 
+from paths import schema_context
 from paths.context import PathsObjectCache
 from paths.schema_context import InstanceRequestResources
 
@@ -326,7 +327,7 @@ def test_published_snapshot_is_reused_when_graph_is_built(
     source = instance_graph_cache.resolve_instance_source(config, PreferredInstanceSource.PUBLISHED)
     cache.delete(source.cache_key)
 
-    original_loader = instance_graph_cache.load_instance_snapshot
+    original_loader = schema_context.load_instance_snapshot
     load_count = 0
 
     def counted_loader(*args: Any, **kwargs: Any):
@@ -334,7 +335,7 @@ def test_published_snapshot_is_reused_when_graph_is_built(
         load_count += 1
         return original_loader(*args, **kwargs)
 
-    monkeypatch.setattr(instance_graph_cache, 'load_instance_snapshot', counted_loader)
+    monkeypatch.setattr(schema_context, 'load_instance_snapshot', counted_loader)
     resources = InstanceRequestResources(
         default_config=config,
         default_source=PreferredInstanceSource.PUBLISHED,
