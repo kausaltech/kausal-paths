@@ -1,5 +1,6 @@
 from datetime import date
 from io import StringIO
+from types import SimpleNamespace
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 from uuid import uuid4
@@ -27,8 +28,16 @@ from kausal_common.people.models import ObjectRole
 from paths.tests.graphql import PathsTestClient
 
 from frameworks.bisko.activation import ActivationError, activate_bisko_municipality
+from frameworks.bisko.default_sources import (
+    ENERGY_DATASET,
+    ENERGY_SOURCE,
+    POPULATION_DATASET,
+    POPULATION_SOURCE,
+    DefaultProvenance,
+)
+from frameworks.bisko.plausibility import CARRIERS, STATIONARY_SECTORS
 from frameworks.bisko.provisioning import GERMAN_ORGANIZATION_CLASSES, setup_bisko
-from frameworks.bisko.weather import HEATING_SECTORS, NEUTRAL_SECTORS, WEATHER_DATASET
+from frameworks.bisko.weather import WEATHER_DATASET
 from frameworks.conversion import share_template_catalogue
 from frameworks.models import (
     Framework,
@@ -42,11 +51,11 @@ from frameworks.organization_access import accessible_organizations, user_can_ac
 from frameworks.population import population_aggregates, replace_population_projection
 from frameworks.roles import framework_admin_role
 from frameworks.tests.factories import FrameworkConfigFactory
-from nodes.defs.instance_defs import InstanceModelSpec, YearsSpec
+from nodes.defs.instance_defs import DatasetRepoSpec, InstanceModelSpec, YearsSpec
 from nodes.defs.port_def import InputPortDef
 from nodes.instance_serialization import DatasetMetricSource, build_instance_snapshot
 from nodes.membership import retention_date
-from nodes.models import InstanceMemberAssignment, NodeInputPortBinding
+from nodes.models import InstanceConfig, InstanceMemberAssignment, NodeInputPortBinding
 from nodes.template_graph import publish_template_instance, upgrade_template_instance
 from nodes.tests.factories import InstanceConfigFactory, NodeConfigFactory
 from nodes.units import unit_registry
@@ -95,11 +104,38 @@ def snapshot(tmp_path: Path) -> Path:
     return path
 
 
+@pytest.fixture(autouse=True)
+def activation_sources(monkeypatch: pytest.MonkeyPatch) -> None:
+    provenance = DefaultProvenance(source_dataset='statistics', source_sha256='hash', method='observed').model_dump_json()
+    ags = [state + district + town for state in ('03', '07', '12') for district in ('001', '002') for town in ('001', '002')]
+    population = pl.DataFrame({
+        'ags': ags,
+        'Year': [2023] * 12,
+        'population': [100] * 12,
+        'Forecast': [False] * 12,
+        'provenance': [provenance] * 12,
+    })
+    energy = pl.DataFrame({
+        'ags': ags,
+        'Year': [2023] * 12,
+        'sector': ['private_households'] * 12,
+        'energy_carrier': ['electricity'] * 12,
+        'Value': [50.0] * 12,
+        'provenance': [provenance] * 12,
+    })
+    repo = SimpleNamespace(
+        has_dataset=lambda identifier: identifier in (POPULATION_SOURCE, ENERGY_SOURCE),
+        load_dataset=lambda identifier: SimpleNamespace(df=population if identifier == POPULATION_SOURCE else energy),
+    )
+    monkeypatch.setattr('frameworks.bisko.defaults.build_dataset_repo', lambda _spec: repo)
+
+
 def publish_bisko_template(framework: Framework) -> None:
     template = framework.template_instance
     assert template is not None
     spec = template.ensure_spec()
     spec.years = YearsSpec(reference=2020, min_historical=2010, max_historical=2023, target=2035)
+    spec.dataset_repo = DatasetRepoSpec(url='https://example.com/data.git', commit='published-pin')
     template.spec = spec
     template.save(update_fields=['spec'])
     node = NodeConfigFactory.create(instance=template, identifier='bisko_shared')
@@ -118,6 +154,31 @@ def publish_bisko_template(framework: Framework) -> None:
         metric = DatasetMetricFactory.create(schema=dataset.schema, name='Value', unit='kt/a')
         DataPointFactory.create(dataset=dataset, metric=metric, date=date(2023, 1, 1), value=42)
         NodeInputPortBinding.objects.create(instance=template, node=node, port_id=port.id, dataset=dataset, metric=metric)
+    for identifier, name, unit in ((POPULATION_DATASET, 'population', 'cap'), (ENERGY_DATASET, 'Value', 'MWh/a')):
+        dataset = DatasetFactory.create(scope=template, identifier=identifier)
+        assert dataset.schema is not None
+        DatasetSchemaScope.objects.create(
+            schema=dataset.schema, scope_content_type=ContentType.objects.get_for_model(framework), scope_id=framework.pk
+        )
+        metric = DatasetMetricFactory.create(schema=dataset.schema, name=name, unit=unit)
+        if identifier == ENERGY_DATASET:
+            for dimension_id, categories in (('sector', STATIONARY_SECTORS), ('energy_carrier', CARRIERS)):
+                dimension = DimensionFactory.create()
+                DatasetSchemaDimensionFactory.create(schema=dataset.schema, dimension=dimension)
+                DimensionScope.objects.create(
+                    dimension=dimension,
+                    scope_content_type=ContentType.objects.get_for_model(template),
+                    scope_id=template.pk,
+                    identifier=dimension_id,
+                )
+                for category in categories:
+                    DimensionCategoryFactory.create(dimension=dimension, identifier=category)
+        else:
+            DataPointFactory.create(dataset=dataset, metric=metric, date=date(2023, 1, 1), value=None)
+        port = InputPortDef(id=uuid4(), identifier=name, unit=unit_registry.parse_units(unit), binding_owner='instance')
+        node.spec.input_ports.append(port)
+        NodeInputPortBinding.objects.create(instance=template, node=node, port_id=port.id, dataset=dataset, metric=metric)
+    node.save(update_fields=['spec'])
     template.invalidate_cache()
     publish_template_instance(template)
 
@@ -292,6 +353,11 @@ def test_provision_bisko_test_accounts_is_repeatable(tmp_path: Path, monkeypatch
             'lau_code': f'DE_{state}001001',
             'nuts_code': f'DE{state}1',
         }
+        energy = Dataset.objects.for_instance_config(config.instance_config).get(identifier=ENERGY_DATASET)
+        assert energy.data_points.get(value__isnull=False).value == 50
+        quality = energy.data_points.get(value__isnull=False).evidence.quality_level
+        assert quality is not None
+        assert quality.identifier == 'C'
         assert spec.features.enable_user_management
         assert Submission.objects.filter(instance_config=config.instance_config, period_start=2023).count() == 1
         local = Dataset.objects.for_instance_config(config.instance_config).get(identifier='kommune/testeingabe')
@@ -299,7 +365,9 @@ def test_provision_bisko_test_accounts_is_repeatable(tmp_path: Path, monkeypatch
         assert not Dataset.objects.for_instance_config(config.instance_config).filter(identifier='kommune/unused').exists()
         effective = build_instance_snapshot(config.instance_config)
         local_binding = next(
-            b for b in effective.bindings if isinstance(b.source, DatasetMetricSource) and b.source.dataset.startswith('kommune/')
+            b
+            for b in effective.bindings
+            if isinstance(b.source, DatasetMetricSource) and b.source.dataset == 'kommune/testeingabe'
         )
         reference_binding = next(
             b for b in effective.bindings if isinstance(b.source, DatasetMetricSource) and b.source.dataset == 'de/reference'
@@ -393,6 +461,154 @@ def test_activate_bisko_municipality_requires_published_template(tmp_path: Path)
     assert not FrameworkConfig.objects.filter(framework=framework).exists()
 
 
+@pytest.mark.parametrize(
+    'missing',
+    ['population_input', 'energy_input', 'repository_pin', 'population_source', 'energy_source', 'municipal_population'],
+)
+def test_activation_requires_defaults_atomically(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, missing: str) -> None:
+    template = InstanceConfigFactory.create(
+        identifier='bisko',
+        name='BISKO',
+        config_source='database',
+        owner='Test Owner',
+        spec=InstanceModelSpec(years=YearsSpec(reference=2020, min_historical=2010, max_historical=2023, target=2035)),
+    )
+    framework = setup_bisko()
+    import_bkg_organizations(snapshot(tmp_path), framework=framework)
+    publish_bisko_template(framework)
+    template.refresh_from_db()
+    if missing.endswith('_input'):
+        identifier = POPULATION_DATASET if missing == 'population_input' else ENERGY_DATASET
+        NodeInputPortBinding.objects.filter(instance=template, dataset__identifier=identifier).delete()
+    elif missing == 'repository_pin':
+        spec = template.ensure_spec()
+        spec.dataset_repo = None
+        template.spec = spec
+        template.save(update_fields=['spec'])
+    elif missing.endswith('_source'):
+        identifier = POPULATION_SOURCE if missing == 'population_source' else ENERGY_SOURCE
+        repo = SimpleNamespace(has_dataset=lambda value: value != identifier)
+        monkeypatch.setattr('frameworks.bisko.defaults.build_dataset_repo', lambda _spec: repo)
+    else:
+        repo = SimpleNamespace(
+            has_dataset=lambda _identifier: True,
+            load_dataset=lambda _identifier: SimpleNamespace(
+                df=pl.DataFrame(
+                    schema={
+                        'ags': pl.String,
+                        'Year': pl.Int64,
+                        'population': pl.Int64,
+                        'Forecast': pl.Boolean,
+                        'provenance': pl.String,
+                    }
+                )
+            ),
+        )
+        monkeypatch.setattr('frameworks.bisko.defaults.build_dataset_repo', lambda _spec: repo)
+    publish_template_instance(template)
+    framework.refresh_from_db()
+    municipality = OrganizationIdentifier.objects.get(namespace__identifier='ags', identifier='03001001').organization
+    with pytest.raises(ActivationError):
+        activate_bisko_municipality(framework, municipality)
+    assert not FrameworkConfig.objects.filter(framework=framework).exists()
+    assert not InstanceConfig.objects.filter(identifier='bisko-03001001').exists()
+
+
+def test_population_activation_uses_published_pin_and_preserves_edits(tmp_path: Path) -> None:
+    template = InstanceConfigFactory.create(
+        identifier='bisko',
+        name='BISKO',
+        owner='Test Owner',
+        config_source='database',
+        spec=InstanceModelSpec(years=YearsSpec(reference=2020, min_historical=2010, max_historical=2023, target=2035)),
+    )
+    framework = setup_bisko()
+    import_bkg_organizations(snapshot(tmp_path), framework=framework)
+    publish_bisko_template(framework)
+    template.refresh_from_db()
+    spec = template.ensure_spec()
+    spec.dataset_repo = DatasetRepoSpec(url='https://example.com/data.git', commit='published-pin')
+    template.spec = spec
+    template.save(update_fields=['spec'])
+    dataset = Dataset.objects.for_instance_config(template).get(identifier=POPULATION_DATASET)
+    assert dataset.schema is not None
+    metric = dataset.schema.metrics.get(name='population')
+    publish_template_instance(template)
+    template.refresh_from_db()
+    spec.dataset_repo.commit = 'unpublished-draft-pin'
+    template.spec = spec
+    template.save(update_fields=['spec'])
+    framework.refresh_from_db()
+    provenance = DefaultProvenance(source_dataset='destatis', source_sha256='hash', method='observed').model_dump_json()
+    population = pl.DataFrame({
+        'ags': ['03001001'],
+        'Year': [2023],
+        'population': [100],
+        'Forecast': [False],
+        'provenance': [provenance],
+    })
+    with patch('frameworks.bisko.defaults.build_dataset_repo') as build_repo:
+        build_repo.return_value.load_dataset.side_effect = [
+            SimpleNamespace(df=population),
+            SimpleNamespace(
+                df=pl.DataFrame(
+                    schema={
+                        'ags': pl.String,
+                        'Year': pl.Int64,
+                        'sector': pl.String,
+                        'energy_carrier': pl.String,
+                        'Value': pl.Float64,
+                        'provenance': pl.String,
+                    }
+                )
+            ),
+        ]
+        municipality = OrganizationIdentifier.objects.get(namespace__identifier='ags', identifier='03001001').organization
+        config, created = activate_bisko_municipality(framework, municipality)
+        assert created
+        assert build_repo.call_args.args[0].commit == 'published-pin'
+        local = Dataset.objects.for_instance_config(config.instance_config).get(identifier=POPULATION_DATASET)
+        point = local.data_points.get(metric=metric)
+        assert point.value == 100
+        assert point.evidence.kind == 'provider_default'
+        effective = build_instance_snapshot(config.instance_config)
+        binding = next(
+            b for b in effective.bindings if isinstance(b.source, DatasetMetricSource) and b.source.dataset == POPULATION_DATASET
+        )
+        assert isinstance(binding.source, DatasetMetricSource)
+        assert binding.source.dataset_uuid == local.uuid
+        point.value = 123
+        point.last_modified_by = UserFactory.create()
+        point.save(update_fields=['value', 'last_modified_by'])
+        build_repo.return_value.load_dataset.side_effect = [
+            SimpleNamespace(df=population),
+            SimpleNamespace(
+                df=pl.DataFrame(
+                    schema={
+                        'ags': pl.String,
+                        'Year': pl.Int64,
+                        'sector': pl.String,
+                        'energy_carrier': pl.String,
+                        'Value': pl.Float64,
+                        'provenance': pl.String,
+                    }
+                )
+            ),
+        ]
+        _, created = activate_bisko_municipality(framework, municipality)
+        assert not created
+        assert (
+            Dataset.objects
+            .for_instance_config(config.instance_config)
+            .get(identifier=ENERGY_DATASET)
+            .data_points.filter(value__isnull=False)
+            .count()
+            == 0
+        )
+        point.refresh_from_db()
+        assert point.value == 123
+
+
 def test_weather_defaults_seed_on_activation_and_setup_backfills_empty_slot(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -407,16 +623,11 @@ def test_weather_defaults_seed_on_activation_and_setup_backfills_empty_slot(
     import_bkg_organizations(snapshot(tmp_path), framework=framework)
     publish_bisko_template(framework)
     schema = DatasetSchemaFactory.create()
-    dimension = DimensionFactory.create(name='Sectors')
+    dimension = DimensionScope.objects.get(
+        scope_content_type=ContentType.objects.get_for_model(template), scope_id=template.pk, identifier='sector'
+    ).dimension
+    DimensionCategoryFactory.create(dimension=dimension, identifier='transport')
     DatasetSchemaDimensionFactory.create(schema=schema, dimension=dimension)
-    DimensionScope.objects.create(
-        dimension=dimension,
-        scope_content_type=ContentType.objects.get_for_model(template),
-        scope_id=template.pk,
-        identifier='sector',
-    )
-    for identifier in (*HEATING_SECTORS, *NEUTRAL_SECTORS):
-        DimensionCategoryFactory.create(dimension=dimension, identifier=identifier)
     metric = DatasetMetricFactory.create(schema=schema, name='default', unit='')
     weather = DatasetFactory.create(scope=template, schema=schema, identifier=WEATHER_DATASET)
     node = NodeConfigFactory.create(instance=template, identifier='weather_input')
@@ -428,6 +639,10 @@ def test_weather_defaults_seed_on_activation_and_setup_backfills_empty_slot(
     node.save(update_fields=['spec'])
     NodeInputPortBinding.objects.create(instance=template, node=node, port_id=port.id, dataset=weather, metric=metric)
     share_template_catalogue(framework)
+    spec = template.ensure_spec()
+    spec.dataset_repo = DatasetRepoSpec(url='https://example.com/data.git', commit='published-test-commit')
+    template.spec = spec
+    template.save(update_fields=['spec'])
     template.invalidate_cache()
     publish_template_instance(template)
     framework.refresh_from_db()
@@ -437,14 +652,18 @@ def test_weather_defaults_seed_on_activation_and_setup_backfills_empty_slot(
         'Year': list(range(1980, 2026)),
         'hdd_eurostat': [500 if year == 2023 else 1000 for year in range(1980, 2026)],
     })
-    monkeypatch.setattr('frameworks.bisko.activation.load_weather_source', lambda _framework: (frame, 'test-commit'))
-    monkeypatch.setattr('frameworks.bisko.provisioning.load_weather_source', lambda _framework: (frame, 'test-commit'))
+    monkeypatch.setattr('frameworks.bisko.activation.load_weather_source', lambda _framework, **_kwargs: (frame, 'test-commit'))
+    monkeypatch.setattr('frameworks.bisko.provisioning.load_weather_source', lambda _framework, **_kwargs: (frame, 'test-commit'))
     municipality = OrganizationIdentifier.objects.get(namespace__identifier='ags', identifier='12001001').organization
     config, created = activate_bisko_municipality(framework, municipality)
     assert created
     local = Dataset.objects.for_instance_config(config.instance_config).get(identifier=WEATHER_DATASET)
     assert local.data_points.count() == 80
 
+    # The template draft can move independently of the municipality's published pin.
+    spec.dataset_repo = None
+    template.spec = spec
+    template.save(update_fields=['spec'])
     local.data_points.all().delete()
     setup_bisko()
     assert local.data_points.count() == 80

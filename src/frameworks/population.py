@@ -7,6 +7,7 @@ from django.db import transaction
 from django.db.models import Q
 
 from datasets.placeholders import build_dataset_repo
+from frameworks.bisko.default_sources import POPULATION_SOURCE
 from frameworks.models import Framework, OrganizationPopulation
 from orgs.models import Organization, OrganizationIdentifier
 
@@ -116,10 +117,12 @@ def refresh_population_from_dvc(framework: Framework) -> PopulationImportResult:
     repo_spec = template.ensure_spec().dataset_repo
     if repo_spec is None or repo_spec.commit is None:
         raise ValueError('The template needs a pinned dataset repository commit.')
-    dataset = build_dataset_repo(repo_spec).load_dataset(SOURCE_DATASET)
+    repo = build_dataset_repo(repo_spec)
+    source = POPULATION_SOURCE if repo.has_dataset(POPULATION_SOURCE) else SOURCE_DATASET
+    dataset = repo.load_dataset(source)
     if dataset.df is None:
-        raise ValueError(f'{SOURCE_DATASET} has no dataframe.')
-    return replace_population_projection(framework, dataset.df, source_revision=repo_spec.commit)
+        raise ValueError(f'{source} has no dataframe.')
+    return replace_population_projection(framework, dataset.df, source_revision=repo_spec.commit, source_dataset=source)
 
 
 def population_aggregates(framework: Framework, year: int) -> PopulationYearIndex:
