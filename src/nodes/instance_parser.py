@@ -36,16 +36,6 @@ from nodes.actions.action import ENABLED_BY_DEFAULT, ENABLED_PARAM_ID, ActionNod
 from nodes.actions.simple import AdditiveAction
 from nodes.constants import DEFAULT_METRIC, VALUE_COLUMN, DecisionLevel
 from nodes.data_entry_yaml import YAMLAmendment, YAMLDataEntry, YAMLSection, resolve_yaml_data_entry
-from nodes.defs import (
-    ActionConfig,
-    DatasetPortSpec,
-    FormulaConfig,
-    InputDatasetDef,
-    InstanceModelSpec,
-    NodeSpec,
-    SimpleConfig,
-    YearsSpec,
-)
 from nodes.defs.action_def import ImpactOverviewSpec
 from nodes.defs.graph import (
     DatasetMeta,
@@ -60,10 +50,21 @@ from nodes.defs.instance_defs import (
     DatasetRepoSpec,
     InstanceFeatures,
     InstanceMetadata,
+    InstanceModelSpec,
     InstanceTerms,
     NormalizationSpec,
+    YearsSpec,
 )
-from nodes.defs.node_defs import ActionHookDef, NodeSpecExtra
+from nodes.defs.node_defs import (
+    ActionConfig,
+    ActionHookDef,
+    DatasetPortSpec,
+    FormulaConfig,
+    InputDatasetDef,
+    NodeSpec,
+    NodeSpecExtra,
+    SimpleConfig,
+)
 from nodes.defs.port_def import InputPortDef, OutputPortDef, pair_input_ports_to_outputs
 from nodes.defs.shape_defs import ShapeCombinationSpec, ShapeRequiredGroupSpec, ShapeSpec
 from nodes.defs.transform_def import AssignDimensionOp, FilterDimensionOp

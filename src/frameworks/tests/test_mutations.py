@@ -21,7 +21,7 @@ from frameworks.models import (
     Section,
 )
 from frameworks.tests.factories import FrameworkConfigFactory, FrameworkFactory
-from nodes.defs import InstanceModelSpec, YearsSpec
+from nodes.defs.instance_defs import InstanceModelSpec, YearsSpec
 from nodes.models import InstanceConfig, InstanceHostname
 from nodes.roles import instance_admin_role
 from nodes.tests.factories import InstanceConfigFactory

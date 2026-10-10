@@ -93,8 +93,9 @@ from datasets.snapshot import metric_column_id_expr
 from frameworks.catalogue import dimension_scopes
 from frameworks.models import Framework
 from nodes.constraints.validation import require_valid_instance_constraints
-from nodes.defs import DatasetBindingDef, EdgeBindingDef, InstanceModelSpec, NodeSpec, YearsSpec
-from nodes.defs.instance_defs import ActionGroup, InstanceFeatures, InstanceMetadata
+from nodes.defs.binding_def import DatasetBindingDef, EdgeBindingDef
+from nodes.defs.instance_defs import ActionGroup, InstanceFeatures, InstanceMetadata, InstanceModelSpec, YearsSpec
+from nodes.defs.node_defs import NodeSpec
 from nodes.defs.transform_def import StoredPortTransformOp
 from nodes.fields import InstanceSpecField
 from nodes.instance_graph import NodeEditContext, NodeMeta
