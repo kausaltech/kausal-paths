@@ -5,8 +5,7 @@ from nodes.node import Node
 
 if TYPE_CHECKING:
     import common.polars as ppl
-    from nodes.pipeline import PipelineSpec
-    from nodes.pipeline.ir import PipelineNodeIR
+    from nodes.pipeline.ir import PipelineNodeIR, PipelineSpec
 
 
 class PipelineCompatibleNode(Node, ABC):

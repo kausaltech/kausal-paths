@@ -8,8 +8,8 @@ from pydantic import ValidationError
 
 import pytest
 
-from nodes.pipeline import PipelineSpec
 from nodes.pipeline.formula import FormulaError, FormulaScope, compile_formula, render_pipeline
+from nodes.pipeline.ir import PipelineSpec
 from nodes.pipeline.ops import (
     AddOperationSpec,
     DatasetInputRef,

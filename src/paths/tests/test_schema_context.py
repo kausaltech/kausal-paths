@@ -159,7 +159,7 @@ def test_blank_yaml_metadata_fields_fall_back_to_snapshot(
     instance_gql_client: tuple[PathsTestClient, InstanceConfig],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from nodes.defs import InstanceMetadata, InstanceModelSpec
+    from nodes.defs.instance_defs import InstanceMetadata, InstanceModelSpec
     from nodes.instance_serialization import InstanceSnapshot
 
     gql_client, config = instance_gql_client

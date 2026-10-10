@@ -224,7 +224,7 @@ def test_changing_the_target_invalidates_the_action_reading_it() -> None:
 def test_the_formula_as_a_pipeline_computes_the_same_effect() -> None:
     """The formula compiles to a stored pipeline, and the pipeline executor agrees with the formula evaluator."""
     from nodes.formula import FormulaNode
-    from nodes.pipeline import execute_pipeline_spec
+    from nodes.pipeline.executor import execute_pipeline_spec
     from nodes.pipeline.formula import FormulaScope, compile_formula, render_pipeline
 
     ctx = _context(_relative_config(_relative()))
@@ -242,7 +242,7 @@ def test_the_formula_as_a_pipeline_computes_the_same_effect() -> None:
 
 
 def test_interpolate_is_one_operation_in_formulas_and_pipelines() -> None:
-    from nodes.pipeline import execute_pipeline_spec
+    from nodes.pipeline.executor import execute_pipeline_spec
     from nodes.pipeline.formula import FormulaScope, compile_formula
 
     ctx = _context(_relative_config(_relative()))

@@ -12,7 +12,7 @@ from paths.const import INSTANCE_VIEWER_ROLE
 from admin_site.auth_pipeline import assign_roles
 from frameworks.models import Framework, FrameworkConfig
 from frameworks.roles import FrameworkRoleDef
-from nodes.defs import InstanceModelSpec, YearsSpec
+from nodes.defs.instance_defs import InstanceModelSpec, YearsSpec
 from nodes.defs.node_defs import NodeSpec
 from nodes.models import InstanceConfig, make_minimal_instance_spec, test_instance_registry
 from nodes.roles import instance_admin_role, instance_super_admin_role
