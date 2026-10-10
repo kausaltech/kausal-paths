@@ -9,12 +9,15 @@ from kausal_common.strawberry.pydantic import pydantic_type
 
 from paths import gql
 
+from datasets.runtime import DBDataset
 from nodes.actions.action import ActionNode
 from nodes.context import Context
 from nodes.defs.binding_def import DatasetBindingDef
-from nodes.defs.transform_def import PortTransformOp, modernized_transformations
-from nodes.graphql.types.change_history import EditableEntity
+from nodes.defs.transform_def import PortTransformOp, modernized_transformations, visible_transformations
+from nodes.graphql.types.change_history import EditableEntity, fetch_binding_history_by_uuid
 from nodes.graphql.types.metric import DimensionalMetricType
+from nodes.graphql.types.transformations import PortTransformationType
+from nodes.metric import DimensionalMetric
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -28,9 +31,6 @@ if TYPE_CHECKING:
     from nodes.graphql.types.node import ActionNodeType
     from nodes.models import InstanceConfig, NodeInputPortBinding, PreferredInstanceSource
     from nodes.node import Node
-
-from nodes.graphql.types.transformations import PortTransformationType
-from nodes.metric import DimensionalMetric
 
 
 @sb.type
@@ -144,8 +144,6 @@ class NodeEdgeType(EditableEntity):
         limit: int = 50,
         before: 'datetime | None' = None,
     ) -> 'list[InstanceModelLogEntryType]':
-        from nodes.graphql.types.change_history import fetch_binding_history_by_uuid
-
         return fetch_binding_history_by_uuid(root.uuid, info, limit=limit, before=before)
 
 
@@ -219,8 +217,6 @@ class DatasetPortType(EditableEntity):
     )
     @staticmethod
     def transformations(root: 'DatasetPortType') -> list[PortTransformOp]:
-        from nodes.defs.transform_def import visible_transformations
-
         return visible_transformations(root._transformations or [])
 
     @sb.field(graphql_type=Annotated['DatasetType', sb.lazy('datasets.graphql.types')] | None)  # type: ignore[name-defined]  # noqa: F821
@@ -243,12 +239,14 @@ class DatasetPortType(EditableEntity):
             if ds_id is not None and ds.id == ds_id:
                 matched_ds = ds
                 break
-            if ds_uuid is not None:
-                from datasets.runtime import DBDataset
-
-                if isinstance(ds, DBDataset) and ds.db_dataset_obj is not None and str(ds.db_dataset_obj.uuid) == ds_uuid:
-                    matched_ds = ds
-                    break
+            if (
+                ds_uuid is not None
+                and isinstance(ds, DBDataset)
+                and ds.db_dataset_obj is not None
+                and str(ds.db_dataset_obj.uuid) == ds_uuid
+            ):
+                matched_ds = ds
+                break
         if matched_ds is None:
             return []
         try:
@@ -299,8 +297,6 @@ class DatasetPortType(EditableEntity):
         limit: int = 50,
         before: datetime | None = None,
     ) -> 'list[InstanceModelLogEntryType]':
-        from nodes.graphql.types.change_history import fetch_binding_history_by_uuid
-
         return fetch_binding_history_by_uuid(root.uuid, info, limit=limit, before=before)
 
 
@@ -366,7 +362,7 @@ class ActionGroupType:
     def next_sibling(self) -> UUID | None:
         return self._next_sibling
 
-    @sb.field(graphql_type=list[Annotated['ActionNodeType', sb.lazy('nodes.schema')]])
+    @sb.field(graphql_type=list[Annotated['ActionNodeType', sb.lazy('nodes.graphql.types.node')]])
     def actions(self, info: gql.Info) -> list[ActionNode]:
         context = self.runtime_context(info)
         return [act for act in context.get_actions() if act.group is not None and act.group.uuid == self.uuid]

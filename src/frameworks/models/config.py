@@ -7,7 +7,7 @@ from urllib.parse import urlparse
 from uuid import uuid4
 
 from django.db import models, transaction
-from django.db.models import QuerySet
+from django.db.models import Max, Min, QuerySet
 from django.http import HttpRequest
 from django.utils import timezone
 
@@ -22,6 +22,11 @@ from kausal_common.users import user_or_none
 
 from paths.types import CacheablePathsModel, PathsModel, PathsQuerySet
 
+from frameworks.permissions import FrameworkConfigPermissionPolicy
+from nodes.actions.action import ActionNode
+from nodes.defs.instance_defs import InstanceModelSpec
+from nodes.gpc import DatasetNode
+
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
 
@@ -34,11 +39,7 @@ if TYPE_CHECKING:
 
     from frameworks.datasets import FrameworkMeasureDVCDataset2
     from frameworks.object_cache import FrameworkConfigCacheData  # noqa: F401
-    from frameworks.permissions import (
-        FrameworkConfigPermissionPolicy,
-    )
-    from nodes.defs.instance_defs import InstanceModelSpec, YearsSpec
-    from nodes.gpc import DatasetNode
+    from nodes.defs.instance_defs import YearsSpec
     from nodes.instance import Instance
     from nodes.instance_serialization import InstanceSnapshot
     from nodes.models import InstanceConfig
@@ -182,8 +183,6 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
 
     @classmethod
     def permission_policy(cls) -> FrameworkConfigPermissionPolicy:
-        from frameworks.permissions import FrameworkConfigPermissionPolicy
-
         return FrameworkConfigPermissionPolicy()
 
     @classmethod
@@ -198,7 +197,6 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
         target_year: int | None = None,
         user: UserOrAnon | None = None,
     ) -> FrameworkConfig:
-        from nodes.defs import InstanceModelSpec
         from nodes.models import InstanceConfig, make_minimal_instance_spec
         from orgs.models import Organization
 
@@ -437,8 +435,6 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
 
     def apply_spec_overrides(self, spec: InstanceModelSpec) -> InstanceModelSpec:
         """Return the shared framework spec with instance-owned and observed years applied."""
-        from django.db.models import Max, Min
-
         instance_years = self.instance_config.ensure_spec().years
         reference_year = instance_years.reference
         mdp_years = MeasureDataPoint.objects.filter(measure__framework_config=self).aggregate(
@@ -794,8 +790,6 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
         metric. Where the graph does not answer unambiguously nothing moves: the measure
         keeps its node and shows nothing, as before.
         """
-        from nodes.actions.action import ActionNode
-
         node = instance.context.nodes.get(sel.node_id)
         if node is None or node.unit is None:
             return sel
@@ -845,7 +839,6 @@ class FrameworkConfig(CacheablePathsModel['FrameworkConfigCacheData'], UserModif
     def _get_node_dimension_selections(self, node_id: str, node: Node) -> list[tuple[str, NodeDimensionSelection]]:
         """Return every (uuid, selection) pair one node claims, by whichever route it carries city data."""
         from frameworks.datasets import FrameworkMeasureDVCDataset2
-        from nodes.gpc import DatasetNode
 
         # Intentionally test for concrete type, filter out subclasses
         if type(node) is DatasetNode:

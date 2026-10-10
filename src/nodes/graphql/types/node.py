@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Annotated, Any, Optional, cast  # pyright: ign
 from uuid import NAMESPACE_URL, UUID, uuid5
 
 import strawberry as sb
+from django.contrib.contenttypes.models import ContentType
 from graphql.error import GraphQLError
 from wagtail.blocks.stream_block import StreamValue
 from wagtail.rich_text import RichText as WagtailRichText, expand_db_html
@@ -13,6 +14,7 @@ import sentry_sdk
 from grapple.types.streamfield import StreamFieldInterface
 from markdown_it import MarkdownIt
 
+from kausal_common.datasets.models import Dataset as DatasetModel
 from kausal_common.strawberry.grapple import grapple_field
 from kausal_common.strawberry.permissions import UserPermissionsMixin
 from kausal_common.strawberry.pydantic import StrawberryPydanticType, pydantic_type
@@ -22,8 +24,10 @@ from paths import gql
 from paths.graphql_helpers import graphql_error_nodes, pass_context
 from paths.graphql_types import UnitType
 
+from frameworks.models import Framework
 from nodes import visualizations as viz
 from nodes.actions.action import ActionNode
+from nodes.actions.parent import ParentActionNode
 from nodes.constants import DecisionLevel
 from nodes.defs import SimpleConfig
 from nodes.defs.binding_def import DatasetBindingDef, EdgeBindingDef
@@ -32,10 +36,12 @@ from nodes.exceptions import NodeError
 from nodes.graph_layout import NodeGraphLayoutMeta
 from nodes.graphql.editability import port_editable, runtime_source
 from nodes.graphql.types import DatasetPortType
-from nodes.graphql.types.change_history import EditableEntity
+from nodes.graphql.types.change_history import EditableEntity, fetch_entity_history_by_uuid
 from nodes.graphql.types.impact import get_impact_metric
-from nodes.models import InstanceConfig
-from nodes.node import NodeErrorPhase, NodeStatus
+from nodes.instance_graph import node_class_for_spec
+from nodes.metric import DimensionalFlow, DimensionalMetric, Metric
+from nodes.models import InstanceConfig, NodeConfig
+from nodes.node import Node, NodeErrorPhase, NodeStatus
 from nodes.quantities import get_registry as get_quantity_registry
 from nodes.scenario import Scenario, ScenarioKind
 from params import Parameter
@@ -56,8 +62,6 @@ if TYPE_CHECKING:
     from datasets.graphql.types import DatasetType
     from nodes.context import Context
     from nodes.graphql.types.change_history import InstanceModelLogEntryType
-    from nodes.metric import DimensionalFlow, DimensionalMetric, Metric
-    from nodes.node import Node
     from nodes.quantities import QuantityKind
     from params.schema import ParameterInterface
 
@@ -225,8 +229,6 @@ class NodeSpecType(StrawberryPydanticType[NodeSpec]):
     )
     @staticmethod
     def input_port_declarations(root: 'NodeSpecType') -> list['InputPortDeclarationType']:
-        from nodes.instance_graph import node_class_for_spec
-
         spec = root._original_model
         node_class = node_class_for_spec(spec)
         return [
@@ -242,8 +244,6 @@ class NodeSpecType(StrawberryPydanticType[NodeSpec]):
     )
     @staticmethod
     def supports_authored_ports(root: 'NodeSpecType') -> bool:
-        from nodes.instance_graph import node_class_for_spec
-
         return node_class_for_spec(root._original_model).supports_authored_ports
 
 
@@ -288,9 +288,6 @@ class NodeEditorFields:
         limit: int = 50,
         before: datetime | None = None,
     ) -> list[Any]:
-        from nodes.graphql.types.change_history import fetch_entity_history_by_uuid
-        from nodes.models import NodeConfig
-
         if not root._config.gql_action_allowed(info, 'change', raise_on_denied=False):
             return []
         return fetch_entity_history_by_uuid(
@@ -307,13 +304,7 @@ class NodeEditorFields:
     )
     @staticmethod
     def datasets(root: 'NodeEditorFields', info: gql.Info) -> list[Any]:
-        from django.contrib.contenttypes.models import ContentType
-
-        from kausal_common.datasets.models import Dataset as DatasetModel
-
         from datasets.graphql.types import DatasetType
-        from frameworks.models import Framework
-        from nodes.models import NodeConfig
 
         nc = root._node.db_obj
         if nc is None:
@@ -454,8 +445,6 @@ class NodeInterface(UserPermissionsMixin):
     def copy_of(root: 'Node') -> UUID | None:
         if root.source_snapshot is not None:
             return root.source_snapshot.copy_of
-
-        from nodes.models import NodeConfig
 
         nc = root.db_obj
         if nc is None or nc.copy_of_id is None:
@@ -598,8 +587,6 @@ class NodeInterface(UserPermissionsMixin):
     @sb.field(deprecation_reason='Use __typeName instead')
     @staticmethod
     def is_action(root: 'Node') -> bool:
-        from nodes.actions.action import ActionNode
-
         return isinstance(root, ActionNode)
 
     @sb.field
@@ -645,8 +632,6 @@ class NodeInterface(UserPermissionsMixin):
         same_quantity: bool = False,
         include_actions: bool = True,
     ) -> list['Node']:
-        from nodes.actions.action import ActionNode
-
         def filter_nodes(node: Node) -> bool:
             if same_unit and root.unit != node.unit:
                 return False
@@ -663,8 +648,6 @@ class NodeInterface(UserPermissionsMixin):
     @sb.field(graphql_type=ForecastMetricType | None)
     @staticmethod
     def metric(root: 'Node', goal_id: sb.ID | None = None) -> 'Metric | None':
-        from nodes.metric import Metric
-
         return Metric.from_node(root, goal_id=goal_id)
 
     @sb.field(graphql_type=DimensionalMetricType | None)
@@ -682,8 +665,6 @@ class NodeInterface(UserPermissionsMixin):
         target_node_id: sb.ID | None = None,
         goal_id: sb.ID | None = None,
     ) -> 'Metric | None':
-        from nodes.actions.action import ActionNode
-
         instance = context.instance
         # Set when this node is an item of a `downstreamNodes` list: the path is
         # [..., 'downstreamNodes', <index>, 'impactMetric'].
@@ -725,8 +706,6 @@ class NodeInterface(UserPermissionsMixin):
     @sb.field(ForecastMetricType, graphql_type=list[ForecastMetricType])
     @staticmethod
     def impact_metrics(root: 'Node') -> list['Metric']:
-        from nodes.actions.action import ActionNode
-
         if not isinstance(root, ActionNode):
             return []
         metrics = []
@@ -744,9 +723,6 @@ class NodeInterface(UserPermissionsMixin):
     @sb.field(graphql_type=DimensionalFlowType | None)
     @staticmethod
     def dimensional_flow(root: 'Node') -> 'DimensionalFlow | None':
-        from nodes.actions.action import ActionNode
-        from nodes.metric import DimensionalFlow
-
         if not isinstance(root, ActionNode):
             return None
         return DimensionalFlow.from_action_node(root)
@@ -758,8 +734,6 @@ class NodeInterface(UserPermissionsMixin):
         with_scenarios: list[str] | None = None,
         include_scenario_kinds: list[ScenarioKind] | None = None,
     ) -> 'DimensionalMetric | None':
-        from nodes.metric import DimensionalMetric
-
         context = root.context
         extra_scenarios: list[Scenario] = []
         for scenario_id in with_scenarios or []:
@@ -827,7 +801,6 @@ class NodeInterface(UserPermissionsMixin):
         if root.source_snapshot is not None:
             if root.source_snapshot.body is None:
                 return None
-            from nodes.models import NodeConfig
 
             body_field = NodeConfig._meta.get_field('body')
             return body_field.to_python(root.source_snapshot.body)
@@ -844,20 +817,15 @@ class NodeType(NodeInterface, EditableEntity):  # type: ignore[override]
 
     @classmethod
     def is_type_of(cls, obj: Any, _info: gql.Info) -> bool:
-        from nodes.actions.action import ActionNode
-        from nodes.node import Node
-
         return isinstance(obj, Node) and not isinstance(obj, ActionNode)
 
-    @sb.field(graphql_type=list[Annotated['ActionNodeType', sb.lazy('nodes.schema')]])
+    @sb.field(graphql_type=list[Annotated['ActionNodeType', sb.lazy('nodes.graphql.types.node')]])
     @staticmethod
     def upstream_actions(
         root: 'Node',
         only_root: bool = False,
         decision_level: DecisionLevel | None = None,
     ) -> list['Node']:
-        from nodes.actions.action import ActionNode
-
         def filter_action(n: Node) -> bool:
             if not isinstance(n, ActionNode):
                 return False
@@ -877,8 +845,6 @@ class ActionNodeType(NodeInterface, EditableEntity):  # type: ignore[override]
 
     @classmethod
     def is_type_of(cls, obj: Any, _info: gql.Info) -> bool:
-        from nodes.actions.action import ActionNode
-
         return isinstance(obj, ActionNode)
 
     @sb.field
@@ -886,16 +852,14 @@ class ActionNodeType(NodeInterface, EditableEntity):  # type: ignore[override]
     def is_enabled(root: ActionNode) -> bool:
         return bool(root.is_enabled())
 
-    @sb.field(graphql_type=Optional[Annotated['ActionNodeType', sb.lazy('nodes.schema')]])  # noqa: UP045  # pyright: ignore[reportDeprecated]
+    @sb.field(graphql_type=Optional[Annotated['ActionNodeType', sb.lazy('nodes.graphql.types.node')]])  # noqa: UP045  # pyright: ignore[reportDeprecated]
     @staticmethod
     def parent_action(root: ActionNode) -> ActionNode | None:
         return root.parent_action
 
-    @sb.field(graphql_type=list[Annotated['ActionNodeType', sb.lazy('nodes.schema')]])
+    @sb.field(graphql_type=list[Annotated['ActionNodeType', sb.lazy('nodes.graphql.types.node')]])
     @staticmethod
     def subactions(root: ActionNode) -> list[ActionNode]:
-        from nodes.actions.parent import ParentActionNode
-
         if not isinstance(root, ParentActionNode):
             return []
         return root.subactions

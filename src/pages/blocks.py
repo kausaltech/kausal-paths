@@ -24,19 +24,18 @@ if TYPE_CHECKING:
 
     from frameworks.models import Framework
     from nodes.actions.action import ActionNode
-    from nodes.metric import MetricYearlyGoal
-    from nodes.node import Node
-    from nodes.scenario import Scenario
-    from nodes.schema import (
+    from nodes.graphql.types.metric import MetricDimensionCategoryType, MetricDimensionType
+    from nodes.graphql.types.node import ActionNodeType
+    from nodes.graphql.types.scenario import (
         ActionImpactType,
-        ActionNodeType,
-        MetricDimensionCategoryType,
         MetricDimensionCategoryValue,
-        MetricDimensionType,
         ScenarioActionImpacts,
         ScenarioType,
         ScenarioValue,
     )
+    from nodes.metric import MetricYearlyGoal
+    from nodes.node import Node
+    from nodes.scenario import Scenario
     from nodes.units import Unit
 
 
@@ -252,28 +251,28 @@ class DashboardCardBlock(blocks.StructBlock):
         GraphQLString('title', required=True),
         GraphQLString('description', required=True),
         GraphQLImage('image', required=False),
-        GraphQLField('node', 'nodes.schema.NodeType', required=True),  # pyright: ignore
+        GraphQLField('node', 'nodes.graphql.types.node.NodeType', required=True),  # pyright: ignore
         GraphQLField('unit', 'paths.schema.UnitType', required=True),  # pyright: ignore
         GraphQLInt('year', required=False),
         GraphQLFloat('goal_value', required=False, deprecation_reason='Use goalValues instead'),
         GraphQLField(
             'goal_values',
-            'nodes.schema.MetricYearlyGoalType',  # pyright: ignore
+            'nodes.graphql.types.metric.MetricYearlyGoalType',  # pyright: ignore
             is_list=True,
             required=True,
         ),
         GraphQLFloat('reference_year_value', required=False),
         GraphQLFloat('last_historical_year_value', required=False),
-        GraphQLField('scenario_values', 'nodes.schema.ScenarioValue', is_list=True, required=True),  # pyright: ignore
+        GraphQLField('scenario_values', 'nodes.graphql.types.scenario.ScenarioValue', is_list=True, required=True),  # pyright: ignore
         GraphQLField(
             'metric_dimension_category_values',
-            'nodes.schema.MetricDimensionCategoryValue',  # pyright: ignore
+            'nodes.graphql.types.scenario.MetricDimensionCategoryValue',  # pyright: ignore
             is_list=True,
             required=False,  # can be null if there is no historical data
         ),
         GraphQLField(
             'scenario_action_impacts',
-            'nodes.schema.ScenarioActionImpacts',  # pyright: ignore
+            'nodes.graphql.types.scenario.ScenarioActionImpacts',  # pyright: ignore
             is_list=True,
             required=True,
         ),
@@ -361,7 +360,7 @@ class DashboardCardBlock(blocks.StructBlock):
 
     def scenario_values(self, info: GQLInfo, values: dict) -> Iterable[ScenarioValue]:
         """Return the value for each scenario in the card's year."""
-        from nodes.schema import ScenarioValue
+        from nodes.graphql.types.scenario import ScenarioValue
 
         node = self.node(info, values)
         target_year = self._card_year(node, values)
@@ -382,7 +381,7 @@ class DashboardCardBlock(blocks.StructBlock):
         """
         import polars as pl
 
-        from nodes.schema import MetricDimensionCategoryValue
+        from nodes.graphql.types.scenario import MetricDimensionCategoryValue
 
         node = self.node(info, values)
         dm = self._dimensional_metric(node)
@@ -423,7 +422,7 @@ class DashboardCardBlock(blocks.StructBlock):
         Whether an action is enabled is reported per entry for the same reason --
         `action.isEnabled` is resolved after this returns, in the visitor's scenario.
         """
-        from nodes.schema import ScenarioActionImpacts
+        from nodes.graphql.types.scenario import ScenarioActionImpacts
 
         node = self.node(info, values)
         target_year = self._card_year(node, values)
@@ -494,7 +493,7 @@ class DashboardCardBlock(blocks.StructBlock):
     def _impact_for_action(self, action: ActionNode, node: Node, year: int) -> ActionImpactType:
         import polars as pl
 
-        from nodes.schema import ActionImpactType
+        from nodes.graphql.types.scenario import ActionImpactType
 
         df = action.compute_impact(node)
         df = df.filter(pl.col(IMPACT_COLUMN) == IMPACT_GROUP).drop(IMPACT_COLUMN)

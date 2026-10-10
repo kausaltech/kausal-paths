@@ -17,18 +17,31 @@ binding snapshots.
 
 from __future__ import annotations
 
+from collections import defaultdict, deque
 from copy import deepcopy
 from datetime import datetime
 from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Literal, Self, cast
 from uuid import UUID, uuid3
 
+from django.apps import apps
+from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 from pydantic import BaseModel, Field, PrivateAttr, field_validator
+from wagtail.models import Revision
 
 from markdown_it import MarkdownIt
 
+from kausal_common.datasets.models import (
+    Dataset,
+    Dataset as DatasetModel,
+    DatasetMetric,
+    DatasetSchemaScope,
+    Dimension,
+    DimensionCategory as DimensionCategoryModel,
+    DimensionScope,
+)
 from kausal_common.i18n.pydantic import (
     TranslatedString,
     get_modeltrans_attrs_from_str,
@@ -46,12 +59,16 @@ from paths.refs import (
     NodeRef,
     PortRef,
 )
+from paths.rekey import rekeyed, survey
 from paths.uuid_kinds import Token
 
 from datasets.catalogue import dataset_meta_from_model
+from datasets.legacy_snapshot import complete_catalog_entry, upgrade_dataset_snapshot_v1
 from datasets.shape_domain import CategoryDomainResolver
 from datasets.snapshot import DatasetSnapshot, metric_column_id
 from datasets.transfer import import_instance_datasets, save_in_order
+from frameworks.catalogue import dimension_scopes
+from frameworks.models import Framework, FrameworkConfig, FrameworkDimensionCategory, Measure, MeasureDataPoint, MeasureTemplate
 from nodes.defs.data_entry import data_entry_dataset_ids
 from nodes.defs.graph import (
     DatasetMeta,
@@ -63,25 +80,19 @@ from nodes.defs.node_defs import DatasetPortSpec, NodeSpec
 from nodes.defs.transform_def import EdgeTransformOp, PortTransformOp
 from nodes.goals import NodeGoals
 from nodes.legacy_specs import upgrade_formula_specs_v13
-from nodes.page_snapshot import PageSnapshot
+from nodes.page_snapshot import PageSnapshot, build_instance_page_snapshots
 from nodes.snapshot_base import ModelSnapshot, apply_translated, translated_string_from_model
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Hashable, Iterable, Mapping, Sequence
 
-    from django.contrib.contenttypes.models import ContentType
     from django.db.models import QuerySet
-    from wagtail.models import Revision
 
-    from kausal_common.datasets.models import (
-        Dataset as DatasetModel,
-    )
     from kausal_common.i18n.pydantic import I18nString
 
     from paths.rekey import Rekeying
     from paths.uuid_kinds import UuidEntity
 
-    from frameworks.models import FrameworkConfig
     from nodes.models import InstanceConfig, NodeConfig, NodeInputPortBinding, NodeLayout
     from nodes.node import Node
 
@@ -658,8 +669,6 @@ def ordered_binding_snapshots(
     snapshots: unified-row pk order, the authored order), then dataset ports
     sorted by ``(node, dataset_index, port, metric)``.
     """
-    from collections import defaultdict
-
     positions: defaultdict[tuple[UUID, UUID], int] = defaultdict(int)
     result: list[tuple[EdgeSnapshot | DatasetPortSnapshot, int]] = []
     for edge in edges:
@@ -752,8 +761,6 @@ def group_unified_dataset_bindings(
 
     Returns per node: (binding-level spec, dataset identifier, rows).
     """
-    from collections import defaultdict
-
     rows_by_node: defaultdict[UUID, list[tuple[InputBindingSnapshot, int]]] = defaultdict(list)
     for item, position in dataset_rows:
         rows_by_node[item.node_id].append((item, position))
@@ -805,8 +812,6 @@ def ordered_unified_bindings(
     Callers supply both sequences in canonical order (edges in snapshot order,
     dataset rows as the resolution step emits them).
     """
-    from collections import defaultdict
-
     positions: defaultdict[tuple[UUID, UUID], int] = defaultdict(int)
     result: list[tuple[InputBindingSnapshot, int]] = []
     for row in [*edges, *dataset_rows]:
@@ -832,8 +837,6 @@ def match_preserved_uuids(
     (authored) orders, so parallel duplicates match deterministically.
     Returns one preserved UUID (or ``None``) per replacement.
     """
-    from collections import defaultdict, deque
-
     result: list[UUID | None] = [None] * len(replacements)
     if not existing or not replacements:
         return result
@@ -1199,8 +1202,6 @@ class InstanceExport(BaseModel):
         entities the instance overrides keep their uuids. ``seed`` fixes new uuids in
         advance, such as the instance's own when its row is created first.
         """
-        from paths.rekey import rekeyed
-
         if self.instance.template_revision_id is not None and self.template is None:
             raise ValueError('Rekeying an instance built on a template needs the template bundled, to tell overrides apart')
         return rekeyed(self, seed=seed)
@@ -1264,7 +1265,6 @@ def _upgrade_export_bodies(instance: InstanceSnapshot, bodies: list[dict[str, An
 
     A deployment still on v1 exports such bodies; see `InstanceExport.from_serialized_data`.
     """
-    from datasets.legacy_snapshot import complete_catalog_entry, upgrade_dataset_snapshot_v1
     from datasets.materialization import hash_dataset_content
 
     catalog = {entry.id: entry for entry in instance.all_datasets()}
@@ -1427,8 +1427,6 @@ def build_instance_snapshot(
 
 
 def _dimension_catalog_for(ic: InstanceConfig) -> list[DimensionMeta]:
-    from frameworks.catalogue import dimension_scopes
-
     scopes = (
         dimension_scopes(ic)
         .select_related('dimension', 'scope_content_type')
@@ -1478,10 +1476,6 @@ def _dataset_catalog_for(
     Returns the instance-level entries and, per node uuid, the node-owned ones. A node's
     datasets are listed whether bound or not: they belong to the node.
     """
-    from django.contrib.contenttypes.models import ContentType
-
-    from kausal_common.datasets.models import Dataset as DatasetModel
-
     from nodes.models import NodeConfig
 
     node_ct = ContentType.objects.get_for_model(NodeConfig)
@@ -1547,8 +1541,6 @@ def _dataset_export_rank(ds: DatasetModel, ic_ct_id: int, ic_id: int) -> tuple[b
 
 
 def _datasets_for_instance_export(ic: InstanceConfig, ic_ct: ContentType) -> list[DatasetModel]:
-    from kausal_common.datasets.models import Dataset as DatasetModel, DatasetSchemaScope
-
     schema_scope_ids = DatasetSchemaScope.objects.filter(
         scope_content_type=ic_ct,
         scope_id=ic.pk,
@@ -1581,15 +1573,9 @@ def export_instance(ic: InstanceConfig, *, exported_from: str | None = None) -> 
     leave this database (the GraphQL ``instance.export`` field passes the
     backend's base URL); in-process uses such as ``copy_instance`` leave it out.
     """
-    from django.contrib.contenttypes.models import ContentType
-
-    from nodes.page_snapshot import build_instance_page_snapshots
-
     snapshot = build_instance_snapshot(ic, compose=False)
 
     ic_ct = ContentType.objects.get_for_model(ic)
-    from kausal_common.datasets.models import Dataset as DatasetModel
-
     source_datasets = {item.uuid: item for item in _datasets_for_instance_export(ic, ic_ct)}
     source_datasets.update({
         item.uuid: item
@@ -1601,8 +1587,6 @@ def export_instance(ic: InstanceConfig, *, exported_from: str | None = None) -> 
 
     template_export = None
     if snapshot.template_revision_id is not None:
-        from wagtail.models import Revision
-
         from nodes.template_graph import template_snapshot
 
         base = template_snapshot(ic)
@@ -1648,10 +1632,6 @@ def _import_dimensions(ic: InstanceConfig, export: InstanceExport) -> None:
     with every category the export names under the same uuid and identifier. Labels and order
     may differ, since a framework's presentation may have moved on.
     """
-    from django.contrib.contenttypes.models import ContentType
-
-    from kausal_common.datasets.models import Dimension, DimensionCategory as DimensionCategoryModel, DimensionScope
-
     ic_ct = ContentType.objects.get_for_model(ic)
     language = ic.primary_language
     for dimension_meta in export.instance.dimensions:
@@ -1689,8 +1669,6 @@ def _import_dimensions(ic: InstanceConfig, export: InstanceExport) -> None:
 
 
 def _check_framework_dimension(dimension_meta: DimensionMeta) -> None:
-    from kausal_common.datasets.models import Dimension
-
     dimension = Dimension.objects.filter(uuid=dimension_meta.id).prefetch_related('categories').first()
     if dimension is None:
         raise ValueError(f'Framework dimension {dimension_meta.identifier} ({dimension_meta.id}) is not here')
@@ -1818,8 +1796,6 @@ def _import_bindings(ic: InstanceConfig, export: InstanceExport, nodes_by_uuid: 
     materialised in the DB) is skipped; that may leave position gaps on a port, which is
     harmless, since only relative order is semantic.
     """
-    from kausal_common.datasets.models import Dataset, DatasetMetric
-
     from nodes.models import NodeInputPortBinding
 
     items = list(export.instance.bindings_with_positions())
@@ -1855,9 +1831,6 @@ def _import_bindings(ic: InstanceConfig, export: InstanceExport, nodes_by_uuid: 
 
 
 def _import_template_revision(export: InstanceExport, *, organization_id: int) -> int | None:
-    from django.contrib.contenttypes.models import ContentType
-    from wagtail.models import Revision
-
     from nodes.models import InstanceConfig
     from nodes.template_graph import snapshot_content_hash
 
@@ -1912,8 +1885,6 @@ def _import_template_revision(export: InstanceExport, *, organization_id: int) -
         },
     )
 
-    from kausal_common.datasets.models import Dataset
-
     from nodes.models import InstanceRevisionDatasetPin
 
     datasets = {
@@ -1938,11 +1909,6 @@ def _import_template_revision(export: InstanceExport, *, organization_id: int) -
 
 
 def _import_template_dataset_pins(template: InstanceConfig, export: InstanceExport) -> InstanceSnapshot:
-    from django.contrib.contenttypes.models import ContentType
-    from wagtail.models import Revision
-
-    from kausal_common.datasets.models import Dataset
-
     from datasets.materialization import hash_dataset_content
 
     base = export.instance.model_copy(deep=True)
@@ -2111,10 +2077,6 @@ def check_import(export: InstanceExport, *, instance: InstanceConfig | None = No
     carry) must already be here. ``instance`` is the row created for the import, which
     holds the export's instance uuid already.
     """
-    from django.apps import apps
-
-    from paths.rekey import survey
-
     rekeying = survey(export)
     problems: list[str] = []
     for entity, ids in rekeying.owned.items():
@@ -2139,15 +2101,6 @@ def check_import(export: InstanceExport, *, instance: InstanceConfig | None = No
 
 def _import_framework_membership(ic: InstanceConfig, membership: FrameworkMembershipSnapshot) -> None:
     """Make ``ic`` a member of the export's framework again, with its measures."""
-    from frameworks.models import (
-        Framework,
-        FrameworkConfig,
-        FrameworkDimensionCategory,
-        Measure,
-        MeasureDataPoint,
-        MeasureTemplate,
-    )
-
     framework = Framework.objects.filter(uuid=membership.framework).first()
     if framework is None:
         raise ValueError(f'Framework {membership.framework_identifier} ({membership.framework}) is not here')
@@ -2176,10 +2129,6 @@ def _import_framework_membership(ic: InstanceConfig, membership: FrameworkMember
 
 def _import_dataset_ownership(snapshot: InstanceSnapshot, nodes_by_uuid: dict[UUID, NodeConfig]) -> None:
     """Scope each node's own datasets to the node, as the export records it."""
-    from django.contrib.contenttypes.models import ContentType
-
-    from kausal_common.datasets.models import Dataset
-
     from nodes.models import NodeConfig
 
     node_ct = ContentType.objects.get_for_model(NodeConfig)

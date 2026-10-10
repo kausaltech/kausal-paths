@@ -17,14 +17,17 @@ from kausal_common.datasets.models import Dataset
 from kausal_common.i18n.pydantic import is_query_with_instance_context, set_i18n_context
 from kausal_common.strawberry.context import GraphQLContext
 from kausal_common.strawberry.extensions import AuthenticationExtension, ExecutionCacheExtension, GraphQLPerfNode, SchemaExtension
+from kausal_common.strawberry.schema import locale_directive
 
 from paths.context import PathsObjectCache, paths_object_cache
 
 from frameworks.models import Framework
+from nodes.constraints.validation import solve_instance_constraints
 from nodes.instance_graph import NodeEditContext
-from nodes.instance_graph_cache import resolve_instance_source
-from nodes.models import PreferredInstanceSource
+from nodes.instance_graph_cache import get_instance_graph, load_instance_snapshot, resolve_instance_source
+from nodes.models import InstanceConfig, PreferredInstanceSource
 from params.storage import InstanceDataStorage, SessionStorage
+from users.models import User
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -42,7 +45,7 @@ if TYPE_CHECKING:
     from nodes.instance_graph import InstanceGraph
     from nodes.instance_graph_cache import LoadedInstanceSnapshot, ResolvedInstanceSource
     from nodes.instance_serialization import InstanceSnapshot
-    from nodes.models import InstanceConfig, InstanceConfigQuerySet
+    from nodes.models import InstanceConfigQuerySet
     from nodes.node import Node
     from params.overrides import ModelOverrides
 
@@ -219,8 +222,6 @@ class InstanceRequestResources:
         source: PreferredInstanceSource | None = None,
         refresh: bool = False,
     ) -> InstanceGraph:
-        from nodes.instance_graph_cache import get_instance_graph, resolve_instance_source
-
         config, source = self.resolve_source(config, source)
         resolved_source = resolve_instance_source(config, source)
         return get_instance_graph(
@@ -249,8 +250,6 @@ class InstanceRequestResources:
         ports and nodes share one solve, and any draft edit changes the
         resolved version, so a stale result is never served.
         """
-        from nodes.constraints.validation import solve_instance_constraints
-
         config, source = self.resolve_source(config, source)
         resolved_source = resolve_instance_source(config, source)
         cached = self.constraint_solves.get(resolved_source)
@@ -268,8 +267,6 @@ class InstanceRequestResources:
         *,
         refresh: bool = False,
     ) -> LoadedInstanceSnapshot:
-        from nodes.instance_graph_cache import load_instance_snapshot
-
         loaded = None if refresh else self.snapshots.get(source)
         if loaded is None:
             loaded = load_instance_snapshot(config, source)
@@ -304,8 +301,6 @@ class InstanceRequestResources:
 
     @staticmethod
     def _draft_source() -> PreferredInstanceSource:
-        from nodes.models import PreferredInstanceSource
-
         return PreferredInstanceSource.DRAFT
 
 
@@ -448,8 +443,6 @@ class PathsSchemaExtension(SchemaExtension[PathsGraphQLContext]):
 
 class DetermineInstanceContextExtension(PathsSchemaExtension):
     def process_locale_directive(self, ic: InstanceConfig, directive: DirectiveNode) -> str:
-        from kausal_common.strawberry.schema import locale_directive
-
         assert locale_directive.graphql_name is not None
         exec_ctx = self.execution_context
         directive_ast = exec_ctx.schema._schema.get_directive(locale_directive.graphql_name)
@@ -463,8 +456,6 @@ class DetermineInstanceContextExtension(PathsSchemaExtension):
         return lang
 
     def get_ic_queryset(self) -> InstanceConfigQuerySet:
-        from nodes.models import InstanceConfig
-
         return (
             InstanceConfig.objects.get_queryset().select_related('framework_config').select_related('framework_config__framework')
         )
@@ -475,8 +466,6 @@ class DetermineInstanceContextExtension(PathsSchemaExtension):
         identifier: str,
         directive: DirectiveNode | None = None,
     ) -> InstanceConfig:
-        from nodes.models import InstanceConfig
-
         try:
             if identifier.isnumeric():
                 instance = queryset.get(id=identifier)
@@ -492,8 +481,6 @@ class DetermineInstanceContextExtension(PathsSchemaExtension):
         hostname: str,
         directive: DirectiveNode | None = None,
     ) -> InstanceConfig:
-        from nodes.models import InstanceConfig
-
         ctx = self.get_context()
         try:
             instance = queryset.for_hostname(hostname, wildcard_domains=ctx.wildcard_domains).get()
@@ -726,16 +713,12 @@ class ActivateInstanceContextExtension(PathsSchemaExtension):
         """
         from paths.schema import PreviewMode
 
-        from nodes.models import PreferredInstanceSource
-
         # Non-DB sources: directive is advisory, DRAFT wins.
         if ic.config_source != 'database':
             return PreferredInstanceSource.DRAFT
 
         mode = ctx.preview_mode
         if mode == PreviewMode.DRAFT:
-            from users.models import User
-
             user = ctx.get_user()
             if not isinstance(user, User) or user.is_anonymous:
                 raise GraphQLError(

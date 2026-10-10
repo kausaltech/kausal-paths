@@ -8,7 +8,8 @@ from uuid import UUID
 
 import strawberry as sb
 import strawberry_django
-from django.db.models import prefetch_related_objects
+from django.contrib.contenttypes.models import ContentType
+from django.db.models import Q, prefetch_related_objects
 from strawberry import auto
 
 from kausal_common.datasets.models import (
@@ -25,6 +26,8 @@ from kausal_common.strawberry.registry import register_strawberry_type
 from paths import gql
 from paths.graphql_types import UnitType
 
+from datasets.coordinates import DatasetCoordinateIndex
+from datasets.materialization import ensure_dataset_materializations
 from datasets.models import (
     DatasetMetricPlausibilityRange,
     PlausibilityAggregation,
@@ -32,7 +35,10 @@ from datasets.models import (
     PlausibilityReference,
     PlausibilitySource,
 )
+from datasets.plausibility import DatasetPlausibilityLookup, all_plausibility_ranges, evaluate_dataset_plausibility
+from datasets.runtime import DBDataset
 from datasets.shape_domain import dataset_category_domain, dataset_shape_id
+from datasets.validation import load_violations
 from datasets.validation_rules import (
     DimensionSumRule,
     NoGapsRule,
@@ -50,7 +56,11 @@ from frameworks.models import (
     DataQualityScheme as DataQualitySchemeModel,
     Framework,
 )
+from nodes.defs.graph import DatasetExternalRef
 from nodes.graphql.types.shape import ShapeType
+from nodes.metric_gen import metric_from_dataframe_standalone
+from nodes.models import InstanceConfig, NodeInputPortBinding, PreferredInstanceSource
+from nodes.quantities import get_registry
 from nodes.units import Unit, unit_registry
 from users.models import User
 from users.schema import UserType
@@ -74,7 +84,6 @@ if TYPE_CHECKING:
         DimensionCategory as DimensionCategoryModel,
     )
 
-    from datasets.coordinates import DatasetCoordinateIndex
     from nodes.defs.binding_def import DatasetBindingDef
     from nodes.graphql.types.graph import DatasetExternalRefType, DatasetPortType
     from nodes.graphql.types.metric import DimensionalMetricType
@@ -222,6 +231,7 @@ class DatasetMetricPlausibilityRangeType:
     def from_model(
         cls, obj: DatasetMetricPlausibilityRange, coordinate_index: DatasetCoordinateIndex
     ) -> DatasetMetricPlausibilityRangeType:
+        # Defer until this module has registered the plausibility enums with Strawberry.
         from nodes.graphql.types.problems import DatasetDimensionCoordinateType
 
         return cls(
@@ -306,7 +316,6 @@ class DatasetMetricType:
     @staticmethod
     def quantity(root: 'DatasetMetricType') -> Any:
         from nodes.graphql.types.node import QuantityKindType
-        from nodes.quantities import get_registry
 
         if not root._quantity_id:
             return None
@@ -410,8 +419,6 @@ def _source_references_queryset_for_dataset(
     dataset: DatasetModel,
     target: DatasetSourceReferenceTarget,
 ) -> Any:
-    from django.db.models import Q
-
     qs = DatasetSourceReferenceModel.objects.select_related(
         'data_source', 'data_point', 'dataset', 'created_by', 'last_modified_by'
     ).order_by('-created_at')
@@ -424,8 +431,6 @@ def _source_references_queryset_for_dataset(
 
 def _data_sources_queryset_for_dataset(dataset: DatasetModel) -> Any:
     """DataSources referenced from inside this dataset (via refs on it or its data points)."""
-    from django.db.models import Q
-
     return (
         DataSourceModel.objects
         .filter(Q(references__dataset=dataset) | Q(references__data_point__dataset=dataset))
@@ -541,7 +546,6 @@ class DataPointType:
     def plausibility_ranges(root: 'DataPointType', info: gql.Info) -> list[ResolvedPlausibilityRangeType]:
         if root._model is None:
             return []
-        from datasets.plausibility import DatasetPlausibilityLookup
 
         point = root._model
         dataset = root._dataset or point.dataset
@@ -708,9 +712,6 @@ class DatasetType(UserPermissionsMixin):
         instance = info.context.instance_config
         if instance is None:
             return True
-        from django.contrib.contenttypes.models import ContentType
-
-        from nodes.models import InstanceConfig, PreferredInstanceSource
 
         if root._model.scope_content_type_id != ContentType.objects.get_for_model(InstanceConfig).pk:
             return True  # Node-owned data follows its node editor's permissions.
@@ -853,14 +854,12 @@ class DatasetType(UserPermissionsMixin):
         """Load the full dataset as DimensionalMetric objects (one per metric column)."""
         if root._model is None:
             return []
-        from datasets.runtime import DBDataset
 
         df = DBDataset.deserialize_df(root._model)
 
         forecast_from = DatasetType.forecast_from(root)
         meta = df.get_meta()
         results: list['DimensionalMetric'] = []
-        from nodes.metric_gen import metric_from_dataframe_standalone
 
         for col in meta.metric_cols:
             ds_id = root.identifier or str(root.id)
@@ -884,11 +883,11 @@ class DatasetType(UserPermissionsMixin):
     )
     @staticmethod
     def validation_violations(root: 'DatasetType') -> "list['DatasetValidationViolationType']":
+        # Defer until this module has registered the plausibility enums with Strawberry.
+        from nodes.graphql.types.problems import DatasetValidationViolationType
+
         if root._model is None:
             return []
-        from datasets.materialization import ensure_dataset_materializations
-        from datasets.validation import load_violations
-        from nodes.graphql.types.problems import DatasetValidationViolationType
 
         materializations = ensure_dataset_materializations([root._model])
         materialization = materializations.get(root._model.pk)
@@ -905,10 +904,11 @@ class DatasetType(UserPermissionsMixin):
     )
     @staticmethod
     def plausibility_findings(root: 'DatasetType') -> "list['DatasetPlausibilityFindingType']":
+        # Defer until this module has registered the plausibility enums with Strawberry.
+        from nodes.graphql.types.problems import DatasetPlausibilityFindingType
+
         if root._model is None:
             return []
-        from datasets.plausibility import evaluate_dataset_plausibility
-        from nodes.graphql.types.problems import DatasetPlausibilityFindingType
 
         return [DatasetPlausibilityFindingType.from_finding(finding) for finding in evaluate_dataset_plausibility(root._model)]
 
@@ -922,8 +922,6 @@ class DatasetType(UserPermissionsMixin):
     def plausibility_ranges(root: 'DatasetType') -> list[DatasetMetricPlausibilityRangeType]:
         if root._model is None:
             return []
-        from datasets.coordinates import DatasetCoordinateIndex
-        from datasets.plausibility import all_plausibility_ranges
 
         ranges = all_plausibility_ranges(root._model)
         if not ranges:
@@ -936,7 +934,6 @@ class DatasetType(UserPermissionsMixin):
     def port_bindings(root: 'DatasetType') -> list['DatasetPortType']:
         """Discover which node ports use this dataset."""
         from nodes.graphql.bindings import binding_to_gql
-        from nodes.models import NodeInputPortBinding
 
         if root._model is None:
             return []
@@ -950,7 +947,6 @@ class DatasetType(UserPermissionsMixin):
 
     @classmethod
     def from_model(cls, dataset: DatasetModel) -> DatasetType:
-        from nodes.defs.graph import DatasetExternalRef
         from nodes.graphql.types.graph import dataset_external_ref_to_gql
 
         obj = cls(
