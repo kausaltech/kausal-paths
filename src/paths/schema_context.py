@@ -13,7 +13,6 @@ from strawberry.utils.operation import get_first_operation
 import sentry_sdk
 from loguru import logger
 
-from kausal_common.datasets.models import Dataset
 from kausal_common.i18n.pydantic import is_query_with_instance_context, set_i18n_context
 from kausal_common.strawberry.context import GraphQLContext
 from kausal_common.strawberry.extensions import AuthenticationExtension, ExecutionCacheExtension, GraphQLPerfNode, SchemaExtension
@@ -21,7 +20,7 @@ from kausal_common.strawberry.schema import locale_directive
 
 from paths.context import PathsObjectCache, paths_object_cache
 
-from frameworks.models import Framework
+from datasets.editions import DatasetEditions
 from nodes.constraints.validation import solve_instance_constraints
 from nodes.instance_graph import NodeEditContext
 from nodes.instance_graph_cache import get_instance_graph, load_instance_snapshot, resolve_instance_source
@@ -74,7 +73,7 @@ class InstanceRequestResources:
     instance_refreshes: set[tuple[int, PreferredInstanceSource]] = field(default_factory=set)
     snapshots: dict[ResolvedInstanceSource, LoadedInstanceSnapshot] = field(default_factory=dict)
     constraint_solves: dict[ResolvedInstanceSource, ConstraintSolveResult] = field(default_factory=dict)
-    graph_datasets: dict[ResolvedInstanceSource, dict[UUID, Dataset]] = field(default_factory=dict)
+    dataset_editions: dict[ResolvedInstanceSource, DatasetEditions] = field(default_factory=dict)
     node_edit_contexts: dict[tuple[int, PreferredInstanceSource], NodeEditContext] = field(default_factory=dict)
 
     def node_edit_context(self, info: gql.Info, config: InstanceConfig, source: PreferredInstanceSource) -> NodeEditContext:
@@ -88,26 +87,23 @@ class InstanceRequestResources:
             )
         return self.node_edit_contexts[key]
 
-    def dataset_models_for_graph(
+    def require_dataset_editions(
         self,
-        config: InstanceConfig,
+        config: InstanceConfig | None = None,
         source: PreferredInstanceSource | None = None,
-    ) -> dict[UUID, Dataset]:
+    ) -> DatasetEditions:
+        """Return the datasets of an instance source as the request's user may read them, shared by the request."""
         config, source = self.resolve_source(config, source)
         key = resolve_instance_source(config, source)
-        if key not in self.graph_datasets:
-            graph = self.require_graph(config, source=source)
-            datasets = (
-                Dataset.objects
-                .with_schema_editability(Framework)
-                .filter(
-                    uuid__in=graph.dataset_by_id,
-                )
-                .select_related('created_by', 'last_modified_by')
-                .prefetch_related('schema__metrics__validation_rules', 'schema__dimensions__dimension__categories')
+        if key not in self.dataset_editions:
+            self.dataset_editions[key] = DatasetEditions(
+                self.require_graph(config, source=source),
+                self.extension.get_context().get_user(),
+                published=key.kind == 'database-published',
+                config=config,
+                source=source,
             )
-            self.graph_datasets[key] = {dataset.uuid: dataset for dataset in datasets}
-        return self.graph_datasets[key]
+        return self.dataset_editions[key]
 
     def resolve_source(
         self,
@@ -209,7 +205,7 @@ class InstanceRequestResources:
         """Discard request-local runtimes so the next accessor rebuilds lazily."""
         config, source = self.resolve_source(config, source)
         self.node_edit_contexts.pop((config.pk, source), None)
-        self.graph_datasets.clear()
+        self.dataset_editions.clear()
         stale_keys = [key for key in self.instances if key.instance_pk == config.pk and key.source == source]
         for key in stale_keys:
             del self.instances[key]

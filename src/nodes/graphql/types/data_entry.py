@@ -6,18 +6,7 @@ from uuid import UUID, uuid3
 import strawberry as sb
 
 from datasets.data_entry import DataEntryQuery
-from datasets.graphql.types import (
-    DataQualitySchemeType,
-    DatasetCategoryCombinationType,
-    DatasetCategoryCoordinateType,
-    DatasetCategoryDomainType,
-    DatasetDimensionCategoryType,
-    DatasetDimensionType,
-    DatasetMetricType,
-    MetricValidationRuleType,
-)
-from datasets.validation_rules import rule_to_gql
-from frameworks.evidence import quality_schemes_for_dataset
+from datasets.graphql.types import DatasetType
 from nodes.data_entry import EntrySelection
 from nodes.graphql.types.problems import DatasetPlausibilityFindingType
 
@@ -162,95 +151,13 @@ class UnresolvedInputType:
     message: str
 
 
-@sb.type(name='DataEntryDataset')
-class EntryDatasetType:
-    """Dataset metadata from the selected graph edition, embedded in its table."""
-
-    _query: sb.Private[DataEntryQuery]
-    id: UUID
-
-    @sb.field
-    def is_editable(self) -> bool:
-        return self._query.is_editable(self.id)
-
-    @sb.field
-    def name(self) -> str:
-        self._query.load([self.id])
-        meta = self._query._data[self.id].snapshot.meta
-        return str(meta.name or meta.identifier or self.id)
-
-    @sb.field
-    def dimensions(self) -> list[DatasetDimensionType]:
-        return [
-            DatasetDimensionType(
-                id=sb.ID(str(dim.id)),
-                name=str(dim.label or dim.identifier),
-                categories=[
-                    DatasetDimensionCategoryType(
-                        uuid=cat.id,
-                        identifier=cat.identifier,
-                        label=str(cat.label or cat.identifier or cat.id),
-                        short_label=str(cat.short_label) if cat.short_label is not None else None,
-                    )
-                    for cat in dim.categories
-                ],
-            )
-            for id in self._query.graph.dataset_by_id[self.id].declared_dimension_ids
-            for dim in [self._query.graph.dimension_by_id[id]]
-        ]
-
-    @sb.field
-    def category_domain(self) -> DatasetCategoryDomainType:
-        domain = self._query.graph.dataset_by_id[self.id].category_domain
-        return DatasetCategoryDomainType(
-            mode=domain.mode,
-            combinations=[
-                DatasetCategoryCombinationType(
-                    id=item.id,
-                    identifier=item.identifier,
-                    coordinates=[
-                        DatasetCategoryCoordinateType(dimension_id=dim, category_id=cat) for dim, cat in item.categories.items()
-                    ],
-                )
-                for item in domain.combinations
-            ],
-        )
-
-    @sb.field
-    def metrics(self) -> list[DatasetMetricType]:
-        self._query.load([self.id])
-        snapshot = self._query._data[self.id].snapshot
-        rules = {metric.identifier: metric.validation_rules for metric in snapshot.meta.metrics}
-        return [
-            DatasetMetricType(
-                id=sb.ID(str(metric.id)),
-                name=metric.identifier,
-                label=str(metric.label or metric.identifier or metric.id),
-                unit=metric.unit,
-                previous_sibling=None,
-                next_sibling=None,
-                quality_of=sb.ID(str(metric.quality_of)) if metric.quality_of else None,
-                validation_rules=[
-                    MetricValidationRuleType(id=sb.ID(str(rule.id)), rule=rule_to_gql(rule.rule))
-                    for rule in rules.get(metric.identifier, ())
-                    if rule.id is not None
-                ],
-            )
-            for metric in self._query.graph.dataset_by_id[self.id].metrics
-        ]
-
-    @sb.field
-    def quality_schemes(self) -> list[DataQualitySchemeType]:
-        return [DataQualitySchemeType.from_model(scheme) for scheme in quality_schemes_for_dataset(self._query.datasets[self.id])]
-
-
 @sb.type(name='DataEntryTable')
 class TableType:
     id: UUID
     entry_id: UUID | None
     _query: sb.Private[DataEntryQuery]
     _selections: sb.Private[tuple['EntrySelection', ...]]
-    dataset: EntryDatasetType
+    dataset: DatasetType = sb.field(description="The table's dataset, as the selected instance source reads it.")
     metric_selections: list[MetricSelectionType]
 
     @sb.field
@@ -302,7 +209,7 @@ class SectionType:
                     entry_id=entry_id,
                     _query=self._query,
                     _selections=tuple(selections),
-                    dataset=EntryDatasetType(_query=self._query, id=id),
+                    dataset=DatasetType.from_edition(self._query.editions.require(id)),
                     metric_selections=[
                         MetricSelectionType(metric_id=metric, fragments=fragments) for metric, fragments in metrics.items()
                     ],

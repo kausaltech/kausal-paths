@@ -2501,8 +2501,9 @@ def test_model_instance_query_avoids_n_plus_one_for_port_bindings(
     ]
     assert per_binding_dataset_queries == []
     # Keep the same fixed budget at 15 and 30 nodes so a query per binding
-    # cannot pass. A cold framework ContentType lookup may add one query.
-    assert len(query_ctx) <= 56
+    # cannot pass. A cold framework ContentType lookup may add one query, and
+    # the ports read their datasets from the editor source's graph, built once.
+    assert len(query_ctx) <= 66
 
 
 def test_dataset_ports_rebuild_multimetric_action_dataset(db_instance_config: InstanceConfig):

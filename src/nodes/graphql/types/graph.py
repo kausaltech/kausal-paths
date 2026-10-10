@@ -20,10 +20,9 @@ from nodes.graphql.types.transformations import PortTransformationType
 from nodes.metric import DimensionalMetric
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
-
     from kausal_common.datasets.models import Dataset as DatasetModel, DatasetMetric
 
+    from datasets.editions import DatasetEditions
     from nodes.defs.binding_def import EdgeBindingDef
     from nodes.defs.graph import DatasetExternalRef
     from nodes.defs.instance_defs import ActionGroup
@@ -201,6 +200,8 @@ class DatasetPortType(EditableEntity):
     """The node that owns the bound input port (set when resolving input port bindings)."""
 
     _dataset: sb.Private[Any] = None
+    _dataset_uuid: sb.Private[UUID | None] = None
+    """The bound dataset, which the port names even where the user may not read the dataset itself."""
 
     _transformations: sb.Private[list[PortTransformOp] | None] = None
 
@@ -233,7 +234,7 @@ class DatasetPortType(EditableEntity):
             return []
         # Match by external_dataset_id (string identifier) or by dataset UUID
         ds_id = root.external_dataset_id
-        ds_uuid = str(root._dataset.id) if root._dataset else None
+        ds_uuid = str(root._dataset_uuid) if root._dataset_uuid is not None else None
         matched_ds = None
         for ds in root._node.input_dataset_instances:
             if ds_id is not None and ds.id == ds_id:
@@ -259,7 +260,7 @@ class DatasetPortType(EditableEntity):
         cls,
         binding: DatasetBindingDef,
         node: Node | None = None,
-        dataset_models_by_uuid: Mapping[UUID, DatasetModel] | None = None,
+        editions: DatasetEditions | None = None,
     ) -> DatasetPortType:
         from datasets.graphql.types import DatasetType
 
@@ -278,10 +279,8 @@ class DatasetPortType(EditableEntity):
             external_metric_id=binding.external_metric_id,
             tags=binding.tags,
         )
-        dataset_type = DatasetType.from_binding(binding, dataset_models_by_uuid=dataset_models_by_uuid)
-        if dataset_type is not None and binding.forecast_from is not None:
-            dataset_type._forecast_from = binding.forecast_from
-        port._dataset = dataset_type
+        port._dataset = DatasetType.from_binding(binding, editions)
+        port._dataset_uuid = binding.dataset_uuid
         port._node = node
         port._transformations = list(binding.transformations)
         return port

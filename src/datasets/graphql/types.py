@@ -3,14 +3,18 @@
 from collections import defaultdict
 from datetime import date, datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Annotated, Any
+from functools import cached_property
+from typing import TYPE_CHECKING, Annotated, Any, cast
 from uuid import UUID
 
 import strawberry as sb
 import strawberry_django
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Q, prefetch_related_objects
+from django.utils import timezone
 from strawberry import auto
+
+from pint.errors import UndefinedUnitError
 
 from kausal_common.datasets.models import (
     DataPointComment as DataPointCommentModel,
@@ -27,11 +31,17 @@ from paths import gql
 from paths.graphql_types import UnitType
 
 from datasets.coordinates import DatasetCoordinateIndex
+from datasets.editions import (
+    DatasetEdition,
+    DatasetEditions,
+    edition_plausibility_ranges,
+    evaluate_edition_plausibility,
+    evaluate_edition_rules,
+)
 from datasets.graphql.enums import PlausibilityAggregation, PlausibilityDenominator, PlausibilityReference
 from datasets.materialization import ensure_dataset_materializations
-from datasets.plausibility import DatasetPlausibilityLookup, all_plausibility_ranges, evaluate_dataset_plausibility
-from datasets.runtime import DBDataset
-from datasets.shape_domain import dataset_category_domain, dataset_shape_id
+from datasets.plausibility import DatasetPlausibilityLookup, _log_unreadable
+from datasets.snapshot import SourceReferenceSnapshot
 from datasets.validation import load_violations
 from datasets.validation_rules import (
     DimensionSumRule,
@@ -49,7 +59,8 @@ from frameworks.models import (
     DataQualityScheme as DataQualitySchemeModel,
     Framework,
 )
-from nodes.defs.graph import DatasetExternalRef
+from nodes.defs.binding_def import DatasetBindingDef
+from nodes.graphql.types.graph import DatasetExternalRefType
 from nodes.graphql.types.problems import (
     DatasetDimensionCoordinateType,
     DatasetPlausibilityFindingType,
@@ -70,7 +81,7 @@ register_strawberry_type(DimensionSumRule.ObjectType)
 register_strawberry_type(NoGapsRule.ObjectType)
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Iterable
 
     from kausal_common.datasets.models import (
         DataPoint as DataPointModel,
@@ -85,8 +96,9 @@ if TYPE_CHECKING:
         DatasetMetricPlausibilityRange,
         PlausibilitySource,
     )
-    from nodes.defs.binding_def import DatasetBindingDef
-    from nodes.graphql.types.graph import DatasetExternalRefType, DatasetPortType
+    from datasets.snapshot import DataPointSnapshot
+    from nodes.defs.graph import DatasetMeta, DatasetMetricMeta, DimensionCategoryMeta, DimensionMeta
+    from nodes.graphql.types.graph import DatasetPortType
     from nodes.graphql.types.metric import DimensionalMetricType
     from nodes.graphql.types.node import QuantityKindType  # used in lazy strawberry annotations
     from nodes.metric import DimensionalMetric
@@ -110,6 +122,15 @@ class DatasetDimensionCategoryType:
             short_label=cat.short_label_i18n or None,
         )
 
+    @classmethod
+    def from_meta(cls, cat: DimensionCategoryMeta) -> DatasetDimensionCategoryType:
+        return cls(
+            uuid=cat.id,
+            identifier=cat.identifier,
+            label=str(cat.label or cat.identifier or cat.id),
+            short_label=str(cat.short_label) if cat.short_label is not None else None,
+        )
+
 
 @sb.type(name='DatasetDimension')
 class DatasetDimensionType:
@@ -127,6 +148,14 @@ class DatasetDimensionType:
             id=sb.ID(str(dim.uuid)),
             name=dim.name_i18n or str(dim.uuid),
             categories=cats,
+        )
+
+    @classmethod
+    def from_meta(cls, dim: DimensionMeta) -> DatasetDimensionType:
+        return cls(
+            id=sb.ID(str(dim.id)),
+            name=str(dim.label or dim.identifier),
+            categories=[DatasetDimensionCategoryType.from_meta(cat) for cat in dim.categories],
         )
 
 
@@ -323,6 +352,29 @@ class DatasetMetricType:
             _quantity_id=(metric.spec or {}).get('quantity'),
         )
 
+    @classmethod
+    def from_meta(
+        cls,
+        metric: DatasetMetricMeta,
+        previous_sibling: sb.ID | None = None,
+        next_sibling: sb.ID | None = None,
+    ) -> DatasetMetricType:
+        return cls(
+            id=sb.ID(str(metric.id)),
+            name=metric.identifier,
+            label=str(metric.label or metric.identifier or metric.id),
+            unit=metric.unit,
+            previous_sibling=previous_sibling,
+            next_sibling=next_sibling,
+            validation_rules=[
+                MetricValidationRuleType(id=sb.ID(str(rule.id)), rule=rule_to_gql(rule.rule))
+                for rule in metric.validation_rules
+                if rule.id is not None
+            ],
+            quality_of=sb.ID(str(metric.quality_of)) if metric.quality_of else None,
+            _quantity_id=metric.quantity,
+        )
+
 
 @register_strawberry_type
 @strawberry_django.type(DataPointCommentModel, name='DataPointComment')
@@ -489,7 +541,12 @@ class DataPointEvidenceType:
 
     kind: DataEvidenceKind | None = sb.field(description='How the value was obtained; null when unknown.')
     quality_level: DataQualityLevelType | None = sb.field(description='Assessed grade; null when ungraded.')
-    last_modified_at: datetime
+    last_modified_at: datetime = sb.field(
+        description=(
+            'When the assertion was last changed. A frozen edition does not record it, '
+            'and gives the time the edition was saved instead.'
+        ),
+    )
     last_modified_by: User | None = sb.field(graphql_type=UserType | None)
 
     @classmethod
@@ -503,10 +560,139 @@ class DataPointEvidenceType:
         )
 
 
+class EditionPoints:
+    """
+    What the data points of one dataset edition share, loaded once for all of them.
+
+    A point's value, categories, evidence and citations are the edition's. Its comments are
+    not: a comment thread is a conversation about a cell rather than part of its value, so
+    every edition shows the live thread, which follows the cell by its uuid.
+    """
+
+    def __init__(self, edition: DatasetEdition):
+        self.edition = edition
+
+    @cached_property
+    def metrics(self) -> dict[UUID, DatasetMetricType]:
+        return {metric.id: DatasetMetricType.from_meta(metric) for metric in self.edition.meta.metrics}
+
+    @cached_property
+    def categories(self) -> dict[UUID, DatasetDimensionCategoryType]:
+        return {
+            category.id: DatasetDimensionCategoryType.from_meta(category)
+            for dimension in self.edition.dimensions.values()
+            for category in dimension.categories
+        }
+
+    @cached_property
+    def comments(self) -> dict[UUID, list[DataPointCommentModel]]:
+        row = self.edition.row
+        if row is None:
+            return {}
+        result: dict[UUID, list[DataPointCommentModel]] = defaultdict(list)
+        ids = [point.id for point in self.edition.snapshot.points]
+        for comment in _comments_queryset_for_dataset(row).filter(data_point__uuid__in=ids):
+            assert comment.data_point is not None
+            result[comment.data_point.uuid].append(comment)
+        return result
+
+    @cached_property
+    def source_references(self) -> dict[UUID, DatasetSourceReferenceModel]:
+        """The rows of the references this edition cites; one deleted since is left out."""
+        snapshot = self.edition.snapshot
+        ids = {ref.id for ref in snapshot.source_references} | {ref.id for point in snapshot.points for ref in point.sources}
+        rows = DatasetSourceReferenceModel.objects.filter(uuid__in=ids).select_related(
+            'data_source', 'data_point', 'dataset', 'created_by', 'last_modified_by'
+        )
+        return {ref.uuid: ref for ref in rows}
+
+    def references(self, refs: Iterable[SourceReferenceSnapshot]) -> list[DatasetSourceReferenceModel]:
+        rows = [self.source_references[ref.id] for ref in refs if ref.id in self.source_references]
+        return sorted(rows, key=lambda ref: ref.created_at, reverse=True)
+
+    @cached_property
+    def quality_levels(self) -> dict[str, DataQualityLevelModel]:
+        ids = {
+            point.evidence.quality_level.uuid
+            for point in self.edition.snapshot.points
+            if point.evidence is not None and point.evidence.quality_level is not None
+        }
+        return {str(level.uuid): level for level in DataQualityLevelModel.objects.filter(uuid__in=ids)}
+
+    @cached_property
+    def users(self) -> dict[str, User]:
+        ids = {
+            point.evidence.last_modified_by
+            for point in self.edition.snapshot.points
+            if point.evidence is not None and point.evidence.last_modified_by is not None
+        }
+        return {str(user.uuid): user for user in User.objects.filter(uuid__in=ids)}
+
+    @cached_property
+    def live_evidence(self) -> dict[UUID, DataPointEvidenceModel]:
+        """The evidence rows of a live edition, which alone record when each was changed."""
+        if not self.edition.is_live or self.edition.row is None:
+            return {}
+        rows = DataPointEvidenceModel.objects.filter(data_point__dataset=self.edition.row).select_related(
+            'data_point', 'last_modified_by'
+        )
+        return {row.data_point.uuid: row for row in rows}
+
+    def evidence(self, point: DataPointSnapshot) -> DataPointEvidenceType | None:
+        evidence = point.evidence
+        if evidence is None:
+            return None
+        level = self.quality_levels.get(evidence.quality_level.uuid) if evidence.quality_level is not None else None
+        live = self.live_evidence.get(point.id)
+        if live is not None:
+            modified_at, modified_by = live.last_modified_at, live.last_modified_by
+        else:
+            revision = self.edition.revision
+            modified_at = revision.created_at if revision is not None else timezone.now()
+            modified_by = self.users.get(evidence.last_modified_by) if evidence.last_modified_by is not None else None
+        return DataPointEvidenceType(
+            kind=DataEvidenceKind(evidence.kind) if evidence.kind else None,
+            quality_level=DataQualityLevelType.from_model(level) if level is not None else None,
+            last_modified_at=modified_at,
+            last_modified_by=modified_by,
+        )
+
+    @cached_property
+    def plausibility(self) -> DatasetPlausibilityLookup | None:
+        row = self.edition.row
+        if row is None or self.edition.meta.is_external_placeholder:
+            return None
+        values: dict[UUID, dict[tuple[int, frozenset[str]], float]] = defaultdict(dict)
+        for point in self.edition.snapshot.points:
+            if point.value is not None:
+                cell = frozenset(str(category) for category in point.categories.values())
+                values[point.metric][point.date.year, cell] = point.value
+        try:
+            data = self.edition.frame()
+        except UndefinedUnitError as exc:
+            _log_unreadable(row, exc)
+            return None
+        return DatasetPlausibilityLookup(row, history=(data.frame, data.dim_cols), values=values)
+
+    def point(self, point: DataPointSnapshot) -> DataPointType:
+        obj = DataPointType(
+            id=sb.ID(str(point.id)),
+            date=point.date,
+            value=point.value,
+            metric=self.metrics[point.metric],
+            dimension_categories=[
+                self.categories[category] for category in point.categories.values() if category in self.categories
+            ],
+        )
+        obj._point = point
+        obj._points = self
+        return obj
+
+
 @register_strawberry_type
 @sb.type(name='DataPoint')
 class DataPointType:
-    """A stored dataset data point."""
+    """A dataset data point, as the edition of its dataset records it."""
 
     id: sb.ID
     date: date
@@ -517,6 +703,8 @@ class DataPointType:
     _model: sb.Private['DataPointModel | None'] = None
     _dataset: sb.Private[DatasetModel | None] = None
     _comments: sb.Private[list[DataPointCommentModel] | None] = None
+    _point: sb.Private['DataPointSnapshot | None'] = None
+    _points: sb.Private[EditionPoints | None] = None
 
     @sb.field(
         graphql_type=list[ResolvedPlausibilityRangeType],
@@ -524,25 +712,31 @@ class DataPointType:
     )
     @staticmethod
     def plausibility_ranges(root: 'DataPointType', info: gql.Info) -> list[ResolvedPlausibilityRangeType]:
-        if root._model is None:
+        if root._point is not None and root._points is not None:
+            lookup = root._points.plausibility
+            metric_uuid, year = root._point.metric, root._point.date.year
+            category_uuids = {str(dim): str(cat) for dim, cat in root._point.categories.items()}
+        elif root._model is not None:
+            point = root._model
+            dataset = root._dataset or point.dataset
+            cache = info.context.dataset_plausibility_lookups
+            if dataset.pk not in cache:
+                cache[dataset.pk] = DatasetPlausibilityLookup(dataset)
+            lookup = cache[dataset.pk]
+            metric_uuid, year = point.metric.uuid, point.date.year
+            category_uuids = {str(category.dimension.uuid): str(category.uuid) for category in point.dimension_categories.all()}
+        else:
             return []
-
-        point = root._model
-        dataset = root._dataset or point.dataset
-        cache = info.context.dataset_plausibility_lookups
-        if dataset.pk not in cache:
-            cache[dataset.pk] = DatasetPlausibilityLookup(dataset)
-        lookup = cache[dataset.pk]
-        if lookup.coordinate_index is None:
+        if lookup is None or lookup.coordinate_index is None:
             return []
-        category_uuids = {str(category.dimension.uuid): str(category.uuid) for category in point.dimension_categories.all()}
+        coordinate_index = lookup.coordinate_index
         return [
             ResolvedPlausibilityRangeType(
                 lower=lower,
                 upper=upper,
-                reference=DatasetMetricPlausibilityRangeType.from_model(rule, lookup.coordinate_index),
+                reference=DatasetMetricPlausibilityRangeType.from_model(rule, coordinate_index),
             )
-            for rule, lower, upper in lookup.for_cell(point.metric_id, point.date.year, category_uuids)
+            for rule, lower, upper in lookup.for_cell(metric_uuid, year, category_uuids)
         ]
 
     @sb.field(graphql_type=list[DataPointCommentType], description='Comments attached to this data point, newest first.')
@@ -550,6 +744,8 @@ class DataPointType:
     def comments(root: 'DataPointType') -> list[DataPointCommentModel]:
         if root._comments is not None:
             return root._comments
+        if root._point is not None and root._points is not None:
+            return root._points.comments.get(root._point.id, [])
         if root._model is None:
             return []
         return list(_comments_queryset_for_data_point(root._model))
@@ -560,6 +756,8 @@ class DataPointType:
     )
     @staticmethod
     def source_references(root: 'DataPointType') -> list[DatasetSourceReferenceModel]:
+        if root._point is not None and root._points is not None:
+            return root._points.references(root._point.sources)
         if root._model is None:
             return []
         return list(_source_references_queryset_for_data_point(root._model))
@@ -567,6 +765,8 @@ class DataPointType:
     @sb.field(graphql_type=DataPointEvidenceType | None)
     @staticmethod
     def evidence(root: 'DataPointType') -> DataPointEvidenceType | None:
+        if root._point is not None and root._points is not None:
+            return root._points.evidence(root._point)
         if root._model is None:
             return None
         evidence = get_evidence(root._model)
@@ -617,49 +817,95 @@ class DatasetSchemaType:
 @register_strawberry_type
 @sb.type(name='Dataset')
 class DatasetType(UserPermissionsMixin):
-    """A DB-backed dataset with schema, dimensions, metrics and data."""
+    """
+    A dataset as the selected instance source reads it.
 
-    id: sb.ID
-    identifier: str | None
-    is_external_placeholder: bool = sb.field(
-        description='Whether the dataset object is only a placeholder without imported datapoints.'
-    )
-    external_ref: Annotated['DatasetExternalRefType', sb.lazy('nodes.graphql.types.graph')] | None = sb.field(
-        description='External source reference for externally backed datasets.'
-    )
-    last_modified_at: datetime | None = sb.field(description='The timestamp of the last modification.')
-    last_modified_by: User | None = sb.field(
-        description='The user who last modified the dataset.',
-        graphql_type=UserType | None,
-    )
-    created_at: datetime | None = sb.field(description='The timestamp of the creation.')
-    created_by: User | None = sb.field(
-        description='The user who created the dataset.',
-        graphql_type=UserType | None,
-    )
+    Structure and content come from the dataset's edition in that source: its pinned
+    revision, or its live draft. What exists only on the live row -- permissions,
+    editability -- is read-only or null in a frozen edition.
+    """
 
-    _model: sb.Private['DatasetModel | None'] = None
+    _edition: sb.Private[DatasetEdition]
     _forecast_from: sb.Private[int | None] = None
-    _batch: sb.Private['Mapping[UUID, DatasetModel] | None'] = None
-    """Datasets loaded together with this one, so that resolving a field for one loads it for all."""
+    """A binding's first forecast year, which overrides the dataset's own."""
 
-    @sb.field(graphql_type=DatasetSchemaType | None)
-    @staticmethod
-    def schema(root: 'DatasetType') -> DatasetSchemaModel | None:
-        return root._model.schema if root._model is not None else None
+    @property
+    def _model(self) -> DatasetModel | None:
+        """The row, where it is what this edition reads; `UserPermissionsMixin` checks it."""
+        return self._edition.row if self._edition.is_live else None
+
+    @property
+    def _meta(self) -> DatasetMeta:
+        return self._edition.meta
+
+    @sb.field
+    def id(self) -> sb.ID:
+        return sb.ID(str(self._meta.id))
+
+    @sb.field
+    def identifier(self) -> str | None:
+        return self._meta.identifier
+
+    @sb.field(description='Whether the dataset object is only a placeholder without imported datapoints.')
+    def is_external_placeholder(self) -> bool:
+        return self._meta.is_external_placeholder
+
+    @sb.field(
+        graphql_type=Annotated['DatasetExternalRefType', sb.lazy('nodes.graphql.types.graph')] | None,
+        description='External source reference for externally backed datasets.',
+    )
+    def external_ref(self) -> DatasetExternalRefType | None:
+        from nodes.graphql.types.graph import dataset_external_ref_to_gql
+
+        return dataset_external_ref_to_gql(self._meta.external_ref)
+
+    @sb.field(description='The timestamp of the last modification; in a frozen edition, when it was saved.')
+    def last_modified_at(self) -> datetime | None:
+        edition = self._edition
+        if edition.revision is not None:
+            return edition.revision.created_at
+        return edition.row.last_modified_at if edition.row is not None else None
+
+    @sb.field(
+        description='The user who last modified the dataset; in a frozen edition, who saved it.',
+        graphql_type=UserType | None,
+    )
+    def last_modified_by(self) -> User | None:
+        edition = self._edition
+        if edition.revision is not None:
+            return cast('User | None', edition.revision.user)
+        return edition.row.last_modified_by if edition.row is not None else None
+
+    @sb.field(description='The timestamp of the creation.')
+    def created_at(self) -> datetime | None:
+        return self._edition.row.created_at if self._edition.row is not None else None
+
+    @sb.field(description='The user who created the dataset.', graphql_type=UserType | None)
+    def created_by(self) -> User | None:
+        return self._edition.row.created_by if self._edition.row is not None else None
+
+    @sb.field(
+        graphql_type=DatasetSchemaType | None,
+        deprecation_reason='Read name, metrics and dimensions from the dataset; they follow the selected edition.',
+    )
+    def schema(self) -> DatasetSchemaModel | None:
+        if self._model is None:
+            return None
+        if self._edition.owner is not None:
+            self._edition.owner.prefetch_schemas()
+        return self._model.schema
 
     @sb.field(description='Whether this dataset owns an editable schema definition.')
-    @staticmethod
-    def schema_is_editable(root: 'DatasetType') -> bool:
-        if root._model is None or root._model.schema is None:
-            return False
-        root._load_schema_editability()
-        return root._model.schema.is_editable and not root._model._schema_is_shared and not root._model._schema_has_other_datasets
-
-    def _load_schema_editability(self) -> None:
-        """Single-object mutations may return a model without list-query annotations."""
+    def schema_is_editable(self) -> bool:
         model = self._model
-        assert model is not None
+        if model is None or model.schema is None:
+            return False
+        self._load_schema_editability(model)
+        return model.schema.is_editable and not model._schema_is_shared and not model._schema_has_other_datasets
+
+    @staticmethod
+    def _load_schema_editability(model: DatasetModel) -> None:
+        """Single-object mutations may return a model without list-query annotations."""
         if hasattr(model, '_schema_is_shared'):
             return
         annotated = DatasetModel.objects.with_schema_editability(Framework).get(pk=model.pk)
@@ -667,73 +913,53 @@ class DatasetType(UserPermissionsMixin):
         model._schema_has_other_datasets = annotated._schema_has_other_datasets
 
     @sb.field(description='UUID of the node that owns this dataset, or null for instance datasets.')
-    @staticmethod
-    def owner_node_id(root: 'DatasetType') -> sb.ID | None:
-        if root._model is None:
-            return None
-        owner = root._model.scope_node
+    def owner_node_id(self) -> sb.ID | None:
+        row = self._edition.row
+        owner = row.scope_node if row is not None else None
         return sb.ID(str(owner.uuid)) if owner is not None else None
 
     @sb.field
-    @staticmethod
-    def name(root: 'DatasetType') -> str:
-        if root._model is None or root._model.schema is None:
-            return root.identifier or ''
-        return root._model.schema.name_i18n or root.identifier or ''
+    def name(self) -> str:
+        return str(self._meta.name or self._meta.identifier or '')
 
     @sb.field
-    @staticmethod
-    def is_editable(root: 'DatasetType', info: gql.Info) -> bool:
-        if root._model is None or root._model.schema is None:
+    def is_editable(self, info: gql.Info) -> bool:
+        model = self._model
+        if model is None or model.schema is None:
             return False
-        root._load_schema_editability()
-        if not (root._model.schema.is_editable or root._model._schema_is_shared):
+        self._load_schema_editability(model)
+        if not (model.schema.is_editable or model._schema_is_shared):
             return False
         instance = info.context.instance_config
         if instance is None:
             return True
 
-        if root._model.scope_content_type_id != ContentType.objects.get_for_model(InstanceConfig).pk:
+        if model.scope_content_type_id != ContentType.objects.get_for_model(InstanceConfig).pk:
             return True  # Node-owned data follows its node editor's permissions.
-        if root._model.scope_id != instance.pk:
+        if model.scope_id != instance.pk:
             return False
         resources = info.context.instance_resources
         return bool(resources and resources.node_edit_context(info, instance, PreferredInstanceSource.DRAFT).can_change_instance)
 
     @sb.field(description='Default or effective first forecast year for this dataset.')
-    @staticmethod
-    def forecast_from(root: 'DatasetType') -> int | None:
-        if root._forecast_from is not None:
-            return root._forecast_from
-        if root._model is None:
-            return None
-        return (root._model.spec or {}).get('forecast_from')
+    def forecast_from(self) -> int | None:
+        return self._forecast_from if self._forecast_from is not None else self._meta.forecast_from
 
     @sb.field
-    @staticmethod
-    def dimensions(root: 'DatasetType') -> list[DatasetDimensionType]:
-        if root._model is None or root._model.schema is None:
-            return []
-        prefetch_related_objects([root._model.schema], 'dimensions__dimension__categories')
-        return [DatasetDimensionType.from_schema_dimension(sd) for sd in root._model.schema.dimensions.all()]
+    def dimensions(self) -> list[DatasetDimensionType]:
+        catalog = self._edition.dimensions
+        return [DatasetDimensionType.from_meta(catalog[id]) for id in self._meta.declared_dimension_ids if id in catalog]
 
     @sb.field(
         graphql_type=ShapeType | None,
         description="The shape that defines the dataset's entry form, as the dataset's instance resolves it.",
     )
-    @staticmethod
-    def shape(root: 'DatasetType', info: gql.Info) -> ShapeType | None:
-        if root._model is None:
-            return None
-        shape_id = dataset_shape_id(root._model)
-        return ShapeType.resolve(info, root._model.scope_instance, shape_id) if shape_id is not None else None
+    def shape(self, info: gql.Info) -> ShapeType | None:
+        return ShapeType.resolve(info, self._edition.config, self._meta.shape_id, self._edition.source)
 
     @sb.field(description="The dataset's entry form: the category combinations of its shape, as its instance resolves it.")
-    @staticmethod
-    def category_domain(root: 'DatasetType') -> DatasetCategoryDomainType:
-        if root._model is None or root._model.schema is None:
-            return DatasetCategoryDomainType(mode='open', combinations=[])
-        domain = dataset_category_domain(root._model)
+    def category_domain(self) -> DatasetCategoryDomainType:
+        domain = self._meta.category_domain
         return DatasetCategoryDomainType(
             mode=domain.mode,
             combinations=[
@@ -750,57 +976,34 @@ class DatasetType(UserPermissionsMixin):
         )
 
     @sb.field
-    @staticmethod
-    def metrics(root: 'DatasetType') -> list[DatasetMetricType]:
-        if root._model is None or root._model.schema is None:
-            return []
-        schema = root._model.schema
-        # The editor resolves this once per port binding; load the metrics of every
-        # dataset in the batch on the first call, so the rest hit the prefetch cache.
-        # Schemas that already carry it are skipped.
-        batch = [ds.schema for ds in root._batch.values() if ds.schema is not None] if root._batch else []
-        prefetch_related_objects([schema, *batch], 'metrics__validation_rules')
-        metrics = list(schema.metrics.all())
+    def metrics(self) -> list[DatasetMetricType]:
         return [
-            DatasetMetricType.from_model(metric, previous_sibling=prev_id, next_sibling=next_id)
-            for metric, prev_id, next_id in with_sibling_ids(metrics, lambda metric: sb.ID(str(metric.uuid)))
+            DatasetMetricType.from_meta(metric, previous_sibling=prev_id, next_sibling=next_id)
+            for metric, prev_id, next_id in with_sibling_ids(list(self._meta.metrics), lambda metric: sb.ID(str(metric.id)))
         ]
 
     @sb.field(
         graphql_type=list[DataQualitySchemeType],
         description="Quality schemes whose grades may be assigned to this dataset's data points.",
     )
-    @staticmethod
-    def quality_schemes(root: 'DatasetType') -> list[DataQualitySchemeType]:
-        if root._model is None:
+    def quality_schemes(self) -> list[DataQualitySchemeType]:
+        row = self._edition.row
+        if row is None:
             return []
-        return [DataQualitySchemeType.from_model(scheme) for scheme in quality_schemes_for_dataset(root._model)]
+        return [DataQualitySchemeType.from_model(scheme) for scheme in quality_schemes_for_dataset(row)]
+
+    @cached_property
+    def _points(self) -> EditionPoints:
+        return EditionPoints(self._edition)
 
     @sb.field(graphql_type=list[DataPointType])
-    @staticmethod
-    def data_points(root: 'DatasetType') -> list[DataPointType]:
-        if root._model is None:
-            return []
-        data_points = root._model.data_points.select_related(
-            'metric', 'evidence__quality_level', 'evidence__last_modified_by'
-        ).prefetch_related('metric__validation_rules', 'dimension_categories__dimension')
-        comments_by_data_point: dict[int, list[DataPointCommentModel]] = defaultdict(list)
-        for comment in _comments_queryset_for_dataset(root._model):
-            comments_by_data_point[comment.data_point_id].append(comment)
-        result = []
-        for data_point in data_points:
-            obj = DataPointType.from_model(data_point)
-            obj._dataset = root._model
-            obj._comments = comments_by_data_point[data_point.pk]
-            result.append(obj)
-        return result
+    def data_points(self) -> list[DataPointType]:
+        return [self._points.point(point) for point in self._edition.snapshot.points]
 
     @sb.field(graphql_type=list[DataPointCommentType], description='All data point comments in this dataset, newest first.')
-    @staticmethod
-    def data_point_comments(root: 'DatasetType') -> list[DataPointCommentModel]:
-        if root._model is None:
-            return []
-        return list(_comments_queryset_for_dataset(root._model))
+    def data_point_comments(self) -> list[DataPointCommentModel]:
+        comments = [comment for thread in self._points.comments.values() for comment in thread]
+        return sorted(comments, key=lambda comment: comment.created_at, reverse=True)
 
     @sb.field(
         graphql_type=list[Annotated['DatasetSourceReferenceType', sb.lazy('datasets.graphql.types')]],
@@ -809,82 +1012,66 @@ class DatasetType(UserPermissionsMixin):
             'directly to the dataset, refs attached to its data points, or both.'
         ),
     )
-    @staticmethod
     def source_references(
-        root: 'DatasetType',
+        self,
         target: DatasetSourceReferenceTarget = DatasetSourceReferenceTarget.DATASET,
     ) -> list[DatasetSourceReferenceModel]:
-        if root._model is None:
-            return []
-        return list(_source_references_queryset_for_dataset(root._model, target))
+        snapshot = self._edition.snapshot
+        refs: list[SourceReferenceSnapshot] = []
+        if target != DatasetSourceReferenceTarget.DATA_POINT:
+            refs.extend(snapshot.source_references)
+        if target != DatasetSourceReferenceTarget.DATASET:
+            refs.extend(ref for point in snapshot.points for ref in point.sources)
+        return self._points.references(refs)
 
     @sb.field(
         graphql_type=list[DataSourceType],
         description='DataSources referenced from this dataset (via refs on it or its data points).',
     )
-    @staticmethod
-    def data_sources(root: 'DatasetType') -> list[DataSourceModel]:
-        if root._model is None:
-            return []
-        return list(_data_sources_queryset_for_dataset(root._model))
+    def data_sources(self) -> list[DataSourceModel]:
+        ids = [source.id for source in self._edition.snapshot.data_sources]
+        return list(DataSourceModel.objects.filter(uuid__in=ids).order_by('name'))
 
     @sb.field(graphql_type=list[Annotated['DimensionalMetricType', sb.lazy('nodes.graphql.types.metric')]])
-    @staticmethod
-    def data(root: 'DatasetType') -> list['DimensionalMetric']:
+    def data(self) -> list['DimensionalMetric']:
         """Load the full dataset as DimensionalMetric objects (one per metric column)."""
-        if root._model is None:
-            return []
-
-        df = DBDataset.deserialize_df(root._model)
-
-        forecast_from = DatasetType.forecast_from(root)
-        meta = df.get_meta()
-        results: list['DimensionalMetric'] = []
-
-        for col in meta.metric_cols:
-            ds_id = root.identifier or str(root.id)
-            results.append(
-                metric_from_dataframe_standalone(
-                    df,
-                    metric_col=col,
-                    metric_id=f'{ds_id}:{col}',
-                    metric_name=col,
-                    forecast_from=forecast_from,
-                )
+        df = self._edition.snapshot.to_frame(self._edition.dimensions)
+        forecast_from = self.forecast_from()
+        ds_id = self._meta.identifier or str(self._meta.id)
+        return [
+            metric_from_dataframe_standalone(
+                df,
+                metric_col=col,
+                metric_id=f'{ds_id}:{col}',
+                metric_name=col,
+                forecast_from=forecast_from,
             )
-        return results
+            for col in df.get_meta().metric_cols
+        ]
 
     @sb.field(
         graphql_type=list[Annotated['DatasetValidationViolationType', sb.lazy('nodes.graphql.types.problems')]],
         description=(
-            'Current validation-rule violations of this dataset. Read from the '
-            'persisted evaluation results, repairing a stale materialization first.'
+            'Validation-rule violations of this dataset. For the live draft, read from the '
+            'persisted evaluation results, repairing a stale materialization first; for a '
+            'frozen edition, evaluated on its content.'
         ),
     )
-    @staticmethod
-    def validation_violations(root: 'DatasetType') -> "list['DatasetValidationViolationType']":
-        if root._model is None:
-            return []
-
-        materializations = ensure_dataset_materializations([root._model])
-        materialization = materializations.get(root._model.pk)
-        if materialization is None:
-            return []
-        return [
-            DatasetValidationViolationType.from_violation(violation)
-            for violation in load_violations(materialization.validation_violations)
-        ]
+    def validation_violations(self) -> "list['DatasetValidationViolationType']":
+        edition = self._edition
+        if edition.is_live and edition.row is not None:
+            materialization = ensure_dataset_materializations([edition.row]).get(edition.row.pk)
+            violations = load_violations(materialization.validation_violations) if materialization is not None else []
+        else:
+            violations = evaluate_edition_rules(edition)
+        return [DatasetValidationViolationType.from_violation(violation) for violation in violations]
 
     @sb.field(
         graphql_type=list[Annotated['DatasetPlausibilityFindingType', sb.lazy('nodes.graphql.types.problems')]],
         description='Advisory plausibility findings for entered cells; these do not block publication.',
     )
-    @staticmethod
-    def plausibility_findings(root: 'DatasetType') -> "list['DatasetPlausibilityFindingType']":
-        if root._model is None:
-            return []
-
-        return [DatasetPlausibilityFindingType.from_finding(finding) for finding in evaluate_dataset_plausibility(root._model)]
+    def plausibility_findings(self) -> "list['DatasetPlausibilityFindingType']":
+        return [DatasetPlausibilityFindingType.from_finding(finding) for finding in evaluate_edition_plausibility(self._edition)]
 
     @sb.field(
         description=(
@@ -892,91 +1079,76 @@ class DatasetType(UserPermissionsMixin):
             'derived from its own history (source dataset-history).'
         ),
     )
-    @staticmethod
-    def plausibility_ranges(root: 'DatasetType') -> list[DatasetMetricPlausibilityRangeType]:
-        if root._model is None:
+    def plausibility_ranges(self) -> list[DatasetMetricPlausibilityRangeType]:
+        row = self._edition.row
+        if row is None:
             return []
-
-        ranges = all_plausibility_ranges(root._model)
+        ranges = edition_plausibility_ranges(self._edition)
         if not ranges:
             return []
-        coordinate_index = DatasetCoordinateIndex(root._model)
-        return [DatasetMetricPlausibilityRangeType.from_model(row, coordinate_index) for row in ranges]
+        coordinate_index = DatasetCoordinateIndex(row)
+        return [DatasetMetricPlausibilityRangeType.from_model(rule, coordinate_index) for rule in ranges]
 
     @sb.field(graphql_type=list[Annotated['DatasetPortType', sb.lazy('nodes.graphql.types.graph')]])
-    @staticmethod
-    def port_bindings(root: 'DatasetType') -> list['DatasetPortType']:
+    def port_bindings(self, info: gql.Info) -> list['DatasetPortType']:
         """Discover which node ports use this dataset."""
         from nodes.graphql.bindings import binding_to_gql
+        from nodes.graphql.types.graph import DatasetPortType
 
-        if root._model is None:
+        edition = self._edition
+        resources = info.context.instance_resources
+        if edition.graph is not None and resources is not None:
+            editions = resources.require_dataset_editions(edition.config, edition.source)
+            return [
+                DatasetPortType.from_binding(binding, editions=editions)
+                for binding in edition.graph.bindings
+                if isinstance(binding, DatasetBindingDef) and binding.dataset_uuid == edition.id
+            ]
+        if edition.row is None:
             return []
         rows = (
             NodeInputPortBinding.objects
-            .filter(dataset=root._model)
+            .filter(dataset=edition.row)
             .select_related('node', 'dataset', 'metric')
             .order_by('node', 'port_id', 'position')
         )
         return [binding_to_gql(row) for row in rows]
 
     @classmethod
-    def from_model(cls, dataset: DatasetModel) -> DatasetType:
-        from nodes.graphql.types.graph import dataset_external_ref_to_gql
-
-        obj = cls(
-            id=sb.ID(str(dataset.uuid)),
-            identifier=dataset.identifier,
-            is_external_placeholder=dataset.is_external_placeholder,
-            external_ref=dataset_external_ref_to_gql(
-                DatasetExternalRef.model_validate(dataset.external_ref) if dataset.external_ref else None
-            ),
-            last_modified_at=dataset.last_modified_at,
-            last_modified_by=dataset.last_modified_by,
-            created_at=dataset.created_at,
-            created_by=dataset.created_by,
-        )
-        obj._model = dataset
-        obj._forecast_from = (dataset.spec or {}).get('forecast_from')
-        return obj
+    def from_edition(cls, edition: DatasetEdition, *, forecast_from: int | None = None) -> DatasetType:
+        return cls(_edition=edition, _forecast_from=forecast_from)
 
     @classmethod
-    def from_binding(
-        cls,
-        binding: DatasetBindingDef,
-        dataset_models_by_uuid: Mapping[UUID, DatasetModel] | None = None,
-    ) -> DatasetType | None:
-        """Construct from a binding, using a bulk-loaded model map when available."""
-        from nodes.graphql.types.graph import dataset_external_ref_to_gql
+    def from_model(cls, dataset: DatasetModel) -> DatasetType:
+        """
+        Read a dataset from its row alone, as its draft has it.
 
+        For the result of a mutation, which always acts on the draft and must show what it wrote.
+        """
+        return cls(_edition=DatasetEdition.from_row(dataset))
+
+    @classmethod
+    def from_binding(cls, binding: DatasetBindingDef, editions: DatasetEditions | None = None) -> DatasetType | None:
+        """Read a binding's dataset from the edition the binding belongs to, or from its row when there is none."""
         if binding.dataset_uuid is None:
             return None
-        if dataset_models_by_uuid is None:
-            model = (
-                DatasetModel.objects
-                .with_schema_editability(Framework)
-                .filter(uuid=binding.dataset_uuid)
-                .select_related('schema', 'created_by', 'last_modified_by')
-                .first()
-            )
-        else:
-            model = dataset_models_by_uuid.get(binding.dataset_uuid)
-        if model is not None:
-            obj = cls.from_model(model)
-            obj._batch = dataset_models_by_uuid
-            if binding.forecast_from is not None:
-                obj._forecast_from = binding.forecast_from
-            return obj
-        # Fallback: construct without model (dimensions/data will be empty)
-        return cls(
-            id=sb.ID(str(binding.dataset_uuid)),
-            identifier=binding.external_dataset_id,
-            is_external_placeholder=binding.dataset_is_external_placeholder,
-            external_ref=dataset_external_ref_to_gql(binding.dataset_external_ref),
-            created_at=None,
-            created_by=None,
-            last_modified_at=None,
-            last_modified_by=None,
+        if editions is not None:
+            edition = editions.get(binding.dataset_uuid)
+            if edition is None:
+                return None
+            return cls.from_edition(edition, forecast_from=binding.forecast_from)
+        row = (
+            DatasetModel.objects
+            .with_schema_editability(Framework)
+            .filter(uuid=binding.dataset_uuid)
+            .select_related('schema', 'created_by', 'last_modified_by')
+            .first()
         )
+        if row is None or row.schema is None:
+            return None
+        obj = cls.from_model(row)
+        obj._forecast_from = binding.forecast_from
+        return obj
 
 
 # DatasetSourceReferenceType is defined after DataPointType and DatasetType

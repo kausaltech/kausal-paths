@@ -329,8 +329,9 @@ class InstanceEditorFields:
         graph = info.context.require_instance_graph(config, source=source)
         if not isinstance(info.context.user, User):
             raise GraphQLError('Authentication required')
+        editions = resources.require_dataset_editions(config, source)
         return DataEntryType(
-            _query=DataEntryQuery(graph, info.context.user, published=source == PreferredInstanceSource.PUBLISHED),
+            _query=DataEntryQuery(graph, info.context.user, published=editions.published, editions=editions),
             can_manage_years=root._config.gql_action_allowed(info, 'change', raise_on_denied=False)
             and source != PreferredInstanceSource.PUBLISHED,
         )
@@ -532,12 +533,12 @@ class InstanceEditorFields:
     @sb.field(graphql_type=list[DatasetPortType])
     @staticmethod
     def dataset_ports(root: 'InstanceEditorFields', info: gql.Info) -> list[DatasetPortType]:
+        resources = info.context.instance_resources
+        assert resources is not None
+        editions = resources.require_dataset_editions(root._config, root._source)
         if root._config.template_revision_id is not None:
-            resources = info.context.instance_resources
-            assert resources is not None
-            models_by_uuid = resources.dataset_models_for_graph(root._config, root._source)
             return [
-                DatasetPortType.from_binding(b, dataset_models_by_uuid=models_by_uuid)
+                DatasetPortType.from_binding(b, editions=editions)
                 for b in info.context.require_instance_graph(root._config, source=root._source).bindings
                 if isinstance(b, DatasetBindingDef)
             ]
@@ -563,18 +564,24 @@ class InstanceEditorFields:
                 tags=list(dp.tags or []),
             )
 
-            port._dataset = DatasetType.from_model(dp.dataset)
+            edition = editions.get(dp.dataset.uuid)
+            if edition is not None:
+                port._dataset = DatasetType.from_edition(
+                    edition, forecast_from=forecast_from_transformations(dp.transformations or [])
+                )
+            port._dataset_uuid = dp.dataset.uuid
             port._transformations = list(dp.transformations or [])
-            if port._dataset is not None:
-                port._dataset._forecast_from = forecast_from_transformations(dp.transformations or [])
             result.append(port)
         return result
 
     @sb.field(graphql_type=list[DatasetType])
     @staticmethod
     def datasets(root: 'InstanceEditorFields', info: gql.Info) -> list[DatasetType]:
-        """All DB-backed datasets scoped to this instance."""
+        """All DB-backed datasets scoped to this instance, as the selected source reads them."""
         ic = root._config
+        resources = info.context.instance_resources
+        assert resources is not None
+        editions = resources.require_dataset_editions(ic, root._source)
         qs = (
             Dataset.objects
             .get_queryset()
@@ -582,9 +589,9 @@ class InstanceEditorFields:
             .for_instance_config(ic)
             .viewable_by(info.context.user)
             .select_related('schema', 'created_by', 'last_modified_by')
-            .prefetch_related('schema__metrics__validation_rules', 'schema__dimensions__dimension__categories')
+            .prefetch_related('schema__metrics__validation_rules', 'schema__dimensions__dimension__categories', 'schema__scopes')
         )
-        return [DatasetType.from_model(ds) for ds in qs]
+        return [DatasetType.from_edition(edition) for edition in editions.for_rows(qs)]
 
     @sb.field(graphql_type=list[DatasetSchemaType])
     @staticmethod
@@ -604,7 +611,7 @@ class InstanceEditorFields:
     def dataset(
         root: 'InstanceEditorFields', info: gql.Info, id: Annotated[sb.ID, sb.argument(description='Dataset pk/uuid/identifier)')]
     ) -> DatasetType | None:
-        """One instance-scoped dataset by id."""
+        """One instance-scoped dataset by id, as the selected source reads it."""
         if not id.strip():
             return None
         ic = root._config
@@ -615,14 +622,17 @@ class InstanceEditorFields:
             .for_instance_config(ic)
             .viewable_by(info.context.user)
             .select_related('schema', 'created_by', 'last_modified_by')
-            .prefetch_related('schema__metrics__validation_rules', 'schema__dimensions__dimension__categories')
+            .prefetch_related('schema__metrics__validation_rules', 'schema__dimensions__dimension__categories', 'schema__scopes')
         )
         qs = qs.filter(query_pk_or_uuid_or_identifier(id))
         try:
             ds = qs.get()
         except Dataset.DoesNotExist:
             return None
-        return DatasetType.from_model(ds)
+        resources = info.context.instance_resources
+        assert resources is not None
+        edition = resources.require_dataset_editions(ic, root._source).for_row(ds)
+        return DatasetType.from_edition(edition) if edition is not None else None
 
     @sb.field(
         graphql_type=list[Annotated['DataSourceType', sb.lazy('datasets.graphql.types')]],
@@ -758,12 +768,10 @@ class InstanceModelType:
         if dataset_ports is None:
             dataset_ports = list(_dataset_binding_qs(self._config))
             self._config._annotated_dataset_ports = dataset_ports
-        datasets_by_uuid = {port.dataset.uuid: port.dataset for port in dataset_ports if port.dataset is not None}
         node_config_by_identifier = {nc.identifier: nc for nc in node_configs}
         for node_id, node in self._instance.context.nodes.items():
             nc = node_config_by_identifier.get(node_id)
             if nc is not None:
-                nc._annotated_dataset_models_by_uuid = datasets_by_uuid
                 node.db_obj = nc
         self._editor_nodes_prepared = True
 
