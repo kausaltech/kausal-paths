@@ -1,16 +1,19 @@
 from __future__ import annotations
 
+import copy
 import hashlib
 import importlib
 import json
 import pickle
 import re
 import uuid as uuid_mod
+from collections import defaultdict
 from collections.abc import Callable
 from dataclasses import dataclass
 from functools import cached_property, wraps
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Concatenate, Literal, Self, TypedDict, cast, overload
+from uuid import NAMESPACE_URL, uuid5
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -20,12 +23,52 @@ from rich import print
 from ruamel.yaml import YAML as RuamelYAML  # noqa: N811
 from sentry_sdk import start_span
 
+from kausal_common.datasets.models import Dataset as DBDatasetModel
 from kausal_common.i18n.pydantic import TranslatedString, get_i18n_context, gettext_lazy as _, set_i18n_context
 
-from nodes.actions.action import ActionNode
+from paths.refs import ValidationContext
+
+from datasets.materialization import ensure_dataset_materializations
+from datasets.payloads import CurrentDatasetPayloadStore, DatasetPayloadRef, MixedDatasetPayloadStore, RevisionDatasetPayloadStore
+from datasets.runtime import DBDataset, DVCDataset, FixedDataset, GenericDataset, SerializedDBDataset
+from frameworks.datasets import FrameworkMeasureDVCDataset, FrameworkMeasureDVCDataset2, ObservationDataset
+from nodes.actions.action import ActionNode, ImpactOverview
+from nodes.actions.parent import ParentActionNode
+from nodes.constants import VALUE_COLUMN
+from nodes.context import Context
+from nodes.defs import FormulaConfig, SimpleConfig
+from nodes.defs.binding_def import DatasetBindingDef, EdgeBindingDef
+from nodes.defs.graph import DatasetMeta, DatasetMetricMeta
+from nodes.defs.instance_defs import NormalizationSpec
+from nodes.defs.node_defs import ActionConfig, InputDatasetDef, NodeKind
+from nodes.defs.transform_def import AssignDimensionOp, FilterDimensionOp, FlattenTransformation, modernized_transformations
+from nodes.edges import Edge, EdgeDimension
+from nodes.excel_results import InstanceResultExcel
 from nodes.exceptions import NodeError
+from nodes.explanation_inputs import explained_nodes_from_graph
+from nodes.explanations import build_node_explanation_system
+from nodes.generic import GenericNode
+from nodes.hooks import ActionHook
+from nodes.instance_graph import build_instance_graph
+from nodes.instance_parser import parse_instance_snapshot
+from nodes.instance_serialization import _dimension_catalog_for, build_instance_snapshot, group_dataset_bindings
+from nodes.models import InstanceConfig
+from nodes.node import Node, NodeErrorPhase, NodeMetric, NodeStatus, NodeStatusError
+from nodes.normalization import Normalization
+from nodes.runtime_input import RuntimeInputBinding
+from nodes.scenario import CustomScenario, Scenario, ScenarioKind
 from nodes.shapes import resolve_shapes
+from nodes.simple import AdditiveNode
+from nodes.transforms import QualifierSource
+from nodes.units import Unit
+from nodes.visualizations import NodeVisualizations
+from params.base import Parameter
 from params.discover import discover_global_parameters
+from params.param import ReferenceParameter
+
+from .dimensions import Dimension
+from .instance import Instance
+from .units import add_unit_translations
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
@@ -33,25 +76,15 @@ if TYPE_CHECKING:
 
     from ruamel.yaml import CommentedMap
 
-    from kausal_common.datasets.models import Dataset as DBDatasetModel
     from kausal_common.i18n.pydantic import I18nString
 
     from datasets.runtime import Dataset
-    from nodes.context import Context
-    from nodes.defs.graph import DatasetMeta, DimensionMeta
-    from nodes.defs.node_defs import InputDatasetDef, NodeSpec
+    from nodes.defs.graph import DimensionMeta
+    from nodes.defs.node_defs import NodeSpec
     from nodes.defs.transform_def import EdgeTransformOp
-    from nodes.edges import Edge
     from nodes.explanations import NodeExplanationSystem
-    from nodes.instance import Instance
     from nodes.instance_graph import InstanceGraph, NodeMeta
     from nodes.instance_serialization import InputBindingSnapshot, InstanceSnapshot, NodeSnapshot
-    from nodes.models import InstanceConfig
-    from nodes.node import Node, NodeMetric
-    from nodes.scenario import Scenario
-    from nodes.transforms import QualifierSource
-    from nodes.units import Unit
-    from params import Parameter
 
 
 CATEGORY_LABEL_FIELD = re.compile(r'label(_[a-z]{2}(-[A-Za-z]{2,4})?)?')
@@ -622,8 +655,6 @@ def _hook_metric(node: Node, spec: NodeSpec, port_id: UUID | None) -> NodeMetric
 
 def _param_config(param: Parameter) -> dict[str, Any]:
     """Convert a spec parameter into the overrides the parameter builder merges over the class default."""
-    from params.param import ReferenceParameter
-
     if isinstance(param, ReferenceParameter):
         return {'id': param.local_id, 'ref': param.target_id}
     config = param.model_dump(exclude_none=True)
@@ -692,8 +723,6 @@ class InstanceLoader:
         from the database), and the dataset's declared default grade, which a module states
         under ``datasets`` and which an external placeholder carries as well as a stored dataset.
         """
-        from nodes.transforms import QualifierSource
-
         meta = self._dataset_catalog_by_identifier.get(dataset_id)
         if meta is None:
             return QualifierSource(catalog=self.context.qualifiers)
@@ -730,11 +759,6 @@ class InstanceLoader:
         )
 
     def _make_node_datasets(self, config: dict[str, Any], node_class: type[Node], unit: Unit | None) -> list[Dataset]:  # noqa: C901, PLR0912, PLR0915
-        from datasets.runtime import DBDataset, DVCDataset, FixedDataset, GenericDataset
-        from nodes.defs.node_defs import InputDatasetDef
-        from nodes.generic import GenericNode
-        from nodes.simple import AdditiveNode
-
         uses_generic_dataset = issubclass(node_class, GenericNode) and not issubclass(node_class, AdditiveNode)
 
         ds_config = config.get('input_datasets')
@@ -745,8 +769,6 @@ class InstanceLoader:
         if ds_config is None:
             ds_config = getattr(node_class, 'input_datasets', [])
         elif isinstance(ds_config, list):
-            import copy
-
             ds_config = copy.deepcopy(ds_config)
 
         # Two sources of interpolation, and they behave differently on purpose: the legacy
@@ -783,12 +805,8 @@ class InstanceLoader:
             use_city_ds = 'city_data' in ds_def.tags
             ds_obj: Dataset | None = None
             if use_obs_ds:
-                from frameworks.datasets import ObservationDataset
-
                 ds_obj = ObservationDataset.from_def(ds_def, self.context)
             elif use_city_ds:
-                from frameworks.datasets import FrameworkMeasureDVCDataset2
-
                 # Prefer a DB-stored dataset when one exists for this instance.
                 # FrameworkMeasureDVCDataset2 handles both cases: when db_dataset_obj is
                 # provided it loads from DB, otherwise falls through to DVC. Either way,
@@ -811,15 +829,11 @@ class InstanceLoader:
                     payload_store=self.dataset_payload_store,
                 )
             elif use_framework_ds:
-                from frameworks.datasets import FrameworkMeasureDVCDataset
-
                 ds_obj = FrameworkMeasureDVCDataset.from_def(ds_def, self.context)
             elif self.instance.features.use_datasets_from_db:
                 ds_db_obj = self.db_datasets.get(ds_def.id)
                 payload_ref = self.db_dataset_refs.get(ds_def.id)
                 if payload_ref is not None:
-                    from datasets.runtime import SerializedDBDataset
-
                     assert self.dataset_payload_store is not None
                     ds_obj = SerializedDBDataset.from_def(
                         ds_def,
@@ -862,8 +876,6 @@ class InstanceLoader:
         skip the offending piece and keep loading the rest of the graph. Otherwise raise a
         structured ``NodeError``. See ``docs/architecture/fault-tolerance.md``.
         """
-        from nodes.node import NodeErrorPhase, NodeStatus, NodeStatusError
-
         if self.context.tolerate_node_failures:
             node.mark_status(NodeStatus.FAILED, NodeStatusError(phase=NodeErrorPhase.INITIALIZATION, message=msg))
             self.logger.warning('Node %s failed to initialize: %s' % (node.id, msg))
@@ -871,9 +883,6 @@ class InstanceLoader:
         raise NodeError(node, msg) from cause
 
     def _make_node_params(self, config: dict[str, Any], node: Node) -> None:  # noqa: C901, PLR0912, PLR0915
-        from params.base import Parameter
-        from params.param import ReferenceParameter
-
         params = config.get('params', [])
         if not params:
             return
@@ -960,8 +969,6 @@ class InstanceLoader:
                 sv.append((param, cleaned))
 
     def _make_node_visualizations(self, node: Node, config: list[dict[str, Any]]) -> None:
-        from nodes.visualizations import NodeVisualizations
-
         ctx = NodeVisualizations.ValidationContext(context=self.context, node=None, root_node=node)
         try:
             node.visualizations = NodeVisualizations.model_validate(config, context=ctx)
@@ -1003,8 +1010,6 @@ class InstanceLoader:
         return klass
 
     def setup_dimensions(self):
-        from .dimensions import Dimension
-
         # Same dict shape as the YAML path used, but sourced from the typed
         # spec; copied so the shared snapshot is never mutated.
         dim_configs: list[dict[str, Any]] = [dict(dc) for dc in self.snapshot.spec.dimensions]
@@ -1019,10 +1024,6 @@ class InstanceLoader:
             self.context.dimensions[dim.id] = dim
 
     def _import_node_class_for_spec(self, spec: NodeSpec, identifier: str, *, action: bool) -> type[Node]:
-        from nodes.actions.action import ActionNode
-        from nodes.defs import ActionConfig, FormulaConfig, SimpleConfig
-        from nodes.node import Node
-
         tc = spec.type_config
         if isinstance(tc, FormulaConfig):
             type_path = 'formula.FormulaNode'
@@ -1040,10 +1041,6 @@ class InstanceLoader:
         )
 
     def _setup_nodes_from_snapshot(self, *, actions: bool) -> None:
-        from nodes.actions.action import ActionNode
-        from nodes.defs import ActionConfig
-        from nodes.defs.node_defs import NodeKind
-
         for n in self.snapshot.nodes:
             spec = n.spec
             assert spec is not None
@@ -1072,9 +1069,6 @@ class InstanceLoader:
         self, node_class: type[Node], spec: NodeSpec, identifier: str
     ) -> tuple[dict[str, NodeMetric] | None, Any, str | None]:
         """Output metrics / unit / quantity from typed output ports, with the dict path's class fallbacks."""
-        from nodes.node import NodeMetric
-        from nodes.units import Unit
-
         metrics: dict[str, NodeMetric] | None = None
         unit: Any = None
         quantity: str | None = None
@@ -1194,8 +1188,6 @@ class InstanceLoader:
             # be resolved against this context.
             self._node_visualizations[node.id] = spec.visualizations.model_dump(exclude_none=True)
 
-        from nodes.defs import ActionConfig
-
         tc = spec.type_config
         if isinstance(tc, ActionConfig) and tc.no_effect_value is not None:
             assert isinstance(node, ActionNode)
@@ -1231,14 +1223,6 @@ class InstanceLoader:
         bare exclude+flatten declarations, filters resolve categories and
         groups, and assigns pin one category.
         """
-        from nodes.defs.transform_def import (
-            AssignDimensionOp,
-            FilterDimensionOp,
-            FlattenTransformation,
-            modernized_transformations,
-        )
-        from nodes.edges import EdgeDimension
-
         legacy_declared = [t.dimension for t in transforms if isinstance(t, FlattenTransformation)]
         declared = list(dict.fromkeys([*required_dimensions, *legacy_declared]))
         # Key order matters to the exporter (port dimensions follow declaration
@@ -1276,10 +1260,6 @@ class InstanceLoader:
 
     def _setup_edges_from_snapshot(self) -> None:
         """Construct runtime edges from snapshot bindings, grouped per node pair like the dict path."""
-        from collections import defaultdict
-
-        from nodes.constants import VALUE_COLUMN
-
         snapshot = self.snapshot
         specs_by_uuid: dict[UUID, NodeSpec] = {}
         identifiers_by_uuid: dict[UUID, str] = {}
@@ -1330,8 +1310,6 @@ class InstanceLoader:
         specs_by_uuid: dict[UUID, NodeSpec],
         identifiers_by_uuid: dict[UUID, str],
     ) -> Edge:
-        from nodes.edges import Edge
-
         first = tuples[0][1]
         transforms = first.transformations
         tags = first.tags
@@ -1351,8 +1329,6 @@ class InstanceLoader:
             to_port.required_dimensions,
             output_node,
         )
-        from nodes.defs.transform_def import modernized_transformations
-
         # Only deliver explicit `metrics` when the source is multi-metric; for
         # single-output nodes an empty list keeps the pass-through code path.
         from_is_multi_metric = len(specs_by_uuid[from_id].output_ports) > 1
@@ -1373,11 +1349,6 @@ class InstanceLoader:
 
     def _setup_hooks_from_snapshot(self) -> None:
         """Attach each action's hooks to the nodes it acts on (see `nodes.hooks`)."""
-        from nodes.defs.node_defs import ActionConfig
-        from nodes.defs.transform_def import modernized_transformations
-        from nodes.edges import Edge
-        from nodes.hooks import ActionHook
-
         specs = {n.identifier: n.spec for n in self.snapshot.nodes if n.spec is not None and n.identifier is not None}
         ctx = self.context
         for identifier, spec in specs.items():
@@ -1421,11 +1392,6 @@ class InstanceLoader:
 
     def _setup_runtime_inputs(self) -> None:  # noqa: C901, PLR0912
         """Attach graph bindings to runtime sources without mutating the cached graph models."""
-        from collections import defaultdict
-
-        from nodes.defs.binding_def import DatasetBindingDef, EdgeBindingDef
-        from nodes.runtime_input import RuntimeInputBinding
-
         runtime_by_uuid = {
             meta.id: self.context.get_node(meta.identifier) for meta in self._instance_graph.nodes if meta.identifier is not None
         }
@@ -1491,8 +1457,6 @@ class InstanceLoader:
             bindings = bindings_by_target.get(node_id, [])
             fixed_role = node.legacy_fixed_dataset_input_role
             if fixed_role is not None:
-                from datasets.runtime import FixedDataset
-
                 bindings.extend(
                     RuntimeInputBinding.from_legacy_fixed_dataset(dataset, target=node, port_role=fixed_role)
                     for dataset in node.input_dataset_instances
@@ -1533,9 +1497,6 @@ class InstanceLoader:
         )
 
     def _setup_subactions(self) -> None:
-        from nodes.actions.action import ActionNode
-        from nodes.actions.parent import ParentActionNode
-
         ctx = self.context
         for parent_uuid, subs in self._subactions.items():
             parent_id = self._node_identifier_by_uuid.get(parent_uuid)
@@ -1566,8 +1527,6 @@ class InstanceLoader:
 
     def _snapshot_scenarios(self) -> list[Scenario]:
         """Runtime scenarios from the typed spec (param values re-cleaned like the dict path)."""
-        from nodes.scenario import Scenario, ScenarioKind
-
         if not self.snapshot.spec.scenarios:
             fallback = Scenario(id='default', name=TranslatedString(_('Default')), kind=ScenarioKind.DEFAULT)
             fallback._context = self.context
@@ -1597,8 +1556,6 @@ class InstanceLoader:
         return scenarios
 
     def setup_scenarios(self):
-        from nodes.scenario import CustomScenario
-
         default_scenario = None
 
         scenarios = self._snapshot_scenarios()
@@ -1639,8 +1596,6 @@ class InstanceLoader:
             context.add_global_parameter(param)
 
     def setup_impact_overviews(self):
-        from nodes.actions.action import ImpactOverview
-
         seen: set[str] = set()
         for overview_spec in self.snapshot.spec.impact_overviews:
             spec = overview_spec.model_copy(deep=True)
@@ -1655,11 +1610,6 @@ class InstanceLoader:
         self.context.shapes = resolve_shapes(self.snapshot.spec.shapes, self.context.dimensions)
 
     def setup_normalizations(self):
-        from paths.refs import ValidationContext
-
-        from nodes.defs.instance_defs import NormalizationSpec
-        from nodes.normalization import Normalization
-
         # Re-validate against this context so node refs resolve here.
         spec_configs: list[dict[str, Any]] = [n.model_dump() for n in self.snapshot.spec.normalizations]
         for spec_config in spec_configs:
@@ -1671,9 +1621,6 @@ class InstanceLoader:
 
     def setup_node_explanations(self):
         """Install a lazy builder for the explanation system; nothing consumes it during loading."""
-        from nodes.explanation_inputs import explained_nodes_from_graph
-        from nodes.explanations import build_node_explanation_system
-
         graph = self._instance_graph
         datasets_by_node = {
             node_uuid: [ds_def for ds_def, _rows in groups] for node_uuid, groups in self._snapshot_dataset_groups.items()
@@ -1697,8 +1644,6 @@ class InstanceLoader:
         snapshot = snapshot.resolve()
         payload_refs = None
         if published:
-            from datasets.payloads import DatasetPayloadRef
-
             payload_refs = [
                 DatasetPayloadRef(
                     payload_id=pin.revision_id,
@@ -1735,8 +1680,6 @@ class InstanceLoader:
         frameworks.
         """
 
-        from nodes.instance_parser import parse_instance_snapshot
-
         yaml_fn = filename.resolve()
         yaml_conf = InstanceYAMLConfig.load_for_entrypoint(yaml_fn)
         data = yaml_conf.data
@@ -1771,8 +1714,6 @@ class InstanceLoader:
         *,
         snapshot: InstanceSnapshot,
     ):
-        from .units import add_unit_translations
-
         add_unit_translations()
         if instance_config is not None:
             snapshot = snapshot.with_instance_role(instance_config)
@@ -1804,11 +1745,7 @@ class InstanceLoader:
         return {dimension.id: dimension for dimension in self.snapshot.dimensions}
 
     def load_db_datasets(self):
-        from kausal_common.datasets.models import Dataset as DBDatasetModel
-
         if self.supplied_dataset_payload_refs is not None:
-            from datasets.payloads import RevisionDatasetPayloadStore
-
             self.db_datasets = {}
             self.db_dataset_refs = {ref.identifier: ref for ref in self.supplied_dataset_payload_refs}
             self.dataset_payload_store = RevisionDatasetPayloadStore(self.supplied_dataset_payload_refs, self._dimension_catalog)
@@ -1819,8 +1756,6 @@ class InstanceLoader:
             # Standalone YAML tooling has no InstanceConfig owner to pass in.
             # Keep that compatibility lookup explicit at the loader boundary;
             # normal InstanceConfig construction binds the owner up front.
-            from nodes.models import InstanceConfig
-
             try:
                 ic = InstanceConfig.objects.get(identifier=self.instance.id)
             except InstanceConfig.DoesNotExist:
@@ -1836,9 +1771,6 @@ class InstanceLoader:
             .only('uuid', 'identifier', 'last_modified_at', 'spec', 'is_external_placeholder')
         )
         self.db_datasets = {ds.identifier or str(ds.uuid): ds for ds in ds_objs}
-        from datasets.materialization import ensure_dataset_materializations
-        from datasets.payloads import CurrentDatasetPayloadStore, DatasetPayloadRef
-
         by_dataset = ensure_dataset_materializations(ds_objs)
         refs: list[DatasetPayloadRef] = []
         self.db_dataset_refs = {}
@@ -1858,8 +1790,6 @@ class InstanceLoader:
             refs.append(ref)
             self.db_dataset_refs[ref.identifier] = ref
         if self.snapshot.template_revision_id is not None:
-            from datasets.payloads import MixedDatasetPayloadStore
-
             for pin in self.snapshot.dataset_revisions:
                 ref = DatasetPayloadRef(
                     payload_id=pin.revision_id,
@@ -1875,8 +1805,6 @@ class InstanceLoader:
         else:
             # Live rows name the dimensions of the live scopes. A YAML-sourced snapshot
             # carries no dimension catalog of its own, so the snapshot's cannot be used.
-            from nodes.instance_serialization import _dimension_catalog_for
-
             live_dimensions = {dimension.id: dimension for dimension in _dimension_catalog_for(ic)}
             self.dataset_payload_store = CurrentDatasetPayloadStore(refs, live_dimensions)
 
@@ -1919,11 +1847,6 @@ class InstanceLoader:
 
     def _init_instance_from_snapshot(self, snapshot: InstanceSnapshot) -> None:
         """Build Instance and Context natively from the typed snapshot (no config dict)."""
-        from nodes.context import Context
-        from nodes.excel_results import InstanceResultExcel
-
-        from .instance import Instance
-
         meta = snapshot.metadata
         spec = snapshot.spec
         years = spec.years
@@ -1994,18 +1917,11 @@ class InstanceLoader:
 
     def _stash_snapshot_bindings(self, snapshot: InstanceSnapshot) -> None:
         """Group dataset bindings per node for construction, the same way the config-dict shim grouped them."""
-        from uuid import NAMESPACE_URL, uuid5
-
-        from nodes.defs.graph import DatasetMeta, DatasetMetricMeta
-        from nodes.instance_graph import build_instance_graph
-
         graph_snapshot = snapshot
         is_yaml = getattr(self, 'yaml_file_path', None) is not None
         if is_yaml or not snapshot.all_datasets():
             catalog = snapshot.all_datasets()
             if not catalog and self.instance_config is not None and not is_yaml:
-                from nodes.instance_serialization import build_instance_snapshot
-
                 catalog.extend(build_instance_snapshot(self.instance_config).all_datasets())
 
             specs_by_node = {node.uuid: node.spec for node in snapshot.nodes if node.spec is not None}
@@ -2082,8 +1998,6 @@ class InstanceLoader:
         order, per-port position), which is the authored order the fan-out was
         created in.
         """
-        from nodes.instance_serialization import group_dataset_bindings
-
         groups_by_node: dict[UUID, list[tuple[InputDatasetDef, list[InputBindingSnapshot]]]] = {}
         for node_uuid, node_groups in group_dataset_bindings(snapshot).items():
             converted: list[tuple[InputDatasetDef, list[InputBindingSnapshot]]] = []

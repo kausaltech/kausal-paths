@@ -15,7 +15,8 @@ from paths import gql
 from paths.const import INSTANCE_CHANGE_GROUP, INSTANCE_CHANGE_TYPE
 from paths.graphql_helpers import default_instance
 
-from nodes.models import InstanceConfig, InstanceGraphQLContext
+from frameworks.models import FrameworkConfig
+from nodes.models import InstanceConfig, InstanceGraphQLContext, InstanceHostname
 from nodes.normalization import Normalization
 from nodes.scenario import Scenario
 
@@ -36,7 +37,7 @@ if TYPE_CHECKING:
     from nodes.actions.action import ActionNode, ImpactOverview
     from nodes.node import Node
 
-logger = logger.bind(name='nodes.schema')
+logger = logger.bind(name='nodes.graphql.operations')
 
 
 @sb.type
@@ -140,8 +141,6 @@ class SBQuery(Query):
     @sb.field(graphql_type=list[InstanceBasicConfiguration])
     @staticmethod
     def available_instances(info: gql.Info, hostname: str) -> list[InstanceConfig]:
-        from nodes.models import InstanceHostname
-
         normalized_hostname = hostname.lower()
         matched_hostnames_attr = '_available_instances_matched_hostnames'
         qs = (
@@ -158,8 +157,6 @@ class SBQuery(Query):
         )
         configs = list(qs)
         if configs:
-            from frameworks.models import FrameworkConfig
-
             path_routed_framework_configs = FrameworkConfig.objects.select_related('framework', 'instance_config').filter(
                 framework__root_instance__in=configs,
                 framework__use_instance_subdomains=False,

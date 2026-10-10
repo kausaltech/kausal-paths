@@ -11,6 +11,7 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
+from pydantic import ValidationError as PydanticValidationError
 from strawberry import Maybe
 from strawberry_django.fields.types import OperationInfo
 
@@ -35,6 +36,7 @@ from paths import gql
 from datasets.change_snapshots import data_point_snapshot
 from datasets.materialization import refresh_dataset_materialization
 from datasets.plausibility import evaluate_dataset_plausibility
+from datasets.validation import load_violations
 from datasets.validation_rules import ValidationRule, ValidationRuleSpecInput
 from frameworks.evidence import (
     UNCHANGED,
@@ -46,7 +48,7 @@ from frameworks.evidence import (
 from frameworks.models import DataEvidenceKind, Framework
 from nodes.change_ops import gql_change_operation, record_change
 from nodes.graphql.types.problems import DatasetPlausibilityFindingType, DatasetValidationViolationType
-from nodes.models import InstanceConfig
+from nodes.models import DatasetMaterialization, InstanceConfig
 
 from .types import DataPointCommentType, DataPointType, DatasetMetricType, DatasetSourceReferenceType, MetricValidationRuleType
 
@@ -342,9 +344,6 @@ class DatasetEditorMutation:
     @staticmethod
     def _current_violations(root: Me) -> list[DatasetValidationViolationType]:
         """Read the dataset's persisted violations, as recorded by the refresh this mutation just ran."""
-        from datasets.validation import load_violations
-        from nodes.models import DatasetMaterialization
-
         materialization = DatasetMaterialization.objects.filter(dataset=root.dataset).first()
         if materialization is None:
             return []
@@ -563,8 +562,6 @@ class DatasetEditorMutation:
         metric_id: UUID,
         rules: list[ValidationRuleInput],
     ) -> MetricValidationRulesResult:
-        from pydantic import ValidationError as PydanticValidationError
-
         dataset = root.dataset
         if dataset.schema is None:
             raise ValidationError('Dataset has no schema')
