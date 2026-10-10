@@ -23,8 +23,8 @@ features:
   show_explanations: true
   show_category_warnings: true
 
-# Per-capita figures over the municipality's own population (the `population` node,
-# Eurostat GISCO LAU by `lau_code`). Years the population series lacks drop out of a
+# Per-capita figures over editable municipal population, with GISCO LAU as the fallback
+# until a local series is supplied. Years the population series lacks drop out of a
 # normalized metric rather than being divided by a guess.
 normalizations:
 - normalizer_node: population
@@ -35,8 +35,12 @@ normalizations:
     unit: MWh/cap/a
 
 include:
-- file: modules/bisko/model.yaml
+- file: modules/bisko/population-defaults.yaml
   allow_override: false
+  nodes_editable: false
+- file: modules/bisko/model.yaml
+  # The earlier extension deliberately replaces only the population node.
+  allow_override: true
   nodes_editable: false
   # dataset_replacements:
   # - from: kommune/endenergieverbrauch
@@ -71,7 +75,7 @@ params:
 # The municipality itself, as a Eurostat GISCO LAU code: `<country>_<national LAU code>`, and
 # for Germany the national LAU code is the AGS -- so this is `DE_` plus `ags_number`, naming
 # Düsseldorf, Stadt. Read by the `population` node, which filters the European municipal
-# population table `demography/population_lau` down to this one municipality.
+# fallback population table `demography/population_lau` down to this one municipality.
 #
 # Declared separately from `ags_number` rather than derived from it, because the model filters on
 # one column with one parameter and the table is Europe-wide: a bare `09761000` is not unique
@@ -104,11 +108,12 @@ params:
 # own total with or without the facilities. "Subtracting never goes negative" is not a test: it
 # can only ever prove "beside", never "inside".
 #
-# The template stays true: it demonstrates the subtraction, and its placeholder data is not KSP's.
+# Activation defaults keep commerce and municipal facilities separate.
+# A utility delivery that includes facilities in commerce must declare the overlap explicitly.
 - id: municipal_facilities_included_in_commerce
   label_en: Energy consumption of municipal facilities is included in the commerce, trade and services sector.
   label_de: Energieverbräuche der kommunalen Einrichtungen sind im Sektor GHD/Sonstiges enthalten.
-  value: true
+  value: false
   is_visible: true
   is_customizable: true
 
