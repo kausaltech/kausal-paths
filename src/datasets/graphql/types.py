@@ -27,14 +27,8 @@ from paths import gql
 from paths.graphql_types import UnitType
 
 from datasets.coordinates import DatasetCoordinateIndex
+from datasets.graphql.enums import PlausibilityAggregation, PlausibilityDenominator, PlausibilityReference
 from datasets.materialization import ensure_dataset_materializations
-from datasets.models import (
-    DatasetMetricPlausibilityRange,
-    PlausibilityAggregation,
-    PlausibilityDenominator,
-    PlausibilityReference,
-    PlausibilitySource,
-)
 from datasets.plausibility import DatasetPlausibilityLookup, all_plausibility_ranges, evaluate_dataset_plausibility
 from datasets.runtime import DBDataset
 from datasets.shape_domain import dataset_category_domain, dataset_shape_id
@@ -56,6 +50,11 @@ from frameworks.models import (
     Framework,
 )
 from nodes.defs.graph import DatasetExternalRef
+from nodes.graphql.types.problems import (
+    DatasetDimensionCoordinateType,
+    DatasetPlausibilityFindingType,
+    DatasetValidationViolationType,
+)
 from nodes.graphql.types.shape import ShapeType
 from nodes.metric_gen import metric_from_dataframe_standalone
 from nodes.models import InstanceConfig, NodeInputPortBinding, PreferredInstanceSource
@@ -82,15 +81,14 @@ if TYPE_CHECKING:
         DimensionCategory as DimensionCategoryModel,
     )
 
+    from datasets.models import (
+        DatasetMetricPlausibilityRange,
+        PlausibilitySource,
+    )
     from nodes.defs.binding_def import DatasetBindingDef
     from nodes.graphql.types.graph import DatasetExternalRefType, DatasetPortType
     from nodes.graphql.types.metric import DimensionalMetricType
     from nodes.graphql.types.node import QuantityKindType  # used in lazy strawberry annotations
-    from nodes.graphql.types.problems import (
-        DatasetDimensionCoordinateType,
-        DatasetPlausibilityFindingType,
-        DatasetValidationViolationType,
-    )
     from nodes.metric import DimensionalMetric
 
 
@@ -165,19 +163,6 @@ class MetricValidationRuleType:
         return cls(id=sb.ID(str(obj.uuid)), rule=rule_to_gql(validation_rule_adapter.validate_python(obj.rule)))
 
 
-sb.enum(
-    PlausibilityAggregation,
-    name='PlausibilityAggregation',
-    description='Whether each selected cell is checked, or their sum per year.',
-)
-sb.enum(PlausibilityDenominator, name='PlausibilityDenominator')
-sb.enum(
-    PlausibilityReference,
-    name='PlausibilityReference',
-    description='Whether the bounds apply to the value, or to its ratio to an earlier year.',
-)
-
-
 @sb.type(name='PlausibilitySource', description='Where a set of reference ranges comes from.')
 class PlausibilitySourceType:
     id: sb.ID
@@ -229,9 +214,6 @@ class DatasetMetricPlausibilityRangeType:
     def from_model(
         cls, obj: DatasetMetricPlausibilityRange, coordinate_index: DatasetCoordinateIndex
     ) -> DatasetMetricPlausibilityRangeType:
-        # Defer until this module has registered the plausibility enums with Strawberry.
-        from nodes.graphql.types.problems import DatasetDimensionCoordinateType
-
         return cls(
             id=sb.ID(str(obj.uuid)),
             identifier=obj.identifier,
@@ -881,9 +863,6 @@ class DatasetType(UserPermissionsMixin):
     )
     @staticmethod
     def validation_violations(root: 'DatasetType') -> "list['DatasetValidationViolationType']":
-        # Defer until this module has registered the plausibility enums with Strawberry.
-        from nodes.graphql.types.problems import DatasetValidationViolationType
-
         if root._model is None:
             return []
 
@@ -902,9 +881,6 @@ class DatasetType(UserPermissionsMixin):
     )
     @staticmethod
     def plausibility_findings(root: 'DatasetType') -> "list['DatasetPlausibilityFindingType']":
-        # Defer until this module has registered the plausibility enums with Strawberry.
-        from nodes.graphql.types.problems import DatasetPlausibilityFindingType
-
         if root._model is None:
             return []
 

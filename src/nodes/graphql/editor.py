@@ -61,9 +61,9 @@ from nodes import inventory_years
 from nodes.actions.simple import AdditiveAction
 from nodes.change_ops import gql_change_operation, record_change
 from nodes.constraints.validation import BindingChange, InstanceConstraintError
-from nodes.defs import ActionGroup, FormulaConfig, SimpleConfig
 from nodes.defs.binding_def import EdgeBindingDef
-from nodes.defs.node_defs import ActionConfig, NodeKind, NodeSpec, PipelineConfig, TypeConfig
+from nodes.defs.instance_defs import ActionGroup
+from nodes.defs.node_defs import ActionConfig, FormulaConfig, NodeKind, NodeSpec, PipelineConfig, SimpleConfig, TypeConfig
 from nodes.defs.port_def import InputPortDef, OutputPortDef, pair_input_ports_to_outputs
 from nodes.graphql.binding_storage import LocalBindingEditor
 from nodes.graphql.bindings import bind_dataset, binding_editor, port_occupants

@@ -14,7 +14,7 @@ import strawberry as sb
 
 from paths.graphql_types import UnitType
 
-from datasets.models import PlausibilityAggregation, PlausibilityReference
+from datasets.graphql.enums import PlausibilityAggregation, PlausibilityReference
 from nodes.units import Unit, unit_registry
 
 if TYPE_CHECKING:
