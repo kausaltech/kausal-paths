@@ -29,6 +29,7 @@ from kausal_common.datasets.tests.factories import (
 
 from paths.tests.graphql import PathsTestClient
 
+from datasets.materialization import materialize_dataset
 from nodes.defs.instance_defs import InstanceModelSpec, YearsSpec
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory
 from users.tests.factories import UserFactory
@@ -1145,6 +1146,9 @@ def test_dataset_detail_batches_rules_and_comments(
             expected_comments[str(point.uuid)] = [str(comment.uuid) for comment in reversed(comments)]
     empty_point = DataPointFactory.create(dataset=dataset, metric=first_metric, date=date(2050, 1, 1))
     expected_comments[str(empty_point.uuid)] = []
+    # Every editor write leaves a materialization; without one, reading the content
+    # would serialize the rows, comments included, and blur what is being counted.
+    materialize_dataset(dataset)
 
     with CaptureQueriesContext(connection) as queries:
         data = gql_client.query_data(

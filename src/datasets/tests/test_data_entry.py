@@ -298,13 +298,20 @@ def test_graphql_keeps_manual_tables_separate_and_in_order(client: Client) -> No
     gql.set_instance(config)
     tables = gql.query_data("""{
       instance { editor { dataEntry { sections { tables {
-        id entryId dataset { id } metricSelections { metricId }
+        id entryId metricSelections { metricId }
+        dataset { id name isEditable metrics { id name } dimensions { id } categoryDomain { mode } dataPoints { id value } }
         dataPoints(years: [2023]) { value }
       } } } } }
     }""")['instance']['editor']['dataEntry']['sections'][0]['tables']
     assert [table['entryId'] for table in tables] == [str(first.id), str(second.id)]
     assert len({table['id'] for table in tables}) == 2
     assert [table['dataset']['id'] for table in tables] == [str(dataset.uuid)] * 2
+    # The table's dataset is the editor's `Dataset`, read from the same edition as the table.
+    embedded = tables[0]['dataset']
+    assert embedded['name'] == 'Data'
+    assert embedded['isEditable'] is True
+    assert {metric['id'] for metric in embedded['metrics']} == {str(first_metric.uuid), str(second_metric.uuid)}
+    assert sorted(point['value'] for point in embedded['dataPoints']) == [4, 8, 123]
     assert [table['dataPoints'][0]['value'] for table in tables] == [123, 8]
 
 

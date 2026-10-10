@@ -5,36 +5,29 @@ from functools import cached_property
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid3
 
-from wagtail.models import Revision
-
 import polars as pl
 
-from kausal_common.datasets.models import Dataset
-from kausal_common.i18n.pydantic import set_i18n_context
-
 from common import qualifiers
-from datasets.coordinates import DatasetCoordinateIndex
-from datasets.materialization import serialize_dataset
-from datasets.plausibility import (
-    DatasetPlausibilityCells,
-    PlausibilityFinding,
-    _observed_population,
-    applicable_plausibility_ranges,
-    evaluate_plausibility_cells,
+from datasets.editions import (
+    DatasetEdition,
+    DatasetEditions,
+    EditionFrame,
+    evaluate_edition_plausibility,
+    evaluate_edition_rules,
 )
-from datasets.snapshot import DataPointEvidenceSnapshot, DatasetSnapshot
-from datasets.validation import evaluate_closed_domain, evaluate_rule
-from frameworks.models import Framework
-from frameworks.qualifiers import attach_evidence_qualifiers, qualifier_catalog_for_instance
+from frameworks.qualifiers import qualifier_catalog_for_instance
 from nodes.constants import VALUE_COLUMN, YEAR_COLUMN
 from nodes.data_entry import EntryResolver, EntrySelection, Rectangle, intersect, rectangle
 from nodes.defs.binding_def import DatasetBindingDef
-from nodes.models import DatasetMaterialization, InstanceConfig
 from nodes.value_validation import contract_requirements, requirement_failures
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping
 
+    from kausal_common.datasets.models import Dataset
+
+    from datasets.plausibility import PlausibilityFinding
+    from datasets.snapshot import DataPointEvidenceSnapshot, DatasetSnapshot
     from nodes.defs.graph import DatasetMeta
     from nodes.instance_graph import InstanceGraph
     from nodes.value_validation import ValueContract, ValueRequirement
@@ -68,22 +61,33 @@ class EntryFinding:
 
 @dataclass
 class EntryDatasetData:
-    meta: DatasetMeta
-    snapshot: DatasetSnapshot
-    frame: pl.DataFrame
-    dimensions: dict[str, UUID]
-    categories: dict[tuple[str, str], UUID]
+    edition: DatasetEdition
+    table: EditionFrame
     point_ids: dict[tuple[UUID, int, tuple[UUID, ...]], UUID] = field(default_factory=dict)
     evidence: dict[tuple[UUID, int, tuple[UUID, ...]], DataPointEvidenceSnapshot] = field(default_factory=dict)
 
+    @property
+    def meta(self) -> DatasetMeta:
+        return self.edition.meta
+
+    @property
+    def snapshot(self) -> DatasetSnapshot:
+        return self.edition.snapshot
+
+    @property
+    def frame(self) -> pl.DataFrame:
+        return self.table.frame
+
+    @property
+    def dimensions(self) -> dict[str, UUID]:
+        return self.table.dimensions
+
+    @property
+    def categories(self) -> dict[tuple[str, str], UUID]:
+        return self.table.categories
+
     def coordinates(self, row: Mapping[str, object]) -> tuple[tuple[UUID, UUID], ...]:
-        return tuple(
-            sorted(
-                (dim, self.categories[column, str(row[column])])
-                for column, dim in self.dimensions.items()
-                if row.get(column) is not None
-            )
-        )
+        return self.table.coordinates(row)
 
 
 def matches(selection: EntrySelection, metric: UUID, coordinates: tuple[tuple[UUID, UUID], ...]) -> bool:
@@ -94,10 +98,11 @@ def matches(selection: EntrySelection, metric: UUID, coordinates: tuple[tuple[UU
 
 
 class DataEntryQuery:
-    def __init__(self, graph: InstanceGraph, user: User, *, published: bool = False):
+    def __init__(self, graph: InstanceGraph, user: User, *, published: bool = False, editions: DatasetEditions | None = None):
         self.graph = graph
         self.published = published
         self.user = user
+        self.editions = editions if editions is not None else DatasetEditions(graph, user, published=published)
         self._data: dict[UUID, EntryDatasetData] = {}
         self._findings: dict[UUID, tuple[EntryFinding, ...]] = {}
         self.plausibility: dict[UUID, list[PlausibilityFinding]] = {}
@@ -115,19 +120,11 @@ class DataEntryQuery:
 
     @cached_property
     def qualifier_catalog(self) -> qualifiers.QualifierCatalog:
-        return qualifier_catalog_for_instance(InstanceConfig.objects.get(uuid=self.graph.instance_id))
+        return qualifier_catalog_for_instance(self.editions.config)
 
-    @cached_property
+    @property
     def datasets(self) -> dict[UUID, Dataset]:
-        rows = (
-            Dataset.objects
-            .with_schema_editability(Framework)
-            .filter(uuid__in=self.graph.dataset_by_id)
-            .viewable_by(self.user)
-            .select_related('schema', 'created_by', 'last_modified_by')
-            .prefetch_related('schema__metrics__validation_rules', 'schema__dimensions__dimension__categories')
-        )
-        return {dataset.uuid: dataset for dataset in rows}
+        return self.editions.viewable
 
     def is_editable(self, id: UUID) -> bool:
         if self.published or id in self.graph.pinned_revisions:
@@ -139,64 +136,19 @@ class DataEntryQuery:
             and dataset.permission_policy().user_has_perm(self.user, 'change', dataset)
         )
 
-    def _contents(self, wanted: set[UUID]) -> dict[UUID, dict]:
-        """Each dataset's payload in this edition: its pinned revision, else its live draft."""
-        pins = self.graph.pinned_revisions
-        current = {
-            row.dataset.uuid: row.content
-            for row in DatasetMaterialization.objects.filter(
-                dataset__uuid__in=[id for id in wanted if id not in pins],
-            ).select_related('dataset')
-        }
-        pinned = [pins[id] for id in wanted if id in pins]
-        revisions = {revision.pk: revision for revision in Revision.objects.filter(pk__in=pinned)}
-        contents: dict[UUID, dict] = {}
-        for id in wanted:
-            revision_id = pins.get(id)
-            if self.published and revision_id is None:
-                raise ValueError(f'Published dataset {id} has no revision pin')
-            if revision_id is None:
-                content = current.get(id)
-                contents[id] = content if content is not None else serialize_dataset(self.datasets[id])
-                continue
-            revision = revisions.get(revision_id)
-            dataset = self.datasets[id]
-            if revision is None or revision.object_id != str(dataset.pk) or revision.content_type.model_class() is not Dataset:
-                raise ValueError(f'Dataset revision pin is unavailable for {id}')
-            contents[id] = revision.content
-        return contents
-
     def load(self, dataset_ids: Iterable[UUID]) -> None:
         wanted = set(dataset_ids) & self.datasets.keys() - self._data.keys()
         if not wanted:
             return
-        for id, content in self._contents(wanted).items():
-            meta = self.graph.dataset_by_id[id]
-            with set_i18n_context(self.graph.metadata.primary_language, self.graph.metadata.other_languages):
-                snapshot = DatasetSnapshot.model_validate(content)
-            catalog = self.graph.dimension_by_id
-            frame = pl.DataFrame(
-                attach_evidence_qualifiers(snapshot.to_frame(catalog), snapshot.cell_grades(catalog), self.qualifier_catalog)
-            )
-            dimensions: dict[str, UUID] = {}
-            categories: dict[tuple[str, str], UUID] = {}
-            for dim_id in meta.declared_dimension_ids:
-                dim = self.graph.dimension_by_id[dim_id]
-                column = snapshot.dimension_columns.get(dim.id, dim.identifier)
-                dimensions[column] = dim.id
-                categories.update({(column, cat.identifier or str(cat.id)): cat.id for cat in dim.categories})
-                if column not in frame.columns:
-                    frame = frame.with_columns(pl.lit(None, dtype=pl.String).alias(column))
-                else:
-                    frame = frame.with_columns(pl.col(column).cast(pl.String))
-            data = EntryDatasetData(meta, snapshot, frame, dimensions, categories)
-            declared = set(meta.declared_dimension_ids)
-            for point in snapshot.points:
+        for edition in self.editions.load(wanted):
+            data = EntryDatasetData(edition, edition.frame(self.qualifier_catalog))
+            declared = set(edition.meta.declared_dimension_ids)
+            for point in edition.snapshot.points:
                 key = (point.metric, point.date.year, tuple(sorted(c for d, c in point.categories.items() if d in declared)))
                 data.point_ids[key] = point.id
                 if point.evidence is not None:
                     data.evidence[key] = point.evidence
-            self._data[id] = data
+            self._data[edition.id] = data
 
     def points(self, selections: tuple[EntrySelection, ...], years: list[int] | None) -> list[EntryPoint]:
         selected = self.selected_years(years)
@@ -345,80 +297,37 @@ class DataEntryQuery:
             )
         return results
 
-    def dataset_findings(self, id: UUID) -> tuple[EntryFinding, ...]:  # noqa: C901
+    def dataset_findings(self, id: UUID) -> tuple[EntryFinding, ...]:
         if id in self._findings:
             return self._findings[id]
         self.load([id])
         data = self._data[id]
-        meta = data.meta
         frame = data.frame
         # The rules must also see wholly empty declared years.
         # Null rows add years without inventing observed category combinations.
         absent = set(self.years) - set(frame[YEAR_COLUMN].to_list())
         if absent:
             frame = pl.concat([frame, pl.DataFrame({YEAR_COLUMN: sorted(absent)})], how='diagonal_relaxed')
-        domain = {
-            item.id: {
-                column: next(
-                    cat.identifier or str(cat.id)
-                    for cat in self.graph.dimension_by_id[dim].categories
-                    if cat.id == item.categories[dim]
-                )
-                for column, dim in data.dimensions.items()
-                if dim in item.categories
-            }
-            for item in meta.category_domain.combinations
-        }
+        violations = evaluate_edition_rules(data.edition, data.table.with_frame(frame))
         results: list[EntryFinding] = []
-        violations = []
-        metric_by_name = {metric.identifier: metric for metric in meta.metrics}
-        dim_cols = list(data.dimensions)
-        for metric_snapshot in data.snapshot.meta.metrics:
-            metric = metric_by_name.get(metric_snapshot.identifier)
-            if metric is None or metric_snapshot.identifier is None:
-                continue
-            column = metric_snapshot.identifier
-            if column not in frame.columns:
-                frame = frame.with_columns(pl.lit(None, dtype=pl.Float64).alias(column))
-            found = [
-                violation
-                for rule in metric_snapshot.validation_rules
-                if rule.id is not None  # a rule row always has one; only YAML-declared rules lack it
-                for violation in evaluate_rule(rule.rule, rule.id, metric.id, column, frame, dim_cols)
-            ]
-            if meta.category_domain.mode == 'closed':
-                domain_id = meta.shape_id or meta.schema_id
-                found.extend(evaluate_closed_domain(domain_id, metric.id, column, frame, dim_cols, domain.values()))
-            for violation in found:
-                violations.append(violation)
-                coordinates = data.coordinates(violation.categories)
-                sections = self.affected_sections(
-                    id, metric.id, (rectangle({dim: frozenset((cat,)) for dim, cat in coordinates}),)
+        for violation in violations:
+            coordinates = data.coordinates(violation.categories)
+            sections = self.affected_sections(
+                id, violation.metric_uuid, (rectangle({dim: frozenset((cat,)) for dim, cat in coordinates}),)
+            )
+            results.append(
+                EntryFinding(
+                    uuid3(id, f'{violation.rule_uuid}:{violation.kind}:{coordinates}'),
+                    violation.kind,
+                    violation.message,
+                    tuple(violation.years),
+                    sections,
+                    id,
+                    violation.metric_uuid,
+                    coordinates,
                 )
-                results.append(
-                    EntryFinding(
-                        uuid3(id, f'{violation.rule_uuid}:{violation.kind}:{coordinates}'),
-                        violation.kind,
-                        violation.message,
-                        tuple(violation.years),
-                        sections,
-                        id,
-                        metric.id,
-                        coordinates,
-                    )
-                )
-        dataset = self.datasets[id]
-        ranges = [rule for rule in applicable_plausibility_ranges(dataset) if rule.metric.uuid in meta.metric_by_id]
-        cells = DatasetPlausibilityCells(
-            dataset=dataset,
-            frame=data.frame,
-            dim_cols=list(data.dimensions),
-            coordinate_index=DatasetCoordinateIndex(dataset),
-            violations=violations,
-            combinations=domain,
-            population=_observed_population(dataset, ranges),
-        )
-        self.plausibility[id] = evaluate_plausibility_cells(cells, ranges)
+            )
+        self.plausibility[id] = evaluate_edition_plausibility(data.edition, data.table, violations)
         for finding in self.plausibility[id]:
             coords = tuple(sorted((coord.dimension_uuid, coord.category_uuid) for coord in finding.coordinates))
             selection: dict[UUID, frozenset[UUID]] = {}

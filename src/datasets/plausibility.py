@@ -24,7 +24,7 @@ from frameworks.models import OrganizationPopulation
 from nodes.constants import YEAR_COLUMN
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Iterable, Mapping
 
     from nodes.models import InstanceConfig
 
@@ -620,25 +620,41 @@ def evaluate_plausibility_cells(
 
 
 class DatasetPlausibilityLookup:
-    """Request-local resolution of cell ranges for the data points of one dataset."""
+    """
+    Request-local resolution of cell ranges for the data points of one dataset.
 
-    def __init__(self, dataset: Dataset):
+    By default the history and the earlier values are read from the live rows. An edition
+    of the dataset passes its own: ``history`` is its frame and dimension columns, and
+    ``values`` its entered values by metric uuid, then by (year, category uuids).
+    """
+
+    def __init__(
+        self,
+        dataset: Dataset,
+        *,
+        history: tuple[pl.DataFrame, list[str]] | None = None,
+        values: Mapping[UUID, dict[tuple[int, frozenset[str]], float]] | None = None,
+    ):
         self.dataset = dataset
         curated = applicable_plausibility_ranges(dataset)
-        derived = history_ranges(dataset, curated)
+        derived = history_ranges(dataset, curated) if history is None else derive_history_ranges(dataset, *history, curated)
         self.rules = [*curated, *(item.rule for item in derived)]
         self.min_reference = {item.rule.uuid: item.min_reference for item in derived}
         self.coordinate_index = DatasetCoordinateIndex(dataset) if self.rules else None
-        self.rules_by_metric: dict[int, list[DatasetMetricPlausibilityRange]] = {}
+        self.rules_by_metric: dict[UUID, list[DatasetMetricPlausibilityRange]] = {}
         for rule in self.rules:
             if rule.aggregation == Range.Aggregation.CELL:
-                self.rules_by_metric.setdefault(rule.metric_id, []).append(rule)
+                self.rules_by_metric.setdefault(rule.metric.uuid, []).append(rule)
         self.population = _observed_population(dataset, self.rules)
-        self._values_by_metric: dict[int, dict[tuple[int, frozenset[str]], float]] = {}
+        self._given_values = values
+        self._values_by_metric: dict[UUID, dict[tuple[int, frozenset[str]], float]] = {}
 
     def _values(self, rule: DatasetMetricPlausibilityRange) -> dict[tuple[int, frozenset[str]], float]:
         """Entered values of one metric by (year, category UUIDs), loaded once for previous-year ranges."""
-        if rule.metric_id not in self._values_by_metric:
+        metric = rule.metric.uuid
+        if self._given_values is not None:
+            return self._given_values.get(metric, {})
+        if metric not in self._values_by_metric:
             from kausal_common.datasets.models import DataPoint
 
             values: dict[tuple[int, frozenset[str]], float] = {}
@@ -649,14 +665,14 @@ class DatasetPlausibilityLookup:
                 assert point.value is not None
                 key = (point.date.year, frozenset(str(category.uuid) for category in point.dimension_categories.all()))
                 values[key] = float(point.value)
-            self._values_by_metric[rule.metric_id] = values
-        return self._values_by_metric[rule.metric_id]
+            self._values_by_metric[metric] = values
+        return self._values_by_metric[metric]
 
     def for_cell(
-        self, metric_id: int, year: int, category_uuids: dict[str, str]
+        self, metric_uuid: UUID, year: int, category_uuids: dict[str, str]
     ) -> list[tuple[DatasetMetricPlausibilityRange, float | None, float | None]]:
         matches = []
-        for rule in self.rules_by_metric.get(metric_id, []):
+        for rule in self.rules_by_metric.get(metric_uuid, []):
             if not _in_years(rule, year):
                 continue
             if any(category_uuids.get(dim) not in categories for dim, categories in rule.selection.items()):
