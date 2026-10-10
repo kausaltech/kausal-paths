@@ -2,7 +2,7 @@
 
 import json
 from typing import TYPE_CHECKING
-from uuid import UUID
+from uuid import uuid4
 
 import pytest
 
@@ -104,56 +104,109 @@ def test_from_serialized_data_runs_snapshot_upgraders(db_instance: InstanceConfi
     assert seen == [document['instance']['schema_version']]
 
 
-def test_import_creates_a_database_instance_preserving_identity(db_instance: InstanceConfig) -> None:
+def test_an_import_restores_an_instance_this_database_does_not_hold(db_instance: InstanceConfig) -> None:
     export = export_instance(db_instance)
-    remote_uuid = UUID('00000000-0000-4000-8000-000000000001')
-    export = export.model_copy(
-        update={
-            'instance': export.instance.model_copy(
-                update={
-                    'metadata': export.instance.metadata.model_copy(update={'identifier': 'downloaded', 'uuid': remote_uuid}),
-                }
-            )
-        }
-    )
+    organization = str(db_instance.organization.uuid)
+    nodes = dict(db_instance.nodes.values_list('identifier', 'uuid'))
+    db_instance.delete()
 
-    ic = import_instance_export(export, organization=str(db_instance.organization.uuid))
+    ic = import_instance_export(export, organization=organization)
 
-    assert ic.identifier == 'downloaded'
-    assert ic.uuid == remote_uuid, 'a free UUID is kept so the mirror stays the same entity'
+    assert (ic.uuid, ic.identifier, ic.name) == (export.instance.metadata.uuid, 'export-src', 'Export source')
     assert ic.config_source == 'database'
-    assert ic.organization == db_instance.organization
-    assert ic.name == 'Export source (downloaded)', 'the source name is taken, so it is disambiguated'
-    assert sorted(ic.nodes.values_list('identifier', flat=True)) == ['first_node', 'second_node']
+    assert dict(ic.nodes.values_list('identifier', 'uuid')) == nodes
 
 
-def test_import_into_taken_uuid_mints_a_new_one(db_instance: InstanceConfig) -> None:
+def test_an_instance_that_is_here_is_replaced_only_when_asked(db_instance: InstanceConfig) -> None:
     export = export_instance(db_instance)
+    nodes = dict(db_instance.nodes.values_list('identifier', 'uuid'))
 
-    ic = import_instance_export(export, identifier='mirror', name='Mirror', organization=db_instance.organization.name)
-
-    assert ic.uuid != db_instance.uuid
-    assert ic.name == 'Mirror'
-
-
-def test_import_refuses_a_populated_target(db_instance: InstanceConfig) -> None:
-    export = export_instance(db_instance)
-
-    with pytest.raises(InstanceImportError, match='already has 2 nodes'):
-        import_instance_export(export, identifier=db_instance.identifier)
-
+    with pytest.raises(InstanceImportError, match='already here'):
+        import_instance_export(export)
     assert NodeConfig.objects.filter(instance=db_instance).count() == 2
+
+    ic = import_instance_export(export, replace=True)
+    assert ic.uuid == db_instance.uuid
+    assert ic.pk != db_instance.pk
+    assert ic.organization == db_instance.organization, 'the replaced instance keeps its organization'
+    assert dict(ic.nodes.values_list('identifier', 'uuid')) == nodes
+    assert not InstanceConfig.objects.filter(pk=db_instance.pk).exists()
+
+
+def test_an_identifier_of_another_instance_is_refused_even_when_replacing(db_instance: InstanceConfig) -> None:
+    export = export_instance(db_instance)
+    other = InstanceConfigFactory.create(identifier='taken', name='Taken', config_source='database')
+
+    with pytest.raises(InstanceImportError, match="'taken' belongs to another instance"):
+        import_instance_export(export, identifier='taken', replace=True)
+    assert InstanceConfig.objects.filter(pk=other.pk).exists()
+    assert InstanceConfig.objects.filter(pk=db_instance.pk).exists(), 'a refused import changes nothing'
 
 
 def test_import_needs_an_organization_choice_when_ambiguous(db_instance: InstanceConfig) -> None:
     other = OrganizationFactory.create(name='Other org')
     export = export_instance(db_instance)
+    db_instance.delete()
 
     with pytest.raises(InstanceImportError, match='Several organizations'):
-        import_instance_export(export, identifier='ambiguous')
+        import_instance_export(export)
 
-    ic = import_instance_export(export, identifier='chosen', organization=str(other.uuid))
+    ic = import_instance_export(export, organization=str(other.uuid))
     assert ic.organization == other
+
+
+def _comparable(export: InstanceExport) -> dict:
+    """Return the part of an export the round trip promises to keep: not when, from where, or the edit token."""
+    return export.model_dump(mode='json', exclude={'exported_at', 'exported_from', 'draft_head_token', 'pages'})
+
+
+def test_an_import_reproduces_what_was_exported(db_instance: InstanceConfig) -> None:
+    """`export(import(x)) == x`: a model edited locally can be moved to another deployment faithfully."""
+    import datetime
+    from decimal import Decimal
+
+    from django.contrib.contenttypes.models import ContentType
+
+    from kausal_common.datasets.models import DataPointComment, DatasetSourceReference, DataSource, DimensionScope
+    from kausal_common.datasets.tests.factories import (
+        DataPointFactory,
+        DatasetFactory,
+        DatasetMetricFactory,
+        DatasetSchemaDimensionFactory,
+        DimensionCategoryFactory,
+        DimensionFactory,
+    )
+
+    from nodes.models import NodeInputPortBinding
+
+    ct = ContentType.objects.get_for_model(db_instance)
+    dimension = DimensionFactory.create(name='Sector')
+    DimensionScope.objects.create(dimension=dimension, scope_content_type=ct, scope_id=db_instance.pk, identifier='sector')
+    homes = DimensionCategoryFactory.create(dimension=dimension, identifier='homes', label='Homes')
+    DimensionCategoryFactory.create(dimension=dimension, identifier='shops', label='Shops')
+    dataset = DatasetFactory.create(identifier='city/energy', scope=db_instance, spec={'forecast_from': 2025})
+    DatasetSchemaDimensionFactory.create(schema=dataset.schema, dimension=dimension, column_name='sector')
+    metric = DatasetMetricFactory.create(schema=dataset.schema, name='energy', label='Energy', unit='MWh')
+    point = DataPointFactory.create(
+        dataset=dataset, metric=metric, date=datetime.date(2020, 1, 1), value=Decimal(7), dimension_categories=[homes]
+    )
+    DataPointComment.objects.create(data_point=point, text='metered')
+    source = DataSource.objects.create(name='Utility', scope_content_type=ct, scope_id=db_instance.pk)
+    DatasetSourceReference.objects.create(dataset=dataset, data_source=source)
+    DatasetSourceReference.objects.create(data_point=point, data_source=source)
+    first, second = db_instance.nodes.get_queryset().with_spec().order_by('identifier')
+    assert first.spec is not None
+    assert second.spec is not None
+    NodeInputPortBinding.objects.create(
+        instance=db_instance, node=second, port_id=uuid4(), source_node=first, source_port_id=first.spec.output_ports[0].id
+    )
+    NodeInputPortBinding.objects.create(instance=db_instance, node=first, port_id=uuid4(), dataset=dataset, metric=metric)
+    db_instance.refresh_from_db()
+    before = export_instance(db_instance)
+
+    restored = import_instance_export(InstanceExport.from_serialized_data(before.model_dump(mode='json')), replace=True)
+
+    assert _comparable(export_instance(restored)) == _comparable(before)
 
 
 def test_a_document_with_v1_dataset_bodies_still_imports(db_instance: InstanceConfig) -> None:
@@ -209,7 +262,6 @@ def test_a_document_with_v1_dataset_bodies_still_imports(db_instance: InstanceCo
         'comments': [{'point': {'year': 2020, 'metric': 'energy', 'categories': ['homes']}, 'text': 'metered'}],
     }
     document['datasets'] = [v1_body]
-    document['instance']['metadata'] |= {'identifier': 'downloaded', 'uuid': '00000000-0000-4000-8000-000000000002'}
 
     export = InstanceExport.from_serialized_data(document)
     (body,) = export.datasets
@@ -217,7 +269,7 @@ def test_a_document_with_v1_dataset_bodies_still_imports(db_instance: InstanceCo
     (point,) = body.points
     assert (point.value, point.categories) == (7.0, {dimension.uuid: homes.uuid})
 
-    ic = import_instance_export(export, organization=str(db_instance.organization.uuid))
+    ic = import_instance_export(export, replace=True)
     imported = Dataset.objects.get(scope_id=ic.pk, identifier='city/energy')
     assert list(imported.data_points.values_list('value', flat=True)) == [Decimal(7)]
     assert list(DataPointComment.objects.filter(data_point__dataset=imported).values_list('text', flat=True)) == ['metered']
@@ -245,3 +297,42 @@ def test_a_rekeyed_export_takes_the_seeded_instance_uuid(db_instance: InstanceCo
     assert rekeying.outside() == {}
     reloaded = InstanceExport.from_serialized_data(json.loads(json.dumps(copy.model_dump(mode='json'))))
     assert reloaded.model_dump(mode='json') == copy.model_dump(mode='json')
+
+
+def test_deleting_an_instance_leaves_nothing_a_reimport_would_collide_with(db_instance: InstanceConfig) -> None:
+    """Its dimensions, data sources and port selections go too, and a schema nothing holds that declares its dimension."""
+    from django.contrib.contenttypes.models import ContentType
+
+    from kausal_common.datasets.models import DatasetSchema, DataSource, Dimension, DimensionScope
+    from kausal_common.datasets.tests.factories import DatasetSchemaDimensionFactory, DimensionFactory
+
+    from nodes.instance_serialization import InputBindingSnapshot, NodePortSource
+    from nodes.models import InputPortBindingSet
+
+    ct = ContentType.objects.get_for_model(db_instance)
+    dimension = DimensionFactory.create(name='Sector')
+    DimensionScope.objects.create(dimension=dimension, scope_content_type=ct, scope_id=db_instance.pk, identifier='sector')
+    orphan = DatasetSchema.objects.create(name='Left over')
+    DatasetSchemaDimensionFactory.create(schema=orphan, dimension=dimension)
+    source = DataSource.objects.create(name='Utility', scope_content_type=ct, scope_id=db_instance.pk)
+    first, second = db_instance.nodes.get_queryset().with_spec().order_by('identifier')
+    assert first.spec is not None
+    port = uuid4()
+    InputPortBindingSet.objects.create(
+        instance=db_instance,
+        node_uuid=second.uuid,
+        port_uuid=port,
+        bindings=[
+            InputBindingSnapshot(
+                node_id=second.uuid,
+                port_id=port,
+                source=NodePortSource(node_id=first.uuid, port_id=first.spec.output_ports[0].id),
+            )
+        ],
+    )
+
+    db_instance.delete()
+
+    assert not Dimension.objects.filter(pk=dimension.pk).exists()
+    assert not DatasetSchema.objects.filter(pk=orphan.pk).exists()
+    assert not DataSource.objects.filter(pk=source.pk).exists()

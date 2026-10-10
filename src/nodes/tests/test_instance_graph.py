@@ -36,7 +36,7 @@ from nodes.instance_serialization import (
     NodeSnapshot,
     build_instance_snapshot,
     export_instance,
-    import_instance,
+    import_instance_copy,
 )
 from nodes.models import NodeInputPortBinding, PreferredInstanceSource
 from nodes.template_graph import publish_template_instance, snapshot_content_hash
@@ -286,7 +286,7 @@ def test_template_role_survives_snapshot_and_graph_cache_without_inheriting() ->
     assert composed.snapshot_kind == 'composed'
     assert not build_instance_graph(composed).is_template
     copied = InstanceConfigFactory.create(name='Copied template', config_source='database', spec=InstanceModelSpec())
-    import_instance(copied, export_instance(template))
+    import_instance_copy(copied, export_instance(template))
     assert not build_instance_graph(build_instance_snapshot(copied)).is_template
 
 

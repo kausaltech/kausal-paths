@@ -55,6 +55,8 @@ class Rekeying:
 
     mapping: dict[UUID, UUID] = field(default_factory=dict)
     """Old uuid to new, for every identity the document owns."""
+    owned: dict[UuidEntity, set[UUID]] = field(default_factory=lambda: defaultdict(set))
+    """The identities the document owns, by entity, as they were before rekeying."""
     foreign: dict[UuidEntity, set[UUID]] = field(default_factory=lambda: defaultdict(set))
     """Identities the document carries but does not own, such as a framework's dimensions; kept."""
     bundled: set[UUID] = field(default_factory=set)
@@ -84,22 +86,44 @@ def rekeyed[M: BaseModel](
     when its row exists before the document is imported into it. With
     ``set_provenance``, provenance fields point at the source they were copied from.
     """
-    rekeying = Rekeying()
-    collector = _Collector(rekeying)
-    collector.model(document, owned=True)
+    rekeying = _collect(document)
     seeds = dict(seed or {})
-    for identity in collector.owned:
-        if not any(identity in ids for ids in rekeying.foreign.values()):
+    for ids in rekeying.owned.values():
+        for identity in ids:
             rekeying.mapping[identity] = seeds.get(identity) or uuid4()
     rewritten = _Rewriter(rekeying, set_provenance).model(document)
     return cast('M', rewritten), rekeying
 
 
+def survey(document: BaseModel) -> Rekeying:
+    """
+    Return what ``document`` owns and what it refers to outside itself, changing nothing.
+
+    The record of a rekeying that keeps every uuid: ``mapping`` maps each owned identity
+    to itself, and ``outside()`` is what the document needs to find where it goes.
+    """
+    rekeying = _collect(document)
+    rekeying.mapping = {identity: identity for ids in rekeying.owned.values() for identity in ids}
+    _Rewriter(rekeying, set_provenance=False).model(document)
+    return rekeying
+
+
+def _collect(document: BaseModel) -> Rekeying:
+    rekeying = Rekeying()
+    collector = _Collector(rekeying)
+    collector.model(document, owned=True)
+    foreign = set().union(*rekeying.foreign.values()) if rekeying.foreign else set()
+    for identity, entity in collector.owned.items():
+        if identity not in foreign:
+            rekeying.owned[entity].add(identity)
+    return rekeying
+
+
 class _Collector:
     def __init__(self, rekeying: Rekeying):
         self.rekeying = rekeying
-        self.owned: dict[UUID, None] = {}
-        """The owned identities, in the order met."""
+        self.owned: dict[UUID, UuidEntity] = {}
+        """The owned identities, in the order met, with their entities."""
 
     def model(self, value: BaseModel, *, owned: bool, bundled: bool = False) -> None:
         foreign = _foreign_fields(value)
@@ -118,7 +142,7 @@ class _Collector:
             if leaf is None or not isinstance(leaf.kind, Identity):
                 return
             if owned:
-                self.owned[value] = None
+                self.owned[value] = leaf.kind.entity
             else:
                 self.rekeying.foreign[leaf.kind.entity].add(value)
                 if bundled:

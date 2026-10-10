@@ -153,6 +153,9 @@ class DatasetMeta(FrozenGraphModel):
     shape_id: ShapeRef | None = Field(default=None, exclude_if=lambda value: value is None)
     """The shape this dataset's entry form follows, resolved in the dataset's own instance."""
     default_quality: QualityLevelKey | None = None
+    # Left out when empty, so content hashes from before it was recorded hold.
+    extra_spec: dict[str, Any] = Field(default_factory=dict, exclude_if=lambda value: not value)
+    """`Dataset.spec` keys the catalog does not model, such as a provider's seeding stamp; carried verbatim."""
     """
     The grade of every value in the dataset that has no grade of its own.
 

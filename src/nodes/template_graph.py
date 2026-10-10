@@ -87,7 +87,8 @@ def compose_template_snapshot(
             'node_settings': [settings.model_copy(deep=True) for settings in instance.node_settings],
             'binding_overrides': [
                 InputBindingOverrideSnapshot(node_uuid=item.node_uuid, port_uuid=item.port_uuid, bindings=item.bindings)
-                for item in instance.binding_overrides.all()
+                # By uuid, not pk: the same in every database the model is imported into.
+                for item in instance.binding_overrides.order_by('node_uuid', 'port_uuid')
             ],
         },
     )

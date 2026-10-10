@@ -47,6 +47,9 @@ type UuidEntity = Literal[
     'source_reference',
     'data_entry_section',
     'data_entry_table',
+    'framework',
+    'framework_category',
+    'measure_template',
 ]
 
 

@@ -1,15 +1,17 @@
 """Build dataset entries for instance graph catalogs."""
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Final
 
 from django.contrib.contenttypes.models import ContentType
 
-from datasets.shape_domain import CategoryDomainResolver, dataset_shape_id
+from datasets.shape_domain import SHAPE_SPEC_KEY, CategoryDomainResolver, dataset_shape_id
 from datasets.snapshot import metric_column_id
 from datasets.validation_rules import validation_rule_adapter
 from frameworks.evidence import DEFAULT_QUALITY_SPEC_KEY, QUALITY_OF_SPEC_KEY
 from nodes.defs.graph import DatasetMeta, DatasetMetricMeta, QualityLevelKey, ValidationRuleMeta
 from nodes.snapshot_base import translated_string_from_model
+
+FORECAST_FROM_SPEC_KEY: Final = 'forecast_from'
 
 if TYPE_CHECKING:
     from kausal_common.datasets.models import Dataset as DatasetModel, DatasetSchemaScope
@@ -58,7 +60,7 @@ def dataset_meta_from_model(
         metrics=metrics,
         declared_dimension_ids=declared_dimension_ids,
         time_resolution=schema.time_resolution,
-        forecast_from=(dataset.spec or {}).get('forecast_from'),
+        forecast_from=(dataset.spec or {}).get(FORECAST_FROM_SPEC_KEY),
         is_external_placeholder=dataset.is_external_placeholder,
         external_ref=dataset.external_ref,
         category_domain=(domains or CategoryDomainResolver()).for_dataset(dataset),
@@ -68,4 +70,20 @@ def dataset_meta_from_model(
             if (default := (dataset.spec or {}).get(DEFAULT_QUALITY_SPEC_KEY)) is not None
             else None
         ),
+        extra_spec={key: value for key, value in (dataset.spec or {}).items() if key not in _MODELED_SPEC_KEYS},
     )
+
+
+_MODELED_SPEC_KEYS = frozenset({FORECAST_FROM_SPEC_KEY, SHAPE_SPEC_KEY, DEFAULT_QUALITY_SPEC_KEY})
+
+
+def dataset_spec_from_meta(meta: DatasetMeta) -> dict[str, Any]:
+    """Return the `Dataset.spec` that `dataset_meta_from_model` reads ``meta`` from."""
+    spec: dict[str, Any] = dict(meta.extra_spec)
+    if meta.forecast_from is not None:
+        spec[FORECAST_FROM_SPEC_KEY] = meta.forecast_from
+    if meta.shape_id is not None:
+        spec[SHAPE_SPEC_KEY] = str(meta.shape_id)
+    if meta.default_quality is not None:
+        spec[DEFAULT_QUALITY_SPEC_KEY] = meta.default_quality.model_dump(mode='json')
+    return spec

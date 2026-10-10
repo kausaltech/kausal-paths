@@ -1,13 +1,14 @@
 """
 Transfer dataset bodies, provenance, and dimensions between database scopes.
 
-A `DatasetSnapshot` refers to dimensions, categories and metrics by uuid. The
-import still gives everything it creates a new uuid, and finds the target's
-dimension categories by identifier, so it translates the snapshot's uuids into
-identifiers first (`SourceDimensions`). Keeping the uuids instead is step 5 of
-docs/plans/node-owned-datasets.md.
+A `DatasetSnapshot` refers to dimensions, categories and metrics by uuid, and the import
+keeps every uuid it holds: an import into another database reproduces the dataset. A copy
+within one database rekeys the snapshot first (`paths.rekey`). The target's dimensions are
+found by uuid, else by identifier (`TargetDimensions`), so a copy can be merged into an
+instance whose dimensions are rows of its own.
 """
 
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
@@ -34,7 +35,10 @@ from kausal_common.datasets.models import (
     DimensionScope,
 )
 from kausal_common.i18n.pydantic import TranslatedString
+from kausal_common.models.ordered import OrderedModel
 
+from datasets.catalogue import dataset_spec_from_meta
+from frameworks.evidence import QUALITY_OF_SPEC_KEY
 from nodes.snapshot_base import apply_translated
 from users.models import User
 
@@ -44,8 +48,8 @@ if TYPE_CHECKING:
 
     from kausal_common.i18n.pydantic import I18nString
 
-    from datasets.snapshot import DataPointSnapshot, DatasetSnapshot
-    from nodes.defs.graph import DimensionMeta
+    from datasets.snapshot import DataPointSnapshot, DatasetSnapshot, DataSourceSnapshot
+    from nodes.defs.graph import DatasetMeta, DimensionMeta
     from nodes.models import InstanceConfig, NodeInputPortBinding
 
 
@@ -203,105 +207,57 @@ def _import_dataset_evidence(
     DataPointEvidence.objects.bulk_create(rows)
 
 
-@transaction.atomic
-def import_dataset(
-    ic: InstanceConfig,
-    ds_snapshot: DatasetSnapshot,
-    ic_ct: ContentType,
-    dim_lookup: dict[str, DimensionCategoryModel],
-    source: SourceDimensions | None = None,
-) -> DatasetModel:
-    """Create DatasetSchema, Dataset, DatasetMetric, DatasetSchemaDimension, and DataPoints."""
-    if source is None:
-        source = SourceDimensions()
-        source.resolve([ds_snapshot])
-    meta = ds_snapshot.meta
-    primary_lang = ic.primary_language
+def save_in_order[M: OrderedModel](obj: M, order: int) -> M:
+    """Create ``obj`` at ``order``, which `OrderedModel` would otherwise replace with the next free one."""
+    obj.order_on_create = order
+    obj.save()
+    return obj
 
-    schema_fields: dict[str, Any] = {
-        'time_resolution': meta.time_resolution,
-        'is_editable': meta.is_editable if meta.is_editable is not None else True,
-        'category_domain': meta.category_domain,
-    }
-    schema_i18n: dict[str, str] = {}
-    _apply_i18n(schema_fields, schema_i18n, meta.name, 'name', primary_lang)
-    if schema_fields.get('name') is None:
-        # DatasetSchema.name is required; fall back to empty if the source
-        # snapshot had no name in any language.
-        schema_fields['name'] = ''
 
-    schema = DatasetSchemaModel.objects.create(
-        i18n=schema_i18n,
-        **schema_fields,
-    )
-    DatasetSchemaScope.objects.create(
-        schema=schema,
-        scope_content_type=ic_ct,
-        scope_id=ic.pk,
-    )
+class TargetDimensions:
+    """
+    The target instance's dimension and category rows for the uuids a dataset snapshot names.
 
-    metrics: dict[UUID, DatasetMetricModel] = {}
-    for idx, m_meta in enumerate(meta.metrics):
-        metric_fields: dict[str, Any] = {}
-        metric_i18n: dict[str, str] = {}
-        _apply_i18n(metric_fields, metric_i18n, m_meta.label, 'label', primary_lang)
-        if metric_fields.get('label') is None:
-            metric_fields['label'] = m_meta.identifier
-        metric = DatasetMetricModel.objects.create(
-            schema=schema,
-            name=m_meta.identifier,
-            unit=m_meta.unit,
-            spec={'quantity': m_meta.quantity} if m_meta.quantity is not None else {},
-            order=idx,
-            i18n=metric_i18n,
-            **metric_fields,
-        )
-        # Like the metric itself, a restored rule gets a fresh uuid; the
-        # snapshot uuid records provenance only.
-        for rule_idx, rule_meta in enumerate(m_meta.validation_rules):
-            DatasetMetricValidationRule.objects.create(
-                metric=metric,
-                rule=rule_meta.rule.model_dump(mode='json'),
-                order=rule_idx,
-            )
-        metrics[m_meta.id] = metric
+    By uuid among the dimensions the instance sees, its own and its framework's, which is
+    every case once an import keeps uuids. Else by identifier, through the names the export
+    gives them (`SourceDimensions`): a copy merged into an instance that already has
+    dimensions of its own, such as a template taking datasets from another template.
+    """
 
-    for idx, dimension_id in enumerate(meta.declared_dimension_ids):
-        dim_id = source.dimension(dimension_id)
-        dim_scope = DimensionScope.objects.filter(
-            identifier=dim_id,
-            scope_content_type=ic_ct,
-            scope_id=ic.pk,
-        ).first()
-        if dim_scope:
-            DatasetSchemaDimension.objects.create(
-                schema=schema,
-                dimension=dim_scope.dimension,
-                order=idx,
-                column_name=ds_snapshot.dimension_columns.get(dimension_id),
-            )
+    def __init__(self, ic: InstanceConfig, source: SourceDimensions) -> None:
+        self.ic = ic
+        self.source = source
+        self.reload()
 
-    dataset = DatasetModel(
-        identifier=meta.identifier,
-        spec={'forecast_from': meta.forecast_from} if meta.forecast_from is not None else {},
-        is_external_placeholder=meta.is_external_placeholder,
-        external_ref=meta.external_ref.model_dump() if meta.external_ref is not None else None,
-        scope_content_type=ic_ct,
-        scope_id=ic.pk,
-        schema=schema,
-    )
-    dataset.save()
+    def reload(self) -> None:
+        from frameworks.catalogue import dimension_scopes
 
-    points = _import_data_points(dataset, ds_snapshot, metrics, dim_lookup, source)
-    _import_dataset_provenance(ic, ic_ct, ds_snapshot, dataset, points)
-    _import_dataset_evidence(ds_snapshot, dataset, points)
+        self.dimensions_by_uuid: dict[UUID, DimensionModel] = {}
+        self.categories_by_uuid: dict[UUID, DimensionCategoryModel] = {}
+        self.dimensions_by_identifier: dict[str, DimensionModel] = {}
+        self.categories_by_identifier: dict[tuple[str, str], DimensionCategoryModel] = {}
+        scopes = dimension_scopes(self.ic).select_related('dimension').prefetch_related('dimension__categories')
+        for scope in scopes.order_by('pk'):
+            dimension = scope.dimension
+            self.dimensions_by_uuid[dimension.uuid] = dimension
+            if scope.identifier is not None:
+                self.dimensions_by_identifier.setdefault(scope.identifier, dimension)
+            for category in dimension.categories.all():
+                self.categories_by_uuid[category.uuid] = category
+                if scope.identifier is not None and category.identifier is not None:
+                    self.categories_by_identifier.setdefault((scope.identifier, category.identifier), category)
 
-    if not dataset.is_external_placeholder:
-        from datasets.materialization import refresh_dataset_materialization
+    def dimension(self, dimension_id: UUID) -> DimensionModel | None:
+        found = self.dimensions_by_uuid.get(dimension_id)
+        if found is None and (identifier := self.source.dimensions.get(dimension_id)) is not None:
+            found = self.dimensions_by_identifier.get(identifier)
+        return found
 
-        refresh_dataset_materialization(dataset)
-
-    return dataset
+    def category(self, category_id: UUID) -> DimensionCategoryModel | None:
+        found = self.categories_by_uuid.get(category_id)
+        if found is None and (names := self.source.categories.get(category_id)) is not None:
+            found = self.categories_by_identifier.get(names)
+        return found
 
 
 class _UserLookup:
@@ -318,24 +274,166 @@ class _UserLookup:
         return self._users[user_uuid]
 
 
-def _import_data_sources(ic: InstanceConfig, ic_ct: ContentType, ds_snapshot: DatasetSnapshot) -> dict[UUID, DataSource]:
-    """
-    Create the snapshot's DataSources in the target instance's scope; return them by the snapshot's uuid.
+@dataclass
+class _ImportState:
+    """What one import has created so far, for datasets that share it."""
 
-    They get fresh uuids: a same-database copy cannot reuse the globally unique source uuid.
+    schemas: dict[UUID, DatasetSchemaModel] = field(default_factory=dict)
+    data_sources: dict[UUID, DataSource] = field(default_factory=dict)
+    users: _UserLookup = field(default_factory=_UserLookup)
+
+
+@transaction.atomic
+def import_dataset(
+    ic: InstanceConfig,
+    ds_snapshot: DatasetSnapshot,
+    *,
+    dimensions: TargetDimensions | None = None,
+    state: _ImportState | None = None,
+) -> DatasetModel:
     """
-    return {
-        s.id: DataSource.objects.create(
+    Create the dataset, its schema and its data points, keeping every uuid.
+
+    A framework's schema is not created but found, with its metrics, by uuid. A copy within
+    one database rekeys the snapshot first (`paths.rekey.rekeyed`), since every uuid it
+    holds is taken.
+    """
+    if dimensions is None:
+        source = SourceDimensions()
+        source.resolve([ds_snapshot])
+        dimensions = TargetDimensions(ic, source)
+    state = state or _ImportState()
+    ic_ct = ContentType.objects.get_for_model(ic)
+    meta = ds_snapshot.meta
+    schema, metrics = _import_schema(ic, ic_ct, ds_snapshot, dimensions, state)
+
+    dataset = DatasetModel(
+        uuid=meta.id,
+        identifier=meta.identifier,
+        spec=dataset_spec_from_meta(meta),
+        is_external_placeholder=meta.is_external_placeholder,
+        external_ref=meta.external_ref.model_dump() if meta.external_ref is not None else None,
+        scope_content_type=ic_ct,
+        scope_id=ic.pk,
+        schema=schema,
+    )
+    dataset.save()
+
+    points = _import_data_points(dataset, ds_snapshot, metrics, dimensions)
+    _import_dataset_provenance(ic, ic_ct, ds_snapshot, dataset, points, state)
+    _import_dataset_evidence(ds_snapshot, dataset, points)
+
+    if not dataset.is_external_placeholder:
+        from datasets.materialization import refresh_dataset_materialization
+
+        refresh_dataset_materialization(dataset)
+
+    return dataset
+
+
+def _import_schema(
+    ic: InstanceConfig,
+    ic_ct: ContentType,
+    ds_snapshot: DatasetSnapshot,
+    dimensions: TargetDimensions,
+    state: _ImportState,
+) -> tuple[DatasetSchemaModel, dict[UUID, DatasetMetricModel]]:
+    """Return the dataset's schema and its metrics by uuid: found when shared, created otherwise."""
+    meta = ds_snapshot.meta
+    schema = _shared_schema(meta, state)
+    if schema is not None:
+        metrics = {metric.uuid: metric for metric in schema.metrics.all()}
+        missing = [metric.identifier or str(metric.id) for metric in meta.metrics if metric.id not in metrics]
+        if missing:
+            raise ValueError(f'Schema {schema.uuid} of dataset {meta.identifier or meta.id} lacks metrics {missing}')
+        return schema, metrics
+
+    schema_fields: dict[str, Any] = {
+        'time_resolution': meta.time_resolution,
+        'is_editable': meta.is_editable if meta.is_editable is not None else True,
+        'category_domain': meta.category_domain,
+    }
+    schema_i18n: dict[str, str] = {}
+    _apply_i18n(schema_fields, schema_i18n, meta.name, 'name', ic.primary_language)
+    if schema_fields.get('name') is None:
+        # DatasetSchema.name is required; fall back to empty if the source
+        # snapshot had no name in any language.
+        schema_fields['name'] = ''
+    schema = DatasetSchemaModel.objects.create(uuid=meta.schema_id, i18n=schema_i18n, **schema_fields)
+    DatasetSchemaScope.objects.create(schema=schema, scope_content_type=ic_ct, scope_id=ic.pk)
+    state.schemas[schema.uuid] = schema
+    metrics = {metric.uuid: metric for metric in _create_metrics(schema, meta, ic.primary_language)}
+
+    for idx, dimension_id in enumerate(meta.declared_dimension_ids):
+        dimension = dimensions.dimension(dimension_id)
+        if dimension is None:
+            raise ValueError(f'Dataset {meta.identifier or meta.id} declares dimension {dimension_id}, which is not here')
+        DatasetSchemaDimension.objects.create(
+            schema=schema, dimension=dimension, order=idx, column_name=ds_snapshot.dimension_columns.get(dimension_id)
+        )
+    return schema, metrics
+
+
+def _shared_schema(meta: DatasetMeta, state: _ImportState) -> DatasetSchemaModel | None:
+    """Return the schema this import already created for ``meta``, or the framework's; None to create it."""
+    schema = state.schemas.get(meta.schema_id)
+    if schema is None and meta.schema_scope == 'framework':
+        schema = DatasetSchemaModel.objects.filter(uuid=meta.schema_id).first()
+        if schema is None:
+            raise ValueError(f'Dataset {meta.identifier or meta.id} uses framework schema {meta.schema_id}, which is not here')
+    return schema
+
+
+def _create_metrics(schema: DatasetSchemaModel, meta: DatasetMeta, language: str) -> list[DatasetMetricModel]:
+    metrics: list[DatasetMetricModel] = []
+    for idx, m_meta in enumerate(meta.metrics):
+        metric_fields: dict[str, Any] = {}
+        metric_i18n: dict[str, str] = {}
+        _apply_i18n(metric_fields, metric_i18n, m_meta.label, 'label', language)
+        if metric_fields.get('label') is None:
+            metric_fields['label'] = m_meta.identifier
+        spec: dict[str, Any] = {'quantity': m_meta.quantity} if m_meta.quantity is not None else {}
+        if m_meta.quality_of is not None:
+            spec[QUALITY_OF_SPEC_KEY] = str(m_meta.quality_of)
+        metric = save_in_order(
+            DatasetMetricModel(
+                uuid=m_meta.id,
+                schema=schema,
+                name=m_meta.identifier,
+                unit=m_meta.unit,
+                spec=spec,
+                i18n=metric_i18n,
+                **metric_fields,
+            ),
+            m_meta.order if m_meta.order is not None else idx,
+        )
+        for rule_idx, rule_meta in enumerate(m_meta.validation_rules):
+            DatasetMetricValidationRule.objects.create(
+                **({'uuid': rule_meta.id} if rule_meta.id is not None else {}),
+                metric=metric,
+                rule=rule_meta.rule.model_dump(mode='json'),
+                order=rule_idx,
+            )
+        metrics.append(metric)
+    return metrics
+
+
+def _data_source(ic: InstanceConfig, ic_ct: ContentType, source: DataSourceSnapshot, state: _ImportState) -> DataSource:
+    """Return the snapshot's DataSource in the target instance's scope, created once per import."""
+    found = state.data_sources.get(source.id)
+    if found is None:
+        found = DataSource.objects.create(
+            uuid=source.id,
             scope_content_type=ic_ct,
             scope_id=ic.pk,
-            name=s.name,
-            edition=s.edition,
-            authority=s.authority,
-            description=s.description,
-            url=s.url,
+            name=source.name,
+            edition=source.edition,
+            authority=source.authority,
+            description=source.description,
+            url=source.url,
         )
-        for s in ds_snapshot.data_sources
-    }
+        state.data_sources[source.id] = found
+    return found
 
 
 def _import_dataset_provenance(
@@ -344,26 +442,26 @@ def _import_dataset_provenance(
     ds_snapshot: DatasetSnapshot,
     dataset: DatasetModel,
     points: Mapping[UUID, DataPoint],
+    state: _ImportState,
 ) -> None:
-    """Recreate a dataset's DataSources, source references and data-point comments."""
-    resolve_user = _UserLookup()
-    src_map = _import_data_sources(ic, ic_ct, ds_snapshot)
+    """Recreate a dataset's DataSources, source references and data-point comments, keeping their uuids."""
+    sources = {source.id: _data_source(ic, ic_ct, source, state) for source in ds_snapshot.data_sources}
 
     for ref in ds_snapshot.source_references:
-        src_obj = src_map.get(ref.data_source)
-        if src_obj is not None:
-            DatasetSourceReference.objects.create(dataset=dataset, data_source=src_obj)
+        if (data_source := sources.get(ref.data_source)) is not None:
+            DatasetSourceReference.objects.create(uuid=ref.id, dataset=dataset, data_source=data_source)
 
+    resolve_user = state.users
     for point in ds_snapshot.points:
         dp = points.get(point.id)
         if dp is None:
             continue
         for ref in point.sources:
-            src_obj = src_map.get(ref.data_source)
-            if src_obj is not None:
-                DatasetSourceReference.objects.create(data_point=dp, data_source=src_obj)
+            if (data_source := sources.get(ref.data_source)) is not None:
+                DatasetSourceReference.objects.create(uuid=ref.id, data_point=dp, data_source=data_source)
         for c in point.comments:
             DataPointComment.objects.create(
+                uuid=c.id,
                 data_point=dp,
                 text=c.text,
                 is_sticky=c.is_sticky,
@@ -380,116 +478,79 @@ def _import_data_points(
     dataset: DatasetModel,
     ds_snapshot: DatasetSnapshot,
     metrics: Mapping[UUID, DatasetMetricModel],
-    dim_lookup: dict[str, DimensionCategoryModel],
-    source: SourceDimensions,
+    dimensions: TargetDimensions,
 ) -> dict[UUID, DataPoint]:
-    """Create the DataPoints; return them by the snapshot's data point uuid, for wiring provenance."""
+    """Create the DataPoints with their uuids; return them by uuid, for wiring provenance."""
     declared = set(ds_snapshot.meta.declared_dimension_ids)
-    created: list[tuple[UUID, DataPoint, list[DimensionCategoryModel]]] = []
+    created: list[tuple[DataPoint, list[DimensionCategoryModel]]] = []
     for point in ds_snapshot.points:
         metric = metrics.get(point.metric)
         if metric is None:
             continue
         categories = [
-            dim_lookup[f'{dim_id}/{cat_id}']
+            category
             for dimension_id, category_id in point.categories.items()
-            if dimension_id in declared
-            for dim_id, cat_id in [source.category(category_id)]
-            if f'{dim_id}/{cat_id}' in dim_lookup
+            if dimension_id in declared and (category := dimensions.category(category_id)) is not None
         ]
         # An empty cell is kept as a null-valued data point, as `load_dvc_dataset` creates
         # it: a template dataset is all empty cells, and dropping them leaves a dataset with
         # no data points and so no payload, which the runtime cannot load.
-        created.append((point.id, DataPoint(dataset=dataset, date=point.date, metric=metric, value=point.value), categories))
+        created.append((DataPoint(uuid=point.id, dataset=dataset, date=point.date, metric=metric, value=point.value), categories))
 
-    DataPoint.objects.bulk_create([dp for _, dp, _ in created])
+    DataPoint.objects.bulk_create([dp for dp, _ in created])
     DataPointDimensionCategory.objects.bulk_create([
         DataPointDimensionCategory(data_point=dp, dimension_category=category)
-        for _, dp, categories in created
+        for dp, categories in created
         for category in categories
     ])
-    return {point_id: dp for point_id, dp, _ in created}
+    return {dp.uuid: dp for dp, _ in created}
 
 
-def _dimension_category_lookup_for_instance(ic: InstanceConfig, ic_ct: ContentType) -> dict[str, DimensionCategoryModel]:
-    lookup: dict[str, DimensionCategoryModel] = {}
-    scopes = (
-        DimensionScope.objects
-        .filter(scope_content_type=ic_ct, scope_id=ic.pk, identifier__isnull=False)
-        .select_related('dimension')
-        .prefetch_related('dimension__categories')
-    )
-    for scope in scopes:
-        assert scope.identifier is not None
-        for category in scope.dimension.categories.all():
-            if category.identifier is not None:
-                lookup[f'{scope.identifier}/{category.identifier}'] = category
-    return lookup
+def _ensure_dataset_dimensions(ic: InstanceConfig, ds_snapshot: DatasetSnapshot, dimensions: TargetDimensions) -> None:
+    """
+    Create the dimensions and categories the snapshot names and the instance lacks.
 
-
-def _ensure_dataset_dimensions(
-    ic: InstanceConfig,
-    ds_snapshot: DatasetSnapshot,
-    ic_ct: ContentType,
-    dim_lookup: dict[str, DimensionCategoryModel],
-    source: SourceDimensions,
-) -> None:
+    Under the snapshot's uuids where they are free. A copy of a dataset alone still names its
+    source instance's dimensions, and the target gets dimensions of its own, with new uuids.
+    """
+    ic_ct = ContentType.objects.get_for_model(ic)
+    source = dimensions.source
+    created = False
     for dimension_id in ds_snapshot.meta.declared_dimension_ids:
-        dim_id = source.dimension(dimension_id)
-        dim_scope = (
-            DimensionScope.objects
-            .filter(
-                identifier=dim_id,
-                scope_content_type=ic_ct,
-                scope_id=ic.pk,
+        dimension = dimensions.dimension(dimension_id)
+        if dimension is None:
+            identifier = source.dimension(dimension_id)
+            dimension = DimensionModel.objects.create(
+                **_free_uuid(DimensionModel, dimension_id), name=_label_from_identifier(identifier)
             )
-            .select_related('dimension')
-            .first()
-        )
-        if dim_scope is None:
-            dimension = DimensionModel.objects.create(name=_label_from_identifier(dim_id))
-            DimensionScope.objects.create(
-                dimension=dimension,
-                identifier=dim_id,
-                scope_content_type=ic_ct,
-                scope_id=ic.pk,
-            )
-        else:
-            dimension = dim_scope.dimension
-
-        existing_categories = set(dimension.categories.values_list('identifier', flat=True))
-        category_ids = sorted({
-            cat_id
-            for point in ds_snapshot.points
-            if (category_id := point.categories.get(dimension_id)) is not None
-            for _, cat_id in [source.category(category_id)]
-        })
-        for cat_id in category_ids:
-            if cat_id in existing_categories:
+            DimensionScope.objects.create(dimension=dimension, identifier=identifier, scope_content_type=ic_ct, scope_id=ic.pk)
+            created = True
+        for category_id in sorted({c for point in ds_snapshot.points if (c := point.categories.get(dimension_id)) is not None}):
+            if dimensions.category(category_id) is not None:
                 continue
-            cat = DimensionCategoryModel.objects.create(
+            _, identifier = source.category(category_id)
+            DimensionCategoryModel.objects.create(
+                **_free_uuid(DimensionCategoryModel, category_id),
                 dimension=dimension,
-                identifier=cat_id,
-                label=_label_from_identifier(cat_id),
+                identifier=identifier,
+                label=_label_from_identifier(identifier),
             )
-            dim_lookup[f'{dim_id}/{cat_id}'] = cat
-            existing_categories.add(cat_id)
+            created = True
+    if created:
+        dimensions.reload()
 
 
-def _validate_dataset_dimensions(
-    ic: InstanceConfig,
-    ds_snapshot: DatasetSnapshot,
-    dim_lookup: dict[str, DimensionCategoryModel],
-    source: SourceDimensions,
-) -> None:
+def _free_uuid(model: type[DimensionModel | DimensionCategoryModel], uuid: UUID) -> dict[str, UUID]:
+    return {} if model._default_manager.filter(uuid=uuid).exists() else {'uuid': uuid}
+
+
+def _validate_dataset_dimensions(ic: InstanceConfig, ds_snapshot: DatasetSnapshot, dimensions: TargetDimensions) -> None:
     declared = set(ds_snapshot.meta.declared_dimension_ids)
     missing = {
-        f'{dim_id}/{cat_id}'
+        '/'.join(dimensions.source.categories.get(category_id, (str(dimension_id), str(category_id))))
         for point in ds_snapshot.points
         for dimension_id, category_id in point.categories.items()
-        if dimension_id in declared
-        for dim_id, cat_id in [source.category(category_id)]
-        if f'{dim_id}/{cat_id}' not in dim_lookup
+        if dimension_id in declared and dimensions.category(category_id) is None
     }
     if missing:
         missing_str = ', '.join(sorted(missing)[:10])
@@ -586,22 +647,23 @@ def import_instance_datasets(
     dimensions: Mapping[UUID, DimensionMeta] | None = None,
 ) -> list[DatasetModel]:
     """
-    Import dataset bodies into an existing InstanceConfig without touching nodes.
+    Import dataset bodies into an existing InstanceConfig without touching nodes, keeping their uuids.
 
-    This is used when a template instance already has its node graph and
-    dataset ports, but its datasets need to be promoted from external
-    placeholders to real DB datasets with datapoints. With `replace_placeholders`,
-    an imported dataset takes over the instance's own placeholder of the same
-    identifier: its ports, then its place.
+    Used by the instance import, and by callers that add datasets to an instance that already
+    has its node graph, such as a template promoting its placeholders to real datasets. With
+    `replace_placeholders`, an imported dataset takes over the instance's own placeholder of the
+    same identifier: its ports, then its place. Datasets copied from this database must be
+    rekeyed first.
 
-    ``dimensions`` is the catalog the snapshots' dimension and category uuids are
-    looked up in; whatever it does not name is looked up in this database.
+    ``dimensions`` is the catalog the snapshots' dimension and category uuids are named in;
+    whatever it does not name is looked up in this database.
     """
     dataset_snapshots = list(dataset_snapshots)
     source = SourceDimensions(dimensions)
     source.resolve(dataset_snapshots)
+    target = TargetDimensions(ic, source)
+    state = _ImportState()
     ic_ct = ContentType.objects.get_for_model(ic)
-    dim_lookup = _dimension_category_lookup_for_instance(ic, ic_ct)
     imported: list[DatasetModel] = []
     datasets_by_id: dict[str, DatasetModel] = {}
     replaced: list[tuple[DatasetModel, DatasetModel]] = []
@@ -616,12 +678,12 @@ def import_instance_datasets(
             continue
 
         if create_missing_dimensions:
-            _ensure_dataset_dimensions(ic, ds_snapshot, ic_ct, dim_lookup, source)
-        _validate_dataset_dimensions(ic, ds_snapshot, dim_lookup, source)
+            _ensure_dataset_dimensions(ic, ds_snapshot, target)
+        _validate_dataset_dimensions(ic, ds_snapshot, target)
         placeholder = None
         if replace_placeholders and identifier is not None:
             placeholder = _set_aside_placeholder(ic, ic_ct, identifier)
-        dataset = import_dataset(ic, ds_snapshot, ic_ct, dim_lookup, source)
+        dataset = import_dataset(ic, ds_snapshot, dimensions=target, state=state)
         imported.append(dataset)
         if identifier is not None:
             datasets_by_id[identifier] = dataset

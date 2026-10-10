@@ -40,7 +40,7 @@ from nodes.defs.instance_defs import InstanceMetadata, InstanceModelSpec, YearsS
 from nodes.defs.node_defs import NodeSpec
 from nodes.defs.port_def import InputPortDef
 from nodes.instance_graph import InstanceGraph, NodeMeta, build_instance_graph
-from nodes.instance_serialization import build_instance_snapshot, export_instance, import_instance
+from nodes.instance_serialization import build_instance_snapshot, export_instance, import_instance_copy
 from nodes.models import InstanceConfig, NodeInputPortBinding
 from nodes.spec_sync import sync_parsed_instance_to_db
 from nodes.tests.factories import InstanceConfigFactory, NodeConfigFactory
@@ -325,7 +325,7 @@ def test_copy_remaps_unbound_dataset_table(identifier: str | None) -> None:
     source.save()
     exported = export_instance(source)
     target = InstanceConfigFactory.create(name='Copy', config_source='database', spec=InstanceModelSpec())
-    import_instance(target, exported)
+    import_instance_copy(target, exported)
     snapshot = build_instance_snapshot(target)
     assert isinstance(snapshot.spec.data_entry, DataEntrySpec)
     copied = snapshot.spec.data_entry.sections[0].tables[0]

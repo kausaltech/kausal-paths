@@ -20,12 +20,12 @@ from kausal_common.i18n.pydantic import TranslatedString
 
 from paths.tests.graphql import PathsTestClient
 
-from datasets.materialization import hash_dataset_content
 from frameworks.models import FrameworkConfig
 from frameworks.tests.factories import FrameworkFactory
 from nodes.defs.instance_defs import InstanceModelSpec, InstanceResultExcelSpec, YearsSpec
 from nodes.defs.node_defs import FormulaConfig, SimpleConfig
 from nodes.defs.port_def import InputPortDef
+from nodes.instance_import import InstanceImportError, import_instance_export
 from nodes.instance_loader import InstanceLoader
 from nodes.instance_serialization import (
     DatasetMetricSource,
@@ -35,10 +35,10 @@ from nodes.instance_serialization import (
     NodePortSource,
     build_instance_snapshot,
     export_instance,
-    import_instance,
+    import_instance_copy,
 )
 from nodes.legacy_specs import local_spec_from_template, migrate_inherited_node_settings
-from nodes.models import NodeInputPortBinding
+from nodes.models import InputPortBindingSet, NodeInputPortBinding
 from nodes.parameter_values import set_scenario_parameter
 from nodes.scenario import Scenario, ScenarioKind
 from nodes.template_graph import (
@@ -572,32 +572,44 @@ def test_export_round_trip_keeps_template_inheritance(municipal: tuple[InstanceC
     assert exported.instance.nodes == []
     loaded = InstanceExport.from_serialized_data(exported.model_dump(mode='json'))
     clone = InstanceConfigFactory.create(name='Clone', owner='Test owner', config_source='database', spec=InstanceModelSpec())
-    import_instance(clone, loaded)
+    import_instance_copy(clone, loaded)
     assert clone.template_revision_id == municipality.template_revision_id
     assert clone.nodes.count() == 0
     assert clone.ensure_spec().params == []
     assert build_instance_snapshot(clone).spec.scenarios[0].param_values == {'inventory_factor': 9}
 
 
-def test_import_bundled_template_remaps_database_revision_id(
-    municipal: tuple[InstanceConfig, InstanceConfig, User],
-) -> None:
+def _restore_without_template(template: InstanceConfig, municipality: InstanceConfig) -> tuple[InstanceExport, InstanceConfig]:
+    """
+    Export a template-built instance, delete it and its template, and import it back.
 
-    _, municipality, _ = municipal
+    The instance is taken out of its framework first: a member's template is the framework's,
+    which an import finds rather than installs, while an instance outside a framework brings
+    its template along and installs it.
+    """
+    FrameworkConfig.objects.filter(instance_config=municipality).delete()
     municipality.refresh_from_db()
     exported = export_instance(municipality)
+    assert exported.framework is None
+    assert exported.template is not None
+    organization = str(municipality.organization.uuid)
+    municipality.delete()
+    template.delete()
+    restored = import_instance_export(
+        InstanceExport.from_serialized_data(exported.model_dump(mode='json')), organization=organization
+    )
+    return exported, restored
+
+
+def test_import_installs_a_missing_bundled_template_under_a_revision_of_this_database(
+    municipal: tuple[InstanceConfig, InstanceConfig, User],
+) -> None:
+    template, municipality, _ = municipal
+    exported, restored = _restore_without_template(template, municipality)
     assert exported.template is not None
     base = exported.template.instance
-    base.metadata.uuid = uuid4()
-    base.metadata.identifier = 'portable-template'
-    base.metadata.name = 'Portable template'
-    base.nodes[0].uuid = uuid4()
-    exported.instance.template_revision_id = 9999999
-    exported.instance.template_content_hash = snapshot_content_hash(base)
-    clone = InstanceConfigFactory.create(name='Clone', owner='Test owner', config_source='database', spec=InstanceModelSpec())
-    import_instance(clone, exported)
-    assert clone.template_revision_id != 9999999
-    effective = build_instance_snapshot(clone)
+    assert restored.template_revision_id not in (None, exported.instance.template_revision_id)
+    effective = build_instance_snapshot(restored)
     assert effective.nodes[0].uuid == base.nodes[0].uuid
     assert effective.provenance['params/inventory_factor'].instance_uuid == base.metadata.uuid
 
@@ -668,7 +680,6 @@ def test_old_override_container_is_migrated_with_scalar_presence(
 def test_export_uses_pinned_template_dataset_body_and_import_remaps_payload_revision(
     municipal: tuple[InstanceConfig, InstanceConfig, User],
 ) -> None:
-
     template, municipality, _ = municipal
     node = template.nodes.get_queryset().with_spec().get()
     assert node.spec is not None
@@ -689,42 +700,16 @@ def test_export_uses_pinned_template_dataset_body_and_import_remaps_payload_revi
     upgrade_template_instance(municipality, publish_template_instance(template))
     municipality.refresh_from_db()
     type(point).objects.filter(pk=point.pk).update(value=99)
-    exported = export_instance(municipality)
+
+    exported, restored = _restore_without_template(template, municipality)
+
     assert exported.template is not None
-    body = exported.template.datasets[0]
-    assert [point.value for point in body.points] == [42]
-    base = exported.template.instance
-    base.metadata.uuid = uuid4()
-    base.metadata.identifier = 'portable-data-template'
-    base.metadata.name = 'Portable data template'
-    base.nodes[0].uuid = uuid4()
-    base.datasets[0] = base.datasets[0].model_copy(update={'id': uuid4()})
-    # A rekey moves the bundled body with its catalog entry, and the pin follows the body's content.
-    body = body.model_copy(update={'meta': body.meta.model_copy(update={'id': base.datasets[0].id})})
-    exported.template.datasets[0] = body
-    base.dataset_revisions[0] = base.dataset_revisions[0].model_copy(
-        update={'dataset_uuid': base.datasets[0].id, 'content_hash': hash_dataset_content(body.model_dump(mode='json'))}
-    )
-    binding = base.bindings[0]
-    assert isinstance(binding.source, DatasetMetricSource)
-    base.bindings[0] = binding.model_copy(
-        update={
-            'node_id': base.nodes[0].uuid,
-            'source': binding.source.model_copy(update={'dataset_uuid': base.datasets[0].id}),
-        }
-    )
-    content_hash = snapshot_content_hash(base)
-    exported.instance.template_content_hash = content_hash
-    exported.instance.template_revision_id = 9999999
-    clone = InstanceConfigFactory.create(
-        name='Data clone', owner='Test owner', config_source='database', spec=InstanceModelSpec()
-    )
-    import_instance(clone, exported)
-    effective = build_instance_snapshot(clone)
+    assert [point.value for point in exported.template.datasets[0].points] == [42], 'the pinned body, not the live row'
+    effective = build_instance_snapshot(restored)
     pin = effective.dataset_revisions[0]
-    assert pin.revision_id != base.dataset_revisions[0].revision_id
+    assert pin.revision_id != exported.template.instance.dataset_revisions[0].revision_id
     assert [point['value'] for point in Revision.objects.get(pk=pin.revision_id).content['points']] == [42]
-    assert effective.template_content_hash == content_hash
+    assert effective.template_content_hash == exported.instance.template_content_hash
     assert isinstance(effective.bindings[0].source, DatasetMetricSource)
     assert effective.bindings[0].source.dataset_revision == pin.revision_id
 
@@ -791,7 +776,7 @@ def test_export_import_retains_inherited_sources_for_local_nodes(
     clone = InstanceConfigFactory.create(
         name='Local edge clone', owner='Test owner', config_source='database', spec=InstanceModelSpec()
     )
-    import_instance(clone, exported)
+    import_instance_copy(clone, exported)
     effective = build_instance_snapshot(clone)
     assert len(effective.bindings) == 1
     binding = effective.bindings[0]
@@ -827,7 +812,7 @@ def test_node_owned_dataset_round_trip_preserves_local_ownership(
     clone = InstanceConfigFactory.create(
         name='Owner clone', owner='Test owner', config_source='database', spec=InstanceModelSpec()
     )
-    import_instance(clone, exported)
+    import_instance_copy(clone, exported)
     own = clone.nodes.get()
     effective = build_instance_snapshot(clone)
     copied = next(item for item in effective.nodes if item.uuid == own.uuid)
@@ -877,7 +862,8 @@ def test_a_rekeyed_municipality_copies_its_own_and_refers_to_the_template(
     copy, rekeying = exported.rekeyed()
 
     assert copy.template == exported.template
-    assert rekeying.outside() == {}, 'everything outside the municipality travels in the bundled template'
+    framework = municipality.framework_config.framework
+    assert rekeying.outside() == {'framework': {framework.uuid}}, 'all else outside the municipality is in the bundled template'
     owned = {local.uuid, edge_port.id, data_port.id, dataset.uuid, metric.uuid, point.uuid, municipality.uuid}
     assert owned <= rekeying.mapping.keys()
     assert shared.uuid not in rekeying.mapping
@@ -898,8 +884,83 @@ def test_a_rekeyed_municipality_copies_its_own_and_refers_to_the_template(
     clone = InstanceConfigFactory.create(
         name='Rekeyed clone', owner='Test owner', config_source='database', spec=InstanceModelSpec()
     )
-    import_instance(clone, InstanceExport.from_serialized_data(copy.model_dump(mode='json')))
+    import_instance_copy(clone, exported)
     assert clone.nodes.get().identifier == 'local_target'
+
+
+def _comparable(export: InstanceExport) -> dict:
+    """Return the part of an export a round trip promises to keep: not when, from where, or the edit token."""
+    dumped = export.model_dump(mode='json', exclude={'exported_at', 'exported_from', 'draft_head_token', 'pages'})
+    for key in ('exported_at', 'exported_from'):
+        (dumped.get('template') or {}).pop(key, None)
+    return dumped
+
+
+def test_a_member_municipality_round_trips_with_its_membership_and_measures(
+    municipal: tuple[InstanceConfig, InstanceConfig, User],
+) -> None:
+    """A restore finds the framework and its template here, and brings back the membership and its measures."""
+    from frameworks.models import Measure, MeasureDataPoint, MeasureTemplate, Section
+
+    template, municipality, _ = municipal
+    shared = template.nodes.get_queryset().with_spec().get()
+    assert shared.spec is not None
+    local = NodeConfigFactory.create(instance=municipality, identifier='local_target')
+    assert local.spec is not None
+    port = InputPortDef(id=uuid4(), unit=shared.spec.output_ports[0].unit, binding_owner='instance')
+    local.spec.input_ports = [port]
+    local.save(update_fields=['spec'])
+    # As the editor stores a template-built instance's selections: by uuid, not by template rows.
+    InputPortBindingSet.objects.create(
+        instance=municipality,
+        node_uuid=local.uuid,
+        port_uuid=port.id,
+        bindings=[
+            InputBindingSnapshot(
+                uuid=uuid4(),
+                node_id=local.uuid,
+                port_id=port.id,
+                source=NodePortSource(node_id=shared.uuid, port_id=shared.spec.output_ports[0].id),
+            )
+        ],
+    )
+    config = municipality.framework_config
+    config.organization_name = 'Gifhorn'
+    config.organization_identifier = '03151009'
+    config.save(update_fields=['organization_name', 'organization_identifier'])
+    section = Section.add_root(instance=Section(framework=config.framework, name='Root'))
+    measure_template = MeasureTemplate.objects.create(section=section, name='Energy', unit='MWh/a')
+    measure = Measure.objects.create(framework_config=config, measure_template=measure_template, internal_notes='metered')
+    MeasureDataPoint.objects.create(measure=measure, year=2020, value=42.0, default_value=7.0)
+    municipality.refresh_from_db()
+    before = export_instance(municipality)
+    assert before.framework is not None
+    assert [m.template for m in before.framework.measures] == [measure_template.uuid]
+
+    document = InstanceExport.from_serialized_data(before.model_dump(mode='json'))
+    restored = import_instance_export(document, replace=True)
+
+    assert restored.template_revision_id == municipality.template_revision_id, 'the template is found, not installed'
+    assert restored.framework_config.organization_identifier == '03151009'
+    after = export_instance(restored)
+    assert _comparable(after) == _comparable(before)
+
+
+def test_a_template_others_inherit_from_is_not_replaced(municipal: tuple[InstanceConfig, InstanceConfig, User]) -> None:
+    """Its heirs pin revisions of its row, which a replacement does not keep."""
+    template, _, _ = municipal
+    with pytest.raises(InstanceImportError, match='is the template of'):
+        import_instance_export(export_instance(template), replace=True)
+
+
+def test_a_replaced_template_stays_its_frameworks_template(municipal: tuple[InstanceConfig, InstanceConfig, User]) -> None:
+    template, municipality, _ = municipal
+    framework = municipality.framework_config.framework
+    municipality.delete()
+    restored = import_instance_export(export_instance(template), replace=True)
+    framework.refresh_from_db()
+    assert framework.template_instance == restored
+    assert restored.pk != template.pk
 
 
 def test_rekeying_needs_the_template_bundled(municipal: tuple[InstanceConfig, InstanceConfig, User]) -> None:
@@ -961,10 +1022,12 @@ def test_imported_edition_does_not_publish_an_existing_template_draft(
     assert existing.live_revision_id is None
     exported.template.instance.metadata.uuid = existing.uuid
     exported.instance.template_content_hash = snapshot_content_hash(exported.template.instance)
+    # The stand-in template is not the framework's, so the copy stays outside the framework.
+    exported.framework = None
     clone = InstanceConfigFactory.create(
         name='Edition clone', owner='Test owner', config_source='database', spec=InstanceModelSpec()
     )
-    import_instance(clone, exported)
+    import_instance_copy(clone, exported)
     existing.refresh_from_db()
     assert existing.live_revision_id is None
     assert existing.live is False

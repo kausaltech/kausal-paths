@@ -335,7 +335,7 @@ def test_build_instance_snapshot_round_trip_through_json(empty_db_instance: Inst
 
 
 def test_node_layout_round_trips_through_instance_export(empty_db_instance: InstanceConfig):
-    from nodes.instance_serialization import export_instance, import_instance
+    from nodes.instance_serialization import export_instance, import_instance_copy
     from nodes.models import NodeLayout, NodeLayoutSource
 
     source_node = NodeConfigFactory.create(instance=empty_db_instance, identifier='positioned')
@@ -353,7 +353,7 @@ def test_node_layout_round_trips_through_instance_export(empty_db_instance: Inst
         config_source='database',
     )
 
-    import_instance(target, export)
+    import_instance_copy(target, export)
 
     copied = NodeLayout.objects.select_related('node').get(node__instance=target)
     assert copied.node.identifier == 'positioned'
@@ -361,7 +361,7 @@ def test_node_layout_round_trips_through_instance_export(empty_db_instance: Inst
 
 
 def test_revisioned_content_round_trips_through_instance_export(empty_db_instance: InstanceConfig):
-    from nodes.instance_serialization import export_instance, import_instance
+    from nodes.instance_serialization import export_instance, import_instance_copy
 
     empty_db_instance.lead_title = 'Source lead'
     empty_db_instance.lead_paragraph = '<p>Source paragraph</p>'
@@ -378,7 +378,7 @@ def test_revisioned_content_round_trips_through_instance_export(empty_db_instanc
         config_source='database',
     )
 
-    import_instance(target, export)
+    import_instance_copy(target, export)
 
     target.refresh_from_db()
     assert target.lead_title == 'Source lead'
@@ -811,6 +811,8 @@ def test_dataset_serializable_data_bridges_to_paths():
 def test_dataset_serializable_data_includes_forecast_from():
     from kausal_common.datasets.tests.factories import DatasetFactory
 
+    from paths.rekey import rekeyed
+
     from datasets.snapshot import DatasetSnapshot
     from datasets.transfer import import_dataset
     from nodes.tests.factories import InstanceConfigFactory, InstanceFactory
@@ -822,9 +824,7 @@ def test_dataset_serializable_data_includes_forecast_from():
     snap = DatasetSnapshot.from_model(ds, source)
     assert snap.meta.forecast_from == 2025
 
-    from django.contrib.contenttypes.models import ContentType
-
-    copied = import_dataset(target, snap, ContentType.objects.get_for_model(target), {})
+    copied = import_dataset(target, rekeyed(snap)[0])
     assert copied.spec == {'forecast_from': 2025}
 
 
@@ -1336,7 +1336,7 @@ def test_import_instance_datasets_replaces_the_instances_placeholder(empty_db_in
         metric=placeholder_metric,
     )
 
-    source_export = export_instance(source)
+    source_export, _ = export_instance(source).rekeyed()
     imported = import_instance_datasets(
         target,
         source_export.datasets,
@@ -1417,12 +1417,14 @@ def test_import_instance_datasets_preserves_dimension_column_name(empty_db_insta
         dimension_categories=[category],
     )
 
+    from paths.rekey import rekeyed
+
     snapshot = next(ds for ds in export_instance(source).datasets if ds.meta.identifier == 'actions/source')
     assert snapshot.meta.declared_dimension_ids == (dimension.uuid,)
     assert snapshot.dimension_columns == {dimension.uuid: 'action'}
     assert [point.categories for point in snapshot.points] == [{dimension.uuid: category.uuid}]
 
-    imported = import_instance_datasets(target, [snapshot], create_missing_dimensions=True)
+    imported = import_instance_datasets(target, [rekeyed(snapshot)[0]], create_missing_dimensions=True)
     assert len(imported) == 1
 
     copied_dataset = Dataset.objects.get(scope_content_type=source_ct, scope_id=target.pk, identifier='actions/source')
@@ -1458,7 +1460,7 @@ def test_import_instance_preserves_dataset_only_dimension(empty_db_instance: Ins
     )
 
     from datasets.runtime import DBDataset
-    from nodes.instance_serialization import export_instance, import_instance
+    from nodes.instance_serialization import export_instance, import_instance_copy
 
     source = empty_db_instance
     target_instance = InstanceFactory.create()
@@ -1499,7 +1501,7 @@ def test_import_instance_preserves_dataset_only_dimension(empty_db_instance: Ins
     assert snapshot.meta.declared_dimension_ids == (dimension.uuid,)
     assert snapshot.dimension_columns == {dimension.uuid: 'action'}
 
-    import_instance(target, export)
+    import_instance_copy(target, export)
 
     copied_dataset = Dataset.objects.get(scope_content_type=source_ct, scope_id=target.pk, identifier='actions/source')
     copied_schema_dim = DatasetSchemaDimension.objects.select_related('dimension').get(schema=copied_dataset.schema)

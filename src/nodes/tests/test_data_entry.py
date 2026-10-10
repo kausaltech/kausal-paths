@@ -29,7 +29,7 @@ from nodes.instance_graph import InstanceGraph, NodeMeta
 from nodes.instance_loader import InstanceYAMLConfig
 from nodes.instance_parser import parse_instance_snapshot
 from nodes.instance_problems import data_entry_definition_problems
-from nodes.instance_serialization import export_instance, import_instance
+from nodes.instance_serialization import export_instance, import_instance_copy
 from nodes.models import InstanceConfig
 from nodes.node import Node
 from nodes.tests.factories import InstanceConfigFactory, NodeConfigFactory
@@ -363,7 +363,7 @@ def test_absent_layout_preserves_legacy_snapshot_hash_input() -> None:
         assert 'data_entry' not in spec.model_dump(mode='json')
 
 
-def test_import_remaps_section_and_anchor_node_identity() -> None:
+def test_a_copy_gives_a_layout_new_identities_that_follow_its_node() -> None:
     source = InstanceConfigFactory.create(name='Source', config_source='database', spec=InstanceModelSpec())
     node = NodeConfigFactory.create(instance=source)
     assert node.spec is not None
@@ -388,7 +388,7 @@ def test_import_remaps_section_and_anchor_node_identity() -> None:
     source.save(update_fields=['spec'])
     exported = export_instance(source)
     target = InstanceConfigFactory.create(name='Target', config_source='database', spec=InstanceModelSpec())
-    import_instance(target, exported)
+    import_instance_copy(target, exported)
     restored = InstanceConfig.objects.get(pk=target.pk).ensure_spec().data_entry
     assert isinstance(restored, DataEntrySpec)
     assert restored.sections[0].id != definition.id
@@ -396,7 +396,10 @@ def test_import_remaps_section_and_anchor_node_identity() -> None:
     assert isinstance(definition.tables[0], DataEntryAutodiscoverSpec)
     assert restored.sections[0].tables[0].anchors[0].node_id == target.nodes.get().uuid
     assert restored.sections[0].tables[0].anchors[0].node_id != node.uuid
-    assert restored.sections[0].tables[0].anchors[0].output_port_id == definition.tables[0].anchors[0].output_port_id
+    copied_node = target.nodes.get_queryset().with_spec().get()
+    assert copied_node.spec is not None
+    assert restored.sections[0].tables[0].anchors[0].output_port_id == copied_node.spec.output_ports[0].id
+    assert restored.sections[0].tables[0].anchors[0].output_port_id != definition.tables[0].anchors[0].output_port_id
 
 
 def test_rekeying_gives_a_layout_new_identities_that_follow_its_node() -> None:
