@@ -89,6 +89,32 @@ def test_multi_input_iterator_preserves_position() -> None:
         node.get_input(port)
 
 
+def test_bindings_on_different_ports_follow_the_declared_port_order() -> None:
+    """
+    A position counts within its port; across ports the node's declaration decides, not binding uuids.
+
+    Ordering by binding uuid made a copy of an instance, whose uuids are all new, multiply its
+    factors the other way round, and keep the other factor's qualifiers.
+    """
+    port = InputPortDeclaration(role='factors', multi=True)
+    first, second = uuid4(), uuid4()
+    spec = NodeSpec(
+        type_config=ActionConfig(node_class='nodes.actions.simple.AdditiveAction'),
+        input_ports=[InputPortDef(id=first, unit=unit_registry.parse_units('kWh')), InputPortDef(id=second, unit=None)],
+    )
+    meta = NodeMeta(id=uuid4(), identifier='product', node_class_path='nodes.simple.MultiplicativeNode', spec=spec)
+    later_uuid, earlier_uuid = sorted((uuid4(), uuid4()), reverse=True)
+    node = node_case(port)
+    node.bind_runtime_inputs(
+        (
+            binding('factors', frame([2.0]), target_port_id=second, binding_id=earlier_uuid),
+            binding('factors', frame([1.0]), target_port_id=first, binding_id=later_uuid),
+        ),
+        node_meta=meta,
+    )
+    assert [df[VALUE_COLUMN][0] for df in node.iter_inputs(port)] == [1.0, 2.0]
+
+
 def test_sum_aggregation_combines_multi_input() -> None:
     port = InputPortDeclaration(role='values', multi=True, aggregation='sum')
     node = bind(
