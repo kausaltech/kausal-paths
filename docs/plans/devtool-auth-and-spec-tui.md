@@ -177,7 +177,9 @@ script) or `python -m devtool`. Class-based so the TUI can reuse it:
   FILE` loads it into the
   *local* database only (boots Django via `init_django()`, then
   `nodes.instance_import.import_instance_export`), creating a database-sourced
-  instance or filling an empty one, never a populated one. Remote import
+  instance under the document's own uuids. An instance that is already there is
+  refused unless `--replace` is given, which deletes it first (see
+  `docs/architecture/export-import-and-copies.md`). Remote import
   comes later through `PathsClient`. Load documents with
   `InstanceExport.from_serialized_data`, which runs the snapshot upgraders;
   plain `model_validate_json` also works since the `TranslatedString`

@@ -10,7 +10,8 @@ ahead of step 2 and the rest of step 3: lossless export and import are needed
 for other work too, and step 4 depends on neither (see step 4). The step 3
 stopgap is done (ca60343a), as is the re-import identity that step 4 assumes
 (881c9a1a). Step 4 is built (7c60201e; see *As built* there). Step 6 was moved
-ahead of step 5 and is built (8f41f6e9); step 5 is next.
+ahead of step 5 and is built (8f41f6e9), and so is step 5 (see *As built* there).
+Steps 2 and the rest of 3 remain.
 
 ## Why
 
@@ -441,22 +442,59 @@ Decided 2026-10-09:
 - **`instance_export_sync`** (pushing onto an existing instance) stays as it is; matching
   everything by uuid belongs to the sync diff (*Later*).
 
-Remaining work:
+As built (see `docs/architecture/export-import-and-copies.md` for the rules as they stand):
 
-1. **Import keeps every uuid**: instance, nodes (`preserve_node_uuids` goes), ports,
-   bindings, datasets, schemas, metrics, data points, comments, sources, data-entry ids
-   (`_remap_imported_data_entry` stops minting).
-2. **Dimensions from `InstanceSnapshot.dimensions`**, not `spec.dimensions`:
-   `_import_dimensions` creates the instance's own with their uuids and checks the
-   framework's. The loader builds its runtime dimensions from the same catalog
-   (`instance_loader.py:1010`), so `spec.dimensions` and the two `spec` dicts can be
-   retired into typed `DimensionMeta` fields.
-3. **The copy callers rekey first**: `copy_instance`, seeded with the new row's uuid, and
-   the framework mutation, seeded with the `FrameworkConfig` uuid (replacing
-   `ic.uuid = framework_config.uuid` in `import_instance`).
-4. **The checks by kind**, using the identities the export owns and `outside()` of a
-   rekeying (or the same walk without minting).
-5. `--replace`, the framework reference in the export, and the round-trip test.
+- **The import keeps every uuid** the export defines, and refuses before writing anything
+  when one is already here or when something it refers to without bundling it is not
+  (`check_import`, by entity kind, through `paths.rekey.survey`). `preserve_node_uuids`
+  and the data-entry remapping are gone; bindings, node-owned datasets and binding
+  overrides resolve by uuid.
+- **Copies rekey first**: `import_instance_copy` (`copy_instance` in database mode, the
+  framework "create instance" mutation), and the export rekeyed directly in `copy_instance`'s
+  YAML mode and `tools/setup_cads.py`. A copy of one dataset alone still names its
+  source's dimensions; `_ensure_dataset_dimensions` gives the target its own, under new
+  uuids where the snapshot's are taken.
+- **Dimensions come from the typed catalog** (`InstanceSnapshot.dimensions`), with their
+  translations, order and spec, which the old import read from `spec.dimensions` and lost.
+  A framework's dimension is checked, not created. `spec.dimensions` itself is still
+  copied with the spec and read by the loader; retiring it into `DimensionMeta` is left.
+- **Framework membership travels** (`InstanceExport.framework`): the framework reference,
+  the config's fields and categories, and its measures with their data points. The
+  config's access token does not.
+- **`--replace`** deletes the instance of the same uuid first and points the references
+  the deletion nulls (the framework whose template it is, copies, users' selections) at
+  the new row. It refuses an instance others inherit from: their pins name its row's
+  revisions.
+- **Losses found and fixed on the way:** a metric's `quality_of`, a dataset's shape and
+  `default_quality`, `Dataset.spec` keys the catalog does not model (now
+  `DatasetMeta.extra_spec`, such as the BISKO weather seeding stamp), the instance name's
+  translations, and every `order` that `OrderedModel` replaced on creation.
+- **`InstanceConfig.delete()`** now also removes the instance's binding sets (which
+  protected its nodes, so deleting a municipality with local selections failed), its
+  dimensions and data sources once nothing kept uses them, and schemas nothing holds that
+  declare its dimensions. Each left a row a re-import collided with.
+- **Nothing in a snapshot is ordered by pk any more**: catalog datasets by identifier and
+  uuid, bindings by node uuid, declared port order and position, override sets by uuid.
+  At runtime, `Node.bind_runtime_inputs` orders a role's bindings by declared port before
+  position; it used to break ties between ports by binding uuid, which is random, so a
+  copy multiplied its factors the other way round.
+
+Checked on real instances in scratch copies of `paths-fi` and `paths-de-data-studio`:
+`tampere-c4c`, `aarhus-c4c`, `equalia`, `ostersund-c4c`, `cork-nzc`, `climaville-c4c`
+(a framework template), `gragnano` (NZC measures) and six BISKO municipalities each
+export, restore with `--replace` and export again identically. `test_instance --compare
+--all-nodes` finds every restored instance computing as the original, and the runtime
+order fix leaves the originals' outputs unchanged. A copy of `tampere-c4c` matches its
+source in every column, values to within float rounding (4e-16 relative).
+
+Found, not fixed here:
+
+- `MultiplicativeNode` keeps only the first factor's qualifier columns, so which qualifiers
+  a product carries depends on the input order. The order is now the declared one, which
+  makes it stable, but not right.
+- `copy_instance` refuses an instance without node rows of its own, so a BISKO
+  municipality is copied only through the framework mutation.
+- Matching by uuid in `instance_export_sync` is left for the sync diff (*Later*).
 
 ### Afterwards: the editor reads datasets from its edition
 
@@ -489,6 +527,10 @@ built from the row it wrote or from a refreshed request graph.
 
 ### Later
 
+- **Retire `InstanceModelSpec.dimensions`** into typed `DimensionMeta` fields (`groups`,
+  `is_internal`, `help_text`, category colours and aliases), so the loader builds its
+  dimensions from the same catalog the import writes. It is the last untyped dict in an
+  export that describes model structure.
 - **Sync with a diff.** Pushing a local instance to a remote deployment that
   already holds it should first show what would change there. Until then step 5
   refuses an existing instance.

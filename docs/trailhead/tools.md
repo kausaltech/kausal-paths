@@ -642,8 +642,9 @@ python manage.py copy_instance zuerich zuerich-copy --dry-run
 
 ### Choosing a representation: `--mode {auto,db,yaml}`
 
-- **`db`** — `export_instance` → `import_instance` into a fresh
-  `config_source='database'` InstanceConfig. A self-contained snapshot of
+- **`db`** — `export_instance` → `import_instance_copy` into a fresh
+  `config_source='database'` InstanceConfig: the export rekeyed to new uuids, then
+  imported (see `docs/architecture/export-import-and-copies.md`). A self-contained snapshot of
   the source's *current DB state*, including admin/UI edits and
   DB-resident datasets. Use for instances that are already
   database-backed.
