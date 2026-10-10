@@ -577,9 +577,9 @@ def binding_to_gql(row: NodeInputPortBinding) -> DatasetPortType:
     )
 
     port._dataset = DatasetType.from_model(row.dataset)
+    port._dataset._forecast_from = forecast_from_transformations(row.transformations or [])
+    port._dataset_uuid = row.dataset.uuid
     port._transformations = list(row.transformations or [])
-    if port._dataset is not None:
-        port._dataset._forecast_from = forecast_from_transformations(row.transformations or [])
     return port
 
 
