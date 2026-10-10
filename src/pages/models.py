@@ -340,7 +340,7 @@ class OutcomePage(PathsPage):
     ]
 
     graphql_fields = PathsPage.graphql_fields + [
-        GraphQLField('outcome_node', 'nodes.schema.NodeType', required=True),
+        GraphQLField('outcome_node', 'nodes.graphql.types.node.NodeType', required=True),
         GraphQLString('lead_title'),
         GraphQLString('lead_paragraph'),
     ]

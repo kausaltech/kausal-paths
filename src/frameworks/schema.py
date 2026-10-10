@@ -27,8 +27,8 @@ from paths.graphql_types import resolve_unit
 
 from nodes.constants import VALUE_COLUMN, YEAR_COLUMN
 from nodes.exceptions import NodeComputationError
+from nodes.graphql.types.node import NodeInterface
 from nodes.models import InstanceConfig
-from nodes.schema import NodeInterface
 from nodes.units import unit_registry
 from orgs.models import Organization, OrganizationIdentifier
 from users.models import User
@@ -655,7 +655,7 @@ class FrameworkConfigType(DjangoNode[FrameworkConfig]):
         client_url=graphene.String(required=False), description=_('Public URL for instance dashboard'), required=False
     )
     results_download_url = graphene.String(description=_('URL for downloading a results file'))
-    instance = graphene.Field('nodes.schema.InstanceType', required=False)
+    instance = graphene.Field('nodes.graphql.types.instance.InstanceType', required=False)
     organization_slug = graphene.String(required=False)
     organization_identifier = graphene.String(required=False)
     is_locked = graphene.Boolean(required=True)

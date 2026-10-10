@@ -50,25 +50,39 @@ from kausal_common.users import user_or_bust, user_or_none
 from paths import gql
 from paths.identifiers import identifier_or_none
 
+from datasets.graphql.editor import DatasetEditorMutation, create_metric_row
+from datasets.graphql.types import DatasetType
 from datasets.materialization import refresh_dataset_materialization
+from datasets.validation import InstanceDatasetValidationError
 from frameworks.catalogue import dimension_scopes, schema_scopes
 from frameworks.models import Framework
+from frameworks.submission_schema import SubmissionMutations
 from nodes import inventory_years
+from nodes.actions.simple import AdditiveAction
 from nodes.change_ops import gql_change_operation, record_change
 from nodes.constraints.validation import BindingChange, InstanceConstraintError
 from nodes.defs import ActionGroup, FormulaConfig, SimpleConfig
 from nodes.defs.binding_def import EdgeBindingDef
 from nodes.defs.node_defs import ActionConfig, NodeKind, NodeSpec, PipelineConfig, TypeConfig
-from nodes.defs.port_def import InputPortDef, OutputPortDef
+from nodes.defs.port_def import InputPortDef, OutputPortDef, pair_input_ports_to_outputs
 from nodes.graphql.binding_storage import LocalBindingEditor
 from nodes.graphql.bindings import bind_dataset, binding_editor, port_occupants
 from nodes.graphql.constraint_checks import check_binding_change, edge_candidate, require_draft_graph
 from nodes.graphql.inputs import get_input_port, get_output_port, is_maybe_set
+from nodes.graphql.types.graph import DatasetPortType
 from nodes.input_bindings import compact_port_positions, next_port_position
-from nodes.instance_graph import NodeEditContext, NodeMeta
+from nodes.instance_graph import NodeEditContext, NodeMeta, node_class_for_spec, node_class_for_type_config
 from nodes.instance_problems import DataEntryDefinitionError
 from nodes.instance_serialization import InputBindingSnapshot, NodePortSource
-from nodes.models import InstanceConfig, NodeConfig, NodeInputPortBinding, NodeLayout, NodeLayoutSource, PreferredInstanceSource
+from nodes.models import (
+    InputPortBindingReference,
+    InstanceConfig,
+    NodeConfig,
+    NodeInputPortBinding,
+    NodeLayout,
+    NodeLayoutSource,
+    PreferredInstanceSource,
+)
 from nodes.node import Node
 from nodes.parameter_values import set_scenario_parameter
 from nodes.template_graph import replace_input_port_bindings, upgrade_template_instance
@@ -93,13 +107,11 @@ if TYPE_CHECKING:
     from kausal_common.i18n.pydantic import I18nString
     from kausal_common.models.ordered import OrderedModel
 
-    from datasets.graphql.editor import CreateDatasetMetricInput, DatasetEditorMutation
-    from datasets.graphql.types import DatasetType, DataSourceType  # used in lazy strawberry annotations
-    from frameworks.submission_schema import SubmissionMutations
+    from datasets.graphql.editor import CreateDatasetMetricInput
+    from datasets.graphql.types import DataSourceType
     from nodes.defs.transform_def import PortTransformOp
     from nodes.graphql.bindings import BindDatasetInput, PortBindingEditorMutation
     from nodes.graphql.template_bindings import InputPortBindingInput
-    from nodes.graphql.types.graph import DatasetPortType  # used in lazy strawberry annotations
     from users.models import User
 
 
@@ -127,16 +139,12 @@ def _get_instance_config(info: gql.Info, instance_id: sb.ID) -> InstanceConfig:
 
 
 def _resolve_model_instance(info: gql.Info, ic: InstanceConfig, *, refresh: bool = False) -> InstanceType:
-    from nodes.models import PreferredInstanceSource
-
     if refresh:
         info.context.invalidate_runtime_instance(ic, source=PreferredInstanceSource.DRAFT)
     return InstanceType.from_model(ic, source=PreferredInstanceSource.DRAFT)
 
 
 def _resolve_runtime_node(info: gql.Info, ic: InstanceConfig, node_id: int) -> Node:
-    from nodes.models import PreferredInstanceSource
-
     try:
         nc = NodeConfig.objects.select_related('instance').get(pk=node_id)
     except NodeConfig.DoesNotExist:
@@ -161,15 +169,11 @@ def _parse_port_id(info: gql.Info, raw_port_id: str, *, field_name: str) -> UUID
 
 
 def _node_class_for(nc: NodeConfig) -> type[Node]:
-    from nodes.instance_graph import node_class_for_spec
-
     assert nc.spec is not None
     return node_class_for_spec(nc.spec)
 
 
 def _is_additive_action_class(node_class: type[Node]) -> bool:
-    from nodes.actions.simple import AdditiveAction
-
     return issubclass(node_class, AdditiveAction)
 
 
@@ -180,7 +184,6 @@ def _paired_action_input_ports(
 ) -> list[InputPortDef]:
     if not _is_additive_action_class(node_class):
         return input_ports
-    from nodes.defs.port_def import pair_input_ports_to_outputs
 
     return pair_input_ports_to_outputs(input_ports, output_ports, role='input', keep_unpaired=False)
 
@@ -196,8 +199,6 @@ def _unique_port_identifier(existing: set[str], base: str) -> str:
 
 def _default_input_ports(type_config: TypeConfig) -> list[InputPortDef]:
     """Instantiate every class-declared input role at its default count for a new node."""
-    from nodes.instance_graph import node_class_for_type_config
-
     node_class = node_class_for_type_config(type_config)
     ports: list[InputPortDef] = []
     identifiers: set[str] = set()
@@ -252,7 +253,6 @@ def _select_existing_target_port(
     to_node: NodeConfig, source_port: OutputPortDef, occupied_port_ids: set[UUID] | None = None
 ) -> UUID | None:
     """Pick an existing input port with capacity for a new connection, if any fits."""
-
     assert to_node.spec is not None
     input_ports = to_node.spec.input_ports
 
@@ -329,8 +329,6 @@ def _plan_target_port(
 
 def _append_input_port(to_node: NodeConfig, port: InputPortDef) -> None:
     """Persist a planned input port, recorded as a ``node.update`` entry so undo can strip it."""
-    from nodes.change_ops import record_change
-
     assert to_node.spec is not None
     before = to_node.serializable_data()
     to_node.spec.input_ports = [*to_node.spec.input_ports, port]
@@ -377,7 +375,6 @@ def _check_target_port_capacity(info: gql.Info, to_node: NodeConfig, to_port: UU
     Occupancy is structural capacity, not shape: it stays a hard error while
     every shape/unit/quantity question belongs to the constraint solver.
     """
-
     target_port = get_input_port(to_node, to_port)
     if target_port is None:
         raise GraphQLValidationError(info, f'Input port "{to_port}" does not exist on node "{to_node.identifier}"')
@@ -782,7 +779,7 @@ class UpdateDataSourceInput:
 @sb.type(name='ModelNodePayload')
 class NodePayload:
     ok: bool
-    node: NodeInterface | None = sb.field(graphql_type=Annotated['NodeInterface', sb.lazy('nodes.schema')])
+    node: NodeInterface | None = sb.field(graphql_type=Annotated['NodeInterface', sb.lazy('nodes.graphql.types.node')])
 
 
 @sb.type(name='ModelEdgePayload')
@@ -883,8 +880,6 @@ def _persist_action_groups(ic: InstanceConfig, groups: list[ActionGroup]) -> Non
 
 
 def _invalidate_action_group_runtime(info: gql.Info, ic: InstanceConfig) -> None:
-    from nodes.models import PreferredInstanceSource
-
     info.context.invalidate_runtime_instance(ic, source=PreferredInstanceSource.DRAFT)
 
 
@@ -1077,8 +1072,6 @@ def _check_port_identifier_unique(
 
 def _node_conflicts(info: gql.Info, ic: InstanceConfig, nc: NodeConfig) -> list[ConstraintConflictType]:
     """Solve the draft graph's constraints and return the conflicts touching this node."""
-    from nodes.models import PreferredInstanceSource
-
     graph = info.context.require_instance_graph(ic, source=PreferredInstanceSource.DRAFT)
     result = info.context.require_constraint_solve(ic, source=PreferredInstanceSource.DRAFT)
     return conflicts_for_node(graph, result, nc.uuid)
@@ -1472,8 +1465,6 @@ class NodeEditorMutation:
     @staticmethod
     def _port_bindings(ic: InstanceConfig, nc: NodeConfig, port_id: UUID, direction: str) -> list[Any]:
         """Project the port's current bindings the same way the node read side does."""
-        from nodes.graphql.types.graph import DatasetPortType
-
         annotated = ic.nodes.get_queryset().annotate_ports().get(pk=nc.pk)
         if direction == 'output':
             return [
@@ -1763,8 +1754,6 @@ class InstanceEditorMutation:
         if not NodeConfig.gql_create_allowed(info, ic):
             raise PermissionDeniedError(info, 'Permission denied for create')
 
-        from nodes.instance_graph import node_class_for_type_config
-
         type_config = _type_config_for_kind(info, input.kind, input.config)
         node_class = node_class_for_type_config(type_config.to_pydantic())
 
@@ -1894,8 +1883,6 @@ class InstanceEditorMutation:
         'DatasetEditorMutation',
         sb.lazy('datasets.graphql.editor'),
     ]:
-        from datasets.graphql.editor import DatasetEditorMutation
-
         ic = root.instance
         dataset = get_or_error(
             info,
@@ -1908,8 +1895,6 @@ class InstanceEditorMutation:
     @sb.field(description='Manage the submissions (reported balances) of this instance')
     @staticmethod
     def submissions(root: sb.Parent[Me]) -> Annotated['SubmissionMutations', sb.lazy('frameworks.submission_schema')]:
-        from frameworks.submission_schema import SubmissionMutations
-
         return SubmissionMutations(instance=root.instance)
 
     @sb.field(description='Edit an input-port binding (dataset or edge) that belongs to this instance')
@@ -2081,7 +2066,6 @@ class InstanceEditorMutation:
         pk lookup is intentionally not supported — GQL surfaces must not expose
         DB primary keys.
         """
-
         qs = ic.nodes.get_queryset()
         if with_spec:
             qs = qs.with_spec()
@@ -2291,7 +2275,6 @@ class InstanceEditorMutation:
     @staticmethod
     def _apply_category_update(info: gql.Info, item: UpdateDimensionCategoryInput) -> DimensionCategory:
         """Look up and apply field updates for a single category. Returns the updated instance."""
-
         cat = DimensionCategory.objects.filter(uuid=item.category_id).select_related('dimension').first()
         if cat is None:
             raise NotFoundError(info, f'Category "{item.category_id}" not found')
@@ -2697,8 +2680,6 @@ class InstanceEditorMutation:
         | NodeValueValidationViolationsType
         | DataEntryDefinitionProblemsType
     ):
-        from datasets.validation import InstanceDatasetValidationError
-
         ic = _get_instance_config(info, instance_id)
         if ic.config_source != 'database':
             raise GraphQLError('Cannot publish YAML-sourced instances')
@@ -2917,9 +2898,6 @@ class InstanceEditorMutation:
         root: sb.Parent[Me],
         input: CreateDatasetInput,
     ) -> Any:
-        from datasets.graphql.editor import create_metric_row
-        from datasets.graphql.types import DatasetType
-
         ic = root.instance
         # The dataset's own policy inherits from the schema, which is created
         # here too — schema creation is the meaningful permission gate.
@@ -2981,8 +2959,6 @@ class InstanceEditorMutation:
         root: sb.Parent[Me],
         input: UpdateDatasetInput,
     ) -> Any:
-        from datasets.graphql.types import DatasetType
-
         ic = root.instance
         dataset = InstanceEditorMutation._get_dataset(info, ic, input.dataset_id)
         schema = dataset.schema
@@ -3040,8 +3016,6 @@ class InstanceEditorMutation:
     ) -> DeletePayload:
         ic = root.instance
         dataset = InstanceEditorMutation._get_dataset(info, ic, dataset_id, for_action='delete')
-
-        from nodes.models import InputPortBindingReference
 
         if (
             dataset.node_input_bindings.exists()

@@ -17,19 +17,24 @@ pure function of the class.
 
 from __future__ import annotations
 
+import importlib
+from collections import Counter
 from dataclasses import dataclass, field
 from functools import cache
 from typing import TYPE_CHECKING, Any, cast
 from uuid import NAMESPACE_URL, UUID, uuid3, uuid5
 
-from pydantic import TypeAdapter
+from django.utils.translation import gettext_lazy as _
+from pydantic import TypeAdapter, ValidationError as PydanticValidationError
 
-from kausal_common.i18n.pydantic import TranslatedString
+from kausal_common.i18n.pydantic import TranslatedString, set_i18n_context
 
-from paths.identifiers import identifier_or_none
+from paths.identifiers import identifier_or_none, validate_identifier
 
 from datasets.validation_rules import rule_list_adapter
-from nodes.constants import VALUE_COLUMN, DecisionLevel
+from nodes.actions.action import ENABLED_BY_DEFAULT, ENABLED_PARAM_ID, ActionNode
+from nodes.actions.simple import AdditiveAction
+from nodes.constants import DEFAULT_METRIC, VALUE_COLUMN, DecisionLevel
 from nodes.data_entry_yaml import YAMLAmendment, YAMLDataEntry, YAMLSection, resolve_yaml_data_entry
 from nodes.defs import (
     ActionConfig,
@@ -41,6 +46,7 @@ from nodes.defs import (
     SimpleConfig,
     YearsSpec,
 )
+from nodes.defs.action_def import ImpactOverviewSpec
 from nodes.defs.graph import (
     DatasetMeta,
     DatasetMetricMeta,
@@ -49,38 +55,52 @@ from nodes.defs.graph import (
     QualityLevelKey,
     ValidationRuleMeta,
 )
-from nodes.defs.instance_defs import ActionGroup, DatasetRepoSpec, InstanceFeatures, InstanceMetadata, InstanceTerms
+from nodes.defs.instance_defs import (
+    ActionGroup,
+    DatasetRepoSpec,
+    InstanceFeatures,
+    InstanceMetadata,
+    InstanceTerms,
+    NormalizationSpec,
+)
 from nodes.defs.node_defs import ActionHookDef, NodeSpecExtra
-from nodes.defs.port_def import InputPortDef, OutputPortDef
+from nodes.defs.port_def import InputPortDef, OutputPortDef, pair_input_ports_to_outputs
 from nodes.defs.shape_defs import ShapeCombinationSpec, ShapeRequiredGroupSpec, ShapeSpec
+from nodes.defs.transform_def import AssignDimensionOp, FilterDimensionOp
 from nodes.dimensions import Dimension
 from nodes.formula import FormulaNode
+from nodes.generic import GenericNode
 from nodes.goals import NodeGoals
 from nodes.instance_serialization import (
     DatasetPortSnapshot,
     EdgeSnapshot,
     InstanceSnapshot,
     NodeSnapshot,
+    unified_binding_snapshots,
 )
+from nodes.node import Node, NodeMetric
+from nodes.scenario import Scenario, ScenarioKind
 from nodes.shapes import ShapeResolutionError, resolve_shapes
+from nodes.simple import AdditiveNode
 from nodes.units import Unit, unit_registry
 from nodes.value_validation import ValueContract
-from nodes.visualizations import NodeVisualizations
+from nodes.visualizations import AUTO_ID, NodeVisualizations
 from nodes.yaml_port_refs import YamlPortReferenceCatalog
+from pages.config import pages_from_config
+from params.discover import AnyParameter, discover_global_parameters
+from params.param import ReferenceParameter
+
+from .excel_results import InstanceResultExcel
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from nodes.defs.transform_def import EdgeTransformOp
-    from nodes.node import Node, NodeMetric
-    from nodes.scenario import Scenario
     from params import Parameter
 
 
 @cache
 def _parameter_adapter() -> TypeAdapter[Parameter]:
-    from params.discover import AnyParameter
-
     return TypeAdapter(AnyParameter)
 
 
@@ -119,11 +139,6 @@ def _to_ts(val: Any) -> TranslatedString | None:
 
 
 def import_node_class(type_path: str, *, is_action: bool) -> type[Node]:
-    import importlib
-
-    from nodes.actions.action import ActionNode
-    from nodes.node import Node
-
     if type_path.startswith('nodes.'):
         prefix = None
     else:
@@ -274,8 +289,6 @@ class InstanceConfigParser:
     # -- top level ------------------------------------------------------------
 
     def parse(self) -> InstanceSnapshot:
-        from kausal_common.i18n.pydantic import set_i18n_context
-
         with set_i18n_context(self.default_language, self.other_languages):
             return self._parse()
 
@@ -306,9 +319,6 @@ class InstanceConfigParser:
             parsed.output_ports = self._build_output_ports(parsed)
         for parsed in self.nodes.values():
             parsed.input_ports = self._build_input_ports(parsed)
-            from nodes.actions.simple import AdditiveAction
-            from nodes.defs.port_def import pair_input_ports_to_outputs
-
             if issubclass(parsed.node_class, AdditiveAction):
                 parsed.input_ports = pair_input_ports_to_outputs(parsed.input_ports, parsed.output_ports, role='input')
 
@@ -321,8 +331,6 @@ class InstanceConfigParser:
         # Positions are assigned here for the YAML runtime; the sync write half
         # reassigns after its schema resolution, which can change the dataset
         # fan-out cardinality.
-        from nodes.instance_serialization import unified_binding_snapshots
-
         return InstanceSnapshot(
             metadata=metadata,
             spec=spec,
@@ -424,8 +432,6 @@ class InstanceConfigParser:
         persisted — sync matches datasets and metrics by identifier against
         the rows placeholder sync has minted.
         """
-        from pydantic import ValidationError as PydanticValidationError
-
         entries: list[DatasetMeta] = []
         seen: set[str] = set()
         for ds_conf in self.config.get('datasets', []):
@@ -475,8 +481,6 @@ class InstanceConfigParser:
         dataset_id: str,
         metric_config: dict[str, Any],
     ) -> DatasetMetricMeta:
-        from pydantic import ValidationError as PydanticValidationError
-
         metric_id = metric_config.get('id')
         if not metric_id:
             raise InstanceParseError(f"Metric entry of dataset '{dataset_id}' is missing an 'id'")
@@ -493,8 +497,6 @@ class InstanceConfigParser:
         )
 
     def _parse_global_params(self) -> None:
-        from params.discover import discover_global_parameters
-
         prototypes = discover_global_parameters()
         for pc_orig in self.config.get('params', []):
             pc = dict(pc_orig)
@@ -530,12 +532,6 @@ class InstanceConfigParser:
             self.global_params[param_id] = param
 
     def _parse_instance_spec(self) -> InstanceModelSpec:
-        from nodes.defs.action_def import ImpactOverviewSpec
-        from nodes.defs.instance_defs import NormalizationSpec
-        from pages.config import pages_from_config
-
-        from .excel_results import InstanceResultExcel
-
         config = self.config
         target_year = config['target_year']
         years = YearsSpec(
@@ -726,10 +722,6 @@ class InstanceConfigParser:
         return param
 
     def _parse_scenarios(self) -> list[Scenario]:  # noqa: C901, PLR0912
-        from django.utils.translation import gettext_lazy as _
-
-        from nodes.scenario import Scenario, ScenarioKind
-
         scenario_confs: list[dict[str, Any]] = self.config.get('scenarios', [])
         if not scenario_confs:
             scenario_confs = [{'id': 'default', 'name': TranslatedString(str(_('Default'))), 'default': True}]
@@ -842,8 +834,6 @@ class InstanceConfigParser:
 
     def _parse_node_metrics(self, parsed: _ParsedNode) -> None:  # noqa: C901, PLR0912, PLR0915
         """Mirror ``make_node`` + ``Node._init_metrics`` metric normalization."""
-        from nodes.node import NodeMetric
-
         config = parsed.config
         node_class = parsed.node_class
         metrics_conf = config.get('output_metrics')
@@ -886,8 +876,6 @@ class InstanceConfigParser:
             output_metrics = {}
 
         if output_metrics:
-            from paths.identifiers import validate_identifier
-
             for met_id, met in output_metrics.items():
                 # populate_unit: always derive the parsed unit from default_unit.
                 if isinstance(met.default_unit, Unit):
@@ -908,8 +896,6 @@ class InstanceConfigParser:
                     if not met.column_id:
                         met.column_id = met_id
         else:
-            from nodes.constants import DEFAULT_METRIC
-
             assert quantity is not None
             assert unit is not None
             parsed.unit = unit
@@ -954,9 +940,6 @@ class InstanceConfigParser:
 
     def _parse_node_datasets(self, parsed: _ParsedNode) -> None:
         """Mirror ``_make_node_datasets`` for the binding definitions (no data loading)."""
-        from nodes.generic import GenericNode
-        from nodes.simple import AdditiveNode
-
         config = parsed.config
         ds_config = config.get('input_datasets')
         if ds_config is None:
@@ -989,8 +972,6 @@ class InstanceConfigParser:
 
     def _parse_node_params(self, parsed: _ParsedNode) -> None:  # noqa: C901, PLR0912, PLR0915
         """Mirror ``_make_node_params``."""
-        from params.param import ReferenceParameter
-
         if issubclass(parsed.node_class, FormulaNode):
             parsed.formula = parsed.config.get('formula')
         params = parsed.config.get('params', [])
@@ -1061,8 +1042,6 @@ class InstanceConfigParser:
 
     def _ensure_enabled_param(self, parsed: _ParsedNode) -> None:
         """Mirror ``ActionNode.finalize_init``: every action carries an 'enabled' parameter."""
-        from nodes.actions.action import ENABLED_BY_DEFAULT, ENABLED_PARAM_ID
-
         param = next((p for p in parsed.params if p.local_id == ENABLED_PARAM_ID), None)
         enabled = self._default_actions_enabled()
         if param is None:
@@ -1438,8 +1417,6 @@ class InstanceConfigParser:
 
     def _build_input_ports(self, parsed: _ParsedNode) -> list[InputPortDef]:
         """Derive the input ports from incoming edges and dataset bindings."""
-        from collections import Counter
-
         ports = self._build_dataset_input_ports(parsed)
         multi_candidates: list[_InputPortMultiCandidate] = []
 
@@ -1597,8 +1574,6 @@ class InstanceConfigParser:
         The runtime assigns these during validation with a context; Pydantic
         validates nested models bottom-up, so the numbering is post-order.
         """
-        from nodes.visualizations import AUTO_ID
-
         for entry in entries:
             children = getattr(entry, 'children', None)
             if children:
@@ -1723,8 +1698,6 @@ class InstanceConfigParser:
 
     def _edge_to_transforms(self, edge: _ParsedEdge) -> list[EdgeTransformOp]:
         """Mirror ``edge_to_transforms``."""
-        from nodes.defs.transform_def import AssignDimensionOp, FilterDimensionOp
-
         transforms: list[EdgeTransformOp] = []
         for dim_id, ed in edge.from_dimensions.items():
             transforms.append(

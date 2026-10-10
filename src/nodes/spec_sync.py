@@ -10,31 +10,57 @@ against captured schema state (the parse oracle does this).
 
 from __future__ import annotations
 
+from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 from uuid import uuid3
 
+from django.db import transaction
+
 from loguru import logger
 
+from kausal_common.datasets.models import Dataset, Dataset as DatasetModel, DatasetMetric, DatasetMetricValidationRule
+from kausal_common.i18n.pydantic import get_modeltrans_attrs_from_str, set_i18n_context
+
 from datasets.catalogue import dataset_meta_from_model
+from datasets.materialization import refresh_dataset_materialization
+from datasets.placeholders import sync_dataset_placeholders_from_snapshot
 from datasets.shape_domain import SHAPE_SPEC_KEY
 from datasets.snapshot import metric_column_id
-from nodes.defs.transform_def import resolve_metric_columns
+from frameworks.evidence import DEFAULT_QUALITY_SPEC_KEY
+from nodes.defs.transform_def import forecast_from_transformations, resolve_metric_columns, without_transformations
+from nodes.dimensions import Dimension
+from nodes.input_bindings import reconcile_input_bindings
+from nodes.instance_loader import InstanceYAMLConfig
+from nodes.instance_parser import parse_instance_snapshot
+from nodes.instance_serialization import (
+    DatasetMetricSource,
+    InputBindingSnapshot,
+    _dimension_catalog_for,
+    dataset_port_match_keys,
+    edge_match_keys,
+    existing_dataset_port_identities,
+    existing_edge_identities,
+    group_dataset_bindings,
+    match_preserved_uuids,
+    ordered_unified_bindings,
+    reconcile_snapshot_node_metadata,
+)
+from nodes.models import DatasetMaterialization, InstanceConfig, NodeConfig, NodeInputPortBinding
+from nodes.yaml_port_refs import build_yaml_port_reference_catalog
 
 if TYPE_CHECKING:
     from collections.abc import Hashable, Sequence
     from uuid import UUID
 
-    from kausal_common.datasets.models import Dataset as DatasetModel, DatasetMetric
     from kausal_common.i18n.pydantic import TranslatedString
 
     from datasets.validation_rules import ValidationRule
     from nodes.defs.graph import DatasetMeta
     from nodes.defs.node_defs import NodeSpec
     from nodes.defs.transform_def import PortTransformOp
-    from nodes.instance_serialization import InputBindingSnapshot, InstanceSnapshot, NodeSnapshot
-    from nodes.models import InstanceConfig, NodeConfig
+    from nodes.instance_serialization import InstanceSnapshot, NodeSnapshot
     from nodes.yaml_port_refs import YamlPortReferenceCatalog
 
 
@@ -54,8 +80,6 @@ class DatasetSchemaInfo:
 
 def collect_dataset_schema_info(ic: InstanceConfig) -> dict[str, DatasetSchemaInfo]:
     """Collect per-dataset schema info for an instance's datasets (by identifier)."""
-    from kausal_common.datasets.models import DatasetMetric
-
     db_datasets = _get_db_datasets(ic)
     schema_pks = {ds.schema.pk for ds in db_datasets.values() if ds.schema is not None}
     metrics_by_schema: dict[int, list[DatasetMetric]] = {}
@@ -77,8 +101,6 @@ def collect_dataset_schema_info(ic: InstanceConfig) -> dict[str, DatasetSchemaIn
 
 def _get_db_datasets(ic: InstanceConfig) -> dict[str, DatasetModel]:
     """Build a lookup of dataset identifier -> DB Dataset for an instance."""
-    from kausal_common.datasets.models import Dataset as DatasetModel
-
     return {
         ds.identifier: ds
         for ds in DatasetModel.objects.get_queryset().for_instance_config(ic).select_related('schema')
@@ -146,11 +168,6 @@ def _promote_dataset_forecast_defaults(ic: InstanceConfig) -> int:
     ``Dataset.spec.forecast_from`` and clear matching binding overrides so
     those bindings inherit the dataset default.
     """
-    from collections import defaultdict
-
-    from datasets.materialization import refresh_dataset_materialization
-    from nodes.models import DatasetMaterialization, NodeInputPortBinding
-
     ports_by_dataset: dict[int, list[NodeInputPortBinding]] = defaultdict(list)
     ports = (
         NodeInputPortBinding.objects.filter(instance=ic, dataset__isnull=False).select_related('dataset').order_by('dataset_id')
@@ -176,8 +193,6 @@ def _promote_dataset_forecast_defaults(ic: InstanceConfig) -> int:
         # read it back, silently dropping forecast_from and breaking Forecast-column synthesis.
         if dataset.is_external_placeholder:
             continue
-        from nodes.defs.transform_def import forecast_from_transformations
-
         years = {
             year for port in dataset_ports if (year := forecast_from_transformations(port.transformations or [])) is not None
         }
@@ -189,8 +204,6 @@ def _promote_dataset_forecast_defaults(ic: InstanceConfig) -> int:
                 dataset.spec = spec
                 dataset.save(update_fields=['spec'])
                 promoted += 1
-
-            from nodes.defs.transform_def import without_transformations
 
             changed_ports: list[NodeInputPortBinding] = []
             for port in dataset_ports:
@@ -239,8 +252,6 @@ def resolve_dataset_port_snapshots(  # noqa: C901, PLR0912
     schema's metrics to the columns, fall back to keeping schema-metric-keyed
     rows when nothing pairs, and drop entries whose metric doesn't exist.
     """
-    from nodes.instance_serialization import DatasetMetricSource, InputBindingSnapshot, group_dataset_bindings
-
     node_specs: dict[UUID, NodeSpec] = {}
     for n in snapshot.nodes:
         assert n.spec is not None
@@ -354,8 +365,6 @@ def _store_instance_spec(ic: InstanceConfig, snapshot: InstanceSnapshot) -> None
 
 def _sync_dimensions_from_snapshot(ic: InstanceConfig, snapshot: InstanceSnapshot) -> None:
     """Mirror ``InstanceConfig.sync_dimensions`` from the spec's dimension configs."""
-    from nodes.dimensions import Dimension
-
     for dim_config in snapshot.spec.dimensions:
         dim = Dimension.model_validate(dim_config)
         ic.sync_dimension(dim, update_existing=True)
@@ -391,8 +400,6 @@ def _apply_declared_default_quality(dataset: DatasetModel, metadata: DatasetMeta
     difference is that there is no database default to fall back on, so an absent declaration
     means no default rather than whatever the row holds.
     """
-    from frameworks.evidence import DEFAULT_QUALITY_SPEC_KEY
-
     spec = dict(dataset.spec or {})
     declared = metadata.default_quality.model_dump() if metadata.default_quality is not None else None
     if spec.get(DEFAULT_QUALITY_SPEC_KEY) == declared:
@@ -436,10 +443,6 @@ def _sync_dataset_metadata_from_snapshot(ic: InstanceConfig, snapshot: InstanceS
     from the config are left untouched. Invalid or conflicting declarations
     fail the sync loudly.
     """
-    from kausal_common.datasets.models import Dataset
-
-    from datasets.materialization import refresh_dataset_materialization
-
     declared_schema_editability: dict[int, tuple[str, bool]] = {}
     for ds_meta in snapshot.datasets:
         ds_id = ds_meta.identifier
@@ -494,8 +497,6 @@ def _sync_dataset_metadata_from_snapshot(ic: InstanceConfig, snapshot: InstanceS
 
 def _apply_declared_metric_rules(metric: DatasetMetric, declared: list[ValidationRule]) -> bool:
     """Replace the metric's rule rows when the declared rule list differs; returns whether it did."""
-    from kausal_common.datasets.models import DatasetMetricValidationRule
-
     blobs = [rule.model_dump(mode='json') for rule in declared]
     existing_rows = list(metric.validation_rules.order_by('order'))
     if [row.rule for row in existing_rows] == blobs:
@@ -515,8 +516,6 @@ def _seed_node_metadata_from_snapshot(nc: NodeConfig, n: NodeSnapshot, primary_l
     proves that they have not yet adopted YAML metadata. Once initialized,
     existing ORM metadata is authoritative.
     """
-    from kausal_common.i18n.pydantic import get_modeltrans_attrs_from_str
-
     i18n: dict[str, str] = {}
     attributes: dict[str, object] = {
         'color': n.color,
@@ -558,19 +557,6 @@ def _write_bindings(
     reference catalog) win, and rows the catalog missed are matched to
     surviving structural identities so a re-sync never churns identity.
     """
-    from kausal_common.datasets.models import DatasetMetric
-
-    from nodes.input_bindings import reconcile_input_bindings
-    from nodes.instance_serialization import (
-        dataset_port_match_keys,
-        edge_match_keys,
-        existing_dataset_port_identities,
-        existing_edge_identities,
-        match_preserved_uuids,
-        ordered_unified_bindings,
-    )
-    from nodes.models import NodeInputPortBinding
-
     edges = snapshot.edge_bindings
     edge_keys: list[tuple[Hashable, ...]] = []
     for edge in edges:
@@ -659,8 +645,6 @@ def _upsert_node_configs(
     snapshot: InstanceSnapshot,
     existing_node_configs: list[NodeConfig] | None = None,
 ) -> dict[UUID, NodeConfig]:
-    from nodes.models import NodeConfig
-
     if existing_node_configs is None:
         existing_node_configs = list(
             NodeConfig.objects.with_spec().filter(instance=ic).select_related('indicator_node', 'copy_of', 'layout')
@@ -714,16 +698,6 @@ def sync_parsed_instance_to_db(
     and the oracle that compared the two were retired on 2026-09-15, once the
     binding serialization they guarded had settled.
     """
-    from django.db import transaction
-
-    from kausal_common.i18n.pydantic import set_i18n_context
-
-    from datasets.placeholders import sync_dataset_placeholders_from_snapshot
-    from nodes.instance_loader import InstanceYAMLConfig
-    from nodes.instance_parser import parse_instance_snapshot
-    from nodes.instance_serialization import reconcile_snapshot_node_metadata
-    from nodes.models import InstanceConfig, NodeConfig
-
     if yaml_path is None:
         yaml_path = Path(f'configs/{instance_id}.yaml').resolve()
     else:
@@ -741,8 +715,6 @@ def sync_parsed_instance_to_db(
             NodeConfig.objects.with_spec().filter(instance=ic).select_related('indicator_node', 'copy_of', 'layout')
         )
         node_uuids = {nc.identifier: nc.uuid for nc in existing_node_configs}
-        from nodes.yaml_port_refs import build_yaml_port_reference_catalog
-
         port_references = build_yaml_port_reference_catalog(ic)
         snapshot = parse_instance_snapshot(
             data,
@@ -773,8 +745,6 @@ def sync_parsed_instance_to_db(
             if data.get('data_entry'):
                 # Dimension identities are assigned by the ORM sync. Resolve the YAML
                 # layout once more against the now-persisted port/dimension catalog.
-                from nodes.instance_serialization import _dimension_catalog_for
-
                 resolved = parse_instance_snapshot(
                     data,
                     instance_uuid=ic.uuid,

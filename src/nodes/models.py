@@ -26,7 +26,7 @@ from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import models, transaction
 from django.db.models import F, OuterRef, Q
 from django.db.models.expressions import DatabaseDefault
-from django.db.models.functions import JSONObject
+from django.db.models.functions import Cast, JSONObject
 from django.db.models.manager import Manager
 from django.http import HttpRequest
 from django.utils import timezone
@@ -35,8 +35,9 @@ from modelcluster.models import ClusterableModel
 from modeltrans.fields import TranslationField
 from modeltrans.manager import MultilingualQuerySet
 from wagtail import blocks
+from wagtail.actions.publish_revision import PublishPermissionError
 from wagtail.fields import RichTextField, StreamField
-from wagtail.models import DraftStateMixin, Locale, Page, RevisionMixin
+from wagtail.models import DraftStateMixin, Locale, Page, Revision, RevisionMixin
 from wagtail.search import index
 
 import sentry_sdk
@@ -48,10 +49,13 @@ from loguru import logger
 from wagtail_color_panel.fields import ColorField
 
 from kausal_common.datasets.models import (
+    Dataset,
     Dataset as DatasetModel,
     DatasetMetric,
     DatasetSchema,
     DatasetSchemaScope,
+    DataSource,
+    Dimension,
     Dimension as DatasetDimensionModel,
     DimensionCategory,
     DimensionScope,
@@ -83,27 +87,40 @@ from paths.utils import (
     get_supported_languages,
 )
 
+from datasets.defs import DimensionCategorySpec, DimensionSpec
+from datasets.runtime import DBDataset
+from datasets.snapshot import metric_column_id_expr
+from frameworks.catalogue import dimension_scopes
 from frameworks.models import Framework
+from nodes.constraints.validation import require_valid_instance_constraints
 from nodes.defs import DatasetBindingDef, EdgeBindingDef, InstanceModelSpec, NodeSpec, YearsSpec
 from nodes.defs.instance_defs import ActionGroup, InstanceFeatures, InstanceMetadata
 from nodes.defs.transform_def import StoredPortTransformOp
 from nodes.fields import InstanceSpecField
 from nodes.instance_graph import NodeEditContext, NodeMeta
+from nodes.instance_graph_cache import get_instance_graph, resolve_instance_source
 from nodes.instance_serialization import (
+    DatasetMetricSource,
+    DatasetRevisionPinSnapshot,
     InputBindingSnapshot,
+    InstanceSnapshot,
+    NodePortSource,
     NodeSnapshot,
 )
 from nodes.template_settings import InheritedNodeSettings
 from nodes.template_spec import validate_spec_references
+from nodes.value_validation import InstanceValueValidationError, collect_instance_value_violations, publication_blockers
 from orgs.models import Organization
 from pages.blocks import CardListBlock
+from people.models import DatasetGroupPermission, DatasetPersonPermission
+
+from .instance_serialization import SNAPSHOT_SCHEMA_VERSION, build_instance_snapshot, reconcile_node_snapshot_metadata
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
     from datetime import datetime
 
     from django.db.models import CharField
-    from wagtail.models import Revision
 
     from loguru import Logger
 
@@ -124,7 +141,6 @@ if TYPE_CHECKING:
 
     from frameworks.models import FrameworkConfig, Submission
     from nodes.dimensions import Dimension as NodeDimension
-    from nodes.instance_serialization import InstanceSnapshot
     from nodes.node import Node
     from nodes.snapshot_base import ModelSnapshot
     from pages.config import OutcomePage as OutcomePageConfig
@@ -315,8 +331,6 @@ class InstanceConfigPermissionPolicy(ModelPermissionPolicy['InstanceConfig', Non
             q |= Q(framework_config__isnull=True)
 
         # Explicit dataset grants make the dataset's instance visible, so the grantee can reach the data.
-        from people.models import DatasetGroupPermission, DatasetPersonPermission
-
         granted = DatasetModel.objects.filter(
             Q(pk__in=DatasetPersonPermission.objects.filter(person__user=user).values('object_id'))
             | Q(pk__in=DatasetGroupPermission.objects.filter(group__persons__user=user).values('object_id'))
@@ -750,8 +764,6 @@ class InstanceConfig(
     @transaction.atomic
     @copy_signature(models.Model.delete)
     def delete(self, **kwargs):
-        from kausal_common.datasets.models import Dataset, DataSource, Dimension, DimensionScope
-
         root_page = self.root_page
         if root_page is not None:
             self.root_page = None
@@ -896,8 +908,6 @@ class InstanceConfig(
             if node is None:
                 continue
             if bind_reconciled_snapshots:
-                from .instance_serialization import NodeSnapshot, reconcile_node_snapshot_metadata
-
                 source_snapshot = NodeSnapshot.from_runtime_node(
                     node,
                     uuid=node_config.uuid,
@@ -1004,8 +1014,6 @@ class InstanceConfig(
         exist for admin-side revision diffs and for
         ``from_serializable_data`` to look up the live row by pk.
         """
-        from .instance_serialization import SNAPSHOT_SCHEMA_VERSION, build_instance_snapshot
-
         data: dict[str, Any] = {
             'pk': self.pk,
             'identifier': self.identifier,
@@ -1083,9 +1091,6 @@ class InstanceConfig(
         Raises ``InstanceConstraintError`` carrying the complete conflict set;
         used as the publication gate and before strict computation contexts.
         """
-        from nodes.constraints.validation import require_valid_instance_constraints
-        from nodes.instance_graph_cache import get_instance_graph, resolve_instance_source
-
         source = resolve_instance_source(self, PreferredInstanceSource.DRAFT)
         graph = get_instance_graph(self, PreferredInstanceSource.DRAFT, resolved_source=source)
         require_valid_instance_constraints(self, graph, source)
@@ -1108,10 +1113,6 @@ class InstanceConfig(
         Value violations of the submission tier surface in the editor but do not block an
         ordinary publication; `require_submittable` makes them block it, for a submission.
         """
-        from wagtail.actions.publish_revision import PublishPermissionError
-        from wagtail.models import Revision
-
-        from nodes.instance_serialization import DatasetRevisionPinSnapshot, build_instance_snapshot
         from nodes.template_graph import lock_template_for_publication, publish_template_instance
 
         if user is not None and not self.permission_policy().user_has_perm(user, 'change', self):
@@ -1171,13 +1172,6 @@ class InstanceConfig(
             # Dataset validation rules gate publication the same way: the
             # violations were just re-evaluated by the refresh above.
             require_valid_dataset_rules(materializations.values(), require_submittable=require_submittable)
-            from nodes.instance_graph_cache import get_instance_graph
-            from nodes.value_validation import (
-                InstanceValueValidationError,
-                collect_instance_value_violations,
-                publication_blockers,
-            )
-
             graph = get_instance_graph(locked, PreferredInstanceSource.DRAFT)
             from nodes.instance_problems import require_valid_data_entry_definition
 
@@ -1276,7 +1270,6 @@ class InstanceConfig(
 
     def restore_revision(self, revision: Revision[InstanceConfig]) -> None:
         """Restore the editable model definition and template pin from an instance revision."""
-        from nodes.instance_serialization import InstanceSnapshot
         from nodes.snapshot_restore import restore_instance_definition
 
         if revision.content_type.pk != ContentType.objects.get_for_model(type(self)).pk or revision.object_id != str(self.pk):
@@ -1329,10 +1322,6 @@ class InstanceConfig(
         snapshot_data = content.get('model_snapshot') or {}
         structured = snapshot_data.get('structured')
         if structured is not None:
-            from kausal_common.i18n.pydantic import set_i18n_context
-
-            from .instance_serialization import InstanceSnapshot
-
             source_schema_version = structured.get('schema_version', 1)
             raw_metadata = structured.get('metadata') or {}
             primary_language = raw_metadata.get('primary_language', self.primary_language)
@@ -1387,8 +1376,6 @@ class InstanceConfig(
                 if instance is not None:
                     return instance
                 # Fall through to the draft path if no published revision exists.
-
-            from .instance_serialization import build_instance_snapshot
 
             self._check_dimension_orm_coverage()
             snapshot = build_instance_snapshot(self)
@@ -1568,8 +1555,6 @@ class InstanceConfig(
             raise AssertionError(f'Dimension ORM missing entries for instance {self.identifier!r}: {missing}')
 
     def _orm_category_ids_by_dim(self) -> dict[str, set[str]]:
-        from frameworks.catalogue import dimension_scopes
-
         scopes = dimension_scopes(self).select_related('dimension').prefetch_related('dimension__categories')
         result: dict[str, set[str]] = {}
         for scope in scopes:
@@ -1605,8 +1590,6 @@ class InstanceConfig(
         assert data is not None
         primary_language = data['default_language']
         other_languages = list(data.get('supported_languages') or [])
-        from kausal_common.i18n.pydantic import set_i18n_context
-
         with set_i18n_context(primary_language, other_languages):
             spec = make_minimal_instance_spec(data, instance_uuid=self.uuid)
         mtime_hash = yaml_conf.meta.mtime_hash or yaml_conf.meta.calculate_mtime_hash()
@@ -1804,8 +1787,6 @@ class InstanceConfig(
         return InstanceHostname.objects.create(instance=self, hostname=hostname, base_path=base_path)
 
     def sync_nodes(self, update_existing=False, delete_stale=False, overwrite=False, skip_descriptions=False):
-        from datasets.runtime import DBDataset
-
         instance = self.get_instance()
         node_configs = {n.identifier: n for n in self.nodes.all()}
         found_nodes = set()
@@ -1844,8 +1825,6 @@ class InstanceConfig(
         found_cats = set()
         default_lang = self.primary_language
         assert scope.identifier is not None
-
-        from datasets.defs import DimensionCategorySpec
 
         cats = {cat.identifier: cat for cat in dataset_dim.categories.all()}
         for order, cat in enumerate(dim.categories):
@@ -1894,8 +1873,6 @@ class InstanceConfig(
         update_existing=False,
         delete_stale=False,
     ) -> DatasetDimensionModel:
-        from datasets.defs import DimensionSpec
-
         scope = DimensionScope.objects.filter(
             scope_content_type=ContentType.objects.get_for_model(self),
             scope_id=self.pk,
@@ -2194,8 +2171,6 @@ class NodeConfigQuerySet(MultilingualQuerySet['NodeConfig'], PathsQuerySet['Node
         Served from the authoritative ``NodeInputPortBinding`` table. This is
         the projection behind ``port_edge_bindings`` / ``port_dataset_bindings``.
         """
-        from datasets.snapshot import metric_column_id_expr
-
         edge_bindings = (
             NodeInputPortBinding.objects
             .filter(Q(node=OuterRef('pk')) | Q(source_node=OuterRef('pk')), source_node__isnull=False)
@@ -2260,8 +2235,6 @@ class NodeConfigQuerySet(MultilingualQuerySet['NodeConfig'], PathsQuerySet['Node
         A GenericForeignKey scope does not cascade, so every path that deletes nodes calls this
         first. Bindings of owned datasets can only be on the owning nodes, which are going anyway.
         """
-        from kausal_common.datasets.models import Dataset
-
         node_ids = list(self.values_list('pk', flat=True))
         if not node_ids:
             return
@@ -2371,8 +2344,6 @@ class NodeConfigPermissionPolicy(
         inherited_template_ids = InstanceConfig.objects.filter(
             template_revision__content_type=ContentType.objects.get_for_model(InstanceConfig),
         ).values('template_revision__object_id')
-        from django.db.models.functions import Cast
-
         return q & (
             Q(is_editable=True)
             | Q(instance_id__in=template_ids)
@@ -2579,8 +2550,6 @@ class NodeConfig(PathsModel[InstanceConfig], EditableInstanceChild, index.Indexe
             self.update_relations_from_node(node)
 
     def update_relations_from_node(self, node: Node):
-        from datasets.runtime import DBDataset
-
         current_dss = {ds.pk for ds in self.datasets.all()}
         for dataset in node.input_dataset_instances:
             if not isinstance(dataset, DBDataset):
@@ -3263,11 +3232,6 @@ class InputPortBindingSet(UUIDIdentifiedModel):
 
     @copy_signature(models.Model.save)
     def save(self, *args, **kwargs):
-        from kausal_common.datasets.models import Dataset
-
-        from nodes.instance_serialization import DatasetMetricSource, NodePortSource
-        from nodes.models import NodeConfig
-
         with transaction.atomic():
             result = super().save(*args, **kwargs)
             self.references.all().delete()

@@ -20,6 +20,7 @@ from kausal_common.strawberry.pydantic import StrawberryPydanticType, pydantic_t
 from paths import gql
 from paths.refs import DimensionIdentifierRef
 
+from nodes.actions.action import ActionNode
 from nodes.defs.instance_defs import DatasetRepoSpec, InstanceModelSpec, YearsSpec
 from nodes.defs.node_defs import OutputMetricDef
 from nodes.defs.port_def import InputPortDef, OutputPortDef
@@ -34,8 +35,8 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from nodes.defs.port_def import InputPortDeclaration
+    from nodes.graphql.types.graph import InputPortBinding, NodeEdgeType
     from nodes.node import Node
-    from nodes.schema import InputPortBinding, NodeEdgeType
     from nodes.value_validation import ValueContract
     from params.schema import ParameterInterface
 
@@ -117,7 +118,7 @@ class InputPortType(StrawberryPydanticType[InputPortDef]):
     _definition_editable: sb.Private[bool] = True
     _mutation_editable: sb.Private[bool | None] = None
     required_dimensions: list[DimensionIdentifierRef]
-    bindings: list[Annotated['InputPortBinding', sb.lazy('nodes.schema')]] = sb.field(default_factory=list)
+    bindings: list[Annotated['InputPortBinding', sb.lazy('nodes.graphql.types.graph')]] = sb.field(default_factory=list)
 
     _node_uuid: sb.Private[UUID | None] = None
     _node: sb.Private['Node | None'] = None
@@ -209,7 +210,7 @@ class OutputPortType(StrawberryPydanticType[OutputPortDef]):
     _definition_editable: sb.Private[bool] = True
     _mutation_editable: sb.Private[bool | None] = None
     dimensions: list[DimensionIdentifierRef]
-    edges: list[Annotated['NodeEdgeType', sb.lazy('nodes.schema')]] = sb.field(default_factory=list)
+    edges: list[Annotated['NodeEdgeType', sb.lazy('nodes.graphql.types.graph')]] = sb.field(default_factory=list)
 
     _node: sb.Private['Node | None'] = None
     _spec: sb.Private['OutputPortDef | None'] = None
@@ -241,9 +242,6 @@ class OutputPortType(StrawberryPydanticType[OutputPortDef]):
     @sb.field(graphql_type=DimensionalMetricType | None)
     @staticmethod
     def output(root: 'OutputPortType') -> DimensionalMetric | None:
-        from nodes.actions.action import ActionNode
-        from nodes.metric import DimensionalMetric
-
         if root._node is None or root._spec is None:
             return None
         if isinstance(root._node, ActionNode):
