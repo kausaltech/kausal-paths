@@ -423,7 +423,9 @@ afterwards instead, replacing it wherever the tagged node has a value and leavin
         return additive_multiplicity_hint(type(self), edge)
 
     def lower_to_pipeline_ir(self):
-        from nodes.pipeline import AddOperationSpec, IdentityOperationSpec, InputNodeBinding, PipelineNodeIR, PortInputRef
+        from nodes.pipeline.ir import InputNodeBinding, PipelineNodeIR
+        from nodes.pipeline.ops.arithmetic import AddOperationSpec, IdentityOperationSpec
+        from nodes.pipeline.ops.base import PortInputRef
 
         unsupported_params = [
             'drop_nans',
@@ -718,7 +720,9 @@ afterwards instead, replacing it wherever the tagged input has a value.""")
         return additive_multiplicity_hint(type(self), edge)
 
     def lower_to_pipeline_ir(self):
-        from nodes.pipeline import AddOperationSpec, IdentityOperationSpec, InputNodeBinding, PipelineNodeIR, PortInputRef
+        from nodes.pipeline.ir import InputNodeBinding, PipelineNodeIR
+        from nodes.pipeline.ops.arithmetic import AddOperationSpec, IdentityOperationSpec
+        from nodes.pipeline.ops.base import PortInputRef
 
         if self.input_dataset_instances:
             raise NotImplementedError('AdditiveNode2 pipeline lowering does not yet support input datasets')
@@ -1217,7 +1221,9 @@ class MultiplicativeNode(SimpleNode, PipelineCompatibleNode):
         return result
 
     def lower_to_pipeline_ir(self):
-        from nodes.pipeline import InputNodeBinding, MultiplyOperationSpec, PipelineNodeIR, PortInputRef
+        from nodes.pipeline.ir import InputNodeBinding, PipelineNodeIR
+        from nodes.pipeline.ops.arithmetic import MultiplyOperationSpec
+        from nodes.pipeline.ops.base import PortInputRef
 
         unsupported_params = [
             'only_historical',
@@ -1503,7 +1509,9 @@ afterwards, replacing it wherever the tagged input has a value.""")
         return result
 
     def lower_to_pipeline_ir(self):
-        from nodes.pipeline import InputNodeBinding, MultiplyOperationSpec, PipelineNodeIR, PortInputRef
+        from nodes.pipeline.ir import InputNodeBinding, PipelineNodeIR
+        from nodes.pipeline.ops.arithmetic import MultiplyOperationSpec
+        from nodes.pipeline.ops.base import PortInputRef
 
         if self.input_dataset_instances:
             raise NotImplementedError('MultiplicativeNode2 pipeline lowering does not yet support input datasets')

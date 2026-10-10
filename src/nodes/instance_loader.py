@@ -36,11 +36,10 @@ from nodes.actions.action import ActionNode, ImpactOverview
 from nodes.actions.parent import ParentActionNode
 from nodes.constants import VALUE_COLUMN
 from nodes.context import Context
-from nodes.defs import FormulaConfig, SimpleConfig
 from nodes.defs.binding_def import DatasetBindingDef, EdgeBindingDef
 from nodes.defs.graph import DatasetMeta, DatasetMetricMeta
 from nodes.defs.instance_defs import NormalizationSpec
-from nodes.defs.node_defs import ActionConfig, InputDatasetDef, NodeKind
+from nodes.defs.node_defs import ActionConfig, FormulaConfig, InputDatasetDef, NodeKind, SimpleConfig
 from nodes.defs.transform_def import AssignDimensionOp, FilterDimensionOp, FlattenTransformation, modernized_transformations
 from nodes.edges import Edge, EdgeDimension
 from nodes.excel_results import InstanceResultExcel

@@ -29,13 +29,11 @@ from nodes import visualizations as viz
 from nodes.actions.action import ActionNode
 from nodes.actions.parent import ParentActionNode
 from nodes.constants import DecisionLevel
-from nodes.defs import SimpleConfig
 from nodes.defs.binding_def import DatasetBindingDef, EdgeBindingDef
-from nodes.defs.node_defs import ActionConfig, FormulaConfig, NodeKind, NodeSpec, PipelineConfig
+from nodes.defs.node_defs import ActionConfig, FormulaConfig, NodeKind, NodeSpec, PipelineConfig, SimpleConfig
 from nodes.exceptions import NodeError
 from nodes.graph_layout import NodeGraphLayoutMeta
 from nodes.graphql.editability import port_editable, runtime_source
-from nodes.graphql.types import DatasetPortType
 from nodes.graphql.types.change_history import EditableEntity, fetch_entity_history_by_uuid
 from nodes.graphql.types.impact import get_impact_metric
 from nodes.instance_graph import node_class_for_spec
@@ -47,7 +45,7 @@ from nodes.scenario import Scenario, ScenarioKind
 from params import Parameter
 
 from .constraints import ConstraintConflictType, conflicts_for_node
-from .graph import ActionGroupType, NodeEdgeType, action_group_type
+from .graph import ActionGroupType, DatasetPortType, NodeEdgeType, action_group_type
 from .layout import NodeLayoutType
 from .metric import (
     DimensionalFlowType,
@@ -886,7 +884,7 @@ class ActionNodeType(NodeInterface, EditableEntity):  # type: ignore[override]
             return expand_db_html(val)
         return None
 
-    @sb.field(graphql_type=Optional[Annotated['NodeType', sb.lazy('nodes.graphql.types')]])  # noqa: UP045  # pyright: ignore[reportDeprecated]
+    @sb.field(graphql_type=Optional[Annotated['NodeType', sb.lazy('nodes.graphql.types.node')]])  # noqa: UP045  # pyright: ignore[reportDeprecated]
     @staticmethod
     def indicator_node(root: ActionNode) -> 'Node | None':
         if root.source_snapshot is not None:
