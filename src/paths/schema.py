@@ -31,13 +31,9 @@ from paths.utils import validate_unit
 
 from frameworks.mutations import FrameworkMutation
 from frameworks.schema import Mutations as FrameworksMutations, Query as FrameworksQuery
+from nodes.graphql.editor import ModelEditorMutation, ModelEditorQuery
+from nodes.graphql.operations import Mutation as NodesMutation, SBQuery as SBNodesQuery, Subscription as NodesSubscription
 from nodes.models import InstanceConfig
-from nodes.schema import (
-    Mutation as NodesMutation,
-    SBQuery as SBNodesQuery,
-    Subscription as NodesSubscription,
-)
-from nodes.schema_model_editor import ModelEditorMutation, ModelEditorQuery
 from nodes.units import Unit
 from orgs.models import Organization
 from orgs.schema import OrganizationNode, Query as OrgsQuery

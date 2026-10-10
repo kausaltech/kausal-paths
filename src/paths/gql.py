@@ -147,7 +147,7 @@ def field(*args, **kwargs) -> Any:
 
 @copy_signature(strawberry.field)
 def instance_field(*args, **kwargs) -> Any:
-    from nodes.schema import InstanceType
+    from nodes.graphql.types.instance import InstanceType
 
     if 'graphql_type' not in kwargs:
         kwargs['graphql_type'] = InstanceType

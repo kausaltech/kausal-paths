@@ -12,10 +12,13 @@ nothing, so a failed replace always leaves the old binding intact.
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
+from datasets.catalogue import dataset_meta_from_model
 from datasets.snapshot import metric_column_id
 from nodes.constraints.validation import BindingChange, validate_binding_change
 from nodes.defs.binding_def import DatasetBindingDef, EdgeBindingDef, NodePortRef
 from nodes.graphql.types.constraints import ConstraintViolationsType
+from nodes.instance_graph_cache import resolve_instance_source
+from nodes.models import PreferredInstanceSource
 
 if TYPE_CHECKING:
     from kausal_common.datasets.models import Dataset as DatasetModel, DatasetMetric
@@ -29,16 +32,11 @@ if TYPE_CHECKING:
 
 
 def require_draft_graph(info: gql.Info, ic: InstanceConfig) -> InstanceGraph:
-    from nodes.models import PreferredInstanceSource
-
     return info.context.require_instance_graph(ic, source=PreferredInstanceSource.DRAFT)
 
 
 def check_binding_change(info: gql.Info, ic: InstanceConfig, change: BindingChange) -> ConstraintViolationsType | None:
     """Validate a candidate binding change against the draft graph; ``None`` means acceptable."""
-    from nodes.instance_graph_cache import resolve_instance_source
-    from nodes.models import PreferredInstanceSource
-
     graph = require_draft_graph(info, ic)
     resolved_source = resolve_instance_source(ic, PreferredInstanceSource.DRAFT)
     validation = validate_binding_change(ic, graph, resolved_source, change)
@@ -95,8 +93,6 @@ def dataset_candidate(
     datasets, so a first-time bind must inject the metadata it validates
     against.
     """
-    from datasets.catalogue import dataset_meta_from_model
-
     binding = DatasetBindingDef(
         id=binding_id or uuid4(),
         port_ref=NodePortRef(node_uuid=nc.uuid, node_id=nc.identifier, port_id=port_id),

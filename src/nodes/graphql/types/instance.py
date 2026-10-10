@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Annotated, Any, Protocol, Self, cast
 from uuid import UUID
 
 import strawberry as sb
+from django.contrib.contenttypes.models import ContentType
 from django.db.models import Prefetch
 from django.http import HttpRequest
 from django.utils import timezone
@@ -16,11 +17,12 @@ from wagtail.blocks.stream_block import StreamValue
 
 from grapple.types.streamfield import StreamFieldInterface
 
-from kausal_common.datasets.models import Dataset, DatasetSchema, DatasetSchemaDimension
+from kausal_common.datasets.models import Dataset, DatasetSchema, DatasetSchemaDimension, DataSource
 from kausal_common.models.uuid import query_pk_or_uuid_or_identifier
 from kausal_common.strawberry.grapple import grapple_field
 from kausal_common.strawberry.permissions import SuperuserOnly
 from kausal_common.strawberry.pydantic import StrawberryPydanticType
+from kausal_common.users import user_or_none
 
 from paths import gql
 from paths.graphql_helpers import graphql_error_nodes
@@ -29,22 +31,38 @@ from paths.graphql_types import UnitType
 from datasets.data_entry import DataEntryQuery
 from datasets.graphql import DatasetType
 from datasets.graphql.types import DatasetSchemaType
+from datasets.materialization import collect_instance_dataset_violations
+from datasets.plausibility import collect_instance_dataset_plausibility_findings
 from datasets.snapshot import metric_column_id
-from frameworks.catalogue import schema_scopes
-from frameworks.models import Framework, FrameworkConfig
+from frameworks.catalogue import dimension_scopes, schema_scopes
+from frameworks.models import Framework, FrameworkConfig, OrganizationAccessGrant
+from frameworks.mutations import OrganizationAccessGrantType
+from frameworks.submission_schema import submissions_for
 from nodes.defs import InstanceMetadata, InstanceModelSpec
 from nodes.defs.binding_def import DatasetBindingDef, EdgeBindingDef
 from nodes.defs.instance_defs import InstanceFeatures
+from nodes.defs.transform_def import forecast_from_transformations
 from nodes.goals import GoalActualValue, NodeGoalsEntry
 from nodes.graph_layout import GraphLayout
 from nodes.graphql.inputs import is_maybe_set
+from nodes.graphql.types.change_history import InstanceChangeOperationType
 from nodes.graphql.types.data_entry import DataEntryType
 from nodes.graphql.types.dimension import DimensionType
+from nodes.graphql.types.node import get_node_uuid_with_fallback
 from nodes.graphql.types.shape import ShapeType
 from nodes.instance import Instance
 from nodes.instance_problems import collect_instance_problems
-from nodes.instance_serialization import InstanceSnapshot
-from nodes.models import InstanceConfig, NodeLayout, PreferredInstanceSource
+from nodes.instance_serialization import InstanceSnapshot, export_instance
+from nodes.membership import seats_in_use
+from nodes.models import (
+    InstanceChangeOperation,
+    InstanceConfig,
+    InstanceInvitation,
+    InstanceMemberAssignment,
+    NodeInputPortBinding,
+    NodeLayout,
+    PreferredInstanceSource,
+)
 from nodes.node import Node
 from nodes.normalization import Normalization
 from nodes.quantities import get_registry as get_quantity_registry
@@ -80,19 +98,15 @@ if TYPE_CHECKING:
     from django.db.models import QuerySet
 
     from datasets.graphql.types import DataSourceType  # used in lazy strawberry annotation
-    from frameworks.mutations import OrganizationAccessGrantType
     from frameworks.schema import FrameworkConfigType  # used in lazy strawberry annotation
     from frameworks.submission_schema import SubmissionType
     from nodes.actions.action import ActionNode, ImpactOverview
     from nodes.context import Context
-    from nodes.graphql.types.change_history import InstanceChangeOperationType
     from nodes.graphql.types.impact import ImpactOverviewType  # used in lazy strawberry annotation
-    from nodes.graphql.types.node import NodeInterface, NodeType
+    from nodes.graphql.types.node import ActionNodeType, NodeInterface, NodeType
     from nodes.graphql.types.scenario import ScenarioType  # used in lazy strawberry annotation
     from nodes.instance_graph import InstanceGraph
-    from nodes.models import InstanceInvitation, NodeInputPortBinding
     from nodes.scenario import Scenario
-    from nodes.schema import ActionNodeType  # used in lazy strawberry annotation
     from params import Parameter
     from params.schema import ParameterInterface  # used in lazy strawberry annotation
     from users.graphql.mutations import InstanceInvitationType  # used in lazy strawberry annotation
@@ -142,7 +156,7 @@ class InstanceGoalEntry:
     label: str | None
     disabled: bool
     disable_reason: str | None
-    outcome_node: 'Node' = sb.field(graphql_type=Annotated['NodeType', sb.lazy('nodes.schema')])
+    outcome_node: 'Node' = sb.field(graphql_type=Annotated['NodeType', sb.lazy('nodes.graphql.types.node')])
     dimensions: list[InstanceGoalDimension]
     default: bool
 
@@ -160,8 +174,6 @@ class InstanceGoalEntry:
 
 
 def _dataset_binding_qs(ic: InstanceConfig) -> QuerySet[NodeInputPortBinding]:
-    from nodes.models import NodeInputPortBinding
-
     return (
         NodeInputPortBinding.objects
         .filter(instance=ic, dataset__isnull=False)
@@ -187,8 +199,6 @@ def _instance_editor_allowed(ic: InstanceConfig, info: gql.Info) -> bool:
 
 
 def _instance_admin_allowed(ic: InstanceConfig, info: gql.Info) -> bool:
-    from kausal_common.users import user_or_none
-
     user = user_or_none(info.context.user)
     if user is None:
         return False
@@ -234,8 +244,6 @@ class InstanceMemberType:
 
 
 def _collect_instance_members(ic: InstanceConfig) -> list[InstanceMemberType]:
-    from users.models import User as _User
-
     pp = ic.permission_policy()
     role_priority: list[tuple[InstanceMemberRole, Any]] = [
         (InstanceMemberRole.SUPER_ADMIN, pp.super_admin_role.get_existing_instance_group(ic)),
@@ -255,8 +263,6 @@ def _collect_instance_members(ic: InstanceConfig) -> list[InstanceMemberType]:
     if owner_pk is not None:
         role_by_user_pk.setdefault(owner_pk, InstanceMemberRole.ADMIN)
 
-    from nodes.models import InstanceMemberAssignment
-
     assignments = {assignment.user_id: assignment for assignment in InstanceMemberAssignment.objects.filter(instance_config=ic)}
     for user_pk, assignment in assignments.items():
         if user_pk not in role_by_user_pk or assignment.suspended_at is not None:
@@ -264,7 +270,7 @@ def _collect_instance_members(ic: InstanceConfig) -> list[InstanceMemberType]:
 
     if not role_by_user_pk:
         return []
-    users = _User.objects.filter(pk__in=list(role_by_user_pk.keys()))
+    users = User.objects.filter(pk__in=list(role_by_user_pk.keys()))
     return [
         InstanceMemberType(
             user=u,
@@ -373,7 +379,7 @@ class InstanceEditorFields:
     def last_published_at(root: 'InstanceEditorFields') -> datetime | None:
         return root._config.last_published_at
 
-    @sb.field(graphql_type=Annotated[InstanceSpecType | None, sb.lazy('nodes.schema_spec')])
+    @sb.field(graphql_type=Annotated[InstanceSpecType | None, sb.lazy('nodes.graphql.types.spec')])
     @staticmethod
     def spec(root: 'InstanceEditorFields', info: gql.Info) -> InstanceModelSpec | None:
         if root._config.template_revision_id is None and root._source in (None, PreferredInstanceSource.DRAFT):
@@ -459,8 +465,6 @@ class InstanceEditorFields:
     )
     @staticmethod
     def dataset_validation_violations(root: 'InstanceEditorFields') -> list[DatasetValidationViolationType]:
-        from datasets.materialization import collect_instance_dataset_violations
-
         return [
             DatasetValidationViolationType.from_violation(violation)
             for violation in collect_instance_dataset_violations(root._config)
@@ -472,8 +476,6 @@ class InstanceEditorFields:
     )
     @staticmethod
     def dataset_plausibility_findings(root: 'InstanceEditorFields') -> list[DatasetPlausibilityFindingType]:
-        from datasets.plausibility import collect_instance_dataset_plausibility_findings
-
         return [
             DatasetPlausibilityFindingType.from_finding(finding)
             for finding in collect_instance_dataset_plausibility_findings(root._config)
@@ -517,9 +519,6 @@ class InstanceEditorFields:
         limit: int = 50,
         before: datetime | None = None,
     ) -> 'list[InstanceChangeOperationType]':
-        from nodes.graphql.types.change_history import InstanceChangeOperationType
-        from nodes.models import InstanceChangeOperation
-
         if not root._config.gql_action_allowed(info, 'change', raise_on_denied=False):
             return []
         qs = (
@@ -565,7 +564,6 @@ class InstanceEditorFields:
                 external_metric_id=metric_column_id(dp.metric),
                 tags=list(dp.tags or []),
             )
-            from nodes.defs.transform_def import forecast_from_transformations
 
             port._dataset = DatasetType.from_model(dp.dataset)
             port._transformations = list(dp.transformations or [])
@@ -578,11 +576,9 @@ class InstanceEditorFields:
     @staticmethod
     def datasets(root: 'InstanceEditorFields', info: gql.Info) -> list[DatasetType]:
         """All DB-backed datasets scoped to this instance."""
-        from kausal_common.datasets.models import Dataset as DatasetModel
-
         ic = root._config
         qs = (
-            DatasetModel.objects
+            Dataset.objects
             .get_queryset()
             .with_schema_editability(Framework)
             .for_instance_config(ic)
@@ -611,13 +607,11 @@ class InstanceEditorFields:
         root: 'InstanceEditorFields', info: gql.Info, id: Annotated[sb.ID, sb.argument(description='Dataset pk/uuid/identifier)')]
     ) -> DatasetType | None:
         """One instance-scoped dataset by id."""
-        from kausal_common.datasets.models import Dataset as DatasetModel
-
         if not id.strip():
             return None
         ic = root._config
         qs = (
-            DatasetModel.objects
+            Dataset.objects
             .get_queryset()
             .with_schema_editability(Framework)
             .for_instance_config(ic)
@@ -628,7 +622,7 @@ class InstanceEditorFields:
         qs = qs.filter(query_pk_or_uuid_or_identifier(id))
         try:
             ds = qs.get()
-        except DatasetModel.DoesNotExist:
+        except Dataset.DoesNotExist:
             return None
         return DatasetType.from_model(ds)
 
@@ -638,10 +632,6 @@ class InstanceEditorFields:
     )
     @staticmethod
     def data_sources(root: 'InstanceEditorFields') -> list[Any]:
-        from django.contrib.contenttypes.models import ContentType
-
-        from kausal_common.datasets.models import DataSource
-
         ic = root._config
         ct = ContentType.objects.get_for_model(type(ic))
         return list(
@@ -655,8 +645,6 @@ class InstanceEditorFields:
     @staticmethod
     def dimensions(root: 'InstanceEditorFields') -> list[DimensionType]:
         """All dimensions scoped to this model instance."""
-        from frameworks.catalogue import dimension_scopes
-
         ic = root._config
         scopes = dimension_scopes(ic).select_related('dimension').prefetch_related('dimension__categories').order_by('order')
         return [DimensionType.from_scope(scope) for scope in scopes]
@@ -718,7 +706,7 @@ class NormalizationType:
     def label(root: Normalization) -> str:
         return str(root.normalizer_node.name)
 
-    @sb.field(graphql_type=Annotated['NodeType', sb.lazy('nodes.schema')])
+    @sb.field(graphql_type=Annotated['NodeType', sb.lazy('nodes.graphql.types.node')])
     @staticmethod
     def normalizer(root: Normalization) -> Node:
         return root.normalizer_node
@@ -782,7 +770,6 @@ class InstanceModelType:
         self._editor_nodes_prepared = True
 
     def _nodes_by_uuid(self) -> dict[UUID, Node]:
-        from nodes.graphql.types.node import get_node_uuid_with_fallback
 
         # The UUID of a runtime node comes from its NodeConfig row when there is
         # one; attach the rows first so a UUID lookup never falls back to the
@@ -824,7 +811,7 @@ class InstanceModelType:
         return ret
 
     @sb.field(
-        graphql_type=list[Annotated['NodeInterface', sb.lazy('nodes.schema')]],
+        graphql_type=list[Annotated['NodeInterface', sb.lazy('nodes.graphql.types.node')]],
         description='Nodes of the model. `id` accepts node identifiers and node UUIDs interchangeably.',
     )
     def nodes(self, info: gql.Info, id: list[sb.ID] | None = None) -> list[Node]:
@@ -859,18 +846,18 @@ class InstanceModelType:
         return self._instance.context
 
     @sb.field(
-        graphql_type=Annotated['NodeInterface', sb.lazy('nodes.schema')] | None,
+        graphql_type=Annotated['NodeInterface', sb.lazy('nodes.graphql.types.node')] | None,
         description='One node of the model, by identifier or UUID.',
     )
     def node(self, info: gql.Info, id: sb.ID) -> Node | None:
         nodes = self.nodes(info, [id])
         return nodes[0] if nodes else None
 
-    @sb.field(graphql_type=Annotated['ActionNodeType', sb.lazy('nodes.schema')] | None)
+    @sb.field(graphql_type=Annotated['ActionNodeType', sb.lazy('nodes.graphql.types.node')] | None)
     def action(self, id: sb.ID) -> 'ActionNode | None':
         return find_action(self.context, str(id))
 
-    @sb.field(graphql_type=list[Annotated['ActionNodeType', sb.lazy('nodes.schema')]])
+    @sb.field(graphql_type=list[Annotated['ActionNodeType', sb.lazy('nodes.graphql.types.node')]])
     def actions(self, only_root: bool = False) -> list['ActionNode']:
         return list_actions(self.context, only_root=only_root)
 
@@ -967,8 +954,6 @@ class InstanceType:
         ),
     )
     def submissions(self, info: gql.Info) -> list[Any]:
-        from frameworks.submission_schema import submissions_for
-
         return submissions_for(self._config, info)
 
     @cached_property
@@ -1011,8 +996,6 @@ class InstanceType:
         ),
     )
     def export(self, info: gql.Info) -> dict[str, Any]:
-        from nodes.instance_serialization import export_instance
-
         request = info.context.request
         origin = request.build_absolute_uri('/') if isinstance(request, HttpRequest) else None
         try:
@@ -1172,11 +1155,9 @@ class InstanceType:
         if self._snapshot is not None:
             return self._snapshot.copy_of
 
-        from nodes.models import InstanceConfig as _InstanceConfig
-
         if self._config.copy_of_id is None:
             return None
-        return _InstanceConfig.objects.filter(pk=self._config.copy_of_id).values_list('uuid', flat=True).first()
+        return InstanceConfig.objects.filter(pk=self._config.copy_of_id).values_list('uuid', flat=True).first()
 
     @sb.field(graphql_type=Annotated['FrameworkConfigType', sb.lazy('frameworks.schema')] | None)  # pyright: ignore[reportOperatorIssue]
     def framework_config(self, info: gql.Info) -> FrameworkConfig | None:
@@ -1197,9 +1178,6 @@ class InstanceType:
         description='Regional organization grants that cover this municipality. These are separate from municipal seats.',
     )
     def inherited_organization_grants(self, info: gql.Info) -> list['OrganizationAccessGrantType']:
-        from frameworks.models import OrganizationAccessGrant
-        from frameworks.mutations import OrganizationAccessGrantType
-
         if not _instance_admin_allowed(self._config, info) or not self._config.has_framework_config():
             return []
         framework = self._config.framework_config.framework
@@ -1220,7 +1198,6 @@ class InstanceType:
     def member_seats_in_use(self, info: gql.Info) -> int | None:
         if not _instance_admin_allowed(self._config, info):
             return None
-        from nodes.membership import seats_in_use
 
         return seats_in_use(self._config)
 
@@ -1229,12 +1206,10 @@ class InstanceType:
         description='Active (not accepted, not expired, not revoked) invitations for this instance.',
     )
     def invitations(self, info: gql.Info) -> list['InstanceInvitation']:
-        from nodes.models import InstanceInvitation as _InstanceInvitation
-
         if not _instance_admin_allowed(self._config, info):
             return []
         return list(
-            _InstanceInvitation.objects.filter(
+            InstanceInvitation.objects.filter(
                 instance_config=self._config,
                 accepted_at__isnull=True,
                 expires_at__gt=timezone.now(),
@@ -1260,7 +1235,7 @@ class InstanceType:
         return self._config.site_content.intro_content
 
     @sb.field(
-        graphql_type=list[Annotated['NodeInterface', sb.lazy('nodes.schema')]],
+        graphql_type=list[Annotated['NodeInterface', sb.lazy('nodes.graphql.types.node')]],
         deprecation_reason='Use model.nodes instead.',
     )
     def nodes(self, info: gql.Info, id: list[sb.ID] | None = None) -> list[Node]:

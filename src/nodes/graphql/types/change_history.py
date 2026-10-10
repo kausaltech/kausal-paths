@@ -24,16 +24,21 @@ from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 import strawberry as sb
+from django.contrib.contenttypes.models import ContentType
+
+from kausal_common.users import user_or_none
 
 from paths import gql
 
 from nodes.models import (
     InstanceChangeOperation,
+    InstanceConfig,
     InstanceModelLogEntry,
+    NodeConfig,
+    NodeInputPortBinding,
 )
 
 if TYPE_CHECKING:
-    from django.contrib.contenttypes.models import ContentType
     from django.db.models import Model
 
 
@@ -108,8 +113,6 @@ def fetch_entity_history_by_uuid(
     against the owning InstanceConfig recorded by each operation, so this
     helper is safe even when a type later gains a new query path.
     """
-    from django.contrib.contenttypes.models import ContentType
-
     models = django_model if isinstance(django_model, tuple) else (django_model,)
     cts = [ContentType.objects.get_for_model(model) for model in models]
     return _fetch_history_for_cts(cts, target_uuid, info, limit=limit, before=before)
@@ -131,10 +134,6 @@ def fetch_binding_history_by_uuid(
     rows are looked up by natural key — and may be absent on databases
     created after the removal.
     """
-    from django.contrib.contenttypes.models import ContentType
-
-    from nodes.models import NodeInputPortBinding
-
     cts = [ContentType.objects.get_for_model(NodeInputPortBinding)]
     cts.extend(ContentType.objects.filter(app_label='nodes', model__in=('nodeedge', 'datasetport')))
     return _fetch_history_for_cts(cts, target_uuid, info, limit=limit, before=before)
@@ -148,10 +147,6 @@ def _fetch_history_for_cts(
     limit: int,
     before: datetime | None = None,
 ) -> list[InstanceModelLogEntryType]:
-    from kausal_common.users import user_or_none
-
-    from nodes.models import InstanceConfig
-
     user = user_or_none(info.context.user)
     if user is None:
         return []
@@ -247,8 +242,6 @@ def _resolve_target(entry: InstanceModelLogEntry, info: gql.Info) -> Any:
     or when the target kind has no GQL representation yet. The ``before``
     snapshot in the entry data carries what was there for UI fallback.
     """
-    from nodes.models import NodeConfig, NodeInputPortBinding
-
     ct = entry.content_type
     if ct is None or entry.object_id is None:
         return None
@@ -290,7 +283,6 @@ def _resolve_binding_target(entry: InstanceModelLogEntry, pk: int, *, by_pk: boo
     rows themselves are gone.
     """
     from nodes.graphql.types.graph import NodeEdgeType
-    from nodes.models import NodeInputPortBinding
 
     qs = NodeInputPortBinding.objects.select_related('node', 'source_node', 'dataset', 'metric')
     if by_pk:

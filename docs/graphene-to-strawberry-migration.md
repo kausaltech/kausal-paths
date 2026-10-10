@@ -287,7 +287,7 @@ file (or in a circular import), use `sb.field(graphql_type=...)` with `Annotated
 ```python
 @sb.type
 class InstanceGoalEntry:
-    outcome_node: Node = sb.field(graphql_type=Annotated['NodeType', sb.lazy('nodes.schema')])
+    outcome_node: Node = sb.field(graphql_type=Annotated['NodeType', sb.lazy('nodes.graphql.types.node')])
 ```
 
 The Python type annotation (`Node`) reflects the actual runtime type, while

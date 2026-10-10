@@ -118,7 +118,7 @@ class MetricDimensionCategoryValue:
 
 @sb.type
 class ActionImpactType:
-    action: Annotated['ActionNodeType', sb.lazy('nodes.schema')]
+    action: Annotated['ActionNodeType', sb.lazy('nodes.graphql.types.node')]
     value: float
     year: int
     is_enabled: bool = sb.field(
