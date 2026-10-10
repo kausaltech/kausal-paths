@@ -1,5 +1,6 @@
 import math
 import typing
+from collections import defaultdict
 
 # import warnings
 from contextlib import nullcontext
@@ -10,6 +11,7 @@ from typing import Any, ClassVar, Literal, Self, overload
 import strawberry as sb
 from django.utils.translation import gettext_lazy as _
 
+import networkx as nx
 import numpy as np
 import pandas as pd
 import pint_pandas
@@ -36,12 +38,21 @@ from nodes.constants import (
     ensure_known_quantity,
     get_quantity_icon,
 )
+from nodes.constraints.port_roles import PortRoleInferenceResult
+from nodes.defs.binding_def import DatasetBindingDef, EdgeBindingDef
 from nodes.defs.transform_def import FlattenTransformation
 from nodes.goals import NodeGoals
+from nodes.hooks import apply_hooks
+from nodes.metric import DimensionalMetric
+from nodes.pipeline.compare import compare_node_with_lowered_pipeline
+from nodes.runtime_input import RuntimeInputPort
 from nodes.transforms import PipelineEnv, apply_port_transformations
+from params.base import ParameterWithUnit
 
+from .debug import plot_node_output, print_node_output
 from .edges import Edge
 from .exceptions import NodeComputationError, NodeError, NodeMissingDefaultUnitError
+from .node_cache import NodeHasher
 from .units import Quantity, Unit, unit_registry
 
 if typing.TYPE_CHECKING:
@@ -59,7 +70,6 @@ if typing.TYPE_CHECKING:
 
     from common.cache import CacheResult
     from datasets.runtime import Dataset
-    from nodes.constraints.port_roles import PortRoleInferenceResult
     from nodes.constraints.rules import AnyShapeRule
     from nodes.defs.binding_def import AnyPortBindingDef
     from nodes.defs.node_defs import NodeKind, NodeSpec
@@ -69,14 +79,13 @@ if typing.TYPE_CHECKING:
     from nodes.instance_graph import NodeMeta
     from nodes.instance_loader import ConfigLocation
     from nodes.instance_serialization import NodeSnapshot
-    from nodes.runtime_input import RuntimeInputBinding, RuntimeInputPort
+    from nodes.runtime_input import RuntimeInputBinding
     from nodes.visualizations import NodeVisualizations, VisualizationNodeDimension
     from params import Parameter
 
     from .context import Context
     from .dimensions import Dimension
     from .models import NodeConfig
-    from .node_cache import NodeHasher
     from .scenario import Scenario
 
 import polars as pl
@@ -668,8 +677,6 @@ class Node:
         config_location: ConfigLocation | None = None,
         spec: NodeSpec | None = None,
     ):
-        from .node_cache import NodeHasher
-
         self.id = validate_identifier(id)
         self.context = context
 
@@ -922,8 +929,6 @@ class Node:
     def get_global_parameter_value(self, id: str, *, required: Literal[False], units: Literal[False] = ...) -> object | None: ...
 
     def get_global_parameter_value(self, id: str, *, required: bool = True, units: bool = False) -> object | None:
-        from params.base import ParameterWithUnit
-
         if id not in self.global_parameters:
             if not required:
                 return None
@@ -1001,10 +1006,6 @@ class Node:
 
     def iter_input_ports(self, declaration: InputPortDeclaration) -> Iterator[RuntimeInputPort]:
         """Yield instantiated ports without collapsing a repeatable role into anonymous values."""
-        from collections import defaultdict
-
-        from nodes.runtime_input import RuntimeInputPort
-
         self._check_input_declaration(declaration)
         bindings_by_port: defaultdict[UUID, list[RuntimeInputBinding]] = defaultdict(list)
         unassigned: list[RuntimeInputBinding] = []
@@ -1584,8 +1585,6 @@ class Node:
 
         if cache_res is None or not cache_res.is_hit:
             if self.hooks:
-                from nodes.hooks import apply_hooks
-
                 df = apply_hooks(self, self.get_base_output_pl())
             else:
                 df = self._compute_validated(target_node)
@@ -1626,13 +1625,9 @@ class Node:
         return (df, cache_res)
 
     def print_output(self, only_years: list[int] | None = None, filters: list[str] | None = None):
-        from .debug import print_node_output
-
         print_node_output(self, only_years=only_years, filters=filters)
 
     def plot_output(self, filters: list[str] | None = None):
-        from .debug import plot_node_output
-
         plot_node_output(self, filters=filters)
 
     def print_pint_df(self, df: pd.DataFrame | pd.Series):
@@ -1772,9 +1767,6 @@ class Node:
         helpers (``input_ports_for_role()`` and friends) — role resolution is
         what this hook computes, and re-entering it is a class bug.
         """
-        from nodes.constraints.port_roles import PortRoleInferenceResult
-        from nodes.defs.binding_def import DatasetBindingDef
-
         result = PortRoleInferenceResult()
         for port in candidates:
             bindings = meta.bindings_for_port(port.id)
@@ -1817,8 +1809,6 @@ class Node:
         result: PortRoleInferenceResult,
     ) -> bool:
         """Return whether source metrics classified or rejected this legacy port."""
-        from nodes.defs.binding_def import EdgeBindingDef
-
         if not cls.legacy_input_port_roles_by_source_metric:
             return False
         columns = {str(binding.source_port.column_id) for binding in bindings if isinstance(binding, EdgeBindingDef)}
@@ -1874,8 +1864,6 @@ class Node:
     def get_downstream_nodes(
         self, *, max_depth: int | None = None, only_outcome: bool = False, until_node: Node | None = None
     ) -> list[Node]:
-        import networkx as nx
-
         node_ids = set[str]()
         if until_node is not None:
             simple_paths = nx.all_simple_paths(G=self.context.node_graph, source=self.id, target=until_node.id, cutoff=max_depth)
@@ -1971,8 +1959,6 @@ class Node:
         self.edges.append(edge)
 
     def is_connected_to(self, other: Node):
-        import networkx as nx
-
         return nx.has_path(self.context.node_graph, self.id, other.id)
 
     def get_baseline_values(self) -> ppl.PathsDataFrame:
@@ -2301,8 +2287,6 @@ class Node:
         return result_df
 
     def check(self):  # noqa: C901
-        from nodes.metric import DimensionalMetric
-
         df = self.get_output_pl()
         for m in self.output_metrics.values():
             if False:
@@ -2428,7 +2412,6 @@ class Node:
     ) -> None:
         """Compare legacy node execution against execution through lowered pipeline IR."""
 
-        from nodes.pipeline.compare import compare_node_with_lowered_pipeline
         from nodes.pipeline.compat import PipelineCompatibleNode
 
         if not isinstance(self, PipelineCompatibleNode):

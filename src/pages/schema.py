@@ -9,7 +9,7 @@ from grapple.types.pages import Page as GrapplePageType
 
 from paths.graphql_helpers import default_instance, graphql_error_nodes
 
-from nodes.schema import NodeType
+from nodes.graphql.types.node import NodeType
 from pages.page_interface import PageInterface
 
 from .models import OutcomePage, PathsPage

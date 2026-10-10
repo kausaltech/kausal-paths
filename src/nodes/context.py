@@ -3,12 +3,13 @@ from __future__ import annotations
 import hashlib
 import inspect
 import os
-from collections.abc import Generator
 from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass
 from functools import cached_property
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, overload
 
+import networkx as nx
 import orjson
 import rich
 from rich.tree import Tree
@@ -23,9 +24,18 @@ from paths.const import MODEL_CACHE_OP, MODEL_CALC_OP
 
 from common import base32_crockford, qualifiers
 from common.cache import Cache
+from datasets.manifests import persisted_manifest
+from datasets.prepared import PreparedDatasetStore
 from datasets.runtime import DVCDataset, FixedDataset
-from nodes.exceptions import ParameterError
+from frameworks.datasets import load_measure_datapoints
+from frameworks.models import FrameworkConfig, MeasureDataPoint
+from frameworks.qualifiers import qualifier_catalog_for_instance
+from nodes.actions.action import ActionNode
+from nodes.exceptions import NodeError, ParameterError
+from nodes.node import Node
+from nodes.node_cache import NodeHasher
 
+from .graph_layout import NodeGraphClassifier, NodeGraphClusterer
 from .units import unit_registry
 
 if TYPE_CHECKING:
@@ -44,7 +54,6 @@ if TYPE_CHECKING:
 
     from common import polars as ppl
     from common.qualifiers import QualifierCatalog
-    from datasets.prepared import PreparedDatasetStore
     from datasets.runtime import Dataset
     from nodes.defs.instance_defs import DatasetRepoSpec
     from nodes.explanations import NodeExplanationSystem
@@ -52,12 +61,10 @@ if TYPE_CHECKING:
     from params import Parameter
     from params.storage import SettingStorage
 
-    from .actions.action import ActionNode, ImpactOverview
+    from .actions.action import ImpactOverview
     from .dimensions import Dimension
-    from .graph_layout import NodeGraphClassifier, NodeGraphClusterer
     from .instance import Instance
     from .instance_graph import InstanceGraph
-    from .node import Node
     from .normalization import Normalization
     from .scenario import CustomScenario, Scenario
     from .units import CachingUnitRegistry, Unit
@@ -71,8 +78,6 @@ class FrameworkConfigData:
     @cached_property
     def measure_datapoints(self) -> pl.DataFrame:
         """Raw measure values shared by bindings for this computation context's lifetime."""
-        from frameworks.datasets import load_measure_datapoints
-
         return load_measure_datapoints(self.id)
 
 
@@ -229,10 +234,7 @@ class Context:
         model_end_year: int | None = None,
         sample_size: int = 0,
     ):
-        from nodes.actions.action import ActionNode
-
         self.obj_id = base32_crockford.gen_obj_id(id(self))
-        # Avoid circular import
         self.Action = ActionNode
         self.perf_context = PerfContext(supports_cache=True)
         if env_bool('ENABLE_MODEL_PERF_TRACING', default=False):
@@ -286,8 +288,6 @@ class Context:
 
     @cached_property
     def qualifiers(self) -> QualifierCatalog:
-        from frameworks.qualifiers import qualifier_catalog_for_instance
-
         return qualifier_catalog_for_instance(self.instance.__dict__.get('config'))
 
     @cached_property
@@ -355,8 +355,6 @@ class Context:
 
         Called when nodes and their connections have been configured.
         """
-        import networkx as nx
-
         g: nx.DiGraph[str] = nx.DiGraph()
         g.add_nodes_from([n.id for n in self.nodes.values()])
         for node in self.nodes.values():
@@ -380,19 +378,16 @@ class Context:
 
     @cached_property
     def node_graph_classifier(self) -> NodeGraphClassifier:
-        from .graph_layout import NodeGraphClassifier
-
         return NodeGraphClassifier(self)
 
     @cached_property
     def node_graph_clusterer(self) -> NodeGraphClusterer:
-        from .graph_layout import NodeGraphClusterer
-
         return NodeGraphClusterer(self)
 
     @cached_property
     def dataset_repo(self) -> dvc_pandas.Repository:
         """The dvc-pandas dataset repository for the computation model."""
+        # Import after kausal_common configures the Polars allocator.
         import dvc_pandas
 
         if self.dataset_repo_spec is None:
@@ -427,16 +422,12 @@ class Context:
 
     @cached_property
     def dvc_source_manifest(self) -> dvc_pandas.RepositoryManifest | None:
-        from datasets.manifests import persisted_manifest
-
         if self.dataset_repo_spec is None:
             return None
         return persisted_manifest(self.dataset_repo_spec, self.get_all_dvc_dataset_ids(), lambda: self.dataset_repo)
 
     @cached_property
     def dvc_manifest_loader(self) -> dvc_pandas.DatasetLoader:
-        from pathlib import Path
-
         from dvc_pandas import DatasetLoader
 
         root = os.getenv('DVC_CACHE_DIR')
@@ -444,8 +435,6 @@ class Context:
 
     @cached_property
     def prepared_dataset_store(self) -> PreparedDatasetStore:
-        from datasets.prepared import PreparedDatasetStore
-
         return PreparedDatasetStore()
 
     def load_dvc_dataset(self, ds_id: str) -> dvc_pandas.Dataset:
@@ -632,8 +621,6 @@ class Context:
         self.normalizations[id] = norm
 
     def _get_caller_node(self, frame: FrameType) -> Node | None:
-        from nodes.node import Node
-
         caller_frame: FrameType | None = inspect.getouterframes(frame, 0)[1].frame
         while caller_frame is not None:
             cl = caller_frame.f_locals
@@ -659,8 +646,6 @@ class Context:
 
     def get_parameter(self, param_id: str, *, required: bool = True) -> Parameter[Any] | None:
         if self.check_mode:
-            from nodes.exceptions import NodeError
-
             frame = inspect.currentframe()
             if frame is not None:
                 node = self._get_caller_node(frame)
@@ -775,8 +760,6 @@ class Context:
         attempting to prefetch the cached outputs from the external cache
         (Redis) with one request.
         """
-        from nodes.node_cache import NodeHasher
-
         NodeHasher.prefetch_nodes(context=self, nodes=nodes)
 
     def generate_baseline_values(self):
@@ -842,8 +825,6 @@ class Context:
         self.dvc_datasets.clear()
 
     def print_graph(self, include_datasets: bool = False) -> None:  # noqa: C901, PLR0915
-        import inspect
-
         visited_nodes: set[Node] = set()
         node_class_cache: dict[type, str] = {}
 
@@ -935,8 +916,6 @@ class Context:
 
     def get_actions(self) -> list[ActionNode]:
         """Get a list of all the action nodes in the context."""
-        from nodes.actions.action import ActionNode
-
         return [n for n in self.nodes.values() if isinstance(n, ActionNode)]
 
     def warning(self, msg: Any, *args, depth: int = 0, **kwargs) -> None:
@@ -950,8 +929,6 @@ class Context:
 
     @cached_property
     def framework_config_data(self) -> FrameworkConfigData | None:
-        from frameworks.models import FrameworkConfig
-
         ic = self.instance.config
         if ic is None:
             # Standalone YAML tooling; no InstanceConfig means no FrameworkConfig either.
@@ -967,8 +944,6 @@ class Context:
         fwd = self.framework_config_data
         if fwd is None:
             return None
-        from frameworks.models import MeasureDataPoint
-
         years = (
             MeasureDataPoint.objects
             .filter(measure__framework_config_id=fwd.id, value__isnull=False)

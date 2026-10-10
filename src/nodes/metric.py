@@ -13,6 +13,8 @@ from pydantic import BaseModel, Field, model_validator
 import numpy as np
 import polars as pl
 import sentry_sdk
+from colormath.color_conversions import convert_color  # type: ignore[import-untyped]
+from colormath.color_objects import LabColor, sRGBColor  # type: ignore[import-untyped]
 
 from common import polars as ppl, qualifiers
 
@@ -137,8 +139,6 @@ class Metric:
         return Metric(id=node.id, name=str(node.name), unit=df.get_unit(VALUE_COLUMN), node=node, df=df)
 
     def split_df(self) -> SplitValues | None:
-        import polars as pl
-
         if self.split_values is not None:
             return self.split_values
 
@@ -281,9 +281,6 @@ class MetricDimension(BaseModel):
         return self._cat_ids_by_prop('original_id')
 
     def ensure_unique_colors(self):
-        from colormath.color_conversions import convert_color  # type: ignore
-        from colormath.color_objects import LabColor, sRGBColor  # type: ignore
-
         color_counts = Counter(cat.color.lower() for cat in self.categories if cat.color is not None)
         color_map: dict[str, list[str]] = {}
         LAB_Kn = 18
@@ -439,8 +436,6 @@ class DimensionalMetric(BaseModel):
 
     @classmethod
     def generate_index_df(cls, dims: list[MetricDimension], years: list[int]) -> pl.DataFrame:
-        import polars as pl
-
         idx_names = [dim.original_id for dim in dims] + [YEAR_COLUMN]
         # The year dtype is given explicitly because `years` is empty whenever the node computed
         # to no rows at all -- a legitimate outcome, e.g. a weighted average whose weights are
@@ -550,7 +545,6 @@ class DimensionalMetric(BaseModel):
 
     def plot(self, dim_id: str | None = None):
         import altair as alt
-        import polars as pl
 
         df = self.to_df(drop_single_cat_dims=True).with_columns(pl.col('Year').cast(pl.Utf8))
         x = alt.X(field='Year', type='temporal')
@@ -615,8 +609,6 @@ class DimensionalFlow:
 
     @classmethod
     def from_action_node(cls, node: ActionNode) -> DimensionalFlow | None:  # noqa: C901, PLR0915
-        import polars as pl
-
         from .actions.shift import ShiftAction
 
         if not isinstance(node, ShiftAction):

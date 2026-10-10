@@ -24,9 +24,10 @@ if TYPE_CHECKING:
     from paths.graphql_types import UnitType
 
     from nodes.context import Context
+    from nodes.graphql.types.node import NodeInterface
+    from nodes.graphql.types.scenario import ScenarioType
     from nodes.node import Node
     from nodes.scenario import Scenario
-    from nodes.schema import NodeInterface, ScenarioType
 
 
 def _resolve_default_value(root: Parameter[Any, Any]) -> Any:
@@ -90,7 +91,7 @@ class ParameterInterface:
     def node_relative_id(root: Parameter[Any, Any]) -> sb.ID | None:
         return sb.ID(root.local_id)
 
-    @sb.field(graphql_type=Union[Annotated['NodeInterface', sb.lazy('nodes.schema')], None])  # pyright: ignore[reportDeprecated]
+    @sb.field(graphql_type=Union[Annotated['NodeInterface', sb.lazy('nodes.graphql.types.node')], None])  # pyright: ignore[reportDeprecated]
     @staticmethod
     def node(root: Parameter[Any, Any]) -> 'Node | None':
         return root.node
@@ -202,7 +203,7 @@ class ResetParameterResult:
 @sb.type
 class ActivateScenarioResult:
     ok: bool
-    active_scenario: 'Scenario' = sb.field(graphql_type=Annotated['ScenarioType', sb.lazy('nodes.schema')])
+    active_scenario: 'Scenario' = sb.field(graphql_type=Annotated['ScenarioType', sb.lazy('nodes.graphql.types.scenario')])
 
 
 @sb.type

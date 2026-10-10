@@ -2,10 +2,13 @@ from typing import TYPE_CHECKING, Annotated
 
 import strawberry as sb
 
+import polars as pl
+
 from paths.graphql_helpers import pass_context
 from paths.graphql_types import UnitType
 
 from nodes.constants import FORECAST_COLUMN, IMPACT_COLUMN, IMPACT_GROUP, YEAR_COLUMN
+from nodes.defs.action_def import ImpactGraphType
 from nodes.metric import DimensionalMetric, Metric, YearlyValue
 
 from .metric import DimensionalMetricType, NodeGoal
@@ -25,8 +28,6 @@ def get_impact_metric(
     target_node: Node,
     goal: NodeGoalsEntry | None = None,
 ) -> Metric | None:
-    import polars as pl
-
     df: ppl.PathsDataFrame = source_node.compute_impact(target_node)
     if goal is not None:
         df = goal.filter_df(df)
@@ -55,7 +56,7 @@ def get_impact_metric(
 
 @sb.type
 class ActionImpact:
-    action: 'ActionNode' = sb.field(graphql_type=Annotated['ActionNodeType', sb.lazy('nodes.schema')])
+    action: 'ActionNode' = sb.field(graphql_type=Annotated['ActionNodeType', sb.lazy('nodes.graphql.types.node')])
     cost_values: list[YearlyValue] | None = sb.field(deprecation_reason='Use costDim instead.')
     impact_values: list[YearlyValue | None] | None = sb.field(deprecation_reason='Use effectDim instead.')
     cost_dim: DimensionalMetric | None = sb.field(graphql_type=DimensionalMetricType | None)
@@ -73,8 +74,8 @@ class WedgeEntryType:
 
 @sb.type
 class ImpactOverviewType:
-    cost_node: Annotated['NodeType', sb.lazy('nodes.schema')] | None
-    effect_node: Annotated['NodeType', sb.lazy('nodes.schema')]
+    cost_node: Annotated['NodeType', sb.lazy('nodes.graphql.types.node')] | None
+    effect_node: Annotated['NodeType', sb.lazy('nodes.graphql.types.node')]
 
     @sb.field
     @staticmethod
@@ -221,8 +222,6 @@ class ImpactOverviewType:
     @pass_context
     @staticmethod
     def wedge(root: 'ImpactOverview', context: 'Context') -> 'list[WedgeEntryType] | None':
-        from nodes.defs.action_def import ImpactGraphType
-
         if root.spec.graph_type != ImpactGraphType.WEDGE_DIAGRAM:
             return None
         entries = root.compute_wedge(context)
