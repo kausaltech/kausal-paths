@@ -12,18 +12,19 @@ import polars as pl
 from loguru import logger
 from pint.errors import UndefinedUnitError
 
+from kausal_common.datasets.models import Dataset
+
 from datasets.coordinates import DatasetCoordinate, DatasetCoordinateIndex
 from datasets.models import DatasetMetricPlausibilityRange
 from datasets.plausibility_history import HistoryRange, derive_history_ranges, eligible
 from datasets.runtime import DBDataset
 from datasets.validation import RuleViolation, _category_domain_coordinates, evaluate_dataset_rules
+from frameworks.bisko.default_sources import POPULATION_DATASET
 from frameworks.models import OrganizationPopulation
 from nodes.constants import YEAR_COLUMN
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
-
-    from kausal_common.datasets.models import Dataset
 
     from nodes.models import InstanceConfig
 
@@ -125,6 +126,15 @@ def _observed_population(dataset: Dataset, rules: Iterable[DatasetMetricPlausibi
     framework_id = instance.framework_config.framework_id if instance.has_framework_config() else None
     if framework_id is None:
         return {}
+    population_dataset = Dataset.objects.for_instance_config(instance).filter(identifier=POPULATION_DATASET).first()
+    if population_dataset is not None:
+        return {
+            year: int(value)
+            for year, value in population_dataset.data_points.filter(metric__name='population', value__isnull=False).values_list(
+                'date__year', 'value'
+            )
+            if value is not None
+        }
     return dict(
         OrganizationPopulation.objects.filter(framework_id=framework_id, organization_id=instance.organization_id).values_list(
             'year', 'value'

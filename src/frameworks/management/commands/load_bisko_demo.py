@@ -161,7 +161,8 @@ def grade_demo_cells(dataset: Dataset) -> int:
 
 def mainz_prior() -> dict[tuple[str, str], float]:
     """Read the existing Mainz cell values; the dashboard itself has no cell split."""
-    instance = InstanceConfig.objects.get(identifier='mainz-bisko')
+    # The reference inventory remains usable when its public instance is inactive.
+    instance = InstanceConfig.objects.get_queryset_all().get(identifier='mainz-bisko')
     dataset = Dataset.objects.for_instance_config(instance).get(identifier='mainz/final_energy')
     points = dataset.data_points.filter(date=date(2018, 1, 1), metric__name='Value').prefetch_related(
         'dimension_categories__dimension'

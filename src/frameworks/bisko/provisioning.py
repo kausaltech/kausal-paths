@@ -195,8 +195,15 @@ def _reconcile_bisko_weather_defaults(framework: Framework) -> None:
             mark_seeded_weather_defaults(dataset)
     if not empty:
         return
-    frame, revision = load_weather_source(framework)
+    sources = {}
     for instance, dataset in empty:
+        repo_spec = template_snapshot(instance).spec.dataset_repo
+        if repo_spec is None or repo_spec.commit is None:
+            raise ValueError(f'{instance.identifier}: published template needs a pinned weather source.')
+        key = (repo_spec.url, repo_spec.commit, repo_spec.dvc_remote)
+        if key not in sources:
+            sources[key] = load_weather_source(framework, repo_spec=repo_spec)
+        frame, revision = sources[key]
         organization = instance.organization
         assert organization is not None
         seed_weather_defaults(instance, dataset, frame, nuts3=municipality_nuts3(organization), source_revision=revision)

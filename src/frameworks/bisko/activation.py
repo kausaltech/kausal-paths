@@ -12,6 +12,7 @@ from datasets.materialization import refresh_dataset_materialization
 from datasets.snapshot import DatasetSnapshot
 from datasets.year_slots import ensure_empty_year
 from frameworks import submissions
+from frameworks.bisko.defaults import seed_activation_defaults
 from frameworks.bisko.weather import WEATHER_DATASET, load_weather_source, seed_weather_defaults
 from frameworks.models import Framework, FrameworkConfig
 from frameworks.organization_access import organization_is_in_framework
@@ -48,8 +49,8 @@ def _municipal_spec(snapshot: InstanceSnapshot, framework: Framework, ags: str, 
     return spec
 
 
-def _ensure_local_inputs(instance: InstanceConfig) -> None:  # noqa: C901
-    """Give each municipality local input slots, seed weather, and replace local bindings."""
+def _ensure_local_inputs(instance: InstanceConfig) -> None:  # noqa: C901, PLR0912
+    """Give each municipality local inputs, seed pinned defaults, and replace local bindings."""
     base = template_snapshot(instance)
     framework = instance.framework_config.framework
     template = framework.template_instance
@@ -82,7 +83,9 @@ def _ensure_local_inputs(instance: InstanceConfig) -> None:  # noqa: C901
             dataset.refresh_from_db(fields=['spec'])
         if identifier == WEATHER_DATASET and not dataset.data_points.exists():
             if weather_source is None:
-                weather_source = load_weather_source(framework)
+                if base.spec.dataset_repo is None:
+                    raise ActivationError('Published template has no dataset repository for weather defaults.')
+                weather_source = load_weather_source(framework, repo_spec=base.spec.dataset_repo)
             organization = instance.organization
             assert organization is not None
             frame, revision = weather_source
@@ -104,6 +107,10 @@ def _ensure_local_inputs(instance: InstanceConfig) -> None:  # noqa: C901
                 refresh_dataset_materialization(dataset, touch=False)
         local[identifier] = dataset
 
+    try:
+        seed_activation_defaults(instance, local)
+    except ValueError as error:
+        raise ActivationError(str(error)) from error
     _override_municipal_bindings(instance, base, local)
     instance.invalidate_cache()
 

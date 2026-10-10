@@ -1,0 +1,82 @@
+# Opt-in population inputs for the BISKO framework template. Existing city YAML models
+# retain the shared module's GISCO population until they adopt this extension explicitly.
+data_entry:
+  namespace: 3e9307fd-5adb-435b-adac-fda1f9e07d3a
+  sections:
+  - id: population
+    name_de: Bevölkerung
+    name_en: Population
+    tables:
+    - id: population
+      kind: input_port
+      input: population_own
+
+datasets:
+- id: kommune/bevoelkerung
+  is_editable: true
+  metrics:
+  - id: population
+    validation_rules:
+    - kind: value_range
+      enforcement: block_edit
+      min: 0
+
+nodes:
+- id: population
+  is_editable: false
+  name_de: Einwohnerzahl
+  name_en: Population
+  description_de: |
+    Bearbeitbare Einwohnerzahlen der Kommune aus amtlicher Statistik und Landesprognosen.
+    Zwischen veröffentlichten Jahren wird linear interpoliert; nach dem letzten Prognosejahr
+    bleibt der Wert konstant. Verbandsprognosen nutzen die Einwohneranteile im letzten gemeinsamen
+    Beobachtungsjahr. Eigene Angaben ersetzen die Vorgabewerte und behalten ihre Herkunft.
+  description_en: |
+    Editable municipal population, initially supplied by official statistics and Land forecasts.
+    Published years are interpolated linearly and the last forecast value is held constant.
+    Association forecasts use member shares from their latest common observed year.
+    Municipal edits supersede defaults; data-point citations preserve their source and derivation.
+  type: formula.FormulaNode
+  quantity: population
+  unit: cap
+  input_nodes:
+  - id: population_own
+    tags: [own]
+  - id: population_provider
+    tags: [provider]
+  params:
+    formula: prefer_by_year(own, provider)
+
+- id: population_own
+  is_editable: false
+  is_visible: false
+  name_de: Einwohnerzahl der Kommune
+  name_en: Municipal population
+  type: simple.AdditiveNode
+  quantity: population
+  unit: cap
+  input_datasets:
+  - id: kommune/bevoelkerung
+    column: population
+    binding_owner: instance
+
+- id: population_provider
+  is_editable: false
+  is_visible: false
+  name_de: Einwohnerzahl aus GISCO als Rückfallwert
+  name_en: GISCO population fallback
+  description_en: |
+    Preserve the existing population series for models that have not received editable defaults.
+    Activated municipalities use their own annual series instead.
+  type: simple.AdditiveNode
+  quantity: population
+  unit: cap
+  input_datasets:
+  - id: demography/population_lau
+    column: population
+    filters:
+    - column: lau
+      ref: lau_code
+    - column: country
+    - column: municipality
+

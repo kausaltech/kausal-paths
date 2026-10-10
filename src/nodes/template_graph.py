@@ -18,6 +18,7 @@ from kausal_common.i18n.pydantic import set_i18n_context
 from datasets.catalogue import dataset_meta_from_model
 from datasets.materialization import ensure_dataset_materializations
 from datasets.shape_domain import SHAPE_SPEC_KEY
+from frameworks.models import Framework
 from nodes.constraints.validation import InstanceConstraintError, solve_instance_constraints
 from nodes.instance_graph import NodeEditContext, NodeMeta, build_instance_graph
 from nodes.instance_graph_cache import resolve_instance_source
@@ -330,6 +331,8 @@ def publish_template_instance(
     template = InstanceConfig.objects.select_for_update().get(pk=template.pk)
     if template.config_source != 'database' or template.template_revision_id is not None:
         raise ValueError('A template must be a standalone database-backed instance')
+    for framework in Framework.objects.filter(template_instance=template):
+        framework.validate_population_revision(template.ensure_spec().dataset_repo)
     with set_i18n_context(template.primary_language, template.other_languages):
         if not ignore_problems:
             template.validate_draft_constraints()
