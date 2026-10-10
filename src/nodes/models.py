@@ -2479,7 +2479,6 @@ class NodeConfig(PathsModel[InstanceConfig], EditableInstanceChild, index.Indexe
     _node: Node | None
     _annotated_port_edge_bindings: list[dict[str, Any]] | None
     _annotated_port_dataset_bindings: list[dict[str, Any]] | None
-    _annotated_dataset_models_by_uuid: dict[UUID, DatasetModel]
 
     class Meta:
         verbose_name = _('Node')
