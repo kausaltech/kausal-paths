@@ -615,7 +615,37 @@ def bind_dataset(
     else:
         transformations = _default_transformations(metric_column)
     _validate_transformations(info, transformations, metric_column=metric_column)
+    return bind_dataset_metric(
+        info,
+        ic,
+        nc,
+        port_id=port_id,
+        dataset=dataset,
+        metric=metric,
+        transformations=transformations,
+        displaced=displaced,
+        replace=input.replace,
+    )
 
+
+def bind_dataset_metric(
+    info: gql.Info,
+    ic: InstanceConfig,
+    nc: NodeConfig,
+    *,
+    port_id: UUID,
+    dataset: DatasetModel,
+    metric: DatasetMetric,
+    transformations: list[PortTransformOp],
+    displaced: list[NodeInputPortBinding],
+    replace: bool,
+) -> DatasetPortType | ConstraintViolationsType:
+    """
+    Bind `metric` of `dataset` to an input port of `nc`, once the request has been resolved and validated.
+
+    The second half of `bindDataset`, shared with the action wizard: it runs the
+    constraint check and writes the binding, locally or as a binding override.
+    """
     if ic.template_revision_id is not None:
         binding = InputBindingSnapshot(
             uuid=uuid4(),
@@ -630,7 +660,7 @@ def bind_dataset(
             ),
             transformations=transformations,
         )
-        violations = LocalBindingEditor.add(info, ic, nc, binding, replace=input.replace)
+        violations = LocalBindingEditor.add(info, ic, nc, binding, replace=replace)
         if violations is not None:
             return violations
         assert binding.uuid is not None

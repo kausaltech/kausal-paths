@@ -26,12 +26,15 @@ from kausal_common.strawberry.pydantic import StrawberryPydanticType, pydantic_i
 
 from nodes.defs.transform_def import (
     AssignDimensionOp,
+    BackfillOp,
     DropNullsOp,
     EnsureUnitOp,
+    ExtendOp,
     FilterColumnOp,
     FilterDimensionOp,
     FilterTemporalOp,
     IndexTemporalOp,
+    InterpolateOp,
     PortTransformOp,
     RemapLegacyYearsOp,
     RenameColumnOp,
@@ -145,6 +148,21 @@ class TagOperationType(StrawberryPydanticType[TagOperationOp], PortTransformatio
     tag: auto
 
 
+@pydantic_type(model=InterpolateOp, description="Linearly fill the gaps between a series' years.")
+class InterpolateType(StrawberryPydanticType[InterpolateOp], PortTransformationInterface):
+    kind: str = sb.field(description='Discriminator; matches the corresponding mutation input field.')
+
+
+@pydantic_type(model=BackfillOp, description="Copy each series' first value back over the earlier years.")
+class BackfillType(StrawberryPydanticType[BackfillOp], PortTransformationInterface):
+    kind: str = sb.field(description='Discriminator; matches the corresponding mutation input field.')
+
+
+@pydantic_type(model=ExtendOp, description="Carry each series' last value forward to the model end year.")
+class ExtendType(StrawberryPydanticType[ExtendOp], PortTransformationInterface):
+    kind: str = sb.field(description='Discriminator; matches the corresponding mutation input field.')
+
+
 PortTransformationType = Annotated[
     FilterDimensionType
     | AssignDimensionType
@@ -158,7 +176,10 @@ PortTransformationType = Annotated[
     | SelectMetricType
     | IndexTemporalType
     | RemapLegacyYearsType
-    | TagOperationType,
+    | TagOperationType
+    | InterpolateType
+    | BackfillType
+    | ExtendType,
     sb.union('PortTransformationUnion'),
 ]
 
@@ -258,6 +279,9 @@ class DatasetTransformationInput:
     index_temporal: Maybe[bool]
     remap_legacy_years: Maybe[bool]
     tag_operation: Maybe[TagOperationInput]
+    interpolate: Maybe[bool]
+    backfill: Maybe[bool]
+    extend: Maybe[bool]
 
 
 @sb.input(
@@ -287,6 +311,9 @@ _DATASET_INPUT_FIELDS = (
     'index_temporal',
     'remap_legacy_years',
     'tag_operation',
+    'interpolate',
+    'backfill',
+    'extend',
 )
 
 _EDGE_INPUT_FIELDS = (
@@ -300,6 +327,9 @@ _PARAMETERLESS: dict[str, Callable[[], PortTransformOp]] = {
     'select_metric': SelectMetricOp,
     'index_temporal': IndexTemporalOp,
     'remap_legacy_years': RemapLegacyYearsOp,
+    'interpolate': InterpolateOp,
+    'backfill': BackfillOp,
+    'extend': ExtendOp,
 }
 """Transformations with nothing to configure; given as ``true`` rather than an empty object."""
 

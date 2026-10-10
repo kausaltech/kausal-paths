@@ -35,6 +35,7 @@ from frameworks.models import Framework, FrameworkConfig
 from nodes.defs import InstanceMetadata, InstanceModelSpec
 from nodes.defs.binding_def import DatasetBindingDef, EdgeBindingDef
 from nodes.defs.instance_defs import InstanceFeatures
+from nodes.defs.node_defs import ActionConfig
 from nodes.goals import GoalActualValue, NodeGoalsEntry
 from nodes.graph_layout import GraphLayout
 from nodes.graphql.inputs import is_maybe_set
@@ -85,6 +86,7 @@ if TYPE_CHECKING:
     from frameworks.submission_schema import SubmissionType
     from nodes.actions.action import ActionNode, ImpactOverview
     from nodes.context import Context
+    from nodes.graphql.action_wizard import EffectSourceCandidates, OutputPortRefInput  # used in lazy strawberry annotations
     from nodes.graphql.types.change_history import InstanceChangeOperationType
     from nodes.graphql.types.impact import ImpactOverviewType  # used in lazy strawberry annotation
     from nodes.graphql.types.node import NodeInterface, NodeType
@@ -311,6 +313,14 @@ def _collect_quantity_kind_unit_usage(instance: Instance) -> dict[str, list[Quan
     }
 
 
+@sb.type(description="An action acting on a node's output port: the action's port is added to it.")
+class ActionHookEdgeType:
+    action_id: UUID
+    from_port_id: UUID | None
+    target_node_id: UUID
+    target_port_id: UUID | None
+
+
 @sb.type(name='InstanceEditor')
 class InstanceEditorFields:
     _config: sb.Private[InstanceConfig]
@@ -412,6 +422,51 @@ class InstanceEditorFields:
             .order_by('node_id', 'port_id', 'position')
         )
         return [NodeEdgeType.from_input_binding(edge) for edge in edges]
+
+    @sb.field(
+        graphql_type=list[ActionHookEdgeType],
+        description="Every action acting on a node's output port (hooks), with both ports resolved.",
+    )
+    @staticmethod
+    def hooks(root: 'InstanceEditorFields', info: gql.Info) -> list[ActionHookEdgeType]:
+        graph = info.context.require_instance_graph(root._config, source=root._source)
+        by_identifier = {node.identifier: node for node in graph.nodes if node.identifier is not None}
+        edges: list[ActionHookEdgeType] = []
+        for action in graph.nodes:
+            type_config = action.spec.type_config
+            if not isinstance(type_config, ActionConfig):
+                continue
+            for hook in type_config.hooks:
+                target = by_identifier.get(hook.node)
+                if target is None:
+                    continue
+                target_ports, action_ports = target.spec.output_ports, action.spec.output_ports
+                edges.append(
+                    ActionHookEdgeType(
+                        action_id=action.id,
+                        from_port_id=hook.from_port or (action_ports[0].id if len(action_ports) == 1 else None),
+                        target_node_id=target.id,
+                        target_port_id=hook.port or (target_ports[0].id if len(target_ports) == 1 else None),
+                    )
+                )
+        return edges
+
+    @sb.field(
+        graphql_type=Annotated['EffectSourceCandidates', sb.lazy('nodes.graphql.action_wizard')],
+        description=(
+            'The instance datasets and node output ports that could feed an action acting on the given output '
+            'port: those with its dimensions and a compatible unit, and no node downstream of it.'
+        ),
+    )
+    @staticmethod
+    def effect_source_candidates(
+        root: 'InstanceEditorFields',
+        info: gql.Info,
+        target: Annotated['OutputPortRefInput', sb.lazy('nodes.graphql.action_wizard')],
+    ) -> Any:
+        from nodes.graphql.action_wizard import effect_source_candidates
+
+        return effect_source_candidates(info, root._config, target)
 
     @sb.field(
         graphql_type=list[ConstraintConflictType],
@@ -610,7 +665,12 @@ class InstanceEditorFields:
     def dataset(
         root: 'InstanceEditorFields', info: gql.Info, id: Annotated[sb.ID, sb.argument(description='Dataset pk/uuid/identifier)')]
     ) -> DatasetType | None:
-        """One instance-scoped dataset by id."""
+        """
+        One dataset this instance governs, by id.
+
+        Node-owned datasets are left out of the instance's lists, but found here, so
+        that the dataset editor can open them (decision 10 of the node-owned datasets plan).
+        """
         from kausal_common.datasets.models import Dataset as DatasetModel
 
         if not id.strip():
@@ -620,7 +680,7 @@ class InstanceEditorFields:
             DatasetModel.objects
             .get_queryset()
             .with_schema_editability(Framework)
-            .for_instance_config(ic)
+            .governed_by_instance(ic)
             .viewable_by(info.context.user)
             .select_related('schema', 'created_by', 'last_modified_by')
             .prefetch_related('schema__metrics__validation_rules', 'schema__dimensions__dimension__categories')

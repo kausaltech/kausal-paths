@@ -213,7 +213,9 @@ table, edited in the data studio, which lives and travels with the action.
 
 - **An editor mutation that creates a port's own data.** It takes a schema
   derived from the port (unit, quantity, dimensions) and binds the port to
-  the new dataset.
+  the new dataset. *Built* (2026-10-09, with the action wizard):
+  `NodeEditor.createPortDataset` over `nodes.owned_datasets.create_owned_dataset`,
+  which the wizard's `createActionFromPorts` uses too.
 - **`extract_node_dataset`.** Move the held command onto the real scope, with
   no identifier.
 - **Node deletion and its revert**, as in decisions 7–9: `delete_related()`,

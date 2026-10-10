@@ -54,11 +54,12 @@ from datasets.materialization import refresh_dataset_materialization
 from frameworks.catalogue import dimension_scopes, schema_scopes
 from frameworks.models import Framework
 from nodes import inventory_years
+from nodes.action_effects import EffectError, hook_shape_problem, resolve_hook
 from nodes.change_ops import gql_change_operation, record_change
 from nodes.constraints.validation import BindingChange, InstanceConstraintError
 from nodes.defs import ActionGroup, FormulaConfig, SimpleConfig
 from nodes.defs.binding_def import EdgeBindingDef
-from nodes.defs.node_defs import ActionConfig, NodeKind, NodeSpec, PipelineConfig, TypeConfig
+from nodes.defs.node_defs import ActionConfig, ActionHookDef, NodeKind, NodeSpec, PipelineConfig, TypeConfig
 from nodes.defs.port_def import InputPortDef, OutputPortDef
 from nodes.graphql.binding_storage import LocalBindingEditor
 from nodes.graphql.bindings import bind_dataset, binding_editor, port_occupants
@@ -88,7 +89,7 @@ from .types.spec import InputPortType, OutputPortType
 from .types.transformations import EdgeTransformationInput, edge_transformations_from_input
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Callable, Sequence
 
     from kausal_common.i18n.pydantic import I18nString
     from kausal_common.models.ordered import OrderedModel
@@ -97,6 +98,7 @@ if TYPE_CHECKING:
     from datasets.graphql.types import DatasetType, DataSourceType  # used in lazy strawberry annotations
     from frameworks.submission_schema import SubmissionMutations
     from nodes.defs.transform_def import PortTransformOp
+    from nodes.graphql.action_wizard import CreateActionFromPortsInput, CreateActionFromPortsResult
     from nodes.graphql.bindings import BindDatasetInput, PortBindingEditorMutation
     from nodes.graphql.template_bindings import InputPortBindingInput
     from nodes.graphql.types.graph import DatasetPortType  # used in lazy strawberry annotations
@@ -590,6 +592,15 @@ class UpdateNodeInput:
     tags: Maybe[list[str]]
     i18n: Maybe[sb.scalars.JSON]
     config: Maybe[NodeConfigInput]
+
+
+@sb.input(description="The action acts on another node's output port: its own output port is added to it.")
+class ActionHookInput:
+    target_node_id: UUID = sb.field(description='The node the action acts on.')
+    target_port_id: UUID | None = sb.field(default=None, description='May be omitted when the node has a single output.')
+    from_port_id: UUID | None = sb.field(
+        default=None, description="The action's output port; may be omitted when the action has a single output."
+    )
 
 
 @sb.input
@@ -1268,7 +1279,12 @@ def _apply_node_type_update(
 
     if is_maybe_set(input.config):
         kind = _kind_from_config(info, input.config.value) if not is_maybe_set(input.kind) else input.kind.value
-        spec.type_config = _type_config_for_kind(info, kind, input.config.value).to_pydantic()
+        type_config = _type_config_for_kind(info, kind, input.config.value).to_pydantic()
+        # `ActionConfigInput` does not carry hooks; they are edited with `addActionHook`
+        # and `deleteActionHook`, so a config update keeps them.
+        if isinstance(type_config, ActionConfig) and isinstance(spec.type_config, ActionConfig):
+            type_config.hooks = list(spec.type_config.hooks)
+        spec.type_config = type_config
 
 
 def _apply_node_port_updates(info: gql.Info, nc: NodeConfig, spec: NodeSpec, input: UpdateNodeInput) -> None:
@@ -1333,6 +1349,91 @@ def _apply_update_node_input(
     _apply_node_data_updates(info, spec, input)
 
 
+def create_node_config(info: gql.Info, ic: InstanceConfig, input: CreateNodeInput) -> NodeConfig:
+    """Create a node from `input`, recording the change; the body of `createNode`, shared with the action wizard."""
+    if not NodeConfig.gql_create_allowed(info, ic):
+        raise PermissionDeniedError(info, 'Permission denied for create')
+
+    from nodes.instance_graph import node_class_for_type_config
+
+    type_config = _type_config_for_kind(info, input.kind, input.config)
+    node_class = node_class_for_type_config(type_config.to_pydantic())
+
+    input_dimensions = input.input_dimensions or []
+    output_dimensions = input.output_dimensions or []
+    if input.input_ports is not None and _is_additive_action_class(node_class):
+        raise GraphQLValidationError(info, 'AdditiveAction input ports are generated from its output ports')
+    if input.input_ports is None:
+        # Instantiate the class-declared default ports (e.g. two factors
+        # and an additive input for a MultiplicativeNode). An explicit
+        # empty list opts out.
+        input_ports = _default_input_ports(type_config.to_pydantic())
+    else:
+        input_ports = [
+            _input_port_to_def(str(input.identifier), index, port, {}, ic.primary_language)
+            for index, port in enumerate(input.input_ports)
+        ]
+    output_ports = [
+        _output_port_to_def(str(input.identifier), index, port, {}, ic.primary_language)
+        for index, port in enumerate(input.output_ports or [])
+    ]
+    output_ports.extend(
+        _output_metric_to_port_def(str(input.identifier), metric, output_dimensions, {}, ic.primary_language)
+        for metric in input.output_metrics or []
+    )
+    if not output_ports:
+        raise GraphQLValidationError(info, 'At least one outputPort or outputMetric must be provided')
+    input_ports = _paired_action_input_ports(node_class, input_ports, output_ports)
+
+    spec = NodeSpec(
+        type_config=type_config.to_pydantic(),
+        is_outcome=input.is_outcome,
+        node_group=input.node_group,
+        allow_nulls=input.allow_nulls,
+        minimum_year=input.minimum_year,
+        input_ports=input_ports,
+        output_ports=output_ports,
+        input_dimensions=input_dimensions,
+        output_dimensions=output_dimensions,
+    )
+    spec.params = _parse_params(info, input.params, spec.type_config, input.kind)
+    spec.extra.tags = input.tags or []
+
+    nc = ic.nodes.filter(identifier=input.identifier).first()
+    if nc is not None:
+        raise GraphQLValidationError(info, 'Node with identifier %s already exists' % input.identifier)
+
+    with gql_change_operation(info, ic, action='node.create'):
+        nc = ic.nodes.create(
+            identifier=input.identifier,
+            name=input.name or input.identifier,
+            short_name=input.short_name,
+            short_description=input.short_description if input.short_description is not None else input.description,
+            color=input.color or '',
+            order=input.order,
+            is_visible=input.is_visible,
+            description=input.description,
+            i18n=input.i18n or {},
+            spec=spec,
+        )
+        record_change(nc, action='node.create', before=None, after=nc.serializable_data())
+
+    return nc
+
+
+def write_hooks(nc: NodeConfig, change: Callable[[list[ActionHookDef]], list[ActionHookDef]]) -> None:
+    """Replace the hooks of action `nc` with `change(hooks)`, inside an open change operation."""
+    spec = nc.spec
+    assert spec is not None
+    assert isinstance(spec.type_config, ActionConfig)
+    before = nc.serializable_data()
+    spec.type_config.hooks = change(list(spec.type_config.hooks))
+    # queryset.update(): NodeConfig.save() goes through ClusterableModel, which can revert i18n fields.
+    NodeConfig.objects.filter(pk=nc.pk).update(spec=spec)
+    nc.refresh_from_db()
+    record_change(nc, action='node.update', before=before, after=nc.serializable_data())
+
+
 @sb.type
 class NodeEditorMutation:
     instance: sb.Private[InstanceConfig]
@@ -1389,6 +1490,83 @@ class NodeEditorMutation:
             )
 
             nc.delete()
+
+    @gql.mutation(
+        description=(
+            "Let this action act on another node's output port (a hook). The node computes as before, and the "
+            "action's output is added to its output in the years after the last historical year."
+        ),
+        graphql_type=AnyNodeType,
+    )
+    @staticmethod
+    def add_action_hook(info: gql.Info, root: sb.Parent[Me], input: ActionHookInput) -> Node:
+        nc, ic = root.node, root.instance
+        graph = require_draft_graph(info, ic)
+        action = graph.node_by_id.get(nc.uuid)
+        target = graph.node_by_id.get(input.target_node_id)
+        if action is None or target is None:
+            raise NotFoundError(info, 'Node not found')
+        try:
+            hook = resolve_hook(
+                graph, action=action, target=target, target_port=input.target_port_id, from_port=input.from_port_id
+            )
+        except EffectError as exc:
+            raise GraphQLValidationError(info, str(exc)) from exc
+        problem = hook_shape_problem(
+            graph,
+            info.context.require_constraint_solve(ic, source=PreferredInstanceSource.DRAFT),
+            action=action,
+            target=target,
+            hook=hook,
+        )
+        if problem is not None:
+            raise GraphQLValidationError(info, problem)
+        with gql_change_operation(info, ic, action='node.hooks.add'):
+            write_hooks(nc, lambda hooks: [*hooks, hook])
+        return _resolve_runtime_node(info, ic, nc.pk)
+
+    @gql.mutation(
+        description=(
+            'Give input ports a dataset of their own: one metric per port, with its unit, quantity and '
+            'dimensions, owned by this node and bound to the ports. The dataset has no identifier and is '
+            'deleted with the node.'
+        ),
+        graphql_type=Annotated['DatasetType', sb.lazy('datasets.graphql.types')] | ConstraintViolationsType,
+    )
+    @staticmethod
+    def create_port_dataset(
+        info: gql.Info,
+        root: sb.Parent[Me],
+        port_ids: list[UUID],
+        name: str | None = None,
+    ) -> Any:
+        from nodes.graphql.port_datasets import create_port_dataset
+
+        return create_port_dataset(info, root.instance, root.node, port_ids, name)
+
+    @gql.mutation(description='Stop this action acting on a node it acts on.', graphql_type=AnyNodeType)
+    @staticmethod
+    def delete_action_hook(info: gql.Info, root: sb.Parent[Me], input: ActionHookInput) -> Node:
+        nc, ic = root.node, root.instance
+        type_config = nc.spec.type_config if nc.spec is not None else None
+        # The draft graph, not `ic.nodes`: the target may be inherited from a framework.
+        target = require_draft_graph(info, ic).node_by_id.get(input.target_node_id)
+        if not isinstance(type_config, ActionConfig) or target is None:
+            raise NotFoundError(info, 'Hook not found')
+        target_identifier = target.identifier
+
+        def matches(hook: ActionHookDef) -> bool:
+            return (
+                hook.node == target_identifier
+                and (input.target_port_id is None or hook.port in (None, input.target_port_id))
+                and (input.from_port_id is None or hook.from_port in (None, input.from_port_id))
+            )
+
+        if sum(1 for hook in type_config.hooks if matches(hook)) != 1:
+            raise GraphQLValidationError(info, 'The input must name exactly one hook of this action')
+        with gql_change_operation(info, ic, action='node.hooks.delete'):
+            write_hooks(nc, lambda hooks: [hook for hook in hooks if not matches(hook)])
+        return _resolve_runtime_node(info, ic, nc.pk)
 
     @gql.mutation(description='Append a new input port to this node', graphql_type=InputPortType)
     @staticmethod
@@ -1652,6 +1830,83 @@ class InventoryYearNotEmpty:
     source_references: int
 
 
+def create_edge_binding(info: gql.Info, input: CreateEdgeInput) -> NodeEdgeType | ConstraintViolationsType:
+    """Create an edge from `input`, after the constraint check; the body of `createEdge`, shared with the action wizard."""
+    ic = _get_instance_config(info, input.instance_id)
+    if ic.config_source != 'database':
+        raise GraphQLError('Cannot edit YAML-sourced instances')
+
+    if ic.template_revision_id is not None:
+        return InstanceEditorMutation._create_effective_edge(info, ic, input)
+
+    from_node, to_node = _resolve_create_edge_nodes(ic, input)
+    to_node.ensure_gql_action_allowed(info, 'change')
+    LocalBindingEditor.require_node(info, ic, to_node)
+
+    requested_to_port = input.port_ref.port_id
+    from_port = _resolve_source_port(info, from_node, input.from_ref.port_id)
+    source_port = get_output_port(from_node, from_port)
+    assert source_port is not None  # _resolve_source_port validated it
+
+    to_port, planned_port = _plan_target_port(info, to_node, requested_to_port, source_port)
+
+    displaced: list[NodeInputPortBinding] = []
+    if input.replace:
+        if requested_to_port is None:
+            raise GraphQLValidationError(
+                info,
+                '`replace` requires an explicit `portRef.portId`: an auto-selected or auto-created port is never occupied',
+            )
+        displaced = port_occupants(info, to_node, to_port)
+    elif planned_port is None:
+        _check_target_port_capacity(info, to_node, to_port)
+
+    transformations = _resolve_edge_transformations(info, input.transformations)
+
+    graph = require_draft_graph(info, ic)
+    candidate = edge_candidate(
+        graph,
+        from_node=from_node,
+        from_port=from_port,
+        to_node=to_node,
+        to_port=to_port,
+        transformations=transformations,
+    )
+    change = BindingChange(
+        add_bindings=(candidate,),
+        remove_binding_ids=frozenset(binding.uuid for binding in displaced),
+        add_input_ports=((to_node.uuid, planned_port),) if planned_port is not None else (),
+    )
+    violations = check_binding_change(info, ic, change)
+    if violations is not None:
+        # Validation failed before any write: a rejected edge leaves the
+        # graph — including a would-be displaced binding — untouched.
+        return violations
+
+    action = 'edge.replace' if displaced else 'edge.create'
+    with gql_change_operation(info, ic, action=action):
+        # A planned port is persisted inside the change_operation so the
+        # resulting ``node.update`` entry groups with this edge.create.
+        if planned_port is not None:
+            _append_input_port(to_node, planned_port)
+        for binding in displaced:
+            delete_action = 'edge.delete' if binding.source_node_id is not None else 'node.dataset_binding.delete'
+            record_change(binding, action=delete_action, before=binding.serializable_data(), after=None)
+            binding.delete()
+        edge = NodeInputPortBinding.objects.create(
+            instance=ic,
+            node=to_node,
+            port_id=to_port,
+            position=next_port_position(to_node, to_port),
+            source_node=from_node,
+            source_port_id=from_port,
+            transformations=transformations,
+        )
+        record_change(edge, action='edge.create', before=None, after=edge.serializable_data())
+
+    return NodeEdgeType.from_input_binding(edge)
+
+
 @sb.type
 class InstanceEditorMutation:
     instance: sb.Private[InstanceConfig]
@@ -1756,78 +2011,29 @@ class InstanceEditorMutation:
             return ConstraintViolationsType.from_conflicts(exc.conflicts)
         return DeletePayload(ok=True)
 
+    @gql.mutation(
+        description=(
+            'Create an action acting on the given output ports: one output port, one hook and one source per effect. '
+            "Each effect's numbers come from a new dataset owned by the action, an existing instance dataset or "
+            'another node, as the input says. All of it is created in one step, or nothing is.'
+        ),
+        graphql_type=Annotated['CreateActionFromPortsResult', sb.lazy('nodes.graphql.action_wizard')] | ConstraintViolationsType,
+    )
+    @staticmethod
+    def create_action_from_ports(
+        info: gql.Info,
+        root: sb.Parent[Me],
+        input: Annotated['CreateActionFromPortsInput', sb.lazy('nodes.graphql.action_wizard')],
+    ) -> Any:
+        from nodes.graphql.action_wizard import create_action_from_ports
+
+        return create_action_from_ports(info, root.instance, input)
+
     @gql.mutation(description='Create a new node in the model', graphql_type=AnyNodeType)
     @staticmethod
     def create_node(info: gql.Info, root: sb.Parent[Me], input: CreateNodeInput) -> Node:
-        ic = root.instance
-        if not NodeConfig.gql_create_allowed(info, ic):
-            raise PermissionDeniedError(info, 'Permission denied for create')
-
-        from nodes.instance_graph import node_class_for_type_config
-
-        type_config = _type_config_for_kind(info, input.kind, input.config)
-        node_class = node_class_for_type_config(type_config.to_pydantic())
-
-        input_dimensions = input.input_dimensions or []
-        output_dimensions = input.output_dimensions or []
-        if input.input_ports is not None and _is_additive_action_class(node_class):
-            raise GraphQLValidationError(info, 'AdditiveAction input ports are generated from its output ports')
-        if input.input_ports is None:
-            # Instantiate the class-declared default ports (e.g. two factors
-            # and an additive input for a MultiplicativeNode). An explicit
-            # empty list opts out.
-            input_ports = _default_input_ports(type_config.to_pydantic())
-        else:
-            input_ports = [
-                _input_port_to_def(str(input.identifier), index, port, {}, ic.primary_language)
-                for index, port in enumerate(input.input_ports)
-            ]
-        output_ports = [
-            _output_port_to_def(str(input.identifier), index, port, {}, ic.primary_language)
-            for index, port in enumerate(input.output_ports or [])
-        ]
-        output_ports.extend(
-            _output_metric_to_port_def(str(input.identifier), metric, output_dimensions, {}, ic.primary_language)
-            for metric in input.output_metrics or []
-        )
-        if not output_ports:
-            raise GraphQLValidationError(info, 'At least one outputPort or outputMetric must be provided')
-        input_ports = _paired_action_input_ports(node_class, input_ports, output_ports)
-
-        spec = NodeSpec(
-            type_config=type_config.to_pydantic(),
-            is_outcome=input.is_outcome,
-            node_group=input.node_group,
-            allow_nulls=input.allow_nulls,
-            minimum_year=input.minimum_year,
-            input_ports=input_ports,
-            output_ports=output_ports,
-            input_dimensions=input_dimensions,
-            output_dimensions=output_dimensions,
-        )
-        spec.params = _parse_params(info, input.params, spec.type_config, input.kind)
-        spec.extra.tags = input.tags or []
-
-        nc = ic.nodes.filter(identifier=input.identifier).first()
-        if nc is not None:
-            raise GraphQLValidationError(info, 'Node with identifier %s already exists' % input.identifier)
-
-        with gql_change_operation(info, ic, action='node.create'):
-            nc = ic.nodes.create(
-                identifier=input.identifier,
-                name=input.name or input.identifier,
-                short_name=input.short_name,
-                short_description=input.short_description if input.short_description is not None else input.description,
-                color=input.color or '',
-                order=input.order,
-                is_visible=input.is_visible,
-                description=input.description,
-                i18n=input.i18n or {},
-                spec=spec,
-            )
-            record_change(nc, action='node.create', before=None, after=nc.serializable_data())
-
-        return _resolve_runtime_node(info, ic, nc.pk)
+        nc = create_node_config(info, root.instance, input)
+        return _resolve_runtime_node(info, root.instance, nc.pk)
 
     @sb.field(description='Edit a node that belongs to this instance')
     @staticmethod
@@ -1925,79 +2131,7 @@ class InstanceEditorMutation:
     )
     @staticmethod
     def create_edge(info: gql.Info, input: CreateEdgeInput) -> NodeEdgeType | ConstraintViolationsType:
-        ic = _get_instance_config(info, input.instance_id)
-        if ic.config_source != 'database':
-            raise GraphQLError('Cannot edit YAML-sourced instances')
-
-        if ic.template_revision_id is not None:
-            return InstanceEditorMutation._create_effective_edge(info, ic, input)
-
-        from_node, to_node = _resolve_create_edge_nodes(ic, input)
-        to_node.ensure_gql_action_allowed(info, 'change')
-        LocalBindingEditor.require_node(info, ic, to_node)
-
-        requested_to_port = input.port_ref.port_id
-        from_port = _resolve_source_port(info, from_node, input.from_ref.port_id)
-        source_port = get_output_port(from_node, from_port)
-        assert source_port is not None  # _resolve_source_port validated it
-
-        to_port, planned_port = _plan_target_port(info, to_node, requested_to_port, source_port)
-
-        displaced: list[NodeInputPortBinding] = []
-        if input.replace:
-            if requested_to_port is None:
-                raise GraphQLValidationError(
-                    info,
-                    '`replace` requires an explicit `portRef.portId`: an auto-selected or auto-created port is never occupied',
-                )
-            displaced = port_occupants(info, to_node, to_port)
-        elif planned_port is None:
-            _check_target_port_capacity(info, to_node, to_port)
-
-        transformations = _resolve_edge_transformations(info, input.transformations)
-
-        graph = require_draft_graph(info, ic)
-        candidate = edge_candidate(
-            graph,
-            from_node=from_node,
-            from_port=from_port,
-            to_node=to_node,
-            to_port=to_port,
-            transformations=transformations,
-        )
-        change = BindingChange(
-            add_bindings=(candidate,),
-            remove_binding_ids=frozenset(binding.uuid for binding in displaced),
-            add_input_ports=((to_node.uuid, planned_port),) if planned_port is not None else (),
-        )
-        violations = check_binding_change(info, ic, change)
-        if violations is not None:
-            # Validation failed before any write: a rejected edge leaves the
-            # graph — including a would-be displaced binding — untouched.
-            return violations
-
-        action = 'edge.replace' if displaced else 'edge.create'
-        with gql_change_operation(info, ic, action=action):
-            # A planned port is persisted inside the change_operation so the
-            # resulting ``node.update`` entry groups with this edge.create.
-            if planned_port is not None:
-                _append_input_port(to_node, planned_port)
-            for binding in displaced:
-                delete_action = 'edge.delete' if binding.source_node_id is not None else 'node.dataset_binding.delete'
-                record_change(binding, action=delete_action, before=binding.serializable_data(), after=None)
-                binding.delete()
-            edge = NodeInputPortBinding.objects.create(
-                instance=ic,
-                node=to_node,
-                port_id=to_port,
-                position=next_port_position(to_node, to_port),
-                source_node=from_node,
-                source_port_id=from_port,
-                transformations=transformations,
-            )
-            record_change(edge, action='edge.create', before=None, after=edge.serializable_data())
-
-        return NodeEdgeType.from_input_binding(edge)
+        return create_edge_binding(info, input)
 
     @staticmethod
     def _create_effective_edge(

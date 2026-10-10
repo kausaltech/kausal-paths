@@ -299,15 +299,10 @@ class AdditiveAction(ActionNode):
             df = self.require_input_port(input_port)
             if len(df.metric_cols) != 1:
                 raise NodeError(self, f'Input port {input_port.id} does not deliver exactly one metric')
-            output_column = output_port.column_id or output_port.identifier
-            if output_column is None:
-                raise NodeError(self, f'Output port {output_port.id} has no metric column')
+            m = self.output_metric_for_port(output_port)
             input_column = df.metric_cols[0]
-            if input_column != output_column:
-                df = df.rename({input_column: output_column})
-            m = next((metric for metric in self.output_metrics.values() if metric.column_id == output_column), None)
-            if m is None:
-                raise NodeError(self, f'Output port {output_port.id} does not map to a runtime output metric')
+            if input_column != m.column_id:
+                df = df.rename({input_column: m.column_id})
             if not self.is_enabled():
                 df = df.with_columns(
                     pl.when(pl.col(m.column_id).is_null()).then(None).otherwise(self.no_effect_value).alias(m.column_id)

@@ -460,11 +460,7 @@ class DimensionalMetric(BaseModel):
     def from_output_port(cls, node: Node, port: OutputPortDef) -> DimensionalMetric:
         from .metric_gen import from_node_output_metric
 
-        for metric in node.output_metrics.values():
-            if metric.column_id == port.column_id:
-                break
-        else:
-            raise ValueError(f'Metric for column {port.column_id} not found')
+        metric = node.output_metric_for_port(port)
         return from_node_output_metric(node, metric, scenarios=(), include_input_nodes=False, port=port)
 
     @classmethod

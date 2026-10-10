@@ -106,11 +106,34 @@ implementation. Where the `zielpfad_*` scenarios
 enable two multiplier paths on the same cell, they compound today; as hooks
 they add, and the overlap becomes visible.
 
+## In the model editor
+
+`ActionConfigType.hooks` exposes an action's hooks, and `InstanceEditor.hooks`
+lists every hook in the instance with both ports resolved, for drawing them on
+the canvas. `NodeEditor.addActionHook` and `deleteActionHook` edit them.
+`addActionHook` resolves omitted ports to the node's only output, and refuses a
+hook from a node that is not an action, on a port that does not exist, the same
+hook twice, one whose shapes cannot add up (different dimensions, or a unit
+that does not convert), and one that closes a loop. The shape rule is
+`incompatibility()` in `nodes/action_effects.py`: the solver's shape where it
+has one, the port's declaration where it does not.
+
+`ActionConfigInput` carries no hooks, so updating an action's config keeps
+them. The draft `InstanceGraph` counts a hook as an edge from the action to the
+node it acts on (`InstanceGraph.hook_edges`), as the runtime `node_graph` does.
+
+`createActionFromPorts` builds a whole action from the ports it acts on; see
+`docs/plans/action-from-output-port.md`.
+
 ## Not built yet
 
-- **GraphQL and model-editor support.** Hooks are not exposed in the API, and
-  the editor cannot create them (the planned gesture: drag from an action's
-  output port onto another node's output port).
+- **Drawing a hook by hand on the canvas.** The editor shows hooks (dashed edges
+  into the output port acted on) and creates them through the action wizard, but
+  the planned gesture for an existing action, dragging from its output port onto
+  another node's output port, is not built. The mutations exist.
+- **Deleting a node that actions act on** leaves their hooks dangling; the
+  action then fails to initialize with `Invalid hook`. The delete should remove
+  them, or refuse.
 - **Framework restrictions.** The template should be able to mark nodes where
   an action makes no sense (`action_hooks: false`: emission aggregates,
   data-quality and presence nodes). Shift-type outputs such as

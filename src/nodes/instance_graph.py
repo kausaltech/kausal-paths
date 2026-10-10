@@ -592,7 +592,26 @@ class InstanceGraph(FrozenGraphModel):
             and binding.from_ref.node_uuid in self.node_by_id
             and binding.port_ref.node_uuid in self.node_by_id
         )
+        graph.add_edges_from(self.hook_edges)
         return graph
+
+    @cached_property
+    def hook_edges(self) -> tuple[tuple[UUID, UUID], ...]:
+        """
+        `(action, target)` pairs for every action acting on a node (see `nodes.hooks`).
+
+        A hook is not a binding, but for ordering and cycle detection it is an
+        edge from the action to the node it acts on, as in the runtime
+        `Context.node_graph`.
+        """
+        by_identifier = {node.identifier: node.id for node in self.nodes if node.identifier is not None}
+        edges: list[tuple[UUID, UUID]] = []
+        for node in self.nodes:
+            type_config = node.spec.type_config
+            if not isinstance(type_config, ActionConfig):
+                continue
+            edges.extend((node.id, by_identifier[hook.node]) for hook in type_config.hooks if hook.node in by_identifier)
+        return tuple(edges)
 
     @cached_property
     def topological_order(self) -> tuple[UUID, ...]:

@@ -63,7 +63,7 @@ if typing.TYPE_CHECKING:
     from nodes.constraints.rules import AnyShapeRule
     from nodes.defs.binding_def import AnyPortBindingDef
     from nodes.defs.node_defs import NodeKind, NodeSpec
-    from nodes.defs.port_def import InputPortDeclaration, InputPortDef, OutputPortDeclaration
+    from nodes.defs.port_def import InputPortDeclaration, InputPortDef, OutputPortDeclaration, OutputPortDef
     from nodes.gpc import DatasetNode
     from nodes.hooks import ActionHook
     from nodes.instance_graph import NodeMeta
@@ -1206,6 +1206,24 @@ class Node:
                 raise NodeError(self, 'Node outputs multiple output metrics, but none of them is set as default')
             return None
         return next(iter(self.output_metrics.values()))
+
+    def output_metric_for_port(self, port: OutputPortDef) -> NodeMetric:
+        """
+        Return the runtime metric behind one of this node's output ports.
+
+        A node with a single output has a single metric, and its column is the
+        runtime default whatever the port's `column_id` says (see
+        `InstanceLoader._resolve_output_metrics`), so there is nothing to match.
+        With several outputs, the port's column names its metric.
+        """
+        metrics = list(self.output_metrics.values())
+        if len(metrics) == 1:
+            return metrics[0]
+        column = port.column_id or port.identifier
+        for metric in metrics:
+            if column is not None and metric.column_id == column:
+                return metric
+        raise NodeError(self, 'Output port %s does not map to an output metric' % (port.identifier or port.id))
 
     def _get_output_for_node(self, df: ppl.PathsDataFrame, edge: Edge) -> ppl.PathsDataFrame:  # noqa: C901, PLR0912
         """

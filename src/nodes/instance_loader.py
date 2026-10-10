@@ -614,10 +614,7 @@ def _hook_metric(node: Node, spec: NodeSpec, port_id: UUID | None) -> NodeMetric
     port = spec.output_port_by_id.get(port_id)
     if port is None:
         raise ValueError('%s has no output port %s' % (node.id, port_id))
-    for metric in metrics:
-        if port.column_id is None or metric.column_id == port.column_id:
-            return metric
-    raise ValueError('%s has no metric for output port %s' % (node.id, port_id))
+    return node.output_metric_for_port(port)
 
 
 def _param_config(param: Parameter) -> dict[str, Any]:
