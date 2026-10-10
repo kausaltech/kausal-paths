@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Self
 
 from django.contrib.auth.models import Group
 from django.contrib.postgres.fields import ArrayField
+from django.core.exceptions import ValidationError
 from django.db import models, transaction
 from django.utils.translation import gettext_lazy as _
 from pydantic import BaseModel
@@ -22,6 +23,7 @@ if TYPE_CHECKING:
     from frameworks.permissions import (
         FrameworkPermissionPolicy,
     )
+    from nodes.defs.instance_defs import DatasetRepoSpec
     from nodes.models import InstanceConfig
 
     from .config import FrameworkConfig, FrameworkConfigQuerySet
@@ -193,6 +195,15 @@ class Framework(CacheablePathsModel['FrameworkSpecificCache'], UUIDIdentifiedMod
 
     def __str__(self):
         return self.name
+
+    def validate_population_revision(self, repo_spec: DatasetRepoSpec | None) -> None:
+        """Require the published method and territorial population projection to share a pin."""
+        revisions = set(self.organization_populations.values_list('source_revision', flat=True).distinct())
+        if revisions and (repo_spec is None or revisions != {repo_spec.commit}):
+            raise ValidationError(
+                'Population reference values differ from the template dataset pin. '
+                'Refresh organization population at the template pin before publishing.'
+            )
 
     def __rich_repr__(self):
         yield self.name

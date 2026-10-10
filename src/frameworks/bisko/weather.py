@@ -16,6 +16,7 @@ from frameworks.models import DataEvidenceKind, DataPointEvidence
 
 if TYPE_CHECKING:
     from frameworks.models import Framework
+    from nodes.defs.instance_defs import DatasetRepoSpec
     from nodes.models import InstanceConfig
 
 
@@ -27,11 +28,12 @@ NEUTRAL_SECTORS = ('industry', 'transport')
 VALUE_PRECISION = Decimal('0.0001')
 
 
-def load_weather_source(framework: Framework) -> tuple[pl.DataFrame, str]:
-    template = framework.template_instance
-    if template is None:
-        raise ValueError('BISKO has no template instance.')
-    repo_spec = template.ensure_spec().dataset_repo
+def load_weather_source(framework: Framework, *, repo_spec: DatasetRepoSpec | None = None) -> tuple[pl.DataFrame, str]:
+    if repo_spec is None:
+        template = framework.template_instance
+        if template is None:
+            raise ValueError('BISKO has no template instance.')
+        repo_spec = template.ensure_spec().dataset_repo
     if repo_spec is None or repo_spec.commit is None:
         raise ValueError('The BISKO template needs a pinned dataset repository commit for weather defaults.')
     dataset = build_dataset_repo(repo_spec).load_dataset(SOURCE_DATASET)
