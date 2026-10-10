@@ -49,7 +49,7 @@ the number of independently migratable semantics.
 
 There are three partially overlapping representations:
 
-1. `nodes.pipeline.PipelineSpec` is typed and executable. It currently supports
+1. `nodes.pipeline.ir.PipelineSpec` is typed and executable. It currently supports
    `identity`, `add`, `subtract`, `multiply`, `divide`, and `clip`, with port,
    intermediate, parameter, dataset, and scalar input references plus simple
    conditions.
