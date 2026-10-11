@@ -150,6 +150,16 @@ class DatasetFindingInterface:
 class DatasetValidationViolationType(InstanceProblemInterface, DatasetFindingInterface):
     enforcement: ProblemEnforcement
 
+    @sb.field(
+        deprecation_reason=(
+            'Required-combination groups were replaced by declared shapes, so no violation has one. '
+            'Kept so that clients built against the old schema keep working; always null.'
+        ),
+    )
+    @staticmethod
+    def requirement_group() -> str | None:
+        return None
+
     @classmethod
     def from_violation(cls, violation: RuleViolation) -> Self:
         return cls(

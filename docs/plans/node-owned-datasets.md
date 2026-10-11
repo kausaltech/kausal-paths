@@ -214,7 +214,9 @@ table, edited in the data studio, which lives and travels with the action.
 
 - **An editor mutation that creates a port's own data.** It takes a schema
   derived from the port (unit, quantity, dimensions) and binds the port to
-  the new dataset.
+  the new dataset. *Built* (2026-10-09, with the action wizard):
+  `NodeEditor.createPortDataset` over `nodes.owned_datasets.create_owned_dataset`,
+  which the wizard's `createActionFromPorts` uses too.
 - **`extract_node_dataset`.** Move the held command onto the real scope, with
   no identifier.
 - **Node deletion and its revert**, as in decisions 7–9: `delete_related()`,
@@ -369,6 +371,13 @@ all seven database instances. Where it differs from the text above, or adds to i
   is also where a frame from any other source (`extract_node_dataset`, framework
   conversion) should be written. The DVC boundary is the right place for a
   natural key, because the source has no uuids.
+
+**Known issue** (seen 2026-10-09, open): `0085` fails on `paths_de_studio`, the
+branch's copy of `paths_de`, with `Extra inputs are not permitted` on
+`InstanceSnapshot` at `spec.input_ports[].validation.combinations`. Those are the
+combination rules retired for shapes (`4312ed30`), which stored instance snapshots
+still carry; the migration validates them against the current model before anything
+removes them. Details in `docs/plans/action-from-output-port.md`, *Open tasks* 3.
 
 ### Step 6: copy by rekeying (built first)
 

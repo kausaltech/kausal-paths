@@ -30,7 +30,7 @@ from nodes.actions.action import ActionNode
 from nodes.actions.parent import ParentActionNode
 from nodes.constants import DecisionLevel
 from nodes.defs.binding_def import DatasetBindingDef, EdgeBindingDef
-from nodes.defs.node_defs import ActionConfig, FormulaConfig, NodeKind, NodeSpec, PipelineConfig, SimpleConfig
+from nodes.defs.node_defs import ActionConfig, ActionHookDef, FormulaConfig, NodeKind, NodeSpec, PipelineConfig, SimpleConfig
 from nodes.exceptions import NodeError
 from nodes.graph_layout import NodeGraphLayoutMeta
 from nodes.graphql.editability import port_editable, runtime_source
@@ -94,8 +94,19 @@ class QuantityKindType:
         )
 
 
+@pydantic_type(
+    model=ActionHookDef,
+    description="The action acts on another node's output port: its own output port is added to it.",
+)
+class ActionHookType:
+    node: sb.auto = sb.field(description='UUID of the node the action acts on.')
+    port: sb.auto = sb.field(description='Output port of that node; null when the node has a single output.')
+    from_port: sb.auto = sb.field(description="The action's output port; null when the action has a single output.")
+
+
 @pydantic_type(model=ActionConfig)
 class ActionConfigType:
+    hooks: list[ActionHookType]
     formula: sb.auto
     node_class: sb.auto
     decision_level: sb.auto
