@@ -132,10 +132,10 @@ def test_add_hook_resolves_both_ports_and_exposes_it(client: PathsTestClient, ic
 
     result = _add(client, ic, action, targetNodeId=str(target.uuid))
 
-    hook = ActionHookDef(node='demand', port=_port_id('out'), from_port=_port_id('saving_out'))
+    hook = ActionHookDef(node=target.uuid, port=_port_id('out'), from_port=_port_id('saving_out'))
     assert _hooks(action) == [hook]
     assert result['editor']['spec']['typeConfig']['hooks'] == [
-        {'node': 'demand', 'port': str(hook.port), 'fromPort': str(hook.from_port)}
+        {'node': str(target.uuid), 'port': str(hook.port), 'fromPort': str(hook.from_port)}
     ]
 
 
@@ -170,7 +170,7 @@ def test_add_hook_refuses_a_loop_through_an_edge(client: PathsTestClient, ic: In
 
 def test_add_hook_refuses_a_loop_through_another_hook(client: PathsTestClient, ic: InstanceConfig) -> None:
     first = _action(ic, 'first')
-    second = _action(ic, 'second', hooks=[ActionHookDef(node='first')])
+    second = _action(ic, 'second', hooks=[ActionHookDef(node=first.uuid)])
 
     assert 'loop' in _add_errors(client, ic, first, targetNodeId=str(second.uuid))
 
@@ -201,7 +201,7 @@ def test_only_actions_have_hooks(client: PathsTestClient, ic: InstanceConfig) ->
 
 def test_delete_hook(client: PathsTestClient, ic: InstanceConfig) -> None:
     target = _node(ic, 'demand')
-    action = _action(ic, hooks=[ActionHookDef(node='demand')])
+    action = _action(ic, hooks=[ActionHookDef(node=target.uuid)])
 
     variables = {'instanceId': ic.identifier, 'nodeId': str(action.uuid), 'input': {'targetNodeId': str(target.uuid)}}
     client.query_data(DELETE_HOOK, variables=variables)
@@ -211,14 +211,14 @@ def test_delete_hook(client: PathsTestClient, ic: InstanceConfig) -> None:
 
 def test_updating_the_action_config_keeps_its_hooks(client: PathsTestClient, ic: InstanceConfig) -> None:
     """`ActionConfigInput` has no hooks, so replacing the config must not drop them."""
-    _node(ic, 'demand')
-    action = _action(ic, hooks=[ActionHookDef(node='demand')])
+    target = _node(ic, 'demand')
+    action = _action(ic, hooks=[ActionHookDef(node=target.uuid)])
 
     config = {'action': {'nodeClass': 'nodes.actions.simple.AdditiveAction', 'noEffectValue': 0.0}}
     variables = {'instanceId': ic.identifier, 'nodeId': str(action.uuid), 'input': {'config': config}}
     client.query_data(UPDATE_NODE, variables=variables)
 
-    assert _hooks(action) == [ActionHookDef(node='demand')]
+    assert _hooks(action) == [ActionHookDef(node=target.uuid)]
 
 
 def test_the_draft_graph_orders_an_action_before_the_node_it_acts_on(ic: InstanceConfig) -> None:
@@ -226,7 +226,7 @@ def test_the_draft_graph_orders_an_action_before_the_node_it_acts_on(ic: Instanc
     from nodes.models import PreferredInstanceSource
 
     target = _node(ic, 'demand')
-    action = _action(ic, hooks=[ActionHookDef(node='demand')])
+    action = _action(ic, hooks=[ActionHookDef(node=target.uuid)])
 
     graph = get_instance_graph(ic, PreferredInstanceSource.DRAFT, refresh=True)
     assert (action.uuid, target.uuid) in graph.hook_edges

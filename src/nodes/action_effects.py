@@ -141,20 +141,19 @@ def resolve_hook(
         raise EffectError('Only actions can act on other nodes')
     if target.id == action.id:
         raise EffectError('An action cannot act on itself')
-    if target.identifier is None:
-        raise EffectError('The target node has no identifier')
+    name = target.identifier or str(target.id)
     target_port = target_port or _sole_output_port(target, 'target')
     if target_port not in target.spec.output_port_by_id:
-        raise EffectError(f'{target.identifier} has no output port {target_port}')
+        raise EffectError(f'{name} has no output port {target_port}')
     from_port = from_port or _sole_output_port(action, "action's")
     if from_port not in action.spec.output_port_by_id:
         raise EffectError(f'The action has no output port {from_port}')
     for hook in type_config.hooks:
-        if hook.node == target.identifier and hook.port in (None, target_port) and hook.from_port in (None, from_port):
-            raise EffectError(f'The action already acts on this port of {target.identifier}')
+        if hook.node == target.id and hook.port in (None, target_port) and hook.from_port in (None, from_port):
+            raise EffectError(f'The action already acts on this port of {name}')
     if creates_cycle(graph, [(action.id, target.id)]):
-        raise EffectError(f'{target.identifier} is upstream of the action, so acting on it would form a loop')
-    return ActionHookDef(node=target.identifier, port=target_port, from_port=from_port)
+        raise EffectError(f'{name} is upstream of the action, so acting on it would form a loop')
+    return ActionHookDef(node=target.id, port=target_port, from_port=from_port)
 
 
 def hook_shape_problem(

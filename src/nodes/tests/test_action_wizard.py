@@ -235,7 +235,7 @@ def test_a_new_dataset_effect_creates_the_action_its_hook_dataset_and_binding(
     (output,) = action.spec.output_ports
     assert output.dimensions == ['carrier']
     assert output.unit == unit_registry.parse_units('MWh/a')
-    assert action.spec.type_config.hooks == [ActionHookDef(node='demand', port=_port_id('demand'), from_port=output.id)]
+    assert action.spec.type_config.hooks == [ActionHookDef(node=demand.uuid, port=_port_id('demand'), from_port=output.id)]
 
     (dataset,) = Dataset.objects.qs.for_node(action)
     assert dataset.identifier is None
@@ -319,7 +319,7 @@ def test_effects_from_an_existing_dataset_and_from_a_node(client: PathsTestClien
     assert {binding.source_node_id for binding in bindings if binding.source_node_id} == {cost_saving.pk}
     assert action.spec is not None
     assert isinstance(action.spec.type_config, ActionConfig)
-    assert [hook.node for hook in action.spec.type_config.hooks] == ['demand', 'costs']
+    assert [hook.node for hook in action.spec.type_config.hooks] == [demand.uuid, costs.uuid]
     # An existing dataset gets no zeros written into it.
     assert savings.data_points.count() == 1
 

@@ -604,13 +604,12 @@ class InstanceGraph(FrozenGraphModel):
         edge from the action to the node it acts on, as in the runtime
         `Context.node_graph`.
         """
-        by_identifier = {node.identifier: node.id for node in self.nodes if node.identifier is not None}
         edges: list[tuple[UUID, UUID]] = []
         for node in self.nodes:
             type_config = node.spec.type_config
             if not isinstance(type_config, ActionConfig):
                 continue
-            edges.extend((node.id, by_identifier[hook.node]) for hook in type_config.hooks if hook.node in by_identifier)
+            edges.extend((node.id, hook.node) for hook in type_config.hooks if hook.node in self.node_by_id)
         return tuple(edges)
 
     @cached_property
