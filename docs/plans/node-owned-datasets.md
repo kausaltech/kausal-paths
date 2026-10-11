@@ -371,6 +371,13 @@ all seven database instances. Where it differs from the text above, or adds to i
   conversion) should be written. The DVC boundary is the right place for a
   natural key, because the source has no uuids.
 
+**Known issue** (seen 2026-10-09, open): `0085` fails on `paths_de_studio`, the
+branch's copy of `paths_de`, with `Extra inputs are not permitted` on
+`InstanceSnapshot` at `spec.input_ports[].validation.combinations`. Those are the
+combination rules retired for shapes (`4312ed30`), which stored instance snapshots
+still carry; the migration validates them against the current model before anything
+removes them. Details in `docs/plans/action-from-output-port.md`, *Open tasks* 3.
+
 ### Step 5: lossless export and import
 
 - **Import only into a database that does not hold the instance** (decided

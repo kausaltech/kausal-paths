@@ -338,12 +338,13 @@ exists. The two should share the `ActionHookInput` mutation and the edge renderi
 
 ## Open questions
 
-1. **`extend` by default?** Proposed yes: a measure's effect normally persists after
-   its target year. The alternative is to require the modeller to enter the model
-   end year explicitly.
-2. **`AdditiveAction` or `GenericAction`?** `AdditiveAction` is what the editor
-   already creates and pairs ports for. `GenericAction` is what the hook
-   verification used. One test settles whether `AdditiveAction` works with hooks.
+Questions 1, 2, 5 and 6 were settled by the build; 3 and 4 are open (see *Open tasks*).
+
+1. **`extend` by default?** *Settled: yes.* Dataset sources are bound with
+   `interpolate` and `extend`, so an effect holds its last value to the model end year.
+2. **`AdditiveAction` or `GenericAction`?** *Settled: `AdditiveAction`.* It works with
+   hooks once its output metric is resolved by `Node.output_metric_for_port`; the
+   computing test in `test_action_wizard.py` shows it.
 3. **Framework restrictions.** `action-hooks.md` plans `action_hooks: false` on
    nodes where an action makes no sense, such as emission aggregates. The wizard
    should hide the menu item on such ports once that exists.
@@ -351,9 +352,9 @@ exists. The two should share the `ActionHookInput` mutation and the edge renderi
    electricity example has different units after efficiency, so it does not). A
    later validation rule, not part of the wizard.
 5. **Mixed sources in one effect?** For example, a new dataset for the years the
-   modeller estimates and a node for the rest. Not in v1: one source per effect.
-6. **Which instances get it?** The editor refuses yaml-sourced instances, so this
-   is database-sourced only, as is the rest of the editor.
+   modeller estimates and a node for the rest. *Settled for v1: one source per effect.*
+6. **Which instances get it?** *Settled:* database-sourced only, as the rest of the
+   editor; `createActionFromPorts` refuses yaml-sourced instances.
 
 ## As built (2026-10-09–10)
 
@@ -384,7 +385,7 @@ Branch `feat/action-from-output-port` in kausal-paths (from `feat/data-studio-ba
 - `InstanceEditor.dataset(id)` now finds node-owned datasets, so the dataset editor can
   open the action's own dataset (lists still leave them out).
 
-**UI** (kausal-paths-ui, branch `feat/action-from-output-port` from `main`, uncommitted):
+**UI** (kausal-paths-ui, branch `feat/action-from-output-port` from `main`):
 *New action acting on this* on a node's context menu, on an output port's (right-click
 the dot), and on each port row of the details panel. The wizard is a panel on the right
 of the canvas, so effects and source nodes can be picked on the graph while it is open;
@@ -393,16 +394,72 @@ dataset in the dataset editor, or focuses the action when no effect has one. Hoo
 drawn as dashed edges into the output port they act on, outside the ELK layout. The
 binding editor can now carry `interpolate`, `backfill` and `extend` through a rewrite.
 
-The UI on `main` queries `DatasetValidationViolation.requirementGroup`, which
-`feat/data-studio-backend` removed with the combination rules, so every dataset page failed
-against that branch. This branch puts the field back, deprecated and always null, until the
-UI stops asking for it. Still open: migration `nodes.0085_dataset_snapshot_v2` fails on
-databases whose stored snapshots still carry `validation.combinations`.
+The UI's generated types were made from the schema of backend `main` with this branch's
+schema changes applied on top (a diff of `export_schema` between `80e2b6d8` and this
+branch). Generating from this branch's schema alone also rewrites the types of
+unrelated queries, because `main` and `feat/data-studio-backend` have diverged.
 
-Not built: removing hooks when the node they act on is deleted (the action then fails to
-initialize).
+Commits: kausal-paths `e5c4b95a`, kausal-paths-ui `810435ff`.
+
+`DatasetValidationViolation.requirementGroup` is back on this branch, deprecated and
+always null. The UI on `main` still selects it, and `feat/data-studio-backend` had removed
+it with the combination rules, so every dataset page failed against that branch.
+
+## Open tasks
+
+In rough order of how much they block real use.
+
+1. **Try the wizard on a framework-based instance.** This is the main use case (a
+   municipality acting on nodes its framework owns), and it is untested: every test
+   and the browser run used a stand-alone database-sourced instance. The code has
+   framework paths (`bind_dataset_metric` and `create_edge_binding` write binding
+   overrides through `LocalBindingEditor` when `template_revision_id` is set; the target
+   is looked up in the draft graph, so inherited nodes resolve), but nothing has run
+   them. Check in particular that a hook on an *inherited* node loads at runtime:
+   `InstanceLoader._setup_hooks_from_snapshot` reads `snapshot.nodes`, so the composed
+   snapshot must contain the framework's nodes.
+2. **Deleting a node that actions act on.** Their hooks are left naming a node that no
+   longer exists, and the action then fails to initialize (`Invalid hook`). The delete
+   (`NodeEditorMutation.delete`, and the delete path of `instance_export_sync`) should
+   either remove those hooks, recorded in the same change operation so that reverting
+   the deletion restores them, or refuse while hooks remain. A framework upgrade that
+   drops a node has the same problem.
+3. **Migration `nodes.0085_dataset_snapshot_v2` fails** on databases whose stored
+   instance snapshots still carry `spec.input_ports[].validation.combinations`, the
+   combination rules retired for shapes (`4312ed30`): `ValidationError: Extra inputs are
+   not permitted` on `InstanceSnapshot`. Seen on `paths_de_studio`, a local copy of
+   `paths_de` with its BISKO instances, with the submodules at the branch pins. Any
+   database holding snapshots from before the retirement, staging included, presumably
+   fails the same way; that is not verified. The snapshot upgrade has to drop
+   (or convert) `combinations` before the migration validates. This belongs to the
+   `feat/data-studio-backend` work, not to the wizard.
+4. **Remove the `requirementGroup` stand-in** once the UI no longer selects it: in
+   kausal-paths-ui, `DatasetValidationViolation.requirementGroup` in
+   `components/model-editor/datasets/queries.ts` and its use for `required_combinations`
+   findings in `DatasetEditor.tsx`. Then delete the field from
+   `DatasetValidationViolationType` (`nodes/graphql/types/problems.py`) and the test
+   `test_dataset_violations_still_answer_the_retired_requirement_group`.
+5. **Effects with different dimensions in one action.** Needs per-output dimensions at
+   runtime: today `Node.validate_dims` checks every output against the node-level
+   `output_dimensions`. When the planned implicit dimensions land, drop the refusal in
+   `_resolve_effects` (`nodes/graphql/action_wizard.py`) and group new-dataset effects
+   into one owned dataset per dimension set, as the design above first proposed.
+6. **Framework restrictions** (open question 3): mark nodes where an action makes no
+   sense, `action_hooks: false`, and leave them out of the wizard's menus and of
+   `effectSourceCandidates`.
+7. **Drawing a hook by hand** for an existing action: drag from its output port onto a
+   node's output port (`docs/architecture/action-hooks.md`). `addActionHook` exists;
+   only the gesture is missing.
+8. **Reverting the deletion of an action** should bring back its own dataset. The wizard
+   records every write in the change log, but the revert is step 2 of the node-owned
+   datasets plan (decision 8) and is not built.
+
+Later, as listed under *Out of scope for v1*: relative effects, copying an existing action
+through the same mutation, and changing an action's shape afterwards.
 
 ## Implementation order
+
+Done, in this order, 2026-10-09–10.
 
 1. Hooks in GraphQL: `ActionHookInput` on create/update, hooks exposed on
    `ActionConfig`, the action→target relation drawn on the canvas.
