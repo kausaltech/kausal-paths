@@ -47,6 +47,7 @@ from datasets.validation_rules import (
     DimensionSumRule,
     NoGapsRule,
     RequiresMetricRule,
+    RequiredCombinationsRule,
     ValidationRuleGQLInterface,
     ValueRangeRule,
     rule_to_gql,
@@ -81,6 +82,7 @@ register_strawberry_type(ValueRangeRule.ObjectType)
 register_strawberry_type(DimensionSumRule.ObjectType)
 register_strawberry_type(NoGapsRule.ObjectType)
 register_strawberry_type(RequiresMetricRule.ObjectType)
+register_strawberry_type(RequiredCombinationsRule.ObjectType)
 
 if TYPE_CHECKING:
     from collections.abc import Iterable

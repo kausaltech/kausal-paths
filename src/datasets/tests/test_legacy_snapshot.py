@@ -1,7 +1,10 @@
 """Upgrading v1 dataset payloads (wide table, natural keys) to the uuid-keyed v2 form."""
 
+from copy import deepcopy
 from datetime import date
 from uuid import uuid4
+
+from pydantic import ValidationError
 
 import pytest
 
@@ -60,6 +63,62 @@ def test_the_same_payload_always_upgrades_to_the_same_content() -> None:
     """Without live rows to borrow from, uuids are derived, so a hash over the result is stable."""
     content = v1_payload([{'Year': 2020, 'sector': 'homes', 'value': 1.0}], [{'identifier': 'value'}])
     assert upgrade(content).model_dump(mode='json') == upgrade(content).model_dump(mode='json')
+
+
+def test_retired_frozen_rules_are_removed_without_changing_values_or_active_rules() -> None:
+    active_id = uuid4()
+    active = {'kind': 'value_range', 'min': 0, 'enforcement': 'block_publish'}
+    content = v1_payload(
+        [{'Year': 2020, 'sector': 'homes', 'value': 1.5}],
+        [
+            {
+                'identifier': 'value',
+                'validation_rules': [
+                    {'uuid': str(uuid4()), 'rule': {'kind': 'allowed_combinations', 'enforcement': 'block_publish'}},
+                    {'uuid': str(active_id), 'rule': active},
+                ],
+            }
+        ],
+    )
+    original = deepcopy(content)
+
+    snapshot = upgrade(content)
+
+    (metric,) = snapshot.meta.metrics
+    (rule,) = metric.validation_rules
+    assert rule.id == active_id
+    assert rule.rule.kind == 'value_range'
+    assert rule.rule.min == 0
+    assert rule.rule.enforcement == 'block_publish'
+    assert [point.value for point in snapshot.points] == [1.5]
+    assert content == original
+
+
+def test_deprecated_required_combinations_are_preserved_in_frozen_payloads() -> None:
+    rule_id, combination_id = uuid4(), uuid4()
+    rule = {
+        'kind': 'required_combinations',
+        'groups': [{'id': 'minimum', 'combinations': [str(combination_id)]}],
+        'enforcement': 'block_publish',
+    }
+    content = v1_payload([], [{'identifier': 'value', 'validation_rules': [{'uuid': str(rule_id), 'rule': rule}]}])
+    (preserved,) = upgrade(content).meta.metrics[0].validation_rules
+    assert preserved.id == rule_id
+    assert preserved.rule.model_dump(mode='json') == rule
+
+
+def test_unknown_frozen_rule_kinds_still_fail_validation() -> None:
+    content = v1_payload(
+        [],
+        [
+            {
+                'identifier': 'value',
+                'validation_rules': [{'uuid': str(uuid4()), 'rule': {'kind': 'unknown', 'enforcement': 'block_publish'}}],
+            }
+        ],
+    )
+    with pytest.raises(ValidationError, match='union_tag_invalid'):
+        upgrade(content)
 
 
 def test_live_rows_lend_their_uuids() -> None:

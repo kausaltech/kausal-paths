@@ -39,6 +39,8 @@ from kausal_common.strawberry.pydantic import (
     register_type_conversion,
 )
 
+from paths.refs import ShapeCombinationRef
+
 from common.validation import Enforcement
 
 
@@ -192,8 +194,33 @@ class RequiresMetricRule(_RuleBase):
         metric: auto
 
 
+@graphql_types
+class RequiredCombinationGroup(BaseModel):
+    """A legacy requirement satisfied by any one of its category combinations."""
+
+    model_config = ConfigDict(extra='forbid')
+
+    id: str
+    combinations: list[ShapeCombinationRef] = Field(min_length=1)
+
+    class ObjectType(StrawberryPydanticType['RequiredCombinationGroup']):
+        id: auto
+        combinations: auto
+
+
+@graphql_types
+class RequiredCombinationsRule(_RuleBase):
+    """Deprecated: existing rules remain enforced until their model is re-synced to shapes."""
+
+    kind: Literal['required_combinations'] = 'required_combinations'
+    groups: list[RequiredCombinationGroup] = Field(min_length=1)
+
+    class ObjectType(ValidationRuleGQLInterface):
+        groups: auto = sb.field(deprecation_reason='Use required groups on a shape; re-sync the model to replace this rule.')
+
+
 type ValidationRule = Annotated[
-    ValueRangeRule | DimensionSumRule | NoGapsRule | RequiresMetricRule,
+    ValueRangeRule | DimensionSumRule | NoGapsRule | RequiredCombinationsRule | RequiresMetricRule,
     Field(discriminator='kind'),
 ]
 
@@ -212,6 +239,8 @@ def rule_to_gql(rule: ValidationRule) -> ValidationRuleGQLInterface:
             return NoGapsRule.ObjectType.from_pydantic(rule)
         case RequiresMetricRule():
             return RequiresMetricRule.ObjectType.from_pydantic(rule)
+        case RequiredCombinationsRule():
+            return RequiredCombinationsRule.ObjectType.from_pydantic(rule)
         case _:
             assert_never(rule)
 
