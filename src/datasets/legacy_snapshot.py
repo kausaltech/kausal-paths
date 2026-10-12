@@ -38,6 +38,9 @@ if TYPE_CHECKING:
 type Cell = tuple[UUID, int, frozenset[UUID]]
 """A data point's cell: metric uuid, year and category uuids."""
 
+RETIRED_VALIDATION_RULE_KINDS = ('allowed_combinations',)
+"""Frozen rules replaced by shapes; live rule rows must be migrated explicitly."""
+
 
 @dataclass
 class LiveIdentities:
@@ -107,7 +110,13 @@ def _structure(content: dict[str, Any], base: DatasetMeta | None, dataset_id: UU
     for order, metric in enumerate(content.get('metrics', [])):
         identifier = metric['identifier']
         existing = metrics.get(identifier)
-        rules = tuple(ValidationRuleMeta(id=UUID(rule['uuid']), rule=rule['rule']) for rule in metric.get('validation_rules', []))
+        # Match the instance-catalog upgrade: these frozen rules became shapes
+        # and no longer parse. Keep all other rules subject to strict validation.
+        rules = tuple(
+            ValidationRuleMeta(id=UUID(rule['uuid']), rule=rule['rule'])
+            for rule in metric.get('validation_rules', [])
+            if rule['rule'].get('kind') not in RETIRED_VALIDATION_RULE_KINDS
+        )
         if existing is None:
             metrics[identifier] = DatasetMetricMeta(
                 id=uuid3(dataset_id, f'metric:{identifier}'),
