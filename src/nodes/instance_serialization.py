@@ -63,7 +63,7 @@ from paths.rekey import rekeyed, survey
 from paths.uuid_kinds import Token
 
 from datasets.catalogue import dataset_meta_from_model
-from datasets.legacy_snapshot import complete_catalog_entry, upgrade_dataset_snapshot_v1
+from datasets.legacy_snapshot import RETIRED_VALIDATION_RULE_KINDS, complete_catalog_entry, upgrade_dataset_snapshot_v1
 from datasets.shape_domain import CategoryDomainResolver
 from datasets.snapshot import DatasetSnapshot, metric_column_id
 from datasets.transfer import import_instance_datasets, save_in_order
@@ -380,9 +380,6 @@ type BindingSnapshot = EdgeSnapshot | DatasetPortSnapshot
 """One entry of ``InstanceSnapshot.bindings``, discriminated by ``kind``."""
 
 
-_RETIRED_RULE_KINDS = ('required_combinations', 'allowed_combinations')
-
-
 def upgrade_dataset_catalog_v15(data: dict[str, Any]) -> None:
     """
     Make each dataset catalog entry pure structure, in place.
@@ -392,11 +389,9 @@ def upgrade_dataset_catalog_v15(data: dict[str, Any]) -> None:
     uuids, name, forecast year and time resolution that v15 adds are not in a v14
     snapshot; the migration that rewrites stored revisions fills them from the database.
 
-    Rules of a retired kind are dropped. ``required_combinations`` and
-    ``allowed_combinations`` became shapes (datasets migration 0003 refuses to drop a
-    stored rule row of either kind), but revisions published before that froze them into
-    their catalog, where nothing can evaluate them any more and they only make the
-    revision unreadable.
+    Frozen ``allowed_combinations`` rules are dropped: closed shapes replaced them.
+    Deprecated ``required_combinations`` rules are retained and evaluated until models
+    are re-synced to shapes. Live rules are never silently removed by this upgrade.
     """
     entries = [*data.get('datasets', []), *(item for node in data.get('nodes', []) for item in node.get('datasets', []))]
     for entry in entries:
@@ -407,7 +402,7 @@ def upgrade_dataset_catalog_v15(data: dict[str, Any]) -> None:
                 rule if isinstance(rule, dict) and 'rule' in rule else {'rule': rule}
                 for rule in metric.get('validation_rules', [])
             ]
-            metric['validation_rules'] = [rule for rule in rules if rule['rule'].get('kind') not in _RETIRED_RULE_KINDS]
+            metric['validation_rules'] = [rule for rule in rules if rule['rule'].get('kind') not in RETIRED_VALIDATION_RULE_KINDS]
 
 
 def upgrade_node_references_v16(nodes: Iterable[dict[str, Any]], uuid_by_identifier: Mapping[str, UUID | str]) -> bool:
