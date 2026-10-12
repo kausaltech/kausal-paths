@@ -328,6 +328,54 @@ def test_closed_domain_rejects_rows_outside_it_without_a_rule(rig):
     assert violation.categories == {'region': 'b'}
 
 
+def test_deprecated_required_combinations_use_the_stored_domain_and_block_publication(
+    rig: tuple[Dataset, DatasetMetric, DimensionCategory, DimensionCategory],
+    gql_client: PathsTestClient,
+) -> None:
+    dataset, metric, cat_a, cat_b = rig
+    combination = DatasetCategoryCombination(id=uuid4(), identifier='region_b', categories={cat_b.dimension.uuid: cat_b.uuid})
+    assert dataset.schema is not None
+    dataset.schema.category_domain = DatasetCategoryDomain(combinations=[combination])
+    dataset.schema.save(update_fields=['category_domain'])
+    set_rule(
+        metric,
+        {
+            'kind': 'required_combinations',
+            'enforcement': 'block_publish',
+            'groups': [{'id': 'region_b', 'combinations': [str(combination.id)]}],
+        },
+    )
+    add_point(dataset, metric, 2020, 1, cat_a)
+    add_point(dataset, metric, 2020, 0, cat_b)
+    add_point(dataset, metric, 2021, 2, cat_a)
+
+    (violation,) = evaluate_dataset_rules(dataset)
+    assert violation.kind == 'required_combinations'
+    assert violation.years == [2021]
+    assert violation.categories == {'region': 'b'}
+    assert violation.requirement_group == 'region_b'
+    assert violation.combination_ids == [combination.id]
+    materialization = materialize_dataset(dataset)
+    with pytest.raises(InstanceDatasetValidationError):
+        require_valid_dataset_rules([materialization])
+    data = gql_client.query_data(
+        """query LegacyRule($datasetId: ID!) {
+            instance { editor { dataset(id: $datasetId) {
+                metrics { validationRules { rule {
+                    __typename
+                    ... on RequiredCombinationsRule { groups { id combinations } }
+                } } }
+            } } }
+        }""",
+        variables={'datasetId': str(dataset.uuid)},
+    )
+    (payload,) = data['instance']['editor']['dataset']['metrics'][0]['validationRules']
+    assert payload['rule'] == {
+        '__typename': 'RequiredCombinationsRule',
+        'groups': [{'id': 'region_b', 'combinations': [str(combination.id)]}],
+    }
+
+
 def test_dimension_sum_rule_on_missing_dimension_is_reported_as_invalid_rule(rig):
     dataset, metric, cat_a, _cat_b = rig
     set_rule(metric, {'kind': 'dimension_sum', 'enforcement': 'block_edit', 'dimension': 'sector', 'target': 1.0})

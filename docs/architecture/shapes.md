@@ -285,6 +285,20 @@ Each open standard shape has a closed extension point (`end_energy`, `road_milea
 `kommune/*` datasets and the ports that consume them refer to those.
 
 
+## Deploying the transition from combination rules
+
+`required_combinations` is deprecated but remains readable and enforced for existing
+models. Deployment must finish before models can be re-synced, so the combination-rule
+migration reports those rules without blocking or deleting them. GraphQL exposes the
+legacy rule's groups as deprecated output; the editor cannot create new rules of this kind.
+Snapshots retain these rules while compatibility support exists.
+
+Deploy and run migrations first, then re-sync models whose requirements have moved to
+shapes. Sync replaces declared metric rules, removing the obsolete rows. Remove compatibility
+support in a later release only after checking that no live `required_combinations` rows
+remain. `allowed_combinations` stays retired: live rows still require explicit conversion
+to a closed shape before migration, while old snapshots discard that rule kind.
+
 ## Open
 
 - **Requirements added by a municipality.** Whether an extension point's owner may add required

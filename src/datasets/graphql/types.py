@@ -46,6 +46,7 @@ from datasets.validation import load_violations
 from datasets.validation_rules import (
     DimensionSumRule,
     NoGapsRule,
+    RequiredCombinationsRule,
     ValidationRuleGQLInterface,
     ValueRangeRule,
     rule_to_gql,
@@ -79,6 +80,7 @@ from users.schema import UserType
 register_strawberry_type(ValueRangeRule.ObjectType)
 register_strawberry_type(DimensionSumRule.ObjectType)
 register_strawberry_type(NoGapsRule.ObjectType)
+register_strawberry_type(RequiredCombinationsRule.ObjectType)
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
