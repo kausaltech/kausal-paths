@@ -1,3 +1,4 @@
+from contextlib import nullcontext
 from types import SimpleNamespace
 from typing import cast
 
@@ -17,6 +18,7 @@ from frameworks.datasets import (
 from frameworks.models import Measure, MeasureDataPoint, MeasureTemplate, Section
 from frameworks.tests.factories import FrameworkConfigFactory
 from nodes.context import Context, FrameworkConfigData
+from nodes.defs.transform_def import SetForecastFromOp
 from nodes.units import unit_registry
 
 pytestmark = pytest.mark.django_db
@@ -139,3 +141,66 @@ def test_empty_measure_datapoint_snapshot_is_cached() -> None:
             assert frame.is_empty()
             assert frame.schema['MeasureValue'] == pl.Float64
     assert len(queries) == 1
+
+
+def _forecast_from_context(framework_config_data: FrameworkConfigData | None) -> Context:
+    return cast(
+        'Context',
+        SimpleNamespace(
+            dimensions={},
+            framework_config_data=framework_config_data,
+            get_parameter_value=lambda *_args, **_kwargs: False,
+            instance=SimpleNamespace(reference_year=2018, maximum_historical_year=2018, target_year=2030),
+            unit_registry=unit_registry,
+            perf_context=SimpleNamespace(exec_named=lambda **_kwargs: nullcontext()),
+        ),
+    )
+
+
+def _raw_frame(data: dict[str, list[object]]) -> ppl.PathsDataFrame:
+    return ppl.PathsDataFrame._from_pydf(
+        pl.DataFrame(data)._df,
+        meta=ppl.DataFrameMeta(
+            primary_keys=[col for col in data if col != 'Value'],
+            units={'Value': unit_registry.parse_units('MWh/a')},
+        ),
+    )
+
+
+def test_measure_overlay_keeps_binding_forecast_for_rows_it_did_not_fill() -> None:
+    fwc = FrameworkConfigFactory.create(baseline_year=2018)
+    section = Section.add_root(instance=Section(framework=fwc.framework, name='Root'))
+    filled = MeasureTemplate.objects.create(section=section, name='Filled', unit='MWh/a')
+    unfilled = MeasureTemplate.objects.create(section=section, name='Unfilled', unit='MWh/a')
+    measure = Measure.objects.create(framework_config=fwc, measure_template=filled)
+    MeasureDataPoint.objects.create(measure=measure, year=2018, value=42.0)
+
+    context = _forecast_from_context(FrameworkConfigData(last_modified_at=fwc.last_modified_at, id=fwc.pk))
+    # `forecast_from` runs before the overlay hook, so the overlay sees the binding's flag.
+    dataset = FrameworkMeasureDVCDataset2(id='framework-energy', context=context, transformations=[SetForecastFromOp(year=2025)])
+    raw = _raw_frame({
+        'Year': [2018, 2019, 2030],
+        'uuid': [str(filled.uuid), str(unfilled.uuid), str(unfilled.uuid)],
+        'Value': [1.0, 2.0, 3.0],
+    })
+
+    result = dataset._filter_and_process_df(raw).sort('Year')
+
+    assert result['Value'].to_list() == [42.0, 2.0, 3.0]
+    assert result['FromMeasureDataPoint'].to_list() == [True, False, False]
+    # 2019 is before `forecast_from`; the overlay used to mark it forecast because it is
+    # after the reference year.
+    assert result['Forecast'].to_list() == [False, False, True]
+
+
+def test_overlay_without_measure_linkage_keeps_binding_forecast() -> None:
+    context = _forecast_from_context(None)
+    with_binding_flag = FrameworkMeasureDVCDataset2(
+        id='framework-energy', context=context, transformations=[SetForecastFromOp(year=2025)]
+    )
+    without_flag = FrameworkMeasureDVCDataset2(id='framework-energy-plain', context=context)
+    raw = _raw_frame({'Year': [2018, 2019, 2030], 'uuid': ['a', 'b', 'b'], 'Value': [1.0, 2.0, 3.0]})
+
+    assert with_binding_flag._filter_and_process_df(raw).sort('Year')['Forecast'].to_list() == [False, False, True]
+    # Without a flag from the binding, the reference year still decides.
+    assert without_flag._filter_and_process_df(raw).sort('Year')['Forecast'].to_list() == [False, True, True]

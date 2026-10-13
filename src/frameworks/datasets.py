@@ -316,6 +316,10 @@ class FrameworkMeasureDVCDataset2(DVCDataset):
         fwd = context.framework_config_data
         ref_year = context.instance.reference_year
         df = df.paths._drop_unnecessary_levels(df, context)
+        # A Forecast column already on the frame was set by the binding (`forecast_from`, or a
+        # tag such as `bring_to_reference_year`); the NZC sources carry none. The overlay only
+        # decides the flag for rows the city's data points filled, and leaves the rest alone.
+        binding_forecast = FORECAST_COLUMN in df.columns
 
         if fwd is None or 'uuid' not in df.columns:
             drop_cols = [col for col in ['uuid', 'Sector'] if col in df.columns]
@@ -324,8 +328,9 @@ class FrameworkMeasureDVCDataset2(DVCDataset):
             df = df.with_columns([
                 pl.lit(value=False).alias('ObservedDataPoint'),
                 pl.lit(value=False).alias('FromMeasureDataPoint'),
-                (pl.col(YEAR_COLUMN) > ref_year).alias(FORECAST_COLUMN),
             ])
+            if not binding_forecast:
+                df = df.with_columns((pl.col(YEAR_COLUMN) > ref_year).alias(FORECAST_COLUMN))
             return df
 
         uuids = df['uuid'].unique().to_list()
@@ -420,7 +425,10 @@ class FrameworkMeasureDVCDataset2(DVCDataset):
         max_hist = context.instance.maximum_historical_year or ref_year
         has_db_data = pl.col('ObservedDataPoint') | pl.col('FromMeasureDataPoint')
         obs_expr = (has_db_data & (pl.col(YEAR_COLUMN) <= max_hist)) | (pl.col(YEAR_COLUMN) == ref_year)
-        jdf = jdf.with_columns(~obs_expr.alias(FORECAST_COLUMN))
+        forecast_expr = ~obs_expr
+        if binding_forecast:
+            forecast_expr = pl.when(pl.col('FromMeasureDataPoint')).then(forecast_expr).otherwise(pl.col(FORECAST_COLUMN))
+        jdf = jdf.with_columns(forecast_expr.alias(FORECAST_COLUMN))
 
         out_cols = [c for c in [*df_cols, 'FromMeasureDataPoint', 'ObservedDataPoint'] if c != 'uuid']
         out_cols = out_cols if FORECAST_COLUMN in out_cols else [*out_cols, FORECAST_COLUMN]
