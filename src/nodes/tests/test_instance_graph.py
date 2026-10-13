@@ -18,7 +18,7 @@ from paths.context import PathsObjectCache
 from nodes.defs.binding_def import DatasetBindingDef, EdgeBindingDef, NodePortRef
 from nodes.defs.instance_defs import InstanceMetadata, InstanceModelSpec
 from nodes.defs.node_defs import NodeSpec
-from nodes.defs.port_def import InputPortDef, OutputPortDef
+from nodes.defs.port_def import InputPort, InputPortDef, OutputPortDef
 from nodes.instance_graph import InstanceGraph, NodeMeta, build_instance_graph
 from nodes.instance_graph_cache import (
     _dump_graph,
@@ -34,10 +34,90 @@ from nodes.instance_serialization import (
     build_instance_snapshot,
 )
 from nodes.models import NodeInputPortBinding, PreferredInstanceSource
+from nodes.node import Node
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory, NodeConfigFactory
 from nodes.units import unit_registry
 
 pytestmark = pytest.mark.django_db
+
+
+class DeclarativePairedNode(Node):
+    declared_input_ports = (InputPort.repeatable('impact', paired_output=True),)
+
+
+class DeclarativePairedMultiNode(Node):
+    declared_input_ports = (InputPort.multi('impact', aggregation='sum', paired_output=True),)
+
+
+@pytest.mark.parametrize('direction', ['input', 'output'])
+def test_paired_multi_input_multiplicity_survives_port_creation(direction: str) -> None:
+    meta = NodeMeta(id=uuid4(), node_class_path='nodes.tests.test_instance_graph.DeclarativePairedMultiNode', spec=NodeSpec())
+    unit = unit_registry.parse_units('kWh')
+    if direction == 'input':
+        spec = meta.add_input_port(InputPortDef(id=uuid4(), identifier='energy', unit=unit, quantity='energy', multi=True))
+    else:
+        spec = meta.add_output_port(OutputPortDef(id=uuid4(), identifier='energy', unit=unit, quantity='energy'))
+    assert spec.input_ports[0].multi is True
+    assert spec.input_ports[0].paired_output_port_id == spec.output_ports[0].id
+
+
+@pytest.mark.parametrize('direction', ['input', 'output'])
+def test_add_paired_port_returns_validated_spec_without_mutating_graph(direction: str) -> None:
+    reference = InputPortDef(id=uuid4(), identifier='reference', role='reference', multi=True)
+    spec = NodeSpec(input_ports=[reference])
+    meta = NodeMeta(
+        id=uuid4(),
+        node_class_path='nodes.tests.test_instance_graph.DeclarativePairedNode',
+        spec=spec,
+    )
+    graph = InstanceGraph(instance_id=uuid4(), metadata=InstanceMetadata(), spec=InstanceModelSpec(), nodes=(meta,))
+    original_inputs = meta.spec.input_port_by_id
+    original_outputs = meta.spec.output_port_by_id
+    port_id = uuid4()
+    unit = unit_registry.parse_units('kWh')
+    if direction == 'input':
+        new_spec = meta.add_input_port(InputPortDef(id=port_id, identifier='energy', unit=unit, quantity='energy'))
+        assert new_spec.input_port_by_id[port_id].paired_output_port_id == new_spec.output_ports[0].id
+    else:
+        new_spec = meta.add_output_port(OutputPortDef(id=port_id, identifier='energy', unit=unit, quantity='energy'))
+        assert new_spec.input_ports[0].paired_output_port_id == port_id
+    assert new_spec.input_ports[0].role == 'impact'
+    assert new_spec.input_ports[0].is_editable is False
+    assert new_spec.input_ports[0].id != new_spec.output_ports[0].id
+    assert new_spec.input_ports[1] == reference
+    assert new_spec.output_ports[0].column_id == 'energy'
+    assert meta.graph is graph
+    assert meta.spec.input_port_by_id == original_inputs == {reference.id: reference}
+    assert meta.spec.output_port_by_id == original_outputs == {}
+
+
+def test_add_reference_input_on_paired_node_does_not_create_output() -> None:
+    meta = NodeMeta(id=uuid4(), node_class_path='nodes.tests.test_instance_graph.DeclarativePairedNode', spec=NodeSpec())
+    port = InputPortDef(id=uuid4(), role='reference', multi=True)
+    spec = meta.add_input_port(port)
+    assert spec.input_ports == [port]
+    assert spec.output_ports == []
+
+
+def test_add_empty_paired_input_uses_neutral_defaults_without_existing_outputs() -> None:
+    meta = NodeMeta(id=uuid4(), node_class_path='nodes.tests.test_instance_graph.DeclarativePairedNode', spec=NodeSpec())
+    input_id = uuid4()
+    spec = meta.add_input_port(InputPortDef(id=input_id))
+    assert spec.input_ports[0].id == input_id
+    assert spec.input_ports[0].identifier == 'impact'
+    assert spec.input_ports[0].quantity == 'number'
+    assert spec.input_ports[0].unit == unit_registry.dimensionless
+    assert spec.input_ports[0].paired_output_port_id == spec.output_ports[0].id
+
+
+def test_add_paired_port_rejects_duplicate_identifiers() -> None:
+    meta = NodeMeta(id=uuid4(), node_class_path='nodes.tests.test_instance_graph.DeclarativePairedNode', spec=NodeSpec())
+    unit = unit_registry.parse_units('kWh')
+    first = InputPortDef(id=uuid4(), identifier='energy', unit=unit, quantity='energy')
+    spec = meta.add_input_port(first)
+    meta = NodeMeta(id=meta.id, node_class_path=meta.node_class_path, spec=spec)
+    with pytest.raises(ValueError, match=r'Duplicate .* port identifier'):
+        meta.add_input_port(first.model_copy(update={'id': uuid4()}))
 
 
 def _snapshot() -> InstanceSnapshot:

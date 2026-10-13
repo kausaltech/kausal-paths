@@ -55,6 +55,7 @@ from nodes.dataset_materialization import refresh_dataset_materialization
 from nodes.defs import ActionGroup, FormulaConfig, SimpleConfig
 from nodes.defs.node_defs import ActionConfig, NodeKind, NodeSpec, PipelineConfig, TypeConfig
 from nodes.defs.port_def import InputPortDef, OutputPortDef
+from nodes.instance_graph import InstanceGraph, NodeMeta
 from nodes.models import InstanceConfig, NodeConfig, NodeInputPortBinding, NodeLayout, NodeLayoutSource
 from nodes.node import Node
 from nodes.units import unit_registry
@@ -178,11 +179,22 @@ def _paired_action_input_ports(
     input_ports: list[InputPortDef],
     output_ports: list[OutputPortDef],
 ) -> list[InputPortDef]:
-    if not _is_additive_action_class(node_class):
+    paired = [declaration for declaration in node_class.input_port_declarations if declaration.paired_output]
+    if not paired:
         return input_ports
+    if len(paired) != 1:
+        raise ValueError('Cannot choose between multiple input roles with paired outputs')
     from nodes.defs.port_def import pair_input_ports_to_outputs
 
-    return pair_input_ports_to_outputs(input_ports, output_ports, role='input', keep_unpaired=False)
+    declaration = paired[0]
+    candidates = [port for port in input_ports if port.role in (None, declaration.role)]
+    other_inputs = [port for port in input_ports if port.role not in (None, declaration.role)]
+    return [
+        *pair_input_ports_to_outputs(
+            candidates, output_ports, role=declaration.role, keep_unpaired=False, default_multi=declaration.multi
+        ),
+        *other_inputs,
+    ]
 
 
 def _unique_port_identifier(existing: set[str], base: str) -> str:
@@ -1056,6 +1068,24 @@ def _check_port_identifier_unique(
             raise GraphQLValidationError(info, f'Duplicate {direction} port identifier {updated.identifier!r}')
 
 
+def _apply_paired_input_update(info: gql.Info, spec: NodeSpec, port: InputPortDef, updated: InputPortDef) -> None:
+    """Route label/unit/quantity edits through a paired input to its canonical output."""
+    editable_fields = {'label', 'unit', 'quantity'}
+    if port.model_dump(exclude=editable_fields) != updated.model_dump(exclude=editable_fields):
+        raise GraphQLValidationError(info, 'Only label, unit and quantity can be edited through a paired input port')
+    if port.model_dump(include=editable_fields) == updated.model_dump(include=editable_fields):
+        return
+    output = spec.output_port_by_id.get(port.paired_output_port_id) if port.paired_output_port_id is not None else None
+    if output is None:
+        raise GraphQLValidationError(info, f'Input port "{port.id}" has no paired output')
+    if not output.is_editable:
+        raise GraphQLValidationError(info, f'Paired output port "{output.id}" is not editable')
+    if updated.unit is None:
+        raise GraphQLValidationError(info, 'A paired input port requires a unit')
+    updated_output = output.model_copy(update={'label': updated.label, 'unit': updated.unit, 'quantity': updated.quantity})
+    spec.output_ports = [updated_output if item.id == output.id else item for item in spec.output_ports]
+
+
 def _node_conflicts(info: gql.Info, ic: InstanceConfig, nc: NodeConfig) -> list[ConstraintConflictType]:
     """Solve the draft graph's constraints and return the conflicts touching this node."""
     from nodes.models import PreferredInstanceSource
@@ -1252,16 +1282,24 @@ def _apply_node_type_update(
 
 
 def _apply_node_port_updates(info: gql.Info, nc: NodeConfig, spec: NodeSpec, input: UpdateNodeInput) -> None:
-    node_class = _node_class_for(nc)
+    from nodes.instance_graph import node_class_for_spec
+
+    node_class = node_class_for_spec(spec)
     default_language = nc.instance.primary_language
     if is_maybe_set(input.input_ports):
-        if _is_additive_action_class(node_class):
-            raise GraphQLValidationError(info, 'AdditiveAction input ports are generated from its output ports')
         existing_inputs = {port.id: port for port in spec.input_ports}
-        spec.input_ports = [
+        updated_inputs = [
             _input_port_to_def(nc.identifier, index, port, existing_inputs, default_language)
             for index, port in enumerate(input.input_ports.value or [])
         ]
+        if any(declaration.paired_output for declaration in node_class.input_port_declarations):
+            if len(updated_inputs) != len(existing_inputs) or {port.id for port in updated_inputs} != set(existing_inputs):
+                raise GraphQLValidationError(info, 'Paired input ports are generated from their output ports; edit them in place')
+            for updated in updated_inputs:
+                previous = existing_inputs[updated.id]
+                if previous.paired_output_port_id is not None:
+                    _apply_paired_input_update(info, spec, previous, updated)
+        spec.input_ports = updated_inputs
     if not is_maybe_set(input.output_ports) and not is_maybe_set(input.output_metrics):
         return
 
@@ -1317,18 +1355,33 @@ def _apply_update_node_input(
 class NodeEditorMutation:
     instance: sb.Private[InstanceConfig]
     node: sb.Private[NodeConfig]
+    graph: sb.Private[InstanceGraph]
+    node_meta: sb.Private[NodeMeta]
     type Me = NodeEditorMutation
+
+    def _current_node_meta(self, info: gql.Info) -> NodeMeta:
+        """Refresh the editor snapshot if an earlier mutation advanced the draft."""
+        from nodes.graphql.constraint_checks import require_draft_graph
+
+        graph = require_draft_graph(info, self.instance)
+        if graph is not self.graph:
+            meta = graph.node_by_id.get(self.node.uuid)
+            if meta is None:
+                raise NotFoundError(info, f'Node "{self.node.identifier}" no longer exists in the draft')
+            self.node = self.instance.nodes.get_queryset().with_spec().get(pk=self.node.pk)
+            self.graph = graph
+            self.node_meta = meta
+        return self.node_meta
 
     @gql.mutation(description='Update this node', graphql_type=AnyNodeType)
     @staticmethod
     def update(info: gql.Info, root: sb.Parent[Me], input: UpdateNodeInput) -> Node:
+        spec = root._current_node_meta(info).spec.model_copy(deep=True)
         nc = root.node
         with gql_change_operation(info, root.instance, action='node.update'):
             before = nc.serializable_data()
 
-            spec = nc.spec
             updates: dict[str, object] = {}
-            assert spec is not None
             _apply_update_node_input(info, nc, spec, input, updates)
             nc.spec = spec
             updates['spec'] = spec
@@ -1343,6 +1396,7 @@ class NodeEditorMutation:
     @gql.mutation(description='Delete this node')
     @staticmethod
     def delete(info: gql.Info, root: sb.Parent[Me]) -> None:
+        root._current_node_meta(info)
         nc = root.node
         with gql_change_operation(info, root.instance, action='node.delete'):
             # Log cascade-delete entries BEFORE the DB CASCADE wipes the rows,
@@ -1373,24 +1427,25 @@ class NodeEditorMutation:
     @gql.mutation(description='Append a new input port to this node', graphql_type=InputPortType)
     @staticmethod
     def add_input_port(info: gql.Info, root: sb.Parent[Me], input: InputPortInput) -> InputPortDef:
+        meta = root._current_node_meta(info)
         nc = root.node
-        if nc.spec is None:
-            raise GraphQLError(f'Node "{nc.identifier}" has no spec')
-        if _is_additive_action_class(_node_class_for(nc)):
-            raise GraphQLValidationError(info, 'AdditiveAction input ports are generated from its output ports')
-
-        new_port = _input_port_to_def(nc.identifier, len(nc.spec.input_ports), input, {}, root.instance.primary_language)
+        new_port = _input_port_to_def(nc.identifier, len(meta.spec.input_ports), input, {}, root.instance.primary_language)
         if input.id is None:
             new_port = new_port.model_copy(update={'id': uuid4()})
 
+        try:
+            spec = meta.add_input_port(new_port)
+        except ValueError as exc:
+            raise GraphQLValidationError(info, str(exc)) from exc
+
         with gql_change_operation(info, root.instance, action='node.input_ports.create'):
             before = nc.serializable_data()
-            nc.spec.input_ports = [*nc.spec.input_ports, new_port]
-            NodeConfig.objects.filter(pk=nc.pk).update(spec=nc.spec)
+            nc.spec = spec
+            NodeConfig.objects.filter(pk=nc.pk).update(spec=spec)
             nc.refresh_from_db()
             record_change(nc, action='node.input_ports.create', before=before, after=nc.serializable_data())
 
-        return new_port
+        return spec.input_port_by_id[new_port.id]
 
     @gql.mutation(
         description='Bind a dataset metric to an existing input port on this node',
@@ -1404,28 +1459,31 @@ class NodeEditorMutation:
     ) -> Any:
         from nodes.graphql.bindings import bind_dataset
 
+        root._current_node_meta(info)
         return bind_dataset(info, root.instance, root.node, input)
 
     @gql.mutation(description='Append a new output port to this node', graphql_type=OutputPortType)
     @staticmethod
     def add_output_port(info: gql.Info, root: sb.Parent[Me], input: OutputPortInput) -> OutputPortDef:
+        meta = root._current_node_meta(info)
         nc = root.node
-        if nc.spec is None:
-            raise GraphQLError(f'Node "{nc.identifier}" has no spec')
-
-        new_port = _output_port_to_def(nc.identifier, len(nc.spec.output_ports), input, {}, root.instance.primary_language)
+        new_port = _output_port_to_def(nc.identifier, len(meta.spec.output_ports), input, {}, root.instance.primary_language)
         if input.id is None:
             new_port = new_port.model_copy(update={'id': uuid4()})
 
+        try:
+            spec = meta.add_output_port(new_port)
+        except ValueError as exc:
+            raise GraphQLValidationError(info, str(exc)) from exc
+
         with gql_change_operation(info, root.instance, action='node.output_ports.create'):
             before = nc.serializable_data()
-            nc.spec.output_ports = [*nc.spec.output_ports, new_port]
-            nc.spec.input_ports = _paired_action_input_ports(_node_class_for(nc), nc.spec.input_ports, nc.spec.output_ports)
-            NodeConfig.objects.filter(pk=nc.pk).update(spec=nc.spec)
+            nc.spec = spec
+            NodeConfig.objects.filter(pk=nc.pk).update(spec=spec)
             nc.refresh_from_db()
             record_change(nc, action='node.output_ports.create', before=before, after=nc.serializable_data())
 
-        return new_port
+        return spec.output_port_by_id[new_port.id]
 
     @staticmethod
     def _port_bindings(ic: InstanceConfig, nc: NodeConfig, port_id: UUID, direction: str) -> list[Any]:
@@ -1454,7 +1512,8 @@ class NodeEditorMutation:
     @gql.mutation(
         description=(
             'Update fields of one input port in place. Unset fields are left untouched, so bindings, '
-            'pairing and translations survive the edit. Refused for ports marked not editable. '
+            'pairing and translations survive the edit. Paired inputs allow label, unit and quantity edits '
+            'through their editable output; other protected ports refuse edits. '
             'The payload carries the structural conflicts still touching this node, so a fix '
             'can be verified from the mutation response alone.'
         ),
@@ -1466,24 +1525,26 @@ class NodeEditorMutation:
         port_id: sb.ID,
         input: UpdateInputPortInput,
     ) -> UpdateInputPortResult:
+        spec = root._current_node_meta(info).spec.model_copy(deep=True)
         nc = root.node
         ic = root.instance
-        if nc.spec is None:
-            raise GraphQLError(f'Node "{nc.identifier}" has no spec')
         pid = _parse_port_id(info, str(port_id), field_name='portId')
-        port = _get_input_port(nc, pid)
+        port = spec.input_port_by_id.get(pid)
         if port is None:
             raise NotFoundError(info, f'Input port "{port_id}" not found on node "{nc.identifier}"')
-        if not port.is_editable:
+        if not port.is_editable and port.paired_output_port_id is None:
             raise GraphQLValidationError(info, f'Input port "{port_id}" is not editable')
 
         new_port = _updated_input_port_def(info, port, input, ic.primary_language)
-        _check_port_identifier_unique(info, nc.spec.input_ports, new_port, 'input')
+        if port.paired_output_port_id is not None:
+            _apply_paired_input_update(info, spec, port, new_port)
+        _check_port_identifier_unique(info, spec.input_ports, new_port, 'input')
 
         with gql_change_operation(info, ic, action='node.input_ports.update'):
             before = nc.serializable_data()
-            nc.spec.input_ports = [new_port if p.id == pid else p for p in nc.spec.input_ports]
-            NodeConfig.objects.filter(pk=nc.pk).update(spec=nc.spec)
+            spec.input_ports = [new_port if p.id == pid else p for p in spec.input_ports]
+            nc.spec = spec
+            NodeConfig.objects.filter(pk=nc.pk).update(spec=spec)
             nc.refresh_from_db()
             record_change(nc, action='node.input_ports.update', before=before, after=nc.serializable_data())
 
@@ -1509,24 +1570,25 @@ class NodeEditorMutation:
         port_id: sb.ID,
         input: UpdateOutputPortInput,
     ) -> UpdateOutputPortResult:
+        spec = root._current_node_meta(info).spec.model_copy(deep=True)
         nc = root.node
         ic = root.instance
-        if nc.spec is None:
-            raise GraphQLError(f'Node "{nc.identifier}" has no spec')
         pid = _parse_port_id(info, str(port_id), field_name='portId')
-        port = _get_output_port(nc, pid)
+        port = spec.output_port_by_id.get(pid)
         if port is None:
             raise NotFoundError(info, f'Output port "{port_id}" not found on node "{nc.identifier}"')
         if not port.is_editable:
             raise GraphQLValidationError(info, f'Output port "{port_id}" is not editable')
 
         new_port = _updated_output_port_def(info, port, input, ic.primary_language)
-        _check_port_identifier_unique(info, nc.spec.output_ports, new_port, 'output')
+        _check_port_identifier_unique(info, spec.output_ports, new_port, 'output')
 
         with gql_change_operation(info, ic, action='node.output_ports.update'):
             before = nc.serializable_data()
-            nc.spec.output_ports = [new_port if p.id == pid else p for p in nc.spec.output_ports]
-            NodeConfig.objects.filter(pk=nc.pk).update(spec=nc.spec)
+            spec.output_ports = [new_port if p.id == pid else p for p in spec.output_ports]
+            spec.input_ports = _paired_action_input_ports(root.node_meta.node_class, spec.input_ports, spec.output_ports)
+            nc.spec = spec
+            NodeConfig.objects.filter(pk=nc.pk).update(spec=spec)
             nc.refresh_from_db()
             record_change(nc, action='node.output_ports.update', before=before, after=nc.serializable_data())
 
@@ -1620,9 +1682,17 @@ class InstanceEditorMutation:
     @sb.field(description='Edit a node that belongs to this instance')
     @staticmethod
     def node_editor(info: gql.Info, root: sb.Parent[Me], node_id: sb.ID) -> NodeEditorMutation:
+        from nodes.graphql.constraint_checks import require_draft_graph
+
         ic = root.instance
         nc = InstanceEditorMutation._lookup_node(info, ic, node_id, with_spec=True)
-        return NodeEditorMutation(instance=ic, node=nc)
+        if nc.spec is None:
+            raise GraphQLError(f'Node "{nc.identifier}" has no spec')
+        graph = require_draft_graph(info, ic)
+        meta = graph.node_by_id.get(nc.uuid)
+        if meta is None:
+            raise NotFoundError(info, f'Node "{nc.identifier}" not found in the draft graph')
+        return NodeEditorMutation(instance=ic, node=nc, graph=graph, node_meta=meta)
 
     @gql.mutation(
         description='Update shared node-card positions without creating model revisions or change-log operations.',

@@ -1,13 +1,13 @@
 from functools import cached_property
 from typing import TYPE_CHECKING, Annotated, Any
-from uuid import NAMESPACE_URL, UUID, uuid5
+from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 
 from django.utils.module_loading import import_string
 from pydantic import Field, PrivateAttr, model_validator
 
 from kausal_common.i18n.pydantic import I18nString, set_i18n_context
 
-from nodes.constants import REFERENCE_ROLE, REFERENCE_TAG
+from nodes.constants import REFERENCE_ROLE, REFERENCE_TAG, VALUE_COLUMN
 from nodes.constraints.rules import MissingPortRoleError
 from nodes.defs.binding_def import AnyPortBindingDef, DatasetBindingDef, EdgeBindingDef, NodePortRef
 from nodes.defs.graph import (
@@ -20,7 +20,7 @@ from nodes.defs.graph import (
 )
 from nodes.defs.instance_defs import InstanceMetadata, InstanceModelSpec  # noqa: TC001
 from nodes.defs.node_defs import ActionConfig, FormulaConfig, NodeSpec, PipelineConfig, SimpleConfig, TypeConfig
-from nodes.defs.port_def import pair_input_ports_to_outputs
+from nodes.defs.port_def import InputPortDef, OutputPortDef, pair_input_ports_to_outputs
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -30,7 +30,6 @@ if TYPE_CHECKING:
     from nodes.constraints.compile import ShapeRuleCompilation
     from nodes.constraints.solver import ConstraintProgram, ConstraintSolveResult, GraphOverlay
     from nodes.dataset_shape import DatasetMetricPair, DatasetShapeProfile
-    from nodes.defs.port_def import InputPortDef, OutputPortDef
     from nodes.instance_serialization import InstanceSnapshot
     from nodes.node import Node
 
@@ -75,6 +74,85 @@ class NodeMeta(InstanceGraphBoundModel):
 
     def bindings_for_port(self, port_id: UUID) -> tuple[AnyPortBindingDef, ...]:
         return self.graph.bindings_by_input.get((self.id, port_id), ())
+
+    def _spec_with_ports(self, inputs: list[InputPortDef], outputs: list[OutputPortDef]) -> NodeSpec:
+        data = self.spec.model_dump()
+        data.update(input_ports=inputs, output_ports=outputs)
+        return NodeSpec.model_validate(data)
+
+    def add_input_port(self, port: InputPortDef) -> NodeSpec:
+        """Return a new spec, creating the output required by the input role's declaration."""
+        from nodes.units import unit_registry
+
+        if any(existing.id == port.id for existing in self.spec.input_ports):
+            raise ValueError(f'Input port {port.id} already exists')
+        declarations = self.node_class.input_port_declarations
+        role = port.role
+        if role is None and len(self.node_class.declared_input_ports) == 1:
+            role = self.node_class.declared_input_ports[0].role
+            port = port.model_copy(update={'role': role})
+        declaration = next((item for item in declarations if item.role == role), None)
+        if declaration is None or not declaration.paired_output:
+            return self._spec_with_ports([*self.spec.input_ports, port], list(self.spec.output_ports))
+        # Port creation precedes editing in the UI. Pair identity comes from
+        # UUIDs; generate a collision-free metric name and editable defaults.
+        identifier = port.identifier
+        if identifier is None:
+            used = {
+                str(value)
+                for existing in self.spec.output_ports
+                for value in (existing.identifier, existing.column_id)
+                if value is not None
+            }
+            used.update(str(existing.identifier) for existing in self.spec.input_ports if existing.identifier is not None)
+            used.add(VALUE_COLUMN)
+            base = str(declaration.instance_identifier)
+            identifier = base
+            index = 2
+            while identifier in used:
+                identifier = f'{base}{index}'
+                index += 1
+        default_output = self.spec.output_ports[0] if self.spec.output_ports else None
+        unit = port.unit
+        if unit is None:
+            unit = default_output.unit if default_output is not None else unit_registry.dimensionless
+        quantity = port.quantity
+        if quantity is None:
+            quantity = (default_output.quantity if default_output is not None else None) or 'number'
+        output = OutputPortDef(
+            id=uuid4(),
+            identifier=identifier,
+            column_id=identifier,
+            label=port.label,
+            quantity=quantity,
+            unit=unit,
+        )
+        port = port.model_copy(update={'paired_output_port_id': output.id, 'is_editable': False})
+        return self._add_paired_output(output, declaration.role, [*self.spec.input_ports, port])
+
+    def add_output_port(self, port: OutputPortDef) -> NodeSpec:
+        """Return a new spec, creating an input when the class declares paired outputs."""
+        if any(existing.id == port.id for existing in self.spec.output_ports):
+            raise ValueError(f'Output port {port.id} already exists')
+        paired = [item for item in self.node_class.input_port_declarations if item.paired_output]
+        if not paired:
+            return self._spec_with_ports(list(self.spec.input_ports), [*self.spec.output_ports, port])
+        if len(paired) != 1:
+            raise ValueError('Cannot choose between multiple input roles with paired outputs')
+        return self._add_paired_output(port, paired[0].role, list(self.spec.input_ports))
+
+    def _add_paired_output(self, port: OutputPortDef, role: str, inputs: list[InputPortDef]) -> NodeSpec:
+        outputs = [*self.spec.output_ports, port]
+        # A sole unnamed metric runs in Value. Preserve that column when the
+        # node becomes multi-metric; every output now needs an explicit column.
+        outputs = [
+            output.model_copy(update={'column_id': output.column_id or output.identifier or VALUE_COLUMN}) for output in outputs
+        ]
+        candidates = [item for item in inputs if item.role in (None, role)]
+        other_inputs = [item for item in inputs if item.role not in (None, role)]
+        declaration = next(item for item in self.node_class.input_port_declarations if item.role == role)
+        inputs = pair_input_ports_to_outputs(candidates, outputs, role=role, keep_unpaired=False, default_multi=declaration.multi)
+        return self._spec_with_ports([*inputs, *other_inputs], outputs)
 
     def _has_declaration_identifier_match(self, port: InputPortDef) -> bool:
         if port.identifier is None:

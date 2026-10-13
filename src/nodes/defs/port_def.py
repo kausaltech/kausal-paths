@@ -50,6 +50,12 @@ class InputPortDeclaration:
     """Minimum number of port instances of this role for a valid node."""
     default_count: int | None = None
     """Port instances created by default at node creation; defaults to ``min_count``."""
+    paired_output: bool = False
+    """Each instance has one output mirroring its identifier, label, quantity and unit.
+
+    Adding a port in either direction creates its counterpart. The output owns
+    the pair's editable definition; input multiplicity is independent of pairing.
+    """
 
     def __post_init__(self) -> None:
         if self.multi and self.repeatable:
@@ -90,6 +96,7 @@ class InputPort:
         required: bool = True,
         aggregation: Literal['sum'] | None = None,
         label: str | Promise | None = None,
+        paired_output: bool = False,
     ) -> InputPortDeclaration:
         return InputPortDeclaration(
             role=role,
@@ -97,6 +104,7 @@ class InputPort:
             multi=True,
             required=required,
             aggregation=aggregation,
+            paired_output=paired_output,
         )
 
     @staticmethod
@@ -106,6 +114,7 @@ class InputPort:
         min_count: int = 1,
         default_count: int | None = None,
         label: str | Promise | None = None,
+        paired_output: bool = False,
     ) -> InputPortDeclaration:
         return InputPortDeclaration(
             role=role,
@@ -113,6 +122,7 @@ class InputPort:
             repeatable=True,
             min_count=min_count,
             default_count=default_count,
+            paired_output=paired_output,
         )
 
 
@@ -154,7 +164,11 @@ class InputPortDef(I18nBaseModel):
     paired_output_port_id: UUID | None = None
     """Output port produced from this input by nodes with paired metric impacts."""
     is_editable: bool = True
-    """Whether the port definition itself may be edited; bindings remain independently editable."""
+    """Whether the port definition itself may be edited; bindings remain independently editable.
+
+    A paired input can also edit label, unit and quantity through its editable output,
+    even when this flag protects the rest of its generated definition.
+    """
     required_dimensions: UniqueList[DimensionRef] = Field(default_factory=list)
 
     # These are used only temporarily at export time to store the node reference and metric ID.
@@ -202,8 +216,9 @@ def pair_input_ports_to_outputs(
     *,
     role: MixedCaseIdentifier,
     keep_unpaired: bool = True,
+    default_multi: bool = False,
 ) -> list[InputPortDef]:
-    """Pair legacy or newly generated single-metric inputs with output ports."""
+    """Pair single-metric inputs with outputs, preserving existing input multiplicity."""
     remaining = list(input_ports)
     paired: list[InputPortDef] = []
 
@@ -230,6 +245,7 @@ def pair_input_ports_to_outputs(
         if port is None:
             port = InputPortDef(
                 id=uuid5(NAMESPACE_URL, f'kausal-paths:paired-input-port:{output.id}'),
+                multi=default_multi,
             )
 
         used.add(port.id)
@@ -242,7 +258,6 @@ def pair_input_ports_to_outputs(
                     'role': role,
                     'quantity': output.quantity,
                     'unit': output.unit,
-                    'multi': False,
                     'paired_output_port_id': output.id,
                     'is_editable': False,
                 }
