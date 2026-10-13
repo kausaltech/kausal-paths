@@ -2,6 +2,7 @@ import json
 from datetime import timedelta
 from pathlib import Path
 from types import SimpleNamespace
+from typing import TYPE_CHECKING, ClassVar
 from uuid import uuid4
 
 from django.core.cache import cache
@@ -44,11 +45,14 @@ from nodes.template_graph import publish_template_instance, snapshot_content_has
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory, NodeConfigFactory
 from nodes.units import unit_registry
 
+if TYPE_CHECKING:
+    from nodes.defs.port_def import InputPortDeclaration
+
 pytestmark = pytest.mark.django_db
 
 
 class DeclarativePairedNode(Node):
-    input_port_declarations = (InputPort.repeatable('impact', paired_output=True),)
+    input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = (InputPort.repeatable('impact', paired_output=True),)
 
 
 class DeclarativePairedWithAuxiliaryNode(DeclarativePairedNode):

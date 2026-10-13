@@ -45,9 +45,9 @@ from nodes.constraints.rules import (
     ProductShapeRule,
     SameShapeRule,
 )
-from nodes.constraints.tags import tag_operation_is_opaque
 from nodes.constraints.shape_check import check_shape_references
 from nodes.constraints.steps import AssignStep, FilterStep, OpaqueStep, TransformStep, UnitStep
+from nodes.constraints.tags import tag_operation_is_opaque
 from nodes.constraints.values import (
     BindingValue,
     ConstraintConflict,
@@ -78,7 +78,6 @@ if TYPE_CHECKING:
     from nodes.instance_graph import InstanceGraph
 
 MAX_SOLVER_SWEEPS = 100
-
 
 
 # --- Program ------------------------------------------------------------------
