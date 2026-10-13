@@ -341,8 +341,9 @@ def _remap_legacy_years(df: ppl.PathsDataFrame, env: PipelineEnv) -> ppl.PathsDa
 
 def _tag_operation(df: ppl.PathsDataFrame, op: TagOperationOp, env: PipelineEnv) -> ppl.PathsDataFrame:
     tag = op.tag
-    # `reference` is not an operation: it marks a node edge as non-computational, and on
-    # a dataset it is an ordinary label (several formula configs name a dataset term so).
+    if tag == 'ignore_content':
+        logger.warning("Dataset {} has tag 'ignore_content', which is not supported.", env.source_id)
+        return df
     if not df.paths.has_operation(tag):
         return df
 
