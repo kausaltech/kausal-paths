@@ -126,6 +126,8 @@ dimensions:
     label: Liikenneonnettomuus
   - id: carbon_emissions
     label: Hiilidioksidipäästöt
+  - id: noise
+    label: Melu
 
 - id: transport_mode
   label: Liikkumismuoto
@@ -139,6 +141,10 @@ dimensions:
   - id: citybike
     aliases: [bikeshare]
     label: Kaupunkipyörä
+  - id: cars
+    label: Henkilöautot
+  - id: public_transport
+    label: Joukkoliikenne
 
 - id: emission_height
   label_fi: Päästökorkeus
@@ -209,6 +215,12 @@ dimensions:
     label: Accidents
   - id: health
     label: Health
+  - id: air_pollution_everywhere
+    label: Air pollution everywhere
+  - id: physical_activity
+    label: Physical activity
+  - id: work_days_lost
+    label: Work days lost
 
 emission_sectors:
 

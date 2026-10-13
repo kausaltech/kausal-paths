@@ -46,7 +46,7 @@ include:
 - file: modules/transportation/transport_cost.yaml
   node_group: Transport cost
   allow_override: true
-- file: modules/transportation/active_mobility.yaml
+- file: modules/health/active_mobility.yaml
   node_group: Active mobility
   allow_override: true
 - file: modules/health/air_pollution_exposure.yaml

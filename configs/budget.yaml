@@ -175,10 +175,14 @@ dimensions:
   - id: costs
     label: Costs
     label_fi: Menot
+  - id: benefits
+    label: Income and savings
+    label_fi: Tulot ja säästöt
   categories:
   - id: income
     label: Income
     label_fi: Tulot
+    group: benefits
   - id: capex
     label: Capital costs
     label_fi: Investointikustannukset
@@ -190,9 +194,11 @@ dimensions:
   - id: savings
     label: Savings
     label_fi: Säästöt
+    group: benefits
   - id: payments
     label: Payments
     label_fi: Maksut
+    group: costs
 
 - id: energy_carrier
   label: Energy carrier
