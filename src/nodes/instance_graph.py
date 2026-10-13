@@ -88,8 +88,8 @@ class NodeMeta(InstanceGraphBoundModel):
             raise ValueError(f'Input port {port.id} already exists')
         declarations = self.node_class.input_port_declarations
         role = port.role
-        if role is None and len(self.node_class.declared_input_ports) == 1:
-            role = self.node_class.declared_input_ports[0].role
+        if role is None and len(self.node_class.input_port_declarations) == 1:
+            role = self.node_class.input_port_declarations[0].role
             port = port.model_copy(update={'role': role})
         declaration = next((item for item in declarations if item.role == role), None)
         if declaration is None or not declaration.paired_output:

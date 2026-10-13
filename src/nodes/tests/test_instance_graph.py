@@ -42,11 +42,15 @@ pytestmark = pytest.mark.django_db
 
 
 class DeclarativePairedNode(Node):
-    declared_input_ports = (InputPort.repeatable('impact', paired_output=True),)
+    input_port_declarations = (InputPort.repeatable('impact', paired_output=True),)
+
+
+class DeclarativePairedWithAuxiliaryNode(DeclarativePairedNode):
+    input_port_declarations = (*DeclarativePairedNode.input_port_declarations, InputPort.multi('auxiliary', required=False))
 
 
 class DeclarativePairedMultiNode(Node):
-    declared_input_ports = (InputPort.multi('impact', aggregation='sum', paired_output=True),)
+    input_port_declarations = (InputPort.multi('impact', aggregation='sum', paired_output=True),)
 
 
 @pytest.mark.parametrize('direction', ['input', 'output'])
@@ -63,11 +67,11 @@ def test_paired_multi_input_multiplicity_survives_port_creation(direction: str) 
 
 @pytest.mark.parametrize('direction', ['input', 'output'])
 def test_add_paired_port_returns_validated_spec_without_mutating_graph(direction: str) -> None:
-    reference = InputPortDef(id=uuid4(), identifier='reference', role='reference', multi=True)
-    spec = NodeSpec(input_ports=[reference])
+    auxiliary = InputPortDef(id=uuid4(), identifier='auxiliary', role='auxiliary', multi=True)
+    spec = NodeSpec(input_ports=[auxiliary])
     meta = NodeMeta(
         id=uuid4(),
-        node_class_path='nodes.tests.test_instance_graph.DeclarativePairedNode',
+        node_class_path='nodes.tests.test_instance_graph.DeclarativePairedWithAuxiliaryNode',
         spec=spec,
     )
     graph = InstanceGraph(instance_id=uuid4(), metadata=InstanceMetadata(), spec=InstanceModelSpec(), nodes=(meta,))
@@ -76,7 +80,7 @@ def test_add_paired_port_returns_validated_spec_without_mutating_graph(direction
     port_id = uuid4()
     unit = unit_registry.parse_units('kWh')
     if direction == 'input':
-        new_spec = meta.add_input_port(InputPortDef(id=port_id, identifier='energy', unit=unit, quantity='energy'))
+        new_spec = meta.add_input_port(InputPortDef(id=port_id, identifier='energy', role='impact', unit=unit, quantity='energy'))
         assert new_spec.input_port_by_id[port_id].paired_output_port_id == new_spec.output_ports[0].id
     else:
         new_spec = meta.add_output_port(OutputPortDef(id=port_id, identifier='energy', unit=unit, quantity='energy'))
@@ -84,16 +88,18 @@ def test_add_paired_port_returns_validated_spec_without_mutating_graph(direction
     assert new_spec.input_ports[0].role == 'impact'
     assert new_spec.input_ports[0].is_editable is False
     assert new_spec.input_ports[0].id != new_spec.output_ports[0].id
-    assert new_spec.input_ports[1] == reference
+    assert new_spec.input_ports[1] == auxiliary
     assert new_spec.output_ports[0].column_id == 'energy'
     assert meta.graph is graph
-    assert meta.spec.input_port_by_id == original_inputs == {reference.id: reference}
+    assert meta.spec.input_port_by_id == original_inputs == {auxiliary.id: auxiliary}
     assert meta.spec.output_port_by_id == original_outputs == {}
 
 
-def test_add_reference_input_on_paired_node_does_not_create_output() -> None:
-    meta = NodeMeta(id=uuid4(), node_class_path='nodes.tests.test_instance_graph.DeclarativePairedNode', spec=NodeSpec())
-    port = InputPortDef(id=uuid4(), role='reference', multi=True)
+def test_add_unpaired_input_on_paired_node_does_not_create_output() -> None:
+    meta = NodeMeta(
+        id=uuid4(), node_class_path='nodes.tests.test_instance_graph.DeclarativePairedWithAuxiliaryNode', spec=NodeSpec()
+    )
+    port = InputPortDef(id=uuid4(), role='auxiliary', multi=True)
     spec = meta.add_input_port(port)
     assert spec.input_ports == [port]
     assert spec.output_ports == []

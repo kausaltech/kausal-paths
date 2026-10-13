@@ -1169,7 +1169,7 @@ def test_additive_action_input_port_creates_paired_output(
     node = next(entry for entry in data['modelInstance']['nodes'] if entry['identifier'] == 'paired_action')
     declarations = {entry['role']: entry for entry in node['editor']['spec']['inputPortDeclarations']}
     assert declarations['input']['pairedOutput'] is True
-    assert declarations['reference']['pairedOutput'] is False
+    assert set(declarations) == {'input'}
 
 
 @pytest.mark.parametrize('input_fields', [{'quantity': None}, {'unit': None}, {'quantity': None, 'unit': None}])
