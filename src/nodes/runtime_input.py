@@ -76,7 +76,9 @@ def _load_node_value(definition: EdgeBindingDef, source: Node, target: Node) -> 
         df = apply_port_transformations(df, operations, PipelineEnv(context=source.context, node=source))
 
     for tag in definition.tags:
-        if df.paths.has_operation(tag):
+        if tag == 'ignore_content':
+            df = df.paths._ignore_content(df, target)
+        elif df.paths.has_operation(tag):
             df = df.paths.get_operation(tag)(df, source.context)
 
     expected_dimensions = {
