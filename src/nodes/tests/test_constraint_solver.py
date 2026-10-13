@@ -730,6 +730,7 @@ def test_a_normalizing_additive_node_keeps_its_dimensions() -> None:
     assert _codes(result) == set()
     assert result.shapes[PortValue(target.uuid, output_id, 'output')].dimensions == {pollutant.id}
 
+
 def test_empty_observed_metric_does_not_contradict_a_category_filter() -> None:
     graph, sector, dataset, metric, _port = _dataset_graph(filter_categories=['industry'])
     profile = DatasetShapeProfile(
