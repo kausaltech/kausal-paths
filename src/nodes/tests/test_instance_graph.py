@@ -2,7 +2,7 @@ import json
 from datetime import timedelta
 from pathlib import Path
 from types import SimpleNamespace
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
 from uuid import uuid4
 
 from django.core.cache import cache
@@ -44,6 +44,9 @@ from nodes.node import Node
 from nodes.template_graph import publish_template_instance, snapshot_content_hash
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory, NodeConfigFactory
 from nodes.units import unit_registry
+
+if TYPE_CHECKING:
+    from nodes.defs.port_def import InputPortDeclaration
 
 pytestmark = pytest.mark.django_db
 
