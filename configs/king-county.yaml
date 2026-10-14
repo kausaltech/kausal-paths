@@ -23,7 +23,7 @@ id: king-county
 default_language: en
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 42dd8e5f9eceb9fe12475dc9881271d7364fb6ff
+  commit: ea8c95c0832b1add40e7bad386fe23c96b62b60f
   dvc_remote: kausal-s3
 name: King County Greenhouse Gas Inventory
 owner: King County
@@ -960,9 +960,10 @@ nodes:
 # Fuel intensity is the reciprocal of the implied per-vehicle-type fuel economy;
 # the workbook's own class-level economy does not reconcile at type level (F10).
 - id: vehicle_mileage
-  name: Vehicle mileage
+  name: Vehicle mileage before EV adoption
   description: >
-    Vehicle-miles by vehicle type and fuel. <b>The 2020 values are unreliable at
+    Vehicle-miles by vehicle type and fuel with the no-action mix of fuels, before the
+    EV adoption actions move miles to electricity. <b>The 2020 values are unreliable at
     vehicle-type level</b> (finding F11). That year's inventory reports three
     vehicle-type/fuel combinations twice, drops heavy-duty diesel to 45,221 t_co2e
     against 790,100 in 2023 while labelling it a passenger vehicle, and adds a
@@ -992,6 +993,160 @@ nodes:
     tags: [ratio_to_max_hist_year]
     to_dimensions: []
 
+# --- Transportation: EV adoption --------------------------------------------
+# The workbook turns an electric share of new vehicles sold into an electric share
+# of the fleet: each year the fleet share rises by the sales share times the
+# turnover rate (one fifteenth), up to 100%. The model does the same, so a policy
+# states a sales share, and the mileage it moves follows from the fleet. Policies
+# add percentage points of sales share; with the Clean Fuel Standard and ZEV both on
+# the sum is the ZEV schedule, as in the workbook.
+#
+# The added fleet share is taken from the fuel vehicles of each class in
+# proportion, and each vehicle type's miles go to the electric vehicles of the same
+# type, so the miles of every class and type are unchanged.
+- id: ev_sales_share_increase
+  name: Increase in electric share of new vehicles
+  description: The share of new vehicles sold that are electric, in addition to 
+    the no-action fleet, by vehicle class. Set by the state and federal vehicle 
+    policies.
+  type: generic.GenericNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [vehicle_class]
+  output_dimensions: [vehicle_class]
+  params:
+  - id: operations
+    value: add
+
+- id: fleet_turnover_rate
+  name: Fleet turnover rate
+  description: The share of each class's vehicle-miles driven by vehicles bought 
+    that year.
+  type: generic.GenericNode
+  quantity: rate
+  unit: 1/a
+  input_dimensions: [vehicle_class]
+  output_dimensions: [vehicle_class]
+  input_datasets:
+  - id: king-county/on_road_wedge_mechanisms
+    column: fleet_turnover_rate
+    forecast_from: 2024
+
+- id: ev_fleet_share_increase
+  name: Increase in electric share of vehicle-miles
+  description: The share of each class's vehicle-miles driven electrically, in 
+    addition to the no-action fleet. It rises each year by the added electric 
+    share of new vehicles times the fleet turnover rate.
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [vehicle_class]
+  output_dimensions: [vehicle_class]
+  params:
+    formula: cumulative(ev_sales_share_increase) * fleet_turnover_rate
+  input_nodes:
+  - id: ev_sales_share_increase
+  - id: fleet_turnover_rate
+
+- id: fuel_vehicle_mileage_by_class
+  name: Fuel vehicle mileage before EV adoption
+  type: generic.GenericNode
+  quantity: vehicle_mileage
+  unit: VMT/a
+  input_dimensions: [vehicle_class]
+  output_dimensions: [vehicle_class]
+  params:
+  - id: operations
+    value: add
+  input_nodes:
+  - id: vehicle_mileage
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: energy_carrier
+      categories: [electricity]
+      exclude: true
+      flatten: true
+
+# Capped at 1: the workbook's fleet share stops at 100%, which the ZEV schedule
+# reaches for passenger cars before 2050.
+- id: fuel_mileage_electrified_share
+  name: Share of fuel vehicle-miles moved to electricity
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [vehicle_class]
+  output_dimensions: [vehicle_class]
+  params:
+    formula: min(ev_fleet_share_increase * vehicle_mileage / 
+      fuel_vehicle_mileage_by_class, 1)
+  input_nodes:
+  - id: ev_fleet_share_increase
+  - id: vehicle_mileage
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+  - id: fuel_vehicle_mileage_by_class
+
+- id: vehicle_mileage_moved_to_electricity
+  name: Vehicle-miles moved to electricity
+  type: formula.FormulaNode
+  quantity: vehicle_mileage
+  unit: VMT/a
+  input_dimensions: [vehicle_type, energy_carrier, vehicle_class]
+  output_dimensions: [vehicle_type, energy_carrier, vehicle_class]
+  params:
+    formula: vehicle_mileage * fuel_mileage_electrified_share
+  input_nodes:
+  - id: vehicle_mileage
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+      exclude: true
+  - id: fuel_mileage_electrified_share
+
+- id: electric_vehicle_mileage_added
+  name: Vehicle-miles added to electric vehicles
+  type: generic.GenericNode
+  quantity: vehicle_mileage
+  unit: VMT/a
+  input_dimensions: [vehicle_type, energy_carrier, vehicle_class]
+  output_dimensions: [vehicle_type, energy_carrier, vehicle_class]
+  params:
+  - id: operations
+    value: add
+  input_nodes:
+  - id: vehicle_mileage_moved_to_electricity
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: vehicle_type
+    - id: vehicle_class
+    - id: energy_carrier
+      categories: [electricity]
+
+- id: on_road_vehicle_mileage
+  name: Vehicle mileage
+  description: Vehicle-miles by vehicle type and fuel, after EV adoption has moved
+    miles from fuel vehicles to electric ones, and after any action that changes 
+    how much people drive.
+  type: generic.GenericNode
+  quantity: vehicle_mileage
+  unit: VMT/a
+  input_dimensions: [vehicle_type, energy_carrier, vehicle_class]
+  output_dimensions: [vehicle_type, energy_carrier, vehicle_class]
+  params:
+  - id: operations
+    value: add,multiply
+  input_nodes:
+  - id: vehicle_mileage
+  - id: vehicle_mileage_moved_to_electricity
+    tags: [arithmetic_inverse]
+  - id: electric_vehicle_mileage_added
+
 - id: vehicle_fuel_economy
   name: Vehicle fuel economy
   description: Fuel economy implied by the inventory, per vehicle type. The 
@@ -1016,9 +1171,9 @@ nodes:
   input_dimensions: [vehicle_type, energy_carrier, vehicle_class]
   output_dimensions: [vehicle_type, energy_carrier, vehicle_class]
   params:
-    formula: vehicle_mileage / vehicle_fuel_economy
+    formula: on_road_vehicle_mileage / vehicle_fuel_economy
   input_nodes:
-  - id: vehicle_mileage
+  - id: on_road_vehicle_mileage
   - id: vehicle_fuel_economy
 
 - id: vehicle_fuel_emission_factor
@@ -1063,14 +1218,23 @@ nodes:
 # so it needs its own fuel-economy metric and the grid factor.
 - id: electric_vehicle_fuel_economy
   name: Electric vehicle fuel economy
+  description: Implied by the inventory for passenger cars. The inventory has no 
+    electric freight vehicles, so for those the workbook's class-level figure is 
+    assumed.
   type: generic.GenericNode
   quantity: factor
   unit: VMT/kWh
   input_dimensions: [vehicle_type, energy_carrier, vehicle_class]
   output_dimensions: [vehicle_type, energy_carrier, vehicle_class]
+  params:
+  - id: operations
+    value: add_datasets,multiply
   input_datasets:
   - id: king-county/fuel_economy
     column: electric_fuel_economy_implied
+    forecast_from: 2024
+  - id: king-county/fuel_economy
+    column: electric_fuel_economy_assumed
     forecast_from: 2024
   input_dataset_processors: [LinearInterpolation]
 
@@ -1082,9 +1246,9 @@ nodes:
   input_dimensions: [vehicle_type, energy_carrier, vehicle_class]
   output_dimensions: [vehicle_type, energy_carrier, vehicle_class]
   params:
-    formula: vehicle_mileage / electric_vehicle_fuel_economy
+    formula: on_road_vehicle_mileage / electric_vehicle_fuel_economy
   input_nodes:
-  - id: vehicle_mileage
+  - id: on_road_vehicle_mileage
   - id: electric_vehicle_fuel_economy
 
 - id: vehicle_electricity_emission_factor
@@ -1858,25 +2022,53 @@ nodes:
 # makes the whole policy set visible, and the wedges that deserve real mechanisms can
 # then be rebuilt from the 'Built Env' and 'Transp' calculation sheets.
 #
+# Rebuilt as mechanisms so far: CETA, and the on-road set -- CAFE, the Clean Fuel
+# Standard, ZEV, CCA and Vision 2050 Scenario 1. Each acts on the node where the
+# policy takes effect: a grid or fuel emission factor, fuel economy, vehicle-miles,
+# or the electric share of new vehicles (datasets 'king-county/wedge_remaining_shares'
+# and 'king-county/on_road_wedge_mechanisms'; see section 12b of the extractor).
+#
+# Where the model and the published wedges part, and why:
+#   * Buildings: while the efficiency wedges remain curves, they subtract electricity
+#     savings at the no-action grid factor although CETA has already cleaned the grid,
+#     so the default scenario over-counts by 0.38 Mt at 2030 and 0.69 Mt at 2050.
+#     The workbook applies the Energy Code, the Clean Buildings Act and BEPS before
+#     CETA. Resolved when those wedges act on consumption.
+#   * On-road vehicles: each mechanism removes 2-6% less than its published wedge,
+#     because the model's no-action freight emissions are lower (finding F17), and
+#     Vision 2050 removes 0.1 Mt less from 2036, because the workbook's Vision 2050
+#     section drops transit bus emissions to zero from that year (F22). Net, the
+#     default scenario's transport emissions sit 0.12 Mt above what subtracting the
+#     published wedges gave at 2030, and 0.47 Mt above at 2050.
+#
 # The reductions are NOT summed with the 'SCAP measure reductions' dataset, which
 # re-cuts the same abatement by measure rather than by policy and disagrees with it
 # (finding F7).
 # ---------------------------------------------------------------------------
 actions:
 
+# The workbook lowers every utility's grid factor in a straight line from 2023 to
+# zero in 2030 ('Built Env' rows 2361-2400), and the vehicle electricity factor by
+# the same share ('Transp'). One dimensionless share therefore scales all three
+# electricity factor nodes; the extractor asserts that it is the same for every
+# utility and for vehicles.
 - id: wa_clean_energy_transformation_act
   name: WA Clean Energy Transformation Act
+  description: Washington's Clean Energy Transformation Act requires every
+    electric utility to supply greenhouse gas neutral electricity by 2030. The
+    model lowers the emission factor of each utility serving King County in a
+    straight line from its 2023 level to zero in 2030, and keeps it at zero
+    after. Because it acts on the emission factor rather than on emissions, it
+    reaches all electricity use in the county -- buildings, electric cars and
+    electric buses.
   type: simple.GenericAction
-  quantity: emissions
-  unit: Mt_co2e/a
+  quantity: fraction
+  unit: dimensionless
+  no_effect_value: 1.0
   group: state_federal
-  params:
-  - id: multiplier
-    value: -1
-    unit: dimensionless
   input_datasets:
-  - id: king-county/wedge_emission_reductions
-    column: emission_reduction
+  - id: king-county/wedge_remaining_shares
+    column: remaining_share
     filters:
     - dimension: action
       categories: [wa_clean_energy_transformation_act]
@@ -1885,7 +2077,13 @@ actions:
       flatten: true
     forecast_from: 2024
   input_dataset_processors: [LinearInterpolation]
-  output_nodes: [built_environment_emissions]
+  output_nodes:
+  - id: electricity_emission_factor
+    tags: [non_additive]
+  - id: vehicle_electricity_emission_factor
+    tags: [non_additive]
+  - id: transit_electricity_emission_factor
+    tags: [non_additive]
 
 - id: wa_energy_code
   name: WA Energy Code
@@ -2007,19 +2205,24 @@ actions:
   input_dataset_processors: [LinearInterpolation]
   output_nodes: [built_environment_emissions]
 
+# CAFE raises fuel economy by the same ratio for every class and fuel, electric
+# vehicles included ('Transp' rows 159-169 over 111-121).
 - id: federal_vehicle_regulations_on_road_vehicles
   name: Federal Vehicle Regulations - On-Road Vehicles
+  description: Federal fuel economy (CAFE) standards make new cars and trucks more
+    efficient. The model raises the fuel economy of passenger and freight vehicles,
+    electric ones included, by about 8% by 2030 and 30% by 2050 compared with no 
+    action.
   type: simple.GenericAction
-  quantity: emissions
-  unit: Mt_co2e/a
+  quantity: fraction
+  unit: dimensionless
+  no_effect_value: 1.0
   group: state_federal
-  params:
-  - id: multiplier
-    value: -1
-    unit: dimensionless
+  input_dimensions: [vehicle_class]
+  output_dimensions: [vehicle_class]
   input_datasets:
-  - id: king-county/wedge_emission_reductions
-    column: emission_reduction
+  - id: king-county/on_road_wedge_mechanisms
+    column: relative_fuel_economy
     filters:
     - dimension: action
       categories: [federal_vehicle_regulations_on_road_vehicles]
@@ -2027,22 +2230,30 @@ actions:
     - dimension: policy_level
       flatten: true
     forecast_from: 2024
-  input_dataset_processors: [LinearInterpolation]
-  output_nodes: [transportation_emissions]
+  output_nodes:
+  - id: vehicle_fuel_economy
+    tags: [non_additive]
+  - id: electric_vehicle_fuel_economy
+    tags: [non_additive]
 
+# Two effects, so one action with two metrics. Both mean "no effect" at 0, which is
+# why the fuel factor is stored as a reduction and turned into the share that
+# remains by the `complement` tag. The reduction is the same for every class; the
+# edge reads one class's row.
 - id: wa_clean_fuel_standards_on_road_vehicles
   name: WA Clean Fuel Standards - On-Road Vehicles
-  type: simple.GenericAction
-  quantity: emissions
-  unit: Mt_co2e/a
+  description: Washington's Clean Fuel Standard lowers the carbon intensity of 
+    transportation fuels, 10% by 2034. Part of that comes from cleaner fuels and 
+    part from electric vehicles, so the model does both. It lowers the emission 
+    factor of gasoline, diesel and the other fuels by 3.5% by 2030 and 10% by 2034,
+    and it raises the electric share of new passenger cars to 20% by 2040.
+  type: simple.AdditiveAction
   group: state_federal_local
-  params:
-  - id: multiplier
-    value: -1
-    unit: dimensionless
+  input_dimensions: [vehicle_class]
+  output_dimensions: [vehicle_class]
   input_datasets:
-  - id: king-county/wedge_emission_reductions
-    column: emission_reduction
+  - id: king-county/on_road_wedge_mechanisms
+    column: fuel_emission_factor_reduction
     filters:
     - dimension: action
       categories: [wa_clean_fuel_standards_on_road_vehicles]
@@ -2050,22 +2261,57 @@ actions:
     - dimension: policy_level
       flatten: true
     forecast_from: 2024
-  input_dataset_processors: [LinearInterpolation]
-  output_nodes: [transportation_emissions]
+  - id: king-county/on_road_wedge_mechanisms
+    column: ev_sales_share_increase
+    filters:
+    - dimension: action
+      categories: [wa_clean_fuel_standards_on_road_vehicles]
+      flatten: true
+    - dimension: policy_level
+      flatten: true
+    forecast_from: 2024
+  output_metrics:
+  - id: fuel_emission_factor_reduction
+    unit: dimensionless
+    quantity: fraction
+  - id: ev_sales_share_increase
+    unit: dimensionless
+    quantity: fraction
+  output_nodes:
+  - id: vehicle_fuel_emission_factor
+    metrics: [fuel_emission_factor_reduction]
+    tags: [complement, non_additive]
+    from_dimensions:
+    - id: vehicle_class
+      categories: [passenger_vehicles]
+      flatten: true
+  - id: transit_fuel_emission_factor
+    metrics: [fuel_emission_factor_reduction]
+    tags: [complement, non_additive]
+    from_dimensions:
+    - id: vehicle_class
+      categories: [passenger_vehicles]
+      flatten: true
+  - id: ev_sales_share_increase
+    metrics: [ev_sales_share_increase]
 
+# The increase beyond the Clean Fuel Standard's EV sales share, as the workbook
+# attributes it ('Transp' rows 529 and 553 less row 255).
 - id: wa_zero_emission_vehicle_standards
   name: WA Zero Emission Vehicle Standards
+  description: Washington's Zero Emission Vehicle standards require a growing share
+    of new vehicles sold to be electric. The model raises the electric share of new
+    passenger cars to 100% from 2035, and of new freight and service vehicles to 
+    57%. The fleet follows as old vehicles are replaced.
   type: simple.GenericAction
-  quantity: emissions
-  unit: Mt_co2e/a
+  quantity: fraction
+  unit: dimensionless
   group: state_federal
-  params:
-  - id: multiplier
-    value: -1
-    unit: dimensionless
+  input_dimensions: [vehicle_class]
+  output_dimensions: [vehicle_class]
   input_datasets:
-  - id: king-county/wedge_emission_reductions
-    column: emission_reduction
+  - id: king-county/on_road_wedge_mechanisms
+    column: ev_sales_share_increase
     filters:
     - dimension: action
       categories: [wa_zero_emission_vehicle_standards]
@@ -2073,22 +2319,24 @@ actions:
     - dimension: policy_level
       flatten: true
     forecast_from: 2024
-  input_dataset_processors: [LinearInterpolation]
-  output_nodes: [transportation_emissions]
+  output_nodes: [ev_sales_share_increase]
 
+# On top of the Clean Fuel Standard: the workbook's CCA factor includes it, so this
+# is the ratio of the factor after both to the factor after the standard alone.
 - id: wa_climate_commitment_act_on_road_vehicles
   name: WA Climate Commitment Act - On-Road Vehicles
+  description: Washington's Climate Commitment Act caps emissions from fuel 
+    suppliers. The model lowers the emission factor of transportation fuels a 
+    further step beyond the Clean Fuel Standard, so that with both the factor is 
+    23.5% lower by 2030 and 30% lower by 2040.
   type: simple.GenericAction
-  quantity: emissions
-  unit: Mt_co2e/a
+  quantity: fraction
+  unit: dimensionless
+  no_effect_value: 1.0
   group: state_federal_local
-  params:
-  - id: multiplier
-    value: -1
-    unit: dimensionless
   input_datasets:
-  - id: king-county/wedge_emission_reductions
-    column: emission_reduction
+  - id: king-county/wedge_remaining_shares
+    column: remaining_share
     filters:
     - dimension: action
       categories: [wa_climate_commitment_act_on_road_vehicles]
@@ -2096,28 +2344,31 @@ actions:
     - dimension: policy_level
       flatten: true
     forecast_from: 2024
-  input_dataset_processors: [LinearInterpolation]
-  output_nodes: [transportation_emissions]
+  output_nodes:
+  - id: vehicle_fuel_emission_factor
+    tags: [non_additive]
+  - id: transit_fuel_emission_factor
+    tags: [non_additive]
 
 - id: vision_2050_scenario_1
   name: Vision 2050 - Scenario 1
   description: >
-    Tagged as a King County SCAP measure, but the workbook counts it inside the "federal
-    and state action only" scenario: rows 9-23 sum to exactly the gap between the
-    no-
-    action and federal-and-state trajectories, and this is one of them. See finding
-    F18.
+    Fully funded transit investments under the region's Vision 2050 plan reduce how
+    much people drive. The model lowers passenger vehicle-miles by 10% by 2030, 14%
+    by 2040 and 21% by 2050. Tagged as a King County SCAP measure, but the workbook
+    counts it inside the "federal and state action only" scenario: rows 9-23 sum to
+    exactly the gap between the no-action and federal-and-state trajectories, and
+    this is one of them. See finding F18.
   type: simple.GenericAction
-  quantity: emissions
-  unit: Mt_co2e/a
+  quantity: fraction
+  unit: dimensionless
+  no_effect_value: 1.0
   group: kc_scap
-  params:
-  - id: multiplier
-    value: -1
-    unit: dimensionless
+  input_dimensions: [vehicle_class]
+  output_dimensions: [vehicle_class]
   input_datasets:
-  - id: king-county/wedge_emission_reductions
-    column: emission_reduction
+  - id: king-county/on_road_wedge_mechanisms
+    column: relative_mileage
     filters:
     - dimension: action
       categories: [vision_2050_scenario_1]
@@ -2125,8 +2376,9 @@ actions:
     - dimension: policy_level
       flatten: true
     forecast_from: 2024
-  input_dataset_processors: [LinearInterpolation]
-  output_nodes: [transportation_emissions]
+  output_nodes:
+  - id: on_road_vehicle_mileage
+    tags: [non_additive]
 
 - id: wa_clean_fuel_standards_other_transportation
   name: WA Clean Fuel Standards - Other Transportation
@@ -2375,25 +2627,25 @@ actions:
   input_dataset_processors: [LinearInterpolation]
   output_nodes: [transportation_emissions]
 
+# The workbook's saved state has its Advanced Clean Fleets switch Off, which ramps
+# freight EV sales down to 0% from 2036 and makes the published wedge negative (F24).
+# This is the policy as its assumption states it: the switch On.
 - id: advanced_clean_fleets
   name: Advanced Clean Fleets
-  description: >
-    The only wedge that turns negative: -306,209 t_co2e at 2040 and -695,385 at 2050,
-    so
-    switching it on increases emissions in those years. The workbook does not explain
-    the sign. Finding F7 notes that the SCAP measure re-cut gives "Electrify
-    freight/service vehicles" +849 kt at 2050 against this row's -695 kt.
+  description: Advanced Clean Fleets rules require freight and service fleets to 
+    buy zero-emission vehicles. The model raises the electric share of new freight 
+    and service vehicles beyond the Zero Emission Vehicle standards, from 2031 in 
+    equal steps to 100% of new sales from 2036. The fleet follows as old vehicles 
+    are replaced.
   type: simple.GenericAction
-  quantity: emissions
-  unit: Mt_co2e/a
+  quantity: fraction
+  unit: dimensionless
   group: kc_scap
-  params:
-  - id: multiplier
-    value: -1
-    unit: dimensionless
+  input_dimensions: [vehicle_class]
+  output_dimensions: [vehicle_class]
   input_datasets:
-  - id: king-county/wedge_emission_reductions
-    column: emission_reduction
+  - id: king-county/on_road_wedge_mechanisms
+    column: ev_sales_share_increase
     filters:
     - dimension: action
       categories: [advanced_clean_fleets]
@@ -2401,8 +2653,7 @@ actions:
     - dimension: policy_level
       flatten: true
     forecast_from: 2024
-  input_dataset_processors: [LinearInterpolation]
-  output_nodes: [transportation_emissions]
+  output_nodes: [ev_sales_share_increase]
 
 - id: circular_economy_salvaged_lumber_and_reuse
   name: Circular Economy Salvaged Lumber and Reuse
