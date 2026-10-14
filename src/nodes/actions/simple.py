@@ -270,7 +270,7 @@ class AdditiveAction(ActionNode):
     explanation = _("""Simple action that produces an additive change to a value.""")
     no_effect_value = 0.0
     legacy_fixed_dataset_input_role = 'input'
-    input_port = InputPort.repeatable('input')
+    input_port = InputPort.repeatable('input', paired_output=True)
     declared_input_ports = (input_port,)
 
     @classmethod

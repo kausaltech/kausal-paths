@@ -242,6 +242,32 @@ def test_additive_action_binds_two_metrics_of_the_same_dataset_to_paired_ports(
     assert {row.dataset_id for row in rows} == {dataset.pk}
     assert {row.metric_id for row in rows} == {energy_metric.pk, cost_metric.pk}
 
+    query = gql("""
+    mutation EditPairedInput($instanceId: ID!, $nodeId: ID!, $portId: ID!) {
+        instanceEditor(instanceId: $instanceId) {
+            nodeEditor(nodeId: $nodeId) {
+                updateInputPort(portId: $portId, input: {unit: "MWh", quantity: "energy"}) {
+                    ... on UpdateInputPortResult { port { id unit { standard } } }
+                    ... on OperationInfo { messages { kind message } }
+                }
+            }
+        }
+    }
+    """)
+    gql_client.query_data(
+        query,
+        variables={'instanceId': str(db_instance_config.pk), 'nodeId': str(action.uuid), 'portId': str(inputs[0].id)},
+    )
+    from nodes.models import NodeConfig
+
+    fresh = NodeConfig.objects.get(pk=action.pk)
+    assert fresh.spec is not None
+    assert fresh.spec.input_port_by_id[inputs[0].id].unit == unit_registry.parse_units('MWh')
+    assert fresh.spec.output_port_by_id[energy_output.id].unit == unit_registry.parse_units('MWh')
+    assert set(NodeInputPortBinding.objects.filter(node=action).values_list('uuid', 'port_id', 'dataset_id', 'metric_id')) == {
+        (row.uuid, row.port_id, row.dataset_id, row.metric_id) for row in rows
+    }
+
 
 def test_a_port_can_be_addressed_by_its_identifier(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
     node = NodeConfigFactory.create(

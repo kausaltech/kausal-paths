@@ -429,8 +429,11 @@ def test_additive_action_receives_inline_values_through_its_input_port() -> None
 
 
 @pytest.mark.parametrize('action_class', [_EnabledAdditiveAction, _EnabledBudgetingAction])
+@pytest.mark.parametrize('enabled', [True, False])
 def test_action_reassembles_sparse_metrics_with_null_index_categories(
     action_class: type[AdditiveAction],
+    enabled: bool,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     instance = InstanceFactory.create(id='sparse_action_metrics', name='Sparse action metrics')
     InstanceConfigFactory.create(identifier=instance.id, instance=instance, name='Sparse action metrics')
@@ -441,12 +444,15 @@ def test_action_reassembles_sparse_metrics_with_null_index_categories(
         OutputPortDef(id=uuid4(), identifier='energy', column_id='energy', quantity='energy', unit=energy_unit),
         OutputPortDef(id=uuid4(), identifier='reduction', column_id='reduction', quantity='fraction', unit=fraction_unit),
     ]
-    inputs = pair_input_ports_to_outputs([], outputs, role='input', keep_unpaired=False)
+    inputs = pair_input_ports_to_outputs([], outputs[:1], role='input', keep_unpaired=False)
     spec = NodeSpec(
         type_config=ActionConfig(node_class='nodes.actions.simple.AdditiveAction'),
         input_ports=inputs,
-        output_ports=outputs,
+        output_ports=outputs[:1],
     )
+    meta = NodeMeta(id=uuid4(), node_class_path='nodes.actions.simple.AdditiveAction', spec=spec)
+    spec = meta.add_input_port(InputPortDef(id=uuid4(), identifier='reduction', unit=fraction_unit, quantity='fraction'))
+    inputs = spec.input_ports
     action = action_class(
         id='action',
         context=context,
@@ -485,13 +491,14 @@ def test_action_reassembles_sparse_metrics_with_null_index_categories(
             spec=spec,
         ),
     )
+    monkeypatch.setattr(action, 'is_enabled', lambda: enabled)
 
     result = action.compute_effect().sort([YEAR_COLUMN, 'asset'])
 
     assert len(result) == 2
     assert result.paths.index_has_duplicates() is False
-    assert result['energy'].to_list() == [1.0, None]
-    assert result['reduction'].to_list() == [0.5, None]
+    assert result['energy'].to_list() == [1.0 if enabled else 0.0, None]
+    assert result['reduction'].to_list() == [0.5 if enabled else 0.0, None]
 
 
 def test_assigned_dimension_is_part_of_runtime_binding_output_shape() -> None:

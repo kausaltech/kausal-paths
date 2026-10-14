@@ -23,11 +23,13 @@ from nodes.tests.factories import InstanceConfigFactory, InstanceFactory, NodeCo
 from nodes.units import unit_registry
 
 if TYPE_CHECKING:
+    from paths.gql import Info
     from paths.tests.graphql import PathsTestClient
 
     from nodes.actions.action import ActionNode
     from nodes.context import Context
     from nodes.datasets import DatasetWithFilters
+    from nodes.instance_graph import InstanceGraph
     from nodes.models import InstanceConfig
 
 
@@ -835,6 +837,9 @@ mutation AddNodeInputPortViaNodeEditor($instanceId: ID!, $nodeId: ID!, $input: I
                 __typename
                 ... on InputPortType {
                     id
+                    role
+                    pairedOutputPortId
+                    isEditable
                     quantity
                     multi
                     unit { standard }
@@ -1114,23 +1119,315 @@ def test_additive_action_output_port_creates_generated_paired_input(
     assert paired.is_editable is False
 
 
-def test_additive_action_rejects_independent_input_port(gql_client: PathsTestClient, db_instance_config: InstanceConfig) -> None:
+@pytest.mark.parametrize('node_class', [ACTION_NODE_CLASS, 'nodes.actions.simple.AdditiveAction2'])
+@pytest.mark.parametrize('multi', [False, True])
+def test_additive_action_input_port_creates_paired_output(
+    gql_client: PathsTestClient, db_instance_config: InstanceConfig, node_class: str, multi: bool
+) -> None:
+    from nodes.models import NodeConfig
+
+    nc = NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='paired_action',
+        spec=_make_node_spec(type_config=ActionConfig(node_class=node_class)),
+    )
+
+    input_id = uuid4()
+    data = gql_client.query_data(
+        ADD_NODE_INPUT_PORT_VIA_NODE_EDITOR,
+        variables={
+            'instanceId': str(db_instance_config.pk),
+            'nodeId': str(nc.uuid),
+            'input': {
+                'id': str(input_id),
+                'identifier': 'energy',
+                'label': 'Energy impact',
+                'unit': 'TJ/a',
+                'quantity': 'energy',
+                'multi': multi,
+            },
+        },
+    )
+
+    port = data['instanceEditor']['nodeEditor']['addInputPort']
+    assert port['id'] == str(input_id)
+    assert port['role'] == 'input'
+    assert port['multi'] is multi
+    assert port['isEditable'] is False
+    nc = NodeConfig.objects.get(pk=nc.pk)
+    assert nc.spec is not None
+    assert len(nc.spec.input_ports) == len(nc.spec.output_ports) == 2
+    output = nc.spec.output_port_by_id[UUID(port['pairedOutputPortId'])]
+    assert output.id != input_id
+    assert output.identifier == output.column_id == 'energy'
+    assert output.quantity == 'energy'
+    assert output.unit == unit_registry.parse_units('TJ/a')
+    assert output.model_dump()['label'] == nc.spec.input_port_by_id[input_id].model_dump()['label']
+    assert nc.spec.output_ports[0].column_id == 'Value'
+    assert nc.spec.input_port_by_id[input_id].multi is multi
+    data = gql_client.query_data(NODE_CONSTRAINT_FIELDS, variables={'instanceId': str(db_instance_config.pk)})
+    node = next(entry for entry in data['modelInstance']['nodes'] if entry['identifier'] == 'paired_action')
+    declarations = {entry['role']: entry for entry in node['editor']['spec']['inputPortDeclarations']}
+    assert declarations['input']['pairedOutput'] is True
+    assert declarations['reference']['pairedOutput'] is False
+
+
+@pytest.mark.parametrize('input_fields', [{'quantity': None}, {'unit': None}, {'quantity': None, 'unit': None}])
+def test_additive_action_defaults_missing_paired_input_fields(
+    gql_client: PathsTestClient, db_instance_config: InstanceConfig, input_fields: dict[str, object]
+) -> None:
     nc = NodeConfigFactory.create(
         instance=db_instance_config,
         identifier='paired_action',
         spec=_make_node_spec(type_config=ActionConfig(node_class=ACTION_NODE_CLASS)),
     )
-
-    errors = gql_client.query_errors(
+    data = gql_client.query_data(
         ADD_NODE_INPUT_PORT_VIA_NODE_EDITOR,
         variables={
             'instanceId': str(db_instance_config.pk),
             'nodeId': str(nc.uuid),
-            'input': {'unit': 'TJ/a', 'quantity': 'energy'},
+            'input': {'unit': 'TJ/a', 'quantity': 'energy', **input_fields},
         },
     )
+    port = data['instanceEditor']['nodeEditor']['addInputPort']
+    assert port['quantity'] == ('emissions' if input_fields.get('quantity', 'energy') is None else 'energy')
+    assert port['unit']['standard'] == ('kt/a' if input_fields.get('unit', 'TJ/a') is None else 'TJ/a')
 
-    assert 'generated from its output ports' in errors[0]['message']
+
+@pytest.mark.parametrize('edit_path', ['output', 'input', 'input_list'])
+def test_additive_action_adds_empty_paired_ports_then_edits_pair(
+    gql_client: PathsTestClient, db_instance_config: InstanceConfig, edit_path: str
+) -> None:
+    from nodes.models import NodeConfig
+
+    nc = NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='paired_action',
+        spec=_make_node_spec(type_config=ActionConfig(node_class=ACTION_NODE_CLASS)),
+    )
+    empty_input = {
+        'id': None,
+        'identifier': None,
+        'label': None,
+        'quantity': None,
+        'unit': None,
+        'multi': False,
+        'role': 'input',
+        'requiredDimensions': None,
+        'isEditable': None,
+    }
+    created = []
+    for _ in range(2):
+        data = gql_client.query_data(
+            ADD_NODE_INPUT_PORT_VIA_NODE_EDITOR,
+            variables={'instanceId': str(db_instance_config.pk), 'nodeId': str(nc.uuid), 'input': empty_input},
+        )
+        created.append(data['instanceEditor']['nodeEditor']['addInputPort'])
+    fresh = NodeConfig.objects.get(pk=nc.pk)
+    assert fresh.spec is not None
+    assert len(fresh.spec.input_ports) == len(fresh.spec.output_ports) == 3
+    outputs = [fresh.spec.output_port_by_id[UUID(port['pairedOutputPortId'])] for port in created]
+    assert [output.identifier for output in outputs] == ['input', 'input2']
+    assert [output.column_id for output in outputs] == ['input', 'input2']
+    assert outputs[0].id != outputs[1].id
+    assert all(port['quantity'] == 'emissions' and port['unit']['standard'] == 'kt/a' for port in created)
+    assert all(output.is_editable for output in outputs)
+
+    variables = {'instanceId': str(db_instance_config.pk), 'nodeId': str(nc.uuid)}
+    if edit_path == 'input_list':
+        port_inputs = [
+            {
+                'id': str(port.id),
+                'identifier': port.identifier,
+                'label': None,
+                'quantity': port.quantity,
+                'role': port.role,
+                'unit': str(port.unit),
+                'multi': port.multi,
+                'requiredDimensions': list(port.required_dimensions),
+                'isEditable': None,
+            }
+            for port in fresh.spec.input_ports
+        ]
+        port_inputs[1].update(label='Cost', quantity='currency', unit='DKK/a')
+        gql_client.query_data(UPDATE_NODE, variables={**variables, 'input': {'inputPorts': port_inputs}})
+    else:
+        patch = {'label': 'Cost', 'quantity': 'currency', 'unit': 'DKK/a'}
+        if edit_path == 'output':
+            patch['identifier'] = 'cost'
+        gql_client.query_data(
+            UPDATE_OUTPUT_PORT if edit_path == 'output' else UPDATE_INPUT_PORT,
+            variables={
+                **variables,
+                'portId': str(outputs[0].id) if edit_path == 'output' else created[0]['id'],
+                'input': patch,
+            },
+        )
+    fresh = NodeConfig.objects.get(pk=nc.pk)
+    assert fresh.spec is not None
+    edited = fresh.spec.input_port_by_id[UUID(created[0]['id'])]
+    expected_identifier = 'cost' if edit_path == 'output' else 'input'
+    assert edited.identifier == expected_identifier
+    assert edited.quantity == 'currency'
+    assert edited.unit == unit_registry.parse_units('DKK/a')
+    assert edited.paired_output_port_id == outputs[0].id
+    updated_output = fresh.spec.output_port_by_id[outputs[0].id]
+    assert updated_output.quantity == 'currency'
+    assert updated_output.unit == unit_registry.parse_units('DKK/a')
+    assert updated_output.model_dump()['label'] == edited.model_dump()['label']
+    assert str(updated_output.label) == 'Cost'
+    assert updated_output.column_id == outputs[0].column_id
+    assert fresh.spec.output_port_by_id[outputs[1].id].model_dump() == outputs[1].model_dump()
+    data = gql_client.query_data(NODE_CONSTRAINT_FIELDS, variables={'instanceId': str(db_instance_config.pk)})
+    node = next(entry for entry in data['modelInstance']['nodes'] if entry['identifier'] == 'paired_action')
+    updated_input = next(port for port in node['editor']['spec']['inputPorts'] if port['identifier'] == expected_identifier)
+    assert updated_input['effectiveShape']['quantity'] == 'currency'
+    assert updated_input['effectiveShape']['unit']['standard'] == 'DKK/a'
+
+
+@pytest.mark.parametrize('patch', [{'identifier': 'renamed'}, {'multi': True}, {'unit': None}])
+def test_paired_input_rejects_changes_outside_label_unit_and_quantity(
+    gql_client: PathsTestClient, db_instance_config: InstanceConfig, patch: dict[str, object]
+) -> None:
+    from nodes.models import NodeConfig
+
+    nc = NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='paired_action',
+        spec=_make_node_spec(type_config=ActionConfig(node_class=ACTION_NODE_CLASS)),
+    )
+    data = gql_client.query_data(
+        ADD_NODE_INPUT_PORT_VIA_NODE_EDITOR,
+        variables={'instanceId': str(db_instance_config.pk), 'nodeId': str(nc.uuid), 'input': {'role': 'input'}},
+    )
+    port = data['instanceEditor']['nodeEditor']['addInputPort']
+    before = NodeConfig.objects.get(pk=nc.pk).spec
+    assert before is not None
+    snapshot = before.model_dump(mode='json')
+    gql_client.query_errors(
+        UPDATE_INPUT_PORT,
+        variables={
+            'instanceId': str(db_instance_config.pk),
+            'nodeId': str(nc.uuid),
+            'portId': port['id'],
+            'input': patch,
+        },
+    )
+    after = NodeConfig.objects.get(pk=nc.pk).spec
+    assert after is not None
+    assert after.model_dump(mode='json') == snapshot
+
+
+@pytest.mark.parametrize('edit_path', ['input', 'input_list'])
+def test_paired_input_cannot_change_protected_output(
+    gql_client: PathsTestClient, db_instance_config: InstanceConfig, edit_path: str
+) -> None:
+    from nodes.defs.port_def import pair_input_ports_to_outputs
+    from nodes.models import NodeConfig
+
+    output = OutputPortDef(
+        id=uuid4(),
+        identifier='energy',
+        column_id='Value',
+        unit=unit_registry.parse_units('kWh'),
+        quantity='energy',
+        is_editable=False,
+    )
+    ports = pair_input_ports_to_outputs([], [output], role='input')
+    nc = NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='protected_pair',
+        spec=_make_node_spec(type_config=ActionConfig(node_class=ACTION_NODE_CLASS), input_ports=ports, output_ports=[output]),
+    )
+    variables = {'instanceId': str(db_instance_config.pk), 'nodeId': str(nc.uuid)}
+    if edit_path == 'input':
+        errors = gql_client.query_errors(
+            UPDATE_INPUT_PORT,
+            variables={**variables, 'portId': str(ports[0].id), 'input': {'unit': 'MWh'}},
+        )
+    else:
+        errors = gql_client.query_errors(
+            UPDATE_NODE,
+            variables={
+                **variables,
+                'input': {
+                    'inputPorts': [
+                        {'id': str(ports[0].id), 'identifier': 'energy', 'role': 'input', 'unit': 'MWh', 'quantity': 'energy'}
+                    ]
+                },
+            },
+        )
+    assert 'not editable' in errors[0]['message']
+    fresh = NodeConfig.objects.get(pk=nc.pk)
+    assert fresh.spec is not None
+    assert fresh.spec.input_ports[0].unit == fresh.spec.output_ports[0].unit == unit_registry.parse_units('kWh')
+
+
+def test_node_editor_refreshes_draft_between_edits_without_mutating_cached_graph(
+    gql_client: PathsTestClient, db_instance_config: InstanceConfig, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from nodes.graphql import constraint_checks
+    from nodes.models import NodeConfig
+
+    nc = NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='paired_action',
+        spec=_make_node_spec(type_config=ActionConfig(node_class=ACTION_NODE_CLASS)),
+    )
+    snapshots: list[tuple[InstanceGraph, str]] = []
+    require_graph = constraint_checks.require_draft_graph
+
+    def capture_graph(info: Info, ic: InstanceConfig) -> InstanceGraph:
+        graph = require_graph(info, ic)
+        if not any(graph is previous for previous, _ in snapshots):
+            snapshots.append((graph, graph.model_dump_json()))
+        return graph
+
+    monkeypatch.setattr(constraint_checks, 'require_draft_graph', capture_graph)
+    query = gql("""
+    mutation EditNode($instanceId: ID!, $nodeId: ID!) {
+        instanceEditor(instanceId: $instanceId) {
+            nodeEditor(nodeId: $nodeId) {
+                first: addInputPort(input: {identifier: "energy", quantity: "energy", unit: "TJ/a"}) {
+                    ... on InputPortType { id pairedOutputPortId }
+                    ... on OperationInfo { messages { kind message } }
+                }
+                update(input: {nodeGroup: "impacts"}) {
+                    ... on NodeInterface { identifier }
+                    ... on OperationInfo { messages { kind message } }
+                }
+                second: addOutputPort(input: {identifier: "cost", quantity: "currency", unit: "EUR/a"}) {
+                    ... on OutputPortType { id }
+                    ... on OperationInfo { messages { kind message } }
+                }
+            }
+        }
+    }
+    """)
+    data = gql_client.query_data(query, variables={'instanceId': str(db_instance_config.pk), 'nodeId': str(nc.uuid)})
+    editor = data['instanceEditor']['nodeEditor']
+    fresh = NodeConfig.objects.get(pk=nc.pk)
+    assert fresh.spec is not None
+    assert len(fresh.spec.input_ports) == len(fresh.spec.output_ports) == 3
+    assert fresh.spec.node_group == 'impacts'
+    assert fresh.spec.input_port_by_id[UUID(editor['first']['id'])].paired_output_port_id == UUID(
+        editor['first']['pairedOutputPortId']
+    )
+    assert UUID(editor['second']['id']) in fresh.spec.output_port_by_id
+    assert len(snapshots) == 3
+    assert all(graph.model_dump_json() == snapshot for graph, snapshot in snapshots)
+
+
+def test_node_editor_rejects_missing_spec_before_resolving_mutations(
+    gql_client: PathsTestClient, db_instance_config: InstanceConfig
+) -> None:
+    nc = NodeConfigFactory.create(instance=db_instance_config, identifier='missing_spec', spec=None)
+    errors = gql_client.query_errors(
+        ADD_NODE_INPUT_PORT_VIA_NODE_EDITOR,
+        variables={'instanceId': str(db_instance_config.pk), 'nodeId': str(nc.uuid), 'input': {}},
+    )
+    assert errors[0]['message'] == 'Node "missing_spec" has no spec'
+    assert errors[0]['path'] == ['instanceEditor', 'nodeEditor']
 
 
 def test_additive_action_rejects_removing_output_with_bound_generated_input(
@@ -2745,6 +3042,7 @@ query NodeConstraintFields($instanceId: ID!) {
                     }
                     inputPortDeclarations {
                         role
+                        pairedOutput
                         multi
                         repeatable
                         required
@@ -2866,6 +3164,7 @@ def test_input_port_declaration_catalog(gql_client: PathsTestClient, db_instance
     assert set(declarations) == {'factors', 'additive', 'impute', 'reference'}
     factors = declarations['factors']
     assert factors['repeatable'] is True
+    assert factors['pairedOutput'] is False
     assert factors['minCount'] == 1
     assert factors['defaultCount'] == 2
     assert factors['instantiatedPortIds'] == [str(_port_uuid('factor1'))]
@@ -3070,6 +3369,79 @@ mutation UpdateInputPortLocalized(
     }
 }
 """)
+
+
+@pytest.mark.parametrize('edit_path', ['input', 'input_list'])
+def test_paired_input_label_edit_preserves_other_translations(
+    gql_client: PathsTestClient, db_instance_config: InstanceConfig, edit_path: str
+) -> None:
+    from kausal_common.i18n.pydantic import TranslatedString, set_i18n_context
+
+    from nodes.defs.port_def import pair_input_ports_to_outputs
+    from nodes.models import InstanceConfig as InstanceConfigModel, NodeConfig
+
+    InstanceConfigModel.objects.filter(pk=db_instance_config.pk).update(other_languages=['da'])
+    db_instance_config.refresh_from_db()
+    with set_i18n_context('en', ['da']):
+        label = TranslatedString('Cost', da='Pris')
+    output = OutputPortDef(
+        id=uuid4(),
+        identifier='cost',
+        column_id='Value',
+        label=label,
+        quantity='currency',
+        unit=unit_registry.parse_units('DKK/a'),
+    )
+    ports = pair_input_ports_to_outputs([], [output], role='input')
+    nc = NodeConfigFactory.create(
+        instance=db_instance_config,
+        identifier='localized_pair',
+        spec=_make_node_spec(type_config=ActionConfig(node_class=ACTION_NODE_CLASS), input_ports=ports, output_ports=[output]),
+    )
+    variables = {'instanceId': str(db_instance_config.pk), 'nodeId': str(nc.uuid), '_locale': 'da'}
+    if edit_path == 'input':
+        gql_client.query_data(
+            UPDATE_INPUT_PORT_LOCALIZED,
+            variables={**variables, 'portId': str(ports[0].id), 'input': {'label': 'Omkostning'}},
+        )
+    else:
+        query = gql("""
+        mutation EditPairedLabel($instanceId: ID!, $nodeId: ID!, $input: UpdateNodeInput!, $_locale: String!)
+        @locale(lang: $_locale) {
+            instanceEditor(instanceId: $instanceId) {
+                nodeEditor(nodeId: $nodeId) {
+                    update(input: $input) {
+                        ... on NodeInterface { identifier }
+                        ... on OperationInfo { messages { kind message } }
+                    }
+                }
+            }
+        }
+        """)
+        gql_client.query_data(
+            query,
+            variables={
+                **variables,
+                'input': {
+                    'inputPorts': [
+                        {
+                            'id': str(ports[0].id),
+                            'identifier': 'cost',
+                            'role': 'input',
+                            'label': 'Omkostning',
+                            'unit': 'DKK/a',
+                            'quantity': 'currency',
+                        }
+                    ]
+                },
+            },
+        )
+    spec = NodeConfig.objects.get(pk=nc.pk).spec
+    assert spec is not None
+    assert spec.input_ports[0].model_dump()['label'] == {'en': 'Cost', 'da': 'Omkostning'}
+    assert spec.output_ports[0].model_dump()['label'] == {'en': 'Cost', 'da': 'Omkostning'}
+    assert spec.output_ports[0].unit == output.unit
+    assert spec.output_ports[0].quantity == output.quantity
 
 
 def test_update_input_port_changes_only_named_fields(gql_client: PathsTestClient, db_instance_config: InstanceConfig):

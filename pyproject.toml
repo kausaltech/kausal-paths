@@ -235,6 +235,7 @@ exclude = [
   "/migrations/",
   "^notebooks/",
   "^private/",
+  "^scratchpad/",
   "^local_settings\\.py",
   "^\\.*env*",
   "^kausal_common/typings/django-stubs",
