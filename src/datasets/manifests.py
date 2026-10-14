@@ -21,6 +21,20 @@ if TYPE_CHECKING:
 MANIFEST_VERSION = 1
 
 
+def _present_in_revision(repo: Repository, spec: DatasetRepoSpec, identifiers: set[str]) -> set[str]:
+    """
+    Leave out the datasets the pinned revision does not contain.
+
+    The manifest covers every dataset the instance declares, so one absent file would
+    otherwise fail the batch and break the loading of all the others. Loading the absent
+    one still fails, on its own, with "not found in DVC repo".
+    """
+    absent = {identifier for identifier in identifiers if not repo.has_dataset(identifier)}
+    if absent:
+        logger.warning('Datasets not in {} at {}: {}', spec.url, spec.commit, ', '.join(sorted(absent)))
+    return identifiers - absent
+
+
 def persisted_manifest(
     spec: DatasetRepoSpec,
     identifiers: set[str],
@@ -55,6 +69,7 @@ def persisted_manifest(
         if repository is None:
             raise ValueError('A repository factory is required to resolve missing manifests')
         repo = repository()
+        missing = _present_in_revision(repo, spec, missing)
         try:
             resolved = repo.get_manifest(sorted(missing))
         except ValueError as error:

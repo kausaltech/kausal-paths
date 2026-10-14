@@ -80,6 +80,17 @@ def test_missing_or_invalid_metadata_is_repaired(content: dict[str, Any]) -> Non
     assert DatasetManifest.model_validate(row.content) == manifest_for('activity').datasets['activity']
 
 
+def test_dataset_absent_from_revision_does_not_fail_the_others() -> None:
+    repository = MagicMock()
+    repository.return_value.has_dataset.side_effect = lambda identifier: identifier != 'absent'
+    repository.return_value.get_manifest.return_value = manifest_for('activity')
+    result = persisted_manifest(SPEC, {'activity', 'absent'}, repository)
+    assert result is not None
+    assert set(result.datasets) == {'activity'}
+    repository.return_value.get_manifest.assert_called_once_with(['activity'])
+    assert not DVCSourceManifest.objects.filter(dataset_identifier='absent').exists()
+
+
 def test_concurrent_additions_are_merged() -> None:
     repository = MagicMock()
 

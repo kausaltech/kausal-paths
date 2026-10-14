@@ -158,6 +158,7 @@ def _compute_values(
     scenarios: Sequence[Scenario] = (),
     include_input_nodes: bool = True,
     port: OutputPortDef | None = None,
+    metric: NodeMetric | None = None,
 ) -> tuple[ppl.PathsDataFrame, list[MetricDimension]]:
     def include_as_input(node: Node) -> bool:
         if isinstance(node, ActionNode):
@@ -183,7 +184,9 @@ def _compute_values(
         # without the input nodes dimension.
         input_nodes = None
 
-    df, extra_dims = _get_df(node, scenarios=scenarios, input_nodes=input_nodes)
+    # Without the metric, a node with several output metrics returns all their columns and
+    # none of them is called Value.
+    df, extra_dims = _get_df(node, scenarios=scenarios, input_nodes=input_nodes, metric=metric)
     return df, extra_dims
 
     # if tst:
@@ -374,7 +377,7 @@ def from_node_output_metric(
 ) -> DimensionalMetric:
     dims: list[MetricDimension] = []
     with node.context.start_span('Compute metric values', op=MODEL_CALC_OP):
-        df, dims = _compute_values(node, scenarios, include_input_nodes=include_input_nodes, port=port)
+        df, dims = _compute_values(node, scenarios, include_input_nodes=include_input_nodes, port=port, metric=m)
 
     if UNCERTAINTY_COLUMN in df.columns and not df.filter(pl.col(UNCERTAINTY_COLUMN) == 'median').is_empty():
         df = df.filter(pl.col(UNCERTAINTY_COLUMN) == 'median')
@@ -414,7 +417,7 @@ def from_node_output_metric(
         normalized_by=nnode,
         stackable=stackable,
         goals=goals,
-        unit=df.get_unit(m.column_id),
+        unit=df.get_unit(VALUE_COLUMN),
         measure_datapoint_years=node.get_measure_datapoint_years(dims=[]),
     )
     return dm
