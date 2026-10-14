@@ -189,7 +189,7 @@ class PathsDataFrame(pl.DataFrame):
         df = super().rename(mapping)
         return PathsDataFrame._from_pydf(df._df, meta=meta, source_df=self)
 
-    def drop(
+    def drop(  # noqa: C901
         self,
         *columns: ColumnNameOrSelector | Iterable[ColumnNameOrSelector],
         strict: bool = True,
