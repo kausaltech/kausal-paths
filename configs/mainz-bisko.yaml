@@ -1010,7 +1010,7 @@ nodes:
       flatten: true
     - id: sector
       flatten: true
-  - id: final_energy_use
+  - id: final_energy_use_corrected
     tags: [heat]
     from_dimensions:
     - id: energy_carrier
@@ -1326,7 +1326,7 @@ nodes:
   input_nodes:
   - id: local_pv_generation
     tags: [generation]
-  - id: final_energy_use
+  - id: final_energy_use_corrected
     tags: [consumption]
     from_dimensions:
     - id: energy_carrier
@@ -1618,7 +1618,7 @@ nodes:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_nodes:
-  - id: final_energy_use
+  - id: final_energy_use_corrected
   - id: energy_prices
   params:
     operations: multiply
@@ -3296,11 +3296,14 @@ actions:
   - id: operations
     value: get_single_dataset
   output_nodes:
-  # Untagged, and additive by that fact: `final_energy_use` is a formula.FormulaNode, and a
-  # FormulaNode adds every input its formula does not name (src/nodes/formula.py). That is what
-  # lets this attach without copying the module's central node into this file -- see the
+  # Untagged, and additive by that fact: `final_energy_use_corrected` is a formula.FormulaNode,
+  # and a FormulaNode adds every input its formula does not name (src/nodes/formula.py). That is
+  # what lets this attach without copying the module's central node into this file -- see the
   # producer's docstring for why a relative factor would have required exactly that.
-  - id: final_energy_use
+  # The corrected node, not `final_energy_use`: since 2026-10-14 the latter is the module's
+  # reporting view, and emissions are computed from the corrected node, so an action attached to
+  # the view changed the energy shown and no emission at all (2045: -417 kt lost here).
+  - id: final_energy_use_corrected
 
 # ///// IE Leipzig territorial scenarios /////
 #
@@ -3390,7 +3393,7 @@ actions:
   output_nodes:
   # Untagged, and additive by that fact, exactly as `kwp_waermewende` attaches: the target sums
   # its inputs, so this needs no copy of the shared module's node into this file.
-  - id: final_energy_use
+  - id: final_energy_use_corrected
 
 # How it is computed. Not the study's levels but its *relative* path, applied to each carrier's
 # 2024
@@ -3562,7 +3565,7 @@ actions:
   output_nodes:
   # Untagged, and additive by that fact, exactly as `kwp_waermewende` attaches: the target sums
   # its inputs, so this needs no copy of the shared module's node into this file.
-  - id: final_energy_use
+  - id: final_energy_use_corrected
 
 # How it is computed. Not the study's levels but its *relative* path, applied to each carrier's
 # 2024
@@ -4271,10 +4274,10 @@ actions:
   - id: operations
     value: get_single_dataset
   output_nodes:
-  # Untagged, and additive by that fact: `final_energy_use` is a formula.FormulaNode, and a
-  # FormulaNode adds every input its formula does not name -- the same attachment
+  # Untagged, and additive by that fact: `final_energy_use_corrected` is a formula.FormulaNode,
+  # and a FormulaNode adds every input its formula does not name -- the same attachment
   # `kwp_waermewende` uses, and for the same reason.
-  - id: final_energy_use
+  - id: final_energy_use_corrected
 
 # ///// end of the Zielpfad action block /////
 
@@ -4391,24 +4394,26 @@ params:
 # which route each year took. `use_exergetic_district_heating` was removed on 2026-08-20.
 
 - id: municipal_facilities_included_in_commerce
+  # Hidden and fixed: what the city's data contains is settled once at setup, not by a visitor.
+  # Where KE is shown is the reporting setting report_municipal_facilities_in_commerce.
   label_en: Is the consumption of municipal facilities included in the commerce,
     trade and services sector?
   label_de: Sind die Verbräuche der kommunalen Einrichtungen im Sektor
     GHD/Sonstiges enthalten?
   value: false
-  is_visible: true
+  is_visible: false
   is_customizable: false
 
 # Heat-pump electricity sits inside the metered electricity unless the utility has separated it,
 # so the Leitfaden Datenbeschaffung (Schritt 7) treats the overlap as the normal case and asks for
 # it to be subtracted. Declared per city, because only the city knows how its data was delivered;
-# visible so the answer to "how does the tool process the data?" is on screen.
+# hidden and fixed like municipal_facilities_included_in_commerce: settled once at setup.
 - id: heat_pump_electricity_included_in_electricity
   label_en: The electricity consumption of heat pumps is included in the reported electricity consumption.
   label_de: Der Stromverbrauch der Wärmepumpen ist im ausgewiesenen Stromverbrauch enthalten.
   value: true
-  is_visible: true
-  is_customizable: true
+  is_visible: false
+  is_customizable: false
 
 # Reporting only: where corrected energy is shown. Unlike the two settings above, which say what
 # the city's figures contain, these move energy between rows and change no total. Off by default;
@@ -4417,12 +4422,12 @@ params:
   label_en: Report municipal facilities within commerce, trade and services (changes no total).
   label_de: Kommunale Einrichtungen innerhalb von GHD ausweisen (ändert keine Summe).
   value: false
-  is_visible: false
-  is_customizable: false
+  is_visible: true
+  is_customizable: true
 
 - id: report_heat_pumps_as_electricity
-  label_en: Report heat pumps under electricity instead of environmental heat (changes no total).
-  label_de: Wärmepumpen unter Strom statt als Umweltwärme ausweisen (ändert keine Summe).
+  label_en: Report the electricity driving heat pumps under electricity instead of environmental heat (changes no total).
+  label_de: Antriebsstrom der Wärmepumpen unter Strom statt als Umweltwärme ausweisen (ändert keine Summe).
   value: false
   is_visible: false
   is_customizable: false

@@ -405,29 +405,33 @@ params:
 # which route each year took. `use_exergetic_district_heating` was removed on 2026-08-20.
 
 - id: municipal_facilities_included_in_commerce
+  # Hidden and fixed: what the city's data contains is settled once at setup, not by a visitor.
+  # Where KE is shown is the reporting setting report_municipal_facilities_in_commerce.
   label_en: Is the consumption of municipal facilities included in the commerce,
     trade and services sector?
   label_de: Sind die Verbräuche der kommunalen Einrichtungen im Sektor
     GHD/Sonstiges enthalten?
   value: false
-  is_visible: true
+  is_visible: false
   is_customizable: false
 
 # Heat-pump electricity sits inside the metered electricity unless the utility has separated it,
 # so the Leitfaden Datenbeschaffung (Schritt 7) treats the overlap as the normal case and asks for
 # it to be subtracted. Declared per city, because only the city knows how its data was delivered;
-# visible so the answer to "how does the tool process the data?" is on screen.
+# hidden and fixed like municipal_facilities_included_in_commerce: settled once at setup.
 - id: heat_pump_electricity_included_in_electricity
   label_en: The electricity consumption of heat pumps is included in the reported electricity consumption.
   label_de: Der Stromverbrauch der Wärmepumpen ist im ausgewiesenen Stromverbrauch enthalten.
   value: true
-  is_visible: true
-  is_customizable: true
+  is_visible: false
+  is_customizable: false
 
 # Reporting only: where corrected energy is shown. Unlike the two settings above, which say what
 # the city's figures contain, these move energy between rows and change no total. Off by default;
 # BISKO reports municipal facilities as a sector and heat pumps as environmental heat.
 - id: report_municipal_facilities_in_commerce
+  # Hidden: Bayreuth overrides the sector emission nodes, which read the unreported
+  # stationary_emissions, so the setting would move the energy and not the emissions.
   label_en: Report municipal facilities within commerce, trade and services (changes no total).
   label_de: Kommunale Einrichtungen innerhalb von GHD ausweisen (ändert keine Summe).
   value: false
@@ -435,8 +439,8 @@ params:
   is_customizable: false
 
 - id: report_heat_pumps_as_electricity
-  label_en: Report heat pumps under electricity instead of environmental heat (changes no total).
-  label_de: Wärmepumpen unter Strom statt als Umweltwärme ausweisen (ändert keine Summe).
+  label_en: Report the electricity driving heat pumps under electricity instead of environmental heat (changes no total).
+  label_de: Antriebsstrom der Wärmepumpen unter Strom statt als Umweltwärme ausweisen (ändert keine Summe).
   value: false
   is_visible: false
   is_customizable: false

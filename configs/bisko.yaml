@@ -92,8 +92,8 @@ params:
 # Utilities report municipal consumption inside the GHD residual unless the city has had it
 # separated, so BISKO's Leitfaden Datenbeschaffung treats the overlap as the normal case and
 # requires it to be subtracted (Prüfschritt 2.1). Declared per city, because only the city knows
-# how its data was delivered; visible so the answer to "how does the tool process the data?" is
-# on screen, and not customizable because it moves the balance.
+# how its data was delivered; hidden and not customizable, because it moves the balance and is
+# settled once at setup (agreed with the certifier on 2026-10-15).
 #
 # **A city whose energy data comes from a Klimaschutz-Planer (KSP) export declares false.** KSP
 # keeps the Kommunale Einrichtungen as a sector beside GHD -- its own totals are
@@ -111,22 +111,24 @@ params:
 #
 # The template stays true: it demonstrates the subtraction, and its placeholder data is not KSP's.
 - id: municipal_facilities_included_in_commerce
+  # Hidden and fixed: what the city's data contains is settled once at setup, not by a visitor.
+  # Where KE is shown is the reporting setting report_municipal_facilities_in_commerce.
   label_en: The entered figure for commerce, trade and services still contains the municipal facilities (they are subtracted, so nothing is counted twice).
   label_de: Der eingetragene Wert für GHD/Sonstiges enthält die kommunalen Einrichtungen noch (sie werden abgezogen, damit nichts doppelt gezählt wird).
   value: true
-  is_visible: true
-  is_customizable: true
+  is_visible: false
+  is_customizable: false
 
 # Heat-pump electricity sits inside the metered electricity unless the utility has separated it,
 # so the Leitfaden Datenbeschaffung (Schritt 7) treats the overlap as the normal case and asks for
 # it to be subtracted. Declared per city, because only the city knows how its data was delivered;
-# visible so the answer to "how does the tool process the data?" is on screen.
+# hidden and fixed like municipal_facilities_included_in_commerce: settled once at setup.
 - id: heat_pump_electricity_included_in_electricity
   label_en: The entered electricity consumption still contains the electricity of the heat pumps (it is subtracted, so nothing is counted twice).
   label_de: Der eingetragene Stromverbrauch enthält den Strom der Wärmepumpen noch (er wird abgezogen, damit nichts doppelt gezählt wird).
   value: true
-  is_visible: true
-  is_customizable: true
+  is_visible: false
+  is_customizable: false
 
 # Reporting only: where corrected energy is shown. Unlike the two settings above, which say what
 # the city's figures contain, these move energy between rows and change no total. Off by default;
@@ -139,8 +141,8 @@ params:
   is_customizable: true
 
 - id: report_heat_pumps_as_electricity
-  label_en: Report heat pumps under electricity instead of environmental heat (changes no total).
-  label_de: Wärmepumpen unter Strom statt als Umweltwärme ausweisen (ändert keine Summe).
+  label_en: Report the electricity driving heat pumps under electricity instead of environmental heat (changes no total).
+  label_de: Antriebsstrom der Wärmepumpen unter Strom statt als Umweltwärme ausweisen (ändert keine Summe).
   value: false
   is_visible: true
   is_customizable: true

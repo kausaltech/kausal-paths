@@ -1292,20 +1292,21 @@ nodes:
     changing any total:<br/>
     &bull; <i>Report municipal facilities within commerce, trade and services</i>: the emissions
     of the municipal facilities are shown as part of that sector.<br/>
-    &bull; <i>Report heat pumps under electricity</i>: the emissions of the heat pumps are shown
-    under electricity instead of environmental heat. They are the emissions of the electricity
-    that drives the pumps in any case, since the factor for environmental heat is the national
-    electricity mix divided by the annual performance factor 3.2.
+    &bull; <i>Report heat-pump electricity under electricity</i>: the emissions of the heat pumps
+    are shown under electricity instead of environmental heat. They are the emissions of the
+    electricity that drives the pumps, since the factor for environmental heat is the national
+    electricity mix divided by the annual performance factor 3.2; the environmental heat itself
+    carries none.
   description_de: |
     Die Emissionen der stationären Sektoren nach Sektor und Energieträger, so ausgewiesen wie der
     Endenergieverbrauch. Zwei Einstellungen zur Ausweisung legen fest, wo ein Teil davon gezeigt
     wird, ohne eine Summe zu ändern:<br/>
     &bull; <i>Kommunale Einrichtungen innerhalb von GHD ausweisen</i>: Die Emissionen der
     kommunalen Einrichtungen werden als Teil dieses Sektors gezeigt.<br/>
-    &bull; <i>Wärmepumpen unter Strom ausweisen</i>: Die Emissionen der Wärmepumpen werden unter
-    Strom statt unter Umweltwärme gezeigt. Es sind ohnehin die Emissionen des Stroms, der die
-    Pumpen antreibt, denn der Faktor für Umweltwärme ist der Bundesstrommix geteilt durch die
-    Jahresarbeitszahl 3,2.
+    &bull; <i>Antriebsstrom der Wärmepumpen unter Strom ausweisen</i>: Die Emissionen der
+    Wärmepumpen werden unter Strom statt unter Umweltwärme gezeigt. Es sind die Emissionen des
+    Stroms, der die Pumpen antreibt, denn der Faktor für Umweltwärme ist der Bundesstrommix geteilt
+    durch die Jahresarbeitszahl 3,2; die Umweltwärme selbst verursacht keine.
   type: formula.FormulaNode
   quantity: emissions
   unit: t_co2e/a
@@ -1508,8 +1509,11 @@ nodes:
     of that energy is shown, without changing any total:<br/>
     &bull; <i>Report municipal facilities within commerce, trade and services</i>: the municipal
     facilities are shown as part of that sector instead of as their own.<br/>
-    &bull; <i>Report heat pumps under electricity</i>: the heat pumps' energy is shown under
-    electricity instead of as environmental heat, which then reads zero.<br/>
+    &bull; <i>Report heat-pump electricity under electricity</i>: the electricity that drives the
+    heat pumps (the environmental heat divided by the annual performance factor 3.2) is shown
+    under electricity, which then matches the electricity the city entered. Environmental heat
+    keeps only the heat the pumps take from the environment, and its emissions are shown under
+    electricity, where they arise.<br/>
     Emissions are computed on the corrected sectors and energy carriers, and the emission charts
     follow the same two settings.<br/>
     <b>Entered and filled-in values.</b> Where a field has no value in a year between two years with
@@ -1529,8 +1533,11 @@ nodes:
     ändern:<br/>
     &bull; <i>Kommunale Einrichtungen innerhalb von GHD ausweisen</i>: Die kommunalen
     Einrichtungen werden als Teil dieses Sektors gezeigt statt als eigener Sektor.<br/>
-    &bull; <i>Wärmepumpen unter Strom ausweisen</i>: Die Energie der Wärmepumpen wird unter Strom
-    gezeigt statt als Umweltwärme, die dann null ist.<br/>
+    &bull; <i>Antriebsstrom der Wärmepumpen unter Strom ausweisen</i>: Der Strom, der die
+    Wärmepumpen antreibt (die Umweltwärme geteilt durch die Jahresarbeitszahl 3,2), wird unter Strom
+    gezeigt, der dann dem von der Kommune eingetragenen Stromverbrauch entspricht. Die Umweltwärme
+    behält nur die Wärme, die die Pumpen der Umgebung entnehmen; ihre Emissionen werden unter Strom
+    gezeigt, wo sie entstehen.<br/>
     Die Emissionen werden auf den bereinigten Sektoren und Energieträgern berechnet, und die
     Emissionsgrafiken folgen denselben beiden Einstellungen.<br/>
     <b>Erhobene und ergänzte Werte.</b> Hat ein Feld in einem Jahr zwischen zwei Jahren mit Werten
@@ -1550,8 +1557,15 @@ nodes:
   - id: final_energy_use_with_municipal_facilities_reporting
     tags: [energy]
   params:
+  # Only the pump electricity moves (agreed 2026-10-15, option B): environmental heat is the heat
+  # the pumps deliver, and heat / 3.2 of it is the electricity that drives them -- the same
+  # annual performance factor as heat_pump_electricity_in_electricity and the environmental-heat
+  # emission factor (grid mix / 3.2). With A = environmental heat folded into electricity,
+  # A * 0.3125 + E * 0.6875 (0.3125 = 1 / 3.2) gives electricity + heat / 3.2, environmental
+  # heat * (1 - 1 / 3.2), and every other carrier unchanged; no total moves. Moving the whole
+  # heat (option A) would have put ambient heat under electricity.
   - id: formula
-    value: select_port(condition, sum_into_cat(energy, energy_carrier, [environmental_heat], electricity) + 0 * energy, energy)
+    value: select_port(condition, sum_into_cat(energy, energy_carrier, [environmental_heat], electricity) * 0.3125 + energy * 0.6875, energy)
   - id: condition
     ref: report_heat_pumps_as_electricity
 
