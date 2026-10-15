@@ -12,10 +12,15 @@ Stored rule blobs are parsed strictly: every write path validates through
 bug and fails loudly instead of degrading into a violation.
 """
 
+from contextvars import ContextVar
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
+from django.conf import settings
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.utils import translation
+from django.utils.translation import gettext as _, gettext_noop
 from pydantic import BaseModel, Field, TypeAdapter
 
 import polars as pl
@@ -28,6 +33,7 @@ from .validation_rules import (
     Enforcement,
     NoGapsRule,
     RequiredCombinationsRule,
+    RequiresMetricRule,
     ValidationRule,
     ValueRangeRule,
     validation_rule_adapter,
@@ -44,6 +50,35 @@ MAX_VIOLATIONS_PER_RULE = 200
 #: ``RuleViolation.kind`` used when a valid rule cannot be applied to the
 #: dataset (e.g. it references a dimension the data no longer has).
 INVALID_RULE_KIND = 'invalid_rule'
+
+#: Labels for metric columns whose schema label exists in one language only. The schema labels of
+#: the standard metrics are English, so a German message would otherwise name "Data quality".
+METRIC_LABEL_FALLBACKS = {
+    'Value': gettext_noop('Value'),
+    'quality': gettext_noop('Data quality'),
+}
+
+
+@dataclass
+class _Labels:
+    """
+    What a message calls a metric, a dimension and a category, in the language it is rendered in.
+
+    The structured fields of a violation keep the identifiers; only the message uses labels, so that
+    a city user reads 'Sektoren: Private Haushalte' rather than 'sector=private_households'.
+    """
+
+    metrics: dict[str, str] = field(default_factory=dict)
+    dimensions: dict[str, str] = field(default_factory=dict)
+    categories: dict[tuple[str, str], str] = field(default_factory=dict)
+
+    def metric(self, column: str) -> str:
+        if column in METRIC_LABEL_FALLBACKS:
+            return _(METRIC_LABEL_FALLBACKS[column])
+        return self.metrics.get(column, column)
+
+
+_LABELS: ContextVar[_Labels | None] = ContextVar('dataset_validation_labels', default=None)
 
 
 class RuleViolation(BaseModel):
@@ -163,26 +198,81 @@ def evaluate_dataset_rules(dataset: Dataset) -> list[RuleViolation]:
     domain_is_closed = schema.category_domain.mode == 'closed'
 
     violations: list[RuleViolation] = []
-    for row in rules:
-        metric = row.metric
-        column = metric.name or metric.label or str(metric.uuid)
-        rule = validation_rule_adapter.validate_python(row.rule)
-        violations.extend(
-            _evaluate_rule(
-                rule,
-                row.uuid,
-                metric.uuid,
-                column,
-                df,
-                dim_cols,
-                domain_coordinates,
-                domain_is_closed,
-            )
-        )
+    # Messages are rendered in the language of the instance that owns the dataset: they are shown
+    # to that instance's users as received, whatever the language of the request that triggered the
+    # evaluation.
+    with translation.override(_dataset_language(dataset)):
+        token = _LABELS.set(_dataset_labels(dataset, rules))
+        try:
+            for row in rules:
+                metric = row.metric
+                column = metric.name or metric.label or str(metric.uuid)
+                rule = validation_rule_adapter.validate_python(row.rule)
+                violations.extend(
+                    _evaluate_rule(
+                        rule,
+                        row.uuid,
+                        metric.uuid,
+                        column,
+                        df,
+                        dim_cols,
+                        domain_coordinates,
+                        domain_is_closed,
+                    )
+                )
+        finally:
+            _LABELS.reset(token)
     for found in violations:
         found.dataset_uuid = dataset.uuid
         found.dataset_identifier = dataset.identifier
     return violations
+
+
+def _dataset_language(dataset: Dataset) -> str:
+    from nodes.models import InstanceConfig
+
+    scope = getattr(dataset, 'scope', None)
+    if isinstance(scope, InstanceConfig) and scope.primary_language:
+        return scope.primary_language
+    return settings.LANGUAGE_CODE
+
+
+def _dataset_labels(dataset: Dataset, rules: list[Any]) -> _Labels:
+    from kausal_common.datasets.models import DatasetSchemaDimension, DimensionScope
+
+    labels = _Labels()
+    for row in rules:
+        metric = row.metric
+        column = metric.name or metric.label or str(metric.uuid)
+        labels.metrics[column] = metric.label_i18n or column
+    schema = dataset.schema
+    if schema is None or dataset.scope_id is None:
+        return labels
+    scopes = {
+        scope.dimension.pk: scope
+        for scope in DimensionScope.objects
+        .filter(
+            scope_content_type=dataset.scope_content_type,
+            scope_id=dataset.scope_id,
+            dimension_id__in=schema.dimensions.values_list('dimension_id', flat=True),
+        )
+        .select_related('dimension')
+        .prefetch_related('dimension__categories')
+    }
+    for dimension_id, column_name in DatasetSchemaDimension.objects.filter(schema=schema).values_list(
+        'dimension_id', 'column_name'
+    ):
+        scope = scopes.get(dimension_id)
+        if scope is None:
+            continue
+        column = column_name or scope.identifier
+        if column is None:
+            continue
+        labels.dimensions[column] = scope.dimension.name_i18n or column
+        for category in scope.dimension.categories.all():
+            if category.identifier is not None:
+                labels.categories[column, category.identifier] = category.label_i18n or category.identifier
+    return labels
 
 
 def _row_categories(row: dict[str, Any], cols: list[str]) -> dict[str, str]:
@@ -228,6 +318,8 @@ def _evaluate_rule(
                 domain_coordinates,
                 domain_is_closed,
             )
+        case RequiresMetricRule():
+            return _eval_requires_metric(rule, violation, column, df, dim_cols)
 
 
 def _category_domain_coordinates(dataset: Dataset) -> dict[UUID, dict[str, str]]:
@@ -292,7 +384,7 @@ def _eval_required_combinations(
                 kind=INVALID_RULE_KIND,
                 enforcement='block_publish',
                 combination_ids=unknown,
-                message='required_combinations rule references combinations outside the dataset schema domain',
+                message=_('The rule for required categories names combinations outside the dataset schema domain'),
             )
         ]
     years = df.select(YEAR_COLUMN).unique().sort(YEAR_COLUMN).get_column(YEAR_COLUMN).to_list()
@@ -315,16 +407,23 @@ def _eval_required_combinations(
                 missing_years.append(year)
         if missing_years:
             single_coordinates = domain_coordinates[group.combinations[0]] if len(group.combinations) == 1 else {}
+            # A one-combination group is named by its categories; a group of alternatives by the
+            # alternatives, since the group id is an identifier nobody outside the model has seen.
+            alternatives = [_categories_label(domain_coordinates[c]) for c in group.combinations]
             violations.append(
                 violation(
                     years=missing_years,
                     categories=single_coordinates,
                     combination_ids=group.combinations,
                     requirement_group=group.id,
-                    message=(
-                        f'{column} has no value for required category group {group.id} '
-                        f'in year(s) {_years_text(missing_years)}; an explicit 0 counts as a value'
-                    ),
+                    message=_(
+                        '%(metric)s is missing for %(categories)s in %(years)s. An entry is required; 0 counts as an entry.'
+                    )
+                    % {
+                        'metric': _metric_label(column),
+                        'categories': _(' or ').join(alternatives),
+                        'years': _years_text(missing_years),
+                    },
                 )
             )
     return violations
@@ -350,7 +449,8 @@ def _eval_allowed_combinations(
         violation(
             years=[row[YEAR_COLUMN]],
             categories=(categories := _row_categories(row, dim_cols)),
-            message=f'{column} uses a category combination outside the schema domain{_categories_text(categories)}',
+            message=_('%(metric)s uses a category combination this dataset does not allow%(categories)s')
+            % {'metric': _metric_label(column), 'categories': _categories_text(categories)},
         )
         for row in offending[:MAX_VIOLATIONS_PER_RULE]
     ]
@@ -376,10 +476,14 @@ def _eval_value_range(
         violation(
             years=[row[YEAR_COLUMN]],
             categories=(cats := _row_categories(row, dim_cols)),
-            message=(
-                f'{column} = {row[column]:g} is outside the allowed range ({bounds}) '
-                f'in {row[YEAR_COLUMN]}{_categories_text(cats)}'
-            ),
+            message=_('%(metric)s = %(value)s is outside the allowed range (%(bounds)s) in %(year)s%(categories)s')
+            % {
+                'metric': _metric_label(column),
+                'value': f'{row[column]:g}',
+                'bounds': bounds,
+                'year': row[YEAR_COLUMN],
+                'categories': _categories_text(cats),
+            },
         )
         for row in offending.head(MAX_VIOLATIONS_PER_RULE).iter_rows(named=True)
     ]
@@ -408,11 +512,18 @@ def _eval_dimension_sum(
         violation(
             years=[row[YEAR_COLUMN]],
             categories=(cats := _row_categories(row, group_cols[1:])),
-            message=(
-                f'{column} sums to {row["_sum"]:g} over {rule.dimension} '
-                f'(expected {rule.target:g} ± {rule.tolerance:g}) '
-                f'in {row[YEAR_COLUMN]}{_categories_text(cats)}'
-            ),
+            message=_(
+                '%(metric)s sums to %(sum)s over %(dimension)s (expected %(target)s ± %(tolerance)s) in %(year)s%(categories)s'
+            )
+            % {
+                'metric': _metric_label(column),
+                'sum': f'{row["_sum"]:g}',
+                'dimension': _dimension_label(rule.dimension),
+                'target': f'{rule.target:g}',
+                'tolerance': f'{rule.tolerance:g}',
+                'year': row[YEAR_COLUMN],
+                'categories': _categories_text(cats),
+            },
         )
         for row in offending.head(MAX_VIOLATIONS_PER_RULE).iter_rows(named=True)
     ]
@@ -441,10 +552,12 @@ def _eval_no_gaps(
         violation(
             years=list(row['_years']),
             categories=(cats := _row_categories(row, dim_cols)),
-            message=(
-                f'{column} has no value{_categories_text(cats)} '
-                f'for year(s) {_years_text(row["_years"])}; an explicit 0 counts as a value'
-            ),
+            message=_('%(metric)s has no value%(categories)s in %(years)s. 0 counts as a value.')
+            % {
+                'metric': _metric_label(column),
+                'categories': _categories_text(cats),
+                'years': _years_text(row['_years']),
+            },
         )
         for row in gaps.head(MAX_VIOLATIONS_PER_RULE).iter_rows(named=True)
     ]
@@ -459,7 +572,7 @@ def _with_overflow(
     if total > MAX_VIOLATIONS_PER_RULE:
         violations.append(
             violation(
-                message=f'... and {total - MAX_VIOLATIONS_PER_RULE} further violations of the same rule',
+                message=_('… and %(count)d further violations of the same rule') % {'count': total - MAX_VIOLATIONS_PER_RULE},
             )
         )
     return violations
@@ -477,10 +590,55 @@ def _range_text(rule: ValueRangeRule) -> str:
     return f'{operator} {rule.max:g}'
 
 
+def _metric_label(column: str) -> str:
+    labels = _LABELS.get()
+    return labels.metric(column) if labels is not None else column
+
+
+def _dimension_label(column: str) -> str:
+    labels = _LABELS.get()
+    return labels.dimensions.get(column, column) if labels is not None else column
+
+
+def _categories_label(categories: dict[str, str]) -> str:
+    labels = _LABELS.get()
+    if labels is None:
+        return ', '.join(f'{dim}={cat}' for dim, cat in categories.items())
+    return ', '.join(
+        f'{labels.dimensions.get(dim, dim)}: {labels.categories.get((dim, cat), cat)}' for dim, cat in categories.items()
+    )
+
+
 def _categories_text(categories: dict[str, str]) -> str:
     if not categories:
         return ''
-    return ' [' + ', '.join(f'{dim}={cat}' for dim, cat in categories.items()) + ']'
+    return ' (' + _categories_label(categories) + ')'
+
+
+def _eval_requires_metric(
+    rule: RequiresMetricRule,
+    violation: Callable[..., RuleViolation],
+    column: str,
+    df: pl.DataFrame,
+    dim_cols: list[str],
+) -> list[RuleViolation]:
+    companion = pl.col(rule.metric).is_null() if rule.metric in df.columns else pl.lit(value=True)
+    offending = df.filter(pl.col(column).is_not_null() & companion).sort([YEAR_COLUMN, *dim_cols])
+    violations = [
+        violation(
+            years=[row[YEAR_COLUMN]],
+            categories=(cats := _row_categories(row, dim_cols)),
+            message=_('%(metric)s has been entered without %(companion)s in %(year)s%(categories)s')
+            % {
+                'metric': _metric_label(column),
+                'companion': _metric_label(rule.metric),
+                'year': row[YEAR_COLUMN],
+                'categories': _categories_text(cats),
+            },
+        )
+        for row in offending.head(MAX_VIOLATIONS_PER_RULE).iter_rows(named=True)
+    ]
+    return _with_overflow(violations, len(offending), violation)
 
 
 def _years_text(years: list[int]) -> str:

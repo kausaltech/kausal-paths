@@ -617,3 +617,46 @@ def test_create_data_points_blocked_by_block_edit_rule(gql_client: PathsTestClie
     result = data['instanceEditor']['datasetEditor']['createDataPoints']
     assert result['__typename'] == 'OperationInfo'
     assert not DataPoint.objects.filter(dataset=dataset).exists()
+
+
+def test_requires_metric_rule_flags_a_value_without_its_grade(rig):
+    """A figure entered without its data quality grade is located, cell by cell."""
+    dataset, metric, cat_a, cat_b = rig
+    quality = DatasetMetricFactory.create(schema=dataset.schema, name='quality', label='Data quality', unit='%')
+    set_rule(metric, {'kind': 'requires_metric', 'enforcement': 'block_publish', 'metric': 'quality'})
+    add_point(dataset, metric, 2020, 10, cat_a)
+    add_point(dataset, quality, 2020, 1, cat_a)
+    add_point(dataset, metric, 2020, 0, cat_b)  # an entered zero still needs its grade
+
+    violations = evaluate_dataset_rules(dataset)
+
+    assert [(v.kind, v.years, v.categories) for v in violations] == [('requires_metric', [2020], {'region': 'b'})]
+
+
+def test_requires_metric_rule_ignores_empty_cells(rig):
+    dataset, metric, cat_a, _ = rig
+    DatasetMetricFactory.create(schema=dataset.schema, name='quality', label='Data quality', unit='%')
+    set_rule(metric, {'kind': 'requires_metric', 'enforcement': 'block_publish', 'metric': 'quality'})
+    add_point(dataset, metric, 2020, None, cat_a)
+
+    assert evaluate_dataset_rules(dataset) == []
+
+
+def test_messages_use_labels_in_the_instance_language(rig):
+    """A city user reads category labels in their own language, not dimension=category ids."""
+    dataset, metric, cat_a, _ = rig
+    instance_config = dataset.scope
+    instance_config.primary_language = 'de'
+    instance_config.save(update_fields=['primary_language'])
+    cat_a.label_de = 'Gebiet A'
+    cat_a.save()
+    quality = DatasetMetricFactory.create(schema=dataset.schema, name='quality', label='Data quality', unit='%')
+    set_rule(metric, {'kind': 'requires_metric', 'enforcement': 'block_publish', 'metric': 'quality'})
+    add_point(dataset, metric, 2020, 10, cat_a)
+    del quality
+
+    [violation] = evaluate_dataset_rules(dataset)
+
+    assert 'Gebiet A' in violation.message
+    assert 'region=a' not in violation.message
+    assert 'Datengüte' in violation.message

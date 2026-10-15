@@ -331,6 +331,8 @@ class FormulaNode(Node):
         'float': '_custom_float',
         'coalesce_df': '_custom_coalesce_df',
         'prefer_by_year': '_custom_prefer_by_year',
+        'prefer_by_cell': '_custom_prefer_by_cell',
+        'split_categories': '_custom_split_categories',
         'max': '_custom_max_min',
         'min': '_custom_max_min',
         'and': '_custom_and_or',
@@ -489,6 +491,44 @@ class FormulaNode(Node):
             coverage = self.eval_tree(node.args[2], varss)
             assert isinstance(coverage, PDF)
         return preferred.paths.prefer_by_year(fallback, coverage)
+
+    def _custom_prefer_by_cell(self, _func: str, node: ast.Call, varss: EvalVars, _df: EvalOutput) -> EvalOutput:
+        assert len(node.args) == 3, 'prefer_by_cell(preferred, fallback, coverage) takes three arguments'
+        preferred = self.eval_tree(node.args[0], varss)
+        fallback = self.eval_tree(node.args[1], varss)
+        coverage = self.eval_tree(node.args[2], varss)
+        assert isinstance(preferred, PDF)
+        assert isinstance(fallback, PDF)
+        assert isinstance(coverage, PDF)
+        return preferred.paths.prefer_by_cell(fallback, coverage)
+
+    def _custom_split_categories(self, _func: str, node: ast.Call, varss: EvalVars, _df: EvalOutput) -> EvalOutput:
+        """
+        Handle ``split_categories(data, reference, 'dim', 'agg: member + member, ...')``.
+
+        Each group names an aggregate category and, after the colon, its members joined by ``+``;
+        the first member receives the whole value where the reference gives no proportions.
+        """
+        assert len(node.args) == 4, "split_categories(data, reference, 'dim', 'agg: a + b, ...') takes four arguments"
+        data = self.eval_tree(node.args[0], varss)
+        reference = self.eval_tree(node.args[1], varss)
+        assert isinstance(data, PDF)
+        assert isinstance(reference, PDF)
+        dim_arg, spec_arg = node.args[2], node.args[3]
+        if not (isinstance(dim_arg, ast.Constant) and isinstance(dim_arg.value, str)):
+            raise NodeError(self, 'The third argument to split_categories() must be a quoted dimension id')
+        if not (isinstance(spec_arg, ast.Constant) and isinstance(spec_arg.value, str)):
+            raise NodeError(self, 'The fourth argument to split_categories() must be a quoted group specification')
+        groups: dict[str, list[str]] = {}
+        for part in spec_arg.value.split(','):
+            if not part.strip():
+                continue
+            agg, sep, members = part.partition(':')
+            member_ids = [m.strip() for m in members.split('+') if m.strip()]
+            if not sep or not agg.strip() or not member_ids:
+                raise NodeError(self, f"Invalid split_categories() group '{part.strip()}'; expected 'agg: a + b'")
+            groups[agg.strip()] = member_ids
+        return data.paths.split_categories(reference, dim_arg.value, groups)
 
     def _custom_max_min(self, func: str, node: ast.Call, varss: EvalVars, _df: EvalOutput) -> EvalOutput:
         assert len(node.args) == 2, f'{func}(a, b) requires two arguments'

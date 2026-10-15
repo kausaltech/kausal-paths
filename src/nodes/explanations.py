@@ -163,6 +163,10 @@ TAG_DESCRIPTIONS = {
         'and documented, and no value is computed from it.'
     ),
     'prefer_by_year': _('Use the first option for every year it has data for, and the second option for the remaining years.'),
+    'prefer_by_cell': _(
+        'Use the first option in every cell the coverage marks as entered, and the second option in all other cells.'
+    ),
+    'split_categories': _('Split each aggregate category into its member categories in the proportions of the reference.'),
     'removing': _('This is the rate of stock removal.'),
     'round_to_five': _('Round values to 5 significant digits rather than 5 decimal places.'),
     'scenario_impact': _('Calculate the total impact of all actions in the current scenario.'),

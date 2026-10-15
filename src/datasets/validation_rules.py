@@ -216,8 +216,29 @@ class AllowedCombinationsRule(_RuleBase):
         enforcement: auto
 
 
+@graphql_types
+class RequiresMetricRule(_RuleBase):
+    """
+    Every non-null value of the metric needs a non-null value of ``metric`` in the same cell.
+
+    For a value that must not stand without its companion, such as a figure without its data
+    quality grade. A value of 0 counts as a value on both sides.
+    """
+
+    kind: Literal['requires_metric'] = 'requires_metric'
+    metric: str = Field(min_length=1)
+    """The companion metric's column name, e.g. ``quality``."""
+
+    class ObjectType(ValidationRuleGQLInterface):
+        metric: auto
+
+    class InputType(StrawberryPydanticType['RequiresMetricRule']):
+        enforcement: auto
+        metric: auto
+
+
 type ValidationRule = Annotated[
-    ValueRangeRule | DimensionSumRule | NoGapsRule | RequiredCombinationsRule | AllowedCombinationsRule,
+    ValueRangeRule | DimensionSumRule | NoGapsRule | RequiredCombinationsRule | AllowedCombinationsRule | RequiresMetricRule,
     Field(discriminator='kind'),
 ]
 
@@ -238,6 +259,8 @@ def rule_to_gql(rule: ValidationRule) -> ValidationRuleGQLInterface:
             return RequiredCombinationsRule.ObjectType.from_pydantic(rule)
         case AllowedCombinationsRule():
             return AllowedCombinationsRule.ObjectType.from_pydantic(rule)
+        case RequiresMetricRule():
+            return RequiresMetricRule.ObjectType.from_pydantic(rule)
         case _:
             assert_never(rule)
 
@@ -253,6 +276,7 @@ class ValidationRuleSpecInput:
     no_gaps: NoGapsRule.InputType | None = sb.UNSET  # type: ignore[valid-type]
     required_combinations: RequiredCombinationsRule.InputType | None = sb.UNSET  # type: ignore[valid-type]
     allowed_combinations: AllowedCombinationsRule.InputType | None = sb.UNSET  # type: ignore[valid-type]
+    requires_metric: RequiresMetricRule.InputType | None = sb.UNSET  # type: ignore[valid-type]
 
     def to_rule(self) -> ValidationRule:
         """Convert to the Pydantic rule; raises ``pydantic.ValidationError`` on invalid field values."""
@@ -264,6 +288,7 @@ class ValidationRuleSpecInput:
                 self.no_gaps,
                 self.required_combinations,
                 self.allowed_combinations,
+                self.requires_metric,
             )
             if variant is not sb.UNSET and variant is not None
         ]
