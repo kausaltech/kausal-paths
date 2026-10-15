@@ -1,5 +1,9 @@
 # Imputing Data into Nodes
 
+*Produced by Claude, last revised 2026-10-14.*
+*Section on `prefer_by_cell` added by Claude Opus 5.5 on 2026-10-14.*
+*Responsible: Jouni Tuomisto.*
+
 ## Overview
 
 Most node classes already support an *implicit* additive input: wire a
@@ -143,6 +147,10 @@ impute step itself.
   values per row. See below — it is the mechanism to reach for when
   "use local data where we have it" means whole reporting years, not
   individual cells.
+- **`prefer_by_cell`** chooses a source per input field: the field a
+  city entered comes from its data, every other field from the default.
+  It is what an input form pre-filled with defaults needs; see the
+  section after `prefer_by_year`.
 
 
 ## `prefer_by_year`: choosing a source per year, not per row
@@ -222,3 +230,74 @@ read from a binding.
 - Unlike `select_port`, which evaluates only the branch it selects,
   `prefer_by_year` evaluates both. Converting a `select_port` to it
   will surface any latent error in the previously-dead branch.
+
+
+## `prefer_by_cell`: an input form pre-filled with defaults
+
+`prefer_by_cell(own, default, coverage)` makes the same choice as
+`prefer_by_year`, but per cell: a year together with the categories of
+`coverage`'s dimensions. A cell the coverage marks comes from `own`,
+every other cell from `default`. This is the model of a form whose
+fields come pre-filled with a default, where an entry overwrites that
+one field and leaves the rest alone.
+
+The BISKO module switched its transport inputs from `prefer_by_year` to
+`prefer_by_cell` in October 2026. The certifier's reading of the
+standard is the form: defaults are *voreingestellte Werte*, and default
+and local values mix within a year. Under the per-year choice, one
+entered mileage cell switched the whole year to the city's data and
+every empty cell to zero, which removed almost all of road transport
+from that year's balance.
+
+```yaml
+- id: vehicle_kilometers
+  type: formula.FormulaNode
+  input_nodes:
+  - id: vehicle_kilometers_own
+    tags: [own]
+  - id: vehicle_kilometers_default
+    tags: [default]
+  - id: vehicle_kilometers_own_availability
+    tags: [coverage]
+  params:
+  - id: formula
+    value: prefer_by_cell(own, default, coverage)
+```
+
+The `coverage` argument is required, for the reason given for
+`prefer_by_year`: an own-data frame that has been zero-filled cannot
+tell an entered zero from an empty field. An entered zero is an entry
+and wins its cell.
+
+`coverage` may have fewer dimensions than the data. Coverage by vehicle
+class and fuel then covers that class and fuel on every road category.
+
+### Choosing which to use
+
+Use `prefer_by_year` when a reporting year should come wholly from one
+source, for example when the two sources are alternative *methods*
+(the three district heating routes in BISKO). Use `prefer_by_cell` when
+each field is a separate entry that can come from either source.
+
+### `split_categories`: a measured total that contains its parts
+
+A measured figure often contains categories the result reports apart:
+diesel sales include the biodiesel blend. Replacing only the default's
+fossil diesel cell with it would leave the default's biodiesel standing
+and count the blend twice.
+
+```text
+split_categories(measured, reference, 'energy_carrier',
+  'diesel: diesel + biodiesel, petrol: petrol + bio_petrol')
+```
+
+splits each aggregate row into its members in the proportions of
+`reference` (here the default calculation for the same vehicle class
+and year). The first member is the fallback: where the reference has
+no positive total, the whole value stays there, and it always keeps a
+row. An aggregate is **not** split where the data already gives another
+member with a value: a city entering diesel and biodiesel separately has
+entered fossil diesel. `reference` may lack dimensions of the data; the
+BISKO road split uses mileage by vehicle class and road category to
+spread energy that is also broken down by fuel.
+

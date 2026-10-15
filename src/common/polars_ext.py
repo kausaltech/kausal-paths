@@ -454,6 +454,40 @@ class PathsExt:
         zdf = zdf.sort(meta.primary_keys)
         return ppl.to_ppdf(zdf, meta=meta)
 
+    @staticmethod
+    def _product_units(
+        df: ppl.PathsDataFrame, meta: ppl.DataFrameMeta, group_keys: list[str], dims: list[str]
+    ) -> tuple[ppl.PathsDataFrame, ppl.DataFrameMeta]:
+        """
+        Give the product of each metric column the unit pint would: the unit to the power of the factor count.
+
+        10 % x 10 % is 100 %**2, i.e. 0.01, and 1 m x 2 m x 3 m is 6 m**3; the consuming node's
+        declared unit then converts the result or rejects a mismatch. Where groups have different
+        numbers of factors there is no single unit for the column, so a dimensionless-compatible
+        unit (%) is converted to dimensionless first, which makes every power the same, and any
+        other unit is refused.
+        """
+        counts = df.group_by(group_keys).agg(pl.len().alias('_n'))['_n'].unique().to_list()
+        units = dict(meta.units)
+        plain = unit_registry.parse_units('dimensionless')
+        for col in meta.metric_cols:
+            unit = units[col]
+            # Not `unit.dimensionless`: pint says that of % too, which is exactly the unit whose
+            # scale the product must not lose.
+            if unit == plain or not counts:
+                continue
+            if len(counts) == 1:
+                units[col] = unit ** counts[0]
+            elif unit.is_compatible_with('dimensionless'):
+                df = df.ensure_unit(col, plain)
+                units[col] = plain
+            else:
+                raise ValueError(
+                    f'prod_dim over {dims}: groups have different numbers of factors ({sorted(counts)}), '
+                    f'so the product of {col} in {unit} has no single unit'
+                )
+        return df, ppl.DataFrameMeta(units=units, primary_keys=meta.primary_keys)
+
     # TODO Maybe merge with sum_over_dims into a generic function?
     def prod_over_dims(self, dims: str | list[str] | None = None) -> ppl.PathsDataFrame:
         df = self._df
@@ -479,8 +513,11 @@ class PathsExt:
             if dt.is_numeric():
                 prod_cols.append(col)
 
+        df, meta = self._product_units(df, meta, remaining_keys, dims)
+
         zdf = (
-            df
+            pl
+            .DataFrame(df)
             .group_by(remaining_keys)
             .agg([
                 *[pl.col(col).product().alias(col) for col in prod_cols],
@@ -988,6 +1025,9 @@ class PathsExt:
         missing, not something to backfill from the default -- filling it would produce a
         balance that is partly one source and partly the other with no way to tell which.
 
+        Where each field is a separate entry that may come from either source -- an input form
+        pre-filled with defaults -- use :meth:`prefer_by_cell` instead.
+
         ``coverage`` says which years this frame covers, as a frame of flags -- a year is
         covered when any of its values is non-null and non-zero. **Pass it whenever this frame
         comes from a dataset binding.** By the time a node's output reaches here it has been
@@ -1050,6 +1090,200 @@ class PathsExt:
         if both_have_forecast:
             df = df.drop('_FallbackForecast')
         return df.filter(pl.col(out_col).is_not_null())
+
+    def prefer_by_cell(self, odf: ppl.PathsDataFrame, coverage: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        """
+        Take this frame's value in every cell ``coverage`` marks, and ``odf``'s value in every other cell.
+
+        The cell-level counterpart of :meth:`prefer_by_year`, for an input form whose fields come
+        pre-filled with a default: a value the city enters overwrites that one field and leaves
+        every other field on its default. A cell is a year together with the categories of
+        ``coverage``'s dimensions, which must be a subset of this frame's. A coverage frame with
+        fewer dimensions marks a whole block: coverage by vehicle class and fuel, applied to a
+        frame that is also split by road category, covers that class and fuel on every road
+        category.
+
+        ``coverage`` is required rather than read from this frame's values, for the reason
+        :meth:`prefer_by_year` gives: by the time an own-data frame reaches a formula it may have
+        been zero-filled, and a filled zero cannot be told apart from an entered one. A cell is
+        covered when its flag is non-null and non-zero, so a ``DataAvailabilityNode`` reading the
+        same dataset is the natural coverage.
+
+        The Forecast flag follows the value, cell by cell. Cells left null by the choice are
+        dropped, as in :meth:`prefer_by_year`.
+        """
+        df = self._df
+        if len(df.metric_cols) != 1 or len(odf.metric_cols) != 1:
+            raise Exception('prefer_by_cell() supports a single metric column')
+        if len(coverage.metric_cols) != 1:
+            raise Exception('prefer_by_cell() coverage must have a single metric column')
+        if set(df.dim_ids) != set(odf.dim_ids):
+            raise ValueError(f'Dimensions must match for prefer_by_cell(): {df.dim_ids} vs {odf.dim_ids}.')
+        extra_dims = set(coverage.dim_ids) - set(df.dim_ids)
+        if extra_dims:
+            raise ValueError(f'prefer_by_cell() coverage has dimensions the data does not: {sorted(extra_dims)}')
+        out_col = df.metric_cols[0]
+        input_col = odf.metric_cols[0]
+        odf = odf.ensure_unit(input_col, df.get_unit(out_col)).rename({input_col: '_Fallback'})
+
+        flag_col = coverage.metric_cols[0]
+        cov_keys = [YEAR_COLUMN, *coverage.dim_ids]
+        covered_cells = pl.DataFrame(coverage).filter(pl.col(flag_col).is_not_null() & (pl.col(flag_col) != 0))
+        covered_cells = covered_cells.select(
+            [pl.col(YEAR_COLUMN), *[pl.col(d).cast(pl.Utf8) for d in coverage.dim_ids]],
+        ).unique()
+        covered_cells = covered_cells.with_columns(pl.lit(value=True).alias('_Covered'))
+
+        # As in prefer_by_year, the flag stays out of `join_over_index`'s OR and is chosen per cell.
+        both_have_forecast = FORECAST_COLUMN in df.columns and FORECAST_COLUMN in odf.columns
+        if both_have_forecast:
+            odf = odf.rename({FORECAST_COLUMN: '_FallbackForecast'})
+        df = df.paths.join_over_index(odf, how='outer')
+        meta = df.get_meta()
+        joined = pl.DataFrame(df)
+        dim_types = {d: joined.schema[d] for d in coverage.dim_ids}
+        covered_cells = covered_cells.with_columns([pl.col(d).cast(t) for d, t in dim_types.items()])
+        joined = joined.join(covered_cells, on=cov_keys, how='left').with_columns(pl.col('_Covered').fill_null(value=False))
+        is_covered = pl.col('_Covered')
+        exprs = [
+            pl.when(is_covered).then(pl.col(out_col)).otherwise(pl.col('_Fallback')).alias(out_col),
+        ]
+        if both_have_forecast:
+            exprs.append(
+                pl
+                .when(is_covered)
+                .then(pl.col(FORECAST_COLUMN))
+                .otherwise(pl.col('_FallbackForecast'))
+                .fill_null(value=False)
+                .alias(FORECAST_COLUMN),
+            )
+        joined = joined.with_columns(exprs).drop(['_Fallback', '_Covered'])
+        if both_have_forecast:
+            joined = joined.drop('_FallbackForecast')
+        out = ppl.to_ppdf(joined, meta=meta)
+        return out.filter(pl.col(out_col).is_not_null())
+
+    def split_categories(self, reference: ppl.PathsDataFrame, dim: str, groups: dict[str, list[str]]) -> ppl.PathsDataFrame:
+        """
+        Split each aggregate category of ``dim`` into its member categories, in the proportions of ``reference``.
+
+        ``groups`` maps an aggregate category to its members, e.g. ``{'diesel': ['diesel',
+        'biodiesel']}`` for a measured diesel figure that includes the biodiesel blend. A row of an
+        aggregate category becomes one row per member, each carrying the aggregate's value times
+        that member's share of the group total in ``reference`` for the same year and other
+        categories. Where the reference has no positive total for the group, the whole value goes
+        to the first member, which is meant to be the aggregate's own fossil category. Rows of
+        categories that are not an aggregate pass through unchanged, and cells that end up
+        appearing twice are summed.
+
+        An aggregate is split only where the data does not give its members itself: where a row of
+        another member has a non-zero value for the same year and other categories, the aggregate
+        row is taken to be that first member alone and passes through. A city that enters diesel
+        and biodiesel separately has entered fossil diesel, and splitting it again would count the
+        blend twice.
+
+        ``reference`` must have ``dim`` and may lack other dimensions of this frame; its
+        proportions then apply across them. Mileage by vehicle class and road category, say,
+        splits energy that is also broken down by fuel.
+        """
+        df = self._df
+        if len(df.metric_cols) != 1 or len(reference.metric_cols) != 1:
+            raise Exception('split_categories() supports a single metric column')
+        if dim not in df.dim_ids:
+            raise ValueError(f'split_categories(): the data has no dimension {dim}')
+        if dim not in reference.dim_ids or not set(reference.dim_ids) <= set(df.dim_ids):
+            raise ValueError(
+                f'split_categories() reference dimensions {reference.dim_ids} must include {dim} '
+                f'and be a subset of the data dimensions {df.dim_ids}'
+            )
+        val_col = df.metric_cols[0]
+        ref_col = reference.metric_cols[0]
+        meta = df.get_meta()
+        other_keys = [YEAR_COLUMN, *[d for d in df.dim_ids if d != dim]]
+        ref_keys = [YEAR_COLUMN, *[d for d in reference.dim_ids if d != dim]]
+
+        member_rows = [(agg, member) for agg, members in groups.items() for member in members]
+        mapping = pl.DataFrame(
+            {'_Agg': [r[0] for r in member_rows], dim: [r[1] for r in member_rows]},
+            schema={'_Agg': pl.Utf8, dim: pl.Utf8},
+        )
+        ref = pl.DataFrame(reference).select([
+            *[pl.col(k).cast(pl.Utf8) if k != YEAR_COLUMN else pl.col(k) for k in ref_keys],
+            pl.col(dim).cast(pl.Utf8),
+            pl.col(ref_col).alias('_Ref'),
+        ])
+        shares = mapping.join(ref, on=dim, how='inner')
+        shares = shares.with_columns(pl.col('_Ref').sum().over([*ref_keys, '_Agg']).alias('_Total'))
+        # Only groups with a positive reference total give proportions. Everything else -- a zero
+        # total, or no reference row at all -- falls to the first member below, whether or not
+        # the reference mentions that member.
+        shares = (
+            shares
+            .filter(pl.col('_Total') > 0)
+            .with_columns((pl.col('_Ref') / pl.col('_Total')).alias('_Share'))
+            .select([*ref_keys, '_Agg', dim, '_Share'])
+        )
+        # The first member always keeps a row, with what the split gives it -- 0 where the
+        # reference puts nothing there -- so that a consumer selecting it finds the cell rather
+        # than an empty frame.
+        firsts = pl.DataFrame(
+            {'_Agg': list(groups.keys()), dim: [members[0] for members in groups.values()]},
+            schema={'_Agg': pl.Utf8, dim: pl.Utf8},
+        )
+        missing_firsts = (
+            shares
+            .select([*ref_keys, '_Agg'])
+            .unique()
+            .join(firsts, on='_Agg', how='inner')
+            .join(shares.select([*ref_keys, '_Agg', dim]), on=[*ref_keys, '_Agg', dim], how='anti')
+            .with_columns(pl.lit(0.0).alias('_Share'))
+            .select([*ref_keys, '_Agg', dim, '_Share'])
+        )
+        shares = pl.concat([shares, missing_firsts], how='vertical')
+
+        data = pl.DataFrame(df)
+        key_types = {k: data.schema[k] for k in [*other_keys, dim] if k != YEAR_COLUMN}
+        data = data.with_columns([pl.col(k).cast(pl.Utf8) for k in key_types])
+        # (other keys, aggregate) pairs whose data already names another member with a value.
+        other_members = pl.DataFrame(
+            {
+                '_Agg': [agg for agg, members in groups.items() for m in members[1:]],
+                dim: [m for members in groups.values() for m in members[1:]],
+            },
+            schema={'_Agg': pl.Utf8, dim: pl.Utf8},
+        )
+        given = (
+            data
+            .filter(pl.col(val_col).is_not_null() & (pl.col(val_col) != 0))
+            .join(other_members, on=dim, how='inner')
+            .select([*other_keys, '_Agg'])
+            .unique()
+            .with_columns(pl.lit(value=True).alias('_Given'))
+        )
+        data = (
+            data
+            .with_columns(pl.when(pl.col(dim).is_in(list(groups.keys()))).then(pl.col(dim)).alias('_Agg'))
+            .join(given, on=[*other_keys, '_Agg'], how='left', nulls_equal=False)
+            .with_columns(pl.col('_Given').fill_null(value=False))
+        )
+        is_agg = pl.col('_Agg').is_not_null() & ~pl.col('_Given')
+        passthrough = data.filter(~is_agg).drop(['_Agg', '_Given'])
+        to_split = data.filter(is_agg).drop([dim, '_Given'])
+        split = to_split.join(shares, on=[*ref_keys, '_Agg'], how='left')
+        # A year the reference does not reach still has to keep its value: whole, on the first member.
+        first_member = pl.col('_Agg').replace_strict({agg: members[0] for agg, members in groups.items()})
+        split = split.with_columns(
+            pl.coalesce([pl.col(dim), first_member]).alias(dim),
+            pl.col('_Share').fill_null(1.0),
+        )
+        split = split.with_columns((pl.col(val_col) * pl.col('_Share')).alias(val_col)).drop(['_Agg', '_Share'])
+        combined = pl.concat([passthrough, split.select(passthrough.columns)], how='vertical')
+        agg_exprs = [pl.col(val_col).sum()]
+        if FORECAST_COLUMN in combined.columns:
+            agg_exprs.append(pl.col(FORECAST_COLUMN).any())
+        combined = combined.group_by([*other_keys, dim], maintain_order=True).agg(agg_exprs)
+        combined = combined.with_columns([pl.col(k).cast(t) for k, t in key_types.items()])
+        return ppl.to_ppdf(combined.select(df.columns), meta=meta)
 
     def compare_df(  # Based on add_with_dims
         self,
