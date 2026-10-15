@@ -2651,6 +2651,58 @@ msgstr "E-Mail Adresse"
 msgid "adminable instances"
 msgstr "administrierbare Instanzen"
 
+msgid "Value"
+msgstr "Wert"
+
+msgid "Data quality"
+msgstr "Datengüte"
+
+msgid " or "
+msgstr " oder "
+
+msgid "The rule for required categories names combinations outside the dataset schema domain"
+msgstr "Die Regel für Pflichtkategorien nennt Kombinationen, die das Datensatzschema nicht enthält"
+
+#, python-format
+msgid "%(metric)s is missing for %(categories)s in %(years)s. An entry is required; 0 counts as an entry."
+msgstr "%(metric)s fehlt für %(categories)s in %(years)s. Ein Eintrag ist Pflicht; 0 zählt als Eintrag."
+
+#, python-format
+msgid "%(metric)s uses a category combination this dataset does not allow%(categories)s"
+msgstr "%(metric)s verwendet eine Kategoriekombination, die dieser Datensatz nicht zulässt%(categories)s"
+
+#, python-format
+msgid "%(metric)s = %(value)s is outside the allowed range (%(bounds)s) in %(year)s%(categories)s"
+msgstr "%(metric)s = %(value)s liegt außerhalb des zulässigen Bereichs (%(bounds)s) in %(year)s%(categories)s"
+
+#, python-format
+msgid "%(metric)s sums to %(sum)s over %(dimension)s (expected %(target)s ± %(tolerance)s) in %(year)s%(categories)s"
+msgstr "%(metric)s ergibt in der Summe über %(dimension)s %(sum)s (erwartet %(target)s ± %(tolerance)s) in %(year)s%(categories)s"
+
+#, python-format
+msgid "%(metric)s has no value%(categories)s in %(years)s. 0 counts as a value."
+msgstr "%(metric)s hat keinen Wert%(categories)s in %(years)s. 0 zählt als Wert."
+
+#, python-format
+msgid "… and %(count)d further violations of the same rule"
+msgstr "… und %(count)d weitere Verstöße gegen dieselbe Regel"
+
+#, python-format
+msgid "%(metric)s has been entered without %(companion)s in %(year)s%(categories)s"
+msgstr "%(metric)s wurde ohne %(companion)s eingetragen in %(year)s%(categories)s"
+
+msgid "Use the first option in every cell the coverage marks as entered, and the second option in all other cells."
+msgstr "Verwendet in jeder Zelle, die als eingetragen markiert ist, die erste Option und in allen anderen Zellen die zweite."
+
+msgid "Split each aggregate category into its member categories in the proportions of the reference."
+msgstr "Teilt jede Sammelkategorie im Verhältnis der Referenz auf ihre Teilkategorien auf."
+
+msgid "Report municipal facilities within the commerce, trade and services sector"
+msgstr "Kommunale Einrichtungen innerhalb des Sektors Gewerbe, Handel, Dienstleistungen ausweisen"
+
+msgid "Report heat pumps under electricity instead of environmental heat"
+msgstr "Wärmepumpen unter Strom statt als Umweltwärme ausweisen"
+
 #~ msgid "Inspect"
 #~ msgstr "Überprüfen"
 

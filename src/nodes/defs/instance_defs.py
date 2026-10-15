@@ -136,6 +136,16 @@ class InstanceFeatures(BaseModel):
     show_category_warnings: bool = False
     """Whether to show category warnings in the node explanation."""
 
+    show_zeros_in_graphs: bool = False
+    """
+    Whether graphs keep a category whose values are all zero.
+
+    By default such a category is dropped from graphs, which keeps them readable. An instance whose
+    users must see that a mandatory value was entered as zero -- a BISKO balance, where an entry of
+    0 is a valid entry -- turns this on, and the category then stays in the graph, its legend and
+    its tooltip.
+    """
+
     model_config = ConfigDict(use_attribute_docstrings=True)
 
 
