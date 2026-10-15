@@ -30,8 +30,6 @@ datasets:
   is_editable: false
 - id: de/energieanteile_verkehr                     # road mileage split by fuel
   is_editable: false
-- id: de/biodieselanteil             # biofuel share
-  is_editable: false
 - id: de/auslastung_fahrzeuge                  # occupancy / load factors
   is_editable: false
 - id: de/datenguetekriterien                  # Datenguete thresholds for criterion 1.3
@@ -1189,7 +1187,7 @@ nodes:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_nodes:
-  - id: stationary_emissions
+  - id: stationary_emissions_reported
     from_dimensions:
     - id: sector
       categories: [private_households]
@@ -1207,7 +1205,7 @@ nodes:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_nodes:
-  - id: stationary_emissions
+  - id: stationary_emissions_reported
     from_dimensions:
     - id: sector
       categories: [municipal_facilities]
@@ -1225,7 +1223,7 @@ nodes:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_nodes:
-  - id: stationary_emissions
+  - id: stationary_emissions_reported
     from_dimensions:
     - id: sector
       categories: [industry]
@@ -1243,12 +1241,84 @@ nodes:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_nodes:
-  - id: stationary_emissions
+  - id: stationary_emissions_reported
     from_dimensions:
     - id: sector
       categories: [commerce_trade_services]
   output_nodes:
   - id: net_emissions
+
+# The emissions counterpart of final_energy_use_with_municipal_facilities_reporting and
+# final_energy_use: the same two reporting settings move already computed emissions between rows,
+# so the emission charts by sector and by energy carrier show what the energy charts show. Moving
+# a computed figure never revalues it -- the environmental heat's emissions stay valued with its
+# own factor (the grid mix divided by 3.2), they are only shown under electricity -- and no total
+# changes. stationary_emissions itself stays unreported: the district-heating checks read it.
+# `+ 0 * emissions` keeps a zero row for the category moved away, so the sector nodes that filter
+# on it still find a frame, and a chart shows the moved row at 0 instead of dropping it.
+- id: stationary_emissions_with_municipal_facilities_reporting
+  is_editable: false
+  name_en: Stationary emissions, municipal facilities as reported
+  name_de: Stationäre Emissionen, kommunale Einrichtungen wie ausgewiesen
+  description_en: |
+    The emissions of the stationary sectors, with the municipal facilities shown as their own
+    sector or within commerce, trade and services, as the setting <i>Report municipal facilities
+    within commerce, trade and services</i> says. Moving them changes no total.
+  description_de: |
+    Die Emissionen der stationären Sektoren, mit den kommunalen Einrichtungen als eigenem Sektor
+    oder innerhalb von Gewerbe, Handel, Dienstleistungen, wie es die Einstellung <i>Kommunale
+    Einrichtungen innerhalb von GHD ausweisen</i> vorgibt. Das Verschieben ändert keine Summe.
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_nodes:
+  - id: stationary_emissions
+    tags: [emissions]
+  params:
+  - id: formula
+    value: select_port(condition, sum_into_cat(emissions, sector, [municipal_facilities], commerce_trade_services) + 0 * emissions, emissions)
+  - id: condition
+    ref: report_municipal_facilities_in_commerce
+
+- id: stationary_emissions_reported
+  is_editable: false
+  name_en: Stationary emissions as reported
+  name_de: Stationäre Emissionen wie ausgewiesen
+  description_en: |
+    The emissions of the stationary sectors by sector and energy carrier, shown the same way as
+    the final energy use. Two reporting settings choose where some of them are shown, without
+    changing any total:<br/>
+    &bull; <i>Report municipal facilities within commerce, trade and services</i>: the emissions
+    of the municipal facilities are shown as part of that sector.<br/>
+    &bull; <i>Report heat pumps under electricity</i>: the emissions of the heat pumps are shown
+    under electricity instead of environmental heat. They are the emissions of the electricity
+    that drives the pumps in any case, since the factor for environmental heat is the national
+    electricity mix divided by the annual performance factor 3.2.
+  description_de: |
+    Die Emissionen der stationären Sektoren nach Sektor und Energieträger, so ausgewiesen wie der
+    Endenergieverbrauch. Zwei Einstellungen zur Ausweisung legen fest, wo ein Teil davon gezeigt
+    wird, ohne eine Summe zu ändern:<br/>
+    &bull; <i>Kommunale Einrichtungen innerhalb von GHD ausweisen</i>: Die Emissionen der
+    kommunalen Einrichtungen werden als Teil dieses Sektors gezeigt.<br/>
+    &bull; <i>Wärmepumpen unter Strom ausweisen</i>: Die Emissionen der Wärmepumpen werden unter
+    Strom statt unter Umweltwärme gezeigt. Es sind ohnehin die Emissionen des Stroms, der die
+    Pumpen antreibt, denn der Faktor für Umweltwärme ist der Bundesstrommix geteilt durch die
+    Jahresarbeitszahl 3,2.
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_nodes:
+  - id: stationary_emissions_with_municipal_facilities_reporting
+    tags: [emissions]
+  params:
+  - id: formula
+    value: select_port(condition, sum_into_cat(emissions, energy_carrier, [environmental_heat], electricity) + 0 * emissions, emissions)
+  - id: condition
+    ref: report_heat_pumps_as_electricity
 
 - id: weather_correction
   is_editable: false
@@ -1422,7 +1492,7 @@ nodes:
     tags: [energy]
   params:
   - id: formula
-    value: select_port(condition, sum_into_cat(energy, sector, [municipal_facilities], commerce_trade_services), energy)
+    value: select_port(condition, sum_into_cat(energy, sector, [municipal_facilities], commerce_trade_services) + 0 * energy, energy)
   - id: condition
     ref: report_municipal_facilities_in_commerce
 
@@ -1440,7 +1510,16 @@ nodes:
     facilities are shown as part of that sector instead of as their own.<br/>
     &bull; <i>Report heat pumps under electricity</i>: the heat pumps' energy is shown under
     electricity instead of as environmental heat, which then reads zero.<br/>
-    Emissions are always computed on the corrected sectors and energy carriers.
+    Emissions are computed on the corrected sectors and energy carriers, and the emission charts
+    follow the same two settings.<br/>
+    <b>Entered and filled-in values.</b> Where a field has no value in a year between two years with
+    values, the graph shows a value interpolated from the neighbouring years; where a field is
+    empty in the years before its first value, the graph shows that first value. Such values are
+    the best estimate available, but a year containing one is not BISKO-compliant:
+    <i>Are the inventories BISKO compliant?</i> reads only the values actually entered and shows 0
+    for that year. Which values were entered, by sector, energy carrier and year, is shown in
+    <i>Final energy use data availability</i>. Years after the last year with values are marked as
+    forecast.
   description_de: |
     Endenergieverbrauch der vier stationären BISKO-Sektoren (private Haushalte; Gewerbe, Handel,
     Dienstleistungen; Industrie; kommunale Einrichtungen) nach Energieträgern, wie ausgewiesen.<br/>
@@ -1452,7 +1531,16 @@ nodes:
     Einrichtungen werden als Teil dieses Sektors gezeigt statt als eigener Sektor.<br/>
     &bull; <i>Wärmepumpen unter Strom ausweisen</i>: Die Energie der Wärmepumpen wird unter Strom
     gezeigt statt als Umweltwärme, die dann null ist.<br/>
-    Die Emissionen werden immer auf den bereinigten Sektoren und Energieträgern berechnet.
+    Die Emissionen werden auf den bereinigten Sektoren und Energieträgern berechnet, und die
+    Emissionsgrafiken folgen denselben beiden Einstellungen.<br/>
+    <b>Erhobene und ergänzte Werte.</b> Hat ein Feld in einem Jahr zwischen zwei Jahren mit Werten
+    keinen Wert, zeigt die Grafik einen aus den Nachbarjahren interpolierten Wert; ist ein Feld in
+    den Jahren vor seinem ersten Wert leer, zeigt die Grafik diesen ersten Wert. Diese Werte sind
+    die beste verfügbare Schätzung, aber ein Jahr, das einen davon enthält, ist nicht
+    BISKO-konform: <i>Sind die Inventare BISKO-konform?</i> liest nur die tatsächlich eingetragenen
+    Werte und zeigt für dieses Jahr 0. Welche Werte eingetragen wurden, je Sektor, Energieträger und
+    Jahr, zeigt <i>Datenverfügbarkeit des Endenergieverbrauchs</i>. Jahre nach dem letzten Jahr mit
+    Werten sind als Prognose gekennzeichnet.
   type: formula.FormulaNode
   quantity: energy
   unit: MWh/a
@@ -1463,7 +1551,7 @@ nodes:
     tags: [energy]
   params:
   - id: formula
-    value: select_port(condition, sum_into_cat(energy, energy_carrier, [environmental_heat], electricity), energy)
+    value: select_port(condition, sum_into_cat(energy, energy_carrier, [environmental_heat], electricity) + 0 * energy, energy)
   - id: condition
     ref: report_heat_pumps_as_electricity
 
@@ -1617,21 +1705,25 @@ nodes:
     Final energy use of all five BISKO sectors by energy carrier: the four stationary sectors
     from the city's own energy data, plus transport, whose energy is summed over the vehicle
     types. BISKO requires the energy balance — not only the greenhouse gas balance — to be
-    shown by sector and by energy carrier, transport included (criterion 2.1).<br/>
-    Municipal facilities are reported as their own sector here, and their consumption has already
-    been removed from commerce, trade and services where the city declared that its figure for
-    that sector contains it, so nothing is counted twice. See
-    <i>Municipal facility energy included in commerce</i> for the size of that correction.
+    shown by sector and by energy carrier, transport included.<br/>
+    The consumption of municipal facilities has already been removed from commerce, trade and
+    services where the city declared that its figure for that sector contains it, so nothing is
+    counted twice. See <i>Municipal facility energy included in commerce</i> for the size of that
+    correction. Whether the municipal facilities are shown as their own sector or within commerce,
+    trade and services follows the setting <i>Report municipal facilities within commerce, trade
+    and services</i>.
   description_de: |
     Endenergieverbrauch aller fünf BISKO-Sektoren nach Energieträgern: die vier stationären
     Sektoren aus den eigenen Energiedaten der Kommune sowie der Verkehr, dessen Energie über
     die Fahrzeugtypen summiert wird. BISKO verlangt, dass nicht nur die Treibhausgasbilanz,
     sondern auch die Energiebilanz nach Sektoren und Energieträgern dargestellt wird, und zwar
     einschließlich des Verkehrs.<br/>
-    Kommunale Einrichtungen werden hier als eigener Sektor ausgewiesen, und ihr Verbrauch wurde
-    bereits aus Gewerbe, Handel, Dienstleistungen herausgerechnet, sofern die Kommune erklärt hat,
-    dass er im Wert dieses Sektors enthalten ist; es wird also nichts doppelt gezählt. Die Höhe
-    dieser Korrektur zeigt <i>Endenergie der kommunalen Einrichtungen im GHD-Wert</i>.
+    Der Verbrauch der kommunalen Einrichtungen wurde bereits aus Gewerbe, Handel, Dienstleistungen
+    herausgerechnet, sofern die Kommune erklärt hat, dass er im Wert dieses Sektors enthalten ist;
+    es wird also nichts doppelt gezählt. Die Höhe dieser Korrektur zeigt <i>Endenergie der
+    kommunalen Einrichtungen im GHD-Wert</i>. Ob die kommunalen Einrichtungen als eigener Sektor
+    oder innerhalb von GHD gezeigt werden, folgt der Einstellung <i>Kommunale Einrichtungen
+    innerhalb von GHD ausweisen</i>.
   type: simple.AdditiveNode
   quantity: energy
   unit: MWh/a
@@ -2309,9 +2401,8 @@ nodes:
     a time: plant data wins where it exists, a declared variant where there is no plant data, and
     the standard factor everywhere else. This node shows which route the model took in each
     year.<br/>
-    Option 1 (the city's own plant data) is temporarily not offered while its method is being
-    reviewed with the certifier; plant data that has been entered does not affect the balance until
-    then.<br/>
+    Option 1 (the city's own plant data) is temporarily not offered; plant data that has been
+    entered does not affect the balance for now.<br/>
     The value is the code of the route (1, 2 or 3, as described above) and has no unit.
   description_de: |
     Welchen der drei BISKO-Wege für Fernwärme die Bilanz verwendet hat, je Jahr: <b>1</b> die
@@ -2321,9 +2412,8 @@ nodes:
     geliefert hat: Anlagendaten haben Vorrang, wo sie vorliegen, eine erklärte Variante dort, wo
     keine Anlagendaten vorliegen, und sonst der Standardfaktor. Dieser Knoten zeigt, welchen Weg das
     Modell in jedem Jahr genommen hat.<br/>
-    Möglichkeit 1 (eigene Anlagendaten der Kommune) wird vorübergehend nicht angeboten, solange ihr
-    Verfahren mit der Zertifizierungsstelle abgestimmt wird; eingetragene Anlagendaten wirken sich
-    bis dahin nicht auf die Bilanz aus.<br/>
+    Möglichkeit 1 (eigene Anlagendaten der Kommune) wird vorübergehend nicht angeboten;
+    eingetragene Anlagendaten wirken sich vorerst nicht auf die Bilanz aus.<br/>
     Der Wert ist der Code des Wegs (1, 2 oder 3, wie oben beschrieben) und hat keine Einheit.
   type: formula.FormulaNode
   quantity: fraction
@@ -2522,7 +2612,7 @@ nodes:
     renewable generation and for plants producing electricity only (not combined heat and power).
     Shown for reference and <b>deliberately unused</b>: BISKO values a city's electricity
     consumption at the national grid mix and does not net off local generation, so a locally
-    derived electricity factor has no place in the balance (criterion 4.3).<br/>
+    derived electricity factor has no place in the balance.<br/>
     The factors include upstream emissions of the energy used for production; upstream products
     (grey emissions) are not included. The gases are CO<sub>2</sub>, CH<sub>4</sub> and
     N<sub>2</sub>O, as CO<sub>2</sub> equivalents over 100 years. They come from ifeu and are
@@ -2533,8 +2623,8 @@ nodes:
     on local factors
     is not BISKO-conform, and <i>Has national electricity emission factors?</i> drops to 0 the
     moment the switch is thrown. District heating does not follow this switch: Möglichkeit 1 reads
-    the national table directly, because criterion 6.2 does not allow a city's district heating
-    factor to be typed in at all.
+    the national table directly, because BISKO does not allow a city's district heating factor to
+    be typed in at all.
   description_de: |
     Die ifeu-Faktortabelle <i>Erzeugung</i>, vollständig dargestellt. Sie hat zwei Seiten, und das
     sind unterschiedliche Größen:<br/>
@@ -2546,7 +2636,7 @@ nodes:
     Erzeugung und für Anlagen, die ausschließlich Strom erzeugen (keine Kraft-Wärme-Kopplung). Zur
     Einsicht dargestellt und <b>bewusst ungenutzt</b>: BISKO bewertet den Stromverbrauch einer
     Kommune mit dem Bundesstrommix und rechnet die lokale Erzeugung nicht gegen, ein lokal
-    abgeleiteter Stromfaktor hat in der Bilanz also nichts zu suchen (Kriterium 4.3).<br/>
+    abgeleiteter Stromfaktor hat in der Bilanz also nichts zu suchen.<br/>
     Die Faktoren enthalten Vorkettenemissionen der für die Produktion verwendeten Energie;
     Vorprodukte (graue Emissionen) sind nicht enthalten. Berücksichtigt sind CO<sub>2</sub>,
     CH<sub>4</sub> und N<sub>2</sub>O als CO<sub>2</sub>-Äquivalente über 100 Jahre. Sie stammen
@@ -2556,7 +2646,7 @@ nodes:
     gilt für jeden Energieträger und jedes Jahr der lokale Faktor, wo es einen gibt, sonst der
     nationale. Eine Bilanz auf lokalen Faktoren ist nicht BISKO-konform, und „Hat nationale Stromemissionsfaktoren?" fällt auf 0, sobald der Schalter
     umgelegt wird. Die Fernwärme folgt diesem Schalter nicht:
-    Möglichkeit 1 liest die nationale Tabelle direkt, denn Kriterium 6.2 lässt einen eingetragenen
+    Möglichkeit 1 liest die nationale Tabelle direkt, denn BISKO lässt einen eingetragenen
     Fernwärme-Emissionsfaktor überhaupt nicht zu.
   # Kept although no node consumes it: this is the only place either side of the Erzeugung table
   # can be inspected, which is what Pruefschritt 6.1 and 7.1 ask for, and it is listed in the
@@ -3854,17 +3944,6 @@ nodes:
     - id: energy_carrier
       categories: [electricity]
 
-- id: fraction_of_biodiesel
-  is_editable: false
-  name_en: Fraction of biodiesel
-  name_de: Anteil von Biodiesel
-  type: simple.AdditiveNode2
-  quantity: fraction
-  unit: '%'
-  input_datasets:
-  - id: de/biodieselanteil
-    extend: true  # GenericNode extended its dataset; keep that explicit
-
 - id: transport_emissions
   is_editable: false
   name_en: Transport
@@ -4006,7 +4085,7 @@ nodes:
     BISKO inventory must not be corrected for weather.<br/>
     Values: 1 = yes, 0 = no. The value has no unit.
   description_de: |
-    BISKO-Inventar muss nicht für Wetter korrigiert werden.<br/>
+    Eine BISKO-Bilanz darf nicht witterungsbereinigt werden.<br/>
     Werte: 1 = ja, 0 = nein. Der Wert hat keine Einheit.
   type: generic.ConstantNode
   quantity: probability
@@ -4764,7 +4843,7 @@ nodes:
   name_en: Datengüte of the whole balance
   name_de: Datengüte der Gesamtbilanz
   description_en: |
-    The Datengüte of the balance as a whole (criterion 7.2): each component's grade weighted by its
+    The Datengüte of the balance as a whole: each component's grade weighted by its
     share of total final energy, exactly as Methodenpapier §3.4 and the worked example in Table 1
     compute it.<br/>
     <b>All five sectors, transport included.</b> Table 1's example weights Fahrleistungen Straße,
@@ -4780,7 +4859,7 @@ nodes:
     is none for forecast years. The percentage shown above the graph is the change since the
     reference year.
   description_de: |
-    Die Datengüte der Gesamtbilanz (Kriterium 7.2): die Güte jeder Komponente, gewichtet mit ihrem
+    Die Datengüte der Gesamtbilanz: die Güte jeder Komponente, gewichtet mit ihrem
     Anteil am gesamten Endenergieverbrauch, genau so, wie Methodenpapier §3.4 und das Rechenbeispiel
     in Tabelle 1 sie bilden.<br/>
     <b>Alle fünf Sektoren, einschließlich Verkehr.</b> Das Beispiel in Tabelle 1 gewichtet
@@ -5305,11 +5384,17 @@ nodes:
   description_en: |
     The share of rail, inland waterway and commercial aviation final energy in the balance that
     comes from the city's own operator data, per year. The rest comes from the gemeindefeine ifeu
-    default the fields are pre-filled with.
+    default the fields are pre-filled with.<br/>
+    In a year whose total is zero there is no share of energy to show. That year shows the share of
+    the required transport modes the city has entered values for, so a year entered entirely as
+    zeros reads 100 %.
   description_de: |
     Der Anteil des Endenergieverbrauchs von Schienen-, Binnenschiffs- und gewerblichem Flugverkehr in
     der Bilanz, der aus den eigenen Betreiberdaten der Kommune stammt, je Jahr. Der Rest stammt aus
-    den gemeindefeinen ifeu-Defaultwerten, mit denen die Felder vorbelegt sind.
+    den gemeindefeinen ifeu-Defaultwerten, mit denen die Felder vorbelegt sind.<br/>
+    In einem Jahr, dessen Summe null ist, gibt es keinen Energieanteil. Dieses Jahr zeigt den Anteil
+    der verpflichtenden Verkehrsarten, für die die Kommune Werte eingetragen hat; ein Jahr, das
+    vollständig mit Nullen eingetragen ist, zeigt also 100 %.
   type: formula.FormulaNode
   quantity: fraction
   unit: '%'
@@ -5328,10 +5413,17 @@ nodes:
       flatten: true
     - id: energy_carrier
       flatten: true
+  - id: other_transport_energy_own_availability
+    tags: [availability]
   params:
     # inventory_only: an indicator about the data the balance ran on, so it ends at the last
     # historical year; a forecast year has no data for it to describe.
-    formula: inventory_only(drop_nans((own + 0 * total) / total))
+    #
+    # A year whose total is zero has no energy share (0/0), and dropping it left the year blank
+    # although the city had entered every mode, as zeros. Such a year falls back to the share of
+    # the modes the city entered, counted the way has_all_other_transport_data counts them: the
+    # BISKO categories folded onto the default's, any fuel, capped at one per mode.
+    formula: inventory_only(coalesce_df(drop_nans((own + 0 * total) / total), mean_dim(min(max_dim(sum_into_cat(sum_into_cat(availability, vehicle_type, [air_transport_public_cargo], air_transport), vehicle_type, [inland_waterway_shipping_cargo], inland_waterway_shipping), energy_carrier), 1), vehicle_type)))
 
 - id: has_all_road_transport_activity_data
   is_editable: false
