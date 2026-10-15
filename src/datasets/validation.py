@@ -582,7 +582,9 @@ def _range_text(rule: ValueRangeRule) -> str:
     if rule.min is not None and rule.max is not None:
         left = '>' if rule.exclusive_min else '≥'
         right = '<' if rule.exclusive_max else '≤'
-        return f'{left} {rule.min:g} and {right} {rule.max:g}'
+        # '&' rather than a word: the bounds are symbols, so the range reads the same in every
+        # language the message is rendered in.
+        return f'{left} {rule.min:g} & {right} {rule.max:g}'
     if rule.min is not None:
         operator = '>' if rule.exclusive_min else '≥'
         return f'{operator} {rule.min:g}'
