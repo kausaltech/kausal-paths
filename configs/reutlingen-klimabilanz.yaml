@@ -159,6 +159,23 @@ params:
   is_visible: true
   is_customizable: true
 
+# Reporting only: where corrected energy is shown. Unlike the two settings above, which say what
+# the city's figures contain, these move energy between rows and change no total. Off by default;
+# BISKO reports municipal facilities as a sector and heat pumps as environmental heat.
+- id: report_municipal_facilities_in_commerce
+  label_en: Report municipal facilities within commerce, trade and services (changes no total).
+  label_de: Kommunale Einrichtungen innerhalb von GHD ausweisen (ändert keine Summe).
+  value: false
+  is_visible: false
+  is_customizable: false
+
+- id: report_heat_pumps_as_electricity
+  label_en: Report heat pumps under electricity instead of environmental heat (changes no total).
+  label_de: Wärmepumpen unter Strom statt als Umweltwärme ausweisen (ändert keine Summe).
+  value: false
+  is_visible: false
+  is_customizable: false
+
 
 #//////  Dimensions  ///////////////////////////////////////////////////////////////////////////////////////////////////
 # copied here from bisko --> model.yaml  to change colors

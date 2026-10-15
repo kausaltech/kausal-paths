@@ -19,6 +19,11 @@ maximum_historical_year: 2023
 emission_unit: kt_co2e/a
 features:
   baseline_visible_in_graphs: true
+  # The certifier compares figures against the BISKO tables and the city's own entries, and asked
+  # (third Prüflauf) for neither rounding nor zero-valued mandatory entries to hide anything.
+  show_significant_digits: 5
+  maximum_fraction_digits: 5
+  show_zeros_in_graphs: true
   use_datasets_from_db: true
   show_explanations: true
   show_category_warnings: true
@@ -106,8 +111,8 @@ params:
 #
 # The template stays true: it demonstrates the subtraction, and its placeholder data is not KSP's.
 - id: municipal_facilities_included_in_commerce
-  label_en: Energy consumption of municipal facilities is included in the commerce, trade and services sector.
-  label_de: Energieverbräuche der kommunalen Einrichtungen sind im Sektor GHD/Sonstiges enthalten.
+  label_en: The entered figure for commerce, trade and services still contains the municipal facilities (they are subtracted, so nothing is counted twice).
+  label_de: Der eingetragene Wert für GHD/Sonstiges enthält die kommunalen Einrichtungen noch (sie werden abgezogen, damit nichts doppelt gezählt wird).
   value: true
   is_visible: true
   is_customizable: true
@@ -117,19 +122,32 @@ params:
 # it to be subtracted. Declared per city, because only the city knows how its data was delivered;
 # visible so the answer to "how does the tool process the data?" is on screen.
 - id: heat_pump_electricity_included_in_electricity
-  label_en: The electricity consumption of heat pumps is included in the reported electricity consumption.
-  label_de: Der Stromverbrauch der Wärmepumpen ist im ausgewiesenen Stromverbrauch enthalten.
+  label_en: The entered electricity consumption still contains the electricity of the heat pumps (it is subtracted, so nothing is counted twice).
+  label_de: Der eingetragene Stromverbrauch enthält den Strom der Wärmepumpen noch (er wird abgezogen, damit nichts doppelt gezählt wird).
   value: true
   is_visible: true
   is_customizable: true
 
+# Reporting only: where corrected energy is shown. Unlike the two settings above, which say what
+# the city's figures contain, these move energy between rows and change no total. Off by default;
+# BISKO reports municipal facilities as a sector and heat pumps as environmental heat.
+- id: report_municipal_facilities_in_commerce
+  label_en: Report municipal facilities within commerce, trade and services (changes no total).
+  label_de: Kommunale Einrichtungen innerhalb von GHD ausweisen (ändert keine Summe).
+  value: false
+  is_visible: true
+  is_customizable: true
+
+- id: report_heat_pumps_as_electricity
+  label_en: Report heat pumps under electricity instead of environmental heat (changes no total).
+  label_de: Wärmepumpen unter Strom statt als Umweltwärme ausweisen (ändert keine Summe).
+  value: false
+  is_visible: true
+  is_customizable: true
+
 - id: use_national_values
-  label_en: Use national rather than locally held emission factors (BISKO-compliant). Governs all four
-    factor tables — end energy (incl. Bundesstrommix), generation, district heating, and
-    factors without fuel input.
-  label_de: Nationale Emissionsfaktoren statt lokal hinterlegter nutzen (BISKO-konform). Betrifft alle
-    vier Faktortabellen — Endenergie (inkl. Bundesstrommix), Erzeugung, Fernwärme und Faktoren
-    ohne Brennstoffinput.
+  label_en: Use national rather than locally held emission factors (BISKO-compliant). Governs three factor tables — end energy (incl. Bundesstrommix), generation, and factors without fuel input.
+  label_de: Nationale Emissionsfaktoren statt lokal hinterlegter nutzen (BISKO-konform). Betrifft drei Faktortabellen — Endenergie (inkl. Bundesstrommix), Erzeugung und Faktoren ohne Brennstoffinput.
   value: true
   is_visible: true
   is_customizable: true

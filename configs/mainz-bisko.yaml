@@ -882,7 +882,7 @@ nodes:
     Sektoren aus den eigenen Energiedaten der Kommune sowie der Verkehr, dessen Energie über
     die Fahrzeugtypen summiert wird. BISKO verlangt, dass nicht nur die Treibhausgasbilanz,
     sondern auch die Energiebilanz nach Sektoren und Energieträgern dargestellt wird, und zwar
-    einschließlich des Verkehrs (Prüfschritt 2.1).<br/>
+    einschließlich des Verkehrs.<br/>
     Kommunale Einrichtungen werden hier als eigener Sektor ausgewiesen, und ihr Verbrauch wurde
     bereits aus Gewerbe, Handel, Dienstleistungen herausgerechnet, sofern die Kommune erklärt hat,
     dass er im Wert dieses Sektors enthalten ist; es wird also nichts doppelt gezählt. Die Höhe
@@ -4409,6 +4409,23 @@ params:
   value: true
   is_visible: true
   is_customizable: true
+
+# Reporting only: where corrected energy is shown. Unlike the two settings above, which say what
+# the city's figures contain, these move energy between rows and change no total. Off by default;
+# BISKO reports municipal facilities as a sector and heat pumps as environmental heat.
+- id: report_municipal_facilities_in_commerce
+  label_en: Report municipal facilities within commerce, trade and services (changes no total).
+  label_de: Kommunale Einrichtungen innerhalb von GHD ausweisen (ändert keine Summe).
+  value: false
+  is_visible: false
+  is_customizable: false
+
+- id: report_heat_pumps_as_electricity
+  label_en: Report heat pumps under electricity instead of environmental heat (changes no total).
+  label_de: Wärmepumpen unter Strom statt als Umweltwärme ausweisen (ändert keine Summe).
+  value: false
+  is_visible: false
+  is_customizable: false
 
 
 #//////  Result Excels  ///////////////////////////////////////////////////////////////////////////////////////////////////
