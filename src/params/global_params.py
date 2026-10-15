@@ -280,6 +280,16 @@ class HeatPumpElectricityIncludedInElectricity(BoolGlobalParameter):
     id = 'heat_pump_electricity_included_in_electricity'
 
 
+class ReportMunicipalFacilitiesInCommerce(BoolGlobalParameter):
+    name = _('Report municipal facilities within the commerce, trade and services sector')
+    id = 'report_municipal_facilities_in_commerce'
+
+
+class ReportHeatPumpsAsElectricity(BoolGlobalParameter):
+    name = _('Report heat pumps under electricity instead of environmental heat')
+    id = 'report_heat_pumps_as_electricity'
+
+
 class UseNationalValues(BoolGlobalParameter):
     name = _('Use national values rather than local values')
     id = 'use_national_values'
