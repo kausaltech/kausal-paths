@@ -2,6 +2,7 @@ import json
 from datetime import timedelta
 from pathlib import Path
 from types import SimpleNamespace
+from typing import ClassVar
 from uuid import uuid4
 
 from django.core.cache import cache
@@ -18,7 +19,7 @@ from paths.context import PathsObjectCache
 from nodes.defs.binding_def import DatasetBindingDef, EdgeBindingDef, NodePortRef
 from nodes.defs.instance_defs import InstanceMetadata, InstanceModelSpec
 from nodes.defs.node_defs import NodeSpec
-from nodes.defs.port_def import InputPort, InputPortDef, OutputPortDef
+from nodes.defs.port_def import InputPort, InputPortDeclaration, InputPortDef, OutputPortDef
 from nodes.instance_graph import InstanceGraph, NodeMeta, build_instance_graph
 from nodes.instance_graph_cache import (
     _dump_graph,
@@ -42,7 +43,7 @@ pytestmark = pytest.mark.django_db
 
 
 class DeclarativePairedNode(Node):
-    input_port_declarations = (InputPort.repeatable('impact', paired_output=True),)
+    input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = (InputPort.repeatable('impact', paired_output=True),)
 
 
 class DeclarativePairedWithAuxiliaryNode(DeclarativePairedNode):
