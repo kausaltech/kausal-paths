@@ -1,0 +1,1084 @@
+# Value catalogue: foundational values a person might hold about climate policy.
+#
+# Hand-written; the single source of truth for the values module. README.md explains the
+# design, docs/decisions.md why it is shaped this way, and scripts/check_catalogue.py checks
+# that the set is internally consistent and covers every foundation and every Schwartz value.
+#
+# A value here is a commitment stated in the first person, free of factual claims and of any
+# direction for or against climate action. The direction comes from a person's theory of
+# change (their model), never from the wording of the value.
+#
+# Fields of a value:
+#   id               Letter of the foundation plus a number; never reused once published.
+#   foundation       Key into `foundations` below.
+#   statement_en/_de The value, in the first person, as its holder would say it.
+#   scope            Whose outcomes the value is about, keys into `scopes`.
+#   scope_adjustable True when the same value is held with different circles of concern
+#                    (my children / all children), so a model takes the scope as a setting.
+#   schwartz         Schwartz basic values (Schwartz 1992) the statement expresses; empty for
+#                    the process rules, which are not personal values in that sense.
+#   looks_at         What the value attends to in a model: the outcome a node would carry.
+#   cuts_both_ways   How the same value argues for and against climate action, depending on
+#                    the facts. Present wherever the two readings are clear.
+#   model_link       Existing kausal-paths parameters or nodes that already express it.
+#   sources          Keys into `sources` below.
+
+foundations:
+  care:
+    label: Care / harm
+    basis: [atari2023, graham2013]
+  equality:
+    label: Equality
+    basis: [atari2023]
+  proportionality:
+    label: Proportionality
+    basis: [atari2023]
+  loyalty:
+    label: Loyalty
+    basis: [atari2023, graham2013]
+  authority:
+    label: Authority
+    basis: [atari2023, graham2013]
+  purity:
+    label: Purity / sanctity
+    basis: [atari2023, graham2013]
+  liberty:
+    label: Liberty
+    basis: [iyer2012, haidt2012]
+  personal:
+    label: Personal goods
+    note: >-
+      Not a moral foundation. Schwartz's self-enhancement and openness values, which people
+      use to judge a policy by what it does to themselves. Without them a person whose main
+      concern is their own income or way of life cannot find themselves in the catalogue.
+    basis: [schwartz1992, schwartz2012]
+  process:
+    label: Knowledge and process
+    note: >-
+      Not about what anyone wants, but about how combined models are reviewed. The other
+      foundations belong in a person's own model; these are the terms of the review stage.
+    basis: [kunda1990, kahan2012]
+
+scopes:
+  self: The holder themselves
+  family: The holder's family
+  community: The holder's municipality, region or local community
+  occupational_group: People of the holder's trade or class (workers, farmers, tradespeople)
+  nation: The holder's country
+  humanity: Everyone alive now
+  future_generations: People not yet born, or not yet adult
+  sentient_beings: Animals capable of suffering
+  nature: Ecosystems and species, valued for themselves
+
+schwartz_values:
+  # Schwartz (1992), the ten basic values. The refined set of 19 (Schwartz et al. 2012)
+  # splits several of these; the ten are enough for a coverage check.
+  - self_direction
+  - stimulation
+  - hedonism
+  - achievement
+  - power
+  - security
+  - conformity
+  - tradition
+  - benevolence
+  - universalism
+
+values:
+
+# --- Care / harm --------------------------------------------------------------------------
+
+- id: C1
+  foundation: care
+  statement_en: Today's children and their children should have the chance of a prosperous life in 2060.
+  statement_de: Die Kinder von heute und deren Kinder sollen 2060 die Chance auf ein Leben in Wohlstand haben.
+  scope: [future_generations]
+  scope_adjustable: true
+  schwartz: [benevolence, universalism]
+  looks_at: Living conditions of the cohorts born now and later
+  cuts_both_ways: >-
+    For protecting the climate they will live in; equally for not leaving them a poorer
+    economy or a heavier public debt.
+  model_link: ['moral_argumentation VAL-3']
+  sources: [gardiner2011, bverfg2021]
+
+- id: C2
+  foundation: care
+  statement_en: Suffering is bad whoever suffers, whether or not I know them or know about it.
+  statement_de: Leid ist schlecht, egal wer leidet und ob ich die Person kenne oder davon weiß.
+  scope: [humanity]
+  scope_adjustable: true
+  schwartz: [universalism]
+  looks_at: Health and wellbeing losses, summed over everyone affected
+  sources: [singer1981, crimston2016, enke2022]
+
+- id: C3
+  foundation: care
+  statement_en: I should not seriously harm others, even at a distance or slowly.
+  statement_de: Ich soll anderen keinen ernsthaften Schaden zufügen, auch nicht aus der Ferne oder schleichend.
+  scope: [humanity]
+  scope_adjustable: true
+  schwartz: [benevolence, universalism]
+  looks_at: Damage caused by one's own emissions (damage cost per tonne)
+  cuts_both_ways: >-
+    Against emitting; equally against measures that harm people through energy poverty or
+    lost livelihoods.
+  model_link: ['moral_argumentation VAL-4', 'fair_share objection 1 (climate cost rate)']
+  sources: [mill1859, shue2014]
+
+- id: C4
+  foundation: care
+  statement_en: Nobody should lack food, water, shelter or safety.
+  statement_de: Niemand soll ohne Nahrung, Wasser, Obdach oder Sicherheit sein.
+  scope: [humanity]
+  scope_adjustable: true
+  schwartz: [universalism, security]
+  looks_at: Number of people below a basic floor
+  cuts_both_ways: >-
+    For protecting the vulnerable from climate impacts; equally for keeping energy and food
+    affordable during the transition.
+  model_link: ['equalia floor_threshold']
+  sources: [udhr1948, shue2014]
+
+- id: C5
+  foundation: care
+  statement_en: War is miserable and must be avoided.
+  statement_de: Krieg ist furchtbar und muss vermieden werden.
+  scope: [humanity]
+  scope_adjustable: true
+  schwartz: [security, universalism]
+  looks_at: Risk of armed conflict and of forced displacement
+  cuts_both_ways: >-
+    Climate stress is a risk factor for conflict and fossil revenues finance aggressor
+    states; equally, a disorderly transition and competition for critical minerals can
+    destabilise.
+  sources: [mach2019]
+
+- id: C6
+  foundation: care
+  statement_en: The suffering of animals counts too.
+  statement_de: Auch das Leiden von Tieren zählt.
+  scope: [sentient_beings]
+  scope_adjustable: false
+  schwartz: [universalism]
+  looks_at: Welfare of farmed and wild animals
+  cuts_both_ways: >-
+    For less livestock farming and against habitat loss from heat and drought; equally
+    against land-hungry energy such as energy crops, and against wind turbines where they
+    kill birds and bats.
+  sources: [singer1975]
+
+- id: C7
+  foundation: care
+  statement_en: When disaster strikes someone, those who can help should help.
+  statement_de: Wenn jemanden ein Unglück trifft, sollen die helfen, die helfen können.
+  scope: [humanity]
+  scope_adjustable: true
+  schwartz: [benevolence, universalism]
+  looks_at: Disaster losses and the capacity to respond to them
+  cuts_both_ways: >-
+    Supports adaptation finance and disaster relief whether or not one supports cutting
+    emissions; it can argue for spending on relief instead of prevention.
+  sources: [shue2014]
+
+- id: C8
+  foundation: care
+  statement_en: Against catastrophe I take precautions, even if it is unlikely.
+  statement_de: Gegen Katastrophen sorge ich vor, auch wenn sie unwahrscheinlich sind.
+  scope: [humanity]
+  scope_adjustable: true
+  schwartz: [security]
+  looks_at: Tail risks and tipping points
+  cuts_both_ways: >-
+    For avoiding climate tipping points; equally invoked against untried technologies such
+    as geoengineering, or against new nuclear plants.
+  model_link: ['moral_argumentation VAL-9']
+  sources: [jonas1979, rio1992]
+
+- id: C9
+  foundation: care
+  statement_en: Losses that cannot be undone weigh more than losses that can.
+  statement_de: Verluste, die sich nicht rückgängig machen lassen, wiegen schwerer als solche, die sich beheben lassen.
+  scope: [humanity, nature]
+  scope_adjustable: true
+  schwartz: [security, universalism]
+  looks_at: Deaths, extinctions, lost land and heritage
+  cuts_both_ways: >-
+    For preventing irreversible climate impacts; equally against irreversible commitments
+    of the transition, such as a landscape built over or a long-lived investment that turns
+    out wrong.
+  sources: [jonas1979]
+
+# --- Equality ----------------------------------------------------------------------------
+
+- id: E1
+  foundation: equality
+  statement_en: Everyone has an equal claim to what we all share, such as the atmosphere.
+  statement_de: Jeder Mensch hat den gleichen Anspruch auf das, was allen gehört, etwa die Atmosphäre.
+  scope: [humanity]
+  scope_adjustable: false
+  schwartz: [universalism]
+  looks_at: Emissions per person against an equal share of the remaining budget
+  cuts_both_ways: >-
+    Against high emitters; equally used by low-emitting countries to claim room to grow
+    their emissions.
+  model_link: ['moral_argumentation VAL-1, VAL-5', 'fair_share carbon_budget (equal per capita key)']
+  sources: [caney2010, gardiner2011]
+
+- id: E2
+  foundation: equality
+  statement_en: Where someone is born should not decide their chances in life.
+  statement_de: Wo jemand geboren wird, soll nicht über seine Lebenschancen entscheiden.
+  scope: [humanity]
+  scope_adjustable: false
+  schwartz: [universalism]
+  looks_at: Gaps in opportunity between countries and regions
+  cuts_both_ways: >-
+    Climate impacts fall hardest on poor countries; equally, cheap energy is how poor
+    countries have grown.
+  sources: [caney2010]
+
+- id: E3
+  foundation: equality
+  statement_en: Nobody should be left behind; the worst off come first.
+  statement_de: Niemand soll zurückgelassen werden; die am schlechtesten Gestellten haben Vorrang.
+  scope: [humanity]
+  scope_adjustable: true
+  schwartz: [universalism, benevolence]
+  looks_at: Outcomes for the worst-off group
+  cuts_both_ways: >-
+    For protecting the vulnerable from climate impacts; equally against carbon prices that
+    fall hardest on low incomes.
+  model_link: ['equalia inequality_aversion, floor_threshold']
+  sources: [rawls1971]
+
+# --- Proportionality ---------------------------------------------------------------------
+
+- id: P1
+  foundation: proportionality
+  statement_en: Whoever causes a problem pays to fix it.
+  statement_de: Wer ein Problem verursacht, zahlt für seine Behebung.
+  scope: [humanity]
+  scope_adjustable: false
+  schwartz: [universalism, conformity]
+  looks_at: Who bears the costs, against who caused the emissions
+  cuts_both_ways: >-
+    Against historic and current high emitters; equally against passing transition costs to
+    people who did not cause the emissions, such as tenants paying for a landlord's boiler.
+  model_link: ['fair_share carbon_budget (responsibility start year)']
+  sources: [rio1992, caney2010]
+
+- id: P2
+  foundation: proportionality
+  statement_en: People should keep what they have earned.
+  statement_de: Wer etwas erarbeitet hat, soll es behalten dürfen.
+  scope: [self]
+  scope_adjustable: true
+  schwartz: [achievement, power, security]
+  looks_at: Net income, value of property and assets
+  cuts_both_ways: >-
+    Against taxes and mandates; equally against climate damage that destroys property, such
+    as floods and failed harvests.
+  model_link: ['moral_argumentation VAL-7']
+  sources: [haidt2012]
+
+- id: P3
+  foundation: proportionality
+  statement_en: Help should go to those who help themselves, not as handouts.
+  statement_de: Hilfe soll an die gehen, die sich selbst helfen, nicht als Geschenk ohne Gegenleistung.
+  scope: [humanity]
+  scope_adjustable: true
+  schwartz: [achievement, conformity]
+  looks_at: Conditions attached to transfers and subsidies
+  cuts_both_ways: >-
+    Against unconditional climate finance and blanket subsidies; for support tied to the
+    recipient's own effort, such as matched funding.
+  sources: [haidt2012]
+
+- id: P4
+  foundation: proportionality
+  statement_en: Free riders should not benefit from the efforts of others.
+  statement_de: Trittbrettfahrer sollen nicht von den Anstrengungen anderer profitieren.
+  scope: [humanity]
+  scope_adjustable: false
+  schwartz: [conformity, universalism]
+  looks_at: Each actor's contribution against what it receives
+  cuts_both_ways: >-
+    A reason to wait until others act; equally a reason to act, because a high emitter that
+    does not cut is itself the free rider.
+  model_link: ['moral_argumentation VAL-2', 'fair_share objection 3 (cooperation coverage)']
+  sources: [fischbacher2001, ostrom1990]
+
+- id: P5
+  foundation: proportionality
+  statement_en: Effort should pay off; whoever acts early should not end up the loser.
+  statement_de: Anstrengung soll sich lohnen; wer früh handelt, darf nicht der Dumme sein.
+  scope: [self]
+  scope_adjustable: true
+  schwartz: [achievement]
+  looks_at: Returns to acting early, compared with acting late
+  cuts_both_ways: >-
+    For credit to early movers and against rules that reset baselines; equally a reason to
+    hold back if early action is expected to go unrewarded.
+  sources: [haidt2012]
+
+# --- Loyalty -----------------------------------------------------------------------------
+
+- id: L1
+  foundation: loyalty
+  statement_en: My family comes first.
+  statement_de: Meine Familie geht vor.
+  scope: [family]
+  scope_adjustable: true
+  schwartz: [benevolence, security]
+  looks_at: Household finances and the family's prospects
+  cuts_both_ways: >-
+    Against costs to the household now; for protecting one's own children's future, which
+    is C1 with a narrower circle.
+  sources: [enke2020, haidt2012]
+
+- id: L2
+  foundation: loyalty
+  statement_en: My community and region should hold together and keep their livelihoods.
+  statement_de: Meine Gemeinde und meine Region sollen zusammenhalten und ihr Auskommen behalten.
+  scope: [community]
+  scope_adjustable: true
+  schwartz: [benevolence, security, tradition]
+  looks_at: Regional employment and social cohesion
+  cuts_both_ways: >-
+    Against closing coal mines or car plants; for local energy cooperatives and keeping the
+    money spent on energy in the region.
+  sources: [scruton2012, enke2020]
+
+- id: L3
+  foundation: loyalty
+  statement_en: My country's interests and sovereignty matter.
+  statement_de: Die Interessen und die Souveränität meines Landes zählen.
+  scope: [nation]
+  scope_adjustable: false
+  schwartz: [security, power]
+  looks_at: National income, energy independence, room for sovereign decisions
+  cuts_both_ways: >-
+    Against mandates from international bodies; for independence from imported fossil fuels
+    and from the states that sell them.
+  sources: [wolsko2016]
+
+- id: L4
+  foundation: loyalty
+  statement_en: You stand by your allies and keep your word.
+  statement_de: Man steht zu seinen Verbündeten und hält sein Wort.
+  scope: [nation, community]
+  scope_adjustable: true
+  schwartz: [benevolence, conformity]
+  looks_at: Commitments met, such as international pledges and council resolutions
+  cuts_both_ways: >-
+    For keeping climate pledges; equally for honouring promises made to industries and
+    workers under earlier policy.
+  sources: [paris2015]
+
+- id: L5
+  foundation: loyalty
+  statement_en: People like us, whether workers, farmers or tradespeople, stick together.
+  statement_de: Leute wie wir – Arbeiter, Landwirte, Handwerker – halten zusammen.
+  scope: [occupational_group]
+  scope_adjustable: true
+  schwartz: [benevolence, tradition]
+  looks_at: Outcomes for one occupational group
+  cuts_both_ways: >-
+    Farmers lose both to drought and to regulation; tradespeople gain work from retrofits and
+    heat pumps; miners and car workers lose their trade.
+  sources: [haidt2012]
+
+# --- Authority ---------------------------------------------------------------------------
+
+- id: A1
+  foundation: authority
+  statement_en: The law applies, and decisions made by proper procedure are binding.
+  statement_de: Das Recht gilt, und ordnungsgemäß getroffene Entscheidungen sind bindend.
+  scope: [nation]
+  scope_adjustable: false
+  schwartz: [conformity, security]
+  looks_at: Compliance with binding targets, laws and court rulings
+  cuts_both_ways: >-
+    For meeting statutory climate targets and court rulings; equally for respecting elected
+    bodies that decide to slow down.
+  sources: [bverfg2021]
+
+- id: A2
+  foundation: authority
+  statement_en: Legitimate institutions and public order deserve support.
+  statement_de: Legitime Institutionen und öffentliche Ordnung verdienen Unterstützung.
+  scope: [nation, community]
+  scope_adjustable: true
+  schwartz: [conformity, security]
+  looks_at: Stability of institutions, social unrest
+  cuts_both_ways: >-
+    Against disruptive protest; equally against the climate impacts and price shocks that
+    destabilise societies.
+  sources: [graham2013]
+
+- id: A3
+  foundation: authority
+  statement_en: Tested ways of life deserve respect; whoever wants change has to justify it.
+  statement_de: Bewährte Lebensweisen verdienen Respekt; wer etwas ändern will, muss es begründen.
+  scope: [community]
+  scope_adjustable: true
+  schwartz: [tradition, conformity]
+  looks_at: Continuity of practices and ways of life
+  cuts_both_ways: >-
+    Protects farming, heating and travel habits from regulation; equally from the drought,
+    heat and floods that would end them.
+  sources: [burke1790, scruton2012]
+
+- id: A4
+  foundation: authority
+  statement_en: Proven competence deserves trust.
+  statement_de: Erwiesene Kompetenz verdient Vertrauen.
+  scope: [humanity]
+  scope_adjustable: false
+  schwartz: [conformity, security]
+  looks_at: Weight given to expert judgement and to institutions of knowledge
+  cuts_both_ways: >-
+    For deferring to climate science; equally for deferring to engineers and economists who
+    warn of costs and feasibility limits.
+  sources: [kahan2012]
+
+- id: A5
+  foundation: authority
+  statement_en: Change should be orderly and planned, not chaotic.
+  statement_de: Veränderung soll geordnet und geplant geschehen, nicht chaotisch.
+  scope: [nation, community]
+  scope_adjustable: true
+  schwartz: [security, conformity]
+  looks_at: Pace of the transition, stranded assets, certainty for planning
+  cuts_both_ways: >-
+    Against abrupt bans; equally for starting early, because delay forces abrupt change
+    later.
+  sources: [bverfg2021]
+
+- id: A6
+  foundation: authority
+  statement_en: Some things are beyond human control; accepting them is wiser than fighting them.
+  statement_de: Manches liegt nicht in Menschenhand; es anzunehmen ist klüger, als dagegen anzukämpfen.
+  scope: [self]
+  scope_adjustable: false
+  schwartz: [tradition]
+  looks_at: Weight on adapting to change relative to preventing it
+  cuts_both_ways: >-
+    Favours adaptation over cutting emissions; equally counsels against the hubris of
+    engineering the climate.
+  sources: [thompson1990, schwartz1992]
+
+# --- Purity / sanctity -------------------------------------------------------------------
+
+- id: S1
+  foundation: purity
+  statement_en: Nature, or Creation, is not ours to destroy.
+  statement_de: Die Natur – oder die Schöpfung – ist nicht dazu da, von uns zerstört zu werden.
+  scope: [nature]
+  scope_adjustable: false
+  schwartz: [universalism, tradition]
+  looks_at: Biodiversity and intact ecosystems
+  cuts_both_ways: >-
+    Against the warming that destroys ecosystems; equally against mines, dams and wind farms
+    in untouched places.
+  sources: [laudato2015, feinberg2013]
+
+- id: S2
+  foundation: purity
+  statement_en: I should hand over the land in no worse shape than I received it.
+  statement_de: Ich soll das Land in keinem schlechteren Zustand weitergeben, als ich es bekommen habe.
+  scope: [future_generations, nature]
+  scope_adjustable: true
+  schwartz: [tradition, benevolence, universalism]
+  looks_at: Condition of soil, water and forests
+  cuts_both_ways: >-
+    For protecting soil and forests from heat and drought; equally against land-hungry
+    measures such as energy crops or solar parks on farmland.
+  sources: [scruton2012, laudato2015]
+
+- id: S3
+  foundation: purity
+  statement_en: Air, water and food should be clean.
+  statement_de: Luft, Wasser und Nahrung sollen sauber sein.
+  scope: [community]
+  scope_adjustable: true
+  schwartz: [security, universalism]
+  looks_at: Exposure to air pollution and contaminants
+  cuts_both_ways: >-
+    Burning less fuel cleans the air; equally against nuclear waste and the mining of
+    battery materials.
+  sources: [feinberg2013]
+
+- id: S4
+  foundation: purity
+  statement_en: Moderation is better than excess.
+  statement_de: Maß halten ist besser als Überfluss.
+  scope: [self]
+  scope_adjustable: false
+  schwartz: [tradition]
+  looks_at: Consumption levels
+  cuts_both_ways: >-
+    For sufficiency and against waste; in direct tension with G2, and equally against
+    lavish public spending on the transition.
+  sources: [laudato2015]
+
+- id: S5
+  foundation: purity
+  statement_en: Some things should not be for sale; you cannot buy your way out of a wrong.
+  statement_de: Manches darf nicht käuflich sein; von einem Unrecht kann man sich nicht freikaufen.
+  scope: [humanity]
+  scope_adjustable: false
+  schwartz: [tradition, universalism]
+  looks_at: Reliance on offsets and emissions trading
+  cuts_both_ways: >-
+    Against offsets and paying to pollute, from a green angle; against putting a price on
+    nature at all, from a conservative one.
+  sources: [sandel2012]
+
+- id: S6
+  foundation: purity
+  statement_en: Natural is better than artificial; we should not play God.
+  statement_de: Natürliches ist besser als Künstliches; wir sollen nicht Gott spielen.
+  scope: [nature]
+  scope_adjustable: false
+  schwartz: [tradition, security]
+  looks_at: Use of geoengineering, nuclear power, genetic engineering, synthetic fuels
+  cuts_both_ways: >-
+    Against geoengineering and nuclear power; equally against pushing the climate system
+    itself into an unnatural state.
+  sources: [feinberg2013, graham2013]
+
+- id: S7
+  foundation: purity
+  statement_en: Home, heritage and landscapes that mean something to us should be preserved.
+  statement_de: Heimat, Erbe und Landschaften, die uns etwas bedeuten, sollen erhalten bleiben.
+  scope: [community]
+  scope_adjustable: true
+  schwartz: [tradition, security]
+  looks_at: Landscape, heritage sites, the character of places
+  cuts_both_ways: >-
+    Against wind turbines and power lines; equally against the drought, forest dieback and
+    floods that change the same landscape.
+  sources: [scruton2012]
+
+# --- Liberty -----------------------------------------------------------------------------
+
+- id: F1
+  foundation: liberty
+  statement_en: I am free to live as I choose, as long as I harm no one.
+  statement_de: Ich darf leben, wie ich will, solange ich niemandem schade.
+  scope: [self]
+  scope_adjustable: false
+  schwartz: [self_direction, hedonism]
+  looks_at: Choices open to people in transport, heating, diet and travel
+  cuts_both_ways: >-
+    Against mandates on private life; but its own harm clause restricts emissions that
+    damage others (C3).
+  sources: [mill1859, iyer2012]
+
+- id: F2
+  foundation: liberty
+  statement_en: The state should not run my life.
+  statement_de: Der Staat soll mir mein Leben nicht vorschreiben.
+  scope: [self]
+  scope_adjustable: false
+  schwartz: [self_direction]
+  looks_at: Number and depth of mandates and bans
+  cuts_both_ways: >-
+    Against bans and mandates; for price instruments that leave the choice of how to cut to
+    each person.
+  sources: [iyer2012]
+
+- id: F3
+  foundation: liberty
+  statement_en: Free markets coordinate better than planners.
+  statement_de: Freie Märkte koordinieren besser als Planer.
+  scope: [nation]
+  scope_adjustable: false
+  schwartz: [self_direction, achievement]
+  looks_at: Share of market-based instruments against command and control
+  cuts_both_ways: >-
+    For carbon pricing and against detailed subsidies; equally against fossil-fuel
+    subsidies, which distort the market.
+  sources: [iyer2012]
+
+- id: F4
+  foundation: liberty
+  statement_en: 'Self-reliance: my own power, my own land, my own decisions.'
+  statement_de: 'Selbstständigkeit: eigener Strom, eigenes Land, eigene Entscheidungen.'
+  scope: [self, community]
+  scope_adjustable: true
+  schwartz: [self_direction, security]
+  looks_at: Self-sufficiency of households and communities, people producing their own energy
+  cuts_both_ways: >-
+    For rooftop solar, home batteries and wood heating; against depending on central grids
+    or district heating.
+  sources: [iyer2012]
+
+- id: F5
+  foundation: liberty
+  statement_en: Nobody should be at the mercy of the powerful, whether corporations, elites or petrostates.
+  statement_de: Niemand soll der Macht anderer ausgeliefert sein – ob Konzernen, Eliten oder Petrostaaten.
+  scope: [humanity]
+  scope_adjustable: true
+  schwartz: [self_direction, security, universalism]
+  looks_at: Market concentration, dependence on fossil-fuel imports
+  cuts_both_ways: >-
+    Against fossil incumbents and petrostates; equally against elites imposing climate rules
+    without consent.
+  sources: [haidt2012, iyer2012]
+
+- id: F6
+  foundation: liberty
+  statement_en: Choices others made in the past should not use up my freedom in the future.
+  statement_de: Was andere früher entschieden haben, darf meine künftige Freiheit nicht aufbrauchen.
+  scope: [future_generations]
+  scope_adjustable: false
+  schwartz: [self_direction]
+  looks_at: Room left for future choices, such as the emission budget left in later years
+  cuts_both_ways: >-
+    For early, gradual cuts, since delay forces drastic restrictions later; equally against
+    locking in costly infrastructure that later generations must pay for.
+  sources: [bverfg2021]
+
+# --- Personal goods ----------------------------------------------------------------------
+
+- id: G1
+  foundation: personal
+  statement_en: I want prosperity and economic growth.
+  statement_de: Ich will Wohlstand und Wirtschaftswachstum.
+  scope: [self]
+  scope_adjustable: true
+  schwartz: [achievement, power, security]
+  looks_at: Income, GDP
+  cuts_both_ways: >-
+    Against costly measures; equally for avoiding the income lost to climate damage, and for
+    growing clean industries.
+  sources: [schwartz1992]
+
+- id: G2
+  foundation: personal
+  statement_en: 'I want to enjoy life: travel, good food, comfort and adventure.'
+  statement_de: 'Ich will das Leben genießen: Reisen, gutes Essen, Komfort und Abenteuer.'
+  scope: [self]
+  scope_adjustable: false
+  schwartz: [hedonism, stimulation]
+  looks_at: Access to the consumption and experiences people value
+  cuts_both_ways: >-
+    Against limits on flying, meat and cars; equally against heat waves, ruined holidays and
+    snowless winters.
+  sources: [schwartz1992]
+
+- id: G3
+  foundation: personal
+  statement_en: I want to be safe, and my property too.
+  statement_de: Ich will sicher sein, ich und mein Eigentum.
+  scope: [self]
+  scope_adjustable: true
+  schwartz: [security]
+  looks_at: Personal risk, insured and uninsured losses
+  cuts_both_ways: >-
+    For protection against floods, storms and heat; equally against risks a person sees in
+    new technology at home, such as batteries or hydrogen.
+  sources: [schwartz1992]
+
+- id: G4
+  foundation: personal
+  statement_en: I want progress, achievement and recognition through human ingenuity.
+  statement_de: Ich will Fortschritt, Leistung und Anerkennung durch menschlichen Erfindungsgeist.
+  scope: [self, nation]
+  scope_adjustable: true
+  schwartz: [achievement, stimulation]
+  looks_at: Innovation and competitiveness
+  cuts_both_ways: >-
+    Trust in technology argues against restricting behaviour; equally for leading in clean
+    technology.
+  sources: [schwartz1992]
+
+- id: G5
+  foundation: personal
+  statement_en: Nature is there for people to use and shape.
+  statement_de: Die Natur ist dafür da, dass der Mensch sie nutzt und gestaltet.
+  scope: [humanity]
+  scope_adjustable: false
+  schwartz: [power, achievement]
+  looks_at: Freedom to use land and natural resources
+  cuts_both_ways: >-
+    Against conservation limits; equally for engineering responses to climate change,
+    including carbon removal. The counterpart of S1.
+  sources: [schwartz1992]
+
+# --- Knowledge and process ---------------------------------------------------------------
+
+- id: K1
+  foundation: process
+  statement_en: Policy should rest on the best available knowledge.
+  statement_de: Politik soll auf dem besten verfügbaren Wissen beruhen.
+  scope: [humanity]
+  scope_adjustable: false
+  schwartz: []
+  looks_at: Whether each causal link in a model is backed by evidence
+  sources: [hulme2009]
+
+- id: K2
+  foundation: process
+  statement_en: >-
+    If my position rests on a false assumption, I want to learn that; and if I do not accept
+    it, my position should be set aside when the policy is decided.
+  statement_de: >-
+    Wenn meine Position auf einer falschen Annahme beruht, will ich das erfahren; und wenn ich
+    es nicht glaube, soll meine Position bei der Entscheidung unberücksichtigt bleiben.
+  scope: [self]
+  scope_adjustable: false
+  schwartz: []
+  looks_at: Which premises of a position survive review
+  sources: [kunda1990, kahan2012]
+
+- id: K3
+  foundation: process
+  statement_en: 'Uncertainty cuts both ways: doing nothing is also a choice with uncertain consequences.'
+  statement_de: 'Unsicherheit wirkt in beide Richtungen: Nichtstun ist auch eine Entscheidung mit ungewissen Folgen.'
+  scope: [humanity]
+  scope_adjustable: false
+  schwartz: []
+  looks_at: Uncertainty of the baseline, treated like that of the measures
+  sources: [gardiner2011]
+
+- id: K4
+  foundation: process
+  statement_en: Whoever imposes a risk on others carries the burden of proof that it is acceptable.
+  statement_de: Wer anderen ein Risiko auferlegt, muss nachweisen, dass es vertretbar ist.
+  scope: [humanity]
+  scope_adjustable: false
+  schwartz: []
+  looks_at: Who has to show what, before a decision
+  sources: [rio1992, jonas1979]
+
+- id: K5
+  foundation: process
+  statement_en: If my beliefs contradict each other, I want to know.
+  statement_de: Wenn meine Überzeugungen sich widersprechen, will ich es wissen.
+  scope: [self]
+  scope_adjustable: false
+  schwartz: []
+  looks_at: Contradictions within one person's model
+  sources: [kunda1990]
+
+- id: K6
+  foundation: process
+  statement_en: Deceiving people to win a policy argument is wrong, whichever side does it.
+  statement_de: Menschen zu täuschen, um eine politische Auseinandersetzung zu gewinnen, ist falsch, egal welche Seite es tut.
+  scope: [humanity]
+  scope_adjustable: false
+  schwartz: []
+  looks_at: Honesty of the claims made in a model
+  sources: [hulme2009]
+
+- id: K7
+  foundation: process
+  statement_en: Decision makers give their reasons and answer for them.
+  statement_de: Entscheidungsträger legen ihre Gründe offen und stehen dafür ein.
+  scope: [community, nation]
+  scope_adjustable: true
+  schwartz: []
+  looks_at: Whether the reasons for a decision are stated and traceable
+  sources: [hulme2009]
+
+- id: K8
+  foundation: process
+  statement_en: Decisions are revised as knowledge improves.
+  statement_de: Entscheidungen werden überprüft, wenn das Wissen besser wird.
+  scope: [community, nation]
+  scope_adjustable: true
+  schwartz: []
+  looks_at: Review points built into a decision
+  sources: [holling1978]
+
+- id: K9
+  foundation: process
+  statement_en: A policy should achieve what it claims, without waste.
+  statement_de: Eine Maßnahme soll erreichen, was sie verspricht, ohne Verschwendung.
+  scope: [community, nation]
+  scope_adjustable: true
+  schwartz: []
+  looks_at: Effect per unit of cost; symbolic measures with no effect
+  model_link: ['moral_argumentation VAL-6']
+  sources: [hulme2009]
+
+- id: K10
+  foundation: process
+  statement_en: Those affected by a decision get a say in it.
+  statement_de: Wer von einer Entscheidung betroffen ist, soll mitreden können.
+  scope: [humanity]
+  scope_adjustable: true
+  schwartz: []
+  looks_at: Who is heard, including people abroad and not yet born
+  sources: [goodin2007]
+
+# --- Sources -----------------------------------------------------------------------------
+# `doi` where the work has one (Crossref or DataCite), `url` for official documents. `why` says what the source contributes here. Survey sources that measure how widely values
+# are held, without backing any one value, are cited from the README only.
+
+sources:
+  andre2024:
+    doi: '10.1038/s41558-024-01925-3'
+    citation: >-
+      Andre, P., Boneva, T., Chopra, F. & Falk, A. (2024). Globally representative evidence on
+      the actual and perceived support for climate action. Nature Climate Change 14(3), 253–259.
+    why: >-
+      Survey in 125 countries: most people support climate action and underestimate how many
+      others do. Evidence on how widely values are held, and that people misjudge it.
+  atari2023:
+    doi: '10.1037/pspp0000470'
+    citation: >-
+      Atari, M., Haidt, J., Graham, J., Koleva, S., Stevens, S. T. & Dehghani, M. (2023).
+      Morality beyond the WEIRD: How the nomological network of morality varies across
+      cultures. Journal of Personality and Social Psychology 125(5), 1157–1188.
+    why: >-
+      Moral Foundations Questionnaire 2 across 25 populations; splits fairness into equality
+      and proportionality. The source of this catalogue's six moral foundations.
+  burke1790:
+    citation: Burke, E. (1790). Reflections on the Revolution in France. London, J. Dodsley.
+    why: The classical statement of tradition as accumulated wisdom (A3).
+  bverfg2021:
+    citation: >-
+      Bundesverfassungsgericht, Beschluss des Ersten Senats vom 24. März 2021, 1 BvR 2656/18,
+      1 BvR 78/20, 1 BvR 96/20, 1 BvR 288/20 (Klimaschutz).
+    url: https://www.bundesverfassungsgericht.de/SharedDocs/Entscheidungen/DE/2021/03/rs20210324_1bvr265618.html
+    why: >-
+      Intertemporal protection of freedom: delay that forces drastic restrictions later
+      infringes future freedom (F6, C1, A1, A5).
+  caney2010:
+    doi: '10.1080/13698230903326331'
+    citation: >-
+      Caney, S. (2010). Climate change and the duties of the advantaged. Critical Review of
+      International Social and Political Philosophy 13(1), 203–228.
+    why: >-
+      The polluter-pays and ability-to-pay principles of burden sharing, and why each needs
+      the other (P1, E1, E2).
+  crimston2016:
+    doi: '10.1037/pspp0000086'
+    citation: >-
+      Crimston, C. R., Bain, P. G., Hornsey, M. J. & Bastian, B. (2016). Moral expansiveness:
+      Examining variability in the extension of the moral world. Journal of Personality and
+      Social Psychology 111(4), 636–653.
+    why: Measures how far a person's circle of moral concern reaches; the basis of `scope`.
+  douglas1982:
+    citation: >-
+      Douglas, M. & Wildavsky, A. (1982). Risk and Culture: An Essay on the Selection of
+      Technical and Environmental Dangers. Berkeley, University of California Press.
+    why: >-
+      Cultural theory of risk: hierarchical, individualist and egalitarian (sectarian)
+      responses to danger. The fatalist comes later, in thompson1990.
+  enke2020:
+    doi: '10.1086/708857'
+    citation: Enke, B. (2020). Moral values and voting. Journal of Political Economy 128(10), 3679–3729.
+    why: >-
+      Voters differ in how much weight they give to universalist against communal values
+      (loyalty, authority, tradition, tied to one's own group), and that difference shapes
+      US presidential votes (L1–L3).
+  enke2022:
+    doi: '10.1287/mnsc.2021.4086'
+    citation: >-
+      Enke, B., Rodríguez-Padilla, R. & Zimmermann, F. (2022). Moral universalism: Measurement
+      and economic relevance. Management Science 68(5), 3590–3603.
+    why: >-
+      Measures universalism as how a person splits money between in-group and strangers;
+      shows that the scope of concern differs between people (scope_adjustable).
+  feinberg2013:
+    doi: '10.1177/0956797612449177'
+    citation: >-
+      Feinberg, M. & Willer, R. (2013). The moral roots of environmental attitudes.
+      Psychological Science 24(1), 56–62.
+    why: >-
+      Environmental messages are usually framed in care terms; framed as purity, they reduced
+      the gap between conservatives and liberals (S1, S3, S6).
+  fischbacher2001:
+    doi: '10.1016/S0165-1765(01)00394-9'
+    citation: >-
+      Fischbacher, U., Gächter, S. & Fehr, E. (2001). Are people conditionally cooperative?
+      Evidence from a public goods experiment. Economics Letters 71(3), 397–404.
+    why: About half of participants contribute more when others do (P4).
+  gardiner2011:
+    citation: >-
+      Gardiner, S. M. (2011). A Perfect Moral Storm: The Ethical Tragedy of Climate Change.
+      Oxford University Press.
+    why: The global, intergenerational and theoretical storms that make climate a moral problem (C1, E1, K3).
+  goodin2007:
+    doi: '10.1111/j.1088-4963.2007.00098.x'
+    citation: >-
+      Goodin, R. E. (2007). Enfranchising all affected interests, and its alternatives.
+      Philosophy & Public Affairs 35(1), 40–68.
+    why: The all-affected principle and why it reaches beyond borders and generations (K10).
+  graham2013:
+    doi: '10.1016/B978-0-12-407236-7.00002-4'
+    citation: >-
+      Graham, J., Haidt, J., Koleva, S., Motyl, M., Iyer, R., Wojcik, S. P. & Ditto, P. H.
+      (2013). Moral Foundations Theory: The pragmatic validity of moral pluralism. Advances in
+      Experimental Social Psychology 47, 55–130.
+    why: The review of Moral Foundations Theory and its evidence.
+  haidt2012:
+    citation: >-
+      Haidt, J. (2012). The Righteous Mind: Why Good People Are Divided by Politics and
+      Religion. Pantheon.
+    why: >-
+      The accessible statement of the foundations, including liberty and the proportionality
+      reading of fairness, and of why liberals and conservatives draw on them differently.
+  holling1978:
+    citation: >-
+      Holling, C. S. (ed.) (1978). Adaptive Environmental Assessment and Management. Chichester,
+      Wiley. International Series on Applied Systems Analysis 3.
+    why: Decisions as experiments, revised as monitoring improves knowledge (K8).
+  hulme2009:
+    citation: >-
+      Hulme, M. (2009). Why We Disagree About Climate Change: Understanding Controversy,
+      Inaction and Opportunity. Cambridge University Press.
+    why: >-
+      Climate disagreement is mostly about values, risk and governance, not physics; the case
+      for separating values from factual premises (K1, K6, K7, K9).
+  iyer2012:
+    doi: '10.1371/journal.pone.0042366'
+    citation: >-
+      Iyer, R., Koleva, S., Graham, J., Ditto, P. & Haidt, J. (2012). Understanding
+      libertarian morality: The psychological dispositions of self-identified libertarians.
+      PLoS ONE 7(8), e42366.
+    why: Evidence for liberty as a separate foundation (F1–F6).
+  jonas1979:
+    citation: >-
+      Jonas, H. (1979). Das Prinzip Verantwortung. Versuch einer Ethik für die technologische
+      Zivilisation. Frankfurt am Main, Insel. (English: The Imperative of Responsibility: In
+      Search of an Ethics for the Technological Age. University of Chicago Press, 1984.)
+    why: >-
+      Responsibility towards the future, and the bad prognosis taking precedence over the good
+      (C8, C9, K4).
+  kahan2012:
+    doi: '10.1038/nclimate1547'
+    citation: >-
+      Kahan, D. M., Peters, E., Wittlin, M., Slovic, P., Ouellette, L. L., Braman, D. & Mandel,
+      G. (2012). The polarizing impact of science literacy and numeracy on perceived climate
+      change risks. Nature Climate Change 2(10), 732–735.
+    why: >-
+      More scientific literacy polarises rather than unites; why facts alone do not settle
+      disagreement and K2 must be chosen, not assumed.
+  kunda1990:
+    doi: '10.1037/0033-2909.108.3.480'
+    citation: Kunda, Z. (1990). The case for motivated reasoning. Psychological Bulletin 108(3), 480–498.
+    why: >-
+      People reason towards the conclusions they want, but only as far as they can build a
+      seemingly reasonable justification for them (K2, K5).
+  laudato2015:
+    citation: >-
+      Pope Francis (2015). Laudato si'. Encyclical letter on care for our common home. Rome,
+      24 May 2015.
+    url: https://www.vatican.va/content/francesco/en/encyclicals/documents/papa-francesco_20150524_enciclica-laudato-si.html
+    why: Creation, stewardship and moderation in a religious tradition (S1, S2, S4).
+  mach2019:
+    doi: '10.1038/s41586-019-1300-6'
+    citation: >-
+      Mach, K. J. et al. (2019). Climate as a risk factor for armed conflict. Nature 571(7764),
+      193–197.
+    why: >-
+      Expert assessment: climate has affected organised armed conflict within countries, less
+      than other drivers such as low development and weak states, and more warming raises the
+      future risk (C5).
+  mill1859:
+    citation: Mill, J. S. (1859). On Liberty. London, John W. Parker and Son.
+    why: The harm principle, which limits both state power and harm to others (F1, C3).
+  ostrom1990:
+    citation: >-
+      Ostrom, E. (1990). Governing the Commons: The Evolution of Institutions for Collective
+      Action. Cambridge University Press.
+    why: >-
+      Commons are kept by communities' own rules, mutual monitoring and graduated sanctions,
+      not only by states or markets (P4).
+  paris2015:
+    citation: >-
+      UNFCCC (2016). Paris Agreement, annex to decision 1/CP.21. FCCC/CP/2015/10/Add.1
+      (29 January 2016).
+    url: https://unfccc.int/resource/docs/2015/cop21/eng/10a01.pdf
+    why: The commitments that A1 and L4 refer to.
+  rawls1971:
+    citation: Rawls, J. (1971). A Theory of Justice. Cambridge, MA, Belknap Press of Harvard University Press.
+    why: The difference principle, priority to the worst off (E3).
+  rio1992:
+    citation: >-
+      United Nations (1992). Rio Declaration on Environment and Development.
+      A/CONF.151/26/Rev.1 (Vol. I), Annex I. Principles 15 and 16.
+    url: https://undocs.org/en/A/CONF.151/26/Rev.1(vol.I)
+    why: >-
+      The precautionary approach (Principle 15) and the polluter bearing the cost of pollution
+      (Principle 16), as agreed by governments (C8, P1, K4).
+  sandel2012:
+    citation: >-
+      Sandel, M. J. (2012). What Money Can't Buy: The Moral Limits of Markets. Farrar, Straus
+      and Giroux.
+    why: The moral case against buying the right to pollute (S5).
+  schwartz1992:
+    doi: '10.1016/S0065-2601(08)60281-6'
+    citation: >-
+      Schwartz, S. H. (1992). Universals in the content and structure of values: Theoretical
+      advances and empirical tests in 20 countries. Advances in Experimental Social Psychology
+      25, 1–65.
+    why: The ten basic values, the second axis of the completeness check.
+  schwartz2012:
+    doi: '10.1037/a0029393'
+    citation: >-
+      Schwartz, S. H. et al. (2012). Refining the theory of basic individual values. Journal of
+      Personality and Social Psychology 103(4), 663–688.
+    why: The refined set of 19 values, for a finer check later.
+  scruton2012:
+    citation: >-
+      Scruton, R. (2012). Green Philosophy: How to Think Seriously About the Planet. London,
+      Atlantic Books. (US edition: How to Think Seriously About the Planet: The Case for an
+      Environmental Conservatism. Oxford University Press, 2012.)
+    why: >-
+      A conservative environmentalism built on love of home (oikophilia), favouring local
+      civil association over top-down state and global regulation (L2, A3, S2, S7).
+  shue2014:
+    citation: 'Shue, H. (2014). Climate Justice: Vulnerability and Protection. Oxford University Press.'
+    why: Basic rights and the duty not to harm the vulnerable (C3, C4, C7).
+  singer1975:
+    citation: >-
+      Singer, P. (1975). Animal Liberation: A New Ethics for Our Treatment of Animals. New
+      York, New York Review / Random House.
+    why: The suffering of animals counts morally (C6).
+  singer1981:
+    citation: >-
+      Singer, P. (1981). The Expanding Circle: Ethics and Sociobiology. Farrar, Straus and
+      Giroux.
+    why: The impartial view, and moral concern widening over history (C2).
+  thompson1990:
+    citation: Thompson, M., Ellis, R. & Wildavsky, A. (1990). Cultural Theory. Boulder, Westview Press.
+    why: >-
+      Grid-group cultural theory with four ways of life, hierarchist, individualist,
+      egalitarian and fatalist; a further check on completeness, and the fatalist position in
+      A6.
+  udhr1948:
+    citation: >-
+      United Nations (1948). Universal Declaration of Human Rights. General Assembly resolution
+      217 A (III), 10 December 1948. Article 25.
+    url: https://www.un.org/en/about-us/universal-declaration-of-human-rights
+    why: A standard of living adequate for health and wellbeing (C4).
+  wolsko2016:
+    doi: '10.1016/j.jesp.2016.02.005'
+    citation: >-
+      Wolsko, C., Ariceaga, H. & Seiden, J. (2016). Red, white, and blue enough to be green:
+      Effects of moral framing on climate change attitudes and conservation behaviors.
+      Journal of Experimental Social Psychology 65, 7–19.
+    why: >-
+      Framing climate in loyalty, authority and purity terms moved conservatives in the
+      original experiments (L3); two preregistered replications did not reproduce the effect
+      (Kim, Hammond & Milfont 2023, doi 10.32872/spb.8557; Voit, Twardawski & Fischer 2026,
+      doi 10.1016/j.jesp.2026.104871).
+  wvs7:
+    doi: '10.14281/18241.24'
+    citation: >-
+      Haerpfer, C., Inglehart, R., Moreno, A., Welzel, C., Kizilova, K., Diez-Medrano, J.,
+      Lagos, M., Norris, P., Ponarin, E. & Puranen, B. et al. (eds.) (2024). World Values
+      Survey: Round Seven – Country-Pooled Datafile. Version 6.0.0. Madrid & Vienna, JD
+      Systems Institute & WVSA Secretariat.
+    why: >-
+      Population-representative values data from 66 countries and territories, fieldwork
+      2017–2022 (about 90 with the joint EVS/WVS dataset, doi 10.14281/18241.26); where to
+      measure how widely a value in this catalogue is held.
