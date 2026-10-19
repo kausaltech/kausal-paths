@@ -179,3 +179,40 @@ def test_pin_upgrade_allows_visible_submission_only_problems(framework: Framewor
     assert problems.messages
     assert not problems.blocking('publish').messages
     assert problems.blocking('submit').messages
+
+
+@pytest.mark.parametrize('introduced', [False, True])
+def test_pin_upgrade_refuses_only_problems_it_introduces(
+    framework: Framework, monkeypatch: pytest.MonkeyPatch, introduced: bool
+) -> None:
+    template = framework.template_instance
+    assert template is not None
+    first = publish_template_instance(template)
+    dependent = InstanceConfigFactory.create(
+        name='Municipality', config_source='database', template_revision=first, spec=InstanceModelSpec()
+    )
+    second = publish_template_instance(template)
+
+    def violation(message: str) -> RuleViolation:
+        return RuleViolation(
+            rule_uuid=uuid4(),
+            metric_uuid=uuid4(),
+            metric='Value',
+            kind='requires_metric',
+            enforcement='block_publish',
+            message=message,
+        )
+
+    unfinished = violation('Value entered without its grade')
+    calls = iter([[unfinished], [unfinished, violation('Value outside its shape')] if introduced else [unfinished]])
+    monkeypatch.setattr(
+        'frameworks.bisko.validation.collect_instance_problems',
+        lambda _instance: InstanceProblems(constraints=(), datasets=next(calls), data_entry=[], values=[]),
+    )
+    if introduced:
+        with pytest.raises(ValueError, match='outside its shape'):
+            upgrade_checked_instance(dependent, second)
+    else:
+        upgrade_checked_instance(dependent, second)
+    dependent.refresh_from_db()
+    assert dependent.template_revision_id == (first.pk if introduced else second.pk)
