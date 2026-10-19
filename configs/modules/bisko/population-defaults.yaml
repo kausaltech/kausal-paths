@@ -1,5 +1,10 @@
 # Opt-in population inputs for the BISKO framework template. Existing city YAML models
 # retain the shared module's GISCO population until they adopt this extension explicitly.
+#
+# The template reads only the municipality's own series. Activation and every template upgrade
+# seed it from the prepared official series at the template's dataset pin (bisko/defaults/
+# population), which covers the Länder BISKO municipalities can be activated in; GISCO is not
+# a fallback, because the prepared series is the better one and has no gaps to fill.
 data_entry:
   namespace: 3e9307fd-5adb-435b-adac-fda1f9e07d3a
   sections:
@@ -36,16 +41,11 @@ nodes:
     Published years are interpolated linearly and the last forecast value is held constant.
     Association forecasts use member shares from their latest common observed year.
     Municipal edits supersede defaults; data-point citations preserve their source and derivation.
-  type: formula.FormulaNode
+  type: simple.AdditiveNode
   quantity: population
   unit: cap
   input_nodes:
   - id: population_own
-    tags: [own]
-  - id: population_provider
-    tags: [provider]
-  params:
-    formula: prefer_by_year(own, provider)
 
 - id: population_own
   is_editable: false
@@ -59,23 +59,3 @@ nodes:
   - id: kommune/bevoelkerung
     column: population
     binding_owner: instance
-
-- id: population_provider
-  is_editable: false
-  is_visible: false
-  name_de: Einwohnerzahl aus GISCO als Rückfallwert
-  name_en: GISCO population fallback
-  description_en: |
-    Preserve the existing population series for models that have not received editable defaults.
-    Activated municipalities use their own annual series instead.
-  type: simple.AdditiveNode
-  quantity: population
-  unit: cap
-  input_datasets:
-  - id: demography/population_lau
-    column: population
-    filters:
-    - column: lau
-      ref: lau_code
-    - column: country
-    - column: municipality
