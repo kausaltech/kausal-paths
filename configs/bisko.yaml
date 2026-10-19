@@ -79,8 +79,9 @@ params:
   is_visible: false
 # The municipality itself, as a Eurostat GISCO LAU code: `<country>_<national LAU code>`, and
 # for Germany the national LAU code is the AGS -- so this is `DE_` plus `ags_number`, naming
-# Düsseldorf, Stadt. Read by the `population` node, which filters the European municipal
-# fallback population table `demography/population_lau` down to this one municipality.
+# Düsseldorf, Stadt. The shared module's `population` node filters the European municipal
+# population table `demography/population_lau` down to this one municipality; this template
+# replaces that node with the municipality's own series, so here it only records the identity.
 #
 # Declared separately from `ags_number` rather than derived from it, because the model filters on
 # one column with one parameter and the table is Europe-wide: a bare `09761000` is not unique

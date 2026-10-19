@@ -15,6 +15,7 @@ from wagtail.models import Revision
 
 import pytest
 
+from kausal_common.datasets.models import Dataset
 from kausal_common.datasets.tests.factories import DataPointFactory, DatasetFactory, DatasetMetricFactory, DatasetSchemaFactory
 from kausal_common.i18n.pydantic import TranslatedString
 
@@ -55,8 +56,6 @@ from users.tests.factories import UserFactory
 
 if TYPE_CHECKING:
     from django.test import Client
-
-    from kausal_common.datasets.models import Dataset
 
     from nodes.models import InstanceConfig
     from users.models import User
@@ -712,6 +711,41 @@ def test_export_uses_pinned_template_dataset_body_and_import_remaps_payload_revi
     assert effective.template_content_hash == exported.instance.template_content_hash
     assert isinstance(effective.bindings[0].source, DatasetMetricSource)
     assert effective.bindings[0].source.dataset_revision == pin.revision_id
+
+
+def test_upgrade_gives_a_new_placeholder_input_the_instances_own_empty_copy(
+    municipal: tuple[InstanceConfig, InstanceConfig, User],
+) -> None:
+    template, municipality, _ = municipal
+    upgrade_template_instance(municipality, publish_template_instance(template))
+    node = template.nodes.get_queryset().with_spec().get()
+    assert node.spec is not None
+    unit = node.spec.output_ports[0].unit
+    schema = DatasetSchemaFactory.create()
+    metric = DatasetMetricFactory.create(schema=schema, name='population', unit=str(unit))
+    placeholder = DatasetFactory.create(
+        schema=schema,
+        scope_content_type=ContentType.objects.get_for_model(type(template)),
+        scope_id=template.pk,
+        identifier='kommune/population',
+        is_external_placeholder=True,
+    )
+    # The next revision introduces an input every instance has to supply.
+    port = InputPortDef(id=uuid4(), unit=unit, binding_owner='instance')
+    node.spec.input_ports = [*node.spec.input_ports, port]
+    node.save(update_fields=['spec'])
+    NodeInputPortBinding.objects.create(instance=template, node=node, port_id=port.id, dataset=placeholder, metric=metric)
+    template.invalidate_cache()
+    upgrade_template_instance(municipality, publish_template_instance(template))
+    municipality.refresh_from_db()
+
+    own = Dataset.objects.for_instance_config(municipality).get(identifier='kommune/population')
+    assert own.pk != placeholder.pk
+    assert own.schema_id == schema.pk
+    assert not own.data_points.exclude(value=None).exists()
+    source = {binding.port_id: binding.source for binding in build_instance_snapshot(municipality).bindings}[port.id]
+    assert isinstance(source, DatasetMetricSource)
+    assert source.dataset_uuid == own.uuid
 
 
 def test_upgrade_points_new_instance_owned_ports_at_the_instances_own_copy(

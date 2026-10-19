@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, cast
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
-from frameworks.bisko.activation import _ensure_local_inputs
+from frameworks.bisko.activation import ensure_local_inputs, seed_local_defaults
 from frameworks.bisko.default_sources import POPULATION_DATASET
 from frameworks.models import FrameworkConfig
 from nodes.models import InstanceConfig
@@ -43,7 +43,7 @@ class Command(BaseCommand):
                     if POPULATION_DATASET not in {dataset.identifier for dataset in template_snapshot(instance).all_datasets()}:
                         self.stdout.write(f'{instance.identifier}: skipped (upgrade the template pin first)')
                         continue
-                    _ensure_local_inputs(instance)
+                    seed_local_defaults(instance, ensure_local_inputs(instance))
                     self.stdout.write(f'{instance.identifier}: refreshed defaults from its published template pin')
                 if not options['apply']:
                     transaction.set_rollback(True)

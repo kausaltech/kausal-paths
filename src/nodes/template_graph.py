@@ -16,8 +16,10 @@ from kausal_common.datasets.models import Dataset
 from kausal_common.i18n.pydantic import set_i18n_context
 
 from datasets.catalogue import dataset_meta_from_model
-from datasets.materialization import ensure_dataset_materializations
+from datasets.materialization import ensure_dataset_materializations, refresh_dataset_materialization
 from datasets.shape_domain import SHAPE_SPEC_KEY
+from datasets.snapshot import DatasetSnapshot
+from datasets.year_slots import ensure_empty_year
 from frameworks.models import Framework
 from nodes.constraints.validation import InstanceConstraintError, solve_instance_constraints
 from nodes.instance_graph import NodeEditContext, NodeMeta, build_instance_graph
@@ -33,7 +35,13 @@ from nodes.instance_serialization import (
     NodeSnapshot,
     build_instance_snapshot,
 )
-from nodes.models import InputPortBindingSet, InstanceConfig, InstanceRevisionDatasetPin, PreferredInstanceSource
+from nodes.models import (
+    DatasetMaterialization,
+    InputPortBindingSet,
+    InstanceConfig,
+    InstanceRevisionDatasetPin,
+    PreferredInstanceSource,
+)
 from nodes.template_reference_data import release_reference_materializations
 from nodes.template_spec import (
     DECLARATION_LISTS,
@@ -384,6 +392,7 @@ def upgrade_template_instance(instance: InstanceConfig, revision: Revision, *, u
             port = next((port for port in node.spec.input_ports if port.id == binding.port_uuid), None)
             if port is None or port.binding_owner != 'instance':
                 binding.delete()
+    _copy_template_placeholders(instance, candidate)
     _bind_inputs_to_own_datasets(instance, candidate)
     follow_template_dataset_shapes(instance, candidate)
     spec = instance.ensure_spec()
@@ -436,6 +445,74 @@ def follow_template_dataset_shapes(
         dataset.save(update_fields=['spec'])
         changed += 1
     return changed
+
+
+def ensure_own_dataset_copy(instance: InstanceConfig, source: Dataset) -> Dataset:
+    """
+    Return the instance's own dataset with `source`'s identifier, creating it empty if missing.
+
+    The copy shares the source's schema, so the template's metrics and dimensions are its own, and
+    starts from the source's spec. An empty copy is materialized at once: its payload has to
+    describe the metrics, with their current units, or an input bound to it cannot read it as
+    data the instance has not entered yet.
+    """
+    if source.schema_id is None:
+        raise ValidationError(f'{source.identifier} has no dataset schema.')
+    dataset, _ = Dataset.objects.get_or_create(
+        scope_content_type=ContentType.objects.get_for_model(instance),
+        scope_id=instance.pk,
+        identifier=source.identifier,
+        defaults={'schema': source.schema, 'spec': dict(source.spec or {})},
+    )
+    if dataset.schema_id != source.schema_id or dataset.schema is None:
+        raise ValidationError(f'{source.identifier} uses a different schema than the template; reconcile it explicitly.')
+    if not dataset.data_points.exists():
+        materialization = DatasetMaterialization.objects.filter(dataset=dataset).first()
+        units = (
+            {metric.id: metric.unit for metric in DatasetSnapshot.model_validate(materialization.content).meta.metrics}
+            if materialization is not None
+            else None
+        )
+        if units != {metric.uuid: metric.unit for metric in dataset.schema.metrics.all()}:
+            refresh_dataset_materialization(dataset, touch=False)
+    return dataset
+
+
+def _copy_template_placeholders(instance: InstanceConfig, template: InstanceSnapshot) -> list[Dataset]:
+    """
+    Give the instance its own copy of every placeholder an instance-owned input reads.
+
+    A placeholder is data the template expects each instance to supply, so an input left reading
+    the template's own placeholder reads nothing, and the instance cannot publish. Inputs present
+    when the instance was set up already read its copies; this covers a placeholder that a new
+    template revision introduces. The copy is empty, with blank cells for the latest historical
+    year as a new instance's slots have; `_bind_inputs_to_own_datasets` then points the inputs at it.
+    """
+    placeholders = {meta.id: meta for meta in template.all_datasets() if meta.is_external_placeholder and meta.identifier}
+    own = set(Dataset.objects.for_instance_config(instance).values_list('identifier', flat=True))
+    overridden = {(override.node_uuid, override.port_uuid) for override in instance.binding_overrides.all()}
+    nodes = {node.uuid: node for node in template.nodes}
+    wanted: dict[str, DatasetMeta] = {}
+    for binding in template.bindings:
+        source = binding.dataset_source
+        node = nodes.get(binding.node_id)
+        port = next((p for p in node.spec.input_ports if p.id == binding.port_id), None) if node and node.spec else None
+        if source is None or source.dataset_uuid not in placeholders or source.dataset in own:
+            continue
+        if port is None or port.binding_owner != 'instance' or (binding.node_id, binding.port_id) in overridden:
+            continue
+        wanted[source.dataset] = placeholders[source.dataset_uuid]
+    created = []
+    year = instance.ensure_spec().years.max_historical
+    for identifier, meta in sorted(wanted.items()):
+        source = Dataset.objects.select_related('schema').filter(uuid=meta.id).first()
+        if source is None:
+            raise ValidationError(f'The template placeholder {identifier} is missing from the database.')
+        dataset = ensure_own_dataset_copy(instance, source)
+        if year is not None:
+            ensure_empty_year(dataset, year, prototype=source)
+        created.append(dataset)
+    return created
 
 
 def _bind_inputs_to_own_datasets(instance: InstanceConfig, template: InstanceSnapshot) -> None:

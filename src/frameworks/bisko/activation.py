@@ -3,13 +3,11 @@
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
-from django.contrib.contenttypes.models import ContentType
+from django.core.exceptions import ValidationError
 from django.db import transaction
 
 from kausal_common.datasets.models import Dataset
 
-from datasets.materialization import refresh_dataset_materialization
-from datasets.snapshot import DatasetSnapshot
 from datasets.year_slots import ensure_empty_year
 from frameworks import submissions
 from frameworks.bisko.defaults import seed_activation_defaults
@@ -18,8 +16,8 @@ from frameworks.models import Framework, FrameworkConfig
 from frameworks.organization_access import organization_is_in_framework
 from nodes.defs.instance_defs import InstanceModelSpec
 from nodes.instance_serialization import DatasetMetricSource, InputBindingSnapshot, InstanceSnapshot
-from nodes.models import DatasetMaterialization, InputPortBindingSet, InstanceConfig
-from nodes.template_graph import follow_template_dataset_shapes, template_snapshot
+from nodes.models import InputPortBindingSet, InstanceConfig
+from nodes.template_graph import ensure_own_dataset_copy, follow_template_dataset_shapes, template_snapshot
 from orgs.models import Organization, OrganizationIdentifier
 from params.param import StringParameter
 
@@ -49,8 +47,8 @@ def _municipal_spec(snapshot: InstanceSnapshot, framework: Framework, ags: str, 
     return spec
 
 
-def _ensure_local_inputs(instance: InstanceConfig) -> None:  # noqa: C901, PLR0912
-    """Give each municipality local inputs, seed pinned defaults, and replace local bindings."""
+def ensure_local_inputs(instance: InstanceConfig) -> dict[str, Dataset]:
+    """Give the municipality its own copy of each municipal input and bind its inputs to them."""
     base = template_snapshot(instance)
     framework = instance.framework_config.framework
     template = framework.template_instance
@@ -63,55 +61,41 @@ def _ensure_local_inputs(instance: InstanceConfig) -> None:  # noqa: C901, PLR09
     required = {ds.identifier for ds in base.all_datasets() if ds.identifier and ds.identifier.startswith('kommune/')}
     if not required <= set(sources):
         raise ActivationError(f'Published municipal datasets are missing from the database: {sorted(required - sources.keys())}')
-    content_type = ContentType.objects.get_for_model(instance)
     local: dict[str, Dataset] = {}
-    weather_source = None
+    year = instance.ensure_spec().years.max_historical
     for identifier in sorted(required):
         source = sources[identifier]
-        if source.schema_id is None:
-            raise ActivationError(f'{identifier} has no dataset schema.')
-        dataset, _ = Dataset.objects.get_or_create(
-            scope_content_type=content_type,
-            scope_id=instance.pk,
-            identifier=identifier,
-            defaults={'schema': source.schema, 'spec': dict(source.spec or {})},
-        )
-        if dataset.schema_id != source.schema_id or dataset.schema is None:
-            raise ActivationError(f'{identifier} uses a different municipal schema; reconcile it explicitly.')
+        try:
+            dataset = ensure_own_dataset_copy(instance, source)
+        except ValidationError as error:
+            raise ActivationError(error.messages[0]) from error
         # The copied spec is the template draft's; the shape reference must be the pinned revision's.
         if follow_template_dataset_shapes(instance, base, [identifier]):
             dataset.refresh_from_db(fields=['spec'])
-        if identifier == WEATHER_DATASET and not dataset.data_points.exists():
-            if weather_source is None:
-                if base.spec.dataset_repo is None:
-                    raise ActivationError('Published template has no dataset repository for weather defaults.')
-                weather_source = load_weather_source(framework, repo_spec=base.spec.dataset_repo)
-            organization = instance.organization
-            assert organization is not None
-            frame, revision = weather_source
-            seed_weather_defaults(instance, dataset, frame, nuts3=municipality_nuts3(organization), source_revision=revision)
-        elif identifier != WEATHER_DATASET:
-            year = instance.ensure_spec().years.max_historical
-            if year is not None:
-                ensure_empty_year(dataset, year, prototype=source)
-        if not dataset.data_points.exists():
-            # An empty dataset's payload still has to describe its metrics, with their current
-            # units, or inherited inputs cannot read it as missing municipal data.
-            materialization = DatasetMaterialization.objects.filter(dataset=dataset).first()
-            units = (
-                {metric.id: metric.unit for metric in DatasetSnapshot.model_validate(materialization.content).meta.metrics}
-                if materialization is not None
-                else None
-            )
-            if units != {metric.uuid: metric.unit for metric in dataset.schema.metrics.all()}:
-                refresh_dataset_materialization(dataset, touch=False)
+        # The weather factors are seeded with defaults instead of blank cells.
+        if identifier != WEATHER_DATASET and year is not None:
+            ensure_empty_year(dataset, year, prototype=source)
         local[identifier] = dataset
+    _override_municipal_bindings(instance, base, local)
+    instance.invalidate_cache()
+    return local
 
+
+def seed_local_defaults(instance: InstanceConfig, local: dict[str, Dataset]) -> None:
+    """Seed the provider defaults at the published template's pin into the municipality's own inputs."""
+    weather = local.get(WEATHER_DATASET)
+    if weather is not None and not weather.data_points.exists():
+        repo_spec = template_snapshot(instance).spec.dataset_repo
+        if repo_spec is None:
+            raise ActivationError('Published template has no dataset repository for weather defaults.')
+        frame, revision = load_weather_source(instance.framework_config.framework, repo_spec=repo_spec)
+        organization = instance.organization
+        assert organization is not None
+        seed_weather_defaults(instance, weather, frame, nuts3=municipality_nuts3(organization), source_revision=revision)
     try:
         seed_activation_defaults(instance, local)
     except ValueError as error:
         raise ActivationError(str(error)) from error
-    _override_municipal_bindings(instance, base, local)
     instance.invalidate_cache()
 
 
@@ -158,7 +142,7 @@ def _reconcile_instance(framework: Framework, instance: InstanceConfig, ags: str
         override.parameter_types.update(values.parameter_types)
     instance.spec = current
     instance.save(update_fields=['spec'])
-    _ensure_local_inputs(instance)
+    seed_local_defaults(instance, ensure_local_inputs(instance))
     if not instance.submissions.exists():
         period = current.years.max_historical or current.years.reference
         if period is not None:
