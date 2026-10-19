@@ -523,9 +523,11 @@ datasets:
   metrics:
   - id: Value
     validation_rules:
-    # A value needs its Datengüte (third Prüflauf, 1.4 and 7.1). Blocks publication, not
-    # entry, so a value and its grade can be typed in either order.
-    - {kind: requires_metric, enforcement: block_publish, metric: quality}
+    # A value needs its Datengüte (third Prüflauf, 1.4 and 7.1). Blocks submission, not entry
+    # or publication: a value and its grade can be typed in either order, and an ungraded value
+    # still computes. The protocol withholds only the conformity label, which
+    # `is_bisko_compliant` already does.
+    - {kind: requires_metric, enforcement: block_submission, metric: quality}
     - {kind: value_range, enforcement: block_edit, min: 0}
     # One group per required cell, each naming exactly one combination.
     #
@@ -627,9 +629,11 @@ datasets:
   metrics:
   - id: Value
     validation_rules:
-    # A value needs its Datengüte (third Prüflauf, 1.4 and 7.1). Blocks publication, not
-    # entry, so a value and its grade can be typed in either order.
-    - {kind: requires_metric, enforcement: block_publish, metric: quality}
+    # A value needs its Datengüte (third Prüflauf, 1.4 and 7.1). Blocks submission, not entry
+    # or publication: a value and its grade can be typed in either order, and an ungraded value
+    # still computes. The protocol withholds only the conformity label, which
+    # `is_bisko_compliant` already does.
+    - {kind: requires_metric, enforcement: block_submission, metric: quality}
     - {kind: value_range, enforcement: block_edit, min: 0}
   - id: quality
     validation_rules:
@@ -652,9 +656,11 @@ datasets:
   metrics:
   - id: Value
     validation_rules:
-    # A value needs its Datengüte (third Prüflauf, 1.4 and 7.1). Blocks publication, not
-    # entry, so a value and its grade can be typed in either order.
-    - {kind: requires_metric, enforcement: block_publish, metric: quality}
+    # A value needs its Datengüte (third Prüflauf, 1.4 and 7.1). Blocks submission, not entry
+    # or publication: a value and its grade can be typed in either order, and an ungraded value
+    # still computes. The protocol withholds only the conformity label, which
+    # `is_bisko_compliant` already does.
+    - {kind: requires_metric, enforcement: block_submission, metric: quality}
     - {kind: value_range, enforcement: block_edit, min: 0}
   - id: quality
     validation_rules:
@@ -673,9 +679,11 @@ datasets:
   metrics:
   - id: Value
     validation_rules:
-    # A value needs its Datengüte (third Prüflauf, 1.4 and 7.1). Blocks publication, not
-    # entry, so a value and its grade can be typed in either order.
-    - {kind: requires_metric, enforcement: block_publish, metric: quality}
+    # A value needs its Datengüte (third Prüflauf, 1.4 and 7.1). Blocks submission, not entry
+    # or publication: a value and its grade can be typed in either order, and an ungraded value
+    # still computes. The protocol withholds only the conformity label, which
+    # `is_bisko_compliant` already does.
+    - {kind: requires_metric, enforcement: block_submission, metric: quality}
     - {kind: value_range, enforcement: block_edit, min: 0}
   - id: quality
     validation_rules:
@@ -688,9 +696,11 @@ datasets:
   metrics:
   - id: Value
     validation_rules:
-    # A value needs its Datengüte (third Prüflauf, 1.4 and 7.1). Blocks publication, not
-    # entry, so a value and its grade can be typed in either order.
-    - {kind: requires_metric, enforcement: block_publish, metric: quality}
+    # A value needs its Datengüte (third Prüflauf, 1.4 and 7.1). Blocks submission, not entry
+    # or publication: a value and its grade can be typed in either order, and an ungraded value
+    # still computes. The protocol withholds only the conformity label, which
+    # `is_bisko_compliant` already does.
+    - {kind: requires_metric, enforcement: block_submission, metric: quality}
     - {kind: value_range, enforcement: block_edit, min: 0}
   - id: quality
     validation_rules:
@@ -705,9 +715,11 @@ datasets:
   metrics:
   - id: Value
     validation_rules:
-    # A value needs its Datengüte (third Prüflauf, 1.4 and 7.1). Blocks publication, not
-    # entry, so a value and its grade can be typed in either order.
-    - {kind: requires_metric, enforcement: block_publish, metric: quality}
+    # A value needs its Datengüte (third Prüflauf, 1.4 and 7.1). Blocks submission, not entry
+    # or publication: a value and its grade can be typed in either order, and an ungraded value
+    # still computes. The protocol withholds only the conformity label, which
+    # `is_bisko_compliant` already does.
+    - {kind: requires_metric, enforcement: block_submission, metric: quality}
     - {kind: value_range, enforcement: block_edit, min: 0}
 
   - id: quality

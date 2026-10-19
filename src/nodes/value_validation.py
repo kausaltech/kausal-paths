@@ -13,7 +13,7 @@ from paths.refs import PortRef, ShapeRef
 
 from common import qualifiers
 from common.polars import DataFrameMeta, to_ppdf
-from common.validation import blocks_operation
+from common.validation import PublishOrSubmitEnforcement, ValidationRuleEnforcement, blocks_operation
 from nodes.constants import VALUE_COLUMN, YEAR_COLUMN
 from nodes.exceptions import NodeError
 from nodes.units import unit_registry
@@ -25,18 +25,6 @@ if TYPE_CHECKING:
     from nodes.instance import Instance
     from nodes.node import Node
     from nodes.shapes import EffectiveShape
-
-
-type ValueEnforcement = Literal['block_publish', 'block_submission']
-"""
-What a violation blocks.
-
-``block_publish`` means the computed result would be wrong: a value that could not be
-computed, one out of range, two rows where one is allowed, or an activity without the
-factor it needs. ``block_submission`` means the result is not certifiable: a required
-combination or quality grade is missing, or no inventory years have been declared. A
-draft with such problems still publishes; a submission refuses it.
-"""
 
 
 class QualifierRequirement(BaseModel):
@@ -71,7 +59,7 @@ class ValueContract(BaseModel):
     max_rows: int | None = Field(default=None, ge=1)
     min: float | None = None
     max: float | None = None
-    enforcement: ValueEnforcement | None = None
+    enforcement: PublishOrSubmitEnforcement | None = None
     """The tier of the completeness requirements, when the derived one does not fit; see `effective_enforcement`."""
 
     @model_validator(mode='after')
@@ -83,7 +71,7 @@ class ValueContract(BaseModel):
         return self
 
     @property
-    def effective_enforcement(self) -> ValueEnforcement:
+    def effective_enforcement(self) -> ValidationRuleEnforcement:
         """
         The tier of this contract's completeness and quality requirements.
 
@@ -95,8 +83,8 @@ class ValueContract(BaseModel):
         if self.enforcement is not None:
             return self.enforcement
         if self.required_if_positive is not None or self.combinations_from_positive is not None:
-            return 'block_publish'
-        return 'block_submission'
+            return ValidationRuleEnforcement.BLOCK_PUBLISH
+        return ValidationRuleEnforcement.BLOCK_SUBMISSION
 
 
 class ValueValidationViolation(BaseModel):
@@ -107,7 +95,7 @@ class ValueValidationViolation(BaseModel):
     message: str
     years: list[int]
     categories: dict[str, str] = Field(default_factory=dict)
-    enforcement: ValueEnforcement = 'block_publish'
+    enforcement: PublishOrSubmitEnforcement = ValidationRuleEnforcement.BLOCK_PUBLISH
 
 
 def publication_blockers(violations: list[ValueValidationViolation]) -> list[ValueValidationViolation]:
@@ -499,7 +487,7 @@ def collect_instance_value_violations(  # noqa: C901, PLR0912, PLR0915
                 if (
                     calendar_undeclared
                     and port.validation.years == 'inventory'
-                    and port.validation.effective_enforcement == 'block_submission'
+                    and port.validation.effective_enforcement == ValidationRuleEnforcement.BLOCK_SUBMISSION
                 ):
                     problems.append(
                         ValueValidationViolation(
@@ -508,7 +496,7 @@ def collect_instance_value_violations(  # noqa: C901, PLR0912, PLR0915
                             code='inventory_years_undeclared',
                             message='No inventory years have been declared, so the required values cannot be checked',
                             years=years,
-                            enforcement='block_submission',
+                            enforcement=ValidationRuleEnforcement.BLOCK_SUBMISSION,
                         )
                     )
                     problems.extend(

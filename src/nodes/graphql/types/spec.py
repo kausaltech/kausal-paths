@@ -20,6 +20,7 @@ from kausal_common.strawberry.pydantic import StrawberryPydanticType, pydantic_t
 from paths import gql
 from paths.refs import DimensionIdentifierRef
 
+from common.validation import ValidationRuleEnforcement
 from nodes.actions.action import ActionNode
 from nodes.defs.instance_defs import DatasetRepoSpec, InstanceModelSpec, YearsSpec
 from nodes.defs.node_defs import OutputMetricDef
@@ -27,7 +28,6 @@ from nodes.defs.port_def import InputPortDef, OutputPortDef
 from nodes.graphql.editability import port_editable, runtime_source
 from nodes.graphql.types.constraints import EffectiveShapeType, effective_port_shape
 from nodes.graphql.types.metric import DimensionalMetricType
-from nodes.graphql.types.problems import ProblemEnforcement
 from nodes.graphql.types.shape import ShapeType
 from nodes.metric import DimensionalMetric
 
@@ -145,12 +145,12 @@ class InputPortType(StrawberryPydanticType[InputPortDef]):
         return ShapeType.resolve(info, config, root._contract.shape, runtime_source(info, root._node))
 
     @sb.field(
-        graphql_type=ProblemEnforcement | None,
+        graphql_type=ValidationRuleEnforcement | None,
         description="What a failure of the port's input contract blocks: publication or submission.",
     )
     @staticmethod
-    def contract_enforcement(root: 'InputPortType') -> ProblemEnforcement | None:
-        return ProblemEnforcement(root._contract.effective_enforcement) if root._contract is not None else None
+    def contract_enforcement(root: 'InputPortType') -> ValidationRuleEnforcement | None:
+        return root._contract.effective_enforcement if root._contract is not None else None
 
     @sb.field(description='Whether the current user can replace or disconnect the bindings of this input.')
     @staticmethod
