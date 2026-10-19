@@ -5,6 +5,7 @@ from uuid import uuid4
 
 import pytest
 
+from common.validation import ValidationRuleEnforcement
 from nodes.constraints.solver import compile_constraint_program
 from nodes.defs.graph import DatasetMeta, DatasetMetricMeta, DimensionCategoryMeta, DimensionMeta
 from nodes.defs.instance_defs import InstanceMetadata, InstanceModelSpec
@@ -12,7 +13,6 @@ from nodes.defs.node_defs import DatasetPortSpec, NodeSpec, SimpleConfig
 from nodes.defs.port_def import InputPortDef, OutputPortDef
 from nodes.defs.shape_defs import ShapeCombinationSpec, ShapeRequiredGroupSpec, ShapeSpec
 from nodes.defs.transform_def import FilterDimensionOp, TagOperationOp
-from nodes.graphql.types.problems import ProblemEnforcement
 from nodes.graphql.types.spec import InputPortType
 from nodes.instance_graph import build_instance_graph
 from nodes.instance_serialization import DatasetPortSnapshot, InstanceSnapshot, NodeSnapshot, unified_binding_snapshots
@@ -153,8 +153,8 @@ def test_an_input_port_exposes_what_its_contract_blocks() -> None:
     port = InputPortDef(
         id=uuid4(),
         unit=unit_registry.parse_units('kWh'),
-        validation=ValueContract(shape=shape_id, enforcement='block_publish'),
+        validation=ValueContract(shape=shape_id, enforcement=ValidationRuleEnforcement.BLOCK_PUBLISH),
     )
-    assert InputPortType.contract_enforcement(InputPortType.from_def(port, [])) == ProblemEnforcement.BLOCK_PUBLISH
+    assert InputPortType.contract_enforcement(InputPortType.from_def(port, [])) == ValidationRuleEnforcement.BLOCK_PUBLISH
     bare = InputPortType.from_def(InputPortDef(id=uuid4(), unit=unit_registry.parse_units('kWh')), [])
     assert InputPortType.contract_enforcement(bare) is None

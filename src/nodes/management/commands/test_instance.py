@@ -27,6 +27,7 @@ from kausal_common.logging.errors import print_exception
 from kausal_common.logging.warnings import register_warning_handler
 from kausal_common.perf.perf_context import estimate_size_bytes
 
+from common.validation import ValidationRuleEnforcement
 from datasets.materialization import collect_instance_dataset_violations
 from datasets.runtime import JSONDataset
 from frameworks.models import Framework
@@ -152,7 +153,7 @@ class ProblemDetail(BaseModel):
             kind='dataset_validation_violation',
             code=violation.kind,
             message=violation.message,
-            severity='error' if violation.enforcement == 'block_edit' else 'warning',
+            severity='error' if violation.enforcement == ValidationRuleEnforcement.BLOCK_EDIT else 'warning',
             details=TypeAdapter(dict[str, JsonValue]).validate_json(violation.model_dump_json()),
         )
 
@@ -1177,7 +1178,7 @@ class Command(BaseCommand):
                 kind='node_value_validation_violation',
                 code=violation.code,
                 message=violation.message,
-                severity='error' if violation.enforcement == 'block_publish' else 'warning',
+                severity='error' if violation.enforcement == ValidationRuleEnforcement.BLOCK_PUBLISH else 'warning',
                 details=TypeAdapter(dict[str, JsonValue]).validate_json(violation.model_dump_json()),
             )
             for violation in collect_instance_value_violations(instance)

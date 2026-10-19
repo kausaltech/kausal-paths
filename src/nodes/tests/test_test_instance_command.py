@@ -7,6 +7,7 @@ from uuid import UUID
 import loguru
 import pytest
 
+from common.validation import ValidationRuleEnforcement
 from datasets.validation import RuleViolation
 from nodes.constraints.values import BindingValue, ConstraintConflict, ConstraintOrigin, DatasetSourceValue
 from nodes.instance_graph_cache import ResolvedInstanceSource
@@ -150,7 +151,7 @@ def test_problem_state_round_trip(tmp_path: Path) -> None:
         RuleViolation(
             rule_uuid=UUID(int=2),
             kind='value_range',
-            enforcement='block_publish',
+            enforcement=ValidationRuleEnforcement.BLOCK_PUBLISH,
             metric_uuid=UUID(int=3),
             metric='energy',
             dataset_uuid=UUID(int=4),
@@ -198,7 +199,7 @@ def test_collect_problems_uses_loaded_graph_and_observed_profiles(monkeypatch: p
     violation = RuleViolation(
         rule_uuid=UUID(int=2),
         kind='value_range',
-        enforcement='block_edit',
+        enforcement=ValidationRuleEnforcement.BLOCK_EDIT,
         metric_uuid=UUID(int=3),
         metric='energy',
         message='Outside allowed range',

@@ -12,6 +12,7 @@ from kausal_common.datasets.tests.factories import DataPointFactory, DatasetFact
 
 from common import qualifiers
 from common.polars import DataFrameMeta, to_ppdf
+from common.validation import ValidationRuleEnforcement
 from nodes.constants import VALUE_COLUMN, YEAR_COLUMN
 from nodes.defs.instance_defs import InstanceModelSpec, YearsSpec
 from nodes.defs.node_defs import NodeSpec, SimpleConfig
@@ -234,7 +235,7 @@ def test_tier_follows_what_the_contract_guards() -> None:
 def test_a_conditional_contract_can_declare_that_it_only_blocks_submission() -> None:
     """Heat output missing for plant fuel input sends the year to a fallback route; the result is not wrong."""
     gas = _shape('gas')
-    contract = ValueContract(required_if_positive=uuid4(), enforcement='block_submission', shape=gas.uuid)
+    contract = ValueContract(required_if_positive=uuid4(), enforcement=ValidationRuleEnforcement.BLOCK_SUBMISSION, shape=gas.uuid)
     problems = validate_value_contract(_frame([]), contract, [2020], node_uuid=uuid4(), port_uuid=uuid4(), shape=gas)
     assert [(p.code, p.enforcement) for p in problems] == [('missing_required_value', 'block_submission')]
 
