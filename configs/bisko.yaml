@@ -93,41 +93,10 @@ params:
   is_customizable: false
   is_visible: false
 
-# Utilities report municipal consumption inside the GHD residual unless the city has had it
-# separated, so BISKO's Leitfaden Datenbeschaffung treats the overlap as the normal case and
-# requires it to be subtracted (Prüfschritt 2.1). Declared per city, because only the city knows
-# how its data was delivered; hidden and not customizable, because it moves the balance and is
-# settled once at setup (agreed with the certifier on 2026-10-15).
-#
-# **A city whose energy data comes from a Klimaschutz-Planer (KSP) export declares false.** KSP
-# keeps the Kommunale Einrichtungen as a sector beside GHD -- its own totals are
-# SUM = GE + HE + IE + KE -- and where a city entered a GHD figure containing them, KSP has already
-# taken them out. Checked on 2026-09-28 against all five KSP cities (Augsburg, Bayreuth,
-# Düsseldorf, Mainz, Schwerin): no exception. Test a new export with
-# paths-data/modules/bisko/ksp_municipal_facilities_check.py.
-#
-# The declaration is one constant for the whole series, so the dataset must follow one rule in
-# every year: an extractor that combines sources (KSP for early years, a utility delivery for
-# later ones) has to bring them all to the same convention before upload -- in practice "beside",
-# since that is what KSP delivers. Test a utility delivery by whether its sector columns sum to its
-# own total with or without the facilities. "Subtracting never goes negative" is not a test: it
-# can only ever prove "beside", never "inside".
-#
-# Activation defaults keep commerce and municipal facilities separate.
-# A utility delivery that includes facilities in commerce must declare the overlap explicitly.
-- id: municipal_facilities_included_in_commerce
-  # Hidden and fixed: what the city's data contains is settled once at setup, not by a visitor.
-  # Where KE is shown is the reporting setting report_municipal_facilities_in_commerce.
-  label_en: The entered figure for commerce, trade and services still contains the municipal facilities (they are subtracted, so nothing is counted twice).
-  label_de: Der eingetragene Wert für GHD/Sonstiges enthält die kommunalen Einrichtungen noch (sie werden abgezogen, damit nichts doppelt gezählt wird).
-  value: false
-  is_visible: false
-  is_customizable: false
-
 # Heat-pump electricity sits inside the metered electricity unless the utility has separated it,
 # so the Leitfaden Datenbeschaffung (Schritt 7) treats the overlap as the normal case and asks for
 # it to be subtracted. Declared per city, because only the city knows how its data was delivered;
-# hidden and fixed like municipal_facilities_included_in_commerce: settled once at setup.
+# hidden and fixed: settled once at setup.
 - id: heat_pump_electricity_included_in_electricity
   label_en: The entered electricity consumption still contains the electricity of the heat pumps (it is subtracted, so nothing is counted twice).
   label_de: Der eingetragene Stromverbrauch enthält den Strom der Wärmepumpen noch (er wird abgezogen, damit nichts doppelt gezählt wird).
@@ -186,7 +155,6 @@ result_excels:
   - weather_correction
   - final_energy_use
   - total_final_energy_use          # criterion 2.1: energy by sector incl. transport
-  - municipal_facilities_energy_in_commerce  # criterion 2.1: the KE/GHD double-count correction
   - total_weighted_data_quality     # criterion 7.2: Datengüte of the whole balance
   # - final_municipal_facilities_energy_use_by_type
   # - municipal_fleet_energy

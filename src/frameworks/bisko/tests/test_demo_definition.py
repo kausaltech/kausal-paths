@@ -33,12 +33,10 @@ from frameworks.management.commands.load_bisko_demo import (
 from frameworks.models import DataEvidenceKind, DataPointEvidence, DataQualityLevel, DataQualityScheme, FrameworkConfig
 from frameworks.tests.factories import FrameworkFactory
 from nodes.defs.instance_defs import InstanceModelSpec, YearsSpec
-from nodes.instance_serialization import build_instance_snapshot
 from nodes.scenario import Scenario, ScenarioKind
 from nodes.template_graph import publish_template_instance
 from nodes.tests.factories import InstanceConfigFactory
-from params.base import ParameterOwner
-from params.param import BoolParameter, NumberParameter
+from params.param import NumberParameter
 
 if TYPE_CHECKING:
     from kausal_common.datasets.models import Dataset
@@ -57,7 +55,6 @@ def demo() -> tuple[InstanceConfig, InstanceConfig, Dataset]:
         spec=InstanceModelSpec(
             years=YearsSpec(reference=1990, min_historical=1990, max_historical=2023, target=2030),
             params=[
-                BoolParameter(local_id='municipal_facilities_included_in_commerce', value=True),
                 NumberParameter(local_id='untouched', value=2),
             ],
             scenarios=[Scenario(id='default', name='Default', kind=ScenarioKind.DEFAULT)],
@@ -112,15 +109,13 @@ def test_configuration_is_sparse_and_preserves_other_local_settings(demo: tuple[
     instance.refresh_from_db()
     spec = instance.ensure_spec()
     assert spec.params == []
-    assert spec.scenarios[0].param_values == {'untouched': 7, 'municipal_facilities_included_in_commerce': False}
+    assert spec.scenarios[0].param_values == {'untouched': 7}
     assert spec.years.reference == 2000
     assert spec.years.historical == [2000, 2005]
     assert spec.years.target == 2030
     assert spec.features.show_accumulated_effects is False
-    effective = build_instance_snapshot(instance)
-    assert next(p for p in effective.spec.params if p.local_id == 'municipal_facilities_included_in_commerce').value is False
     template.refresh_from_db()
-    assert template.ensure_spec().params[0].value is True
+    assert template.ensure_spec().params[0].value == 2
     assert dataset.data_points.count() == 120
     assert not DataPointEvidence.objects.filter(data_point__dataset=dataset, quality_level__isnull=False).exists()
 
@@ -167,17 +162,5 @@ def test_reconciliation_refuses_manually_reported_values(demo: tuple[InstanceCon
     DataPointEvidence.objects.filter(data_point=point).update(kind=DataEvidenceKind.OBSERVED)
     with pytest.raises(CommandError, match='without estimated provenance'):
         call_command('load_bisko_demo', reconcile_existing=True, instance=[instance.identifier], apply=True)
-    instance.refresh_from_db()
-    assert instance.ensure_spec().scenarios == []
-
-
-def test_reconciliation_refuses_a_framework_owned_overlap_parameter(demo: tuple[InstanceConfig, InstanceConfig, Dataset]) -> None:
-    template, instance, dataset = demo
-    template.ensure_spec().params[0].owner = ParameterOwner.FRAMEWORK
-    template.save(update_fields=['spec'])
-    instance.template_revision = publish_template_instance(template)
-    instance.save(update_fields=['template_revision'])
-    with pytest.raises(ValueError, match='instance-owned'):
-        configure_demo_definition(instance, existing_demo_years(dataset))
     instance.refresh_from_db()
     assert instance.ensure_spec().scenarios == []

@@ -23,10 +23,10 @@ from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.postgres.expressions import ArraySubquery
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.utils import translation
-from django.utils.translation import gettext as _, gettext_noop
 from django.db.models import F, OuterRef
 from django.db.models.functions import JSONObject
+from django.utils import translation
+from django.utils.translation import gettext as _, gettext_noop
 from pydantic import BaseModel, Field, TypeAdapter
 
 import polars as pl
@@ -41,8 +41,8 @@ from .validation_rules import (
     DimensionSumRule,
     Enforcement,
     NoGapsRule,
-    RequiresMetricRule,
     RequiredCombinationsRule,
+    RequiresMetricRule,
     ValidationRule,
     ValueRangeRule,
     validation_rule_adapter,
@@ -276,7 +276,9 @@ def evaluate_dataset_rules(dataset: Dataset) -> list[RuleViolation]:
                 allowed = list(domain_coordinates.values())
                 domain_id = dataset_shape_id(dataset) or schema.uuid
                 for metric in schema.metrics.order_by('order'):
-                    violations.extend(evaluate_closed_domain(domain_id, metric.uuid, _metric_column(metric), df, dim_cols, allowed))
+                    violations.extend(
+                        evaluate_closed_domain(domain_id, metric.uuid, _metric_column(metric), df, dim_cols, allowed)
+                    )
         finally:
             _LABELS.reset(token)
     coordinate_index = DatasetCoordinateIndex(dataset) if violations else None
@@ -333,6 +335,8 @@ def _dataset_labels(dataset: Dataset, rules: list[Any]) -> _Labels:
             if category.identifier is not None:
                 labels.categories[column, category.identifier] = category.label_i18n or category.identifier
     return labels
+
+
 def _metric_column(metric: DatasetMetric) -> str:
     return metric.name or metric.label or str(metric.uuid)
 
@@ -522,7 +526,6 @@ def _category_domain_coordinates(dataset: Dataset, domain: DatasetCategoryDomain
     return result
 
 
-    RequiresMetricRule,
 def _eval_value_range(
     rule: ValueRangeRule,
     violation: Callable[..., RuleViolation],
