@@ -302,18 +302,26 @@ weighting depend on grouping; their grading policy must be explicit.
 consumption already included in its parent. It requires matching dimensions,
 compatible units and nonnegative quantities with the subset no larger than the
 parent. Sparse absent or zero subset cells leave the parent assessment unchanged.
-For a positive remainder, fully assessed parent and subset retain the parent's
-score and coverage 1; the subset's grade does not improve or dilute the parent's
-grade. If either contributing assessment is partial or unknown, the remainder's
-assessment is unknown: marginal coverage fractions cannot locate assessed energy
-within the removed subset. A fully removed quantity has no weighted assessment.
-Ordinary subtraction retains the existing magnitude-weighted combination rule.
+A grade describes the source of the numbers, and the remainder is the parent's own
+energy with a part taken out. So for a positive remainder of a fully assessed
+parent, the remainder keeps the parent's score and coverage 1, whatever the
+subset's assessment: a well-graded subset does not improve the remainder, and an
+ungraded one does not dilute it. If the parent's assessment is partial or unknown,
+the remainder's assessment is unknown: a marginal coverage fraction cannot locate
+the assessed energy within the removed subset. A fully removed quantity has no
+weighted assessment. Ordinary subtraction retains the existing magnitude-weighted
+combination rule, so every other signed correction needs a policy of its own before
+its result is frozen into a submission's indicators.
 
-BISKO uses this operation to separate municipal consumption from GHD. The
-existing global overlap boolean still gates the municipal correction; no new
-cell-level declarations or data-entry fields are required. Heat-pump electricity
-continues to use ordinary subtraction. Dataset cleaning preserves sidecars through
-its legacy wide/narrow interpolation and endpoint extension steps.
+The grade says nothing about precision. A remainder that is a small fraction of its
+parent carries the parent's absolute error and so a much larger relative one; that
+is a plausibility question, not a grading one.
+
+BISKO uses this operation to remove the heat-pump electricity from the metered
+electricity it is included in (`final_energy_use_corrected`); when the city declares
+it is not included, the subset is zero and the parent is unchanged. Dataset cleaning
+preserves sidecars through its legacy wide/narrow interpolation and endpoint
+extension steps.
 
 Exact constants and unit conversions preserve assessments. A product whose
 assessment follows one designated input carries that input's pair. A factor
