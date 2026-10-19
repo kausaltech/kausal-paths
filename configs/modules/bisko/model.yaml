@@ -1749,7 +1749,10 @@ nodes:
       categories: [electricity]
   params:
     # The heat-pump correction already includes weather correction in its own node.
-    formula: data * correction - heat_pumps
+    # remove_subset, not '-': the pump electricity is part of the metered electricity, so what
+    # remains keeps the electricity's own grade instead of mixing in the environmental heat's.
+    # When the city declares it is not included, heat_pumps is zero and nothing changes.
+    formula: remove_subset(data * correction, heat_pumps)
 
   input_validation:
     data:

@@ -469,7 +469,7 @@ class TestRemoveSubset:
         assert assessment['score'] == pytest.approx(0.375)
 
     @pytest.mark.parametrize('coverage', [0.0, 0.5])
-    def test_partial_subset_does_not_invent_remainder_coverage(self, coverage: float) -> None:
+    def test_subset_grade_does_not_affect_fully_assessed_remainder(self, coverage: float) -> None:
         total = _frame([(2020, 'gas', 100.0, 1.0, True)])
         subset = _frame([(2020, 'gas', 20.0, 0.5, True)]).with_columns(
             qualifiers.make(
@@ -478,6 +478,17 @@ class TestRemoveSubset:
                 assessments={'quality': qualifiers.covered_score(pl.lit(0.5), pl.lit(coverage))},
             ).alias(QUAL)
         )
+        assert _qual(total.paths.remove_subset(subset))[(2020, 'gas')]['quality'] == {'score': 1.0, 'coverage': 1.0}
+
+    def test_partial_parent_does_not_invent_remainder_coverage(self) -> None:
+        total = _frame([(2020, 'gas', 100.0, 1.0, True)]).with_columns(
+            qualifiers.make(
+                catalog=TEST_CATALOG,
+                reported=pl.lit(value=True),
+                assessments={'quality': qualifiers.covered_score(pl.lit(1.0), pl.lit(0.6))},
+            ).alias(QUAL)
+        )
+        subset = _frame([(2020, 'gas', 20.0, 1.0, True)])
         assert _qual(total.paths.remove_subset(subset))[(2020, 'gas')]['quality'] is None
 
     def test_zero_subset_preserves_partial_parent_and_zero_remainder_has_no_grade(self) -> None:

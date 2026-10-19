@@ -392,10 +392,12 @@ def remove_subset(
     catalog: QualifierCatalog,
 ) -> pl.Expr:
     """
-    Keep the parent's assessment for a fully assessed sector separation.
+    Keep the parent's assessment for the remainder of a fully assessed parent.
 
-    Partial assessments do not determine the assessed share of the remainder.
-    A zero/absent subset changes nothing; a zero remainder has no weighted grade.
+    The remainder is the parent's own energy, so it keeps the parent's source
+    grade whatever the subset's grade is. A partially assessed parent does not
+    determine the assessed share of its remainder. A zero/absent subset changes
+    nothing; a zero remainder has no weighted grade.
     """
     fields = []
     unchanged = pl.col(subset_value).fill_null(0.0) == 0
@@ -409,8 +411,7 @@ def remove_subset(
             expr = pl.when(unchanged).then(parent).otherwise(combine_sources(parent, child))
         else:
             score, coverage, _reported = _fields(total_qual, definition.identifier)
-            _child_score, child_coverage, _reported = _fields(subset_qual, definition.identifier)
-            known = (coverage == 1) & (child_coverage == 1) & (remaining > 0)
+            known = (coverage == 1) & (remaining > 0)
             expr = (
                 pl
                 .when(unchanged)
