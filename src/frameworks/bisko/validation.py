@@ -18,11 +18,21 @@ if TYPE_CHECKING:
     from kausal_common.datasets.models import Dataset
 
 
-def check_instance_problems(instance: InstanceConfig, *, ignore_problems: bool = False) -> None:
-    problems = collect_instance_problems(instance).blocking('publish')
-    if not problems.messages:
+def publish_problem_messages(instance: InstanceConfig) -> list[str]:
+    return collect_instance_problems(instance).blocking('publish').messages
+
+
+def check_instance_problems(instance: InstanceConfig, *, ignore_problems: bool = False, known: set[str] | None = None) -> None:
+    """
+    Refuse when the instance has problems that block publication.
+
+    `known` are problems the instance had before the operation being checked; they are the
+    instance's own unfinished work, not something the operation caused, and do not refuse it.
+    """
+    messages = [item for item in publish_problem_messages(instance) if item not in (known or set())]
+    if not messages:
         return
-    message = f'{instance.identifier}: instance problems:\n' + '\n'.join(f'- {item}' for item in problems.messages)
+    message = f'{instance.identifier}: instance problems:\n' + '\n'.join(f'- {item}' for item in messages)
     if not ignore_problems:
         raise ValueError(message)
     logger.warning('{}\nProceeding because --ignore-problems was specified.', message)
@@ -43,9 +53,12 @@ def publish_checked_template(
 @transaction.atomic
 def upgrade_checked_instance(instance: InstanceConfig, revision: Revision, *, ignore_problems: bool = False) -> None:
     instance = InstanceConfig.objects.select_for_update().get(pk=instance.pk)
+    # An upgrade must not make a municipality unpublishable, but data it has not finished
+    # entering -- a value still without its grade, say -- is not the upgrade's to refuse.
+    known = set(publish_problem_messages(instance))
     upgrade_template_instance(instance, revision)
     instance.refresh_from_db()
     # The upgrade gives a new population input an empty copy; the series at the pin fills it.
     if POPULATION_DATASET in {dataset.identifier for dataset in template_snapshot(instance).all_datasets()}:
         seed_population_from_pin(instance)
-    check_instance_problems(instance, ignore_problems=ignore_problems)
+    check_instance_problems(instance, ignore_problems=ignore_problems, known=known)
