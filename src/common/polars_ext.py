@@ -1346,8 +1346,10 @@ class PathsExt:
         covered_cells = covered_cells.with_columns([pl.col(d).cast(t) for d, t in dim_types.items()])
         joined = joined.join(covered_cells, on=cov_keys, how='left').with_columns(pl.col('_Covered').fill_null(value=False))
         is_covered = pl.col('_Covered')
+        qual_exprs = self._choice_qualifier_exprs(self._df, odf, out_col, '_Fallback', is_covered)
         exprs = [
             pl.when(is_covered).then(pl.col(out_col)).otherwise(pl.col('_Fallback')).alias(out_col),
+            *qual_exprs,
         ]
         if both_have_forecast:
             exprs.append(
@@ -1479,12 +1481,8 @@ class PathsExt:
         )
         split = split.with_columns((pl.col(val_col) * pl.col('_Share')).alias(val_col)).drop(['_Agg', '_Share'])
         combined = pl.concat([passthrough, split.select(passthrough.columns)], how='vertical')
-        agg_exprs = [pl.col(val_col).sum()]
-        if FORECAST_COLUMN in combined.columns:
-            agg_exprs.append(pl.col(FORECAST_COLUMN).any())
-        combined = combined.group_by([*other_keys, dim], maintain_order=True).agg(agg_exprs)
         combined = combined.with_columns([pl.col(k).cast(t) for k, t in key_types.items()])
-        return ppl.to_ppdf(combined.select(df.columns), meta=meta)
+        return ppl.to_ppdf(combined.select(df.columns), meta=meta).paths.sum_over_dims([])
 
     def compare_df(  # Based on add_with_dims
         self,

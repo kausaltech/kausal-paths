@@ -270,11 +270,6 @@ class UseExergeticDistrictHeating(BoolGlobalParameter):
     id = 'use_exergetic_district_heating'
 
 
-class MunicipalFacilitiesIncludedInCommerce(BoolGlobalParameter):
-    name = _('Is the consumption of municipal facilities included in the commerce, trade and services sector?')
-    id = 'municipal_facilities_included_in_commerce'
-
-
 class HeatPumpElectricityIncludedInElectricity(BoolGlobalParameter):
     name = _('Is the electricity consumption of heat pumps included in the reported electricity consumption?')
     id = 'heat_pump_electricity_included_in_electricity'
