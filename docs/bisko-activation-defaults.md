@@ -6,9 +6,11 @@ municipalities without instances. Municipal per-capita plausibility checks use t
 population dataset; territory references continue to describe provider values.
 
 The population extension is included explicitly by `configs/bisko.yaml`; the shared BISKO module
-retains its existing population definition for other city YAML models. The template prefers local
-population per year, with GISCO as the fallback while its municipal table is empty. Activated
-municipalities receive the complete prepared series.
+retains its existing population definition for other city YAML models. The template reads only
+the municipality's own series; GISCO is not a fallback. Activated municipalities receive the
+complete prepared series, and a template upgrade (`setup_bisko --publish`) seeds it into
+municipalities that predate the population input. The prepared series covers Niedersachsen,
+Rheinland-Pfalz and Brandenburg, which is where activation is possible.
 
 Activation reads `bisko/defaults/population` and `bisko/defaults/stationary_energy` from the DVC commit
 in the municipality's **published template revision**. Weather defaults use that pin too. Both source datasets and both municipal input slots are required;
@@ -80,8 +82,11 @@ The refresh uses `bisko/defaults/population` when available, retaining GISCO for
 publication rejects population-reference revisions differing from its dataset pin. Publishing
 does not advance dependent instances automatically.
 
-New activations receive local defaults. Upgrade existing municipalities' template pins first,
-then preview and apply:
+New activations receive local defaults. A template upgrade gives a municipality its own empty
+copy of any municipal input the new revision introduces (generic, in `upgrade_template_instance`),
+and the BISKO upgrade then refreshes population from the new pin. Energy defaults are not seeded
+on upgrade, so a grid left empty on purpose stays empty. To seed them into existing
+municipalities, upgrade their template pins first, then preview and apply:
 
 ```sh
 python manage.py refresh_bisko_defaults --instance bisko-<ags>
