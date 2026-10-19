@@ -5,11 +5,13 @@ An input contract used to list its required combinations itself (`combinations`)
 are now required groups of a shape the contract refers to, and the field is gone, so stored
 node rows and the template's published revisions that still carry it no longer parse. The value
 contracts were only ever deployed to the data-studio staging backend, so instead of keeping the
-old field readable, `setup_bisko` rewrites what is stored:
+old field readable, `setup_bisko` rewrites what is stored, by the rule of
+`retire_port_combinations_v15`. A per-combination list is dropped and reported: the template's
+next sync declares it as the shape's required groups, and its dependants are upgraded off the old
+revisions in the same run.
 
-- a list naming no categories (a value in each year) becomes `required: true`;
-- a per-combination list is dropped and reported: the template's next sync declares it as the
-  shape's required groups, and its dependants are upgraded off the old revisions in the same run.
+Revisions older than snapshot v15 are also rewritten on read, which is what lets the migrations
+that load them run before this does; the revision pass here covers the rest.
 
 Remove this module once staging has run it.
 """
@@ -21,33 +23,15 @@ from django.contrib.contenttypes.models import ContentType
 from django.db import connection
 from wagtail.models import Revision
 
-from nodes.instance_serialization import InstanceSnapshot
+from nodes.instance_serialization import InstanceSnapshot, retire_port_combinations_v15
 from nodes.models import InstanceConfig, NodeConfig
 from nodes.template_graph import snapshot_content_hash
 
 
-def _upgrade_contract(contract: dict[str, Any]) -> int:
-    """Rewrite one stored contract in place; return the number of per-combination requirements dropped."""
-    combinations = contract.pop('combinations', None)
-    if not combinations:
-        return 0
-    if all(not combination.get('categories') for combination in combinations):
-        contract['required'] = True
-        qualifiers = combinations[0].get('qualifiers') or {}
-        if qualifiers:
-            contract['qualifiers'] = qualifiers
-        return 0
-    return len(combinations)
-
-
 def _upgrade_node_spec(spec: dict[str, Any]) -> tuple[bool, int]:
-    changed, dropped = False, 0
-    for port in spec.get('input_ports') or []:
-        contract = port.get('validation')
-        if isinstance(contract, dict) and 'combinations' in contract:
-            dropped += _upgrade_contract(contract)
-            changed = True
-    return changed, dropped
+    ports = spec.get('input_ports') or []
+    changed = any(isinstance(port.get('validation'), dict) and 'combinations' in port['validation'] for port in ports)
+    return changed, retire_port_combinations_v15(spec) if changed else 0
 
 
 def retire_legacy_value_contracts() -> list[str]:
