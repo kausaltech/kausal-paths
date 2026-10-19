@@ -14,6 +14,7 @@ from kausal_common.i18n.pydantic import TranslatedString
 
 from nodes.defs.instance_defs import InstanceModelSpec, YearsSpec
 from nodes.defs.node_defs import ActionConfig, DatasetPortSpec, InputDatasetDef, NodeSpec
+from nodes.defs.port_def import InputPortDef
 from nodes.defs.transform_def import forecast_from_transformations
 from nodes.instance_serialization import (
     SNAPSHOT_SCHEMA_VERSION,
@@ -186,6 +187,41 @@ def test_snapshot_v9_upgrade_adds_action_group_uuids_and_rewrites_references():
     assert snapshot.nodes[0].spec is not None
     assert isinstance(snapshot.nodes[0].spec.type_config, ActionConfig)
     assert snapshot.nodes[0].spec.type_config.group == expected_uuid
+
+
+def test_snapshot_v14_upgrade_retires_port_combinations():
+    """A contract that still lists its combinations loads: a category-free list becomes `required`."""
+    every_year, per_combination = (InputPortDef(id=uuid.uuid4()).model_dump(mode='json') for _ in range(2))
+    quality = {'bisko_quality': {'min': 1.0, 'present': True}}
+    every_year['validation'] = {'combinations': [{'categories': {}, 'qualifiers': quality}]}
+    per_combination['validation'] = {
+        'combinations': [{'categories': {'energy_carrier': 'electricity'}, 'qualifiers': {}}],
+        'years': 'active',
+    }
+    legacy = {
+        'schema_version': 14,
+        'spec': InstanceModelSpec(years=YearsSpec(target=2030)).model_dump(mode='json'),
+        'nodes': [
+            {
+                'uuid': str(uuid.uuid4()),
+                'identifier': 'energy',
+                'spec': {**NodeSpec().model_dump(mode='json'), 'input_ports': [every_year, per_combination]},
+            }
+        ],
+        'bindings': [],
+    }
+
+    snapshot = InstanceSnapshot.from_serialized_data(legacy, compose=False)
+
+    spec = snapshot.nodes[0].spec
+    assert spec is not None
+    required, dropped = (port.validation for port in spec.input_ports)
+    assert required is not None
+    assert required.required
+    assert required.qualifiers['bisko_quality'].min == 1.0
+    assert dropped is not None
+    assert not dropped.required
+    assert dropped.years == 'active'
 
 
 def test_i18n_node_metadata_stays_dict_serializable():
