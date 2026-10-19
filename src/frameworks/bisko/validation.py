@@ -6,9 +6,11 @@ from django.db import transaction
 
 from loguru import logger
 
+from frameworks.bisko.default_sources import POPULATION_DATASET
+from frameworks.bisko.defaults import seed_population_from_pin
 from nodes.instance_problems import collect_instance_problems
 from nodes.models import InstanceConfig
-from nodes.template_graph import publish_template_instance, upgrade_template_instance
+from nodes.template_graph import publish_template_instance, template_snapshot, upgrade_template_instance
 
 if TYPE_CHECKING:
     from wagtail.models import Revision
@@ -43,4 +45,7 @@ def upgrade_checked_instance(instance: InstanceConfig, revision: Revision, *, ig
     instance = InstanceConfig.objects.select_for_update().get(pk=instance.pk)
     upgrade_template_instance(instance, revision)
     instance.refresh_from_db()
+    # The upgrade gives a new population input an empty copy; the series at the pin fills it.
+    if POPULATION_DATASET in {dataset.identifier for dataset in template_snapshot(instance).all_datasets()}:
+        seed_population_from_pin(instance)
     check_instance_problems(instance, ignore_problems=ignore_problems)

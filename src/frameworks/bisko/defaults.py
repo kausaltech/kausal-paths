@@ -51,19 +51,18 @@ class ProviderDefaults(BaseModel):
     overrides: set[str] = Field(default_factory=set)
 
 
-def load_activation_sources(instance: InstanceConfig) -> tuple[pl.DataFrame, pl.DataFrame, str]:
+def _load_sources(instance: InstanceConfig, *identifiers: str) -> tuple[list[pl.DataFrame], str]:
     spec = template_snapshot(instance).spec.dataset_repo
     if spec is None or spec.commit is None:
         raise ValueError('Activation defaults require a pinned published template dataset repository.')
     repo = build_dataset_repo(spec)
-    missing = [identifier for identifier in (POPULATION_SOURCE, ENERGY_SOURCE) if not repo.has_dataset(identifier)]
+    missing = [identifier for identifier in identifiers if not repo.has_dataset(identifier)]
     if missing:
         raise ValueError(f'Published template dataset pin lacks activation defaults: {missing}')
-    population = repo.load_dataset(POPULATION_SOURCE).df
-    energy = repo.load_dataset(ENERGY_SOURCE).df
-    if population is None or energy is None:
+    frames = [repo.load_dataset(identifier).df for identifier in identifiers]
+    if any(frame is None for frame in frames):
         raise ValueError('Activation default sources lack dataframes.')
-    return population, energy, spec.commit
+    return [frame for frame in frames if frame is not None], spec.commit
 
 
 def _provider_owned(point: DataPoint, previous: ProviderCell | None) -> bool:
@@ -224,15 +223,14 @@ def seed_energy_defaults(  # noqa: C901
     return changed
 
 
-def seed_activation_defaults(instance: InstanceConfig, local: dict[str, Dataset]) -> None:
-    missing = {POPULATION_DATASET, ENERGY_DATASET} - local.keys()
-    if missing:
-        raise ValueError(f'Upgrade the published BISKO template before activation; missing municipal inputs: {sorted(missing)}')
-    population, energy, revision = load_activation_sources(instance)
+def _municipality_ags(instance: InstanceConfig) -> str:
     organization = instance.organization
     assert organization is not None
-    ags = organization.identifiers.get(namespace__identifier='ags').identifier
-    values = [
+    return organization.identifiers.get(namespace__identifier='ags').identifier
+
+
+def _population_values(population: pl.DataFrame, ags: str) -> list[PopulationDefault]:
+    return [
         PopulationDefault(
             ags=ags, year=year, value=value, is_forecast=forecast, provenance=DefaultProvenance.model_validate_json(provenance)
         )
@@ -241,7 +239,32 @@ def seed_activation_defaults(instance: InstanceConfig, local: dict[str, Dataset]
         .select('Year', 'population', 'Forecast', 'provenance')
         .iter_rows()
     ]
-    seed_population_defaults(instance, local[POPULATION_DATASET], values, source_revision=revision)
+
+
+def seed_population_from_pin(instance: InstanceConfig) -> int:
+    """
+    Refresh the municipality's own population from the series at its published template's pin.
+
+    Run after an upgrade, which may bring the population input or a newer series. Municipal
+    edits are kept; energy defaults are left to activation and `refresh_bisko_defaults`, since a
+    grid emptied on purpose must not be refilled by moving the template.
+    """
+    dataset = Dataset.objects.for_instance_config(instance).filter(identifier=POPULATION_DATASET).first()
+    if dataset is None or dataset.scope_instance.pk != instance.pk:
+        raise ValueError(f'{instance.identifier} has no population input of its own.')
+    (population,), revision = _load_sources(instance, POPULATION_SOURCE)
+    return seed_population_defaults(
+        instance, dataset, _population_values(population, _municipality_ags(instance)), source_revision=revision
+    )
+
+
+def seed_activation_defaults(instance: InstanceConfig, local: dict[str, Dataset]) -> None:
+    missing = {POPULATION_DATASET, ENERGY_DATASET} - local.keys()
+    if missing:
+        raise ValueError(f'Upgrade the published BISKO template before activation; missing municipal inputs: {sorted(missing)}')
+    (population, energy), revision = _load_sources(instance, POPULATION_SOURCE, ENERGY_SOURCE)
+    ags = _municipality_ags(instance)
+    seed_population_defaults(instance, local[POPULATION_DATASET], _population_values(population, ags), source_revision=revision)
     cells = [
         EnergyDefault(
             ags=ags,
