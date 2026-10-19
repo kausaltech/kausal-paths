@@ -429,6 +429,34 @@ def upgrade_node_references_v16(nodes: Iterable[dict[str, Any]], uuid_by_identif
     return changed
 
 
+def retire_port_combinations_v15(spec: dict[str, Any]) -> int:
+    """
+    Rewrite input contracts that still list their combinations, in place.
+
+    Before shapes, a contract listed its required combinations itself (``combinations``); the
+    field is gone and ``ValueContract`` forbids unknown keys. A list naming no categories (a value
+    in each year) becomes ``required``, with that entry's qualifier requirements. A
+    per-combination list is dropped: it is now a shape's required groups, which the
+    template declares. Returns the number of per-combination requirements dropped.
+    """
+    dropped = 0
+    for port in spec.get('input_ports') or []:
+        contract = port.get('validation')
+        if not isinstance(contract, dict) or 'combinations' not in contract:
+            continue
+        combinations = contract.pop('combinations') or []
+        if not combinations:
+            continue
+        if all(not combination.get('categories') for combination in combinations):
+            contract['required'] = True
+            qualifiers = combinations[0].get('qualifiers') or {}
+            if qualifiers:
+                contract['qualifiers'] = qualifiers
+        else:
+            dropped += len(combinations)
+    return dropped
+
+
 def drop_dead_node_spec_fields_v17(spec: dict[str, Any]) -> bool:
     """
     Remove ``NodeSpec.pipeline`` and ``NodeSpecExtra.other`` from a stored spec, in place.
@@ -1026,6 +1054,12 @@ def _node_list(data: dict[str, Any]) -> list[dict[str, Any]]:
     return data.setdefault('nodes', [])
 
 
+def _retire_port_combinations_v15(data: dict[str, Any]) -> None:
+    for node in _node_list(data):
+        if isinstance(node.get('spec'), dict):
+            retire_port_combinations_v15(node['spec'])
+
+
 def _drop_dead_node_spec_fields_v17(data: dict[str, Any]) -> None:
     for node in _node_list(data):
         if isinstance(node.get('spec'), dict):
@@ -1039,6 +1073,7 @@ _SNAPSHOT_UPGRADERS: tuple[tuple[int, Callable[[dict[str, Any]], object]], ...] 
     (10, _upgrade_action_group_references_v10),
     (11, _upgrade_bindings_v11),
     (13, upgrade_formula_specs_v13),
+    (15, _retire_port_combinations_v15),
     (15, upgrade_dataset_catalog_v15),
     (
         16,
