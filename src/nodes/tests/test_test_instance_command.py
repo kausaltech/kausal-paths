@@ -278,10 +278,12 @@ def test_old_reference_defaults_to_no_problems() -> None:
 
 
 @pytest.mark.parametrize('spec_only', [False, True])
-def test_check_instance_fails_on_problem_changes_after_testing(monkeypatch: pytest.MonkeyPatch, *, spec_only: bool) -> None:
+@pytest.mark.parametrize('ignore_problems', [False, True])
+def test_check_instance_problem_policy(monkeypatch: pytest.MonkeyPatch, *, spec_only: bool, ignore_problems: bool) -> None:
     command = make_command(reference_failed=False)
     command.logger = loguru.logger
     command.spec_only = spec_only
+    command.ignore_problems = ignore_problems
     command.store = False
     command.include_impacts = False
     command.trace_rss = command.trace_tracemalloc = command.trace_new_objects = False
@@ -294,7 +296,12 @@ def test_check_instance_fails_on_problem_changes_after_testing(monkeypatch: pyte
     )
     instance = cast('Instance', SimpleNamespace(id='test-instance', context=ctx, clean=lambda: events.append('clean')))
     config = cast('InstanceConfig', SimpleNamespace(identifier='test-instance', get_instance=lambda: instance))
-    monkeypatch.setattr(command, 'collect_problems', lambda _ic, _instance: [make_problem()])
+
+    def collect_problems(_ic: InstanceConfig, _instance: Instance) -> list[ProblemDetail]:
+        assert not ignore_problems, 'Ignored validation must not require a synchronized DB mirror'
+        return [make_problem()]
+
+    monkeypatch.setattr(command, 'collect_problems', collect_problems)
 
     def run_nodes(_logger: loguru.Logger, _ctx: Context) -> bool:
         events.append('nodes')
@@ -317,6 +324,6 @@ def test_check_instance_fails_on_problem_changes_after_testing(monkeypatch: pyte
 
     monkeypatch.setattr(command, 'check_problems', check_problems)
 
-    assert not command.check_instance(config)
+    assert command.check_instance(config) == ignore_problems
     assert events == (['problems', 'clean'] if spec_only else ['nodes', 'problems', 'clean'])
-    assert command.state.instance_details[0].failure_at == 'problems'
+    assert command.state.instance_details[0].failure_at == (None if ignore_problems else 'problems')
