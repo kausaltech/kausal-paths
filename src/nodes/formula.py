@@ -634,6 +634,8 @@ class FormulaNode(Node):
         assert isinstance(preferred, PDF)
         assert isinstance(fallback, PDF)
         assert isinstance(coverage, PDF)
+        preferred = self._selected_source(preferred, node.args[0], varss)
+        fallback = self._selected_source(fallback, node.args[1], varss)
         return preferred.paths.prefer_by_cell(fallback, coverage)
 
     def _custom_split_categories(self, _func: str, node: ast.Call, varss: EvalVars, _df: EvalOutput) -> EvalOutput:

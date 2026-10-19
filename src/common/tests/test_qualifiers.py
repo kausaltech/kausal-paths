@@ -90,6 +90,34 @@ def _qual(df: ppl.PathsDataFrame) -> dict[tuple[int | str, ...], FixtureQualifie
 
 
 class TestPairing:
+    def test_cell_selection_keeps_each_sources_grade_and_provenance(self) -> None:
+        own = qualifiers.with_selected_source(_frame([(2020, 'gas', 0.0, 1.0, True)]), 'municipal')
+        default = qualifiers.with_selected_source(
+            _frame([(2020, 'gas', 100.0, 0.5, False), (2020, 'electricity', 200.0, 0.5, False)]), 'provider'
+        )
+        coverage = _frame([(2020, 'gas', 1.0, None, None)], unit='dimensionless', qualified=False)
+
+        selected = own.paths.prefer_by_cell(default, coverage)
+
+        rows = {row['energy_carrier']: row for row in selected.to_dicts()}
+        assert rows['gas'][VALUE_COLUMN] == 0
+        assert rows['gas'][QUAL]['quality'] == {'score': 1.0, 'coverage': 1.0}
+        assert rows['gas'][QUAL]['sources'] == ['municipal']
+        assert rows['electricity'][VALUE_COLUMN] == 200
+        assert rows['electricity'][QUAL]['quality'] == {'score': 0.5, 'coverage': 1.0}
+        assert rows['electricity'][QUAL]['sources'] == ['provider']
+
+    def test_category_split_keeps_the_measured_grade_and_source(self) -> None:
+        measured = qualifiers.with_selected_source(_frame([(2020, 'blend', 100.0, 1.0, True)]), 'municipal')
+        reference = _frame([(2020, 'gas', 3.0, 0.5, False), (2020, 'electricity', 1.0, 0.5, False)])
+
+        split = measured.paths.split_categories(reference, 'energy_carrier', {'blend': ['gas', 'electricity']})
+
+        assert sorted(split[VALUE_COLUMN].to_list()) == [25.0, 75.0]
+        for row in split.to_dicts():
+            assert row[QUAL]['quality'] == {'score': 1.0, 'coverage': 1.0}
+            assert row[QUAL]['sources'] == ['municipal']
+
     @pytest.mark.parametrize('qualified_side', ['left', 'right', 'both', 'neither'])
     def test_stacking_aligns_columns_without_reassigning_values_or_qualifiers(self, qualified_side: str) -> None:
         left = _frame([(2020, 'gas', 3.0, 1.0, True)], qualified=qualified_side in ('left', 'both'))

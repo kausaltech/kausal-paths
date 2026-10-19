@@ -9,14 +9,12 @@ import pytest
 
 from kausal_common.i18n.pydantic import TranslatedString
 
-from nodes.constants import FORECAST_COLUMN, YEAR_COLUMN
-from nodes.node import Node, NodeMetric
-from nodes.tests.factories import InstanceConfigFactory, InstanceFactory
-
-
 from common import polars as ppl, qualifiers
+from nodes.constants import FORECAST_COLUMN, YEAR_COLUMN
 from nodes.metric import CoveredScoreQualifier, DimensionalMetric, MetricCategory, MetricDimension, ReportingQualifier
 from nodes.metric_gen import _indexed_output_data, metric_from_dataframe_standalone
+from nodes.node import Node, NodeMetric
+from nodes.tests.factories import InstanceConfigFactory, InstanceFactory
 from nodes.units import unit_registry
 
 if TYPE_CHECKING:
