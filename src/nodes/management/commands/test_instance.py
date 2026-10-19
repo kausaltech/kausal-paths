@@ -1228,7 +1228,7 @@ class Command(BaseCommand):
         instance_details = self.state.add_instance(instance_id)
         try:
             instance = ic.get_instance()
-            problems = self.collect_problems(ic, instance)
+            problems = [] if self.ignore_problems else self.collect_problems(ic, instance)
         except Exception as e:
             logger.error('Error initializing instance %s' % instance_id)
             print_exception(e)
