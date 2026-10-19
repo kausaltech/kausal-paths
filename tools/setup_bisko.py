@@ -39,6 +39,7 @@ def main() -> None:
     from django.db import transaction
 
     from frameworks.bisko.legacy_contracts import retire_legacy_value_contracts
+    from frameworks.bisko.legacy_road_fuels import fold_road_biofuels
     from frameworks.bisko.provisioning import setup_bisko
     from frameworks.bisko.quality import provision_bisko_quality_projections
 
@@ -46,6 +47,9 @@ def main() -> None:
         with transaction.atomic():
             # Runs before anything parses the stored node specs; a no-op once done.
             for change in retire_legacy_value_contracts():
+                print(change)
+            # Before the upgrades, which the folded cells would otherwise refuse; a no-op once done.
+            for change in fold_road_biofuels():
                 print(change)
             if args.sync_template:
                 call_command('sync_instance_to_db', args.template)
