@@ -8,6 +8,7 @@ from kausal_common.datasets.models import DatasetMetricValidationRule
 from kausal_common.datasets.tests.factories import DataPointFactory, DatasetFactory, DatasetMetricFactory
 from kausal_common.i18n.pydantic import set_i18n_context
 
+from common.validation import ValidationRuleEnforcement
 from datasets.validation import RuleViolation
 from frameworks.bisko.provisioning import reconcile_bisko_default_quality
 from frameworks.bisko.validation import publish_checked_template, upgrade_checked_instance
@@ -156,7 +157,7 @@ def test_pin_upgrade_allows_visible_submission_only_problems(framework: Framewor
                 metric_uuid=uuid4(),
                 metric='Value',
                 kind='no_gaps',
-                enforcement='block_submission',
+                enforcement=ValidationRuleEnforcement.BLOCK_SUBMISSION,
                 message='Inventory has gaps',
             )
         ],
@@ -168,7 +169,7 @@ def test_pin_upgrade_allows_visible_submission_only_problems(framework: Framewor
                 code='missing_required_value',
                 message='Municipal input is incomplete',
                 years=[2023],
-                enforcement='block_submission',
+                enforcement=ValidationRuleEnforcement.BLOCK_SUBMISSION,
             )
         ],
     )
@@ -199,7 +200,7 @@ def test_pin_upgrade_refuses_only_problems_it_introduces(
             metric_uuid=uuid4(),
             metric='Value',
             kind='requires_metric',
-            enforcement='block_publish',
+            enforcement=ValidationRuleEnforcement.BLOCK_PUBLISH,
             message=message,
         )
 

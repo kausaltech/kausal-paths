@@ -13,23 +13,15 @@ rule union is referenced from the instance-graph catalog
 (``nodes.defs.graph.DatasetMetricMeta``) and from dataset snapshots. The
 evaluator lives in ``datasets.validation``.
 
-Enforcement semantics:
-
-* ``block_edit`` — a mutation that introduces *new* violations of the rule
-  is rejected (baseline-diff: pre-existing violations never block an
-  unrelated edit, mirroring ``validate_binding_change``).
-* ``block_publish`` — edits are allowed and the violations surface in the
-  UI, but the instance publication gate refuses while any remain.
-
-* ``block_submission`` — edits and publication are allowed; submission is refused
-  while violations remain.
+Each rule's ``enforcement`` is a ``common.validation.ValidationRuleEnforcement``, which
+documents the tiers; ``block_edit`` uses a baseline diff, so pre-existing violations never block
+an unrelated edit (mirroring ``validate_binding_change``).
 """
 
-from enum import Enum as PyEnum
 from typing import Annotated, Any, Literal, assert_never
 
 import strawberry as sb
-from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, model_validator
 from strawberry import auto
 
 from kausal_common.strawberry.pydantic import (
@@ -41,41 +33,16 @@ from kausal_common.strawberry.pydantic import (
 
 from paths.refs import ShapeCombinationRef
 
-from common.validation import Enforcement
+from common.validation import PublishOrSubmitEnforcement, ValidationRuleEnforcement
 
-
-@sb.enum(
-    name='DatasetRuleEnforcement',
-    description=(
-        'BLOCK_EDIT rules reject mutations that introduce new violations; '
-        'BLOCK_PUBLISH rules allow edits but block publication; BLOCK_SUBMISSION rules block only submission.'
-    ),
-)
-class DatasetRuleEnforcement(PyEnum):
-    BLOCK_EDIT = 'block_edit'
-    BLOCK_PUBLISH = 'block_publish'
-    BLOCK_SUBMISSION = 'block_submission'
-
-
-# The GraphQL projections carry ``enforcement`` as the enum; the conversions
-# swap it in for both the alias and the narrowed literal ``NoGapsRule`` uses.
-register_type_conversion(Enforcement, DatasetRuleEnforcement)
-register_type_conversion(Literal['block_publish', 'block_submission'], DatasetRuleEnforcement)
+# GraphQL has no narrowed enum; the narrowed tier projects as the full one, validated on input.
+register_type_conversion(PublishOrSubmitEnforcement, ValidationRuleEnforcement)
 
 
 class _RuleBase(BaseModel):
     model_config = ConfigDict(extra='forbid')
 
-    enforcement: Enforcement
-
-    @field_validator('enforcement', mode='before')
-    @classmethod
-    def _enforcement_from_enum(cls, value: object) -> object:
-        # Accept the GraphQL enum (or any value-compatible enum), so the
-        # derived input types round-trip through ``to_pydantic``.
-        if isinstance(value, PyEnum):
-            return value.value
-        return value
+    enforcement: ValidationRuleEnforcement
 
 
 @pydantic_type(_RuleBase, is_interface=True, name='ValidationRule')
@@ -164,7 +131,7 @@ class NoGapsRule(_RuleBase):
     """
 
     kind: Literal['no_gaps'] = 'no_gaps'
-    enforcement: Literal['block_publish', 'block_submission'] = 'block_publish'
+    enforcement: PublishOrSubmitEnforcement = ValidationRuleEnforcement.BLOCK_PUBLISH
 
     class ObjectType(ValidationRuleGQLInterface):
         enforcement: auto

@@ -14,6 +14,7 @@ import strawberry as sb
 
 from paths.graphql_types import UnitType
 
+from common.validation import ValidationRuleEnforcement
 from nodes.constraints.values import (
     BindingValue,
     ConstraintConflict,
@@ -26,7 +27,7 @@ from nodes.constraints.values import (
     ValueKey,
 )
 from nodes.defs.binding_def import EdgeBindingDef
-from nodes.graphql.types.problems import InstanceProblemInterface, ProblemEnforcement, ProblemSeverity
+from nodes.graphql.types.problems import InstanceProblemInterface, ProblemSeverity
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -89,7 +90,7 @@ class ConstraintConflictType(InstanceProblemInterface):
             code=conflict.code,
             message=conflict.message,
             severity=ProblemSeverity.ERROR,
-            enforcement=ProblemEnforcement.BLOCK_EDIT,
+            enforcement=ValidationRuleEnforcement.BLOCK_EDIT,
             value=ConstraintValueRefType.from_value(conflict.value) if conflict.value is not None else None,
             origins=[ConstraintOriginType.from_origin(origin) for origin in conflict.origins],
         )

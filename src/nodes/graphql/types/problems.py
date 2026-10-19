@@ -14,6 +14,7 @@ import strawberry as sb
 
 from paths.graphql_types import UnitType
 
+from common.validation import ValidationRuleEnforcement
 from datasets.graphql.enums import PlausibilityAggregation, PlausibilityReference
 from nodes.units import Unit, unit_registry
 
@@ -33,24 +34,17 @@ class ProblemSeverity(Enum):
     WARNING = 'warning'
 
 
-@sb.enum(name='ProblemEnforcement')
-class ProblemEnforcement(Enum):
-    BLOCK_EDIT = 'block_edit'
-    BLOCK_PUBLISH = 'block_publish'
-    BLOCK_SUBMISSION = 'block_submission'
-
-
 @sb.interface(name='InstanceProblem', description='One problem that blocks publication or submission of the instance draft.')
 class InstanceProblemInterface:
     code: str = sb.field(description='Machine-readable problem kind.')
     message: str = sb.field(description='Untranslated human-readable fallback.')
     severity: ProblemSeverity
-    enforcement: ProblemEnforcement
+    enforcement: ValidationRuleEnforcement
 
 
 @sb.type(name='DataEntryDefinitionProblem', description='An invalid data-entry layout; drafts remain editable.')
 class DataEntryDefinitionProblemType(InstanceProblemInterface):
-    enforcement: ProblemEnforcement
+    enforcement: ValidationRuleEnforcement
     section_id: UUID | None
     node_id: UUID | None
     port_id: UUID | None
@@ -62,7 +56,7 @@ class DataEntryDefinitionProblemType(InstanceProblemInterface):
             code=problem.code,
             message=problem.message,
             severity=ProblemSeverity.ERROR,
-            enforcement=ProblemEnforcement.BLOCK_PUBLISH,
+            enforcement=ValidationRuleEnforcement.BLOCK_PUBLISH,
             section_id=problem.section_id,
             node_id=problem.node_id,
             port_id=problem.port_id,
@@ -94,15 +88,17 @@ class NodeValueValidationViolationType(InstanceProblemInterface):
     binding_uuid: UUID | None
     years: list[int]
     categories: list[NodeValueCoordinateType]
-    enforcement: ProblemEnforcement
+    enforcement: ValidationRuleEnforcement
 
     @classmethod
     def from_violation(cls, violation: ValueValidationViolation) -> Self:
         return cls(
             code=violation.code,
             message=violation.message,
-            severity=ProblemSeverity.ERROR if violation.enforcement == 'block_publish' else ProblemSeverity.WARNING,
-            enforcement=ProblemEnforcement(violation.enforcement),
+            severity=ProblemSeverity.ERROR
+            if violation.enforcement == ValidationRuleEnforcement.BLOCK_PUBLISH
+            else ProblemSeverity.WARNING,
+            enforcement=violation.enforcement,
             node_uuid=violation.node_uuid,
             port_uuid=violation.port_uuid,
             binding_uuid=violation.binding_uuid,
@@ -148,15 +144,17 @@ class DatasetFindingInterface:
     description='One located violation of a dataset metric validation rule.',
 )
 class DatasetValidationViolationType(InstanceProblemInterface, DatasetFindingInterface):
-    enforcement: ProblemEnforcement
+    enforcement: ValidationRuleEnforcement
 
     @classmethod
     def from_violation(cls, violation: RuleViolation) -> Self:
         return cls(
             code=violation.kind,
             message=violation.message,
-            severity=ProblemSeverity.ERROR if violation.enforcement == 'block_edit' else ProblemSeverity.WARNING,
-            enforcement=ProblemEnforcement(violation.enforcement),
+            severity=ProblemSeverity.ERROR
+            if violation.enforcement == ValidationRuleEnforcement.BLOCK_EDIT
+            else ProblemSeverity.WARNING,
+            enforcement=violation.enforcement,
             rule_uuid=violation.rule_uuid,
             metric_uuid=violation.metric_uuid,
             metric=violation.metric,

@@ -33,13 +33,13 @@ import polars as pl
 
 from kausal_common.datasets.models import DatasetMetricValidationRule, DatasetSchema
 
+from common.validation import ValidationRuleEnforcement
 from nodes.constants import YEAR_COLUMN
 
 from .coordinates import DatasetCoordinate, DatasetCoordinateIndex
 from .shape_domain import dataset_category_domain, dataset_shape_id
 from .validation_rules import (
     DimensionSumRule,
-    Enforcement,
     NoGapsRule,
     RequiredCombinationsRule,
     RequiresMetricRule,
@@ -108,7 +108,7 @@ class RuleViolation(BaseModel):
 
     rule_uuid: UUID
     kind: str
-    enforcement: Enforcement
+    enforcement: ValidationRuleEnforcement
     metric_uuid: UUID
     metric: str
     dataset_uuid: UUID | None = None
@@ -150,7 +150,7 @@ def load_violations(data: object) -> list[RuleViolation]:
 def new_blocking_violations(baseline: list[RuleViolation], current: list[RuleViolation]) -> list[RuleViolation]:
     """Violations in ``current`` with ``block_edit`` enforcement that ``baseline`` did not have."""
     baseline_keys = {violation.key for violation in baseline}
-    return [v for v in current if v.enforcement == 'block_edit' and v.key not in baseline_keys]
+    return [v for v in current if v.enforcement == ValidationRuleEnforcement.BLOCK_EDIT and v.key not in baseline_keys]
 
 
 class DatasetValidationError(DjangoValidationError):
@@ -393,7 +393,7 @@ def _eval_required_combinations(
         return [
             violation(
                 kind=INVALID_RULE_KIND,
-                enforcement='block_publish',
+                enforcement=ValidationRuleEnforcement.BLOCK_PUBLISH,
                 combination_ids=unknown,
                 message='required_combinations rule references combinations outside the dataset schema domain',
             )
@@ -453,7 +453,7 @@ def evaluate_closed_domain(
         return RuleViolation(
             rule_uuid=domain_id,
             kind=OUTSIDE_DOMAIN_KIND,
-            enforcement='block_edit',
+            enforcement=ValidationRuleEnforcement.BLOCK_EDIT,
             metric_uuid=metric_uuid,
             metric=column,
             **kwargs,
@@ -570,7 +570,7 @@ def _eval_dimension_sum(
         return [
             violation(
                 kind=INVALID_RULE_KIND,
-                enforcement='block_publish',
+                enforcement=ValidationRuleEnforcement.BLOCK_PUBLISH,
                 message=f"dimension_sum rule references dimension '{rule.dimension}', which the dataset does not have",
             )
         ]
