@@ -57,11 +57,8 @@ from frameworks.bisko.activation import activate_bisko_municipality
 from frameworks.evidence import quality_schemes_for_dataset
 from frameworks.models import DataEvidenceKind, DataPointEvidence, DataQualityLevel, Framework, OrganizationAccessGrant
 from nodes.defs.instance_defs import YearsSpec
-from nodes.instance_serialization import build_instance_snapshot
 from nodes.models import InstanceConfig
 from orgs.models import OrganizationIdentifier
-from params.base import ParameterOwner
-from params.param import BoolParameter
 from users.models import User
 
 if TYPE_CHECKING:
@@ -410,23 +407,12 @@ def load_city(instance: InstanceConfig, city: pl.DataFrame, *, source_digest: st
 
 
 def configure_demo_definition(instance: InstanceConfig, inventory_years: list[int]) -> None:
-    """Declare the demo's separate sectors and actual inventory calendar without assigning quality grades."""
+    """Declare the demo's actual inventory calendar without assigning quality grades."""
     if instance.is_locked:
         raise ValueError(f'{instance.identifier}: instance is locked')
     if not inventory_years:
         raise ValueError(f'{instance.identifier}: demo has no inventory years')
-    effective = build_instance_snapshot(instance)
-    identifier = 'municipal_facilities_included_in_commerce'
-    parameter = next((item for item in effective.spec.params if item.local_id == identifier), None)
-    if not isinstance(parameter, BoolParameter) or parameter.owner != ParameterOwner.INSTANCE:
-        raise ValueError(f'{instance.identifier}: demo requires an instance-owned {identifier} parameter')
-    default = next((scenario for scenario in effective.spec.scenarios if scenario.default), None)
-    if default is None:
-        raise ValueError(f'{instance.identifier}: no default scenario')
     spec = instance.ensure_spec().model_copy(deep=True)
-    local = spec.local_scenario(default.id)
-    local.param_values[identifier] = parameter.clean(value=False)
-    local.parameter_types[identifier] = parameter.type
     years = spec.years.model_dump(mode='python')
     first, last = min(inventory_years), max(inventory_years)
     years.update(min_historical=first, max_historical=last, skipped=sorted(set(range(first, last + 1)) - set(inventory_years)))

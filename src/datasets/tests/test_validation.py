@@ -786,4 +786,3 @@ def test_messages_use_labels_in_the_instance_language(rig):
     assert 'Gebiet A' in violation.message
     assert 'region=a' not in violation.message
     assert 'Datengüte' in violation.message
-

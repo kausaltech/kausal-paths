@@ -46,8 +46,8 @@ from datasets.validation import load_violations
 from datasets.validation_rules import (
     DimensionSumRule,
     NoGapsRule,
-    RequiresMetricRule,
     RequiredCombinationsRule,
+    RequiresMetricRule,
     ValidationRuleGQLInterface,
     ValueRangeRule,
     rule_to_gql,
