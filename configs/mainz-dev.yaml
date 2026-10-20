@@ -162,6 +162,12 @@ include:
   allow_override: false
 - file: modules/fair_share/emissions_trading.yaml
   allow_override: false
+# Mainz's scenarios judged against eight value frameworks at once, each a fixed set of the value
+# judgements above: compatible with all, some (negotiable) or none (reject). The choice of value
+# frameworks and of "Paris read as likely below 2 °C" as the admission criterion is in paths-data
+# modules/fair-share/docs/value-framework-set.md. Nothing reaches the balance.
+- file: modules/fair_share/value_frameworks.yaml
+  allow_override: false
 
 #//////  Impact overviews
 

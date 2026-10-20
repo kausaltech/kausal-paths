@@ -1,0 +1,664 @@
+# Several value frameworks at once -- is the city's policy compatible with each?
+#
+# `carbon_budget.yaml` computes one reading of the fair share at a time, chosen with the
+# settings. This file computes a fixed set of readings side by side, so that a policy (a
+# scenario) can be judged against all of them: compatible with every value framework, with
+# some (a matter for negotiation, and the value frameworks it fails show which choices are at
+# issue), or with none (a strong reason to reject it). The reasoning is in paths-data
+# `modules/values/docs/value-frameworks.md` section 8; the choice of value frameworks and of
+# the admission criterion in `modules/fair-share/docs/value-framework-set.md`.
+#
+# "Value framework" rather than plain "framework", which in Paths means a shared model such as
+# NZC. In German the pages say "Lesart" (reading); "Wertrahmen" is the technical term.
+#
+# A value framework is one complete set of the choices that `carbon_budget.yaml` exposes as
+# settings: warming limit, likelihood, how much current emissions count (grandfathering), and
+# the year from which past overuse is counted. Each is coherent: it applies one rule to every
+# country, so the shares add up to the global budget. Admitted are value frameworks consistent
+# with the Paris Agreement read as "likely below 2 °C": 2.0 °C only at 67 % likelihood. That
+# excludes 2.0 °C at 50 % (decided by Jouni Tuomisto, 19 October 2026).
+#
+#   V1  1.5 °C  50 %  equal per person          overuse since 1990
+#   V2  1.5 °C  50 %  equal per person          none
+#   V3  1.7 °C  67 %  equal per person          none   (the settings' default)
+#   V4  1.7 °C  50 %  half per person, half by current emissions
+#   V5  1.7 °C  67 %  by current emissions
+#   V6  2.0 °C  67 %  equal per person          overuse since 2010
+#   V7  2.0 °C  67 %  equal per person          none
+#   V8  2.0 °C  67 %  by current emissions
+#
+# Each value framework is one node, whose dataset filters and `constant` state its choices, so
+# that the value framework can be read off the node itself. The arithmetic is that of
+# `fair_share_national_budget_share`, `fair_share_national_overuse` and
+# `fair_share_national_budget` in one formula. Compatible means within the budget up to the
+# model's end year; emissions after it are not counted.
+#
+# Needs `carbon_budget.yaml` (its population and emission shares, and the city's cumulative
+# emissions) and the instance's `country_code` and `fair_share_key_population`. Reads only the
+# datasets `carbon_budget.yaml` already reads.
+
+dimensions:
+
+- id: value_framework
+  label_de: Lesart
+  label_en: Value framework
+  categories:
+  - id: v1
+    label_de: 'V1: 1,5 °C, 50 %, gleich je Kopf, Verantwortung ab 1990'
+    label_en: 'V1: 1.5 °C, 50 %, equal per person, responsibility from 1990'
+  - id: v2
+    label_de: 'V2: 1,5 °C, 50 %, gleich je Kopf'
+    label_en: 'V2: 1.5 °C, 50 %, equal per person'
+  - id: v3
+    label_de: 'V3: 1,7 °C, 67 %, gleich je Kopf'
+    label_en: 'V3: 1.7 °C, 67 %, equal per person'
+  - id: v4
+    label_de: 'V4: 1,7 °C, 50 %, halb je Kopf, halb nach Besitzstand'
+    label_en: 'V4: 1.7 °C, 50 %, half per person, half by current emissions'
+  - id: v5
+    label_de: 'V5: 1,7 °C, 67 %, nach Besitzstand'
+    label_en: 'V5: 1.7 °C, 67 %, by current emissions'
+  - id: v6
+    label_de: 'V6: 2,0 °C, 67 %, gleich je Kopf, Verantwortung ab 2010'
+    label_en: 'V6: 2.0 °C, 67 %, equal per person, responsibility from 2010'
+  - id: v7
+    label_de: 'V7: 2,0 °C, 67 %, gleich je Kopf'
+    label_en: 'V7: 2.0 °C, 67 %, equal per person'
+  - id: v8
+    label_de: 'V8: 2,0 °C, 67 %, nach Besitzstand'
+    label_en: 'V8: 2.0 °C, 67 %, by current emissions'
+
+nodes:
+
+# ///// One node per value framework: the country's share of the budget under its choices /////
+
+- id: fair_share_value_framework_v1_national_budget
+  is_editable: false
+  name_de: 'V1: Anteil des Landes am CO₂-Budget (1,5 °C, 50 %, gleich je Kopf, ab 1990)'
+  name_en: "V1: the country's share of the CO₂ budget (1.5 °C, 50 %, equal per person, from 1990)"
+  description_de: |
+    Die Lesart V1: Erwärmung auf 1,5 °C begrenzen, mit 50 % Wahrscheinlichkeit; jeder
+    Mensch hat denselben Anspruch; und was ein Land seit 1990 über seinen Anteil je Kopf
+    hinaus ausgestoßen hat, wird abgezogen. 1990 ist das Jahr des ersten Berichts des
+    Weltklimarats, seit dem der Schaden bekannt ist.
+  description_en: |
+    Value framework V1: limit warming to 1.5 °C with 50 % likelihood; every person has the same
+    claim; and what a country has emitted since 1990 beyond its per-person share is deducted.
+    1990 is the year of the IPCC's first report, since when the harm has been known.
+  type: formula.FormulaNode
+  quantity: mass
+  unit: Mt_co2e
+  input_nodes: &value_framework_inputs
+  - id: fair_share_national_population_share
+    tags: [population]
+  - id: fair_share_national_emission_share
+    tags: [emissions]
+  input_datasets:
+  - id: fair_share/global_co2_budget
+    tags: [global_budget]
+    column: budget
+    filters:
+    - column: temperature_limit
+      value: '1.5'
+    - column: likelihood
+      value: '50'
+  - id: fair_share/national_co2_responsibility
+    tags: [emitted]
+    column: historical_emissions
+    filters:
+    - column: country
+      ref: country_code
+    - column: start_year
+      value: '1990'
+  - id: fair_share/national_co2_responsibility
+    tags: [entitled]
+    column: equal_per_capita_entitlement
+    filters:
+    - column: country
+      ref: country_code
+    - column: start_year
+      value: '1990'
+  params:
+  - id: formula
+    value: &value_framework_formula >-
+      (population + constant * (emissions - population)) * global_budget
+      - (1 - constant) * (emitted - entitled)
+  - id: constant
+    value: 0
+    unit: '%'
+  - id: extend_last_historical_value
+    value: true
+
+- id: fair_share_value_framework_v2_national_budget
+  is_editable: false
+  name_de: 'V2: Anteil des Landes am CO₂-Budget (1,5 °C, 50 %, gleich je Kopf)'
+  name_en: "V2: the country's share of the CO₂ budget (1.5 °C, 50 %, equal per person)"
+  description_de: |
+    Die Lesart V2: Erwärmung auf 1,5 °C begrenzen, mit 50 % Wahrscheinlichkeit; jeder
+    Mensch hat denselben Anspruch; frühere Emissionen werden nicht angerechnet.
+  description_en: |
+    Value framework V2: limit warming to 1.5 °C with 50 % likelihood; every person has the same
+    claim; past emissions are not counted.
+  type: formula.FormulaNode
+  quantity: mass
+  unit: Mt_co2e
+  input_nodes: *value_framework_inputs
+  input_datasets:
+  - id: fair_share/global_co2_budget
+    tags: [global_budget]
+    column: budget
+    filters:
+    - column: temperature_limit
+      value: '1.5'
+    - column: likelihood
+      value: '50'
+  - id: fair_share/national_co2_responsibility
+    tags: [emitted]
+    column: historical_emissions
+    filters:
+    - column: country
+      ref: country_code
+    - column: start_year
+      value: '2020'
+  - id: fair_share/national_co2_responsibility
+    tags: [entitled]
+    column: equal_per_capita_entitlement
+    filters:
+    - column: country
+      ref: country_code
+    - column: start_year
+      value: '2020'
+  params:
+  - id: formula
+    value: *value_framework_formula
+  - id: constant
+    value: 0
+    unit: '%'
+  - id: extend_last_historical_value
+    value: true
+
+- id: fair_share_value_framework_v3_national_budget
+  is_editable: false
+  name_de: 'V3: Anteil des Landes am CO₂-Budget (1,7 °C, 67 %, gleich je Kopf)'
+  name_en: "V3: the country's share of the CO₂ budget (1.7 °C, 67 %, equal per person)"
+  description_de: |
+    Die Lesart V3: Erwärmung auf 1,7 °C begrenzen, mit 67 % Wahrscheinlichkeit; jeder
+    Mensch hat denselben Anspruch; frühere Emissionen werden nicht angerechnet. Es ist die
+    Voreinstellung der Seite zum fairen Anteil und kommt dem Budget am nächsten, auf das
+    sich das Bundesverfassungsgericht 2021 stützte (1,75 °C bei 67 %).
+  description_en: |
+    Value framework V3: limit warming to 1.7 °C with 67 % likelihood; every person has the same
+    claim; past emissions are not counted. It is the default of the fair-share page and the
+    closest to the budget the Federal Constitutional Court relied on in 2021 (1.75 °C at
+    67 %).
+  type: formula.FormulaNode
+  quantity: mass
+  unit: Mt_co2e
+  input_nodes: *value_framework_inputs
+  input_datasets:
+  - id: fair_share/global_co2_budget
+    tags: [global_budget]
+    column: budget
+    filters:
+    - column: temperature_limit
+      value: '1.7'
+    - column: likelihood
+      value: '67'
+  - id: fair_share/national_co2_responsibility
+    tags: [emitted]
+    column: historical_emissions
+    filters:
+    - column: country
+      ref: country_code
+    - column: start_year
+      value: '2020'
+  - id: fair_share/national_co2_responsibility
+    tags: [entitled]
+    column: equal_per_capita_entitlement
+    filters:
+    - column: country
+      ref: country_code
+    - column: start_year
+      value: '2020'
+  params:
+  - id: formula
+    value: *value_framework_formula
+  - id: constant
+    value: 0
+    unit: '%'
+  - id: extend_last_historical_value
+    value: true
+
+- id: fair_share_value_framework_v4_national_budget
+  is_editable: false
+  name_de: 'V4: Anteil des Landes am CO₂-Budget (1,7 °C, 50 %, halb nach Besitzstand)'
+  name_en: "V4: the country's share of the CO₂ budget (1.7 °C, 50 %, half by current emissions)"
+  description_de: |
+    Die Lesart V4: Erwärmung auf 1,7 °C begrenzen, mit 50 % Wahrscheinlichkeit; die
+    Hälfte des Budgets wird nach Köpfen verteilt, die andere Hälfte nach den heutigen
+    Emissionen (Besitzstand); frühere Emissionen werden nicht angerechnet.
+  description_en: |
+    Value framework V4: limit warming to 1.7 °C with 50 % likelihood; half the budget is
+    shared by headcount, the other half by current emissions (grandfathering); past
+    emissions are not counted.
+  type: formula.FormulaNode
+  quantity: mass
+  unit: Mt_co2e
+  input_nodes: *value_framework_inputs
+  input_datasets:
+  - id: fair_share/global_co2_budget
+    tags: [global_budget]
+    column: budget
+    filters:
+    - column: temperature_limit
+      value: '1.7'
+    - column: likelihood
+      value: '50'
+  - id: fair_share/national_co2_responsibility
+    tags: [emitted]
+    column: historical_emissions
+    filters:
+    - column: country
+      ref: country_code
+    - column: start_year
+      value: '2020'
+  - id: fair_share/national_co2_responsibility
+    tags: [entitled]
+    column: equal_per_capita_entitlement
+    filters:
+    - column: country
+      ref: country_code
+    - column: start_year
+      value: '2020'
+  params:
+  - id: formula
+    value: *value_framework_formula
+  - id: constant
+    value: 50
+    unit: '%'
+  - id: extend_last_historical_value
+    value: true
+
+- id: fair_share_value_framework_v5_national_budget
+  is_editable: false
+  name_de: 'V5: Anteil des Landes am CO₂-Budget (1,7 °C, 67 %, nach Besitzstand)'
+  name_en: "V5: the country's share of the CO₂ budget (1.7 °C, 67 %, by current emissions)"
+  description_de: |
+    Die Lesart V5: Erwärmung auf 1,7 °C begrenzen, mit 67 % Wahrscheinlichkeit; das
+    Budget wird nach den heutigen Emissionen verteilt (Besitzstand). Wer so verteilt,
+    erkennt bisherige Emissionen als Anspruch an, deshalb wird keine Übernutzung abgezogen.
+  description_en: |
+    Value framework V5: limit warming to 1.7 °C with 67 % likelihood; the budget is shared by
+    current emissions (grandfathering). Sharing this way accepts past emissions as an
+    entitlement, so no overuse is deducted.
+  type: formula.FormulaNode
+  quantity: mass
+  unit: Mt_co2e
+  input_nodes: *value_framework_inputs
+  input_datasets:
+  - id: fair_share/global_co2_budget
+    tags: [global_budget]
+    column: budget
+    filters:
+    - column: temperature_limit
+      value: '1.7'
+    - column: likelihood
+      value: '67'
+  - id: fair_share/national_co2_responsibility
+    tags: [emitted]
+    column: historical_emissions
+    filters:
+    - column: country
+      ref: country_code
+    - column: start_year
+      value: '2020'
+  - id: fair_share/national_co2_responsibility
+    tags: [entitled]
+    column: equal_per_capita_entitlement
+    filters:
+    - column: country
+      ref: country_code
+    - column: start_year
+      value: '2020'
+  params:
+  - id: formula
+    value: *value_framework_formula
+  - id: constant
+    value: 100
+    unit: '%'
+  - id: extend_last_historical_value
+    value: true
+
+- id: fair_share_value_framework_v6_national_budget
+  is_editable: false
+  name_de: 'V6: Anteil des Landes am CO₂-Budget (2,0 °C, 67 %, gleich je Kopf, ab 2010)'
+  name_en: "V6: the country's share of the CO₂ budget (2.0 °C, 67 %, equal per person, from 2010)"
+  description_de: |
+    Die Lesart V6: Erwärmung auf 2,0 °C begrenzen, mit 67 % Wahrscheinlichkeit; jeder
+    Mensch hat denselben Anspruch; was ein Land seit 2010 über seinen Anteil je Kopf hinaus
+    ausgestoßen hat, wird abgezogen.
+  description_en: |
+    Value framework V6: limit warming to 2.0 °C with 67 % likelihood; every person has the same
+    claim; what a country has emitted since 2010 beyond its per-person share is deducted.
+  type: formula.FormulaNode
+  quantity: mass
+  unit: Mt_co2e
+  input_nodes: *value_framework_inputs
+  input_datasets:
+  - id: fair_share/global_co2_budget
+    tags: [global_budget]
+    column: budget
+    filters:
+    - column: temperature_limit
+      value: '2.0'
+    - column: likelihood
+      value: '67'
+  - id: fair_share/national_co2_responsibility
+    tags: [emitted]
+    column: historical_emissions
+    filters:
+    - column: country
+      ref: country_code
+    - column: start_year
+      value: '2010'
+  - id: fair_share/national_co2_responsibility
+    tags: [entitled]
+    column: equal_per_capita_entitlement
+    filters:
+    - column: country
+      ref: country_code
+    - column: start_year
+      value: '2010'
+  params:
+  - id: formula
+    value: *value_framework_formula
+  - id: constant
+    value: 0
+    unit: '%'
+  - id: extend_last_historical_value
+    value: true
+
+- id: fair_share_value_framework_v7_national_budget
+  is_editable: false
+  name_de: 'V7: Anteil des Landes am CO₂-Budget (2,0 °C, 67 %, gleich je Kopf)'
+  name_en: "V7: the country's share of the CO₂ budget (2.0 °C, 67 %, equal per person)"
+  description_de: |
+    Die Lesart V7: Erwärmung auf 2,0 °C begrenzen, mit 67 % Wahrscheinlichkeit; jeder
+    Mensch hat denselben Anspruch; frühere Emissionen werden nicht angerechnet.
+  description_en: |
+    Value framework V7: limit warming to 2.0 °C with 67 % likelihood; every person has the same
+    claim; past emissions are not counted.
+  type: formula.FormulaNode
+  quantity: mass
+  unit: Mt_co2e
+  input_nodes: *value_framework_inputs
+  input_datasets:
+  - id: fair_share/global_co2_budget
+    tags: [global_budget]
+    column: budget
+    filters:
+    - column: temperature_limit
+      value: '2.0'
+    - column: likelihood
+      value: '67'
+  - id: fair_share/national_co2_responsibility
+    tags: [emitted]
+    column: historical_emissions
+    filters:
+    - column: country
+      ref: country_code
+    - column: start_year
+      value: '2020'
+  - id: fair_share/national_co2_responsibility
+    tags: [entitled]
+    column: equal_per_capita_entitlement
+    filters:
+    - column: country
+      ref: country_code
+    - column: start_year
+      value: '2020'
+  params:
+  - id: formula
+    value: *value_framework_formula
+  - id: constant
+    value: 0
+    unit: '%'
+  - id: extend_last_historical_value
+    value: true
+
+- id: fair_share_value_framework_v8_national_budget
+  is_editable: false
+  name_de: 'V8: Anteil des Landes am CO₂-Budget (2,0 °C, 67 %, nach Besitzstand)'
+  name_en: "V8: the country's share of the CO₂ budget (2.0 °C, 67 %, by current emissions)"
+  description_de: |
+    Die Lesart V8: Erwärmung auf 2,0 °C begrenzen, mit 67 % Wahrscheinlichkeit; das
+    Budget wird nach den heutigen Emissionen verteilt (Besitzstand), deshalb wird keine
+    Übernutzung abgezogen. Die großzügigste der zugelassenen Lesarten.
+  description_en: |
+    Value framework V8: limit warming to 2.0 °C with 67 % likelihood; the budget is shared by
+    current emissions (grandfathering), so no overuse is deducted. The most generous of the
+    admitted value frameworks.
+  type: formula.FormulaNode
+  quantity: mass
+  unit: Mt_co2e
+  input_nodes: *value_framework_inputs
+  input_datasets:
+  - id: fair_share/global_co2_budget
+    tags: [global_budget]
+    column: budget
+    filters:
+    - column: temperature_limit
+      value: '2.0'
+    - column: likelihood
+      value: '67'
+  - id: fair_share/national_co2_responsibility
+    tags: [emitted]
+    column: historical_emissions
+    filters:
+    - column: country
+      ref: country_code
+    - column: start_year
+      value: '2020'
+  - id: fair_share/national_co2_responsibility
+    tags: [entitled]
+    column: equal_per_capita_entitlement
+    filters:
+    - column: country
+      ref: country_code
+    - column: start_year
+      value: '2020'
+  params:
+  - id: formula
+    value: *value_framework_formula
+  - id: constant
+    value: 100
+    unit: '%'
+  - id: extend_last_historical_value
+    value: true
+
+# ///// The value frameworks side by side /////
+
+- id: fair_share_value_framework_national_budget
+  is_editable: false
+  name_de: Anteil des Landes am CO₂-Budget, je Lesart
+  name_en: The country's share of the CO₂ budget, by value framework
+  description_de: |
+    Was das Land nach jeder der acht Lesarten noch ausstoßen darf. Eine Lesart ist eine
+    vollständige Wahl der Werturteile, die auf der Seite zum fairen Anteil einzeln einstellbar
+    sind: Erwärmungsgrenze, Wahrscheinlichkeit, wie weit heutige Emissionen zählen und ab wann
+    frühere Übernutzung angerechnet wird. Jede wendet eine Regel auf alle Länder an, sodass
+    sich die Anteile zum globalen Budget addieren.<br/>
+    Zugelassen sind Lesarten, die mit dem Pariser Abkommen vereinbar sind, gelesen als
+    „wahrscheinlich unter 2 °C“: 2,0 °C nur bei 67 % Wahrscheinlichkeit.
+  description_en: |
+    What the country may still emit under each of the eight value frameworks. A value
+    framework is one complete choice of the value judgements that the fair-share page lets
+    you set one by one: warming limit, likelihood, how far current emissions count, and from
+    when past overuse is counted. Each applies one rule to every country, so the shares add
+    up to the global budget.<br/>
+    Admitted are value frameworks consistent with the Paris Agreement, read as "likely below
+    2 °C": 2.0 °C only at 67 % likelihood.
+  type: generic.GenericNode
+  quantity: mass
+  unit: Mt_co2e
+  output_dimensions: [value_framework]
+  input_nodes:
+  - id: fair_share_value_framework_v1_national_budget
+    to_dimensions:
+    - id: value_framework
+      categories: [v1]
+  - id: fair_share_value_framework_v2_national_budget
+    to_dimensions:
+    - id: value_framework
+      categories: [v2]
+  - id: fair_share_value_framework_v3_national_budget
+    to_dimensions:
+    - id: value_framework
+      categories: [v3]
+  - id: fair_share_value_framework_v4_national_budget
+    to_dimensions:
+    - id: value_framework
+      categories: [v4]
+  - id: fair_share_value_framework_v5_national_budget
+    to_dimensions:
+    - id: value_framework
+      categories: [v5]
+  - id: fair_share_value_framework_v6_national_budget
+    to_dimensions:
+    - id: value_framework
+      categories: [v6]
+  - id: fair_share_value_framework_v7_national_budget
+    to_dimensions:
+    - id: value_framework
+      categories: [v7]
+  - id: fair_share_value_framework_v8_national_budget
+    to_dimensions:
+    - id: value_framework
+      categories: [v8]
+
+- id: fair_share_value_framework_city_budget
+  is_editable: false
+  name_de: Fairer Anteil der Stadt am CO₂-Budget ab 2020, je Lesart
+  name_en: The city's fair share of the CO₂ budget from 2020, by value framework
+  description_de: |
+    Der Anteil des Landes nach jeder Lesart, nach Einwohnern an die Stadt weitergegeben,
+    wie auf der Seite zum fairen Anteil.
+  description_en: |
+    The country's share under each value framework, passed on to the city by population, as
+    on the fair-share page.
+  type: formula.FormulaNode
+  quantity: mass
+  unit: kt_co2e
+  output_dimensions: [value_framework]
+  input_nodes:
+  - id: fair_share_value_framework_national_budget
+    tags: [national]
+  - id: fair_share_key_population
+    tags: [key]
+  params:
+  - id: formula
+    value: bring_to_maximum_historical_year(national * extend_to_history(key))
+
+- id: fair_share_value_framework_remaining_budget
+  is_editable: false
+  name_de: Verbleibender fairer CO₂-Anteil der Stadt, je Lesart
+  name_en: The city's remaining fair share of CO₂, by value framework
+  description_de: |
+    Der faire Anteil der Stadt nach jeder Lesart, abzüglich dessen, was sie seit 2020
+    ausgestoßen hat. Wo der Wert 2050 positiv ist, ist das Szenario mit der Lesart
+    vereinbar; wo er negativ ist, nicht. Emissionen nach 2050 werden nicht gezählt.
+  description_en: |
+    The city's fair share under each value framework, less what it has emitted since 2020.
+    Where the value is positive in 2050 the scenario is compatible with the value framework;
+    where it is negative, it is not. Emissions after 2050 are not counted.
+  type: formula.FormulaNode
+  quantity: mass
+  unit: kt_co2e
+  output_dimensions: [value_framework]
+  input_nodes:
+  - id: fair_share_value_framework_city_budget
+    tags: [budget]
+  - id: fair_share_city_cumulative_emissions
+    tags: [used]
+  params:
+  # Subtraction needs both sides in the same dimensions, and the emissions have none. Multiplying
+  # by `budget == budget`, a dimensionless 1 for every value framework and year, spreads the one
+  # emissions series over the eight value frameworks first. The formula language has no explicit
+  # broadcast yet.
+  - id: formula
+    value: budget - used * (budget == budget)
+
+- id: fair_share_value_framework_compatible
+  is_editable: false
+  name_de: Mit der Lesart vereinbar?
+  name_en: Compatible with the value framework?
+  description_de: |
+    1, solange die Stadt seit 2020 nicht mehr ausgestoßen hat als ihren Anteil nach der
+    Lesart, sonst 0.
+  description_en: |
+    1 while the city has emitted no more than its share under the value framework since 2020,
+    0 otherwise.
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: dimensionless
+  output_dimensions: [value_framework]
+  input_nodes:
+  - id: fair_share_value_framework_city_budget
+    tags: [budget]
+  - id: fair_share_city_cumulative_emissions
+    tags: [used]
+  params:
+  # The same spreading as in fair_share_value_framework_remaining_budget: a comparison, like a
+  # subtraction, needs both sides in the same dimensions.
+  - id: formula
+    value: used * (budget == budget) <= budget
+
+- id: fair_share_value_framework_compatible_share
+  is_editable: false
+  name_de: Anteil der Lesarten, mit denen das Szenario vereinbar ist
+  name_en: Share of the value frameworks the scenario is compatible with
+  description_de: |
+    Mit wie vielen der acht Lesarten das Szenario bis zum jeweiligen Jahr vereinbar ist.
+    Maßgeblich ist der Wert 2050:<br/>
+    <b>100 %</b> – vereinbar mit jeder Lesart: Niemand, der eine davon vertritt, kann aus
+    globaler Sicht widersprechen.<br/>
+    <b>zwischen 0 und 100 %</b> – eine Frage der Verhandlung. Die Lesarten, die das Szenario
+    verfehlt, zeigen, um welche Werturteile es geht.<br/>
+    <b>0 %</b> – mit keiner vereinbar: ein starker Grund, das Szenario abzulehnen, denn keine
+    stimmige Art, die Atmosphäre zu teilen, lässt es zu.
+  description_en: |
+    How many of the eight value frameworks the scenario is compatible with up to each year.
+    The value in 2050 is the one that counts:<br/>
+    <b>100 %</b> -- compatible with every value framework: nobody holding any of them can
+    object on global grounds.<br/>
+    <b>between 0 and 100 %</b> -- a matter for negotiation. The value frameworks the
+    scenario fails show which value judgements are at issue.<br/>
+    <b>0 %</b> -- compatible with none: a strong reason to reject the scenario, since no
+    coherent way of sharing the atmosphere allows it.
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: '%'
+  input_nodes:
+  - id: fair_share_value_framework_compatible
+    tags: [compatible]
+  params:
+  - id: formula
+    value: mean_dim(compatible, value_framework)
+  goals:
+  - label_de: Mit jeder Lesart vereinbar
+    label_en: Compatible with every value framework
+    default: true
+    is_main_goal: true
+    linear_interpolation: false
+    auto_start: false
+    values:
+    - year: 2030
+      value: 100.0
+    - year: 2035
+      value: 100.0
+    - year: 2040
+      value: 100.0
+    - year: 2045
+      value: 100.0
+    - year: 2050
+      value: 100.0

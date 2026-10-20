@@ -2,6 +2,7 @@
 
 *Produced by Claude Opus 5.5 on 2026-10-06.*
 *Version 2 produced by Claude Opus 5.5 on 2026-10-07.*
+*Version 3 produced by Claude Opus 5.5 on 2026-10-19.*
 *Responsible: Jouni Tuomisto.*
 
 A module that asks whether a city stays within its fair share of what the world may still
@@ -92,6 +93,30 @@ other premises, in [`objections.md`](objections.md) and two more files:
 `objections.md` also shows that the claim "the city should cut at least what its scenario cuts"
 is, on this module's premises, the same statement as `fair_share_city_remaining_budget` not being
 positive in that scenario, so it needs no node of its own.
+
+## Several value frameworks at once
+
+The settings above give one reading at a time. Agreement on one reading is not to be expected, so
+`value_frameworks.yaml` computes a fixed set side by side and judges each scenario against all of
+them. Each value framework is one complete set of the four budget settings, applied to every
+country, so that the shares add up to the global budget. A scenario compatible with every value
+framework is robust; with some, a matter for negotiation, and the value frameworks it fails show
+which choices are at issue; with none, a strong reason to reject it.
+
+"Value framework", not plain "framework": in Paths a framework is a shared model such as NZC. The
+German pages call them *Lesarten* (readings); *Wertrahmen* is the technical term.
+
+Eight value frameworks are admitted: coherent, and consistent with the Paris Agreement read as
+"likely below 2 °C" (2.0 °C only at 67 %). The list is in the file's header; each is one node whose
+dataset filters and `constant` state its choices, so it can be read off the node itself. The value
+frameworks do not depend on the settings. The verdict is
+`fair_share_value_framework_compatible_share` in 2050; emissions after the model's end are not
+counted.
+
+The reasoning, the choice of value frameworks and the admission criterion are recorded in
+paths-data (`modules/values/docs/value-frameworks.md` §8,
+`modules/fair-share/docs/value-framework-set.md`). The file needs nothing beyond what
+`carbon_budget.yaml` needs and reads only its datasets.
 
 ## Including the module
 
