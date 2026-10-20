@@ -230,29 +230,36 @@ datasets:
   - id: quality
     validation_rules:
     - {kind: value_range, enforcement: block_edit, min: 0, max: 1}
-- id: kommune/kwk_anlagenparameter                     # plant electricity fraction and supply temperature
+- id: kommune/kwk_anlagenparameter                     # plant electricity fraction, network temperatures and losses
   is_editable: true
   metrics:
   - id: electricity_fraction
     validation_rules:
     - {kind: value_range, enforcement: block_edit, min: 0, max: 1}
+  # Supply and return temperature of the heat network, in K. The exergetic allocation weights
+  # heat by 1 - 283 K / T_m, T_m their thermodynamic mean, and 283 K is BISKO's ambient
+  # temperature, so both must be warmer than that. That the supply is not below the return is a
+  # relation between two metrics, which a value_range cannot state; BiskoChpNode refuses it.
   - id: t_supply
     validation_rules:
-    # BISKO fixes the return temperature at 283 K; the supply must be strictly warmer for
-    # the exergetic allocation to be defined.
     - {kind: value_range, enforcement: block_edit, min: 283, exclusive_min: true}
-  # No `quality` metrics here, unlike the other municipal datasets. This is the one dataset whose
-  # binding is anonymous -- ChpNode resolves electricity_fraction / t_supply / t_return by name and
-  # so cannot pin a `column:`. The port resolver maps an anonymous input to its persisted ports by
-  # metric name, so a *new* metric has no port to match and falls through to the binding's whole
-  # port group, which holds two: `AmbiguousYamlPortReferenceError` on the next
-  # sync_instance_to_db. Tried on 2026-08-21 and reverted.
-  #
-  # The Prüfschritt 7.1 case for grading these is also the weakest of the set: they are plant
-  # operating parameters rather than balance input fields, and they are only reachable at all under
-  # Möglichkeit 1. If a certifier does ask for them, the fix belongs in the resolver -- teaching it
-  # that an unmatched metric on an anonymous binding should mint a fresh port rather than guess
-  # among the existing ones -- not in this declaration.
+  - id: t_return
+    validation_rules:
+    - {kind: value_range, enforcement: block_edit, min: 283, exclusive_min: true}
+  # Heat lost in the network as a share of the heat fed into it. It turns the factor at the plant
+  # into the factor at the house connection, which is what the consumption is multiplied by; at 1
+  # nothing arrives and the factor is undefined. Declared here but not yet read: on this branch
+  # Möglichkeit 1 puts the plant's allocated total into the balance, where losses change nothing.
+  # It is bound by district_heating_emission_factor_exergetic, which forms a factor per MWh and
+  # arrives with the qualifier restructuring (3b200475, feat/data-studio-backend).
+  - id: network_loss_share
+    validation_rules:
+    - {kind: value_range, enforcement: block_edit, min: 0, max: 1, exclusive_max: true}
+  # No `quality` metrics here, unlike the other municipal datasets. The Prüfschritt 7.1 case for
+  # grading these is the weakest of the set: they are plant and network operating parameters rather
+  # than balance input fields, and they are only reachable at all under Möglichkeit 1. Since
+  # 2026-09-30 every consumer binds one `column:`, so a metric added here no longer falls through
+  # to an ambiguous port group on sync, which is what stopped the 2026-08-21 attempt.
 - id: kommune/gemeldete_emissionen               # the city's own reported inventory
   is_editable: true
   metrics:
@@ -2810,54 +2817,67 @@ nodes:
   description_en: |
     A combined heat and power plant burns one lot of fuel and sells two products, so its emissions
     have to be divided between them. BISKO criterion 6 prescribes how: the exergetic (Carnot)
-    method, which weights each product by the work it could do rather than by its energy content,
-    with the return temperature of the network fixed at 283 K. This moves the larger share of the
-    emissions onto electricity, because heat delivered at 373 K can do far less work than the same
-    quantity of electricity. This node computes the two fractions, which always sum to 1; the
-    district heating one is what
+    method, which weights each product by the work it could do rather than by its energy content.
+    Electricity counts in full. Heat counts with the factor 1 − 283 K / T<sub>m</sub>, where
+    283 K is the ambient temperature BISKO fixes and T<sub>m</sub> is the thermodynamic mean
+    temperature of the network, (T<sub>supply</sub> − T<sub>return</sub>) /
+    ln(T<sub>supply</sub> / T<sub>return</sub>). A network running at 110/60 °C gives 0.21. This
+    moves the larger share of the emissions onto electricity, because heat at that temperature can
+    do far less work than the same quantity of electricity. This node computes the two fractions,
+    which always sum to 1; the district heating one is what
     <code>district_heating_fuel_emission_factors</code> multiplies the fuel factors by. The
     electricity fraction is computed but deliberately unused: BISKO requires the national
     electricity factor rather than a locally derived one.<br/>
-    The node type is <code>BiskoChpNode</code>, which fixes the method and the return temperature
+    The node type is <code>BiskoChpNode</code>, which fixes the method and the ambient temperature
     in code. They cannot be changed here or in a scenario, so the conformity is a property of the
     model rather than of a setting somebody might edit.<br/>
-    What is city-specific is the electricity fraction of the plant's output and the supply
-    temperature of the network, and both move from year to year as the plant is dispatched
-    differently.
+    What is city-specific is the electricity fraction of the plant's output and the supply and
+    return temperatures of the network. All three move from year to year as the plant is
+    dispatched differently, and all three are required: the model does not substitute a typical
+    exergy factor for missing temperatures, so a year without them has no allocation.
   description_de: |
     Ein Heizkraftwerk verbrennt einen Brennstoff und verkauft zwei Produkte, seine Emissionen
     müssen also zwischen beiden aufgeteilt werden. BISKO-Kriterium 6 schreibt vor, wie: nach der
     exergetischen Methode (Carnot-Methode), die jedes Produkt nach seinem Arbeitsvermögen und
-    nicht nach seinem Energieinhalt gewichtet, mit einer auf 283 K festgelegten Rücklauftemperatur.
-    Dadurch entfällt der größere Teil der Emissionen auf den Strom, denn Wärme mit 373 K kann
-    weit weniger Arbeit leisten als dieselbe Menge Strom. Dieser Knoten berechnet die beiden
-    Faktoren, die sich stets zu 1 addieren; mit dem Fernwärmefaktor multipliziert
-    <code>district_heating_fuel_emission_factors</code> die Brennstofffaktoren. Der Stromfaktor
-    wird berechnet, aber bewusst nicht verwendet: BISKO verlangt den nationalen und nicht einen
-    lokal abgeleiteten Stromfaktor.<br/>
-    Der Knotentyp ist <code>BiskoChpNode</code>, der die Methode und die Rücklauftemperatur im Code
+    nicht nach seinem Energieinhalt gewichtet. Strom zählt voll. Wärme zählt mit dem Faktor
+    1 − 283 K / T<sub>m</sub>; dabei ist 283 K die von BISKO festgelegte Umgebungstemperatur und
+    T<sub>m</sub> die thermodynamische Mitteltemperatur des Netzes,
+    (T<sub>Vorlauf</sub> − T<sub>Rücklauf</sub>) / ln(T<sub>Vorlauf</sub> / T<sub>Rücklauf</sub>).
+    Ein Netz mit 110/60 °C ergibt 0,21. Dadurch entfällt der größere Teil der Emissionen auf den
+    Strom, denn Wärme auf diesem Temperaturniveau kann weit weniger Arbeit leisten als dieselbe
+    Menge Strom. Dieser Knoten berechnet die beiden Faktoren, die sich stets zu 1 addieren; mit
+    dem Fernwärmefaktor multipliziert <code>district_heating_fuel_emission_factors</code> die
+    Brennstofffaktoren. Der Stromfaktor wird berechnet, aber bewusst nicht verwendet: BISKO
+    verlangt den nationalen und nicht einen lokal abgeleiteten Stromfaktor.<br/>
+    Der Knotentyp ist <code>BiskoChpNode</code>, der die Methode und die Umgebungstemperatur im Code
     festlegt. Sie sind weder hier noch in einem Szenario änderbar, die Konformität ist also eine
     Eigenschaft des Modells und nicht einer Einstellung, die jemand bearbeiten könnte.<br/>
-    Stadtspezifisch sind der Stromanteil an der Erzeugung und die Vorlauftemperatur des Netzes, und
-    beide ändern sich von Jahr zu Jahr mit der Fahrweise der Anlage.
+    Stadtspezifisch sind der Stromanteil an der Erzeugung sowie die Vorlauf- und
+    Rücklauftemperatur des Netzes. Alle drei ändern sich von Jahr zu Jahr mit der Fahrweise der
+    Anlage, und alle drei sind erforderlich: Das Modell ersetzt fehlende Temperaturen nicht durch
+    einen typischen Exergiefaktor, ein Jahr ohne sie hat also keine Aufteilung.
   type: generic.BiskoChpNode
   quantity: fraction
   unit: '%'
   output_dimensions: [energy_carrier]
-  # No parameters: BiskoChpNode fixes the method, and everything else describes the physical
-  # plant, so it comes from the dataset and nowhere else. Each input is its own port, named after
-  # the column bound to it, one value per year: electricity_fraction (dimensionless) and t_supply
-  # (K). Series are interpolated over internal gaps and held constant outside the years they
-  # cover. Where a heat supplier gives a range rather than a figure (Mainz: 90-115 °C by season),
-  # the dataset carries the midpoint and the row comment carries the range.
-  # The shared dataset holds placeholders (0.3 and 373 K in every year); a city replaces it with
-  # its own via dataset_replacements once the utility delivers, and city admins can edit the
-  # values in the admin UI. A missing column is a sync error naming it.
+  # No parameters: BiskoChpNode fixes the method and the 283 K ambient temperature, and everything
+  # else describes the physical plant, so it comes from the dataset and nowhere else. Each input is
+  # its own port, named after the column bound to it, one value per year: electricity_fraction
+  # (dimensionless), t_supply and t_return (K). Series are interpolated over internal gaps and held
+  # constant outside the years they cover. Where a heat supplier gives a range rather than a figure
+  # (Mainz: 90-115 °C by season), the dataset carries the midpoint and the row comment carries the
+  # range.
+  # The shared dataset carries the columns and no values, so a city that enters plant data without
+  # the parameters gets a validation problem rather than a stand-in. A city replaces it with its own
+  # via dataset_replacements once the utility delivers, and city admins can edit the values in the
+  # admin UI. A missing column is a sync error naming it.
   input_datasets:
   - id: kommune/kwk_anlagenparameter
     column: electricity_fraction
   - id: kommune/kwk_anlagenparameter
     column: t_supply
+  - id: kommune/kwk_anlagenparameter
+    column: t_return
 
 #//////  Transport  /////////////////////////////////////////////////////////////////////////////////
 
@@ -4176,7 +4196,7 @@ nodes:
   name_de: Werden die Fernwärmeemissionen exergetisch alloziert?
   description_en: |
     BISKO criterion 6 requires the coupled products of combined heat and power to be split by
-    the exergetic (Carnot) method, with the district heating return temperature fixed at 283 K.
+    the exergetic (Carnot) method, with the ambient temperature fixed at 283 K.
     This node answers that question directly, and it is the only one of the conformity tests
     that can: it asks the allocation node itself which method it applies, rather than trying to
     infer the method from the numbers that came out of it.<br/>
@@ -4199,14 +4219,14 @@ nodes:
     A locally edited factor would break that guarantee for Möglichkeit 2 and 3, and it is caught
     by <code>has_national_electricity_emission_factors</code>, which gates on the same
     <code>use_national_values</code> switch that selects the national factor tables.<br/>
-    What this node does <i>not</i> test is whether the electricity fraction and supply
-    temperature fed into the split are plausible. That is a separate question, and
+    What this node does <i>not</i> test is whether the electricity fraction and network
+    temperatures fed into the split are plausible. That is a separate question, and
     <code>has_district_heating_factor_within_bisko_variants</code> asks it as a diagnostic.<br/>
     Values: 1 = yes, 0 = no. The value has no unit.
   description_de: |
     BISKO-Kriterium 6 verlangt, dass die Koppelprodukte der Kraft-Wärme-Kopplung nach der
     exergetischen Methode (Carnot-Methode) aufgeteilt werden, mit einer auf 283 K festgelegten
-    Rücklauftemperatur. Dieser Knoten beantwortet genau diese Frage, und er ist der einzige der
+    Umgebungstemperatur. Dieser Knoten beantwortet genau diese Frage, und er ist der einzige der
     Konformitätstests, der das kann: Er fragt den Allokationsknoten selbst, welche Methode er
     anwendet, statt die Methode aus den Ergebniszahlen zu erschließen.<br/>
     Zwei Bedingungen müssen zusammen erfüllt sein. Die Methode muss die vorgeschriebene sein —
@@ -4228,7 +4248,7 @@ nodes:
     Ein lokal geänderter Faktor würde diese Zusicherung für die Möglichkeiten 2 und 3 aufheben; das
     fängt <code>has_national_electricity_emission_factors</code> ab, der auf denselben Schalter
     <code>use_national_values</code> prüft, der die nationalen Faktortabellen auswählt.<br/>
-    Nicht geprüft wird, ob der Stromanteil und die Vorlauftemperatur, die in die Aufteilung
+    Nicht geprüft wird, ob der Stromanteil und die Netztemperaturen, die in die Aufteilung
     eingehen, plausibel sind. Das ist eine eigene Frage, die
     <code>has_district_heating_factor_within_bisko_variants</code> als Diagnose stellt.<br/>
     Werte: 1 = ja, 0 = nein. Der Wert hat keine Einheit.

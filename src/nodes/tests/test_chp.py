@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -13,7 +14,7 @@ from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from nodes.dimensions import Dimension, DimensionCategory
 from nodes.edges import Edge
 from nodes.exceptions import NodeError
-from nodes.generic import BISKO_T_RETURN, BiskoChpNode, BiskoExergeticAllocationNode, ChpNode
+from nodes.generic import BISKO_T_AMBIENT, BiskoChpNode, BiskoExergeticAllocationNode, ChpNode
 from nodes.node import Node
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory
 from nodes.tests.node_input_harness import bind, binding
@@ -36,6 +37,7 @@ INPUT_UNITS = {
     'electricity_fraction': 'dimensionless',
     't_supply': 'K',
     't_return': 'K',
+    't_ambient': 'K',
     'electricity_reference_efficiency': 'dimensionless',
     'heat_reference_efficiency': 'dimensionless',
 }
@@ -114,15 +116,31 @@ def _heat_by_year(df: PathsDataFrame) -> dict[int, float]:
     return {row[YEAR_COLUMN]: row[VALUE_COLUMN] for row in sub.to_dicts()}
 
 
-def _expected_heat_fraction(f_el: float, t_supply: float, t_return: float = BISKO_T_RETURN) -> float:
-    z_heat = 1.0 - t_return / t_supply
+T_RETURN = 333.15
+"""A 60 °C network return, the temperature the tests use unless they are about the return itself."""
+
+
+def _celsius(value: float) -> float:
+    return value + 273.15
+
+
+def _mean_temperature(t_supply: float, t_return: float) -> float:
+    if t_supply == t_return:
+        return t_supply
+    return (t_supply - t_return) / math.log(t_supply / t_return)
+
+
+def _expected_heat_fraction(
+    f_el: float, t_supply: float, t_return: float = T_RETURN, t_ambient: float = BISKO_T_AMBIENT
+) -> float:
+    z_heat = 1.0 - t_ambient / _mean_temperature(t_supply, t_return)
     a_el = f_el / (f_el + z_heat * (1.0 - f_el))
     return 1.0 - a_el
 
 
 def test_a_single_year_gives_a_flat_split_over_the_whole_model_span():
     context = _make_context('chp-constant')
-    node = _make_chp_node(context, method='bisko', inputs={'electricity_fraction': 0.3, 't_supply': 373.0})
+    node = _make_chp_node(context, method='bisko', inputs={'electricity_fraction': 0.3, 't_supply': 373.0, 't_return': T_RETURN})
 
     df = node.compute()
     heat = _heat_by_year(df)
@@ -150,14 +168,15 @@ def test_annual_series_make_the_split_vary_by_year():
         inputs={
             'electricity_fraction': _Series([0.30, 0.35, 0.40], years=[2016, 2017, 2018]),
             't_supply': _Series([373.0, 368.0, 363.0], years=[2016, 2017, 2018]),
+            't_return': _Series([333.0, 330.0, 323.0], years=[2016, 2017, 2018]),
         },
     )
 
     heat = _heat_by_year(node.compute())
 
-    assert heat[2016] == pytest.approx(_expected_heat_fraction(0.30, 373.0))
-    assert heat[2017] == pytest.approx(_expected_heat_fraction(0.35, 368.0))
-    assert heat[2018] == pytest.approx(_expected_heat_fraction(0.40, 363.0))
+    assert heat[2016] == pytest.approx(_expected_heat_fraction(0.30, 373.0, 333.0))
+    assert heat[2017] == pytest.approx(_expected_heat_fraction(0.35, 368.0, 330.0))
+    assert heat[2018] == pytest.approx(_expected_heat_fraction(0.40, 363.0, 323.0))
     # A varying operating point is the whole point: the fractions must actually differ.
     assert heat[2016] != pytest.approx(heat[2018])
 
@@ -167,7 +186,7 @@ def test_series_is_held_constant_outside_the_years_it_covers():
     node = _make_chp_node(
         context,
         method='bisko',
-        inputs={'electricity_fraction': _Series([0.30, 0.40], years=[2016, 2018]), 't_supply': 373.0},
+        inputs={'electricity_fraction': _Series([0.30, 0.40], years=[2016, 2018]), 't_supply': 373.0, 't_return': T_RETURN},
     )
 
     df = node.compute()
@@ -189,7 +208,7 @@ def test_a_series_given_in_per_cent_is_converted():
     node = _make_chp_node(
         context,
         method='bisko',
-        inputs={'electricity_fraction': _Series([30.0], years=[2018], unit='%'), 't_supply': 373.0},
+        inputs={'electricity_fraction': _Series([30.0], years=[2018], unit='%'), 't_supply': 373.0, 't_return': T_RETURN},
     )
 
     heat = _heat_by_year(node.compute())
@@ -208,7 +227,7 @@ def test_the_physical_inputs_are_ports_not_parameters():
 
 def test_an_input_bound_twice_is_an_error():
     context = _make_context('chp-conflict')
-    node = _make_chp_node(context, method='bisko', inputs={'t_supply': 373.0})
+    node = _make_chp_node(context, method='bisko', inputs={'t_supply': 373.0, 't_return': T_RETURN})
     bind(
         node,
         [
@@ -223,10 +242,11 @@ def test_an_input_bound_twice_is_an_error():
 
 
 def test_a_missing_input_names_the_port_to_bind():
+    # The return temperature is the one that used to be a constant, so it is the one to forget.
     context = _make_context('chp-missing')
-    node = _make_chp_node(context, method='bisko', inputs={'electricity_fraction': 0.3})
+    node = _make_chp_node(context, method='bisko', inputs={'electricity_fraction': 0.3, 't_supply': 373.0})
 
-    with pytest.raises(NodeError, match="input port 't_supply'"):
+    with pytest.raises(NodeError, match="input port 't_return'"):
         node.compute()
 
 
@@ -243,7 +263,7 @@ def test_a_fraction_outside_zero_to_one_is_an_error():
     node = _make_chp_node(
         context,
         method='bisko',
-        inputs={'electricity_fraction': _Series([0.3, 1.4], years=[2017, 2018]), 't_supply': 373.0},
+        inputs={'electricity_fraction': _Series([0.3, 1.4], years=[2017, 2018]), 't_supply': 373.0, 't_return': T_RETURN},
     )
 
     with pytest.raises(NodeError, match='between 0 and 1'):
@@ -252,10 +272,70 @@ def test_a_fraction_outside_zero_to_one_is_an_error():
 
 def test_a_supply_temperature_below_the_return_temperature_is_an_error():
     context = _make_context('chp-temperature')
-    node = _make_chp_node(context, method='bisko', inputs={'electricity_fraction': 0.3, 't_supply': 273.0})
+    node = _make_chp_node(context, method='bisko', inputs={'electricity_fraction': 0.3, 't_supply': 323.15, 't_return': T_RETURN})
 
-    with pytest.raises(NodeError, match='must exceed the return temperature'):
+    with pytest.raises(NodeError, match='must not be below the return temperature'):
         node.compute()
+
+
+def test_a_return_temperature_at_the_ambient_temperature_is_an_error():
+    context = _make_context('chp-temperature-ambient')
+    node = _make_chp_node(
+        context, method='bisko', inputs={'electricity_fraction': 0.3, 't_supply': 373.0, 't_return': BISKO_T_AMBIENT}
+    )
+
+    with pytest.raises(NodeError, match='must exceed the ambient temperature'):
+        node.compute()
+
+
+@pytest.mark.parametrize(
+    ('supply_c', 'return_c', 'rough_factor'),
+    [(130.0, 90.0, 0.26), (110.0, 60.0, 0.21), (90.0, 60.0, 0.19), (60.0, 40.0, 0.13)],
+)
+def test_the_heat_exergy_factor_matches_the_methodenpapier_rough_factors(supply_c: float, return_c: float, rough_factor: float):
+    """
+    The Methodenpapier's rough exergy factors for known networks follow from the mean temperature.
+
+    Anhang, *Berechnung der exergetischen Allokation*: Fernwärme alt (130/90) 0.26, Fernwärme neu
+    (110/60) 0.21, Nahwärme (90/60) 0.19, LowEx 1 (60/40) 0.13. With an electricity fraction of
+    one half the heat share is z / (1 + z), so z can be read back from it. The supply temperature
+    alone gives 0.30, 0.26, 0.22 and 0.15 instead.
+    """
+    context = _make_context('chp-rough-factor')
+    node = _make_chp_node(
+        context,
+        method='bisko',
+        inputs={'electricity_fraction': 0.5, 't_supply': _celsius(supply_c), 't_return': _celsius(return_c)},
+    )
+
+    heat = _heat_by_year(node.compute())[2018]
+    assert heat / (1.0 - heat) == pytest.approx(rough_factor, abs=0.007)
+
+
+def test_equal_supply_and_return_temperatures_use_that_temperature():
+    """A steam network condensing at one temperature is the limit of the mean-temperature formula."""
+    context = _make_context('chp-steam')
+    node = _make_chp_node(context, method='bisko', inputs={'electricity_fraction': 0.5, 't_supply': 413.15, 't_return': 413.15})
+
+    heat = _heat_by_year(node.compute())[2018]
+    assert heat / (1.0 - heat) == pytest.approx(1.0 - BISKO_T_AMBIENT / 413.15)
+
+
+def test_the_ifeu_workbook_case_is_reproduced():
+    """
+    The ifeu allocation tool's worked plant: 300 GWh electricity and 350 GWh heat on a 110/60 network.
+
+    The tool types in the rough factor 0.21 and gets a heat share of 19.68 %. The temperatures give
+    0.2085, so the share agrees to a tenth of a percentage point.
+    """
+    context = _make_context('chp-ifeu-case')
+    node = _make_chp_node(
+        context,
+        method='bisko',
+        inputs={'electricity_fraction': 300.0 / 650.0, 't_supply': _celsius(110.0), 't_return': _celsius(60.0)},
+    )
+
+    assert _heat_by_year(node.compute())[2018] == pytest.approx(0.1968, abs=0.002)
 
 
 def test_an_unknown_method_is_an_error():
@@ -287,23 +367,29 @@ def test_efficiency_method_uses_the_reference_efficiencies():
     assert heat[2018] == pytest.approx(1.0 - a_el)
 
 
-def test_work_potential_method_takes_the_return_temperature_from_its_port():
+def test_work_potential_method_takes_the_ambient_temperature_from_its_port():
     context = _make_context('chp-work-potential')
     node = _make_chp_node(
         context,
         method='work_potential',
-        inputs={'electricity_fraction': 0.3, 't_supply': 373.0, 't_return': 313.0},
+        inputs={'electricity_fraction': 0.3, 't_supply': 373.0, 't_return': T_RETURN, 't_ambient': 293.0},
     )
 
     heat = _heat_by_year(node.compute())
-    assert heat[2018] == pytest.approx(_expected_heat_fraction(0.3, 373.0, t_return=313.0))
+    assert heat[2018] == pytest.approx(_expected_heat_fraction(0.3, 373.0, t_ambient=293.0))
 
 
 def test_bisko_node_computes_the_same_split_as_the_generic_node_set_to_bisko():
     generic = _make_chp_node(
-        _make_context('chp-generic'), method='bisko', inputs={'electricity_fraction': 0.3, 't_supply': 373.0}
+        _make_context('chp-generic'),
+        method='bisko',
+        inputs={'electricity_fraction': 0.3, 't_supply': 373.0, 't_return': T_RETURN},
     )
-    bisko = _make_chp_node(_make_context('chp-bisko'), cls=BiskoChpNode, inputs={'electricity_fraction': 0.3, 't_supply': 373.0})
+    bisko = _make_chp_node(
+        _make_context('chp-bisko'),
+        cls=BiskoChpNode,
+        inputs={'electricity_fraction': 0.3, 't_supply': 373.0, 't_return': T_RETURN},
+    )
 
     assert _heat_by_year(bisko.compute()) == pytest.approx(_heat_by_year(generic.compute()))
 
@@ -315,12 +401,15 @@ def test_bisko_node_has_no_settings_and_no_ports_for_what_the_standard_fixes():
 
     assert 'method' not in allowed
     assert not allowed & set(INPUT_UNITS)
-    assert roles == {'electricity_fraction', 't_supply'}
+    assert roles == {'electricity_fraction', 't_supply', 't_return'}
+    assert all(d.required for d in BiskoChpNode.input_port_declarations)
 
 
-def test_the_bisko_method_refuses_a_return_temperature():
-    context = _make_context('chp-bisko-t-return')
-    node = _make_chp_node(context, method='bisko', inputs={'electricity_fraction': 0.3, 't_supply': 373.0, 't_return': 300.0})
+def test_the_bisko_method_refuses_an_ambient_temperature():
+    context = _make_context('chp-bisko-t-ambient')
+    node = _make_chp_node(
+        context, method='bisko', inputs={'electricity_fraction': 0.3, 't_supply': 373.0, 't_return': T_RETURN, 't_ambient': 293.0}
+    )
 
     with pytest.raises(NodeError, match='silently ignored'):
         node.compute()
@@ -340,7 +429,7 @@ def test_an_input_with_a_dimension_is_an_error():
         units={VALUE_COLUMN: unit_registry.parse_units('dimensionless')},
         primary_keys=[YEAR_COLUMN, 'energy_carrier'],
     )
-    node = _make_chp_node(context, method='bisko', inputs={'t_supply': 373.0})
+    node = _make_chp_node(context, method='bisko', inputs={'t_supply': 373.0, 't_return': T_RETURN})
     bind(node, [*node.runtime_input_bindings, binding('electricity_fraction', to_ppdf(df, meta), position=1)])
 
     with pytest.raises(NodeError, match='indexed by year alone'):
@@ -355,7 +444,7 @@ def test_an_input_with_several_metric_columns_is_an_error():
         years=[2018],
         units={'electricity_fraction': 'dimensionless', 't_supply': 'K'},
     )
-    node = _make_chp_node(context, method='bisko', inputs={'t_supply': 373.0})
+    node = _make_chp_node(context, method='bisko', inputs={'t_supply': 373.0, 't_return': T_RETURN})
     bind(node, [*node.runtime_input_bindings, binding('electricity_fraction', wide, position=1)])
 
     with pytest.raises(NodeError, match='exactly one metric column'):
@@ -416,7 +505,9 @@ def _gate_by_year(node: BiskoExergeticAllocationNode) -> dict[int, float]:
 def test_gate_passes_when_the_method_conforms_and_something_was_allocated():
     context = _make_context('gate-pass')
     gate = _make_gate(context)
-    allocation = _make_chp_node(context, cls=BiskoChpNode, inputs={'electricity_fraction': 0.3, 't_supply': 373.0})
+    allocation = _make_chp_node(
+        context, cls=BiskoChpNode, inputs={'electricity_fraction': 0.3, 't_supply': 373.0, 't_return': T_RETURN}
+    )
     _connect(allocation, gate, 'allocation')
     _attach_emissions(gate, [(2016, 120.0), (2017, 118.0), (2018, 115.0)])
 
@@ -434,7 +525,9 @@ def test_gate_fails_in_years_with_nothing_to_allocate():
     """A conforming method applied to an empty balance evidences nothing."""
     context = _make_context('gate-empty-years')
     gate = _make_gate(context)
-    allocation = _make_chp_node(context, cls=BiskoChpNode, inputs={'electricity_fraction': 0.3, 't_supply': 373.0})
+    allocation = _make_chp_node(
+        context, cls=BiskoChpNode, inputs={'electricity_fraction': 0.3, 't_supply': 373.0, 't_return': T_RETURN}
+    )
     _connect(allocation, gate, 'allocation')
     _attach_emissions(gate, [(2016, 120.0), (2017, 0.0), (2018, 115.0)])
 
@@ -459,14 +552,14 @@ def test_gate_fails_when_the_method_does_not_conform():
     assert result[2018] == 0.0
 
 
-def test_gate_accepts_work_potential_at_the_bisko_return_temperature():
-    """work_potential with t_return = 283 K is numerically the bisko method, so it conforms."""
+def test_gate_accepts_work_potential_at_the_bisko_ambient_temperature():
+    """work_potential with t_ambient = 283 K is numerically the bisko method, so it conforms."""
     context = _make_context('gate-work-potential-283')
     gate = _make_gate(context)
     allocation = _make_chp_node(
         context,
         method='work_potential',
-        inputs={'electricity_fraction': 0.3, 't_supply': 373.0, 't_return': BISKO_T_RETURN},
+        inputs={'electricity_fraction': 0.3, 't_supply': 373.0, 't_return': T_RETURN, 't_ambient': BISKO_T_AMBIENT},
     )
     _connect(allocation, gate, 'allocation')
     _attach_emissions(gate, [(2018, 115.0)])
@@ -474,13 +567,13 @@ def test_gate_accepts_work_potential_at_the_bisko_return_temperature():
     assert _gate_by_year(gate)[2018] == 1.0
 
 
-def test_gate_rejects_work_potential_at_another_return_temperature():
+def test_gate_rejects_work_potential_at_another_ambient_temperature():
     context = _make_context('gate-work-potential-313')
     gate = _make_gate(context)
     allocation = _make_chp_node(
         context,
         method='work_potential',
-        inputs={'electricity_fraction': 0.3, 't_supply': 373.0, 't_return': 313.0},
+        inputs={'electricity_fraction': 0.3, 't_supply': 373.0, 't_return': T_RETURN, 't_ambient': 293.0},
     )
     _connect(allocation, gate, 'allocation')
     _attach_emissions(gate, [(2018, 115.0)])
@@ -488,8 +581,8 @@ def test_gate_rejects_work_potential_at_another_return_temperature():
     assert _gate_by_year(gate)[2018] == 0.0
 
 
-def test_gate_rejects_a_return_temperature_that_moves_between_years():
-    """BISKO fixes the return temperature, so a series conforms only if it is 283 K in every year."""
+def test_gate_rejects_an_ambient_temperature_that_moves_between_years():
+    """BISKO fixes the ambient temperature, so a series conforms only if it is 283 K in every year."""
     context = _make_context('gate-work-potential-series')
     allocation = _make_chp_node(
         context,
@@ -497,7 +590,8 @@ def test_gate_rejects_a_return_temperature_that_moves_between_years():
         inputs={
             'electricity_fraction': 0.3,
             't_supply': 373.0,
-            't_return': _Series([BISKO_T_RETURN, 300.0], years=[2017, 2018]),
+            't_return': T_RETURN,
+            't_ambient': _Series([BISKO_T_AMBIENT, 293.0], years=[2017, 2018]),
         },
     )
 
@@ -506,7 +600,9 @@ def test_gate_rejects_a_return_temperature_that_moves_between_years():
 
 def test_bisko_chp_node_declares_a_fixed_conforming_allocation():
     context = _make_context('declaration')
-    node = _make_chp_node(context, cls=BiskoChpNode, inputs={'electricity_fraction': 0.3, 't_supply': 373.0})
+    node = _make_chp_node(
+        context, cls=BiskoChpNode, inputs={'electricity_fraction': 0.3, 't_supply': 373.0, 't_return': T_RETURN}
+    )
 
     assert node.allocation_method == 'bisko'
     assert node.allocation_method_is_fixed is True
@@ -515,7 +611,7 @@ def test_bisko_chp_node_declares_a_fixed_conforming_allocation():
 
 def test_generic_chp_node_declares_a_settable_method():
     context = _make_context('declaration-generic')
-    node = _make_chp_node(context, method='bisko', inputs={'electricity_fraction': 0.3, 't_supply': 373.0})
+    node = _make_chp_node(context, method='bisko', inputs={'electricity_fraction': 0.3, 't_supply': 373.0, 't_return': T_RETURN})
 
     assert node.allocation_method == 'bisko'
     assert node.allocation_method_is_fixed is False  # conforming, but by a setting
@@ -563,7 +659,9 @@ def test_gate_rejects_an_allocation_node_that_declares_nothing():
 def test_gate_requires_exactly_one_emissions_input():
     context = _make_context('gate-no-emissions')
     gate = _make_gate(context)
-    allocation = _make_chp_node(context, cls=BiskoChpNode, inputs={'electricity_fraction': 0.3, 't_supply': 373.0})
+    allocation = _make_chp_node(
+        context, cls=BiskoChpNode, inputs={'electricity_fraction': 0.3, 't_supply': 373.0, 't_return': T_RETURN}
+    )
     _connect(allocation, gate, 'allocation')
 
     with pytest.raises(NodeError, match="exactly one input node tagged 'emissions'"):
@@ -574,7 +672,9 @@ def test_gate_rejects_emissions_that_still_carry_a_dimension():
     """Forgetting the flatten on the emissions edge is the realistic way to get this wrong."""
     context = _make_context('gate-dimensional-emissions')
     gate = _make_gate(context)
-    allocation = _make_chp_node(context, cls=BiskoChpNode, inputs={'electricity_fraction': 0.3, 't_supply': 373.0})
+    allocation = _make_chp_node(
+        context, cls=BiskoChpNode, inputs={'electricity_fraction': 0.3, 't_supply': 373.0, 't_return': T_RETURN}
+    )
     _connect(allocation, gate, 'allocation')
 
     context.dimensions['energy_carrier'] = Dimension(
@@ -620,7 +720,9 @@ def test_a_year_without_district_heating_is_not_applicable_rather_than_failing()
     """
     context = _make_context('gate-no-network')
     gate = _make_gate(context)
-    allocation = _make_chp_node(context, cls=BiskoChpNode, inputs={'electricity_fraction': 0.3, 't_supply': 373.0})
+    allocation = _make_chp_node(
+        context, cls=BiskoChpNode, inputs={'electricity_fraction': 0.3, 't_supply': 373.0, 't_return': T_RETURN}
+    )
     _connect(allocation, gate, 'allocation')
     _attach_emissions(gate, [(2016, 0.0), (2017, 0.0), (2018, 0.0)])
     _attach_consumption(gate, [(2016, 0.0), (2017, 0.0), (2018, 0.0)])
@@ -635,7 +737,9 @@ def test_district_heating_with_no_allocated_emissions_still_fails():
     """The other half of the same distinction: a network that allocated nothing is a failure."""
     context = _make_context('gate-network-no-emissions')
     gate = _make_gate(context)
-    allocation = _make_chp_node(context, cls=BiskoChpNode, inputs={'electricity_fraction': 0.3, 't_supply': 373.0})
+    allocation = _make_chp_node(
+        context, cls=BiskoChpNode, inputs={'electricity_fraction': 0.3, 't_supply': 373.0, 't_return': T_RETURN}
+    )
     _connect(allocation, gate, 'allocation')
     _attach_emissions(gate, [(2017, 0.0), (2018, 0.0)])
     _attach_consumption(gate, [(2017, 240.0), (2018, 260.0)])
@@ -648,7 +752,9 @@ def test_district_heating_with_no_allocated_emissions_still_fails():
 def test_the_consumption_input_must_be_a_single_series():
     context = _make_context('gate-consumption-dims')
     gate = _make_gate(context)
-    allocation = _make_chp_node(context, cls=BiskoChpNode, inputs={'electricity_fraction': 0.3, 't_supply': 373.0})
+    allocation = _make_chp_node(
+        context, cls=BiskoChpNode, inputs={'electricity_fraction': 0.3, 't_supply': 373.0, 't_return': T_RETURN}
+    )
     _connect(allocation, gate, 'allocation')
     _attach_emissions(gate, [(2018, 115.0)])
 
