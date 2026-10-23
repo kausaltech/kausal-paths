@@ -1786,7 +1786,7 @@ nodes:
     - column: sector
 
 - id: bus_kilometers_by_propulsion
-  name: Bus kilometers by propulsion
+  name: Bussiliikenteen suoritteet käyttövoimakohtaisesti
   name_en: Bus kilometers by propulsion
   type: simple.MultiplicativeNode
   quantity: mileage
@@ -2076,7 +2076,7 @@ nodes:
     - column: scope
 
 - id: car_electrification_impact_gasoline
-  name: 'Passenger car electrification impact: gasoline'
+  name: 'Henkilöautojen sähköistymisvaikutus: bensiini'
   name_en: 'Passenger car electrification impact: gasoline'
   type: formula.FormulaNode
   quantity: mix
@@ -2089,7 +2089,7 @@ nodes:
   - id: car_propulsion_mix
 
 - id: car_electrification_impact_diesel
-  name: 'Passenger car electrification impact: diesel'
+  name: 'Henkilöautojen sähköistymisvaikutus: diesel'
   name_en: 'Passenger car electrification impact: diesel'
   type: formula.FormulaNode
   quantity: mix
@@ -2149,7 +2149,7 @@ nodes:
   - id: onroad_transportation_electricity_factors
 
 - id: car_fuel_emission_factors
-  name: Passenger car fuel emission factors
+  name: Henkilöautojen polttoaineiden päästökertoimet
   name_en: Passenger car fuel emission factors
   type: simple.AdditiveNode
   quantity: emission_factor
@@ -2330,7 +2330,7 @@ nodes:
     - column: sector
 
 - id: truck_kilometers_by_vehicle_type
-  name: Truck kilometers by vehicle type
+  name: Kuorma-autojen suoritteet ajoneuvotyypin mukaan
   name_en: Truck kilometers by vehicle type
   type: simple.AdditiveNode
   quantity: mileage
@@ -2352,7 +2352,7 @@ nodes:
     - column: sector
 
 - id: truck_electricity_consumption
-  name: Truck electricity consumption
+  name: Kuorma-autojen sähkönkulutus
   name_en: Truck electricity consumption
   type: formula.FormulaNode
   quantity: energy
@@ -2489,7 +2489,7 @@ nodes:
       exclude: true
 
 - id: combination_truck_propulsion_mix
-  name: Combination truck propulsion mix
+  name: Yhdistelmäajoneuvojen käyttövoimajakauma
   name_en: Combination truck propulsion mix
   type: formula.FormulaNode
   quantity: mix
@@ -2523,7 +2523,7 @@ nodes:
   - id: combination_truck_propulsion_mix
 
 - id: combination_truck_fuel_emission_factors
-  name: Combination truck fuel emission factors
+  name: Yhdistelmäajoneuvojen päästökertoimet (polttoaineet)
   name_en: Combination truck fuel emission factors
   type: simple.AdditiveNode
   quantity: emission_factor
@@ -2542,7 +2542,7 @@ nodes:
     - column: sector
 
 - id: combination_truck_emissions
-  name: Combination truck emissions
+  name: Yhdistelmäajoneuvojen päästöt
   name_en: Combination truck emissions
   type: formula.FormulaNode
   quantity: emissions
@@ -2650,7 +2650,7 @@ nodes:
       exclude: true
 
 - id: rigid_truck_propulsion_mix
-  name: Rigid truck propulsion mix
+  name: Muiden kuorma-autojen käyttövoimajakauma
   name_en: Rigid truck propulsion mix
   type: formula.FormulaNode
   quantity: mix
@@ -2684,7 +2684,7 @@ nodes:
   - id: rigid_truck_propulsion_mix
 
 - id: rigid_truck_fuel_emission_factors
-  name: Rigid truck fuel emission factors
+  name: Muun kuorma-autoliikenteen päästökertoimet (polttoaineet)
   name_en: Rigid truck fuel emission factors
   type: simple.AdditiveNode
   quantity: emission_factor
@@ -2703,7 +2703,7 @@ nodes:
     - column: sector
 
 - id: rigid_truck_emissions
-  name: Rigid truck emissions
+  name: Muun kuorma-autoliikenteen päästöt
   name_en: Rigid truck emissions
   type: formula.FormulaNode
   quantity: emissions
@@ -2834,7 +2834,7 @@ nodes:
       exclude: true
 
 - id: van_propulsion_mix
-  name: Van propulsion mix
+  name: Pakettiautojen käyttövoimajakauma
   name_en: Van propulsion mix
   type: formula.FormulaNode
   quantity: mix
@@ -2853,7 +2853,7 @@ nodes:
     tags: [mix_non_electric]
 
 - id: van_kilometers_by_propulsion
-  name: Van kilometers by propulsion
+  name: Pakettiautoliikenteen suoritteet käyttövoimakohtaisesti
   name_en: Van kilometers by propulsion
   type: simple.MultiplicativeNode
   quantity: mileage
