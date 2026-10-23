@@ -3646,6 +3646,75 @@ nodes:
   output_nodes:
   - id: transportation_cost_benefit
 
+- id: plusbus_investments_cost_benefit
+  name: Plusbussi-investoinnit
+  name_en: Plusbus investments
+  color: '#668EC9'
+  type: formula.FormulaNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [cost_type, owner, action]
+  output_dimensions: [cost_type, owner, action]
+  params:
+    formula: total_costs + total_benefits
+  input_nodes:
+  - id: total_costs
+    from_dimensions:
+    - id: action
+      categories: [plusbus_investments]
+  - id: total_benefits
+    from_dimensions:
+    - id: action
+      categories: [plusbus_investments]
+  output_nodes:
+  - id: transportation_cost_benefit
+
+- id: improving_the_service_level_of_public_transport_cost_benefit
+  name: Joukkoliikenteen palvelutason nosto
+  name_en: Improving the service level of public transport
+  color: '#668EC9'
+  type: formula.FormulaNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [cost_type, owner, action]
+  output_dimensions: [cost_type, owner, action]
+  params:
+    formula: total_costs + total_benefits
+  input_nodes:
+  - id: total_costs
+    from_dimensions:
+    - id: action
+      categories: [improving_the_service_level_of_public_transport]
+  - id: total_benefits
+    from_dimensions:
+    - id: action
+      categories: [improving_the_service_level_of_public_transport]
+  output_nodes:
+  - id: transportation_cost_benefit
+
+- id: parking_policy_to_support_sustainable_mobility_cost_benefit
+  name: Kestävää liikkumista tukeva pysäköintipolitiikka
+  name_en: Parking policy to support sustainable mobility
+  color: '#668EC9'
+  type: formula.FormulaNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [cost_type, owner, action]
+  output_dimensions: [cost_type, owner, action]
+  params:
+    formula: total_costs + total_benefits
+  input_nodes:
+  - id: total_costs
+    from_dimensions:
+    - id: action
+      categories: [parking_policy_to_support_sustainable_mobility]
+  - id: total_benefits
+    from_dimensions:
+    - id: action
+      categories: [parking_policy_to_support_sustainable_mobility]
+  output_nodes:
+  - id: transportation_cost_benefit
+
 - id: transportation_cost_benefit
   name: Liikenne kustannukset ja hyödyt
   name_en: Transportation costs and benefits
