@@ -171,9 +171,6 @@ dimensions:
   - id: gas_biogas
     label: Kaasu/Biokaasu
     label_en: Gas/Biogas
-  - id: plusbus
-    label: Plusbussi/Sähkö
-    label_en: Plusbus/Electricity
 
 - id: heating
   label: Lämmitys
@@ -483,21 +480,9 @@ dimensions:
   - id: energy_efficiency_measures_for_new_construction
     label: Uusien rakennusten energiatehokkuustoimet
     label_en: Energy efficiency measures for new construction
-  - id: change_in_the_propulsion_of_bus_fleet
-    label: Bussiliikenteen käyttövoimamuutos
-    label_en: Change in the propulsion of bus fleet
-  - id: shift_to_lowcarbon_in_electricity_production
-    label: Kansallinen sähköntuotanto puhdistuu
-    label_en: Shift to low-carbon in electricity production
-  - id: replacing_fossil_fuels_with_res_in_city_machinery
-    label: Fossiilipolttoaineista luopuminen työkoneissa
-    label_en: Replacing fossil fuels with RES in city machinery
   - id: replacing_oil_heating_with_geothermal
     label: Öljylämmityksestä siirtyminen maalämpöihin
     label_en: Replacing oil heating with geothermal
-  - id: change_in_vehicle_propulsion
-    label: Autoliikenteen käyttövoimamuutos
-    label_en: Change in vehicle propulsion
   - id: tramline_3_construction
     label: Ratikan 3 vaihe
     label_en: Tramline 3 construction
@@ -510,26 +495,12 @@ dimensions:
   - id: parking_policy_to_support_sustainable_mobility
     label: Kestävää liikkumista tukeva pysäköintipolitiikka
     label_en: Parking policy to support sustainable mobility
-  - id: solar_power_in_municipal_building_stock
-    label: Solar power in municipal building stock
   - id: geothermal_and_awhps_in_municipal_building_stock
     label: Öljylämmityksestä luopuminen
     label_en: Replace oil heating in buildings
   - id: aahps_in_municipal_building_stock
     label: Ilmalämpöpumput lämmityksen tukena
     label_en: Air-to-air heat pump investments
-  - id: additional_investments_in_naistenlahti_3
-    label: Naistenlahti 3 -voimalaitoksen lisäinvestoinnit
-    label_en: Additional investments in Naistenlahti 3
-  - id: waste_heat_recovery_in_district_heating
-    label: Hukkalämpöjen talteenotto kaukolämmityksen tukena
-    label_en: Waste heat recovery in district heating
-  - id: electric_boiler_and_district_heat_battery
-    label: Sähkökattila ja kaukolämpöakku
-    label_en: Electric boiler and district heat battery
-  - id: smart_grid_and_virtual_power_plant_development
-    label: Älykäs energiaverkko ja virtuaalilaitoksen kehitys
-    label_en: Smart grid and virtual power plant development
   - id: plusbus_investments
     label: Plusbussi-investoinnit
     label_en: Plusbus investments
