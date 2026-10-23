@@ -173,6 +173,172 @@ impact_overviews:
 
 #//////  Dimensions  //////////////////////////////////////////////////////////////////////////////////////////////
 
+# Colours for the two dimensions where the module's family shades (and, for vehicle types, the
+# UI's generated gradient) made neighbouring categories hard to tell apart. Chosen for contrast
+# between neighbours in the stacking order, not for resemblance between related fuels; the method
+# and the reasoning are in paths-data `models/mainz/scripts/recolor_dimensions.py`, which writes
+# the same values to the stored spec without a sync (written 22 Oct 2026). Keep the two in step.
+# Only color, order and labels can be overridden here; ids and aliases come from the module.
+category_overrides:
+  energy_carrier:
+    waste:
+      color: '#184f95'
+    waste_chp:
+      color: '#a99cf0'
+    petrol:
+      color: '#eb6834'
+    sewage_sludge:
+      color: '#9c2526'
+    bio_petrol:
+      color: '#184f95'
+    biogas:
+      color: '#f3b3cb'
+    biogas_chp:
+      color: '#8c8c8c'
+    biomass:
+      color: '#0e6b4a'
+    biomass_boiler:
+      color: '#f29b9a'
+    biomass_chp:
+      color: '#86b6ef'
+    brown_coal:
+      color: '#f6cf6b'
+    cng_bio:
+      color: '#9c2526'
+    cng_fossil:
+      color: '#3b2e8a'
+    diesel:
+      color: '#1baf7a'
+    biodiesel:
+      color: '#a8401a'
+    natural_gas:
+      color: '#2a78d6'
+    natural_gas_small_chp:
+      color: '#f6cf6b'
+    natural_gas_turbine:
+      color: '#004d00'
+    renewable_waste_heat_lt_90:
+      color: '#a3456f'
+    renewable_waste_heat_gt_90:
+      color: '#c4c4c4'
+    district_and_local_heating:
+      color: '#004d00'
+    district_heating:
+      color: '#e87ba4'
+    solid_biomass:
+      color: '#8a5e00'
+    liquid_biomass:
+      color: '#7fd6b5'
+    propane:
+      color: '#004d00'
+    photovoltaic:
+      color: '#a99cf0'
+    total:
+      color: '#7cc47c'
+    geothermal:
+      color: '#a8401a'
+    heating_oil:
+      color: '#6250d6'
+    heating_electricity:
+      color: '#8a5e00'
+    kerosene:
+      color: '#7fd6b5'
+    sewage_landfill_mine_gas:
+      color: '#4d4d4d'
+    coal_chp:
+      color: '#8c8c8c'
+    conventional_waste_heat_lt_90:
+      color: '#f5a582'
+    conventional_waste_heat_gt_90:
+      color: '#a8401a'
+    fuels:
+      color: '#86b6ef'
+    lpg:
+      color: '#4d4d4d'
+    local_heating:
+      color: '#f5a582'
+    not_defined:
+      color: '#8c8c8c'
+    solar_thermal:
+      color: '#86b6ef'
+    other_renewables:
+      color: '#a3456f'
+    other_renewable_energy_carriers:
+      color: '#7cc47c'
+    other_conventional:
+      color: '#c4c4c4'
+    other_conventional_energy_carriers:
+      color: '#3b2e8a'
+    other:
+      color: '#004d00'
+    hard_coal:
+      color: '#e34948'
+    electricity:
+      color: '#eda100'
+    environmental_heat:
+      color: '#008300'
+    hydropower:
+      color: '#7fd6b5'
+    hydrogen:
+      color: '#3b2e8a'
+    wind:
+      color: '#8a5e00'
+  vehicle_type:
+    passenger_cars:
+      color: '#2a78d6'
+    trucks:
+      color: '#eb6834'
+    vans:
+      color: '#1baf7a'
+    local_buses:
+      color: '#6250d6'
+    local_trains:
+      color: '#e87ba4'
+    inland_waterway_shipping:
+      color: '#008300'
+    tram:
+      color: '#eda100'
+    motorcycles:
+      color: '#e34948'
+    cargo_trains:
+      color: '#a99cf0'
+    long_distance_trains:
+      color: '#3b2e8a'
+    air_transport:
+      color: '#8a5e00'
+    total:
+      color: '#7cc47c'
+    walking:
+      color: '#f3b3cb'
+    bicycles:
+      color: '#004d00'
+    ebikes_escooters:
+      color: '#a3456f'
+    cars_and_motorcycles:
+      color: '#7fd6b5'
+    heavy_commercial:
+      color: '#8c8c8c'
+    working_machines:
+      color: '#4d4d4d'
+    coach_buses:
+      color: '#f6cf6b'
+    buses:
+      color: '#86b6ef'
+    trains:
+      color: '#9c2526'
+    air_transport_public_cargo:
+      color: '#184f95'
+    air_transport_private:
+      color: '#c4c4c4'
+    inland_waterway_shipping_cargo:
+      color: '#a8401a'
+    inland_waterway_shipping_passengers:
+      color: '#3b2e8a'
+    undefined:
+      color: '#f6cf6b'
+    none:
+      color: '#0e6b4a'
+
 dimensions:
 
 # The individual CHP units and PV arrays behind `municipal_avoided_energy`.
