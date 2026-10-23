@@ -3624,8 +3624,8 @@ nodes:
   - id: transportation_cost_benefit
 
 - id: tramline_3_construction_cost_benefit
-  name: Ratikan 3. rakennusvaihe (2028-2030)
-  name_en: Tramline 3 construction (2028-2030)
+  name: Ratikan 3. rakennusvaihe
+  name_en: Tramline 3 construction
   color: '#668EC9'
   type: formula.FormulaNode
   quantity: currency
