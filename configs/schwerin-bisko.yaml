@@ -3,7 +3,7 @@ default_language: de
 supported_languages: [en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 843804814636c80bf50bbaa11f23281a277b5150
+  commit: 73554e4374aa069d5f464e97d2f991e594d270a4
   dvc_remote: kausal-s3
 name_de: Schwerin Klima-Monitor-BISKO
 name_en: Schwerin Climate Monitor BISKO

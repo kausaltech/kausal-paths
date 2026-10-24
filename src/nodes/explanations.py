@@ -133,6 +133,7 @@ TAG_DESCRIPTIONS = {
     'goal': _('The node is used as the goal for the action.'),
     'goal_gap': _("Compute gap = actual - goal from the single input node's output and goals."),
     'historical': _('The node is used as the historical starting point.'),
+    'hold_into_forecast': _("Hold the latest year's values flat into the forecast years, and fill nothing else."),
     'ignore_content': _('Show edge on graphs but ignore upstream content.'),
     'impute': _(
         'Overlay this input onto the result, outer-joined on dimensions: the input value replaces the '

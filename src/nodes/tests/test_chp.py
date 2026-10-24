@@ -264,6 +264,23 @@ def test_a_series_given_in_per_cent_is_converted():
     assert heat[2018] == pytest.approx(_expected_heat_fraction(0.30, 373.0))
 
 
+def test_temperatures_given_in_celsius_are_converted():
+    # The BISKO template takes °C, as utilities and climate coordinators state them.
+    context = _make_context('chp-celsius')
+    node = _make_chp_node(
+        context,
+        method='bisko',
+        inputs={
+            'electricity_fraction': _Series([30.0], years=[2018], unit='%'),
+            't_supply': _Series([99.85], years=[2018], unit='degC'),
+            't_return': _Series([60.0], years=[2018], unit='degC'),
+        },
+    )
+
+    heat = _heat_by_year(node.compute())
+    assert heat[2018] == pytest.approx(_expected_heat_fraction(0.30, 373.0, 333.15))
+
+
 def test_the_physical_inputs_are_ports_not_parameters():
     """The method is an agreement and stays a parameter; everything describing the plant is data."""
     allowed = {p.local_id for p in ChpNode.allowed_parameters}
