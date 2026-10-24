@@ -204,8 +204,14 @@ class FormulaNode(Node):
 
     def _compare_pdf_quantity(self, df: PDF, val: Quantity, op: str) -> PDF:
         """Compare a PDF with a Quantity using the specified operation."""
-        converted_val = val.to(df.get_unit(VALUE_COLUMN))
-        val_m: float = converted_val.m
+        unit = df.get_unit(VALUE_COLUMN)
+        # A bare 0 (formula literals are dimensionless quantities) is zero in every unit whose zero
+        # is absolute, so `factor >= 0` needs no unit on the 0. An offset unit (degC, whose 0 is
+        # 273.15 K) is not, and keeps the conversion error. analyze_formula_units applies the same rule.
+        if val.dimensionless and val.m == 0 and _zero_is_absolute(unit):
+            val_m = 0.0
+        else:
+            val_m = val.to(unit).m
         op_map = {
             'eq': pl.col(VALUE_COLUMN).eq(pl.lit(val_m)),
             'ne': pl.col(VALUE_COLUMN).ne(pl.lit(val_m)),
@@ -831,6 +837,15 @@ def build_name_unit_map(
 UnitOverride = Unit | str | Callable[[Unit | None], Unit | None]
 
 
+def _is_bare_zero(node: ast.AST) -> bool:
+    return isinstance(node, ast.Constant) and not isinstance(node.value, bool) and node.value == 0
+
+
+def _zero_is_absolute(unit: Unit) -> bool:
+    """Whether 0 in this unit is 0 in every unit of its kind; false for offset units such as degC."""
+    return unit_registry.Quantity(0, unit).to_base_units().m == 0
+
+
 def analyze_formula_units(  # noqa: C901, PLR0915
     formula: str,
     name_units: dict[str, Unit | None],
@@ -908,7 +923,10 @@ def analyze_formula_units(  # noqa: C901, PLR0915
             left = _eval(node.left)
             for comp in node.comparators:
                 right = _eval(comp)
-                _merge_compatible('compare', left, right)
+                # The runtime's rule (_compare_pdf_quantity): a bare 0 compares with any unit whose
+                # zero is absolute, so `factor >= 0` is not a unit mismatch.
+                if not (_is_bare_zero(comp) and left is not None and _zero_is_absolute(left)):
+                    _merge_compatible('compare', left, right)
                 left = right
             return dimensionless
         if isinstance(node, ast.Call):

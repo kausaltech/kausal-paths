@@ -16,7 +16,7 @@ from kausal_common.perf.perf_context import PerfKind, estimate_size_bytes
 from common import polars as ppl
 from common.polars import PathsDataFrame
 from nodes.actions.action import ActionNode
-from nodes.calc import extend_last_historical_value_pl, extend_to_history_pl
+from nodes.calc import extend_last_historical_value_pl
 from nodes.constraints.port_roles import PortRoleInferenceResult
 from nodes.defs.port_def import InputPortDeclaration
 from nodes.node import NodeMetric
@@ -1942,9 +1942,10 @@ class ChpNode(GenericNode):
     editions and silently move past balances. A year without both temperatures has
     no allocation, and the consumer reports the gap.
 
-    The series are interpolated across internal gaps, held constant back to the
-    start of history, and held constant forward to the model end year (those forward
-    years marked as forecast), so a plant described by a single year is a flat line.
+    A historical year is split only if every input was entered for that year: no
+    interpolation over gaps and no holding the first year back, because which BISKO
+    route a year takes depends on whether it has a split. The forecast continues the
+    last historical year, held flat and marked as forecast, if that year was entered.
     Values may be given in any compatible unit: fractions and efficiencies are
     converted to dimensionless (so per cent works), temperatures to K.
     """
@@ -1971,6 +1972,9 @@ class ChpNode(GenericNode):
 
     FIXED_METHOD: ClassVar[str | None] = None
     """Set by a subclass that pins the method; then ``method`` is not a parameter."""
+
+    UNBOUND_MEANS_NO_SPLIT: ClassVar[frozenset[str]] = frozenset()
+    """Inputs whose missing binding gives no split instead of an error. A transition aid only."""
 
     consumes_all_inputs_through_ports = True
 
@@ -2093,9 +2097,13 @@ class ChpNode(GenericNode):
     def _annual_inputs(self, names: set[str]) -> PathsDataFrame:
         """Join the named input series on the model's year span."""
         parts: list[PathsDataFrame] = []
+        unbound: list[str] = []
         for name in sorted(names):
             series = self._input_series(name)
             if series is None:
+                if name in self.UNBOUND_MEANS_NO_SPLIT:
+                    unbound.append(name)
+                    continue
                 raise NodeError(
                     self,
                     "The '%s' method needs %r, which is not supplied. Bind a dataset column to the input port %r."
@@ -2110,12 +2118,27 @@ class ChpNode(GenericNode):
         out = out.with_columns(
             pl.any_horizontal([pl.col(col).fill_null(value=False) for col in forecast_cols]).alias(FORECAST_COLUMN)
         ).drop(forecast_cols)
+        if unbound:
+            self.logger.warning('Input(s) %s are not bound, so no year has a split.', ', '.join(unbound))
+            out = out.with_columns([pl.lit(None, dtype=pl.Float64).alias(name) for name in unbound])
+            return out.filter(pl.lit(value=False))
+        if any(out[name].drop_nulls().len() == 0 for name in names):
+            # An input with no value in any year: the shared template ships blank, and Mainz has
+            # its electricity fraction and supply temperature but no return temperature yet. No
+            # year can be split, which the consumers report.
+            return out.filter(pl.lit(value=False))
 
-        instance = self.context.instance
-        start_year = min(instance.reference_year, instance.minimum_historical_year)
-        out = out.paths._add_missing_years(out, self.context)  # interpolate internal gaps
-        out = extend_to_history_pl(out, start_year)  # hold the earliest observation back to the start
-        return extend_last_historical_value_pl(out, instance.model_end_year)  # hold the latest one forward, as forecast
+        # A historical year has a split only if every input was entered for that year: no
+        # interpolation over gaps and no holding the first year back. Which BISKO route a year takes
+        # depends on whether it has a split, so a filled-in value would change the method, not just
+        # the number, on the strength of figures nobody entered.
+        out = out.drop_nulls(subset=sorted(names))
+        if out.height == 0:
+            return out
+
+        # Forecast years, and only those, continue the last historical year, held flat and marked as
+        # forecast -- provided that year was entered.
+        return out.paths._hold_into_forecast(out, self.context)
 
     def _z_factors(self, df: PathsDataFrame, method: str) -> PathsDataFrame:
         """Add the method-specific weights z_el and z_heat."""
@@ -2255,8 +2278,18 @@ class BiskoChpNode(ChpNode):
 
     FIXED_METHOD = 'bisko'
 
+    # Transitional, added 2026-10-24 with the return temperature: a database-sourced instance
+    # keeps the bindings of its last sync, and a published revision those of its publication, so
+    # until each has been re-synced and republished its stored model has no `t_return` binding.
+    # Requiring the port would stop those instances computing the moment the code is deployed.
+    # Unbound, the node gives no split, which means no Möglichkeit 1 -- what they computed before.
+    # Make the port required again once every BISKO instance has been republished.
+    UNBOUND_MEANS_NO_SPLIT = frozenset({'t_return'})
+
     t_supply_port = InputPortDeclaration(role='t_supply', label=_('Supply temperature of the district heating flow'))
-    t_return_port = InputPortDeclaration(role='t_return', label=_('Return temperature of the district heating flow'))
+    t_return_port = InputPortDeclaration(
+        role='t_return', required=False, min_count=0, label=_('Return temperature of the district heating flow')
+    )
     input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = (
         ChpNode.electricity_fraction_port,
         t_supply_port,

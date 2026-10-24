@@ -64,6 +64,7 @@ class PathsExt:
         'fill_metrics_nan_null_zero': '_fill_metrics_nan_null_zero',
         'forecast_only': '_forecast_only',
         'geometric_inverse': '_geometric_inverse',
+        'hold_into_forecast': '_hold_into_forecast',
         'ignore_content': '_ignore_content',
         'indifferent_history_ratio': '_indifferent_history_ratio',
         'inventory_only': '_inventory_only',
@@ -1599,6 +1600,35 @@ class PathsExt:
             else:
                 cols.append(c.fill_null(0.0).alias(m))
         return df.with_columns(cols)
+
+    def _hold_into_forecast(self, df: ppl.PathsDataFrame, context: Context) -> ppl.PathsDataFrame:
+        """
+        Hold the latest year's values flat into the forecast years, and fill nothing else.
+
+        Historical years keep exactly the rows they have: no interpolation over a gap, and no year
+        is filled while it is still a historical year. The forecast continues the last historical
+        year: it is held only when the frame has a row for that year (or a later one), and then the
+        years after the last row get that row, marked as forecast. A frame whose latest row is an
+        earlier year gets no forecast at all, so the forecast never returns to a value the last
+        inventory year did not use. Use it where a filled-in value would change more than a
+        number -- for BISKO district heating, which route a year takes.
+        """
+        if df.height == 0:
+            return df
+        if FORECAST_COLUMN not in df.columns:
+            df = df.with_columns(pl.lit(value=False).alias(FORECAST_COLUMN))
+        last = df[YEAR_COLUMN].max()
+        assert isinstance(last, int)
+        max_hist = context.instance.maximum_historical_year
+        if max_hist is not None and last < max_hist:
+            return df
+        start = last + 1
+        last_rows = df.filter(pl.col(YEAR_COLUMN) == last)
+        for year in range(start, context.instance.model_end_year + 1):
+            df = df.paths.concat_vertical(
+                last_rows.with_columns([pl.lit(year).alias(YEAR_COLUMN), pl.lit(value=True).alias(FORECAST_COLUMN)])
+            )
+        return df
 
     def _forecast_only(self, df: ppl.PathsDataFrame, _context: Context) -> ppl.PathsDataFrame:
         return df.filter(pl.col(FORECAST_COLUMN))

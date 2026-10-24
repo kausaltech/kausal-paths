@@ -118,3 +118,46 @@ def test_from_year_requires_a_literal_year():
 
     with pytest.raises(NodeError, match='literal year'):
         target.compute()
+
+
+def test_comparing_with_a_bare_zero_needs_no_unit():
+    """`factor >= 0` is how a formula asks "does this year have a value"; the 0 carries no unit."""
+    target = _formula_over(
+        _context('compare-zero'), 'emissions >= 0', [(2020, 3.0), (2021, 0.0), (2022, -1.0)], unit='dimensionless'
+    )
+
+    out = target.compute()
+
+    assert dict(zip(out[YEAR_COLUMN].to_list(), out[VALUE_COLUMN].to_list(), strict=True)) == {2020: 1.0, 2021: 1.0, 2022: 0.0}
+
+
+def test_hold_into_forecast_fills_no_historical_year():
+    # The factory instance's last historical year is 2018 and its model end year 2030.
+    target = _formula_over(_context('hold-forecast'), 'hold_into_forecast(emissions)', [(2016, 1.0), (2018, 3.0)], unit='kt/a')
+
+    out = target.compute()
+    values = dict(zip(out[YEAR_COLUMN].to_list(), out[VALUE_COLUMN].to_list(), strict=True))
+    forecast = dict(zip(out[YEAR_COLUMN].to_list(), out[FORECAST_COLUMN].to_list(), strict=True))
+
+    assert 2017 not in values  # no interpolation over the gap
+    assert values[2019] == values[2030] == 3.0
+    assert forecast[2018] is False
+    assert forecast[2019] is True
+
+
+def test_hold_into_forecast_continues_only_the_last_historical_year():
+    target = _formula_over(_context('hold-forecast-early'), 'hold_into_forecast(emissions)', [(2016, 1.0)], unit='kt/a')
+
+    out = target.compute()
+
+    assert out[YEAR_COLUMN].to_list() == [2016]
+
+
+def test_the_unit_analysis_accepts_a_bare_zero_comparison_as_the_runtime_does():
+    from nodes.formula import analyze_formula_units
+
+    units = {'factor': unit_registry.parse_units('g_co2e/kWh'), 'temperature': unit_registry.parse_units('degC')}
+
+    assert analyze_formula_units('factor >= 0', units).errors == []
+    assert analyze_formula_units('factor >= 1', units).errors != []  # a non-zero number still needs a unit
+    assert analyze_formula_units('temperature >= 0', units).errors != []  # 0 degC is not 0 K

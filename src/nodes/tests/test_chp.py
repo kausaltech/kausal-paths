@@ -138,14 +138,15 @@ def _expected_heat_fraction(
     return 1.0 - a_el
 
 
-def test_a_single_year_gives_a_flat_split_over_the_whole_model_span():
+def test_a_single_year_is_its_own_split_and_the_forecast_holds_it():
+    # The factory's last historical year is 2018, the year the single values are given for.
     context = _make_context('chp-constant')
     node = _make_chp_node(context, method='bisko', inputs={'electricity_fraction': 0.3, 't_supply': 373.0, 't_return': T_RETURN})
 
     df = node.compute()
     heat = _heat_by_year(df)
 
-    assert min(heat) == START_YEAR
+    assert min(heat) == 2018  # nothing is held back into earlier years
     assert max(heat) == END_YEAR
     expected = _expected_heat_fraction(0.3, 373.0)
     assert all(value == pytest.approx(expected) for value in heat.values())
@@ -181,26 +182,74 @@ def test_annual_series_make_the_split_vary_by_year():
     assert heat[2016] != pytest.approx(heat[2018])
 
 
-def test_series_is_held_constant_outside_the_years_it_covers():
-    context = _make_context('chp-extension')
+def test_historical_years_have_a_split_only_where_every_input_was_entered():
+    """
+    No interpolation over a gap and no holding the first year back.
+
+    Whether a year has a split decides which BISKO route it takes, so a filled-in parameter would
+    change the method on the strength of a value nobody entered.
+    """
+    context = _make_context('chp-explicit')
+    both = [2016, 2018]
     node = _make_chp_node(
         context,
         method='bisko',
-        inputs={'electricity_fraction': _Series([0.30, 0.40], years=[2016, 2018]), 't_supply': 373.0, 't_return': T_RETURN},
+        inputs={
+            'electricity_fraction': _Series([0.30, 0.40], years=both),
+            't_supply': _Series([373.0, 373.0], years=both),
+            't_return': _Series([T_RETURN, T_RETURN], years=both),
+        },
     )
 
     df = node.compute()
     heat = _heat_by_year(df)
 
-    assert min(heat) == START_YEAR
-    assert max(heat) == END_YEAR
-    assert heat[START_YEAR] == pytest.approx(_expected_heat_fraction(0.30, 373.0))  # held back
-    assert heat[2017] == pytest.approx(_expected_heat_fraction(0.35, 373.0))  # interpolated over the gap
+    assert 2015 not in heat  # not held back
+    assert 2017 not in heat  # not interpolated
+    assert heat[2016] == pytest.approx(_expected_heat_fraction(0.30, 373.0))
+    assert heat[2018] == pytest.approx(_expected_heat_fraction(0.40, 373.0))
     assert heat[END_YEAR] == pytest.approx(_expected_heat_fraction(0.40, 373.0))  # held forward
 
     flags = {row[YEAR_COLUMN]: row[FORECAST_COLUMN] for row in df.to_dicts()}
-    assert flags[2018] is False  # the last observed year is history
+    assert flags[2018] is False  # the last entered year is history
     assert flags[2019] is True  # everything held forward from it is forecast
+
+
+def test_a_year_with_one_input_missing_has_no_split():
+    context = _make_context('chp-one-missing')
+    node = _make_chp_node(
+        context,
+        method='bisko',
+        inputs={
+            'electricity_fraction': _Series([0.30, 0.40], years=[2016, 2018]),
+            't_supply': _Series([373.0, 373.0], years=[2016, 2018]),
+            't_return': _Series([T_RETURN], years=[2018]),
+        },
+    )
+
+    heat = _heat_by_year(node.compute())
+
+    assert 2016 not in heat
+    assert 2018 in heat
+
+
+def test_no_forecast_when_the_last_historical_year_has_no_entry():
+    # Entered for 2016 only; 2017 and 2018 are historical years without parameters. The forecast
+    # continues the last historical year, which has no split, so it has none either.
+    context = _make_context('chp-early-entry')
+    node = _make_chp_node(
+        context,
+        method='bisko',
+        inputs={
+            'electricity_fraction': _Series([0.30], years=[2016]),
+            't_supply': _Series([373.0], years=[2016]),
+            't_return': _Series([T_RETURN], years=[2016]),
+        },
+    )
+
+    heat = _heat_by_year(node.compute())
+
+    assert set(heat) == {2016}
 
 
 def test_a_series_given_in_per_cent_is_converted():
@@ -338,6 +387,52 @@ def test_the_ifeu_workbook_case_is_reproduced():
     assert _heat_by_year(node.compute())[2018] == pytest.approx(0.1968, abs=0.002)
 
 
+def test_the_ifeu_workbook_split_is_reproduced_exactly_at_its_exergy_factor():
+    """
+    The Prüfstadt demonstration plant matches the workbook to the last digit.
+
+    The workbook's heat share is 0.196787148594377 (sheet *Erdgas+Kohle KWK_2021*, F33), from the
+    typed exergy factor 0.21. The demonstration data enters a 110 °C supply and the return at which
+    1 - 283 K / T_m is exactly 0.21, 334.4106 K, because the model takes temperatures and not a
+    factor (``modules/bisko/pruefstadt_demo`` in paths-data).
+    """
+    context = _make_context('chp-ifeu-exact')
+    node = _make_chp_node(
+        context,
+        method='bisko',
+        inputs={'electricity_fraction': 300.0 / 650.0, 't_supply': 383.15, 't_return': 334.4106},
+    )
+
+    assert _heat_by_year(node.compute())[2018] == pytest.approx(0.196787148594377, abs=1e-6)
+
+
+def test_blank_inputs_give_no_split_rather_than_an_error():
+    """
+    The shared template ships the parameters without values, and most cities never fill them in.
+
+    No year then has a split, which the district heating factor treats as "no Möglichkeit 1". It
+    used to fail inside the interpolation on an empty frame, which took every instance on the
+    template down with it.
+    """
+    context = _make_context('chp-blank')
+    empty = _Series([], years=[])
+    node = _make_chp_node(context, method='bisko', inputs={'electricity_fraction': empty, 't_supply': empty, 't_return': empty})
+
+    assert node.compute().height == 0
+
+
+def test_a_year_missing_one_input_has_no_split():
+    """Mainz: electricity fraction and supply temperature delivered, return temperature not yet."""
+    context = _make_context('chp-partial')
+    node = _make_chp_node(
+        context,
+        method='bisko',
+        inputs={'electricity_fraction': 0.4, 't_supply': 375.65, 't_return': _Series([], years=[])},
+    )
+
+    assert node.compute().height == 0
+
+
 def test_an_unknown_method_is_an_error():
     context = _make_context('chp-method')
     node = _make_chp_node(context, method='guesswork', inputs={'electricity_fraction': 0.3})
@@ -402,7 +497,9 @@ def test_bisko_node_has_no_settings_and_no_ports_for_what_the_standard_fixes():
     assert 'method' not in allowed
     assert not allowed & set(INPUT_UNITS)
     assert roles == {'electricity_fraction', 't_supply', 't_return'}
-    assert all(d.required for d in BiskoChpNode.input_port_declarations)
+    # All required, except t_return while stored specs that predate it are still about; see
+    # BiskoChpNode.UNBOUND_MEANS_NO_SPLIT.
+    assert {d.role for d in BiskoChpNode.input_port_declarations if not d.required} == BiskoChpNode.UNBOUND_MEANS_NO_SPLIT
 
 
 def test_the_bisko_method_refuses_an_ambient_temperature():
@@ -788,3 +885,16 @@ def test_the_consumption_input_must_be_a_single_series():
 
     with pytest.raises(NodeError, match='must be a single series'):
         gate.compute()
+
+
+def test_a_bisko_node_without_a_return_temperature_binding_has_no_split():
+    """
+    A stored model from before the return temperature existed still computes, without Möglichkeit 1.
+
+    Database-sourced instances keep the bindings of their last sync, and published revisions those
+    of their publication, so they reach the new code with no `t_return` binding at all.
+    """
+    context = _make_context('chp-legacy-spec')
+    node = _make_chp_node(context, cls=BiskoChpNode, inputs={'electricity_fraction': 0.3, 't_supply': 373.0})
+
+    assert node.compute().height == 0
