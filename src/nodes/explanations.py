@@ -354,8 +354,9 @@ NODE_CLASS_DESCRIPTIONS: dict[str, NodeInfo] = {
         The method is the only setting: it is an agreement about how to share the emissions. Everything
         else describes the physical plant -- the electricity fraction, the supply and return
         temperatures, the reference efficiencies -- and is read per year from a dataset, each value
-        from the input port of the same name. Annual series are interpolated over gaps and held
-        constant beyond the years they cover, so a plant described by one year is a flat line.
+        from the input port of the same name. A historical year is split only if every value was
+        entered for that year: nothing is interpolated or carried back. The forecast continues the
+        last historical year.
         """
         )
     ),
