@@ -3,7 +3,7 @@ default_language: de
 supported_languages: [en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: d4b1fa170a2cc9f9e047b4dc2a331aee174a070a
+  commit: 73554e4374aa069d5f464e97d2f991e594d270a4
   dvc_remote: kausal-s3
 name_de: Treibhausgas-Monitor
 name_en: Greenhouse Gas Monitor
