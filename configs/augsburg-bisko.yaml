@@ -1,6 +1,6 @@
 id: augsburg-bisko  # defines which instance is updated
 default_language: de
-supported_languages: [en]
+supported_languages: []
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: 843804814636c80bf50bbaa11f23281a277b5150
