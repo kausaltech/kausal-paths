@@ -1514,7 +1514,8 @@ class PathsExt:
         zeros in long format.
         """
         assert isinstance(df, ppl.PathsDataFrame)
-        if not df.metric_cols:
+        # An empty frame has nothing to fill, and the wide round trip would lose its metric columns.
+        if not df.metric_cols or df.height == 0:
             return df
         if df.dim_ids:
             wide = df.paths.to_wide()

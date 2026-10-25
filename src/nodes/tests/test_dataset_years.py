@@ -55,3 +55,16 @@ def test_unsorted_years_keep_legacy_join_order(context: Context) -> None:
         result.sort('Year'),
         pl.DataFrame({'Year': [2020, 2021, 2022], 'Value': [1.0, 3.0, None], 'Forecast': [False] * 3}),
     )
+
+
+def test_empty_to_zero_keeps_an_empty_dimensioned_frame(context: Context) -> None:
+    """An empty frame has nothing to fill; the wide round trip must not cost it its metric column."""
+    frame = pl.DataFrame(
+        {'Year': [], 'sector': [], 'Value': []},
+        schema={'Year': pl.Int64, 'sector': pl.String, 'Value': pl.Float64},
+    )
+    df = to_ppdf(frame, DataFrameMeta(units={'Value': unit_registry.kg}, primary_keys=['Year', 'sector']))
+    result = df.paths._empty_to_zero(df, context)
+    assert result.height == 0
+    assert result.metric_cols == ['Value']
+    assert set(result.primary_keys) == {'Year', 'sector'}
