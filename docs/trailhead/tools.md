@@ -574,6 +574,30 @@ If `live_revision_id` is set and the spec shows the new values, the sync worked 
 the instance needs to be published. If `live_revision_id` is `None`, visitors are
 already seeing the draft, so the cause lies elsewhere.
 
+### Before publishing: what will change for visitors
+
+The public UI never asks for the draft, so a page view cannot show what a publish would
+change. `compare_draft_published` computes both and compares every node's output, cell by
+cell over Year and the node's dimensions:
+
+```bash
+python manage.py compare_draft_published mainz-bisko bayreuth-bisko
+python manage.py compare_draft_published mainz-bisko --nodes net_emissions,electricity_emissions
+python manage.py compare_draft_published --all     # every DB-sourced instance with a live revision
+```
+
+Identical nodes are counted, not listed. A node that differs gets one line: the number of
+changed cells and the year whose total moved most, or a shape difference — dimensions,
+metrics, units, rows on one side only, a flipped forecast flag. Nodes present on one side
+only, and nodes that fail on one side, are listed too; a node that fails the same way on both
+sides is not something a publish changes and counts as identical.
+
+It skips yaml-sourced instances and instances that were never published. For those,
+`get_instance(source=PUBLISHED)` returns the draft, so the comparison would report
+everything identical while meaning nothing.
+
+After the publish, run it again: everything should then be identical.
+
 ### What a sync does not overwrite: the instance name and owner
 
 The sync **seeds** `name` and `owner` from the YAML only where the database holds
@@ -802,7 +826,8 @@ Then run what it prints, which is this sequence:
 3. `sync_instance_to_db <instance>`
 4. `dataset_status <instance> --stale-only` again, which should now be quiet.
 5. Publish, if the instance has ever been published: until then visitors keep
-   seeing the old revision (see *A sync writes the draft* above).
+   seeing the old revision (see *A sync writes the draft* above). Run
+   `compare_draft_published <instance>` first to see what the publish will change.
 
 Check the pin before starting. `dataset_status` prints it, and for a DB-sourced
 instance it is the DB spec's pin, which lags the YAML until step 3 — so a first
