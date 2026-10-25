@@ -1783,6 +1783,34 @@ nodes:
   - id: bus_kilometers_by_propulsion
   - id: onroad_transportation_electricity_factors
 
+- id: bus_electricity_consumption_price
+  name: Bussiliikenteen sähkön kulutuksen kustannukset
+  name_en: Bus electricity consumption cost
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: [energy_carrier, scope, vehicle_type, cost_type]
+  output_dimensions: [energy_carrier, scope, vehicle_type, cost_type]
+  input_nodes:
+  - id: bus_electricity_consumption
+    to_dimensions:
+    - id: energy_carrier
+    - id: scope
+    - id: vehicle_type
+  - id: energy_unit_prices
+    to_dimensions:
+    - id: energy_carrier
+    - id: cost_type
+  output_nodes:
+  - id: transportation_price
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
+    - id: vehicle_type
+      flatten: true
+
 - id: bus_fuel_consumption
   name: Bussiliikenteen polttoaineen kulutus
   name_en: Bus fuel consumption
@@ -1794,6 +1822,34 @@ nodes:
   input_nodes:
   - id: bus_kilometers_by_propulsion
   - id: onroad_transportation_fuel_factors
+
+- id: bus_fuel_consumption_price
+  name: Bussiliikenteen polttoaineen kulutuksen kustannukset
+  name_en: Bus fuel consumption cost
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: [energy_carrier, scope, vehicle_type, cost_type]
+  output_dimensions: [energy_carrier, scope, vehicle_type, cost_type]
+  input_nodes:
+  - id: bus_fuel_consumption
+    to_dimensions:
+    - id: energy_carrier
+    - id: scope
+    - id: vehicle_type
+  - id: fuel_unit_prices
+    to_dimensions:
+    - id: energy_carrier
+    - id: cost_type
+  output_nodes:
+  - id: transportation_price
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
+    - id: vehicle_type
+      flatten: true
 
 - id: bus_fuel_emission_factors
   name: Bussiliikenteen polttoaineiden päästökertoimet
