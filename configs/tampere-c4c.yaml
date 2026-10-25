@@ -3388,6 +3388,17 @@ nodes:
   unit: GWh/a
   input_dimensions: [energy_carrier, action, owner]
   output_dimensions: [energy_carrier, action, owner]
+  input_nodes:
+  - id: onroad_electricity_impacts
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+    - id: action
+    - id: owner
   output_nodes:
   - id: energy_cost_reductions
     tags: [make_nonpositive]
@@ -3818,6 +3829,24 @@ nodes:
     - id: cost_type
     - id: action
     - id: owner
+
+# --------------- Electricity
+
+- id: onroad_electricity_impacts
+  name: Vaikutukset tieliikenteen sähkön kulutukseen
+  name_en: On-road electricity impacts
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [vehicle_type, energy_carrier, scope, action, owner]
+  output_dimensions: [vehicle_type, energy_carrier, scope, action, owner]
+  input_nodes:
+  - id: onroad_kilometer_impacts
+  - id: onroad_transportation_electricity_factors
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+    - id: scope
 
 # ---------- Rail
 
