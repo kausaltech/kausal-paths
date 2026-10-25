@@ -1630,11 +1630,6 @@ nodes:
     - column: cost_type
   output_nodes:
   - id: motorcycle_emissions
-  - id: onroad_emissions_impacts
-    to_dimensions:
-    - id: vehicle_type
-    - id: ghg
-    - id: scope
 
 - id: rail_transportation_emission_factors
   name: Rautatieliikenteen päästökertoimet
@@ -1655,14 +1650,6 @@ nodes:
   output_nodes:
   - id: local_train_emissions
   - id: tram_emissions
-  - id: rail_emissions_impacts
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
-    to_dimensions:
-    - id: vehicle_type
-    - id: ghg
-    - id: scope
 
 - id: onroad_transportation_electricity_factors
   name: On-road transport electricity consumption per kilometer
@@ -3198,18 +3185,6 @@ nodes:
       categories: [carbon_shadow]
     - id: owner
       categories: [society]
-  - id: transport_emissions_cost_reductions
-    to_dimensions:
-    - id: cost_type
-      categories: [carbon_shadow]
-    - id: owner
-      categories: [society]
-  - id: transport_emissions_cost_increases
-    to_dimensions:
-    - id: cost_type
-      categories: [carbon_shadow]
-    - id: owner
-      categories: [society]
 
 - id: net_price
   name: Kokonaiskustannus
@@ -3581,49 +3556,6 @@ nodes:
   unit: Mvkm/a
   input_dimensions: [vehicle_type, action]
   output_dimensions: [vehicle_type, action]
-  output_nodes:
-  - id: onroad_emissions_impacts
-    from_dimensions:
-    - id: vehicle_type
-      categories: [passenger_cars, buses, motorcycles, trucks, vans]
-    to_dimensions:
-    - id: vehicle_type
-    - id: action
-  - id: rail_emissions_impacts
-    from_dimensions:
-    - id: vehicle_type
-      categories: [local_trains, trams]
-    to_dimensions:
-    - id: vehicle_type
-    - id: action
-
-- id: onroad_emissions_impacts
-  name: On-road emissions impacts
-  name_en: On-road emissions impacts
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: t_co2e/a
-  input_dimensions: [vehicle_type, ghg, scope, action]
-  output_dimensions: [vehicle_type, ghg, scope, action]
-  output_nodes:
-  - id: transport_emissions_reductions
-    tags: [make_nonpositive]
-  - id: transport_emissions_increases
-    tags: [make_nonnegative]
-
-- id: rail_emissions_impacts
-  name: Rail emissions impacts
-  name_en: Rail emissions impacts
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: t_co2e/a
-  input_dimensions: [vehicle_type, ghg, scope, action]
-  output_dimensions: [vehicle_type, ghg, scope, action]
-  output_nodes:
-  - id: transport_emissions_reductions
-    tags: [make_nonpositive]
-  - id: transport_emissions_increases
-    tags: [make_nonnegative]
 
 - id: transport_emissions_reductions
   name: Transport emissions reductions
@@ -3631,19 +3563,13 @@ nodes:
   type: simple.AdditiveNode
   quantity: emissions
   unit: t_co2e/a
-  input_dimensions: [vehicle_type, ghg, scope, action]
-  output_dimensions: [vehicle_type, ghg, scope, action]
-  output_nodes:
-  - id: transport_emissions_cost_reductions
-    from_dimensions:
-    - id: vehicle_type
-      flatten: true
-    - id: ghg
-      flatten: true
-    - id: scope
-      flatten: true
-    to_dimensions:
-    - id: action
+  input_dimensions: [vehicle_type, energy_carrier, ghg, scope, action]
+  output_dimensions: [vehicle_type, energy_carrier, ghg, scope, action]
+  input_nodes:
+  - id: onroad_emissions_impacts
+    tags: [make_nonpositive]
+  - id: rail_emissions_impacts
+    tags: [make_nonpositive]
 
 - id: transport_emissions_increases
   name: Transport emissions increases
@@ -3651,19 +3577,13 @@ nodes:
   type: simple.AdditiveNode
   quantity: emissions
   unit: t_co2e/a
-  input_dimensions: [vehicle_type, ghg, scope, action]
-  output_dimensions: [vehicle_type, ghg, scope, action]
-  output_nodes:
-  - id: transport_emissions_cost_increases
-    from_dimensions:
-    - id: vehicle_type
-      flatten: true
-    - id: ghg
-      flatten: true
-    - id: scope
-      flatten: true
-    to_dimensions:
-    - id: action
+  input_dimensions: [vehicle_type, energy_carrier, ghg, scope, action]
+  output_dimensions: [vehicle_type, energy_carrier, ghg, scope, action]
+  input_nodes:
+  - id: onroad_emissions_impacts
+    tags: [make_nonnegative]
+  - id: rail_emissions_impacts
+    tags: [make_nonnegative]
 
 - id: transport_emissions_cost_reductions
   name: Transport emissions cost reductions
@@ -3673,6 +3593,25 @@ nodes:
   unit: EUR/a
   input_dimensions: [cost_type, owner, action]
   output_dimensions: [cost_type, owner, action]
+  input_nodes:
+  - id: transport_emissions_reductions
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: action
+  - id: carbon_unit_price
+    to_dimensions:
+    - id: cost_type
+      categories: [carbon_shadow]
+    - id: owner
+      categories: [society]
   output_nodes:
   - id: total_benefits
 
@@ -3684,8 +3623,129 @@ nodes:
   unit: EUR/a
   input_dimensions: [cost_type, owner, action]
   output_dimensions: [cost_type, owner, action]
+  input_nodes:
+  - id: transport_emissions_increases
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: action
+  - id: carbon_unit_price
+    to_dimensions:
+    - id: cost_type
+      categories: [carbon_shadow]
+    - id: owner
+      categories: [society]
   output_nodes:
   - id: total_costs
+
+# ---------- On-Road
+
+- id: onroad_propulsion_mix
+  name: Tieliikenteen käyttövoimajakauma
+  name_en: On-road propulsion mix
+  type: simple.AdditiveNode
+  quantity: mix
+  unit: '%'
+  input_dimensions: [vehicle_type, energy_carrier, scope]
+  output_dimensions: [vehicle_type, energy_carrier, scope]
+  input_nodes:
+  - id: car_propulsion_mix
+  - id: bus_propulsion_mix
+  - id: van_propulsion_mix
+  - id: rigid_truck_propulsion_mix
+  - id: combination_truck_propulsion_mix
+
+- id: onroad_kilometer_impacts
+  name: Vaikutukset tieliikenteen kilometrisuoritteisiin
+  name_en: On-road kilometer impacts
+  type: simple.MultiplicativeNode
+  quantity: mileage
+  unit: Mvkm/a
+  input_dimensions: [vehicle_type, energy_carrier, scope, action]
+  output_dimensions: [vehicle_type, energy_carrier, scope, action]
+  input_nodes:
+  - id: transport_kilometer_impacts
+    tags: [non_additive]
+    from_dimensions:
+    - id: vehicle_type
+      categories: [passenger_cars, buses, vans, rigid_trucks, combination_trucks]
+    to_dimensions:
+    - id: vehicle_type
+    - id: action
+  - id: onroad_propulsion_mix
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+    - id: scope
+
+- id: onroad_fuel_emission_factors
+  name: Tieliikenteen polttoaineiden päästökertoimet
+  name_en: On-road fuel emission factors
+  type: simple.AdditiveNode
+  quantity: emission_factor
+  unit: g_co2e/vkm
+  input_dimensions: [vehicle_type, energy_carrier, ghg, scope]
+  output_dimensions: [vehicle_type, energy_carrier, ghg, scope]
+  input_nodes:
+  - id: car_fuel_emission_factors
+  - id: bus_fuel_emission_factors
+  - id: van_fuel_emission_factors
+  - id: rigid_truck_fuel_emission_factors
+  - id: combination_truck_fuel_emission_factors
+
+- id: onroad_emissions_impacts
+  name: On-road emissions impacts
+  name_en: On-road emissions impacts
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [vehicle_type, energy_carrier, ghg, scope, action]
+  output_dimensions: [vehicle_type, energy_carrier, ghg, scope, action]
+  input_nodes:
+  - id: onroad_kilometer_impacts
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+    - id: scope
+    - id: action
+  - id: onroad_fuel_emission_factors
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+    - id: ghg
+    - id: scope
+
+# ---------- Rail
+
+- id: rail_emissions_impacts
+  name: Rail emissions impacts
+  name_en: Rail emissions impacts
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [vehicle_type, energy_carrier, ghg, scope, action]
+  output_dimensions: [vehicle_type, energy_carrier, ghg, scope, action]
+  input_nodes:
+  - id: transport_kilometer_impacts
+    from_dimensions:
+    - id: vehicle_type
+      categories: [local_trains, trams]
+    to_dimensions:
+    - id: vehicle_type
+    - id: action
+  - id: rail_transportation_emission_factors
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+    - id: ghg
+    - id: scope
 
 # ----- Outcome
 
