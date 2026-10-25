@@ -510,6 +510,21 @@ dimensions:
   - id: steering_private_new_construction
     label: Yksityisen uudisrakentamisen ohjaus
     label_en: Steering private new construction
+  - id: electrification_of_private_cars
+    label: Henkilöautojen sähköistyminen
+    label_en: Electrification of private cars
+  - id: electrification_of_bus_traffic
+    label: Bussiliikenteen sähköistyminen
+    label_en: Electrification of bus traffic
+  - id: electrification_of_vans
+    label: Pakettiautojen sähköistyminen
+    label_en: Electrification of vans
+  - id: electrification_of_rigid_trucks
+    label: Muiden kuorma-autojen sähköistyminen
+    label_en: Electrification of rigid trucks
+  - id: electrification_of_combination_trucks
+    label: Yhdistelmäajoneuvojen sähköistyminen
+    label_en: Electrification of combination trucks
 
 # ----- Kelicobe
 
@@ -3673,6 +3688,130 @@ nodes:
   - id: rigid_truck_propulsion_mix
   - id: combination_truck_propulsion_mix
 
+- id: onroad_propulsion_mix_impacts
+  name: Vaikutukset tieliikenteen käyttövoimajakaumaan
+  name_en: On-road propulsion mix impacts
+  type: simple.AdditiveNode
+  quantity: mix
+  unit: '%'
+  input_dimensions: [vehicle_type, energy_carrier, scope, action, owner]
+  output_dimensions: [vehicle_type, energy_carrier, scope, action, owner]
+  input_nodes:
+  - id: electrification_of_private_cars
+    to_dimensions:
+    - id: vehicle_type
+      categories: [passenger_cars]
+    - id: energy_carrier
+      categories: [electricity]
+    - id: scope
+      categories: [scope2]
+    - id: action
+      categories: [electrification_of_private_cars]
+    - id: owner
+      categories: [private]
+  - id: car_electrification_impact_gasoline
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+    - id: scope
+    - id: action
+      categories: [electrification_of_private_cars]
+    - id: owner
+      categories: [private]
+  - id: car_electrification_impact_diesel
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+    - id: scope
+    - id: action
+      categories: [electrification_of_private_cars]
+    - id: owner
+      categories: [private]
+  - id: electrification_of_bus_traffic
+    to_dimensions:
+    - id: vehicle_type
+      categories: [buses]
+    - id: energy_carrier
+      categories: [electricity]
+    - id: scope
+      categories: [scope2]
+    - id: action
+      categories: [electrification_of_bus_traffic]
+    - id: owner
+      categories: [municipal]
+  - id: bus_electrification_impact_diesel
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+    - id: scope
+    - id: action
+      categories: [electrification_of_bus_traffic]
+    - id: owner
+      categories: [municipal]
+  - id: electrification_of_vans
+    to_dimensions:
+    - id: vehicle_type
+      categories: [vans]
+    - id: energy_carrier
+      categories: [electricity]
+    - id: scope
+      categories: [scope2]
+    - id: action
+      categories: [electrification_of_vans]
+    - id: owner
+      categories: [private]
+  - id: van_electrification_impact_diesel
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+    - id: scope
+    - id: action
+      categories: [electrification_of_vans]
+    - id: owner
+      categories: [private]
+  - id: electrification_of_rigid_trucks
+    to_dimensions:
+    - id: vehicle_type
+      categories: [rigid_trucks]
+    - id: energy_carrier
+      categories: [electricity]
+    - id: scope
+      categories: [scope2]
+    - id: action
+      categories: [electrification_of_rigid_trucks]
+    - id: owner
+      categories: [private]
+  - id: rigid_truck_electrification_impact_diesel
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+    - id: scope
+    - id: action
+      categories: [electrification_of_rigid_trucks]
+    - id: owner
+      categories: [private]
+  - id: electrification_of_combination_trucks
+    to_dimensions:
+    - id: vehicle_type
+      categories: [combination_trucks]
+    - id: energy_carrier
+      categories: [electricity]
+    - id: scope
+      categories: [scope2]
+    - id: action
+      categories: [electrification_of_combination_trucks]
+    - id: owner
+      categories: [private]
+  - id: combination_truck_electrification_impact_diesel
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+    - id: scope
+    - id: action
+      categories: [electrification_of_combination_trucks]
+    - id: owner
+      categories: [private]
+
 - id: onroad_kilometer_impacts
   name: Vaikutukset tieliikenteen kilometrisuoritteisiin
   name_en: On-road kilometer impacts
@@ -3681,8 +3820,30 @@ nodes:
   unit: Mvkm/a
   input_dimensions: [vehicle_type, energy_carrier, scope, action, owner]
   output_dimensions: [vehicle_type, energy_carrier, scope, action, owner]
+  # Order: The electrification sliders' impacts are calculated first, then the traffic
+  # actions' impacts. With B the baseline kilometres, T the traffic actions' change in
+  # them, m the baseline propulsion mix, and Δ the sliders' change in it, the model
+  # calculates (B + T) × (m + Δ) = B·m + B·Δ + T·m + T·Δ, where B·m is the baseline, and
+  # the overlap T·Δ belongs to neither set of actions alone. The sliders' rows (their
+  # values in cost_benefit) are B·Δ, so the traffic actions' rows are T·(m + Δ) =
+  # T·m + T·Δ. The rows sum to the combined effect, with T·Δ counted once. For every
+  # action, removing it from the scenario changes the cost-benefit impact overview
+  # exactly as much as it changes the model's own fuel, electricity and emissions results
+  # (each such difference includes T·Δ).
   params:
-    formula: (kilometer_impacts * propulsion_mix) + plusbus_investments
+    formula: (baseline_kilometers * propulsion_mix_impacts) + (kilometer_impacts * propulsion_mix) + plusbus_investments
+  input_datasets:
+  - id: tampere/onroad_transportation
+    tags: [baseline_kilometers]
+    column: mileage
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - column: energy_carrier
+    - column: ghg
+    - column: cost_type
+    - column: scope
   input_nodes:
   - id: transport_kilometer_impacts
     tags: [kilometer_impacts]
@@ -3699,6 +3860,8 @@ nodes:
     - id: vehicle_type
     - id: energy_carrier
     - id: scope
+  - id: onroad_propulsion_mix_impacts
+    tags: [propulsion_mix_impacts]
 
 # --------------- Emissions
 
@@ -3943,6 +4106,121 @@ nodes:
     from_dimensions:
     - id: action
       categories: [plusbus_investments]
+  output_nodes:
+  - id: transportation_cost_benefit
+
+- id: electrification_of_private_cars_cost_benefit
+  name: Henkilöautojen sähköistyminen
+  name_en: Electrification of private cars
+  color: '#668EC9'
+  type: formula.FormulaNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [cost_type, owner, action]
+  output_dimensions: [cost_type, owner, action]
+  params:
+    formula: total_costs + total_benefits
+  input_nodes:
+  - id: total_costs
+    from_dimensions:
+    - id: action
+      categories: [electrification_of_private_cars]
+  - id: total_benefits
+    from_dimensions:
+    - id: action
+      categories: [electrification_of_private_cars]
+  output_nodes:
+  - id: transportation_cost_benefit
+
+- id: electrification_of_bus_traffic_cost_benefit
+  name: Bussiliikenteen sähköistyminen
+  name_en: Electrification of bus traffic
+  color: '#668EC9'
+  type: formula.FormulaNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [cost_type, owner, action]
+  output_dimensions: [cost_type, owner, action]
+  params:
+    formula: total_costs + total_benefits
+  input_nodes:
+  - id: total_costs
+    from_dimensions:
+    - id: action
+      categories: [electrification_of_bus_traffic]
+  - id: total_benefits
+    from_dimensions:
+    - id: action
+      categories: [electrification_of_bus_traffic]
+  output_nodes:
+  - id: transportation_cost_benefit
+
+- id: electrification_of_vans_cost_benefit
+  name: Pakettiautojen sähköistyminen
+  name_en: Electrification of vans
+  color: '#668EC9'
+  type: formula.FormulaNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [cost_type, owner, action]
+  output_dimensions: [cost_type, owner, action]
+  params:
+    formula: total_costs + total_benefits
+  input_nodes:
+  - id: total_costs
+    from_dimensions:
+    - id: action
+      categories: [electrification_of_vans]
+  - id: total_benefits
+    from_dimensions:
+    - id: action
+      categories: [electrification_of_vans]
+  output_nodes:
+  - id: transportation_cost_benefit
+
+- id: electrification_of_rigid_trucks_cost_benefit
+  name: Muiden kuorma-autojen sähköistyminen
+  name_en: Electrification of rigid trucks
+  color: '#668EC9'
+  type: formula.FormulaNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [cost_type, owner, action]
+  output_dimensions: [cost_type, owner, action]
+  params:
+    formula: total_costs + total_benefits
+  input_nodes:
+  - id: total_costs
+    from_dimensions:
+    - id: action
+      categories: [electrification_of_rigid_trucks]
+  - id: total_benefits
+    from_dimensions:
+    - id: action
+      categories: [electrification_of_rigid_trucks]
+  output_nodes:
+  - id: transportation_cost_benefit
+
+- id: electrification_of_combination_trucks_cost_benefit
+  name: Yhdistelmäajoneuvojen sähköistyminen
+  name_en: Electrification of combination trucks
+  color: '#668EC9'
+  type: formula.FormulaNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [cost_type, owner, action]
+  output_dimensions: [cost_type, owner, action]
+  params:
+    formula: total_costs + total_benefits
+  input_nodes:
+  - id: total_costs
+    from_dimensions:
+    - id: action
+      categories: [electrification_of_combination_trucks]
+  - id: total_benefits
+    from_dimensions:
+    - id: action
+      categories: [electrification_of_combination_trucks]
   output_nodes:
   - id: transportation_cost_benefit
 
