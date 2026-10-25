@@ -1407,6 +1407,60 @@ nodes:
   - id: do_correction
     ref: weather_correction
 
+# The one place where the city's stationary figures are read and their gaps filled. The
+# corrected node and both of its subtractions read from here, so a subtraction always applies to
+# the same filled value as the figure it comes out of. Until 2026-10-24 each read the dataset
+# through its own binding: the figure was interpolated, back-filled and extended, while the
+# subtractions turned a blank cell into 0 (empty_to_zero), so in every filled year the
+# municipal facilities or the heat-pump electricity were counted twice.
+- id: final_energy_use_entered
+  is_editable: false
+  name_de: Endenergieverbrauch der stationären Sektoren, eingetragen
+  name_en: Final energy use of the stationary sectors, as entered
+  description_en: |
+    Final energy use of the four stationary BISKO sectors by energy carrier, exactly as the city
+    entered it, before any correction.<br/>
+    This is the only place where missing values are filled in: a year without a value between
+    two years with values gets a value interpolated from its neighbours, the years before the
+    first value get that first value, and the years after the last value get that last value.
+    Every correction of these figures reads them from here, so a correction always applies to the
+    same value as the figure it corrects.<br/>
+    A year containing a filled-in value is not BISKO-compliant; which values were entered is shown
+    in <i>Final energy use data availability</i>.
+  description_de: |
+    Endenergieverbrauch der vier stationären BISKO-Sektoren nach Energieträgern, genau wie von der
+    Kommune eingetragen, vor jeder Bereinigung.<br/>
+    Nur hier werden fehlende Werte ergänzt: Ein Jahr ohne Wert zwischen zwei Jahren mit Werten
+    erhält einen aus den Nachbarjahren interpolierten Wert, die Jahre vor dem ersten Wert erhalten
+    diesen ersten Wert und die Jahre nach dem letzten Wert diesen letzten Wert. Jede Bereinigung
+    dieser Werte liest sie von hier, sodass eine Bereinigung immer auf denselben Wert angewendet
+    wird wie der Wert, den sie bereinigt.<br/>
+    Ein Jahr, das einen ergänzten Wert enthält, ist nicht BISKO-konform; welche Werte eingetragen
+    wurden, zeigt <i>Datenverfügbarkeit des Endenergieverbrauchs</i>.
+  type: formula.FormulaNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: kommune/endenergieverbrauch
+    # These series start after the frame does; GenericNode back-filled their first
+    # value into the earlier years. Keeping that, but saying so.
+    backfill: true
+    extend: true  # GenericNode extended its dataset; keep that explicit
+    # Explicit because the class default changed under this node: MultiplicativeNode2 sets
+    # interpolates_input_datasets_by_default, FormulaNode (via Node) does not.
+    interpolate: true
+    tags: [data]
+    column: Value
+    filters:
+    - column: energy_carrier
+      value: not_defined
+      exclude: true
+      drop_col: false
+  params:
+    formula: data
+
 - id: final_energy_use_corrected
   is_editable: false
   name_de: Endenergieverbrauch der stationären Sektoren, bereinigt
@@ -1441,23 +1495,9 @@ nodes:
   unit: MWh/a
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
-  input_datasets:
-  - id: kommune/endenergieverbrauch
-    # These series start after the frame does; GenericNode back-filled their first
-    # value into the earlier years. Keeping that, but saying so.
-    backfill: true
-    extend: true  # GenericNode extended its dataset; keep that explicit
-    # Explicit because the class default changed under this node: MultiplicativeNode2 sets
-    # interpolates_input_datasets_by_default, FormulaNode (via Node) does not.
-    interpolate: true
-    tags: [data]
-    column: Value
-    filters:
-    - column: energy_carrier
-      value: not_defined
-      exclude: true
-      drop_col: false
   input_nodes:
+  - id: final_energy_use_entered
+    tags: [data]
   - id: weather_correction
     tags: [correction]
   - id: municipal_facilities_energy_in_commerce
@@ -1629,25 +1669,17 @@ nodes:
   unit: MWh/a
   input_dimensions: [sector]
   output_dimensions: [sector]
-  input_datasets:
-  - id: kommune/endenergieverbrauch
-    column: Value
-    # empty_to_zero for the same reason as municipal_facilities_energy_in_commerce: this binding
-    # filters to a single carrier, so it sees an empty frame as soon as a city has entered no
-    # heat-pump figure, and an empty frame has no dimensions.
-    tags: [heat, empty_to_zero]
-    # The same backfill and extend as final_energy_use's own binding, because the correction has
-    # to span the same years as the figure it comes out of. Without them the subtraction stops
-    # where the environmental-heat series stops while the electricity it corrects keeps being
-    # extended, so the double count quietly returns for the later years. This is not theoretical:
-    # an environmental-heat series that stops several years before the balance does is the common
-    # case, because heat-pump figures arrive later than electricity figures.
-    backfill: true
-    extend: true
-    filters:
-    - column: energy_carrier
-      value: environmental_heat
   input_nodes:
+  # The environmental heat as filled in final_energy_use_entered, so the subtraction covers
+  # exactly the years and values the electricity it corrects is computed with. An
+  # environmental-heat series that stops before the balance does is the common case, because
+  # heat-pump figures arrive later than electricity figures.
+  - id: final_energy_use_entered
+    tags: [heat]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [environmental_heat]
+      flatten: true
   # The weather correction of the same sector, because the figure this is subtracted from has
   # been through it -- the removed quantity has to be on the scale of the figure it comes out of,
   # the same reasoning as in municipal_facilities_energy_in_commerce.
@@ -1659,7 +1691,7 @@ nodes:
   # formula", which would put a wrong label on a control that changes the balance. A city needing
   # a different JAZ within the Leitfaden's 2.8-3.8 range is a deliberate change, not a setting.
   - id: formula
-    value: select_port(condition, heat * wc / 3.2, heat * 0)
+    value: select_port(condition, heat * wc / 3.2, heat * wc * 0)
   - id: condition
     ref: heat_pump_electricity_included_in_electricity
 
@@ -1694,41 +1726,34 @@ nodes:
     Energiemanagement erfasst die Liegenschaften getrennt und der Versorger hat sie bereits
     herausgerechnet —, ist dieser Knoten identisch null und es wird nichts abgezogen. Er zeigt
     also die Korrektur, nicht den kommunalen Verbrauch.
-  type: generic.GenericNode
+  type: formula.FormulaNode
   quantity: energy
   unit: MWh/a
   input_dimensions: [energy_carrier]
   output_dimensions: [energy_carrier]
-  input_datasets:
-  - id: kommune/endenergieverbrauch
-    column: Value
-    # empty_to_zero: this binding filters the dataset down to one sector, so it is the first
-    # thing to see an empty frame when a city has supplied nothing -- and a city supplying no
-    # municipal-facility data is what Pruefschritt 2.1 explicitly permits. Without the tag the
-    # node fails with "No metric columns in DF" and takes the whole balance down with it.
-    tags: [empty_to_zero]
-    filters:
-    - column: energy_carrier
-      value: not_defined
-      exclude: true
-      drop_col: false
-    - column: sector
-      value: municipal_facilities
   input_nodes:
+  # The municipal facilities as filled in final_energy_use_entered, so the subtraction covers
+  # exactly the years and values the commerce figure it corrects is computed with. A city
+  # supplying no municipal-facility data is what Pruefschritt 2.1 explicitly permits.
+  - id: final_energy_use_entered
+    tags: [energy]
+    from_dimensions:
+    - id: sector
+      categories: [municipal_facilities]
+      flatten: true
   # The commerce factor, not the municipal one: the quantity being removed is part of the
   # commerce figure and has to be removed on the same scale that figure is reported on.
   - id: weather_correction
+    tags: [wc]
     from_dimensions:
     - id: sector
       categories: [commerce_trade_services]
       flatten: true
   params:
-  - id: operations
-    value: get_single_dataset,multiply,do_correction
-  - id: do_correction
+  - id: formula
+    value: select_port(condition, energy * wc, energy * wc * 0)
+  - id: condition
     ref: municipal_facilities_included_in_commerce
-  - id: no_correction_value
-    value: 0
 
 - id: total_final_energy_use
   is_editable: false
