@@ -2464,6 +2464,80 @@ nodes:
   - id: onroad_transportation_electricity_factors
     tags: [electricity_factors]
 
+- id: truck_electricity_consumption_price
+  name: Kuorma-autojen sähkönkulutuksen kustannukset
+  name_en: Truck electricity consumption cost
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: [vehicle_type, energy_carrier, scope, cost_type]
+  output_dimensions: [vehicle_type, energy_carrier, scope, cost_type]
+  input_nodes:
+  - id: truck_electricity_consumption
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+    - id: scope
+  - id: energy_unit_prices
+    to_dimensions:
+    - id: energy_carrier
+    - id: cost_type
+  output_nodes:
+  - id: transportation_price
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
+
+- id: truck_fuel_consumption
+  name: Kuorma-autojen polttoaineenkulutus
+  name_en: Truck fuel consumption
+  type: formula.FormulaNode
+  quantity: fuel_consumption
+  unit: l/a
+  input_dimensions: [vehicle_type, energy_carrier, scope]
+  output_dimensions: [vehicle_type, energy_carrier, scope]
+  params:
+    formula: (combination_trucks + rigid_trucks) * fuel_factors
+  input_nodes:
+  - id: combination_truck_kilometers_by_propulsion
+    tags: [combination_trucks]
+  - id: rigid_truck_kilometers_by_propulsion
+    tags: [rigid_trucks]
+  - id: onroad_transportation_fuel_factors
+    tags: [fuel_factors]
+
+- id: truck_fuel_consumption_price
+  name: Kuorma-autojen polttoaineenkulutuksen kustannukset
+  name_en: Truck fuel consumption cost
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: [vehicle_type, energy_carrier, scope, cost_type]
+  output_dimensions: [vehicle_type, energy_carrier, scope, cost_type]
+  input_nodes:
+  - id: truck_fuel_consumption
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+    - id: scope
+  - id: fuel_unit_prices
+    to_dimensions:
+    - id: energy_carrier
+    - id: cost_type
+  output_nodes:
+  - id: transportation_price
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
+
 - id: truck_emissions_total
   name: Kuorma-autoliikenteen kokonaispäästöt
   name_en: Total truck emissions
