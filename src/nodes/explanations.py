@@ -133,6 +133,7 @@ TAG_DESCRIPTIONS = {
     'goal': _('The node is used as the goal for the action.'),
     'goal_gap': _("Compute gap = actual - goal from the single input node's output and goals."),
     'historical': _('The node is used as the historical starting point.'),
+    'hold_into_forecast': _("Hold the latest year's values flat into the forecast years, and fill nothing else."),
     'ignore_content': _('Show edge on graphs but ignore upstream content.'),
     'impute': _(
         'Overlay this input onto the result, outer-joined on dimensions: the input value replaces the '
@@ -256,13 +257,14 @@ NODE_CLASS_DESCRIPTIONS: dict[str, NodeInfo] = {
         _(
             """
         Splits the emissions of combined heat and power (CHP) production the way BISKO prescribes.
-        This is the ChpNode with its method fixed: the exergetic (Carnot) split, with the district
-        heating return temperature fixed at 283 K, as required by BISKO criterion 6.
+        This is the ChpNode with its method fixed: the exergetic (Carnot) split, with the ambient
+        temperature fixed at 283 K, as required by BISKO criterion 6.
 
         Those choices belong to the standard rather than to the city, so they cannot be changed here
         or in a scenario. What does vary between cities and between years -- the electricity fraction
-        of the plant's output and the supply temperature of the network -- is read per year from a
-        dataset, each from its own input port.
+        of the plant's output and the supply and return temperatures of the network -- is read per
+        year from a dataset, each from its own input port. All three are required: a year without
+        them has no allocation.
         """
         )
     ),
@@ -273,14 +275,14 @@ NODE_CLASS_DESCRIPTIONS: dict[str, NodeInfo] = {
         (1 = yes, 0 = no). Two conditions must hold in the same year.
 
         First, the prescribed method has to be in force: the exergetic (Carnot) split with the
-        district heating return temperature fixed at 283 K. This node asks the allocation node
+        ambient temperature fixed at 283 K. This node asks the allocation node
         itself which method it applies, rather than guessing from the numbers that came out of it.
 
         Second, the allocation must have had something to allocate. In a year where the district
         heating emissions of the balance are zero or missing, the answer is 0, because a method
         applied to an empty balance is not evidence that the method was used.
 
-        The node says nothing about whether the electricity fraction and supply temperature fed
+        The node says nothing about whether the electricity fraction and network temperatures fed
         into the split are plausible. That is a separate test.
         """
         )
@@ -334,13 +336,15 @@ NODE_CLASS_DESCRIPTIONS: dict[str, NodeInfo] = {
         </li><li><b>Work potential method</b> (aka Carnot method, or exergetic method)
         Logic: Energy products are treated equally based on the potential of doing work (i.e., exergy content).
         This moves emissions toward electricity.
-        z<sub>heat</sub> = 1 - T<sub>return</sub> / T<sub>supply</sub>, and
-        z<sub>electricity</sub> = 1.
-        T<sub>return</sub> and T<sub>supply</sub> are the output and input process temperatures, respectively.
+        z<sub>heat</sub> = 1 - T<sub>ambient</sub> / T<sub>mean</sub>, and
+        z<sub>electricity</sub> = 1, where
+        T<sub>mean</sub> = (T<sub>supply</sub> - T<sub>return</sub>) / ln(T<sub>supply</sub> / T<sub>return</sub>)
+        is the thermodynamic mean temperature of the heat network, between its supply and return
+        temperatures, and T<sub>ambient</sub> is the temperature of the surroundings.
 
         </li><li><b>Bisko method</b>
         Bisko method is a variant of the work potential method.
-        The only difference is that Bisko assumes T<sub>return</sub> = 283 K.
+        The only difference is that Bisko fixes T<sub>ambient</sub> = 283 K.
 
         </li><li><b>Efficiency method</b>
         Logic: What emissions would have occured if each energy product had been produced separately?
@@ -351,8 +355,9 @@ NODE_CLASS_DESCRIPTIONS: dict[str, NodeInfo] = {
         The method is the only setting: it is an agreement about how to share the emissions. Everything
         else describes the physical plant -- the electricity fraction, the supply and return
         temperatures, the reference efficiencies -- and is read per year from a dataset, each value
-        from the input port of the same name. Annual series are interpolated over gaps and held
-        constant beyond the years they cover, so a plant described by one year is a flat line.
+        from the input port of the same name. A historical year is split only if every value was
+        entered for that year: nothing is interpolated or carried back. The forecast continues the
+        last historical year.
         """
         )
     ),

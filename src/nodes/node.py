@@ -1250,9 +1250,10 @@ class Node:
         # Multi-metric nodes with different dimensional spans use null to mark
         # dimensions not applicable to a given metric; those must be pruned so
         # dimension filtering and the output-dimension assertion see the correct
-        # (narrowed) dimension set.
+        # (narrowed) dimension set. An empty frame is not all-null, it has no rows: pruning would
+        # strip every dimension and fail the target node's dimension check.
         for dim_col in list(df.dim_ids):
-            if df[dim_col].null_count() == df[dim_col].len():
+            if df.height and df[dim_col].null_count() == df.height:
                 df = df.drop(dim_col)
 
         try:

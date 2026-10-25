@@ -16,7 +16,7 @@ from kausal_common.perf.perf_context import PerfKind, estimate_size_bytes
 from common import polars as ppl
 from common.polars import PathsDataFrame
 from nodes.actions.action import ActionNode
-from nodes.calc import extend_last_historical_value_pl, extend_to_history_pl
+from nodes.calc import extend_last_historical_value_pl
 from nodes.constraints.port_roles import PortRoleInferenceResult
 from nodes.defs.port_def import InputPortDeclaration
 from nodes.node import NodeMetric
@@ -1881,8 +1881,14 @@ class GenerationCapacityNode(GenericNode):
         self.OPERATIONS['generation_capacity'] = self._operation_generation_capacity
 
 
-BISKO_T_RETURN = 283.0
-"""District heating return temperature (K) that BISKO fixes for the exergetic split."""
+BISKO_T_AMBIENT = 283.0
+"""
+Ambient temperature (K) that BISKO fixes for the exergetic split.
+
+This is T_U in the Carnot factor 1 - T_U / T_A of the Methodenpapier (Anhang, *Berechnung der
+exergetischen Allokation*). It is not a property of the heat network: the network's own supply
+and return temperatures are city data, and they enter through T_A, the thermodynamic mean.
+"""
 
 
 class ChpNode(GenericNode):
@@ -1904,9 +1910,12 @@ class ChpNode(GenericNode):
 
     - ``energy_content``: products are equal per unit of energy, z_i = 1.
     - ``work_potential`` (Carnot / exergetic): products are equal per unit of work
-      they could do, z_electricity = 1 and z_heat = 1 - t_return / t_supply. This
-      moves emissions toward electricity.
-    - ``bisko``: ``work_potential`` with the return temperature fixed at 283 K by
+      they could do, z_electricity = 1 and z_heat = 1 - t_ambient / t_mean, where
+      t_mean = (t_supply - t_return) / ln(t_supply / t_return) is the thermodynamic
+      mean temperature of the heat network, the temperature at which the heat is
+      on average delivered as the water cools from supply to return. This moves
+      emissions toward electricity.
+    - ``bisko``: ``work_potential`` with the ambient temperature fixed at 283 K by
       the standard. Prefer :class:`BiskoChpNode` over setting this by hand.
     - ``efficiency``: what each product would have emitted if produced separately,
       z_i = 1 / n_i for reference efficiencies n_i (typically 0.4 electricity,
@@ -1914,20 +1923,29 @@ class ChpNode(GenericNode):
 
     **The method is the only parameter.** It is an agreement about how to share the
     emissions, and a scenario may reasonably compare two. Everything else describes
-    the physical plant -- its electricity fraction, its supply and return
-    temperatures, the reference efficiencies it is measured against -- and comes from
-    one place only: an input port of the same name, bound to one metric column of a
-    dataset, one value per year::
+    the physical plant -- its electricity fraction, the supply and return
+    temperatures of its network, the reference efficiencies it is measured against --
+    and comes from one place only: an input port of the same name, bound to one
+    metric column of a dataset, one value per year::
 
         input_datasets:
         - id: kommune/kwk_anlagenparameter
           column: electricity_fraction
         - id: kommune/kwk_anlagenparameter
           column: t_supply
+        - id: kommune/kwk_anlagenparameter
+          column: t_return
 
-    The series are interpolated across internal gaps, held constant back to the
-    start of history, and held constant forward to the model end year (those forward
-    years marked as forecast), so a plant described by a single year is a flat line.
+    There is no fallback to tabulated exergy factors by network type. The
+    Methodenpapier offers such rough factors for when the temperatures are not known,
+    but a table of them would be one more set of numbers that can change between
+    editions and silently move past balances. A year without both temperatures has
+    no allocation, and the consumer reports the gap.
+
+    A historical year is split only if every input was entered for that year: no
+    interpolation over gaps and no holding the first year back, because which BISKO
+    route a year takes depends on whether it has a split. The forecast continues the
+    last historical year, held flat and marked as forecast, if that year was entered.
     Values may be given in any compatible unit: fractions and efficiencies are
     converted to dimensionless (so per cent works), temperatures to K.
     """
@@ -1938,6 +1956,7 @@ class ChpNode(GenericNode):
         'electricity_fraction': 'dimensionless',
         't_supply': 'K',
         't_return': 'K',
+        't_ambient': 'K',
         'electricity_reference_efficiency': 'dimensionless',
         'heat_reference_efficiency': 'dimensionless',
     }
@@ -1945,14 +1964,17 @@ class ChpNode(GenericNode):
 
     METHOD_INPUTS: ClassVar[dict[str, frozenset[str]]] = {
         'energy_content': frozenset({'electricity_fraction'}),
-        'work_potential': frozenset({'electricity_fraction', 't_supply', 't_return'}),
-        'bisko': frozenset({'electricity_fraction', 't_supply'}),
+        'work_potential': frozenset({'electricity_fraction', 't_supply', 't_return', 't_ambient'}),
+        'bisko': frozenset({'electricity_fraction', 't_supply', 't_return'}),
         'efficiency': frozenset({'electricity_fraction', 'electricity_reference_efficiency', 'heat_reference_efficiency'}),
     }
     """Which inputs each method needs. Anything else supplied is unused."""
 
     FIXED_METHOD: ClassVar[str | None] = None
     """Set by a subclass that pins the method; then ``method`` is not a parameter."""
+
+    UNBOUND_MEANS_NO_SPLIT: ClassVar[frozenset[str]] = frozenset()
+    """Inputs whose missing binding gives no split instead of an error. A transition aid only."""
 
     consumes_all_inputs_through_ports = True
 
@@ -1964,6 +1986,9 @@ class ChpNode(GenericNode):
     )
     t_return_port = InputPortDeclaration(
         role='t_return', required=False, min_count=0, label=_('Return temperature of the district heating flow')
+    )
+    t_ambient_port = InputPortDeclaration(
+        role='t_ambient', required=False, min_count=0, label=_('Ambient temperature of the exergetic split')
     )
     electricity_reference_efficiency_port = InputPortDeclaration(
         role='electricity_reference_efficiency',
@@ -1978,6 +2003,7 @@ class ChpNode(GenericNode):
         electricity_fraction_port,
         t_supply_port,
         t_return_port,
+        t_ambient_port,
         electricity_reference_efficiency_port,
         heat_reference_efficiency_port,
     )
@@ -2009,20 +2035,20 @@ class ChpNode(GenericNode):
         """
         Whether this node's split is the one BISKO criterion 6 prescribes.
 
-        BISKO asks for the exergetic (Carnot) method *with* the return temperature fixed
+        BISKO asks for the exergetic (Carnot) method *with* the ambient temperature fixed
         at 283 K, which is exactly what the ``bisko`` method is. Plain ``work_potential``
-        also qualifies when its return temperature is that same value in every year.
+        also qualifies when its ambient temperature is that same value in every year.
         """
         method = self.allocation_method
         if method == 'bisko':
             return True
         if method != 'work_potential':
             return False
-        series = self._input_series('t_return')
+        series = self._input_series('t_ambient')
         if series is None:
             return False
-        values = series['t_return'].unique().to_list()
-        return len(values) == 1 and math.isclose(values[0], BISKO_T_RETURN)
+        values = series['t_ambient'].unique().to_list()
+        return len(values) == 1 and math.isclose(values[0], BISKO_T_AMBIENT)
 
     def _resolve_method(self) -> str:
         if self.FIXED_METHOD is not None:
@@ -2071,9 +2097,13 @@ class ChpNode(GenericNode):
     def _annual_inputs(self, names: set[str]) -> PathsDataFrame:
         """Join the named input series on the model's year span."""
         parts: list[PathsDataFrame] = []
+        unbound: list[str] = []
         for name in sorted(names):
             series = self._input_series(name)
             if series is None:
+                if name in self.UNBOUND_MEANS_NO_SPLIT:
+                    unbound.append(name)
+                    continue
                 raise NodeError(
                     self,
                     "The '%s' method needs %r, which is not supplied. Bind a dataset column to the input port %r."
@@ -2088,30 +2118,56 @@ class ChpNode(GenericNode):
         out = out.with_columns(
             pl.any_horizontal([pl.col(col).fill_null(value=False) for col in forecast_cols]).alias(FORECAST_COLUMN)
         ).drop(forecast_cols)
+        if unbound:
+            self.logger.warning('Input(s) %s are not bound, so no year has a split.', ', '.join(unbound))
+            out = out.with_columns([pl.lit(None, dtype=pl.Float64).alias(name) for name in unbound])
+            return out.filter(pl.lit(value=False))
+        if any(out[name].drop_nulls().len() == 0 for name in names):
+            # An input with no value in any year: the shared template ships blank, and Mainz has
+            # its electricity fraction and supply temperature but no return temperature yet. No
+            # year can be split, which the consumers report.
+            return out.filter(pl.lit(value=False))
 
-        instance = self.context.instance
-        start_year = min(instance.reference_year, instance.minimum_historical_year)
-        out = out.paths._add_missing_years(out, self.context)  # interpolate internal gaps
-        out = extend_to_history_pl(out, start_year)  # hold the earliest observation back to the start
-        return extend_last_historical_value_pl(out, instance.model_end_year)  # hold the latest one forward, as forecast
+        # A historical year has a split only if every input was entered for that year: no
+        # interpolation over gaps and no holding the first year back. Which BISKO route a year takes
+        # depends on whether it has a split, so a filled-in value would change the method, not just
+        # the number, on the strength of figures nobody entered.
+        out = out.drop_nulls(subset=sorted(names))
+        if out.height == 0:
+            return out
+
+        # Forecast years, and only those, continue the last historical year, held flat and marked as
+        # forecast -- provided that year was entered.
+        return out.paths._hold_into_forecast(out, self.context)
 
     def _z_factors(self, df: PathsDataFrame, method: str) -> PathsDataFrame:
         """Add the method-specific weights z_el and z_heat."""
         if method == 'energy_content':
             return df.with_columns([pl.lit(1.0).alias('z_el'), pl.lit(1.0).alias('z_heat')])
         if method in ('work_potential', 'bisko'):
-            t_return = pl.lit(BISKO_T_RETURN) if method == 'bisko' else pl.col('t_return')
-            bad = df.filter(pl.col('t_supply') <= t_return)
+            t_supply, t_return = pl.col('t_supply'), pl.col('t_return')
+            t_ambient = pl.lit(BISKO_T_AMBIENT) if method == 'bisko' else pl.col('t_ambient')
+            bad = df.filter(t_supply < t_return)
             if bad.height:
                 raise NodeError(
                     self,
-                    'The district heating supply temperature must exceed the return temperature, otherwise the '
+                    'The district heating supply temperature must not be below the return temperature. It is in '
+                    'year(s) %s.' % ', '.join(str(y) for y in bad[YEAR_COLUMN].unique().sort()),
+                )
+            bad = df.filter(t_return <= t_ambient)
+            if bad.height:
+                raise NodeError(
+                    self,
+                    'The district heating return temperature must exceed the ambient temperature, otherwise the '
                     'exergetic split has no heat to allocate. It does not in year(s) %s.'
                     % ', '.join(str(y) for y in bad[YEAR_COLUMN].unique().sort()),
                 )
+            # The entropic mean of a flow cooled from supply to return. Equal temperatures (a
+            # steam network condensing at one temperature) are the limit of the same formula.
+            t_mean = pl.when(t_supply == t_return).then(t_supply).otherwise((t_supply - t_return) / (t_supply / t_return).log())
             return df.with_columns([
                 pl.lit(1.0).alias('z_el'),
-                (pl.lit(1.0) - t_return / pl.col('t_supply')).alias('z_heat'),
+                (pl.lit(1.0) - t_ambient / t_mean).alias('z_heat'),
             ])
         bad = df.filter((pl.col('electricity_reference_efficiency') <= 0) | (pl.col('heat_reference_efficiency') <= 0))
         if bad.height:
@@ -2134,12 +2190,12 @@ class ChpNode(GenericNode):
         supplied = self._supplied_input_names()
 
         unused = supplied - needed
-        if method == 'bisko' and 't_return' in unused:
+        if method == 'bisko' and 't_ambient' in unused:
             raise NodeError(
                 self,
-                'BISKO fixes the district heating return temperature at %.0f K, so the t_return series supplied '
-                "here would be silently ignored. Remove it, or use method 'work_potential' to set the return "
-                'temperature yourself.' % BISKO_T_RETURN,
+                'BISKO fixes the ambient temperature of the exergetic split at %.0f K, so the t_ambient series '
+                "supplied here would be silently ignored. Remove it, or use method 'work_potential' to set the "
+                'ambient temperature yourself.' % BISKO_T_AMBIENT,
             )
         if unused:
             self.logger.warning(
@@ -2204,13 +2260,14 @@ class BiskoChpNode(ChpNode):
     A :class:`ChpNode` pinned to the allocation that BISKO prescribes.
 
     BISKO criterion 6 requires the coupled products of combined heat and power to be
-    split by the exergetic (Carnot) method, with the district heating return
-    temperature fixed at 283 K. Both are properties of the standard rather than of
-    the city, so this class fixes them: it has no ``method`` parameter and no ports
-    for the return temperature or the reference efficiencies, so binding one is a
-    load-time error rather than a silently different balance. What genuinely varies
-    between cities and between years -- the electricity fraction and the supply
-    temperature -- is bound exactly as in :class:`ChpNode`.
+    split by the exergetic (Carnot) method, with the ambient temperature fixed at
+    283 K. Both are properties of the standard rather than of the city, so this
+    class fixes them: it has no ``method`` parameter and no ports for the ambient
+    temperature or the reference efficiencies, so binding one is a load-time error
+    rather than a silently different balance. What genuinely varies between cities
+    and between years -- the electricity fraction and the supply and return
+    temperatures of the network -- is bound exactly as in :class:`ChpNode`, and all
+    three are required.
 
     Using this class instead of ``ChpNode`` with ``method: bisko`` puts the
     conformity in the model structure, where a certifier can see it and no scenario
@@ -2221,8 +2278,23 @@ class BiskoChpNode(ChpNode):
 
     FIXED_METHOD = 'bisko'
 
+    # Transitional, added 2026-10-24 with the return temperature: a database-sourced instance
+    # keeps the bindings of its last sync, and a published revision those of its publication, so
+    # until each has been re-synced and republished its stored model has no `t_return` binding.
+    # Requiring the port would stop those instances computing the moment the code is deployed.
+    # Unbound, the node gives no split, which means no Möglichkeit 1 -- what they computed before.
+    # Make the port required again once every BISKO instance has been republished.
+    UNBOUND_MEANS_NO_SPLIT = frozenset({'t_return'})
+
     t_supply_port = InputPortDeclaration(role='t_supply', label=_('Supply temperature of the district heating flow'))
-    input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = (ChpNode.electricity_fraction_port, t_supply_port)
+    t_return_port = InputPortDeclaration(
+        role='t_return', required=False, min_count=0, label=_('Return temperature of the district heating flow')
+    )
+    input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = (
+        ChpNode.electricity_fraction_port,
+        t_supply_port,
+        t_return_port,
+    )
 
     allowed_parameters = [*GenericNode.allowed_parameters]
 

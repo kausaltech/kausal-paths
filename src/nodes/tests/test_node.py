@@ -93,6 +93,21 @@ def test_edge_filter_tolerates_declared_all_null_dimension(context: Context, nod
     assert df.to_dicts() == df_in.to_dicts()
 
 
+def test_edge_keeps_dimensions_of_an_empty_frame(context: Context, node: Node):
+    """An empty input has no rows, not all-null dimensions: filtering and flattening must still work."""
+    target = NodeFactory.create(context=context)
+    buildings = DimensionCategory(id='buildings', label='Buildings')
+    _connect(
+        node,
+        target,
+        from_dimensions={'sector': EdgeDimension(categories=[buildings], exclude=False, flatten=True)},
+    )
+    df = node._get_output_for_target(_sector_frame([]), target)
+    assert df.height == 0
+    assert 'sector' not in df.dim_ids
+    assert YEAR_COLUMN in df.primary_keys
+
+
 def test_edge_filter_undeclared_missing_dimension_fails(context: Context, node: Node):
     target = NodeFactory.create(context=context)
     _connect(

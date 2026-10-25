@@ -4,7 +4,7 @@ default_language: de
 supported_languages: []
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 850589d28ad94069e3cf50b2c451b9705f7791fa
+  commit: 73554e4374aa069d5f464e97d2f991e594d270a4
   dvc_remote: kausal-s3
 name_de: Prüfstadt Treibhausgasmonitor
 # A review copy of `schwerin-bisko`, made 2026-09-06 so the BISKO certifier can exercise the tool
@@ -42,12 +42,14 @@ include:
     to: schwerin/historical_emissions
   - from: kommune/verkehrsleistung_personen
     to: schwerin/passenger_kilometers
-  # BISKO Möglichkeit 1, demonstrated for the review: invented plant data for 2023 only -- 650 GWh
-  # of natural gas in a combined cycle plant, electricity fraction 0.40, supply 368.15 K (95 °C) --
-  # so that one year is computed from plant data and the reviewer can watch electricity_fraction
-  # and t_supply move the balance. Every other year stays on Möglichkeit 2. The values are
-  # labelled as invented in each row, and live under `pruefstadt/` so they cannot be mistaken for
-  # Schwerin's. Built by paths-data modules/bisko/pruefstadt_demo/create_pruefstadt_chp_demo.py.
+  # BISKO Möglichkeit 1, demonstrated for the review: the certifier's own test plant from their
+  # calculation aid "Exergetische Allokation" (natural gas and lignite CHP, 2021-2023: 950 GWh fuel,
+  # 350 GWh heat fed in, electricity share 46.15 %, 110 / 61.26 °C, losses 15 %), so the reviewer
+  # can compare the balance with their spreadsheet cell by cell. 2021-2023 run on Möglichkeit 1,
+  # every other year on Möglichkeit 2. Each row is labelled as a test plant, not a measurement, and
+  # the data lives under `pruefstadt/` so it cannot be mistaken for an actual city's. Built by paths-data
+  # modules/bisko/pruefstadt_demo/create_pruefstadt_chp_demo.py; replaced the invented 2023 gas
+  # plant on 2026-10-24.
   - from: kommune/fernwaerme_energieeinsatz
     to: pruefstadt/fernwaerme_energieeinsatz
   - from: kommune/kwk_anlagenparameter
@@ -197,10 +199,12 @@ result_excels:
   # Which of BISKO's three Möglichkeiten each year took (1/2/3) -- the answer to Prüfschritt 6.1,
   # per year rather than as a blanket statement about the tool.
   - district_heating_method_in_force
-  # Möglichkeit 1, shown on the 2023 demonstration data: the exergetic split that
-  # electricity_fraction and t_supply decide, the plant-data route's emissions, and which years
-  # the city's plant data covers.
+  # Möglichkeit 1, shown on the 2021-2023 test plant: the exergetic split that
+  # electricity_fraction, t_supply and t_return decide, the plant-specific emission factor with
+  # losses (the figure to compare with the certifier's spreadsheet, F45), the plant-data route's
+  # emissions, and which years the city's plant data covers.
   - combined_heat_and_power_chp_fraction
+  - district_heating_emission_factor_exergetic
   - district_heating_emissions_exergetic
   - district_heating_plant_data_availability
   # Prüfschritt 7.1: a Datengüte must be enterable for every input field. The first Prüflauf
