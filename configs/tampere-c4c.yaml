@@ -3554,8 +3554,8 @@ nodes:
   type: simple.AdditiveNode
   quantity: mileage
   unit: Mvkm/a
-  input_dimensions: [vehicle_type, action]
-  output_dimensions: [vehicle_type, action]
+  input_dimensions: [vehicle_type, action, owner]
+  output_dimensions: [vehicle_type, action, owner]
 
 - id: transport_emissions_reductions
   name: Transport emissions reductions
@@ -3665,25 +3665,31 @@ nodes:
 - id: onroad_kilometer_impacts
   name: Vaikutukset tieliikenteen kilometrisuoritteisiin
   name_en: On-road kilometer impacts
-  type: simple.MultiplicativeNode
+  type: formula.FormulaNode
   quantity: mileage
   unit: Mvkm/a
-  input_dimensions: [vehicle_type, energy_carrier, scope, action]
-  output_dimensions: [vehicle_type, energy_carrier, scope, action]
+  input_dimensions: [vehicle_type, energy_carrier, scope, action, owner]
+  output_dimensions: [vehicle_type, energy_carrier, scope, action, owner]
+  params:
+    formula: (kilometer_impacts * propulsion_mix) + plusbus_investments
   input_nodes:
   - id: transport_kilometer_impacts
-    tags: [non_additive]
+    tags: [kilometer_impacts]
     from_dimensions:
     - id: vehicle_type
       categories: [passenger_cars, buses, vans, rigid_trucks, combination_trucks]
     to_dimensions:
     - id: vehicle_type
     - id: action
+    - id: owner
   - id: onroad_propulsion_mix
+    tags: [propulsion_mix]
     to_dimensions:
     - id: vehicle_type
     - id: energy_carrier
     - id: scope
+
+# --------------- Emissions
 
 - id: onroad_fuel_emission_factors
   name: Tieliikenteen polttoaineiden päästökertoimet
@@ -3710,6 +3716,9 @@ nodes:
   output_dimensions: [vehicle_type, energy_carrier, ghg, scope, action]
   input_nodes:
   - id: onroad_kilometer_impacts
+    from_dimensions:
+    - id: owner
+      flatten: true
     to_dimensions:
     - id: vehicle_type
     - id: energy_carrier
@@ -3721,6 +3730,94 @@ nodes:
     - id: energy_carrier
     - id: ghg
     - id: scope
+
+# --------------- Fuel
+
+- id: onroad_fuel_impacts
+  name: Vaikutukset tieliikenteen polttoaineen kulutukseen
+  name_en: On-road fuel impacts
+  type: simple.MultiplicativeNode
+  quantity: fuel_consumption
+  unit: l/a
+  input_dimensions: [vehicle_type, energy_carrier, scope, action, owner]
+  output_dimensions: [vehicle_type, energy_carrier, scope, action, owner]
+  input_nodes:
+  - id: onroad_kilometer_impacts
+  - id: onroad_transportation_fuel_factors
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+    - id: scope
+
+- id: onroad_fuel_cost_reductions
+  name: Tieliikenteen polttoainekustannusten vähennykset
+  name_en: On-road fuel cost reductions
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: [vehicle_type, energy_carrier, cost_type, scope, action, owner]
+  output_dimensions: [vehicle_type, energy_carrier, cost_type, scope, action, owner]
+  input_nodes:
+  - id: onroad_fuel_impacts
+    tags: [make_nonpositive]
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+    - id: scope
+    - id: action
+    - id: owner
+  - id: fuel_unit_prices
+    to_dimensions:
+    - id: energy_carrier
+    - id: cost_type
+  output_nodes:
+  - id: total_benefits
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: action
+    - id: owner
+
+- id: onroad_fuel_cost_increases
+  name: Tieliikenteen polttoainekustannusten lisäykset
+  name_en: On-road fuel cost increases
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: [vehicle_type, energy_carrier, cost_type, scope, action, owner]
+  output_dimensions: [vehicle_type, energy_carrier, cost_type, scope, action, owner]
+  input_nodes:
+  - id: onroad_fuel_impacts
+    tags: [make_nonnegative]
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+    - id: scope
+    - id: action
+    - id: owner
+  - id: fuel_unit_prices
+    to_dimensions:
+    - id: energy_carrier
+    - id: cost_type
+  output_nodes:
+  - id: total_costs
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: cost_type
+    - id: action
+    - id: owner
 
 # ---------- Rail
 
@@ -3737,6 +3834,8 @@ nodes:
     from_dimensions:
     - id: vehicle_type
       categories: [local_trains, trams]
+    - id: owner
+      flatten: true
     to_dimensions:
     - id: vehicle_type
     - id: action
@@ -4601,8 +4700,8 @@ actions:
   group: transportation
   unit: Mvkm/a
   quantity: mileage
-  input_dimensions: [action, vehicle_type]
-  output_dimensions: [action, vehicle_type]
+  input_dimensions: [action, owner, vehicle_type]
+  output_dimensions: [action, owner, vehicle_type]
   input_datasets:
   - id: tampere/transportation_actions
     column: mileage
@@ -4611,7 +4710,6 @@ actions:
     - column: sector
     - dimension: action
       categories: [improving_the_service_level_of_public_transport]
-    - column: owner
     - column: cost_type
     - column: scope
     - column: energy_carrier
@@ -4620,12 +4718,11 @@ actions:
     from_dimensions:
     - id: action
       flatten: true
+    - id: owner
+      flatten: true
     to_dimensions:
     - id: vehicle_type
   - id: transport_kilometer_impacts
-    to_dimensions:
-    - id: action
-    - id: vehicle_type
 
 - id: promoting_walking_and_cycling
   name: 'KAUPUNKI: Pyöräilyn edistäminen'
@@ -4672,10 +4769,9 @@ actions:
     from_dimensions:
     - id: cost_type
       flatten: true
-    - id: owner
-      flatten: true
     to_dimensions:
     - id: action
+    - id: owner
     - id: vehicle_type
   - id: transportation_price
     metrics: [currency]
@@ -4752,8 +4848,8 @@ actions:
   group: transportation
   unit: Mvkm/a
   quantity: mileage
-  input_dimensions: [action, vehicle_type]
-  output_dimensions: [action, vehicle_type]
+  input_dimensions: [action, owner, vehicle_type]
+  output_dimensions: [action, owner, vehicle_type]
   input_datasets:
   - id: tampere/transportation_actions
     column: mileage
@@ -4762,7 +4858,6 @@ actions:
     - column: sector
     - dimension: action
       categories: [parking_policy_to_support_sustainable_mobility]
-    - column: owner
     - column: cost_type
     - column: scope
     - column: energy_carrier
@@ -4771,12 +4866,11 @@ actions:
     from_dimensions:
     - id: action
       flatten: true
+    - id: owner
+      flatten: true
     to_dimensions:
     - id: vehicle_type
   - id: transport_kilometer_impacts
-    to_dimensions:
-    - id: action
-    - id: vehicle_type
 
 - id: plusbus_investments
   name: 'KAUPUNKI: Plusbussi-investoinnit'
@@ -4819,19 +4913,17 @@ actions:
     - id: vehicle_type
     - id: energy_carrier
     - id: scope
-  # - id: transport_kilometer_by_energy_carrier_impacts
-  #   metrics: [mileage]
-  #   from_dimensions:
-  #   - id: cost_type
-  #     flatten: true
-  #   - id: owner
-  #     flatten: true
-  #   - id: scope
-  #     flatten: true
-  #   to_dimensions:
-  #   - id: action
-  #   - id: vehicle_type
-  #   - id: energy_carrier
+  - id: onroad_kilometer_impacts
+    metrics: [mileage]
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    to_dimensions:
+    - id: action
+    - id: owner
+    - id: vehicle_type
+    - id: energy_carrier
+    - id: scope
   - id: total_costs
     metrics: [currency]
     tags: [make_nonnegative]
@@ -5005,12 +5097,11 @@ actions:
     from_dimensions:
     - id: cost_type
       flatten: true
-    - id: owner
-      flatten: true
     - id: scope
       flatten: true
     to_dimensions:
     - id: action
+    - id: owner
     - id: vehicle_type
   - id: transportation_price
     metrics: [currency]
