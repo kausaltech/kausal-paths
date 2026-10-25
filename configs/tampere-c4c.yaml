@@ -2512,6 +2512,17 @@ nodes:
 
 # ---------- Combination Trucks
 
+- id: combination_truck_electrification_impact_diesel
+  name: 'Yhdistelmäajoneuvojen sähköistymisvaikutus: diesel'
+  name_en: 'Combination truck electrification impact: diesel'
+  type: simple.AdditiveNode
+  quantity: mix
+  unit: '%'
+  input_dimensions: [energy_carrier, scope, vehicle_type]
+  output_dimensions: [energy_carrier, scope, vehicle_type]
+  output_nodes:
+  - id: combination_truck_propulsion_mix
+
 - id: combination_truck_propulsion_mix
   name: Yhdistelmäajoneuvojen käyttövoimajakauma
   name_en: Combination truck propulsion mix
@@ -2602,6 +2613,17 @@ nodes:
     - id: scope
 
 # ---------- Rigid Trucks
+
+- id: rigid_truck_electrification_impact_diesel
+  name: 'Muiden kuorma-autojen sähköistymisvaikutus: diesel'
+  name_en: 'Rigid truck electrification impact: diesel'
+  type: simple.AdditiveNode
+  quantity: mix
+  unit: '%'
+  input_dimensions: [energy_carrier, scope, vehicle_type]
+  output_dimensions: [energy_carrier, scope, vehicle_type]
+  output_nodes:
+  - id: rigid_truck_propulsion_mix
 
 - id: rigid_truck_propulsion_mix
   name: Muiden kuorma-autojen käyttövoimajakauma
@@ -2716,6 +2738,17 @@ nodes:
     - column: ghg
     - column: cost_type
     - column: scope
+
+- id: van_electrification_impact_diesel
+  name: 'Pakettiautojen sähköistymisvaikutus: diesel'
+  name_en: 'Van electrification impact: diesel'
+  type: simple.AdditiveNode
+  quantity: mix
+  unit: '%'
+  input_dimensions: [energy_carrier, scope, vehicle_type]
+  output_dimensions: [energy_carrier, scope, vehicle_type]
+  output_nodes:
+  - id: van_propulsion_mix
 
 - id: van_propulsion_mix
   name: Pakettiautojen käyttövoimajakauma
@@ -4217,6 +4250,147 @@ actions:
       categories: [scope1]
     - id: vehicle_type
       categories: [passenger_cars]
+
+- id: electrification_of_vans
+  name: 'YKSITYINEN: Pakettiautojen sähköistyminen'
+  name_en: Electrification of vans
+  type: simple.ParameterAction
+  group: transportation
+  unit: '%'
+  quantity: mix
+  input_dimensions: []
+  output_dimensions: []
+  params:
+  - id: from_year
+    value: 2026
+    is_customizable: false
+    is_visible: false
+  - id: to_value
+    value: 18.0
+    min_value: 10.0
+    max_value: 50.0
+    step: 1.0
+    unit: '%'
+    description: Sähkökäyttö
+    description_en: Electric propulsion
+  - id: constant
+    value: -18.0
+    unit: '%'
+  - id: default_value
+    value: 0.0
+    unit: '%'
+  output_nodes:
+  - id: van_propulsion_mix
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+    - id: scope
+      categories: [scope2]
+    - id: vehicle_type
+      categories: [vans]
+  - id: van_electrification_impact_diesel
+    tags: [arithmetic_inverse]
+    to_dimensions:
+    - id: energy_carrier
+      categories: [diesel]
+    - id: scope
+      categories: [scope1]
+    - id: vehicle_type
+      categories: [vans]
+
+- id: electrification_of_rigid_trucks
+  name: 'YKSITYINEN: Muiden kuorma-autojen sähköistyminen'
+  name_en: Electrification of rigid trucks
+  type: simple.ParameterAction
+  group: transportation
+  unit: '%'
+  quantity: mix
+  input_dimensions: []
+  output_dimensions: []
+  params:
+  - id: from_year
+    value: 2026
+    is_customizable: false
+    is_visible: false
+  - id: to_value
+    value: 4.38
+    min_value: 1.0
+    max_value: 40.0
+    step: 1.0
+    unit: '%'
+    description: Sähkökäyttö
+    description_en: Electric propulsion
+  - id: constant
+    value: -4.38
+    unit: '%'
+  - id: default_value
+    value: 0.0
+    unit: '%'
+  output_nodes:
+  - id: rigid_truck_propulsion_mix
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+    - id: scope
+      categories: [scope2]
+    - id: vehicle_type
+      categories: [rigid_trucks]
+  - id: rigid_truck_electrification_impact_diesel
+    tags: [arithmetic_inverse]
+    to_dimensions:
+    - id: energy_carrier
+      categories: [diesel]
+    - id: scope
+      categories: [scope1]
+    - id: vehicle_type
+      categories: [rigid_trucks]
+
+- id: electrification_of_combination_trucks
+  name: 'YKSITYINEN: Yhdistelmäajoneuvojen sähköistyminen'
+  name_en: Electrification of combination trucks
+  type: simple.ParameterAction
+  group: transportation
+  unit: '%'
+  quantity: mix
+  input_dimensions: []
+  output_dimensions: []
+  params:
+  - id: from_year
+    value: 2026
+    is_customizable: false
+    is_visible: false
+  - id: to_value
+    value: 4.09
+    min_value: 1.0
+    max_value: 30.0
+    step: 1.0
+    unit: '%'
+    description: Sähkökäyttö
+    description_en: Electric propulsion
+  - id: constant
+    value: -4.09
+    unit: '%'
+  - id: default_value
+    value: 0.0
+    unit: '%'
+  output_nodes:
+  - id: combination_truck_propulsion_mix
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+    - id: scope
+      categories: [scope2]
+    - id: vehicle_type
+      categories: [combination_trucks]
+  - id: combination_truck_electrification_impact_diesel
+    tags: [arithmetic_inverse]
+    to_dimensions:
+    - id: energy_carrier
+      categories: [diesel]
+    - id: scope
+      categories: [scope1]
+    - id: vehicle_type
+      categories: [combination_trucks]
 
 - id: improving_the_service_level_of_public_transport
   name: 'KAUPUNKI: Joukkoliikenteen palvelutason nosto'
