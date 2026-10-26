@@ -1,6 +1,6 @@
-# BISKO module, version 1.3 (2026-10-24): the version submitted for BISKO certification by the
-# Agentur für kommunalen Klimaschutz. A certificate names this number, so a change to what the
-# module computes gets a new one, recorded with its date and reason in the version list of
+# BISKO module, version 1.3 (2026-10-26): the version submitted for BISKO certification by the
+# Agentur für kommunalen Klimaschutz and reviewed by it on 2026-10-26. A certificate names this
+# number, so from that review on a change to what the module computes gets a new one (1.4), recorded with its date and reason in the version list of
 # modules/bisko/README.md in paths-data, and shown to users on the front page of each instance.
 #
 # Every dataset this module reads is declared here with its ownership class, so the
@@ -216,6 +216,9 @@ datasets:
   metrics:
   - id: default
     validation_rules:
+    # A value needs its Datengüte (third Prüflauf, 1.4 and 7.1), as on the other municipal
+    # datasets. Added 2026-10-26: Möglichkeit 1 was switched off when the rule went in elsewhere.
+    - {kind: requires_metric, enforcement: block_publish, metric: quality}
     - {kind: value_range, enforcement: block_edit, min: 0}
   - id: quality
     # BISKO-Methodenpapier §3.4: A=1, B=0.5, C=0.25, D=0. Prüfschritt 7.1 requires every input
@@ -231,6 +234,7 @@ datasets:
   # threshold BISKO asks the declaration to assert.
   - id: default
     validation_rules:
+    - {kind: requires_metric, enforcement: block_publish, metric: quality}
     - {kind: value_range, enforcement: block_edit, min: 1, max: 1}
   - id: quality
     validation_rules:
@@ -1224,10 +1228,12 @@ nodes:
   input_dimensions: [sector, energy_carrier]
   output_dimensions: [sector, energy_carrier]
   input_nodes:
+  # Optional sector (Pruefschritt 2.1): a city without municipal-facility data has no rows here.
   - id: stationary_emissions_reported
     from_dimensions:
     - id: sector
       categories: [municipal_facilities]
+      allow_empty: true
   output_nodes:
   - id: net_emissions
 
@@ -1673,13 +1679,16 @@ nodes:
   # The environmental heat as filled in final_energy_use_entered, so the subtraction covers
   # exactly the years and values the electricity it corrects is computed with. An
   # environmental-heat series that stops before the balance does is the common case, because
-  # heat-pump figures arrive later than electricity figures.
+  # heat-pump figures arrive later than electricity figures. A city with no environmental-heat
+  # rows at all gets an empty input and subtracts nothing (allow_empty), rather than failing the
+  # whole balance.
   - id: final_energy_use_entered
     tags: [heat]
     from_dimensions:
     - id: energy_carrier
       categories: [environmental_heat]
       flatten: true
+      allow_empty: true
   # The weather correction of the same sector, because the figure this is subtracted from has
   # been through it -- the removed quantity has to be on the scale of the figure it comes out of,
   # the same reasoning as in municipal_facilities_energy_in_commerce.
@@ -1734,13 +1743,15 @@ nodes:
   input_nodes:
   # The municipal facilities as filled in final_energy_use_entered, so the subtraction covers
   # exactly the years and values the commerce figure it corrects is computed with. A city
-  # supplying no municipal-facility data is what Pruefschritt 2.1 explicitly permits.
+  # supplying no municipal-facility data is what Pruefschritt 2.1 explicitly permits, so no rows
+  # at all is a valid input that subtracts nothing (allow_empty), not a configuration error.
   - id: final_energy_use_entered
     tags: [energy]
     from_dimensions:
     - id: sector
       categories: [municipal_facilities]
       flatten: true
+      allow_empty: true
   # The commerce factor, not the municipal one: the quantity being removed is part of the
   # commerce figure and has to be removed on the same scale that figure is reported on.
   - id: weather_correction
@@ -2084,6 +2095,13 @@ nodes:
     <i>District heating / heat output</i>: it is the denominator of the factor. The other
     heat-output rows are for heat whose fuel is not entered. Electricity output has no row; it
     enters as the electricity fraction in the combined heat and power parameters.<br/>
+    <b>One combined heat and power system.</b> All fuel entered here is split between heat and
+    electricity with the one electricity fraction of <i>KWK-Anlagenparameter</i>, so Möglichkeit 1
+    describes a network supplied by a single CHP system. A network that also has separate
+    heat-only plants (peak-load boilers, power-to-heat) cannot be described here: their fuel would
+    be split as if it were CHP fuel and most of its emissions would be lost. For such a network,
+    declare the predominant generation variant (Möglichkeit 3) or use the standard factor
+    (Möglichkeit 2).<br/>
     Not to be confused with the <b>consumption side</b> — the district heating the four stationary
     sectors buy at the house connection, which is part of <i>Final energy use</i> and is what any
     Fernwärme emission factor is ultimately applied to, on all three routes.
@@ -2101,6 +2119,13 @@ nodes:
     Wärmeabgabe-Zeilen sind für Wärme, deren Brennstoff nicht eingetragen ist. Für die
     Stromerzeugung gibt es keine Zeile; sie geht als Stromanteil in die KWK-Anlagenparameter
     ein.<br/>
+    <b>Ein KWK-System.</b> Der gesamte hier eingetragene Brennstoff wird mit dem einen Stromanteil
+    aus „KWK-Anlagenparameter" zwischen Wärme und Strom aufgeteilt; Möglichkeit 1 beschreibt also
+    ein Netz, das von einem einzigen KWK-System versorgt wird. Ein Netz mit zusätzlichen reinen
+    Wärmeerzeugern (Spitzenlastkessel, Power-to-Heat) lässt sich hier nicht abbilden: Ihr Brennstoff
+    würde wie KWK-Brennstoff aufgeteilt, und der größte Teil seiner Emissionen ginge verloren. Für
+    ein solches Netz die überwiegende Erzeugungsvariante erklären (Möglichkeit 3) oder den
+    Standardfaktor verwenden (Möglichkeit 2).<br/>
     Nicht zu verwechseln mit der <b>Verbrauchsseite</b> – der Fernwärme, die die vier stationären
     Sektoren am Hausanschluss beziehen. Diese steht in „Endenergieverbrauch" und ist die Größe, auf
     die ein Fernwärme-Emissionsfaktor auf allen drei Wegen letztlich angewendet wird.
@@ -2241,7 +2266,10 @@ nodes:
     combined heat and power parameters are entered: the electricity fraction and the supply and
     return temperatures. Fuel input alone has nothing to divide by, and without the parameters
     the fuel emissions cannot be split. Such a year is served by Möglichkeit 3 or 2 instead, and
-    <i>Own CHP plant data availability</i> shows the gap.
+    <i>Own CHP plant data availability</i> shows the gap.<br/>
+    The factor is that of a network supplied by one combined heat and power system; a network with
+    separate heat-only plants uses Möglichkeit 3 or 2 (see <i>District heating plant fuel input and
+    heat output</i>).
   description_de: |
     BISKO-Möglichkeit 1: der Emissionsfaktor des eigenen Wärmenetzes der Kommune, je MWh
     Endenergie am Hausanschluss.<br/>
@@ -2258,7 +2286,10 @@ nodes:
     Rücklauftemperatur. Ein Brennstoffeinsatz allein hat keinen Nenner, und ohne die Parameter
     lassen sich die Brennstoffemissionen nicht aufteilen. Ein solches Jahr wird nach
     Möglichkeit 3 oder 2 bilanziert, und „Datenverfügbarkeit der eigenen KWK-Anlagendaten" weist
-    die Lücke aus.
+    die Lücke aus.<br/>
+    Der Faktor ist der eines Netzes, das von einem KWK-System versorgt wird; ein Netz mit
+    zusätzlichen reinen Wärmeerzeugern verwendet Möglichkeit 3 oder 2 (siehe „Energieeinsatz und
+    Wärmeabgabe der Fernwärmeanlagen").
   type: formula.FormulaNode
   quantity: emission_factor
   unit: g_co2e/kWh
@@ -2469,19 +2500,21 @@ nodes:
     For which year the city has supplied district heating plant data (1) and for which it has not
     (0). Read from the dataset before interpolation, zero-filling or extension, so an empty
     template does not claim to cover every year.<br/>
-    This is what selects BISKO Möglichkeit 1 in <code>district_heating_emissions</code>. Reported
-    per fuel and per side of the plant, because both the fuel input and the heat output are needed
-    before the exergetic allocation can produce a factor — a year with fuel input and no heat
-    output has nothing to divide by.<br/>
+    Reported per fuel and per side of the plant, because both the fuel input and the heat output
+    are needed before the exergetic allocation can produce a factor — a year with fuel input and no
+    heat output has nothing to divide by. Whether a year is computed by BISKO Möglichkeit 1 also
+    depends on the combined heat and power parameters; <i>BISKO district heating method in
+    force</i> shows the result.<br/>
     Values: 1 = a value has been entered, 0 = no value. The value has no unit.
   description_de: |
     Für welches Jahr die Kommune Anlagendaten zur Fernwärme geliefert hat (1) und für welches nicht
     (0). Gelesen wird der Datensatz vor Interpolation, Nullauffüllung und Fortschreibung, damit eine
     leere Vorlage nicht beansprucht, jedes Jahr abzudecken.<br/>
-    Damit wird in <code>district_heating_emissions</code> die BISKO-Möglichkeit 1 ausgewählt.
     Ausgewiesen je Brennstoff und je Seite der Anlage, denn für die exergetische Allokation werden
     sowohl der Brennstoffeinsatz als auch die Wärmeabgabe benötigt – ein Jahr mit Brennstoffeinsatz
-    ohne Wärmeabgabe hat keinen Nenner.<br/>
+    ohne Wärmeabgabe hat keinen Nenner. Ob ein Jahr nach BISKO-Möglichkeit 1 berechnet wird, hängt
+    außerdem von den KWK-Anlagenparametern ab; das Ergebnis zeigt <i>Angewandte BISKO-Möglichkeit
+    für Fernwärme</i>.<br/>
     Werte: 1 = ein Wert ist eingetragen, 0 = kein Wert. Der Wert hat keine Einheit.
   type: simple.DataAvailabilityNode
   quantity: fraction
@@ -2587,7 +2620,9 @@ nodes:
     network (row <i>District heating / heat output</i> of the plant data), and (3) the combined
     heat and power parameters: the electricity fraction and the supply and return temperatures
     of the network. The network losses are pre-filled with 15 %. A year missing any of these is
-    computed with Möglichkeit 3 or 2, and the plant data entered for it has no effect.<br/>
+    computed with Möglichkeit 3 or 2, and the plant data entered for it has no effect.
+    Möglichkeit 1 covers a network supplied by one combined heat and power system; a network that
+    also has separate heat-only plants is reported with Möglichkeit 3 or 2.<br/>
     The value is the code of the route (1, 2 or 3, as described above) and has no unit.
   description_de: |
     Welchen der drei BISKO-Wege für Fernwärme die Bilanz verwendet hat, je Jahr: <b>1</b> die
@@ -2602,7 +2637,9 @@ nodes:
     die sie ins Netz eingespeist haben (Zeile <i>Fernwärme / Wärmeabgabe</i> der Anlagendaten), und
     (3) die KWK-Anlagenparameter: Stromanteil sowie Vorlauf- und Rücklauftemperatur des Netzes. Die
     Netzverluste sind mit 15 % vorbelegt. Fehlt eine davon, wird das Jahr nach Möglichkeit 3 oder 2
-    berechnet, und die dafür eingetragenen Anlagendaten wirken sich nicht aus.<br/>
+    berechnet, und die dafür eingetragenen Anlagendaten wirken sich nicht aus. Möglichkeit 1
+    bildet ein Netz ab, das von einem KWK-System versorgt wird; ein Netz mit zusätzlichen reinen
+    Wärmeerzeugern wird nach Möglichkeit 3 oder 2 bilanziert.<br/>
     Der Wert ist der Code des Wegs (1, 2 oder 3, wie oben beschrieben) und hat keine Einheit.
   type: formula.FormulaNode
   quantity: fraction
@@ -2645,9 +2682,9 @@ nodes:
     year at a time, and an all-or-nothing switch makes it choose between discarding two years of
     plant data and losing every earlier year.<br/>
     Within one year the routes never mix: <code>prefer_by_year</code> serves a covered year
-    entirely from the preferred source. A year the city covered only partly is still that city's
-    year, and the gaps are reported by the availability nodes rather than filled from the
-    fallback.<br/>
+    entirely from the preferred source. A year counts as covered by plant data only when its factor
+    can be computed: fuel input, the heat fed into the network and the combined heat and power
+    parameters. Otherwise the year takes Möglichkeit 3 or 2.<br/>
     The selected total is distributed across sectors in proportion to each sector's share of the
     city's district heating consumption, because that is the only sector information the data
     carries.
@@ -2668,9 +2705,9 @@ nodes:
     Berichtsjahr für Berichtsjahr auf, und ein Alles-oder-nichts-Schalter zwingt sie zur Wahl
     zwischen dem Verwerfen zweier Jahre mit Anlagendaten und dem Verlust aller früheren Jahre.<br/>
     Innerhalb eines Jahres vermischen sich die Wege nie: <code>prefer_by_year</code> bedient ein
-    abgedecktes Jahr vollständig aus der bevorzugten Quelle. Ein von der Kommune nur teilweise
-    gefülltes Jahr bleibt ihr Jahr, und die Lücken werden von den Verfügbarkeitsknoten ausgewiesen,
-    statt aus dem Rückfallweg aufgefüllt zu werden.<br/>
+    abgedecktes Jahr vollständig aus der bevorzugten Quelle. Durch Anlagendaten abgedeckt ist ein
+    Jahr nur, wenn sich sein Faktor berechnen lässt: Brennstoffeinsatz, ins Netz eingespeiste Wärme
+    und KWK-Anlagenparameter. Sonst gilt für das Jahr Möglichkeit 3 oder 2.<br/>
     Die gewählte Gesamtmenge wird anteilig am Fernwärmeverbrauch der Sektoren verteilt, da die Daten
     keine andere Sektorinformation enthalten.
   type: formula.FormulaNode
@@ -2753,8 +2790,8 @@ nodes:
     emissions) are not included. The gases considered are CO<sub>2</sub>, CH<sub>4</sub>, and N<sub>2</sub>O, and the
     values are CO<sub>2</sub> equivalents for 100-year global warming potential.<br/>
     These emission factors were received from IFEU, and they are updated annually. The detailed data sources are given
-    in the dataset. There are two versions of this dataset, national and local, switched with the
-    national vs. local toggle in the 'Edit scenario' panel. The local one holds only what the city
+    in the dataset. There are two versions of this dataset, national and local, switched with
+    the setting <i>Use national rather than locally held emission factors</i>. The local one holds only what the city
     admin user has entered there: with the toggle on local, each energy carrier and year takes the
     local factor where there is one and the national factor otherwise, so a local table left empty
     gives the national result.
@@ -2766,7 +2803,7 @@ nodes:
     Treibhauspotenzial (GWP).<br/>
     Diese Emissionsfaktoren stammen von IFEU und werden jährlich aktualisiert. Die detaillierten Datenquellen sind
     im Datensatz angegeben. Es gibt zwei Versionen dieses Datensatzes, national und lokal, umschaltbar
-    mit dem national-vs.-lokal-Schalter im Panel „Szenario bearbeiten“. Die lokale enthält nur, was
+    mit der Einstellung <i>Nationale Emissionsfaktoren statt lokal hinterlegter nutzen</i>. Die lokale enthält nur, was
     die Stadt-Administration dort eingetragen hat: Steht der Schalter auf lokal, gilt für jeden
     Energieträger und jedes Jahr der lokale Faktor, wo es einen gibt, sonst der nationale – eine leer
     gelassene lokale Tabelle ergibt also das nationale Ergebnis.
@@ -2808,7 +2845,7 @@ nodes:
     (grey emissions) are not included. The gases are CO<sub>2</sub>, CH<sub>4</sub> and
     N<sub>2</sub>O, as CO<sub>2</sub> equivalents over 100 years. They come from ifeu and are
     updated annually; the data sources are given in the dataset.<br/>
-    There are a national and a local version, switchable in the 'Edit scenario' panel. The local
+    There are a national and a local version, switchable with the setting <i>Use national rather than locally held emission factors</i>. The local
     one holds only what a city admin has entered: with the switch on local, each carrier and year
     takes the local factor where there is one and the national factor otherwise. A balance computed
     on local factors
@@ -2832,7 +2869,7 @@ nodes:
     Vorprodukte (graue Emissionen) sind nicht enthalten. Berücksichtigt sind CO<sub>2</sub>,
     CH<sub>4</sub> und N<sub>2</sub>O als CO<sub>2</sub>-Äquivalente über 100 Jahre. Sie stammen
     von ifeu und werden jährlich aktualisiert; die Datenquellen stehen im Datensatz.<br/>
-    Es gibt eine nationale und eine lokale Fassung, umschaltbar im Panel „Szenario bearbeiten". Die
+    Es gibt eine nationale und eine lokale Fassung, umschaltbar mit der Einstellung <i>Nationale Emissionsfaktoren statt lokal hinterlegter nutzen</i>. Die
     lokale enthält nur, was die Stadt-Administration eingetragen hat: Steht der Schalter auf lokal,
     gilt für jeden Energieträger und jedes Jahr der lokale Faktor, wo es einen gibt, sonst der
     nationale. Eine Bilanz auf lokalen Faktoren ist nicht BISKO-konform, und „Hat nationale Stromemissionsfaktoren?" fällt auf 0, sobald der Schalter
@@ -2877,9 +2914,11 @@ nodes:
     included. The gases considered are CO<sub>2</sub>, CH<sub>4</sub>, and N<sub>2</sub>O, and the values
     are CO<sub>2</sub> equivalents for 100-year global warming potential.<br/>
     These emission factors were received from IFEU, and they are updated annually.
-    There are two versions of this dataset, national and local, switched with the national vs.
-    local toggle in the 'Edit scenario' panel. The local one holds only what the city admin user has
-    entered there: with the toggle on local, each energy carrier and year takes the local factor
+    BISKO Möglichkeit 1 uses the heat factors for heat fed into the district heating network whose
+    fuel input is not entered.<br/>
+    There are two versions of this dataset, national and local, switched with
+    the setting <i>Use national rather than locally held emission factors</i>. A balance on local factors is not BISKO-conform. The local one holds only what the
+    city admin user has entered there: with the toggle on local, each energy carrier and year takes the local factor
     where there is one and the national factor otherwise, so a local table left empty gives the
     national result.
   description_de: |
@@ -2895,8 +2934,10 @@ nodes:
     N<sub>2</sub>O, und die Werte sind CO<sub>2</sub>-Äquivalente für ein 100-jähriges
     Treibhauspotenzial (GWP).<br/>
     Diese Emissionsfaktoren stammen von IFEU und werden jährlich aktualisiert.
-    Es gibt zwei Versionen dieses Datensatzes, national und lokal, umschaltbar mit dem
-    national-vs.-lokal-Schalter im Panel „Szenario bearbeiten“. Die lokale enthält nur, was die
+    Die BISKO-Möglichkeit 1 verwendet die Wärmefaktoren für Wärme, die ins Fernwärmenetz eingespeist
+    wird, ohne dass ihr Brennstoffeinsatz eingetragen ist.<br/>
+    Es gibt zwei Versionen dieses Datensatzes, national und lokal, umschaltbar mit
+    der Einstellung <i>Nationale Emissionsfaktoren statt lokal hinterlegter nutzen</i>. Eine Bilanz auf lokalen Faktoren ist nicht BISKO-konform. Die lokale enthält nur, was die
     Stadt-Administration dort eingetragen hat: Steht der Schalter auf lokal, gilt für jeden
     Energieträger und jedes Jahr der lokale Faktor, wo es einen gibt, sonst der nationale – eine leer
     gelassene lokale Tabelle ergibt also das nationale Ergebnis.
@@ -2972,10 +3013,12 @@ nodes:
   # No `local` port and no `use_national_values` here, unlike the other three factor nodes. This
   # was `select_port(condition, national, local)` over `kommune/emissionsfaktoren_fernwaerme`
   # until 2026-09-06; the datasets block above says why it went. The consequence worth keeping in
-  # mind: `use_national_values` no longer reaches district heating at all, so switching it off
-  # moves the balance through the other three tables while these factors stay put. That is
-  # correct -- criterion 6 has its own route for city data -- but it does mean this node is no
-  # longer the place to look when the switch appears not to have worked.
+  # mind: `use_national_values` no longer reaches Möglichkeit 2 or 3, so switching it off moves
+  # the balance through the other three tables while these factors stay put. It does still reach
+  # Möglichkeit 1, through the heat-output factors of `emission_factors_without_fuel_data`, which
+  # keeps a `local` port (gated by is_bisko_compliant like the other tables; open in paths-data
+  # modules/bisko/docs/tasks.md). This node is not the place to look when the switch appears not
+  # to have worked.
   params:
   - id: formula
     value: extend_all(national)
@@ -4386,8 +4429,9 @@ nodes:
     much the city knows, not which method was applied, which is why
     <code>district_heating_method_in_force</code> reports the route separately instead of this
     node branching on it.<br/>
-    A locally edited factor would break that guarantee for Möglichkeit 2 and 3, and it is caught
-    by <code>has_national_electricity_emission_factors</code>, which gates on the same
+    No locally edited factor reaches Möglichkeit 2 or 3. A locally edited factor for heat without
+    fuel data can reach Möglichkeit 1, and it is caught by
+    <code>has_national_electricity_emission_factors</code>, which gates on the same
     <code>use_national_values</code> switch that selects the national factor tables.<br/>
     What this node does <i>not</i> test is whether the electricity fraction and network
     temperatures fed into the split are plausible. That is a separate question, and
@@ -4415,8 +4459,9 @@ nodes:
     unterscheiden sich darin, wie viel die Kommune weiß, nicht darin, welche Methode angewandt
     wurde; deshalb weist <code>district_heating_method_in_force</code> den Weg gesondert aus, statt
     dass dieser Knoten danach verzweigt.<br/>
-    Ein lokal geänderter Faktor würde diese Zusicherung für die Möglichkeiten 2 und 3 aufheben; das
-    fängt <code>has_national_electricity_emission_factors</code> ab, der auf denselben Schalter
+    Kein lokal geänderter Faktor erreicht die Möglichkeiten 2 und 3. Ein lokal geänderter Faktor für
+    Wärme ohne Brennstoffangaben kann Möglichkeit 1 erreichen; das fängt
+    <code>has_national_electricity_emission_factors</code> ab, der auf denselben Schalter
     <code>use_national_values</code> prüft, der die nationalen Faktortabellen auswählt.<br/>
     Nicht geprüft wird, ob der Stromanteil und die Netztemperaturen, die in die Aufteilung
     eingehen, plausibel sind. Das ist eine eigene Frage, die
@@ -4815,11 +4860,21 @@ nodes:
     tags: [quality]
   - id: final_energy_use_corrected
     tags: [energy]
-  # Transport enters as two terms because its branches are graded separately: road mileage and the
-  # rail/water/air consumption come from different sources and can differ in the same year. Both
-  # are mapped onto the transport sector, the same way total_final_energy_use does it.
-  - id: road_transport_data_quality_in_force
-    tags: [road_quality]
+  # Transport enters as graded energy (grade x energy, summed over its cells) beside its energy, so
+  # it is weighted by energy like the stationary cells. Both are mapped onto the transport sector,
+  # the same way total_final_energy_use does it.
+  - id: road_transport_graded_energy
+    tags: [road_graded]
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: road_type
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: sector
+      categories: [transport]
   - id: road_transport_energy_bisko
     tags: [road_energy]
     from_dimensions:
@@ -4830,8 +4885,16 @@ nodes:
     to_dimensions:
     - id: sector
       categories: [transport]
-  - id: other_transport_data_quality_in_force
-    tags: [other_quality]
+  - id: other_transport_graded_energy
+    tags: [other_graded]
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: sector
+      categories: [transport]
   - id: other_transport_energy
     tags: [other_energy]
     from_dimensions:
@@ -4851,8 +4914,7 @@ nodes:
     # historical year. With forecast years the outcome card compared the reference year with the
     # target year, a number with no meaning for data quality (the -84 % of the third Prüflauf, 7.2).
     value: inventory_only(drop_nans(
-      zero_fill(sum_dim(quality * energy, energy_carrier)
-                + road_quality * road_energy + other_quality * other_energy)
+      zero_fill(sum_dim(quality * energy, energy_carrier) + road_graded + other_graded)
       / zero_fill(sum_dim(energy, energy_carrier) + road_energy + other_energy)))
 - id: weighted_data_quality_by_energy_carrier
   is_editable: false
@@ -4895,15 +4957,23 @@ nodes:
     tags: [energy]
   # Only vehicle_type is flattened here: the carrier is the axis of this node, so the transport
   # energy keeps it and each fuel lands on its own row.
-  - id: road_transport_data_quality_in_force
-    tags: [road_quality]
+  - id: road_transport_graded_energy
+    tags: [road_graded]
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: road_type
+      flatten: true
   - id: road_transport_energy_bisko
     tags: [road_energy]
     from_dimensions:
     - id: vehicle_type
       flatten: true
-  - id: other_transport_data_quality_in_force
-    tags: [other_quality]
+  - id: other_transport_graded_energy
+    tags: [other_graded]
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
   - id: other_transport_energy
     tags: [other_energy]
     from_dimensions:
@@ -4916,8 +4986,7 @@ nodes:
     # historical year. With forecast years the outcome card compared the reference year with the
     # target year, a number with no meaning for data quality (the -84 % of the third Prüflauf, 7.2).
     value: inventory_only(drop_nans(
-      zero_fill(sum_dim(quality * energy, sector)
-                + road_quality * road_energy + other_quality * other_energy)
+      zero_fill(sum_dim(quality * energy, sector) + road_graded + other_graded)
       / zero_fill(sum_dim(energy, sector) + road_energy + other_energy)))
 # --- Datengüte of the transport sector ------------------------------------------------------
 #
@@ -4961,48 +5030,227 @@ nodes:
     value: 0.5
     unit: dimensionless
 
-- id: road_transport_data_quality_in_force
+# The transport grades are carried as *graded energy* -- grade x energy, cell by cell -- built
+# in the same proportions as the energy the balance uses, so every aggregate weights them by
+# energy exactly as Methodenpapier Tabelle 1 does for the stationary carriers: sum of graded
+# energy over sum of energy. Until 2026-10-26 the transport grades were a plain mean over the
+# categories, taken before the energy weighting (900 MWh at A and 100 MWh at D read 50 %, not
+# 90 %); fields on the default could drop out of the mean (one entered mileage cell graded A made
+# the Prüfstadt's whole 2020 road grade A); and the grades of measured road consumption were not
+# read at all.
+
+- id: transport_energy_own_data_quality
   is_editable: false
-  name_en: Datengüte of the road mileage in force
-  name_de: Datengüte der maßgeblichen Fahrleistung
+  name_en: Own road transport consumption data quality
+  name_de: Datengüte der eigenen Verbrauchsdaten im Straßenverkehr
   description_en: |
-    The Datengüte behind the road mileage the balance actually used, per year: the average of the
-    grades the city entered in the years its own data is in force, and grade B (50 %) in the years
-    the gemeindefeine ifeu default is. <i>Road mileage source in force</i> reports which of the two
-    a given year took.<br/>
+    The Datengüte the city assigned to each cell of its own measured road transport consumption, on
+    BISKO's A–D scale (Methodenpapier §3.4). Every value the city enters needs one; a value without
+    one makes the balance non-conform.<br/>
     Values are BISKO data-quality factors between 0 and 1 (A = 1, B = 0.5, C = 0.25, D = 0) and have
     no unit. The data quality of the whole balance is shown in % in <i>Datengüte of the whole balance</i>.
   description_de: |
-    Die Datengüte der tatsächlich verwendeten Fahrleistung, je Jahr: der Mittelwert der von der
-    Kommune eingetragenen Güten in den Jahren, in denen ihre eigenen Daten maßgeblich sind, und
-    Güte B (50 %) in den Jahren, in denen der gemeindefeine ifeu-Defaultwert gilt. Welcher der
-    beiden Wege ein Jahr genommen hat, weist „Maßgebliche Quelle der Fahrleistung" aus.<br/>
+    Die von der Kommune je Zelle vergebene Datengüte ihrer eigenen gemessenen Verbrauchsdaten im
+    Straßenverkehr auf der BISKO-Skala A–D (Methodenpapier §3.4). Jeder eingetragene Wert braucht
+    eine; ein Wert ohne Datengüte macht die Bilanz nicht konform.<br/>
+    Die Werte sind BISKO-Datengütefaktoren zwischen 0 und 1 (A = 1, B = 0,5, C = 0,25, D = 0) und
+    haben keine Einheit. Die Datengüte der Gesamtbilanz wird in <i>Datengüte der Gesamtbilanz</i>
+    in % ausgewiesen.
+  type: simple.AdditiveNode2
+  quantity: fraction
+  unit: dimensionless  # A grade is a BISKO factor (A = 1 ... D = 0). Dimensionless, so it stays off the % data-quality outcome pages.
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_datasets:
+  - id: kommune/energieverbrauch_strassenverkehr
+    column: quality
+    # empty_to_zero: every quality cell ships blank, so this column is an empty frame
+    # until a city grades something, and an empty frame has no dimensions.
+    tags: [empty_to_zero]
+    filters:
+    - dimension: vehicle_type
+      categories: [motorcycles, passenger_cars, vans, trucks, local_buses, coach_buses, tram]
+
+- id: transport_energy_own_graded_by_fuel
+  is_editable: false
+  name_en: Graded road transport energy from own consumption data, by fuel
+  name_de: Gütegewichteter Endenergieverbrauch Straßenverkehr aus eigenen Verbrauchsdaten, nach Kraftstoff
+  description_en: |
+    The city's own measured road transport consumption multiplied by the Datengüte the city gave
+    it, split into fuels in the same proportions as <i>Road transport final energy use from own
+    consumption data, by fuel</i> splits the energy. Divided by that energy it gives back the
+    grade; it exists so that the grade can be weighted by energy in the data quality of the
+    balance. A value entered without a grade contributes nothing here.
+  description_de: |
+    Der von der Kommune gemessene Endenergieverbrauch im Straßenverkehr, multipliziert mit der von
+    ihr vergebenen Datengüte und im selben Verhältnis auf die Kraftstoffe aufgeteilt wie die
+    Energie in „Endenergieverbrauch Straßenverkehr aus eigenen Verbrauchsdaten, nach Kraftstoff".
+    Geteilt durch diese Energie ergibt sich wieder die Güte; der Knoten dient dazu, die Güte in der
+    Datengüte der Bilanz mit der Energie zu gewichten. Ein Wert ohne Güte trägt hier nichts bei.
+  type: formula.FormulaNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_datasets:
+  - id: kommune/energieverbrauch_strassenverkehr
+    column: Value
+    tags: [energy, empty_to_zero]
+    filters:
+    - dimension: vehicle_type
+      categories: [motorcycles, passenger_cars, vans, trucks, local_buses, coach_buses, tram]
+  input_nodes:
+  - id: transport_energy_own_data_quality
+    tags: [quality]
+  - id: road_transport_energy_computed_by_road_type
+    tags: [reference]
+    from_dimensions:
+    - id: road_type
+      flatten: true
+  params:
+    # The product is taken before the bio-CNG fold, so a grade is never summed with another grade;
+    # the split is transport_energy_own_by_fuel's, so the graded energy follows the energy.
+    formula: "split_categories(sum_into_cat(energy * quality, energy_carrier, [cng_bio], biogas), reference,
+      'energy_carrier', 'diesel: diesel + biodiesel, petrol: petrol + bio_petrol, natural_gas: cng_fossil + biogas')"
+
+- id: road_transport_graded_energy_own_by_road_type
+  is_editable: false
+  name_en: Graded road transport energy from own consumption data, by road type
+  name_de: Gütegewichteter Endenergieverbrauch Straßenverkehr aus eigenen Verbrauchsdaten, nach Straßenkategorie
+  description_en: |
+    <i>Graded road transport energy from own consumption data, by fuel</i>, spread over the road
+    categories in proportion to the mileage, as the measured energy itself is.
+  description_de: |
+    „Gütegewichteter Endenergieverbrauch Straßenverkehr aus eigenen Verbrauchsdaten, nach
+    Kraftstoff", im Verhältnis der Fahrleistung auf die Straßenkategorien verteilt, wie die
+    gemessene Energie selbst.
+  type: formula.FormulaNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [vehicle_type, road_type, energy_carrier]
+  output_dimensions: [vehicle_type, road_type, energy_carrier]
+  input_nodes:
+  - id: transport_energy_own_graded_by_fuel
+    tags: [energy]
+    to_dimensions:
+    - id: vehicle_type
+    - id: energy_carrier
+    - id: road_type
+      categories: [all_road_types]
+  - id: vehicle_kilometers
+    tags: [mileage]
+  params:
+    formula: "split_categories(energy, mileage, 'road_type',
+      'all_road_types: all_road_types + highway + rural_roads + urban_roads')"
+
+- id: road_transport_graded_energy
+  is_editable: false
+  name_en: Graded road transport energy
+  name_de: Gütegewichteter Endenergieverbrauch Straßenverkehr
+  description_en: |
+    The road transport energy the balance uses, cell by cell, multiplied by the Datengüte of the
+    data it comes from: the city's grade for a measured consumption value, the city's grade for an
+    entered mileage value, and grade B (0.5) for the gemeindefeine ifeu default. Summed and divided
+    by the energy, it is the energy-weighted Datengüte of road transport.
+  description_de: |
+    Der Endenergieverbrauch im Straßenverkehr, den die Bilanz verwendet, Zelle für Zelle
+    multipliziert mit der Datengüte der Daten, aus denen er stammt: der Güte der Kommune für einen
+    gemessenen Verbrauchswert, ihrer Güte für einen eingetragenen Fahrleistungswert und Güte B
+    (0,5) für den gemeindefeinen ifeu-Defaultwert. Summiert und durch die Energie geteilt ergibt er
+    die energiegewichtete Datengüte des Straßenverkehrs.
+  type: formula.FormulaNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [vehicle_type, road_type, energy_carrier]
+  output_dimensions: [vehicle_type, road_type, energy_carrier]
+  input_nodes:
+  - id: road_transport_graded_energy_own_by_road_type
+    tags: [own]
+  - id: road_transport_energy_computed_by_road_type
+    tags: [computed]
+  # The coverage frames that select the sources in road_transport_energy_by_road_type and
+  # vehicle_kilometers, so a grade and the energy it grades cannot come from different sources.
+  - id: transport_energy_own_coverage_by_fuel
+    tags: [coverage]
+  - id: vehicle_kilometers_own_data_quality
+    tags: [mileage_grade]
+  - id: vehicle_kilometers_own_availability
+    tags: [mileage_coverage]
+  - id: default_transport_data_quality
+    tags: [default]
+  params:
+    # Inner: the mileage route, graded per vehicle class and road category -- the city's grade
+    # where it entered the mileage, the default's elsewhere. Outer: a measured consumption value
+    # replaces that cell, with its own grade, as in road_transport_energy_by_road_type.
+    formula: prefer_by_cell(own, prefer_by_cell(mileage_grade * computed, default * computed, mileage_coverage),
+      coverage)
+
+- id: other_transport_graded_energy
+  is_editable: false
+  name_en: Graded rail, water and air energy
+  name_de: Gütegewichteter Endenergieverbrauch Schienen-, Schiffs- und Flugverkehr
+  description_en: |
+    The rail, inland waterway and aviation energy the balance uses, cell by cell, multiplied by the
+    Datengüte of its data: the city's grade where its own operator data is in force, grade B (0.5)
+    where the gemeindefeine ifeu default is.
+  description_de: |
+    Der Endenergieverbrauch im Schienen-, Binnenschiffs- und Flugverkehr, den die Bilanz verwendet,
+    Zelle für Zelle multipliziert mit der Datengüte seiner Daten: der Güte der Kommune, wo ihre
+    eigenen Betreiberdaten maßgeblich sind, und Güte B (0,5), wo der gemeindefeine
+    ifeu-Defaultwert gilt.
+  type: formula.FormulaNode
+  quantity: energy
+  unit: MWh/a
+  input_dimensions: [vehicle_type, energy_carrier]
+  output_dimensions: [vehicle_type, energy_carrier]
+  input_nodes:
+  - id: other_transport_energy_own_data_quality
+    tags: [own]
+  - id: other_transport_energy_own_availability
+    tags: [coverage]
+  - id: other_transport_energy
+    tags: [energy]
+  - id: default_transport_data_quality
+    tags: [default]
+  params:
+    # The city's grades and coverage are folded onto the default's categories first, as in
+    # other_transport_energy; a mode is entered under one of the two categories, not both.
+    formula: prefer_by_cell(sum_into_cat(sum_into_cat(own, vehicle_type, [air_transport_public_cargo], air_transport), vehicle_type, [inland_waterway_shipping_cargo], inland_waterway_shipping) * energy, default * energy,
+      sum_into_cat(sum_into_cat(coverage, vehicle_type, [air_transport_public_cargo], air_transport), vehicle_type, [inland_waterway_shipping_cargo], inland_waterway_shipping))
+
+- id: road_transport_data_quality_in_force
+  is_editable: false
+  name_en: Datengüte of the road transport data in force
+  name_de: Datengüte der maßgeblichen Straßenverkehrsdaten
+  description_en: |
+    The Datengüte behind the road transport energy the balance actually used, per year, weighted by
+    energy: the city's grades for the mileage and consumption values it entered, and grade B (50 %)
+    for every field on the gemeindefeine ifeu default. See <i>Graded road transport energy</i>.<br/>
+    Values are BISKO data-quality factors between 0 and 1 (A = 1, B = 0.5, C = 0.25, D = 0) and have
+    no unit. The data quality of the whole balance is shown in % in <i>Datengüte of the whole balance</i>.
+  description_de: |
+    Die Datengüte des tatsächlich verwendeten Endenergieverbrauchs im Straßenverkehr, je Jahr, mit
+    der Energie gewichtet: die Güten der Kommune für die von ihr eingetragenen Fahrleistungs- und
+    Verbrauchswerte und Güte B (50 %) für jedes Feld mit dem gemeindefeinen ifeu-Defaultwert.
+    Siehe „Gütegewichteter Endenergieverbrauch Straßenverkehr".<br/>
     Die Werte sind BISKO-Datengütefaktoren zwischen 0 und 1 (A = 1, B = 0,5, C = 0,25, D = 0) und
     haben keine Einheit. Die Datengüte der Gesamtbilanz wird in <i>Datengüte der Gesamtbilanz</i>
     in % ausgewiesen.
   type: formula.FormulaNode
   quantity: fraction
   unit: dimensionless  # A grade is a BISKO factor (A = 1 ... D = 0). Dimensionless, so it stays off the % data-quality outcome pages.
-  input_dimensions: [vehicle_type, road_type]
+  input_dimensions: [vehicle_type, road_type, energy_carrier]
   input_nodes:
-  - id: vehicle_kilometers_own_data_quality
-    tags: [own]
-  - id: default_transport_data_quality
-    tags: [default]
-  # The same coverage frame that selects the mileage source in `vehicle_kilometers`, so the grade
-  # and the data it grades cannot come from different sources.
-  - id: vehicle_kilometers_own_availability
-    tags: [coverage]
+  - id: road_transport_graded_energy
+    tags: [graded]
+  - id: road_transport_energy_by_road_type
+    tags: [energy]
   params:
-    # mean_dim, not sum_dim: a Datengüte is a grade, and the average of the grades a city entered
-    # is a grade. Summing them would produce a number that is not on the A-D scale at all.
-    # Per field, as the mileage itself: an entered field carries the city's grade, every other
-    # field the default's grade, and the class-and-road-category mean is taken over both. Until
-    # 2026-10-14 a year took either the city's mean grade or the default grade, whole.
     # inventory_only: data quality describes data that exists, so the series ends at the last
     # historical year. With forecast years the outcome card compared the reference year with the
     # target year, a number with no meaning for data quality (the -84 % of the third Prüflauf, 7.2).
-    formula: inventory_only(mean_dim(mean_dim(prefer_by_cell(own, (0 * coverage + 1) * default, coverage), road_type), vehicle_type))
+    formula: inventory_only(drop_nans(sum_dim(sum_dim(sum_dim(graded, road_type), energy_carrier), vehicle_type)
+      / sum_dim(sum_dim(sum_dim(energy, road_type), energy_carrier), vehicle_type)))
 
 - id: other_transport_data_quality_in_force
   is_editable: false
@@ -5010,15 +5258,15 @@ nodes:
   name_de: Datengüte der maßgeblichen Schienen-, Schiffs- und Flugverkehrsdaten
   description_en: |
     The Datengüte behind the rail, inland waterway and aviation consumption the balance actually
-    used, per year: the average of the grades the city entered where its own operator data is in
-    force, and grade B (50 %) where the gemeindefeine ifeu default is.<br/>
+    used, per year, weighted by energy: the city's grades where its own operator data is in force,
+    and grade B (50 %) where the gemeindefeine ifeu default is.<br/>
     Values are BISKO data-quality factors between 0 and 1 (A = 1, B = 0.5, C = 0.25, D = 0) and have
     no unit. The data quality of the whole balance is shown in % in <i>Datengüte of the whole balance</i>.
   description_de: |
     Die Datengüte der tatsächlich verwendeten Verbrauchsdaten für Schienen-, Binnenschiffs- und
-    Flugverkehr, je Jahr: der Mittelwert der von der Kommune eingetragenen Güten dort, wo ihre
-    eigenen Betreiberdaten maßgeblich sind, und Güte B (50 %) dort, wo der gemeindefeine
-    ifeu-Defaultwert gilt.<br/>
+    Flugverkehr, je Jahr, mit der Energie gewichtet: die Güten der Kommune dort, wo ihre eigenen
+    Betreiberdaten maßgeblich sind, und Güte B (50 %) dort, wo der gemeindefeine ifeu-Defaultwert
+    gilt.<br/>
     Die Werte sind BISKO-Datengütefaktoren zwischen 0 und 1 (A = 1, B = 0,5, C = 0,25, D = 0) und
     haben keine Einheit. Die Datengüte der Gesamtbilanz wird in <i>Datengüte der Gesamtbilanz</i>
     in % ausgewiesen.
@@ -5027,20 +5275,14 @@ nodes:
   unit: dimensionless  # A grade is a BISKO factor (A = 1 ... D = 0). Dimensionless, so it stays off the % data-quality outcome pages.
   input_dimensions: [vehicle_type, energy_carrier]
   input_nodes:
-  - id: other_transport_energy_own_data_quality
-    tags: [own]
-  - id: default_transport_data_quality
-    tags: [default]
-  - id: other_transport_energy_own_availability
-    tags: [coverage]
+  - id: other_transport_graded_energy
+    tags: [graded]
+  - id: other_transport_energy
+    tags: [energy]
   params:
-    # Per field, as other_transport_energy. The city's grades and coverage are folded onto the
-    # default's categories first; a mode is entered under one of the two categories, not both.
-    # inventory_only: data quality describes data that exists, so the series ends at the last
-    # historical year. With forecast years the outcome card compared the reference year with the
-    # target year, a number with no meaning for data quality (the -84 % of the third Prüflauf, 7.2).
-    formula: inventory_only(mean_dim(mean_dim(prefer_by_cell(sum_into_cat(sum_into_cat(own, vehicle_type, [air_transport_public_cargo], air_transport), vehicle_type, [inland_waterway_shipping_cargo], inland_waterway_shipping),
-      (0 * sum_into_cat(sum_into_cat(coverage, vehicle_type, [air_transport_public_cargo], air_transport), vehicle_type, [inland_waterway_shipping_cargo], inland_waterway_shipping) + 1) * default, sum_into_cat(sum_into_cat(coverage, vehicle_type, [air_transport_public_cargo], air_transport), vehicle_type, [inland_waterway_shipping_cargo], inland_waterway_shipping)), energy_carrier), vehicle_type))
+    # inventory_only: see road_transport_data_quality_in_force.
+    formula: inventory_only(drop_nans(sum_dim(sum_dim(graded, energy_carrier), vehicle_type)
+      / sum_dim(sum_dim(energy, energy_carrier), vehicle_type)))
 
 - id: total_weighted_data_quality
   is_editable: false
@@ -5088,11 +5330,18 @@ nodes:
     tags: [stationary_quality]
   - id: final_energy_use_corrected
     tags: [stationary_energy]
-  # Transport enters as two terms because its two branches are graded separately -- road mileage
-  # and the rail/water/air consumption come from different sources and can be on different grades
-  # in the same year.
-  - id: road_transport_data_quality_in_force
-    tags: [road_quality]
+  # Transport enters as graded energy (grade x energy, summed over its cells; see
+  # road_transport_graded_energy) beside its energy, so it is weighted by energy like the
+  # stationary cells.
+  - id: road_transport_graded_energy
+    tags: [road_graded]
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: road_type
+      flatten: true
+    - id: energy_carrier
+      flatten: true
   - id: road_transport_energy_bisko
     tags: [road_energy]
     from_dimensions:
@@ -5100,8 +5349,13 @@ nodes:
       flatten: true
     - id: energy_carrier
       flatten: true
-  - id: other_transport_data_quality_in_force
-    tags: [other_quality]
+  - id: other_transport_graded_energy
+    tags: [other_graded]
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: energy_carrier
+      flatten: true
   - id: other_transport_energy
     tags: [other_energy]
     from_dimensions:
@@ -5118,7 +5372,7 @@ nodes:
     # target year, a number with no meaning for data quality (the -84 % of the third Prüflauf, 7.2).
     value: inventory_only(drop_nans(
       (sum_dim(sum_dim(stationary_quality * stationary_energy, sector), energy_carrier)
-       + road_quality * road_energy + other_quality * other_energy)
+       + road_graded + other_graded)
       / (sum_dim(sum_dim(stationary_energy, sector), energy_carrier)
          + road_energy + other_energy)))
 # Data availability: does the district heating dataset actually contain the values it
@@ -5340,9 +5594,13 @@ nodes:
     tags: [other_grade]
   params:
     # `+ 0 * x` pads each term to every model year of its value frame; empty datasets give 1.
-    formula: prod_dim(prod_dim(max(complement(mileage), mileage_grade), road_type), vehicle_type)
-      * prod_dim(prod_dim(max(complement(road_energy), road_energy_grade), energy_carrier), vehicle_type)
-      * prod_dim(prod_dim(max(complement(other), other_grade), energy_carrier), vehicle_type)
+    # `v + 0 * grade` also pads the value frame with every cell the grade frame has, so a grade
+    # entered without a value (a cell the value frame lacks) reads as 'nothing entered' rather
+    # than as a missing grade. Without it, one such grade made every other year non-conform:
+    # Prüfstadt's motorcycles/diesel grade in 2022 failed 2018-2021 and 2023 (2026-10-26).
+    formula: prod_dim(prod_dim(max(complement(mileage + 0 * mileage_grade), mileage_grade), road_type), vehicle_type)
+      * prod_dim(prod_dim(max(complement(road_energy + 0 * road_energy_grade), road_energy_grade), energy_carrier), vehicle_type)
+      * prod_dim(prod_dim(max(complement(other + 0 * other_grade), other_grade), energy_carrier), vehicle_type)
 
 - id: final_energy_use_availability
   is_editable: false

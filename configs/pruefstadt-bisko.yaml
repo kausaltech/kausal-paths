@@ -4,7 +4,7 @@ default_language: de
 supported_languages: []
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 73554e4374aa069d5f464e97d2f991e594d270a4
+  commit: bedc417a8ba8d242ccfd6d79c64f5681cbe5d1a9
   dvc_remote: kausal-s3
 name_de: Prüfstadt Treibhausgasmonitor
 # A review copy of `schwerin-bisko`, made 2026-09-06 so the BISKO certifier can exercise the tool
