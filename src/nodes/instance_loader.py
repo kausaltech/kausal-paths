@@ -1152,6 +1152,7 @@ class InstanceLoader:
                             categories=[dim.get(cat_id) for cat_id in cat_ids],
                             exclude=bool(t.exclude),
                             flatten=bool(t.flatten),
+                            allow_empty=bool(t.allow_empty),
                         )
                 case AssignDimensionOp():
                     dim = self._require_dimension(t.dimension, node)

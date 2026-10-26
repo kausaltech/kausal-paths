@@ -505,3 +505,23 @@ def test_a_dataset_port_without_an_authored_unit_still_takes_the_nodes_unit():
     })
 
     assert list(units.values()) == ['GWh/a']
+
+
+def test_edge_dimension_allow_empty_reaches_the_filter_op(tmp_path):
+    from nodes.instance_parser import _ParsedEdge
+
+    yaml_path = _write_category_override_instance(tmp_path, '')
+    yaml_config = InstanceYAMLConfig.load_for_entrypoint(yaml_path)
+    assert yaml_config.data is not None
+    parser = InstanceConfigParser(yaml_config.data, instance_uuid=uuid4())
+    parser._parse_dimensions()
+
+    dim_id, ed = parser._parse_edge_dimension(
+        {'id': 'fuel', 'categories': ['diesel'], 'flatten': True, 'allow_empty': True}, 'n', []
+    )
+    (op,) = parser._edge_to_transforms(_ParsedEdge(from_node='a', to_node='b', from_dimensions={dim_id: ed}))
+    assert op.kind == 'filter_dimension'
+    assert op.allow_empty is True
+
+    with pytest.raises(Exception, match='allow_empty'):
+        parser._parse_edge_dimension({'id': 'fuel', 'allow_empty': True}, 'n', [])

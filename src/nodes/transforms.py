@@ -144,7 +144,8 @@ def apply_operation(  # noqa: C901, PLR0911, PLR0912
         case FilterColumnOp():
             return _guard_not_empty(_filter_column(df, op, env), df, op, env)
         case FilterDimensionOp():
-            return _guard_not_empty(_filter_dimension(df, op, env), df, op, env)
+            filtered = _filter_dimension(df, op, env)
+            return filtered if op.allow_empty else _guard_not_empty(filtered, df, op, env)
         case AssignDimensionOp():
             return _guard_not_empty(_assign_dimension(df, op, env), df, op, env)
         case RenameItemOp():
@@ -183,7 +184,8 @@ def _guard_not_empty(
 
     An operation that *received* an empty frame removed nothing — emptiness
     flows through. Edges rely on this: metric selection can legitimately
-    empty a frame before the dimension ops run.
+    empty a frame before the dimension ops run. A dimension filter that
+    declares ``allow_empty`` is not guarded at all.
     """
     if len(df) == 0 and len(before) > 0:
         logger.error('Nothing left after {} on {}; input was:\n{}', op.kind, env.source_id, before)

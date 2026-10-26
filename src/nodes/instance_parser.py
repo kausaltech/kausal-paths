@@ -132,6 +132,7 @@ class _ParsedEdgeDimension:
     categories: list[str]
     exclude: bool
     flatten: bool
+    allow_empty: bool = False
 
 
 @dataclass
@@ -956,6 +957,7 @@ class InstanceConfigParser:
 
         flatten = dc.get('flatten')
         exclude = dc.get('exclude')
+        allow_empty = bool(dc.get('allow_empty'))
         cat_ids = dc.get('categories')
         groups = dc.get('groups')
         if groups is not None:
@@ -966,8 +968,10 @@ class InstanceConfigParser:
                 cat_ids = cat_ids + [cat.id for cat in group_cats]
         if cat_ids is None:
             cats: list[str] = []
-            if flatten not in (None, True) or exclude not in (None, True):
-                raise InstanceParseError("When categories are not supplied, you must not supply 'flatten' or 'exclude'")
+            if flatten not in (None, True) or exclude not in (None, True) or allow_empty:
+                raise InstanceParseError(
+                    "When categories are not supplied, you must not supply 'flatten', 'exclude' or 'allow_empty'"
+                )
             flatten = True
             exclude = True
         else:
@@ -976,7 +980,7 @@ class InstanceConfigParser:
             cats = list(cat_ids)
             flatten = bool(flatten)
             exclude = bool(exclude)
-        return dim_id, _ParsedEdgeDimension(categories=cats, exclude=exclude, flatten=flatten)
+        return dim_id, _ParsedEdgeDimension(categories=cats, exclude=exclude, flatten=flatten, allow_empty=allow_empty)
 
     def _make_edge(self, ec: dict[str, Any] | str, node: _ParsedNode, *, is_output: bool) -> _ParsedEdge:
         if isinstance(ec, str):
@@ -1432,6 +1436,7 @@ class InstanceConfigParser:
                     categories=list(ed.categories),
                     flatten=ed.flatten,
                     exclude=ed.exclude,
+                    allow_empty=ed.allow_empty,
                 )
             )
         if edge.to_dimensions:

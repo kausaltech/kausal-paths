@@ -88,6 +88,10 @@ class FilterDimensionOp(PortTransformOpBase):
 
     ``flatten`` sums over the dimension, so it is only valid for structural
     dimensions — ensemble and decomposition axes need explicit reducers.
+
+    ``allow_empty`` declares that the selected categories may be absent from
+    the source, so a filter that leaves nothing is a result, not a
+    configuration error. Set it where the data is optional by definition.
     """
 
     persistent_cache_safe = True
@@ -98,6 +102,7 @@ class FilterDimensionOp(PortTransformOpBase):
     categories: list[DimensionCategoryRef] = Field(default_factory=list)
     exclude: bool = False
     flatten: bool = False
+    allow_empty: bool = False
 
     def cache_hash_data(self, context: Context) -> dict[str, Any]:
         data = super().cache_hash_data(context)

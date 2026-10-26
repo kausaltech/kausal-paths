@@ -296,6 +296,19 @@ def test_filtering_everything_away_is_an_error():
         _run(df, [FilterDimensionOp(dimension='sector', categories=['nonexistent'])])
 
 
+def test_filter_declaring_allow_empty_may_leave_nothing():
+    """Where the selected categories are optional data, an empty result is the answer."""
+    df = to_ppdf(
+        pl.DataFrame({YEAR_COLUMN: [2020], 'sector': ['a'], VALUE_COLUMN: [1.0]}),
+        DataFrameMeta(units={VALUE_COLUMN: unit_registry.parse_units('kt/a')}, primary_keys=[YEAR_COLUMN, 'sector']),
+    )
+
+    result = _run(df, [FilterDimensionOp(dimension='sector', categories=['b'], flatten=True, allow_empty=True)])
+
+    assert len(result) == 0
+    assert 'sector' not in result.dim_ids
+
+
 def test_operations_pass_an_already_empty_frame_through():
     """
     Only the operation that empties a frame is a configuration error.

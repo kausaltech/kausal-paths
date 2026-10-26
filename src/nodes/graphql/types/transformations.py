@@ -72,6 +72,7 @@ class FilterDimensionType(StrawberryPydanticType[FilterDimensionOp], PortTransfo
     categories: auto
     exclude: auto
     flatten: auto
+    allow_empty: auto
 
 
 @pydantic_type(model=AssignDimensionOp)
@@ -187,6 +188,7 @@ class FilterDimensionInput(StrawberryPydanticType[FilterDimensionOp]):
     categories: auto
     exclude: auto
     flatten: auto
+    allow_empty: auto
 
 
 @pydantic_input(model=AssignDimensionOp)

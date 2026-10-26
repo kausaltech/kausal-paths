@@ -15,6 +15,7 @@ class EdgeDimension:
     categories: list[DimensionCategory]
     exclude: bool
     flatten: bool
+    allow_empty: bool = False
 
 
 @dataclass
@@ -61,6 +62,7 @@ class Edge:
                     categories=cat_refs,
                     flatten=ed.flatten,
                     exclude=ed.exclude,
+                    allow_empty=ed.allow_empty,
                 )
             )
 
