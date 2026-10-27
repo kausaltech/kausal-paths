@@ -19,6 +19,7 @@ emission_dimensions: [ghg]
 features:
   baseline_visible_in_graphs: true
   use_datasets_from_db: true
+  enable_user_management: true
 
 impact_overviews:
 - graph_type: cost_efficiency
@@ -158,7 +159,7 @@ dimensions:
   - id: gasoline_hybrid
     label: Gasoline Hybrid
   - id: jp_1_jp_4
-    label: JP-1 & JP-4
+    label: Kerosene
   - id: liquefied_petroleum_gas
     label: Liquefied Petroleum Gas (LPG)
   - id: natural_gas
@@ -295,51 +296,40 @@ dimensions:
 - id: action
   label: Action
   categories:
-  # ----- Energy
-  - id: biogenic_energy_park_energy
-    label: Biogenic Energy Park (Energy)
+  - id: biocover_on_landfills
+    label: Biocover on Landfills
+  - id: biogenic_energy_park
+    label: Biogenic Energy Park
   - id: carbon_capture_and_storage
-    label: Carbon Capture and Storage
+    label: Carbon Capture & Storage (CCS) for CHP Plant
+  - id: climate_supervision_and_action_plans
+    label: Climate Supervision & Action Plans
+  - id: conversion_to_forestry_and_nature
+    label: Conversion of Land to Forest
   - id: energy_efficiency_improvements
     label: Energy Efficiency Improvements
   - id: energy_efficient_municipal_buildings
-    label: Energy Efficient Municipal Buildings
-  - id: expansion_of_renewable_energy
-    label: Expansion of Renewable Energy
-  - id: green_district_heating_of_the_future
-    label: Green District Heating of the Future
-
-  # ----- Transportation
-  - id: green_mobility_plan
-    label: Green Mobility Plan
-  - id: optimized_and_emission_free_municipal_fleet
-    label: Optimized and Emission Free Municipal Fleet
-  - id: sustainable_air_and_maritime_transport
-    label: Sustainable Air and Maritime Transport
-  - id: sustainable_municipal_facilities
-    label: Sustainable Municipal Facilities
-  - id: zero_emission_municipal_machinery_and_driving
-    label: Zero-emission Municipal Machinery and Driving
-
-  # ----- AFOLU
-  - id: biogenic_energy_park
-    label: Biogenic Energy Park
-  - id: climate_supervision_and_action_plans
-    label: Climate Supervision and Action Plans
-  - id: conversion_to_forestry_and_nature
-    label: Conversion to Forestry and Nature
+    label: Energy Efficiency in Municipal Buildings
   - id: extraction_of_organic_soils
     label: Extraction of Organic Soils
-  - id: sustainable_soil_management
-    label: Sustainable Soil Management
-
-  # ----- Waste
-  - id: biocover_on_landfills
-    label: Biocover on Landfills
-
-  # ----- IPPU
   - id: green_materials_in_industry_and_construction
-    label: Green Materials in Industry and Construction
+    label: Green Materials in Industry & Construction
+  - id: green_district_heating_of_the_future
+    label: Next-Generation Green District Heating
+  - id: expansion_of_renewable_energy
+    label: Renewable Energy Development
+  - id: sustainable_air_and_maritime_transport
+    label: Sustainable Air & Maritime Transport
+  - id: sustainable_municipal_facilities
+    label: Sustainable Municipal Facilities
+  - id: sustainable_soil_management
+    label: Sustainable Surplus Soil Transportation
+  - id: optimized_and_emission_free_municipal_fleet
+    label: Zero-Emission & Optimized Municipal Fleet
+  - id: zero_emission_municipal_machinery_and_driving
+    label: Zero-Emission Municipal Machinery
+  - id: green_mobility_plan
+    label: Zero-Emission Zone in City Center
 
 emission_sectors:
 - id: net_emissions
@@ -719,7 +709,7 @@ nodes:
 # ---------- I.5 Non-Road Energy
 
 - id: nonroad_energy_agriculture_emissions
-  name_en: Non-Road Energy Agriculture Emissions
+  name_en: Off-Road Energy Agriculture Emissions
   short_name: Agriculture Emissions
   type: simple.AdditiveNode
   quantity: emissions
@@ -735,7 +725,7 @@ nodes:
       value: i51
 
 - id: nonroad_energy_forestry_emissions
-  name_en: Non-Road Energy Forestry Emissions
+  name_en: Off-Road Energy Forestry Emissions
   short_name: Forestry Emissions
   type: simple.AdditiveNode
   quantity: emissions
@@ -751,7 +741,7 @@ nodes:
       value: i52
 
 - id: nonroad_energy_commercial_institutional_emissions
-  name_en: Non-Road Energy Commercial & Institutional Emissions
+  name_en: Off-Road Energy Commercial & Institutional Emissions
   short_name: Commercial & Institutional Emissions
   type: simple.AdditiveNode
   quantity: emissions
@@ -767,7 +757,7 @@ nodes:
       value: i53
 
 - id: nonroad_energy_residential_emissions
-  name_en: Non-Road Energy Residential Emissions
+  name_en: Off-Road Energy Residential Emissions
   short_name: Residential Emissions
   type: simple.AdditiveNode
   quantity: emissions
@@ -783,7 +773,7 @@ nodes:
       value: i54
 
 - id: nonroad_energy_construction_engineering_emissions
-  name_en: Non-Road Energy Construction & Civil Engineering Emissions
+  name_en: Off-Road Energy Construction & Civil Engineering Emissions
   short_name: Construction & Civil Engineering Emissions
   type: simple.AdditiveNode
   quantity: emissions
@@ -799,7 +789,7 @@ nodes:
       value: i55
 
 - id: nonroad_energy_fishing_emissions
-  name_en: Non-Road Energy Fishing Emissions
+  name_en: Off-Road Energy Fishing Emissions
   short_name: Fishing Emissions
   type: simple.AdditiveNode
   quantity: emissions
@@ -815,7 +805,7 @@ nodes:
       value: i56
 
 - id: nonroad_energy_emissions
-  name_en: Non-Road Energy Emissions
+  name_en: Off-Road Energy Emissions
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
@@ -1634,7 +1624,7 @@ nodes:
 
 - id: ippu_emissions
   name_en: Industrial Process & Product Use Emissions
-  color: '#76B7B2'
+  color: '#f28e2b'
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
@@ -2595,9 +2585,8 @@ pages:
   path: /
   type: emission
   outcome_node: net_emissions
-  lead_title: Climaville Climate-4-CAST Decision Support Tool
-  lead_paragraph: Greenhouse gas inventory (2018-2022) and forecast (2023-2035) 
-    for the City of Climaville.
+  lead_title: Climate Action Decision Support (CADS) Tool
+  lead_paragraph: The Climate Action Decision Support (CADS) Tool was developed by the Climate-4-CAST project, funded by the EU Interreg Baltic Sea Region Programme.
 
 scenarios:
 - id: baseline
