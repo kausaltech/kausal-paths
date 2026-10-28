@@ -288,7 +288,10 @@ class AdditiveAction(ActionNode):
         return result
 
     def compute_effect(self):
-        if self.get_parameter_value('allow_null_categories', required=False):
+        # With several output ports, the joined frame holds each port's rows with
+        # the other ports' dimensions left empty, so null categories are expected.
+        is_multi_metric = len(self.output_metrics) > 1
+        if is_multi_metric or self.get_parameter_value('allow_null_categories', required=False):
             self.allow_null_categories = True
 
         result = None

@@ -395,6 +395,8 @@ def test_action_reassembles_sparse_metrics_with_null_index_categories(
     assert result.paths.index_has_duplicates() is False
     assert result['energy'].to_list() == [1.0 if enabled else 0.0, None]
     assert result['reduction'].to_list() == [0.5 if enabled else 0.0, None]
+    # Several output ports: null categories are expected without the parameter.
+    assert getattr(action, 'allow_null_categories', False) is True
 
 
 def test_assigned_dimension_is_part_of_runtime_binding_output_shape() -> None:
