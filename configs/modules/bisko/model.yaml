@@ -3049,11 +3049,19 @@ nodes:
   input_datasets:
   - id: de/emissionsfaktoren_ohne_brennstoffinput # ifeu dataset, national value (not separated for municipalities)
     filters:
+    # Older database snapshots still use the misspelt category id.
+    - rename_item: energy_carrier|geothermatl
+      value: geothermal
+      allow_missing: true
     - column: upstream_included
     tags: [national]
   - id: kommune/emissionsfaktoren_ohne_brennstoffinput
     binding_owner: instance
     tags: [local]
+    filters:
+    - rename_item: energy_carrier|geothermatl
+      value: geothermal
+      allow_missing: true
   params:
   - id: formula
     value: extend_all(select_port(condition, national, coalesce_df(local, national)))
