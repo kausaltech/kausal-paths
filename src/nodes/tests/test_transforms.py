@@ -287,6 +287,42 @@ def test_filter_column_matches_a_string_parameter_by_spelling():
     assert result[VALUE_COLUMN].to_list() == [1.0]
 
 
+def _sector_frame(sectors: list[str]) -> PathsDataFrame:
+    return to_ppdf(
+        pl.DataFrame({YEAR_COLUMN: [2020] * len(sectors), 'sector': sectors, VALUE_COLUMN: [1.0] * len(sectors)}),
+        DataFrameMeta(units={VALUE_COLUMN: unit_registry.parse_units('kt/a')}, primary_keys=[YEAR_COLUMN, 'sector']),
+    )
+
+
+def test_a_column_filter_that_matches_no_row_names_the_values_there_are():
+    """
+    A raw column's values are not known before the data is, so a misspelt one is caught here.
+
+    Unlike `filter_dimension`, which the solver checks against the dimension's categories.
+    """
+    with pytest.raises(Exception, match=r"No rows of column 'sector' match 'Lammitys'. Available: Liikenne, Lämmitys"):
+        _run(_sector_frame(['Lämmitys', 'Liikenne']), [FilterColumnOp(column='sector', value='Lammitys')])
+    with pytest.raises(Exception, match=r"match parameter 'p' \('x'\)"):
+        _run(_sector_frame(['a']), [FilterColumnOp(column='sector', ref='p')], _env_with_parameters({'p': 'x'}))
+
+
+def test_a_column_filter_may_exclude_every_row_or_none():
+    result = _run(_sector_frame(['a']), [FilterColumnOp(column='sector', value='a', exclude=True)])
+    assert len(result) == 0
+
+    # What an earlier filter already removed: the total row that espoo excludes twice.
+    result = _run(_sector_frame(['a']), [FilterColumnOp(column='sector', value='total', exclude=True)])
+    assert len(result) == 1
+
+
+def test_rename_item_renames_whole_values_only():
+    result = _run(_sector_frame(['Diesel', 'Biodiesel']), [RenameItemOp(column='sector', old_item='Diesel', new_item='diesel')])
+
+    assert result['sector'].to_list() == ['diesel', 'Biodiesel']
+    with pytest.raises(Exception, match=r"No value of column 'sector' is 'Petrol'. Available: Biodiesel, Diesel"):
+        _run(_sector_frame(['Diesel', 'Biodiesel']), [RenameItemOp(column='sector', old_item='Petrol', new_item='petrol')])
+
+
 def test_a_filter_that_keeps_nothing_returns_a_typed_empty_frame():
     """
     No rows is a result: the data has nothing in the selected categories.
