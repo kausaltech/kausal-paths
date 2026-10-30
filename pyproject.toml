@@ -312,6 +312,7 @@ exclude = [
   "local_settings.py",
   "**/migrations",
   "**/node_modules",
+  "scratchpad/",
   ".*",
 ]
 deprecateTypingAliases = true
