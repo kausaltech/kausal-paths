@@ -155,6 +155,10 @@ class FilterColumnOp(PortTransformOpBase):
     """
     Filter on a raw column that is not (yet) a modelled dimension.
 
+    Selecting no row is an error: a raw column's values are not known before the data is,
+    so a misspelt value is caught only when it runs. Excluding nothing is not, since an earlier
+    filter may already have removed those rows.
+
     Legacy: wide DVC datasets use human-readable column labels that never
     became dimensions. Prefer ``filter_dimension`` for anything modelled.
     """
@@ -196,11 +200,13 @@ class RenameColumnOp(PortTransformOpBase):
 
 
 class RenameItemOp(PortTransformOpBase):
-    """Rename a category value within a column. Legacy."""
+    """Rename one value of a column, matched whole; a value the column does not hold is an error. Legacy."""
 
     applies_to = DATASET_ONLY
 
     persistent_cache_safe = True
+    cache_version = 2
+    """2: renames whole values, where 1 replaced substrings."""
 
     kind: Literal['rename_item'] = 'rename_item'
     column: str
