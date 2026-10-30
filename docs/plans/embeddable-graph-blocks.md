@@ -1,6 +1,7 @@
 # Embeddable graph blocks: impact overviews and node graphs
 
 *Produced by Claude Opus 5.5 on 2026-10-07.*
+*Version 2 produced by Claude Opus 5.5 on 2026-10-30.*
 *Responsible: Jouni Tuomisto.*
 
 Status: **design, not implemented.** This document fixes the vocabulary and the
@@ -21,6 +22,12 @@ graph on a Paths dashboard page or static page and, later, on any Kausal Watch p
 accepts such blocks. A placed graph must show the same thing to every visitor and on
 every site, unless the editor has deliberately chosen to let some aspect follow the
 visitor.
+
+Graph blocks are **stories**: they present chosen model results, the same for every visitor
+where pinned. A second purpose has since come up, a **cockpit**: a guided view of the
+parameters that takes a visitor through a model's premises and *sets* the session, so that the
+whole site then computes on the visitor's own reading. The two must not be confused (principle
+6, §11). This plan builds stories; §11 records what a cockpit takes from it and what it does not.
 
 That last requirement is the hard part. Most of what decides a graph's content today is
 not stored anywhere: it is visitor state held in React, in Apollo reactive variables, or
@@ -135,6 +142,12 @@ There is no annual/cumulative toggle; the graph type decides that.
    Paths and Watch render a block with the same code.
 5. **References are stable or validated.** A block must not silently break when a node
    is renamed or an overview's derived id changes (§5.4).
+6. **A view either tells a story or runs the model, never both.** A story reads the session
+   (`follow_visitor`) or pins values, and never writes to it; it can show what cannot coexist
+   in one session, such as two scenarios or two readings side by side. A cockpit writes to the
+   session and is another view of the settings panel. Each says which it is: a story's pinned
+   values appear in its caption (§8.3), and a cockpit looks like settings, not content, and
+   always offers a reset to the defaults.
 
 ## 5. The specifications
 
@@ -150,6 +163,7 @@ Both specifications are Pydantic models in Paths, e.g. in a new
 | `normalization` | `NormalizationRef \| None` | A normalization id from `context.normalizations`, `follow_visitor`, or `None` for no normalization. |
 | `start_year` | `int \| None` | `None` means the instance's reference year (or minimum historical year if it has none). |
 | `end_year` | `int \| None` | `None` means the instance's target year. |
+| `parameters` | `list[ParameterValue]` | Global parameter values (`{id, value}`) to compute under, in place of the visitor's. Empty means the session's values. Only parameters with `is_customizable` may be pinned. For stories that compare a fixed reading with the visitor's, and for computing a candidate set of value choices without touching anyone's session (§11.3). |
 
 The year range is pinned only. Letting it follow the visitor would make one block
 answer different questions on different visits, and the year range is precisely what
@@ -227,6 +241,7 @@ input ChartContextInput {
   normalization: ID     # explicit null vs absent must be distinguishable
   startYear: Int
   endYear: Int
+  parameters: [ParameterValueInput!]   # {id, numberValue | boolValue | stringValue}
 }
 ```
 
@@ -240,6 +255,10 @@ Resolution:
   setting storage; a context manager analogous to `Scenario.override` is needed
   (`Context.override_normalization(norm)`), so the resolver cannot leak it into the
   rest of the request.
+- Pinned `parameters` are applied for the duration of the resolver and restored afterwards,
+  through a context manager on the context (in the manner of `Scenario.override`), on top of
+  the pinned or followed scenario. A parameter that is not customizable, or a value outside
+  its bounds, is a validation error, as in `setParameter`.
 - Absent fields fall back to the session, which is what `follow_visitor` compiles to.
 
 The pinned path must not depend on the session cookie at all. That is what lets a Watch
@@ -355,6 +374,9 @@ graph is worse than a missing one.
 
 ## 9. Phases
 
+Phase 3 now includes pinned `parameters` (§6.1). The cockpit (§11) is not a phase of this plan:
+it needs no stateless queries, and it can be built independently.
+
 1. **Stable overview ids.** Make `id` required for referenced overviews; add a check
    that lists overviews with derived ids. No user-visible change.
 2. **Specs and validation.** `ChartContextSpec`, `ImpactOverviewChartSpec`,
@@ -390,3 +412,68 @@ for any graph that does not need it.
   is part of the computation, not just the axis. Confirm that moving the summation
   server-side, or into the shared component, reproduces today's numbers exactly before
   switching the action list page over.
+- **Parameter overrides and the cache.** Pinned `parameters` multiply the computations a page
+  can trigger. Whether each combination is cached, and for how long, needs deciding before
+  such stories go public.
+
+## 11. Stories and cockpits
+
+### 11.1 Two purposes
+
+| | Story | Cockpit |
+|---|---|---|
+| Purpose | Present chosen model results | Run the model on the visitor's own premises |
+| Session | Reads it (`follow_visitor`) or pins values; never writes | Writes to it: another view of the settings panel |
+| Can show | What cannot coexist in one session: scenario comparisons, several fixed readings side by side | The visitor's current reading, and what changes when an answer changes |
+| Same for every visitor | Yes, where pinned | No, by design |
+| Container | Dashboard page, the blocks of this plan | A guided view of the parameters (§11.2) |
+
+The first case of a cockpit is the fair-share module (`configs/modules/fair_share/`). Its global
+parameters are value judgements (warming limit, likelihood, how far current emissions count, from
+when past overuse counts), and a visitor deciding them needs more than a slider label: what the
+question means, why it is disputed, and what changes with the answer. Its consistency check
+(`value_framework_v0.yaml`, which compares where "each country does what it sees fit" leads with
+the visitor's own warming limit) already reads the session, so it fits a cockpit as it is.
+
+### 11.2 The cockpit
+
+- **It writes to the session**, through `setParameter`, like the settings panel. Its effect
+  carries across the site: after answering the fair-share questions, every page that reads those
+  parameters computes on the visitor's reading. The settings panel and the cockpit show the same
+  state at all times.
+- **The explanation belongs to the parameter, not to the view.** Parameters already carry a
+  translated `description`, exposed by the API and not shown by the settings panel. A cockpit
+  shows it in full, and needs two more things on the parameter definition: a **question** in
+  plain words ("Do past emissions count, and from when?") and a **key node** whose graph shows the
+  answer's effect. The settings panel can show the same fields briefly, so the text exists once.
+- **Grouping and order belong to the module.** Which parameters form a step, in which order, and
+  which nodes flag an inconsistency between answers, are stored with the module whose premises the
+  cockpit walks through (a section in the module YAML, later its DB counterpart), shared by every
+  instance that includes it.
+- **Only customizable parameters.** A cockpit can set nothing the settings panel could not.
+- **In Watch** the settings panel already appears on pages with Paths content and works through
+  the session, so a cockpit there takes the same route. A second Paths instance on one Watch page
+  would need the proxy's cookie handling checked (§10).
+
+A cockpit starts at the value questions; a causal chain that has no parameters yet is shown as
+text before them. It needs nothing from §6, so it can be built before, after or without this
+plan's phases.
+It is a page or block type of its own, not a graph block with a write switch: principle 6.
+
+### 11.3 What stories still need from it
+
+Pinned `parameters` (§5.1, §6.1) stay, for stories and comparisons a session cannot hold:
+
+- **A fixed reading next to the visitor's.** "The default reading" pinned, and "your reading" with
+  `follow_visitor`, in one story.
+- **Testing a contribution without a visitor.** Whether a candidate set of value choices changes
+  any verdict is computed with that set pinned, from no one's session.
+
+### 11.4 Contributions are a separate, deliberate step
+
+Exploring in the cockpit changes only the visitor's own session and is stored nowhere else.
+Contributing a reading is a separate action ("submit my reading") that stores a snapshot of the
+answers, and is the natural point to ask for consent. A submitted reading is direct input from a
+public user and starts from the policy Kausal Watch applies to such input (user feedback and
+pledge commitments) for storage, consent and moderation. Whether statements about values need
+more than that is to be checked before collection starts.
