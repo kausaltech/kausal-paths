@@ -618,3 +618,14 @@ quality_of_data:
     de: Datenqualität
     sv: Datakvalitet
   icon: "📊"
+
+# Listed in nodes.constants.KNOWN_QUANTITIES without an entry here, so a node declaring it passed
+# the old check and failed port validation. Stored in kelvin when it is a difference (warming).
+temperature:
+  label:
+    en: Temperature
+    fi: Lämpötila
+    de: Temperatur
+    sv: Temperatur
+  icon: "🌡"
+  qudt: quantitykind:Temperature
