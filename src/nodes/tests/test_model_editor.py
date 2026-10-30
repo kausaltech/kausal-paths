@@ -43,6 +43,7 @@ pytestmark = pytest.mark.django_db
 SIMPLE_NODE_CLASS = 'nodes.simple.SimpleNode'
 
 ACTION_NODE_CLASS = 'nodes.actions.simple.AdditiveAction'
+CCS_DIMENSIONS = ['energy_carrier', 'energy_usage', 'cost_type', 'sector', 'ghg']
 PARENT_ACTION_NODE_CLASS = 'nodes.tests.test_model_editor.ModelEditorParentActionNode'
 
 
@@ -65,7 +66,7 @@ def _make_node_spec(**overrides: Any) -> NodeSpec:
     unit = unit_registry.parse_units('kt/a')
     defaults: dict[str, Any] = {
         'type_config': SimpleConfig(node_class=SIMPLE_NODE_CLASS),
-        'output_ports': [OutputPortDef(id=_port_uuid('default'), unit=unit, quantity='emissions')],
+        'output_ports': [OutputPortDef(id=_port_uuid('default'), unit=unit, quantity='emissions', dimensions=[])],
     }
     defaults.update(overrides)
     return NodeSpec(**defaults)
@@ -531,7 +532,7 @@ def test_create_node_formula(gql_client: PathsTestClient, db_instance_config: In
                 'config': {'formula': {'formula': 'a + b'}},
                 'color': '#ff0000',
                 'isOutcome': True,
-                'outputPorts': [{'unit': 'kt/a', 'quantity': 'emissions'}],
+                'outputPorts': [{'unit': 'kt/a', 'quantity': 'emissions', 'dimensions': []}],
             },
         },
     )
@@ -555,7 +556,7 @@ def test_create_node_simple(gql_client: PathsTestClient, db_instance_config: Ins
                 'kind': 'SIMPLE',
                 'config': {'simple': {'nodeClass': SIMPLE_NODE_CLASS}},
                 'color': '#000000',
-                'outputPorts': [{'unit': 'kt/a', 'quantity': 'emissions'}],
+                'outputPorts': [{'unit': 'kt/a', 'quantity': 'emissions', 'dimensions': []}],
             },
         },
     )
@@ -582,7 +583,7 @@ def test_query_instance_quantity_kinds_with_used_units(gql_client: PathsTestClie
                     'name': identifier.replace('_', ' ').title(),
                     'kind': 'SIMPLE',
                     'config': {'simple': {'nodeClass': SIMPLE_NODE_CLASS}},
-                    'outputPorts': [{'unit': unit, 'quantity': quantity}],
+                    'outputPorts': [{'unit': unit, 'quantity': quantity, 'dimensions': []}],
                 },
             },
         )
@@ -615,7 +616,7 @@ def test_create_node_with_node_group_and_allow_nulls(gql_client: PathsTestClient
                 'color': '#000000',
                 'nodeGroup': 'transport',
                 'allowNulls': True,
-                'outputPorts': [{'unit': 'kt/a', 'quantity': 'emissions'}],
+                'outputPorts': [{'unit': 'kt/a', 'quantity': 'emissions', 'dimensions': []}],
             },
         },
     )
@@ -646,12 +647,10 @@ def test_create_node_action_with_aarhus_style_fields(gql_client: PathsTestClient
                     },
                 },
                 'inputDimensions': ['energy_carrier', 'energy_usage', 'cost_type', 'sector', 'ghg'],
-                'outputDimensions': ['energy_carrier', 'energy_usage', 'cost_type', 'sector', 'ghg'],
                 'params': {'allow_null_categories': True},
-                'outputMetrics': [
-                    {'id': 'emissions', 'unit': 't/a', 'quantity': 'emissions'},
-                    {'id': 'energy', 'unit': 'TJ/a', 'quantity': 'energy'},
-                    {'id': 'currency', 'unit': 'DKK/a', 'quantity': 'currency'},
+                'outputPorts': [
+                    {'identifier': ident, 'columnId': ident, 'unit': unit, 'quantity': ident, 'dimensions': CCS_DIMENSIONS}
+                    for ident, unit in (('emissions', 't/a'), ('energy', 'TJ/a'), ('currency', 'DKK/a'))
                 ],
             },
         },
@@ -675,7 +674,7 @@ def test_create_node_action_with_aarhus_style_fields(gql_client: PathsTestClient
     assert nc.spec.type_config.node_class == ACTION_NODE_CLASS
     assert nc.spec.type_config.group == group_uuid
     assert nc.spec.input_dimensions == ['energy_carrier', 'energy_usage', 'cost_type', 'sector', 'ghg']
-    assert nc.spec.output_dimensions == ['energy_carrier', 'energy_usage', 'cost_type', 'sector', 'ghg']
+    assert all(port.dimensions == CCS_DIMENSIONS for port in nc.spec.output_ports)
     assert [port.column_id for port in nc.spec.output_ports] == ['emissions', 'energy', 'currency']
     assert [port.paired_output_port_id for port in nc.spec.input_ports] == [port.id for port in nc.spec.output_ports]
     allow_null_categories = next(param for param in nc.spec.params if param.local_id == 'allow_null_categories')
@@ -1332,6 +1331,7 @@ def test_paired_input_cannot_change_protected_output(
         unit=unit_registry.parse_units('kWh'),
         quantity='energy',
         is_editable=False,
+        dimensions=[],
     )
     ports = pair_input_ports_to_outputs([], [output], role='input')
     nc = NodeConfigFactory.create(
@@ -1463,8 +1463,8 @@ def test_additive_action_rejects_removing_output_with_bound_generated_input(
                 ),
             ],
             output_ports=[
-                OutputPortDef(id=emissions_output_id, quantity='emissions', unit=emissions_unit),
-                OutputPortDef(id=energy_output_id, quantity='energy', unit=energy_unit),
+                OutputPortDef(id=emissions_output_id, quantity='emissions', unit=emissions_unit, dimensions=[]),
+                OutputPortDef(id=energy_output_id, quantity='energy', unit=energy_unit, dimensions=[]),
             ],
         ),
     )
@@ -1473,7 +1473,7 @@ def test_additive_action_rejects_removing_output_with_bound_generated_input(
         instance=db_instance_config,
         identifier='energy_source',
         spec=_make_node_spec(
-            output_ports=[OutputPortDef(id=source_output_id, quantity='energy', unit=energy_unit)],
+            output_ports=[OutputPortDef(id=source_output_id, quantity='energy', unit=energy_unit, dimensions=[])],
         ),
     )
     NodeInputPortBinding.objects.create(
@@ -1491,7 +1491,7 @@ def test_additive_action_rejects_removing_output_with_bound_generated_input(
             'nodeId': str(action.uuid),
             'input': {
                 'outputPorts': [
-                    {'id': str(emissions_output_id), 'quantity': 'emissions', 'unit': 'kt/a'},
+                    {'id': str(emissions_output_id), 'quantity': 'emissions', 'unit': 'kt/a', 'dimensions': []},
                 ],
             },
         },
@@ -1537,12 +1537,10 @@ def test_update_node_modeling_fields(gql_client: PathsTestClient, db_instance_co
                     },
                 },
                 'inputDimensions': ['energy_carrier', 'energy_usage', 'cost_type', 'sector', 'ghg'],
-                'outputDimensions': ['energy_carrier', 'energy_usage', 'cost_type', 'sector', 'ghg'],
                 'params': {'allow_null_categories': True},
-                'outputMetrics': [
-                    {'id': 'emissions', 'unit': 't/a', 'quantity': 'emissions'},
-                    {'id': 'energy', 'unit': 'TJ/a', 'quantity': 'energy'},
-                    {'id': 'currency', 'unit': 'DKK/a', 'quantity': 'currency'},
+                'outputPorts': [
+                    {'identifier': ident, 'columnId': ident, 'unit': unit, 'quantity': ident, 'dimensions': CCS_DIMENSIONS}
+                    for ident, unit in (('emissions', 't/a'), ('energy', 'TJ/a'), ('currency', 'DKK/a'))
                 ],
                 'tags': ['trial'],
             },
@@ -1572,7 +1570,7 @@ def test_update_node_modeling_fields(gql_client: PathsTestClient, db_instance_co
     assert nc.spec.allow_nulls is True
     assert nc.spec.minimum_year == 2024
     assert nc.spec.input_dimensions == ['energy_carrier', 'energy_usage', 'cost_type', 'sector', 'ghg']
-    assert nc.spec.output_dimensions == ['energy_carrier', 'energy_usage', 'cost_type', 'sector', 'ghg']
+    assert all(port.dimensions == CCS_DIMENSIONS for port in nc.spec.output_ports)
     assert [port.quantity for port in nc.spec.input_ports] == ['emissions', 'energy', 'currency']
     assert all(port.is_editable is False for port in nc.spec.input_ports)
     assert [port.paired_output_port_id for port in nc.spec.input_ports] == [port.id for port in nc.spec.output_ports]
@@ -1663,7 +1661,7 @@ def test_runtime_rebuild_preserves_action_group_and_zero_no_effect_value(db_inst
                 group=group_uuid,
                 no_effect_value=0.0,
             ),
-            output_ports=[OutputPortDef(id=_port_uuid('default'), unit=unit, quantity='emissions')],
+            output_ports=[OutputPortDef(id=_port_uuid('default'), unit=unit, quantity='emissions', dimensions=[])],
         ),
     )
 
@@ -1682,7 +1680,7 @@ def test_runtime_rebuild_preserves_action_parent_link(db_instance_config: Instan
         name='Parent Action',
         spec=NodeSpec(
             type_config=ActionConfig(node_class=PARENT_ACTION_NODE_CLASS, decision_level=DecisionLevel.MUNICIPALITY),
-            output_ports=[OutputPortDef(id=_port_uuid('default'), unit=unit, quantity='emissions')],
+            output_ports=[OutputPortDef(id=_port_uuid('default'), unit=unit, quantity='emissions', dimensions=[])],
         ),
     )
     NodeConfigFactory.create(
@@ -1693,7 +1691,7 @@ def test_runtime_rebuild_preserves_action_parent_link(db_instance_config: Instan
             type_config=ActionConfig(
                 node_class=ACTION_NODE_CLASS, decision_level=DecisionLevel.MUNICIPALITY, parent=parent_node.uuid
             ),
-            output_ports=[OutputPortDef(id=_port_uuid('default'), unit=unit, quantity='emissions')],
+            output_ports=[OutputPortDef(id=_port_uuid('default'), unit=unit, quantity='emissions', dimensions=[])],
         ),
     )
 
@@ -1935,14 +1933,16 @@ def test_create_and_delete_edge(gql_client: PathsTestClient, db_instance_config:
     nc_a = NodeConfigFactory.create(
         instance=db_instance_config,
         identifier='node_a',
-        spec=_make_node_spec(output_ports=[OutputPortDef(id=_port_uuid('default'), unit=unit, quantity='emissions')]),
+        spec=_make_node_spec(
+            output_ports=[OutputPortDef(id=_port_uuid('default'), unit=unit, quantity='emissions', dimensions=['sector'])]
+        ),
     )
     nc_b = NodeConfigFactory.create(
         instance=db_instance_config,
         identifier='node_b',
         spec=_make_node_spec(
             input_ports=[InputPortDef(id=_port_uuid('input'), unit=unit, quantity='emissions')],
-            output_ports=[OutputPortDef(id=_port_uuid('default'), unit=unit, quantity='emissions')],
+            output_ports=[OutputPortDef(id=_port_uuid('default'), unit=unit, quantity='emissions', dimensions=[])],
         ),
     )
 
@@ -2000,7 +2000,9 @@ def test_instance_admin_cannot_change_incoming_edge_of_protected_node(
     source = NodeConfigFactory.create(
         instance=db_instance_config,
         identifier='protected_edge_source',
-        spec=_make_node_spec(output_ports=[OutputPortDef(id=_port_uuid('source'), unit=unit, quantity='emissions')]),
+        spec=_make_node_spec(
+            output_ports=[OutputPortDef(id=_port_uuid('source'), unit=unit, quantity='emissions', dimensions=[])]
+        ),
     )
     target = NodeConfigFactory.create(
         instance=db_instance_config,
@@ -2008,7 +2010,7 @@ def test_instance_admin_cannot_change_incoming_edge_of_protected_node(
         is_editable=False,
         spec=_make_node_spec(
             input_ports=[InputPortDef(id=_port_uuid('target'), unit=unit, quantity='emissions')],
-            output_ports=[OutputPortDef(id=_port_uuid('target-output'), unit=unit, quantity='emissions')],
+            output_ports=[OutputPortDef(id=_port_uuid('target-output'), unit=unit, quantity='emissions', dimensions=[])],
         ),
     )
     user = UserFactory.create()
@@ -2041,14 +2043,16 @@ def test_create_edge_accepts_uuid_only_references(gql_client: PathsTestClient, d
     source = NodeConfigFactory.create(
         instance=db_instance_config,
         identifier='canonical_source',
-        spec=_make_node_spec(output_ports=[OutputPortDef(id=source_port_id, unit=unit, quantity='emissions')]),
+        spec=_make_node_spec(output_ports=[OutputPortDef(id=source_port_id, unit=unit, quantity='emissions', dimensions=[])]),
     )
     target = NodeConfigFactory.create(
         instance=db_instance_config,
         identifier='canonical_target',
         spec=_make_node_spec(
             input_ports=[InputPortDef(id=target_port_id, unit=unit, quantity='emissions')],
-            output_ports=[OutputPortDef(id=_port_uuid('canonical-target-output'), unit=unit, quantity='emissions')],
+            output_ports=[
+                OutputPortDef(id=_port_uuid('canonical-target-output'), unit=unit, quantity='emissions', dimensions=[])
+            ],
         ),
     )
 
@@ -2079,14 +2083,16 @@ def _two_nodes_with_bindable_port(ic: InstanceConfig) -> None:
     NodeConfigFactory.create(
         instance=ic,
         identifier='node_a',
-        spec=_make_node_spec(output_ports=[OutputPortDef(id=_port_uuid('default'), unit=unit, quantity='emissions')]),
+        spec=_make_node_spec(
+            output_ports=[OutputPortDef(id=_port_uuid('default'), unit=unit, quantity='emissions', dimensions=[])]
+        ),
     )
     NodeConfigFactory.create(
         instance=ic,
         identifier='node_b',
         spec=_make_node_spec(
             input_ports=[InputPortDef(id=_port_uuid('input'), unit=unit, quantity='emissions', multi=False)],
-            output_ports=[OutputPortDef(id=_port_uuid('default'), unit=unit, quantity='emissions')],
+            output_ports=[OutputPortDef(id=_port_uuid('default'), unit=unit, quantity='emissions', dimensions=[])],
         ),
     )
 
@@ -2112,7 +2118,9 @@ def test_create_edge_replace_displaces_the_existing_edge(gql_client: PathsTestCl
     NodeConfigFactory.create(
         instance=db_instance_config,
         identifier='node_c',
-        spec=_make_node_spec(output_ports=[OutputPortDef(id=_port_uuid('other'), unit=unit, quantity='emissions')]),
+        spec=_make_node_spec(
+            output_ports=[OutputPortDef(id=_port_uuid('other'), unit=unit, quantity='emissions', dimensions=[])]
+        ),
     )
     nodes = {nc.identifier: nc for nc in db_instance_config.nodes.all()}
     old_edge = NodeInputPortBinding.objects.create(
@@ -2181,14 +2189,16 @@ def test_delete_edge_cannot_cross_instance_boundary(client, db_instance_config: 
     source_node = NodeConfigFactory.create(
         instance=target_instance,
         identifier='source_node',
-        spec=_make_node_spec(output_ports=[OutputPortDef(id=_port_uuid('default'), unit=unit, quantity='emissions')]),
+        spec=_make_node_spec(
+            output_ports=[OutputPortDef(id=_port_uuid('default'), unit=unit, quantity='emissions', dimensions=[])]
+        ),
     )
     target_node = NodeConfigFactory.create(
         instance=target_instance,
         identifier='target_node',
         spec=_make_node_spec(
             input_ports=[InputPortDef(id=_port_uuid('input'), unit=unit, quantity='emissions')],
-            output_ports=[OutputPortDef(id=_port_uuid('default'), unit=unit, quantity='emissions')],
+            output_ports=[OutputPortDef(id=_port_uuid('default'), unit=unit, quantity='emissions', dimensions=[])],
         ),
     )
     edge = NodeInputPortBinding.objects.create(
@@ -2372,7 +2382,7 @@ def _make_input_port(id: str = 'input', unit: str = 'kt/a', quantity: str = 'emi
 
 
 def _make_output_port(id: str = 'default', unit: str = 'kt/a', quantity: str = 'emissions') -> OutputPortDef:
-    return OutputPortDef(id=_port_uuid(id), unit=unit_registry.parse_units(unit), quantity=quantity)
+    return OutputPortDef(id=_port_uuid(id), unit=unit_registry.parse_units(unit), quantity=quantity, dimensions=[])
 
 
 def test_model_instance_query(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
@@ -2542,12 +2552,14 @@ def test_dataset_ports_rebuild_multimetric_action_dataset(db_instance_config: In
                     unit=unit_registry.parse_units('t/a'),
                     quantity='emissions',
                     column_id='emissions',
+                    dimensions=[],
                 ),
                 OutputPortDef(
                     id=_port_uuid('energy'),
                     unit=unit_registry.parse_units('TJ/a'),
                     quantity='energy',
                     column_id='energy',
+                    dimensions=[],
                 ),
             ],
         ),
@@ -2602,6 +2614,7 @@ def test_dataset_ports_rebuild_uses_dataset_forecast_default(db_instance_config:
                     unit=unit_registry.parse_units('t/a'),
                     quantity='emissions',
                     column_id='emissions',
+                    dimensions=[],
                 ),
             ],
         ),
@@ -3069,14 +3082,16 @@ def _quantity_mismatch_pair(ic: InstanceConfig) -> None:
     src = NodeConfigFactory.create(
         instance=ic,
         identifier='mismatch_src',
-        spec=_make_node_spec(output_ports=[OutputPortDef(id=_port_uuid('default'), unit=unit, quantity='emissions')]),
+        spec=_make_node_spec(
+            output_ports=[OutputPortDef(id=_port_uuid('default'), unit=unit, quantity='emissions', dimensions=[])]
+        ),
     )
     dst = NodeConfigFactory.create(
         instance=ic,
         identifier='mismatch_dst',
         spec=_make_node_spec(
             input_ports=[InputPortDef(id=_port_uuid('input'), identifier='input', unit=unit, quantity='energy')],
-            output_ports=[OutputPortDef(id=_port_uuid('default'), unit=unit, quantity='energy')],
+            output_ports=[OutputPortDef(id=_port_uuid('default'), unit=unit, quantity='energy', dimensions=[])],
         ),
     )
     NodeInputPortBinding.objects.create(
@@ -3132,7 +3147,7 @@ def test_effective_shape_formats_denominator_only_unit(
                     quantity='emissions',
                 )
             ],
-            output_ports=[OutputPortDef(id=_port_uuid('default'), unit=reciprocal_unit, quantity='emissions')],
+            output_ports=[OutputPortDef(id=_port_uuid('default'), unit=reciprocal_unit, quantity='emissions', dimensions=[])],
         ),
     )
 
@@ -3155,7 +3170,7 @@ def test_input_port_declaration_catalog(gql_client: PathsTestClient, db_instance
         spec=_make_node_spec(
             type_config=SimpleConfig(node_class=MULTIPLICATIVE_NODE_CLASS),
             input_ports=[InputPortDef(id=_port_uuid('factor1'), identifier='factor', role='factors')],
-            output_ports=[OutputPortDef(id=_port_uuid('default'), unit=unit, quantity='emissions')],
+            output_ports=[OutputPortDef(id=_port_uuid('default'), unit=unit, quantity='emissions', dimensions=[])],
         ),
     )
 
@@ -3186,7 +3201,7 @@ def test_create_node_instantiates_default_declared_ports(gql_client: PathsTestCl
                 'name': 'Product Node',
                 'kind': 'SIMPLE',
                 'config': {'simple': {'nodeClass': MULTIPLICATIVE_NODE_CLASS}},
-                'outputPorts': [{'unit': 'kt/a', 'quantity': 'emissions'}],
+                'outputPorts': [{'unit': 'kt/a', 'quantity': 'emissions', 'dimensions': []}],
             },
         },
     )
@@ -3207,14 +3222,14 @@ def test_connect_instantiates_a_declared_factor_port(gql_client: PathsTestClient
         instance=db_instance_config,
         identifier='ef',
         spec=_make_node_spec(
-            output_ports=[OutputPortDef(id=_port_uuid('default'), unit=unit_registry.parse_units('kg/vkm'))],
+            output_ports=[OutputPortDef(id=_port_uuid('default'), unit=unit_registry.parse_units('kg/vkm'), dimensions=[])],
         ),
     )
     NodeConfigFactory.create(
         instance=db_instance_config,
         identifier='mileage',
         spec=_make_node_spec(
-            output_ports=[OutputPortDef(id=_port_uuid('default'), unit=unit_registry.parse_units('vkm/a'))],
+            output_ports=[OutputPortDef(id=_port_uuid('default'), unit=unit_registry.parse_units('vkm/a'), dimensions=[])],
         ),
     )
     NodeConfigFactory.create(
@@ -3230,7 +3245,7 @@ def test_connect_instantiates_a_declared_factor_port(gql_client: PathsTestClient
                     unit=unit_registry.parse_units('kg/vkm'),
                 ),
             ],
-            output_ports=[OutputPortDef(id=_port_uuid('default'), unit=unit_registry.parse_units('kg/a'))],
+            output_ports=[OutputPortDef(id=_port_uuid('default'), unit=unit_registry.parse_units('kg/a'), dimensions=[])],
         ),
     )
 
@@ -3380,6 +3395,7 @@ def test_paired_input_label_edit_preserves_other_translations(
         label=label,
         quantity='currency',
         unit=unit_registry.parse_units('DKK/a'),
+        dimensions=[],
     )
     ports = pair_input_ports_to_outputs([], [output], role='input')
     nc = NodeConfigFactory.create(
@@ -3701,6 +3717,7 @@ def test_update_node_port_lists_preserve_role_label_translations_and_editability
         unit=unit,
         quantity='emissions',
         is_editable=False,
+        dimensions=[],
     )
     nc = NodeConfigFactory.create(
         instance=db_instance_config,
@@ -3731,6 +3748,7 @@ def test_update_node_port_lists_preserve_role_label_translations_and_editability
                         'label': 'New Output',
                         'quantity': 'emissions',
                         'unit': 'kt/a',
+                        'dimensions': [],
                     },
                 ],
             },

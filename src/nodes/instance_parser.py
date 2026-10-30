@@ -473,6 +473,8 @@ class InstanceConfigParser:
                     metrics=tuple(metrics),
                     shape_id=shape_id,
                     default_quality=default_quality,
+                    # The entry names no dimensions; that is not a statement that there are none.
+                    dimensions_known=False,
                 )
             )
         return entries
@@ -1213,6 +1215,9 @@ class InstanceConfigParser:
         role_by_metric_id = {
             declaration.identifier: declaration.role for declaration in parsed.node_class.output_port_declarations
         }
+        # YAML has no spelling for an inferred shape: a node's `output_dimensions`, or their
+        # absence (a scalar), is asserted on each of its output ports.
+        dimensions = [d for d in parsed.output_dimensions if d not in parsed.internal_dims]
         ports: list[OutputPortDef] = []
         for metric_id, metric in parsed.output_metrics.items():
             assert metric.unit is not None
@@ -1230,6 +1235,7 @@ class InstanceConfigParser:
                 quantity=metric.quantity or None,
                 column_id=metric.column_id,
                 is_editable=metric_id not in parsed.class_metric_ids,
+                dimensions=list(dimensions),
             )
             port._metric_id = metric_id
             ports.append(port)
@@ -1646,7 +1652,6 @@ class InstanceConfigParser:
             input_ports=parsed.input_ports,
             output_ports=parsed.output_ports,
             input_dimensions=[d for d in parsed.input_dimensions if d not in parsed.internal_dims],
-            output_dimensions=[d for d in parsed.output_dimensions if d not in parsed.internal_dims],
             params=cast('list[Any]', [param for param in parsed.params if not param.is_implicit]),
             goals=self._parse_node_goals(parsed),
             visualizations=self._parse_node_visualizations(parsed),

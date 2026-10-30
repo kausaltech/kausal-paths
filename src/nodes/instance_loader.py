@@ -28,6 +28,7 @@ from kausal_common.i18n.pydantic import TranslatedString, get_i18n_context, gett
 
 from paths.refs import ValidationContext
 
+from datasets.dvc_shapes import SourceShape, known_dvc_source_shapes
 from datasets.materialization import ensure_dataset_materializations
 from datasets.payloads import CurrentDatasetPayloadStore, DatasetPayloadRef, MixedDatasetPayloadStore, RevisionDatasetPayloadStore
 from datasets.runtime import DBDataset, DVCDataset, FixedDataset, GenericDataset, SerializedDBDataset
@@ -37,7 +38,7 @@ from nodes.actions.parent import ParentActionNode
 from nodes.constants import VALUE_COLUMN
 from nodes.context import Context
 from nodes.defs.binding_def import DatasetBindingDef, EdgeBindingDef
-from nodes.defs.graph import DatasetMeta, DatasetMetricMeta
+from nodes.defs.graph import DatasetMeta, DatasetMetricMeta, DimensionCategoryMeta, DimensionMeta
 from nodes.defs.instance_defs import NormalizationSpec
 from nodes.defs.node_defs import ActionConfig, FormulaConfig, InputDatasetDef, NodeKind, SimpleConfig
 from nodes.defs.transform_def import AssignDimensionOp, FilterDimensionOp, FlattenTransformation, modernized_transformations
@@ -78,7 +79,6 @@ if TYPE_CHECKING:
     from kausal_common.i18n.pydantic import I18nString
 
     from datasets.runtime import Dataset
-    from nodes.defs.graph import DimensionMeta
     from nodes.defs.node_defs import NodeSpec
     from nodes.defs.transform_def import EdgeTransformOp
     from nodes.explanations import NodeExplanationSystem
@@ -661,6 +661,18 @@ def _param_config(param: Parameter) -> dict[str, Any]:
     return config
 
 
+def _with_absent_key_columns(metric: DatasetMetricMeta, shape: SourceShape, columns: tuple[str, ...]) -> DatasetMetricMeta:
+    present = shape.metric_dimension_columns.get(metric.identifier or '')
+    if present is None:
+        return metric
+    return metric.model_copy(
+        update={
+            'absent_key_columns': tuple(column for column in columns if column not in present),
+            'partial_key_columns': shape.metric_partial_columns.get(metric.identifier or '', ()),
+        }
+    )
+
+
 class InstanceLoader:
     instance: Instance
     context: Context
@@ -1104,6 +1116,48 @@ class InstanceLoader:
                 raise Exception('Node %s (%s) has no quantity set' % (identifier, node_class.__name__))
         return metrics, unit, quantity
 
+    @cached_property
+    def _inferred_output_dimensions(self) -> dict[tuple[UUID, UUID], list[str] | None]:
+        """
+        Solve the graph for the output ports that assert no dimensions.
+
+        Datasets contribute their schema dimensions; observed shape profiles add only
+        categories, so the runtime does not load them. The sets come out in the order of the
+        instance's dimension catalog, which is the order charts and exports present them in.
+        """
+        graph = self._instance_graph
+        result = graph.solve_constraints()
+        order = {dimension.id: index for index, dimension in enumerate(graph.dimensions)}
+        inferred: dict[tuple[UUID, UUID], list[str] | None] = {}
+        for key in graph.constraint_program.inferred_outputs:
+            shape = result.shapes.get(key)
+            if shape is None or shape.dimensions is None:
+                inferred[(key.node_id, key.port_id)] = None
+                continue
+            ids = sorted(shape.dimensions, key=lambda dim_id: order.get(dim_id, len(order)))
+            inferred[(key.node_id, key.port_id)] = [graph.dimension_by_id[dim_id].identifier for dim_id in ids]
+        return inferred
+
+    def _resolve_output_dimensions(self, node_uuid: UUID, spec: NodeSpec) -> tuple[list[str], list[str]]:
+        """
+        Resolve the node's runtime dimensions, and name the output ports whose dimensions are undetermined.
+
+        Each port contributes its asserted dimensions, or, where it asserts none, the ones the
+        solver infers. The node computes one frame for all of its ports, so its dimensions are
+        their union.
+        """
+        dims: dict[str, None] = {}
+        undetermined: list[str] = []
+        for port in spec.output_ports:
+            port_dims = port.dimensions
+            if port_dims is None:
+                port_dims = self._inferred_output_dimensions.get((node_uuid, port.id))
+            if port_dims is None:
+                undetermined.append(str(port.identifier or port.column_id or port.id))
+                continue
+            dims.update(dict.fromkeys(port_dims))
+        return list(dims), undetermined
+
     def make_node_from_snapshot(self, node_class: type[Node], n: NodeSnapshot) -> Node:  # noqa: C901, PLR0912
         """Native ``make_node`` twin: construct a runtime node from typed snapshot state."""
         spec = n.spec
@@ -1117,6 +1171,7 @@ class InstanceLoader:
             return self.simple_trans_string(str(val))
 
         metrics, unit, quantity = self._resolve_output_metrics(node_class, spec, identifier)
+        resolved_dims, undetermined_ports = self._resolve_output_dimensions(n.uuid, spec)
 
         extra = spec.extra
         ds_fragment: dict[str, Any] = {'id': identifier}
@@ -1160,7 +1215,7 @@ class InstanceLoader:
             goals=spec.goals.model_dump(exclude_none=True) if spec.goals.root else None,
             allow_nulls=spec.allow_nulls,
             input_datasets=datasets,
-            output_dimension_ids=spec.output_dimensions or None,
+            output_dimension_ids=resolved_dims or None,
             input_dimension_ids=spec.input_dimensions or None,
             output_metrics=metrics,
             config_location=None,
@@ -1170,6 +1225,13 @@ class InstanceLoader:
             raise Exception('Node %s is already configured' % node.id)
         self._input_nodes[node.id] = []
         self._output_nodes[node.id] = []
+
+        if undetermined_ports:
+            self._init_failure(
+                node,
+                'The dimensions of output %s cannot be inferred from the inputs, and they are not declared'
+                % ', '.join(undetermined_ports),
+            )
 
         if spec.params:
             self._make_node_params({'params': [_param_config(p) for p in spec.params]}, node)
@@ -1979,10 +2041,77 @@ class InstanceLoader:
 
             graph_snapshot = snapshot.model_copy(update={'datasets': catalog})
 
+        if not graph_snapshot.dimensions and graph_snapshot.spec.dimensions:
+            graph_snapshot = graph_snapshot.model_copy(update={'dimensions': self._graph_dimension_catalog(graph_snapshot)})
+            graph_snapshot = self._with_known_dvc_shapes(graph_snapshot)
+
         self._instance_graph = build_instance_graph(graph_snapshot)
         self._runtime_datasets = {}
         self._binding_group_index = {}
         self._snapshot_dataset_groups = self._group_dataset_bindings(snapshot)
+
+    @staticmethod
+    def _graph_dimension_catalog(snapshot: InstanceSnapshot) -> list[DimensionMeta]:
+        """
+        Give a parsed snapshot's graph a dimension catalog built from its own dimension configs.
+
+        Parsing YAML yields dimension configs but no catalog, and without one the solver can
+        resolve no dimension reference at all. Like the dataset entries the YAML graph gets,
+        the UUIDs are invented deterministically and never read from or written to the
+        database, so YAML graph construction stays independent of it. Only the graph sees the
+        catalog: dataset payloads keep resolving against the snapshot's own.
+        """
+        namespace = snapshot.metadata.uuid
+        catalog: list[DimensionMeta] = []
+        for config in snapshot.spec.dimensions:
+            identifier = str(config['id'])
+            dimension_id = uuid5(NAMESPACE_URL, f'kausal-paths:runtime-dimension:{namespace}:{identifier}')
+            categories = tuple(
+                DimensionCategoryMeta(
+                    id=uuid5(NAMESPACE_URL, f'kausal-paths:runtime-dimension-category:{dimension_id}:{category["id"]}'),
+                    identifier=str(category['id']),
+                )
+                for category in config.get('categories') or ()
+            )
+            catalog.append(DimensionMeta(id=dimension_id, identifier=identifier, categories=categories))
+        return catalog
+
+    @staticmethod
+    def _with_known_dvc_shapes(snapshot: InstanceSnapshot) -> InstanceSnapshot:
+        """
+        Give a parsed snapshot's DVC datasets the shapes earlier loads recorded.
+
+        A YAML graph's datasets are DVC sources with no schema, so without this the solver
+        knows nothing of them. An index column named after one of the model's dimensions is
+        that dimension; any other, such as `Sektori1`, is a raw key, which the solver follows
+        through each binding's operations.
+        """
+        candidates = {
+            dataset.identifier: dataset
+            for dataset in snapshot.datasets
+            if dataset.identifier is not None and not dataset.declared_dimension_ids and dataset.dimensions_known is not True
+        }
+        if not candidates:
+            return snapshot
+        shapes = known_dvc_source_shapes(snapshot.spec.dataset_repo, candidates)
+        if not shapes:
+            return snapshot
+        dimension_ids = {dimension.identifier: dimension.id for dimension in snapshot.dimensions}
+        datasets = []
+        for dataset in snapshot.datasets:
+            shape = shapes.get(dataset.identifier) if dataset.identifier in candidates else None
+            columns = shape.dimension_columns if shape is not None else None
+            if shape is not None and columns is not None:
+                dataset = dataset.model_copy(  # noqa: PLW2901
+                    update={
+                        'declared_dimension_ids': tuple(dimension_ids[column] for column in columns if column in dimension_ids),
+                        'raw_key_columns': tuple(column for column in columns if column not in dimension_ids),
+                        'dimensions_known': True,
+                        'metrics': tuple(_with_absent_key_columns(metric, shape, columns) for metric in dataset.metrics),
+                    }
+                )
+            datasets.append(dataset)
+        return snapshot.model_copy(update={'datasets': datasets})
 
     def _group_dataset_bindings(
         self, snapshot: InstanceSnapshot

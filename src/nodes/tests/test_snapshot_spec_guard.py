@@ -4,10 +4,12 @@ import pytest
 
 
 def _node_snapshot_stub(input_dims: list[str] | None = None, output_dims: list[str] | None = None):
-    """Stand-in for a NodeSnapshot: the guard only reads the two dimension lists off `.spec`."""
+    """Stand-in for a NodeSnapshot: the guard only reads the input dimensions and the output port assertions."""
     from types import SimpleNamespace
 
-    return SimpleNamespace(spec=SimpleNamespace(input_dimensions=input_dims, output_dimensions=output_dims))
+    return SimpleNamespace(
+        spec=SimpleNamespace(input_dimensions=input_dims or [], output_ports=[SimpleNamespace(dimensions=output_dims)])
+    )
 
 
 @pytest.mark.django_db

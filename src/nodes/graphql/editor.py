@@ -333,7 +333,7 @@ def _plan_target_port(
             quantity=source_port.quantity,
             unit=source_port.unit,
             multi=False,
-            required_dimensions=list(source_port.dimensions),
+            required_dimensions=list(source_port.dimensions or []),
         )
     return planned.id, planned
 
@@ -471,7 +471,10 @@ class OutputPortInput:
         default=None,
         description='Null keeps the existing value when `id` names an existing port; defaults to true for new ports.',
     )
-    dimensions: list[str] | None = None
+    dimensions: list[str] | None = sb.field(
+        default=None,
+        description='Asserted exact dimensions; null infers them from the inputs, an empty list asserts a scalar.',
+    )
 
 
 @sb.input
@@ -511,7 +514,10 @@ class UpdateOutputPortInput:
     unit: Maybe[str]
     column_id: Maybe[str]
     is_editable: Maybe[bool]
-    dimensions: Maybe[list[str]]
+    dimensions: Maybe[list[str]] = sb.field(
+        default=None,
+        description='Asserted exact dimensions; null infers them from the inputs, an empty list asserts a scalar.',
+    )
 
 
 @sb.type(description='Result of an in-place port update.')
@@ -567,7 +573,6 @@ class CreateNodeInput:
     output_ports: list[OutputPortInput] | None = None
     output_metrics: list[OutputMetricInput] | None = None
     input_dimensions: list[str] | None = None
-    output_dimensions: list[str] | None = None
     params: sb.scalars.JSON | None = None
     tags: list[str] | None = None
     i18n: sb.scalars.JSON | None = None
@@ -593,7 +598,6 @@ class UpdateNodeInput:
     output_ports: Maybe[list[OutputPortInput]]
     output_metrics: Maybe[list[OutputMetricInput]]
     input_dimensions: Maybe[list[str]]
-    output_dimensions: Maybe[list[str]]
     params: Maybe[sb.scalars.JSON]
     tags: Maybe[list[str]]
     i18n: Maybe[sb.scalars.JSON]
@@ -951,14 +955,13 @@ def _output_port_to_def(
         unit=unit_registry.parse_units(port.unit),
         column_id=port.column_id,
         is_editable=port.is_editable if port.is_editable is not None else (existing is None or existing.is_editable),
-        dimensions=port.dimensions or [],
+        dimensions=port.dimensions,
     )
 
 
 def _output_metric_to_port_def(
     node_identifier: str,
     metric: OutputMetricInput,
-    dimensions: list[str],
     existing_by_id: dict[UUID, OutputPortDef],
     default_language: str,
 ) -> OutputPortDef:
@@ -974,7 +977,8 @@ def _output_metric_to_port_def(
         unit=unit_registry.parse_units(metric.unit),
         column_id=column_id,
         is_editable=existing.is_editable if existing is not None else True,
-        dimensions=dimensions,
+        # A metric input carries no dimensions: an existing port keeps its assertion, a new one infers.
+        dimensions=existing.dimensions if existing is not None else None,
     )
 
 
@@ -1051,7 +1055,7 @@ def _updated_output_port_def(
         'unit': port.unit,
         'column_id': port.column_id,
         'is_editable': port.is_editable,
-        'dimensions': list(port.dimensions),
+        'dimensions': list(port.dimensions) if port.dimensions is not None else None,
     }
     _apply_common_port_updates(data, port, input, default_language)
     if is_maybe_set(input.unit):
@@ -1061,7 +1065,7 @@ def _updated_output_port_def(
     if is_maybe_set(input.column_id):
         data['column_id'] = input.column_id.value
     if is_maybe_set(input.dimensions):
-        data['dimensions'] = input.dimensions.value or []
+        data['dimensions'] = input.dimensions.value
     try:
         return OutputPortDef(**data)
     except PydanticValidationError as exc:
@@ -1274,8 +1278,6 @@ def _apply_node_spec_field_updates(spec: NodeSpec, input: UpdateNodeInput) -> No
         spec.minimum_year = input.minimum_year.value
     if is_maybe_set(input.input_dimensions):
         spec.input_dimensions = input.input_dimensions.value or []
-    if is_maybe_set(input.output_dimensions):
-        spec.output_dimensions = input.output_dimensions.value or []
     if is_maybe_set(input.tags):
         spec.extra.tags = input.tags.value or []
 
@@ -1321,7 +1323,7 @@ def _apply_node_port_updates(info: gql.Info, nc: NodeConfig, spec: NodeSpec, inp
         for index, port in enumerate(input.output_ports.value if is_maybe_set(input.output_ports) else [])
     ]
     output_ports.extend(
-        _output_metric_to_port_def(nc.identifier, metric, spec.output_dimensions, existing_outputs, default_language)
+        _output_metric_to_port_def(nc.identifier, metric, existing_outputs, default_language)
         for metric in (input.output_metrics.value if is_maybe_set(input.output_metrics) else [])
     )
     if not output_ports:
@@ -1825,7 +1827,6 @@ class InstanceEditorMutation:
         node_class = node_class_for_type_config(type_config.to_pydantic())
 
         input_dimensions = input.input_dimensions or []
-        output_dimensions = input.output_dimensions or []
         if input.input_ports is not None and _is_additive_action_class(node_class):
             raise GraphQLValidationError(info, 'AdditiveAction input ports are generated from its output ports')
         if input.input_ports is None:
@@ -1843,7 +1844,7 @@ class InstanceEditorMutation:
             for index, port in enumerate(input.output_ports or [])
         ]
         output_ports.extend(
-            _output_metric_to_port_def(str(input.identifier), metric, output_dimensions, {}, ic.primary_language)
+            _output_metric_to_port_def(str(input.identifier), metric, {}, ic.primary_language)
             for metric in input.output_metrics or []
         )
         if not output_ports:
@@ -1859,7 +1860,6 @@ class InstanceEditorMutation:
             input_ports=input_ports,
             output_ports=output_ports,
             input_dimensions=input_dimensions,
-            output_dimensions=output_dimensions,
         )
         spec.params = _parse_params(info, input.params, spec.type_config, input.kind)
         spec.extra.tags = input.tags or []
@@ -2477,11 +2477,11 @@ class InstanceEditorMutation:
             spec = nc.spec
             if spec is None:
                 continue
-            dims: set[str] = set(spec.input_dimensions) | set(spec.output_dimensions)
+            dims: set[str] = set(spec.input_dimensions)
             for in_port in spec.input_ports:
                 dims |= set(in_port.required_dimensions)
             for out_port in spec.output_ports:
-                dims |= set(out_port.dimensions)
+                dims |= set(out_port.dimensions or ())
             if dim_id in dims:
                 used.append(nc.identifier)
         return used

@@ -523,9 +523,9 @@ class NodeSpec(I18nBaseModel):
     # Outputs
     output_ports: list[OutputPortDef] = Field(default_factory=list)
 
-    # Dimensions
+    # Dimensions. A node's output dimensions are a property of each output port
+    # (`OutputPortDef.dimensions`); the node-level list was retired in snapshot v18.
     input_dimensions: list[str] = Field(default_factory=list)
-    output_dimensions: list[str] = Field(default_factory=list)
 
     # Computation
     params: list[AnyParameter] = Field(default_factory=list)

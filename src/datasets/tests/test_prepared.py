@@ -37,6 +37,7 @@ def context() -> Context:
     ctx.dataset_repo_spec = SPEC
     ctx.dvc_source_manifest = manifest_for('activity')
     ctx.nodes = {}
+    ctx.dvc_datasets = {}
     ctx.perf_context = MagicMock()
     return ctx
 
@@ -126,6 +127,7 @@ def test_cross_context_reuse_still_runs_instance_overlay(monkeypatch: pytest.Mon
     second = DVCDataset(id='activity', context=context(), transformations=first.transformations)
     monkeypatch.setattr(DVCDataset, 'cache_get', lambda _self: None)
     monkeypatch.setattr(DVCDataset, 'cache_set', lambda _self, _df: None)
+    monkeypatch.setattr('nodes.context.dvc_source_shape_is_recorded', lambda _content_hash: True)
     source = MagicMock()
     first.context.load_dvc_dataset = MagicMock(return_value=source)  # type: ignore[method-assign]
     second.context.load_dvc_dataset = MagicMock(side_effect=AssertionError('source read on cache hit'))  # type: ignore[method-assign]
@@ -137,6 +139,22 @@ def test_cross_context_reuse_still_runs_instance_overlay(monkeypatch: pytest.Mon
         assert first.load_internal()['Value'].to_list() == [11.0]
         assert second.load_internal()['Value'].to_list() == [21.0]
     first.context.load_dvc_dataset.assert_called_once()
+    assert PreparedDataset.objects.count() == 1
+
+
+def test_a_cache_hit_reads_the_source_once_to_record_its_shape(monkeypatch: pytest.MonkeyPatch) -> None:
+    first = DVCDataset(id='activity', context=context(), transformations=[FilterColumnOp(column='sector', value='a')])
+    second = DVCDataset(id='activity', context=context(), transformations=first.transformations)
+    monkeypatch.setattr(DVCDataset, 'cache_get', lambda _self: None)
+    monkeypatch.setattr(DVCDataset, 'cache_set', lambda _self, _df: None)
+    monkeypatch.setattr('nodes.context.dvc_source_shape_is_recorded', lambda _content_hash: False)
+    first.context.load_dvc_dataset = MagicMock(return_value=MagicMock())  # type: ignore[method-assign]
+    second.context.load_dvc_dataset = MagicMock(return_value=MagicMock())  # type: ignore[method-assign]
+    with patch.object(DVCDataset, '_convert_dvc_dataset', return_value=frame()):
+        first.load_internal()
+        second.load_internal()
+    # The frame still comes from the cache; the read only lets the shape be recorded.
+    second.context.load_dvc_dataset.assert_called_once_with('activity')
     assert PreparedDataset.objects.count() == 1
 
 

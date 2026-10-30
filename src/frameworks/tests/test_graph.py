@@ -834,7 +834,7 @@ def test_local_action_acts_on_an_inherited_node(release: TemplateEdition, depend
         identifier='measure',
         spec=NodeSpec(
             type_config=ActionConfig(node_class='nodes.actions.simple.AdditiveAction', hooks=[ActionHookDef(node=shared_uuid)]),
-            output_ports=[OutputPortDef(id=uuid4(), unit=unit_registry.parse_units('kt/a'), quantity='emissions')],
+            output_ports=[OutputPortDef(id=uuid4(), unit=unit_registry.parse_units('kt/a'), quantity='emissions', dimensions=[])],
         ),
     )
     context = InstanceLoader(snapshot=build_instance_snapshot(dependent_instance)).context

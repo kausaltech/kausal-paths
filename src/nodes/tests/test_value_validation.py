@@ -273,7 +273,7 @@ def test_publication_validates_delivered_dataset_values_atomically(value: Decima
                     validation=ValueContract(required=True),
                 )
             ],
-            output_ports=[OutputPortDef(id=uuid4(), unit=unit, quantity='emissions')],
+            output_ports=[OutputPortDef(id=uuid4(), unit=unit, quantity='emissions', dimensions=[])],
         ),
     )
     NodeInputPortBinding.objects.create(instance=config, node=node, port_id=port_id, dataset=dataset, metric=metric)

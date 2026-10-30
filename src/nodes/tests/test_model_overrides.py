@@ -61,7 +61,7 @@ def overridable_config() -> InstanceConfig:
         name='Population',
         spec=NodeSpec(
             type_config=SimpleConfig(node_class='nodes.simple.SimpleNode'),
-            output_ports=[OutputPortDef(id=uuid4(), unit=unit_registry.parse_units('cap'), quantity='population')],
+            output_ports=[OutputPortDef(id=uuid4(), unit=unit_registry.parse_units('cap'), quantity='population', dimensions=[])],
         ),
     )
     assert ic.spec is not None
