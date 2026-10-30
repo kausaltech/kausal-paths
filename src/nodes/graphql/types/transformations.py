@@ -114,6 +114,7 @@ class RenameItemType(StrawberryPydanticType[RenameItemOp], PortTransformationInt
     column: auto
     old_item: auto
     new_item: auto
+    allow_missing: auto
 
 
 @pydantic_type(model=SetForecastFromOp)
@@ -225,6 +226,7 @@ class RenameItemInput(StrawberryPydanticType[RenameItemOp]):
     column: auto
     old_item: auto
     new_item: auto
+    allow_missing: auto
 
 
 @pydantic_input(model=SetForecastFromOp)
