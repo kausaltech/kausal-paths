@@ -37,6 +37,29 @@ class DVCSourceManifest(models.Model):
         return f'{self.dataset_identifier}@{self.revision}'
 
 
+class DVCSourceShape(models.Model):
+    """
+    The shape of a DVC parquet as the runtime reads it, recorded the first time it is loaded.
+
+    Keyed by the parquet's content hash, because the shape is a property of the bytes: every
+    revision that pins an unchanged file shares the entry, and a changed file gets a new one.
+    """
+
+    content_hash = models.CharField(max_length=64)
+    format_version = models.PositiveSmallIntegerField()
+    shape = models.JSONField()
+    recorded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'paths_datasets_dvc_source_shape__rebuildable'
+        constraints = [
+            models.UniqueConstraint(fields=['content_hash', 'format_version'], name='unique_dvc_source_shape'),
+        ]
+
+    def __str__(self) -> str:
+        return self.content_hash
+
+
 class PreparedDataset(models.Model):
     key = models.CharField(max_length=64, primary_key=True)
     recipe = models.JSONField()

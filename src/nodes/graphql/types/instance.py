@@ -421,7 +421,8 @@ class InstanceEditorFields:
     @sb.field(
         graphql_type=list[ConstraintConflictType],
         description=(
-            'All structural constraint conflicts in the selected graph. '
+            'All structural constraint conflicts in the selected graph, and the outputs whose dimensions '
+            'can be neither inferred nor are declared. '
             'Resolved from instance metadata without hydrating the computation model; '
             'a draft with conflicts stays inspectable but cannot be published.'
         ),
@@ -429,7 +430,7 @@ class InstanceEditorFields:
     @staticmethod
     def constraint_conflicts(root: 'InstanceEditorFields', info: gql.Info) -> list[ConstraintConflictType]:
         result = info.context.require_constraint_solve(root._config, source=root._source)
-        return [ConstraintConflictType.from_conflict(conflict) for conflict in result.conflicts]
+        return [ConstraintConflictType.from_conflict(conflict) for conflict in result.blocking]
 
     @sb.field(
         graphql_type=list[ConstraintConflictType],
@@ -493,7 +494,7 @@ class InstanceEditorFields:
         result = info.context.require_constraint_solve(root._config, source=root._source)
         graph = info.context.require_instance_graph(root._config, source=root._source)
         values = []
-        if not result.conflicts and any(port.validation is not None for node in graph.nodes for port in node.spec.input_ports):
+        if not result.blocking and any(port.validation is not None for node in graph.nodes for port in node.spec.input_ports):
             instance = info.context.require_instance(root._config, source=root._source)
             values = collect_instance_value_violations(instance)
         problems = collect_instance_problems(root._config, graph=graph, constraints=result, value_violations=values)

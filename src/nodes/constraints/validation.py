@@ -152,8 +152,8 @@ def require_valid_instance_constraints(
     graph: InstanceGraph,
     source: ResolvedInstanceSource,
 ) -> ConstraintSolveResult:
-    """Strict whole-graph validation: any conflict raises :class:`InstanceConstraintError`."""
+    """Strict whole-graph validation: any conflict or undetermined output raises :class:`InstanceConstraintError`."""
     result = solve_instance_constraints(config, graph, source)
-    if result.conflicts:
-        raise InstanceConstraintError(result.conflicts)
+    if result.blocking:
+        raise InstanceConstraintError(result.blocking)
     return result

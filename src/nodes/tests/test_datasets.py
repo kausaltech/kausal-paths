@@ -269,7 +269,7 @@ def test_dvc_dataset_drops_provenance_columns_so_dvc_matches_db() -> None:
         units={'Value': 'MWh/a'},
     )
 
-    out = DVCDataset._drop_reserved_columns(df)
+    out = DVCDataset.drop_reserved_columns(df)
 
     assert out.columns == ['Year', 'sector', 'Value']
     assert out.primary_keys == ['Year', 'sector']
@@ -290,7 +290,7 @@ def test_dvc_dataset_keeps_a_dimension_that_happens_to_be_called_source() -> Non
         units={'Value': 'MWh/a'},
     )
 
-    out = DVCDataset._drop_reserved_columns(df)
+    out = DVCDataset.drop_reserved_columns(df)
 
     assert out.columns == ['Year', 'source', 'Value']
 
@@ -303,7 +303,7 @@ def test_dvc_dataset_keeps_a_metric_that_happens_to_be_called_description() -> N
         units={'Value': 'MWh/a', 'description': 'MWh/a'},
     )
 
-    out = DVCDataset._drop_reserved_columns(df)
+    out = DVCDataset.drop_reserved_columns(df)
 
     assert 'description' in out.columns
 

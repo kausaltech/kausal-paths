@@ -671,7 +671,7 @@ def _make_formula_node_input(identifier: str) -> dict[str, Any]:
         'name': f'Node {identifier}',
         'config': {'formula': {'formula': 'a + b'}},
         'color': '#ff0000',
-        'outputPorts': [{'unit': 'kt/a', 'quantity': 'emissions'}],
+        'outputPorts': [{'unit': 'kt/a', 'quantity': 'emissions', 'dimensions': []}],
     }
 
 
@@ -767,7 +767,7 @@ def test_poc_delete_node_cascades_under_single_operation(
         identifier='src',
         name='Src',
         spec=NodeSpecDef(
-            output_ports=[OutputPortDef(id=_pu('default'), unit=unit, quantity='emissions')],
+            output_ports=[OutputPortDef(id=_pu('default'), unit=unit, quantity='emissions', dimensions=[])],
         ),
     )
     nc_b = NodeConfig.objects.create(
@@ -775,7 +775,7 @@ def test_poc_delete_node_cascades_under_single_operation(
         identifier='dst',
         name='Dst',
         spec=NodeSpecDef(
-            output_ports=[OutputPortDef(id=_pu('default'), unit=unit, quantity='emissions')],
+            output_ports=[OutputPortDef(id=_pu('default'), unit=unit, quantity='emissions', dimensions=[])],
         ),
     )
     edge = NodeInputPortBinding.objects.create(
@@ -1136,6 +1136,7 @@ def test_draft_and_published_runtime_share_serialized_dataset_path(empty_db_inst
                     id=_port_uuid('runtime-output'),
                     unit=unit_registry.parse_units('t/a'),
                     quantity='emissions',
+                    dimensions=[],
                 )
             ],
         ),
@@ -1608,7 +1609,7 @@ def _build_edge_endpoints(db_instance: InstanceConfig):
         name='Src',
         spec=NodeSpecDef(
             output_ports=[
-                OutputPortDef(id=_pu('default'), unit=unit, quantity='emissions'),
+                OutputPortDef(id=_pu('default'), unit=unit, quantity='emissions', dimensions=[]),
             ],
         ),
     )
@@ -1618,7 +1619,7 @@ def _build_edge_endpoints(db_instance: InstanceConfig):
         name='Dst',
         spec=NodeSpecDef(
             input_ports=[InputPortDef(id=_pu('input'), unit=unit, quantity='emissions')],
-            output_ports=[OutputPortDef(id=_pu('default'), unit=unit, quantity='emissions')],
+            output_ports=[OutputPortDef(id=_pu('default'), unit=unit, quantity='emissions', dimensions=[])],
         ),
     )
     return src, dst
@@ -1710,7 +1711,7 @@ def test_create_edge_auto_creates_matching_target_port(
         'auto_src',
         NodeSpecDef(
             output_ports=[
-                OutputPortDef(id=_pu('default'), unit=unit, quantity='emissions'),
+                OutputPortDef(id=_pu('default'), unit=unit, quantity='emissions', dimensions=[]),
             ],
         ),
     )
@@ -1721,7 +1722,7 @@ def test_create_edge_auto_creates_matching_target_port(
         'auto_dst',
         NodeSpecDef(
             input_ports=[existing_port_a, existing_port_b],
-            output_ports=[OutputPortDef(id=_pu('default'), unit=unit, quantity='emissions')],
+            output_ports=[OutputPortDef(id=_pu('default'), unit=unit, quantity='emissions', dimensions=[])],
         ),
     )
     # Pre-bind both existing ports so the resolver can't reuse them.
@@ -1729,7 +1730,7 @@ def test_create_edge_auto_creates_matching_target_port(
         'auto_other',
         NodeSpecDef(
             output_ports=[
-                OutputPortDef(id=_pu('default'), unit=unit, quantity='emissions'),
+                OutputPortDef(id=_pu('default'), unit=unit, quantity='emissions', dimensions=[]),
             ],
         ),
     )
@@ -1996,7 +1997,7 @@ def test_published_source_uses_snapshot_after_publish(empty_db_instance: Instanc
         identifier='pub_baseline',
         name='Pub baseline',
         spec=NodeSpecDef(
-            output_ports=[OutputPortDef(id=_pu('default'), unit=unit, quantity='emissions')],
+            output_ports=[OutputPortDef(id=_pu('default'), unit=unit, quantity='emissions', dimensions=[])],
         ),
     )
     revision = empty_db_instance.save_revision(clean=False)
@@ -2008,7 +2009,7 @@ def test_published_source_uses_snapshot_after_publish(empty_db_instance: Instanc
         identifier='draft_only',
         name='Draft only',
         spec=NodeSpecDef(
-            output_ports=[OutputPortDef(id=_pu('default'), unit=unit, quantity='emissions')],
+            output_ports=[OutputPortDef(id=_pu('default'), unit=unit, quantity='emissions', dimensions=[])],
         ),
     )
 
@@ -2035,7 +2036,7 @@ def test_default_source_serves_draft_tables(empty_db_instance: InstanceConfig):
         identifier='default_node',
         name='Default',
         spec=NodeSpecDef(
-            output_ports=[OutputPortDef(id=_pu('default'), unit=unit, quantity='emissions')],
+            output_ports=[OutputPortDef(id=_pu('default'), unit=unit, quantity='emissions', dimensions=[])],
         ),
     )
 
@@ -2136,7 +2137,9 @@ def _make_publishable_node(ic: InstanceConfig, identifier: str, name: str, **kwa
         identifier=identifier,
         name=name,
         spec=NodeSpecDef(
-            output_ports=[OutputPortDef(id=_pu('default'), unit=unit_registry.parse_units('kt/a'), quantity='emissions')],
+            output_ports=[
+                OutputPortDef(id=_pu('default'), unit=unit_registry.parse_units('kt/a'), quantity='emissions', dimensions=[])
+            ],
         ),
         **kwargs,
     )
@@ -2417,7 +2420,7 @@ def test_a_node_owned_dataset_travels_in_its_node_and_loads_like_any_other(empty
         spec=NodeSpec(
             type_config=SimpleConfig(node_class=SIMPLE_NODE_CLASS),
             input_ports=[InputPortDef(id=port_id, unit=unit, quantity='emissions')],
-            output_ports=[OutputPortDef(id=_port_uuid('owned-output'), unit=unit, quantity='emissions')],
+            output_ports=[OutputPortDef(id=_port_uuid('owned-output'), unit=unit, quantity='emissions', dimensions=[])],
         ),
     )
     owned = DatasetFactory.create(scope=node)
@@ -2453,7 +2456,7 @@ def test_a_v11_snapshot_upgrades_with_no_node_owned_datasets(empty_db_instance: 
         del node['datasets']
 
     upgraded = InstanceSnapshot.from_serialized_data(data)
-    assert upgraded.schema_version == SNAPSHOT_SCHEMA_VERSION == 17
+    assert upgraded.schema_version == SNAPSHOT_SCHEMA_VERSION == 18
     assert [node.datasets for node in upgraded.nodes] == [[]]
 
 

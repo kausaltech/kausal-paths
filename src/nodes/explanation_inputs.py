@@ -24,7 +24,7 @@ if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
     from uuid import UUID
 
-    from nodes.defs.node_defs import InputDatasetDef
+    from nodes.defs.node_defs import InputDatasetDef, NodeSpec
     from nodes.defs.transform_def import PortTransformOp
     from nodes.instance_graph import InstanceGraph, NodeMeta
     from nodes.units import Unit
@@ -147,8 +147,14 @@ def explained_node_from_meta(meta: NodeMeta, datasets: Sequence[InputDatasetDef]
         params=tuple(_explained_param(param) for param in spec.params),
         inputs=_explained_edges(meta),
         datasets=tuple(datasets),
-        output_dimensions=tuple(spec.output_dimensions) if spec.output_dimensions else None,
+        output_dimensions=_asserted_output_dimensions(spec),
     )
+
+
+def _asserted_output_dimensions(spec: NodeSpec) -> tuple[str, ...] | None:
+    """Union the output ports' asserted dimensions; ``None`` when no port asserts any."""
+    dims = {dim: None for port in spec.output_ports for dim in port.dimensions or ()}
+    return tuple(dims) or None
 
 
 def explained_nodes_from_graph(

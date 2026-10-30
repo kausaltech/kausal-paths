@@ -172,6 +172,8 @@ class NodeMeta(InstanceGraphBoundModel):
             label=port.label,
             quantity=quantity,
             unit=unit,
+            # The node computes one frame for all its outputs, so a new one shares the others' shape.
+            dimensions=default_output.dimensions if default_output is not None else None,
         )
         port = port.model_copy(update={'paired_output_port_id': output.id, 'is_editable': False})
         return self._add_paired_output(output, declaration.role, [*self.spec.input_ports, port])

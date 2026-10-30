@@ -123,7 +123,9 @@ if TYPE_CHECKING:
 #   v15: a dataset catalog entry is pure structure: its pinned revision lives only in
 #        ``dataset_revisions``, it carries the dataset's name, forecast year and time
 #        resolution, and each metric validation rule carries its row's uuid.
-SNAPSHOT_SCHEMA_VERSION = 17
+#   v18: output dimensions are an assertion on each output port; ``NodeSpec.output_dimensions``
+#        is gone, and ``OutputPortDef.dimensions`` is ``None`` when the shape is inferred.
+SNAPSHOT_SCHEMA_VERSION = 18
 
 _MARKDOWN = MarkdownIt('commonmark', {'html': True})
 
@@ -471,6 +473,22 @@ def drop_dead_node_spec_fields_v17(spec: dict[str, Any]) -> bool:
         del extra['other']
         changed = True
     return changed
+
+
+def move_output_dimensions_to_ports_v18(spec: dict[str, Any]) -> bool:
+    """
+    Move a stored spec's node-level ``output_dimensions`` onto each of its output ports, in place.
+
+    The node-level list was what the runtime asserted against every output frame, so each port
+    takes it as its assertion, an empty list included: before v18 an empty list meant a scalar
+    output, never an inferred one. Returns whether anything changed.
+    """
+    if 'output_dimensions' not in spec:
+        return False
+    dimensions = list(spec.pop('output_dimensions') or [])
+    for port in spec.get('output_ports') or []:
+        port['dimensions'] = list(dimensions)
+    return True
 
 
 def _is_uuid(value: object) -> bool:
@@ -1066,6 +1084,12 @@ def _drop_dead_node_spec_fields_v17(data: dict[str, Any]) -> None:
             drop_dead_node_spec_fields_v17(node['spec'])
 
 
+def _move_output_dimensions_to_ports_v18(data: dict[str, Any]) -> None:
+    for node in _node_list(data):
+        if isinstance(node.get('spec'), dict):
+            move_output_dimensions_to_ports_v18(node['spec'])
+
+
 _SNAPSHOT_UPGRADERS: tuple[tuple[int, Callable[[dict[str, Any]], object]], ...] = (
     (3, lambda data: _upgrade_node_references_v3(data, _node_list(data))),
     (4, lambda data: _upgrade_node_metadata_v4(_node_list(data))),
@@ -1082,6 +1106,7 @@ _SNAPSHOT_UPGRADERS: tuple[tuple[int, Callable[[dict[str, Any]], object]], ...] 
         ),
     ),
     (17, _drop_dead_node_spec_fields_v17),
+    (18, _move_output_dimensions_to_ports_v18),
 )
 """Upgrader ``N`` brings serialized snapshot data older than version ``N`` up to it, in place."""
 
@@ -1348,7 +1373,10 @@ def _check_spec_is_not_yaml_minimal(ic: InstanceConfig, nodes: list[NodeSnapshot
             dim_id
             for node in nodes
             if node.spec is not None
-            for dim_id in (list(node.spec.input_dimensions or []) + list(node.spec.output_dimensions or []))
+            for dim_id in (
+                *node.spec.input_dimensions,
+                *(dim for port in node.spec.output_ports for dim in port.dimensions or ()),
+            )
         ),
         None,
     )

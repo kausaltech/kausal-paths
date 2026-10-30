@@ -56,7 +56,7 @@ def _source_node(
                     id=output_id,
                     identifier='default',
                     unit=_unit(unit),
-                    dimensions=dimensions or [],
+                    dimensions=dimensions,
                     quantity=quantity,
                 ),
             ],
