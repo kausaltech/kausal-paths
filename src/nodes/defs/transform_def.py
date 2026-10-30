@@ -200,7 +200,7 @@ class RenameColumnOp(PortTransformOpBase):
 
 
 class RenameItemOp(PortTransformOpBase):
-    """Rename one value of a column, matched whole; a value the column does not hold is an error. Legacy."""
+    """Rename one whole value; require it to exist unless an optional compatibility rename is declared. Legacy."""
 
     applies_to = DATASET_ONLY
 
@@ -212,6 +212,7 @@ class RenameItemOp(PortTransformOpBase):
     column: str
     old_item: str
     new_item: str
+    allow_missing: bool = False
 
 
 class SetForecastFromOp(PortTransformOpBase):

@@ -323,6 +323,20 @@ def test_rename_item_renames_whole_values_only():
         _run(_sector_frame(['Diesel', 'Biodiesel']), [RenameItemOp(column='sector', old_item='Petrol', new_item='petrol')])
 
 
+@pytest.mark.parametrize('category', ['geothermatl', 'geothermal', 'natural_gas'])
+def test_optional_compatibility_rename_accepts_canonical_and_unrelated_categories(category: str):
+    """A legacy DVC spelling and canonical DB data can use the same input binding."""
+    df = _sector_frame([category])
+    op = RenameItemOp(column='sector', old_item='geothermatl', new_item='geothermal', allow_missing=True)
+
+    result = _run(df, [op])
+
+    assert result['sector'].to_list() == ['geothermal' if category == 'geothermatl' else category]
+    assert result[VALUE_COLUMN].to_list() == df[VALUE_COLUMN].to_list()
+    assert result.primary_keys == df.primary_keys
+    assert result.get_unit(VALUE_COLUMN) == df.get_unit(VALUE_COLUMN)
+
+
 def test_a_filter_that_keeps_nothing_returns_a_typed_empty_frame():
     """
     No rows is a result: the data has nothing in the selected categories.

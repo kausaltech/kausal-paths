@@ -165,6 +165,9 @@ def test_legacy_filters_map_onto_ops():
     assert input_dataset_filter_to_ops(RenameItemDatasetFilterDef(rename_item='sector|old', value='new')) == [
         RenameItemOp(column='sector', old_item='old', new_item='new')
     ]
+    assert input_dataset_filter_to_ops(RenameItemDatasetFilterDef(rename_item='sector|old', value='new', allow_missing=True)) == [
+        RenameItemOp(column='sector', old_item='old', new_item='new', allow_missing=True)
+    ]
 
 
 def test_dataset_only_ops_are_rejected_for_edge_bindings():

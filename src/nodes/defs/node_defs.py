@@ -80,6 +80,7 @@ class RenameItemDatasetFilterDef(BaseModel):
 
     rename_item: str
     value: str
+    allow_missing: bool = False
 
 
 class RenameColumnDatasetFilterDef(BaseModel):
@@ -128,7 +129,7 @@ def input_dataset_filter_to_ops(filter_def: InputDatasetFilterDef) -> list[PortT
         return [RenameColumnOp(column=filter_def.rename_col, new_name=filter_def.value)]
     assert isinstance(filter_def, RenameItemDatasetFilterDef)
     col, old_item = filter_def.rename_item.split('|', 1)
-    return [RenameItemOp(column=col, old_item=old_item, new_item=filter_def.value)]
+    return [RenameItemOp(column=col, old_item=old_item, new_item=filter_def.value, allow_missing=filter_def.allow_missing)]
 
 
 class InputDatasetDef(I18nBaseModel):
