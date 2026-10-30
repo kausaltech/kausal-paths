@@ -119,10 +119,10 @@ class DVCDataset(DatasetWithFilters):
     @measure_dataset_call('dataset.dvc.convert')
     def _convert_dvc_dataset(self, dvc_ds: dvc_pandas.Dataset) -> ppl.PathsDataFrame:
         df = ppl.from_dvc_dataset(dvc_ds)
-        return self._drop_reserved_columns(df)
+        return self.drop_reserved_columns(df)
 
     @staticmethod
-    def _drop_reserved_columns(df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+    def drop_reserved_columns(df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
         """
         Drop per-row provenance columns, so DVC and the database yield the same frame.
 
@@ -197,6 +197,7 @@ class DVCDataset(DatasetWithFilters):
                 store.prefetched = True
             frame = store.get(recipe)
             if frame is not None:
+                self.context.ensure_dvc_source_shape(self.dvc_source_id() or self.id)
                 return frame, length
         source = self.context.load_dvc_dataset(self.input_dataset or self.id)
         frame = self._convert_dvc_dataset(source)

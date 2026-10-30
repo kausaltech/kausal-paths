@@ -116,6 +116,22 @@ class DatasetMetricMeta(FrozenGraphModel):
     validation_rules: tuple[ValidationRuleMeta, ...] = ()
     quality_of: DatasetMetricRef | None = None
     """The metric whose grades this metric holds, as scores; see `frameworks.evidence.QUALITY_OF_SPEC_KEY`."""
+    # Left out when empty, so content hashes from before it was recorded hold.
+    absent_key_columns: tuple[str, ...] = Field(default=(), exclude_if=lambda value: not value)
+    """
+    Key columns of the dataset that this metric has no values in, by source column name.
+
+    A DVC source with several metrics marks a dimension that does not apply to one of them
+    with nulls, and the runtime drops such a column, so the metric does not have it.
+    """
+    # Left out when empty, so content hashes from before it was recorded hold.
+    partial_key_columns: tuple[str, ...] = Field(default=(), exclude_if=lambda value: not value)
+    """
+    Key columns this metric has values in only in some rows, by source column name.
+
+    A binding that filters the metric may leave one of them null throughout, which the
+    runtime drops, so such a binding's shape cannot be known without the data.
+    """
 
 
 class QualityLevelKey(FrozenGraphModel):
@@ -143,6 +159,23 @@ class DatasetMeta(FrozenGraphModel):
     is_editable: bool | None = None
     metrics: tuple[DatasetMetricMeta, ...] = ()
     declared_dimension_ids: tuple[DimensionRef, ...] = ()
+    # Left out when unset, so content hashes from before it was recorded hold.
+    dimensions_known: bool | None = Field(default=None, exclude_if=lambda value: value is None)
+    """
+    Whether `declared_dimension_ids` is the dataset's whole set of dimensions, an empty one a scalar.
+
+    Unset, a schema's dimensions are known and an external placeholder's are known only when it
+    declares some: a placeholder with none was never given a schema. A YAML dataset entry and a
+    DVC source no load has seen are explicitly unknown; one whose shape was recorded is known.
+    """
+    # Left out when empty, so content hashes from before it was recorded hold.
+    raw_key_columns: tuple[str, ...] = Field(default=(), exclude_if=lambda value: not value)
+    """
+    Index columns of a DVC source that are not dimensions of the model, such as `Sektori1` or `Vuosi`.
+
+    They are part of the source's known shape: each binding has to rename them into a dimension
+    or `Year`, or filter them out, and what is left of them after its operations is its shape.
+    """
     time_resolution: str = 'yearly'
     forecast_from: int | None = None
     """The dataset's own first forecast year, which bindings inherit unless they set one."""

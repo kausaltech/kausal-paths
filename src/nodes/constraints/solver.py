@@ -39,6 +39,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
+from nodes.constants import YEAR_COLUMN
 from nodes.constraints.rules import (
     AnyShapeRule,
     DimensionTransformRule,
@@ -65,6 +66,7 @@ from nodes.defs.transform_def import (
     EnsureUnitOp,
     FilterColumnOp,
     FilterDimensionOp,
+    RenameColumnOp,
     TagOperationOp,
 )
 from nodes.quantities import QuantityOperand, derive_product_quantity
@@ -75,6 +77,8 @@ if TYPE_CHECKING:
 
     from datasets.shapes import DatasetMetricPair, DatasetShapeProfile
     from nodes.defs.binding_def import AnyPortBindingDef
+    from nodes.defs.graph import DatasetMeta, DatasetMetricMeta
+    from nodes.defs.transform_def import PortTransformOp
     from nodes.instance_graph import InstanceGraph
 
 MAX_SOLVER_SWEEPS = 100
@@ -153,6 +157,8 @@ class ConstraintProgram:
     static_conflicts: tuple[ConstraintConflict, ...]
     static_notices: tuple[ConstraintConflict, ...] = ()
     """Checks that could not be made; they block nothing."""
+    inferred_outputs: tuple[PortValue, ...] = ()
+    """Output ports that assert no dimensions, so that their shape must be inferred."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -162,6 +168,18 @@ class ConstraintSolveResult:
     converged: bool
     notices: tuple[ConstraintConflict, ...] = ()
     """What could not be checked, reported so that it is never taken as passed; blocks nothing."""
+    undetermined: tuple[ConstraintConflict, ...] = ()
+    """
+    Output ports whose dimensions are neither asserted nor inferable.
+
+    They block publication and computation, but not an edit: removing the only input of a node
+    legitimately leaves its shape open until the next one is connected.
+    """
+
+    @property
+    def blocking(self) -> tuple[ConstraintConflict, ...]:
+        """Everything that blocks publication: the conflicts and the undetermined outputs."""
+        return (*self.conflicts, *self.undetermined)
 
 
 class GraphOverlay(BaseModel):
@@ -208,6 +226,68 @@ def _resolve_dimension_refs(
         else:
             ids.add(dimension.id)
     return frozenset(ids) if ok else None
+
+
+def _trace_source_columns(
+    graph: InstanceGraph, binding: DatasetBindingDef, dataset: DatasetMeta, metric: DatasetMetricMeta
+) -> frozenset[UUID] | None:
+    """
+    Follow a source's raw key columns through a binding's column operations.
+
+    Returns the dimensions the source holds once its raw columns have been renamed into
+    dimensions or `Year`, or filtered out: the binding's own view of the source, before its
+    dimension operations. A raw column left over leaves the shape unknown rather than wrong:
+    node classes such as `gpc.DatasetNode` read raw columns themselves, so what becomes of
+    one is the node's business. Renaming a column that is already a dimension is not
+    followed either.
+
+    The columns the bound metric has no values in are left out from the start, since the
+    runtime drops them. Where the metric fills a column only in part, a binding that selects
+    categories may leave it null throughout, and dropped, so its shape is unknown.
+    """
+    if metric.partial_key_columns and any(_selects_categories(op) for op in binding.transformations):
+        return None
+    absent = set(metric.absent_key_columns)
+    dims = {
+        dim
+        for dim in dataset.declared_dimension_ids
+        if dim not in graph.dimension_by_id or graph.dimension_by_id[dim].identifier not in absent
+    }
+    raw = set(dataset.raw_key_columns) - absent
+    dimension_identifiers = {graph.dimension_by_id[dim].identifier for dim in dims if dim in graph.dimension_by_id}
+    for op in binding.transformations:
+        match op:
+            case RenameColumnOp(column=column, new_name=new_name):
+                if column in dimension_identifiers:
+                    return None
+                if column not in raw or not new_name:
+                    continue
+                raw.discard(column)
+                if new_name == YEAR_COLUMN:
+                    continue
+                dimension = graph.dimension_by_identifier.get(new_name)
+                if dimension is None:
+                    raw.add(new_name)
+                else:
+                    dims.add(dimension.id)
+                    dimension_identifiers.add(new_name)
+            case FilterColumnOp(column=column) if column in raw and (op.drop_col or op.flatten):
+                raw.discard(column)
+            case _:
+                continue
+    if raw:
+        return None
+    return frozenset(dims)
+
+
+def _selects_categories(op: PortTransformOp) -> bool:
+    match op:
+        case FilterDimensionOp():
+            return bool(op.categories or op.groups)
+        case FilterColumnOp():
+            return bool(op.value or op.values or op.ref)
+        case _:
+            return False
 
 
 def resolve_binding_steps(  # noqa: C901, PLR0912, PLR0915
@@ -370,6 +450,7 @@ def compile_constraint_program(  # noqa: C901, PLR0912, PLR0915
     # aggregate gets a lower-bound requirement here, and each edge binding
     # value gets the exact per-binding set below.
     declared_port_dims: dict[tuple[UUID, UUID], frozenset[UUID] | None] = {}
+    inferred_outputs: list[PortValue] = []
     for node in graph.nodes:
         for port in node.spec.input_ports:
             origin = ConstraintOrigin('declaration', node_id=node.id, port_id=port.id)
@@ -392,7 +473,10 @@ def compile_constraint_program(  # noqa: C901, PLR0912, PLR0915
             origin = ConstraintOrigin('declaration', node_id=node.id, port_id=output_port.id)
             key = PortValue(node.id, output_port.id, 'output')
             dims: frozenset[UUID] | None = None
-            if output_port.dimensions:
+            if output_port.dimensions is None:
+                inferred_outputs.append(key)
+            else:
+                # An asserted empty list is an exact scalar, not an unknown.
                 dims = _resolve_dimension_refs(graph, output_port.dimensions, origin, static_conflicts, key)
             seeds.append(FactSeed(key=key, dims=dims, unit=output_port.unit, quantity=output_port.quantity, origin=origin))
 
@@ -463,8 +547,12 @@ def compile_constraint_program(  # noqa: C901, PLR0912, PLR0915
             # An external placeholder with no declared dimensions has *unknown*
             # shape, not scalar shape: its schema was never imported.
             schema_dims: frozenset[UUID] | None = frozenset(dataset.declared_dimension_ids)
-            if dataset.is_external_placeholder and not dataset.declared_dimension_ids:
+            if dataset.dimensions_known is False or (
+                dataset.dimensions_known is None and dataset.is_external_placeholder and not dataset.declared_dimension_ids
+            ):
                 schema_dims = None
+            elif dataset.raw_key_columns or metric.absent_key_columns or metric.partial_key_columns:
+                schema_dims = _trace_source_columns(graph, binding, dataset, metric)
             dataset_dims = schema_dims
             seeds.append(
                 FactSeed(
@@ -544,6 +632,7 @@ def compile_constraint_program(  # noqa: C901, PLR0912, PLR0915
         dataset_sources=tuple(dataset_sources),
         static_conflicts=(*static_conflicts, *shape_check.conflicts),
         static_notices=shape_check.notices,
+        inferred_outputs=tuple(inferred_outputs),
     )
 
 
@@ -935,6 +1024,27 @@ def solve_constraint_program(  # noqa: C901, PLR0912
             converged = True
             break
 
+    shapes = store.snapshot()
     return ConstraintSolveResult(
-        shapes=store.snapshot(), conflicts=store.conflicts, converged=converged, notices=program.static_notices
+        shapes=shapes,
+        conflicts=store.conflicts,
+        converged=converged,
+        notices=program.static_notices,
+        undetermined=tuple(
+            _undetermined_output(key)
+            for key in program.inferred_outputs
+            if (shape := shapes.get(key)) is None or shape.dimensions is None
+        ),
+    )
+
+
+def _undetermined_output(key: PortValue) -> ConstraintConflict:
+    return ConstraintConflict(
+        code='undetermined_output_dimensions',
+        message=(
+            'The dimensions of this output cannot be inferred from its inputs; '
+            'connect its inputs, or declare the dimensions on the output port'
+        ),
+        value=key,
+        origins=(ConstraintOrigin('declaration', node_id=key.node_id, port_id=key.port_id),),
     )

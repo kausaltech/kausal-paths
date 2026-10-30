@@ -211,7 +211,9 @@ class OutputPortType(StrawberryPydanticType[OutputPortDef]):
     column_id: auto
     _definition_editable: sb.Private[bool] = True
     _mutation_editable: sb.Private[bool | None] = None
-    dimensions: list[DimensionIdentifierRef]
+    dimensions: list[DimensionIdentifierRef] | None = sb.field(
+        description='Asserted exact dimensions; null when they are inferred. The solved set is `effectiveShape`.'
+    )
     edges: list[Annotated['NodeEdgeType', sb.lazy('nodes.graphql.types.graph')]] = sb.field(default_factory=list)
 
     _node: sb.Private['Node | None'] = None

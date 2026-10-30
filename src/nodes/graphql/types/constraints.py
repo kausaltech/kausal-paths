@@ -198,6 +198,6 @@ def conflicts_for_node(
 ) -> list[ConstraintConflictType]:
     return [
         ConstraintConflictType.from_conflict(conflict)
-        for conflict in result.conflicts
+        for conflict in result.blocking
         if node_uuid in conflict_node_ids(graph, conflict)
     ]

@@ -82,7 +82,7 @@ def collect_instance_problems(
     if value_violations is None:
         value_violations = []
         # Broken structure is already reported; it may not support computation yet.
-        if not constraints.conflicts and any(
+        if not constraints.blocking and any(
             port.validation is not None for node in graph.nodes for port in node.spec.input_ports
         ):
             instance = InstanceLoader.from_snapshot(build_instance_snapshot(config), instance_config=config).instance
@@ -91,7 +91,7 @@ def collect_instance_problems(
             finally:
                 instance.clean()
     return InstanceProblems(
-        constraints.conflicts,
+        constraints.blocking,
         collect_instance_dataset_violations(config),
         value_violations,
         data_entry_definition_problems(graph),

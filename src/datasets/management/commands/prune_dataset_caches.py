@@ -8,7 +8,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
 
 from datasets.manifests import MANIFEST_VERSION, persisted_manifest
-from datasets.models import DVCSourceManifest, PreparedDataset
+from datasets.models import DVCSourceManifest, DVCSourceShape, PreparedDataset
 from nodes.models import InstanceConfig, PreferredInstanceSource
 
 if TYPE_CHECKING:
@@ -75,10 +75,21 @@ class Command(BaseCommand):
             if (row.repository_url, row.revision, row.remote_name, row.dataset_identifier, row.format_version) not in sources
         ]
         stale_prepared = PreparedDataset.objects.filter(created_at__lt=cutoff).exclude(key__in=prepared)
-        self.stdout.write(f'Stale source manifests: {len(stale_sources)}; prepared datasets: {stale_prepared.count()}')
+        # A shape is found through a manifest naming its content hash; one no kept manifest names is unreachable.
+        kept_hashes = {
+            content['content_hash']
+            for content in DVCSourceManifest.objects.exclude(pk__in=stale_sources).values_list('content', flat=True)
+            if isinstance(content, dict) and 'content_hash' in content
+        }
+        stale_shapes = DVCSourceShape.objects.filter(recorded_at__lt=cutoff).exclude(content_hash__in=kept_hashes)
+        self.stdout.write(
+            f'Stale source manifests: {len(stale_sources)}; prepared datasets: {stale_prepared.count()}; '
+            f'source shapes: {stale_shapes.count()}'
+        )
         if options['delete']:
             # Recheck age in case a concurrent resolver repaired a selected row.
             DVCSourceManifest.objects.filter(pk__in=stale_sources, updated_at__lt=cutoff).delete()
             stale_prepared.delete()
+            stale_shapes.delete()
         else:
             self.stdout.write('Dry run; pass --delete to remove these rebuildable entries.')
