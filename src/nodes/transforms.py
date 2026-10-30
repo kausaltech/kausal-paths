@@ -20,7 +20,6 @@ transformation bodies rather than a redesign.
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, NoReturn
 
@@ -428,6 +427,30 @@ def _is_bound_to_dataset_node(env: PipelineEnv) -> bool:
 
 def _filter_column(df: ppl.PathsDataFrame, op: FilterColumnOp, env: PipelineEnv) -> ppl.PathsDataFrame:
     col = op.column
+    mask = _filter_column_mask(op, env)
+    if op.exclude and mask is not None:
+        # Excluding what an earlier filter already removed is harmless, so matching nothing
+        # is no error here; a misspelt exclusion is caught only against the source data.
+        df = df.filter(~mask)
+    elif mask is not None:
+        matched = df.filter(mask)
+        if len(matched) == 0 and len(df) > 0:
+            # A misspelt value would otherwise leave an empty frame and no trace of why.
+            available = ', '.join(sorted(str(value) for value in df[col].unique().to_list()))
+            env.fail(f"No rows of column '{col}' match {_filter_column_criterion(op, env)}. Available: {available}")
+        df = matched
+
+    if op.flatten:
+        if VALUE_COLUMN in df.columns:
+            df = df.filter(~pl.col(VALUE_COLUMN).is_nan())
+        df = df.paths.sum_over_dims(col)
+    elif op.drop_col:
+        df = df.drop(col)
+    return df
+
+
+def _filter_column_mask(op: FilterColumnOp, env: PipelineEnv) -> pl.Expr | None:
+    col = op.column
     val = op.value
     mask = None
     if op.values:
@@ -445,18 +468,15 @@ def _filter_column(df: ppl.PathsDataFrame, op: FilterColumnOp, env: PipelineEnv)
             mask = (as_number - float(pval)).abs() < NUMERIC_FILTER_TOLERANCE
         else:
             mask = pl.col(col) == str(pval)
-    if mask is not None:
-        if op.exclude:
-            mask = ~mask
-        df = df.filter(mask)
+    return mask
 
-    if op.flatten:
-        if VALUE_COLUMN in df.columns:
-            df = df.filter(~pl.col(VALUE_COLUMN).is_nan())
-        df = df.paths.sum_over_dims(col)
-    elif op.drop_col:
-        df = df.drop(col)
-    return df
+
+def _filter_column_criterion(op: FilterColumnOp, env: PipelineEnv) -> str:
+    if op.ref:
+        return f"parameter '{op.ref}' ({env.context.get_parameter_value(op.ref, required=True)!r})"
+    if op.value:
+        return repr(op.value)
+    return ', '.join(repr(value) for value in op.values)
 
 
 def _filter_dimension(df: ppl.PathsDataFrame, op: FilterDimensionOp, env: PipelineEnv) -> ppl.PathsDataFrame:
@@ -529,11 +549,15 @@ def _rename_column(df: ppl.PathsDataFrame, op: RenameColumnOp, env: PipelineEnv)
 def _rename_item(df: ppl.PathsDataFrame, op: RenameItemOp, env: PipelineEnv) -> ppl.PathsDataFrame:
     if not op.new_item:
         env.fail('rename_item must have a new item value.')
-    # str.replace_all requires Utf8; cast if the column is not string (e.g. Categorical)
+    # A whole value is renamed, never a part of one: 'Diesel' must not turn 'Biodiesel' into 'Bio<new>'.
     series = pl.col(op.column)
     if df.schema[op.column] != pl.Utf8:
         series = series.cast(pl.Utf8)
-    return df.with_columns(series.str.replace_all(re.escape(op.old_item), op.new_item))
+    matches = df.filter(series == op.old_item)
+    if len(matches) == 0 and len(df) > 0:
+        available = ', '.join(sorted(str(value) for value in df[op.column].unique().to_list()))
+        env.fail(f"No value of column '{op.column}' is {op.old_item!r}. Available: {available}")
+    return df.with_columns(pl.when(series == op.old_item).then(pl.lit(op.new_item)).otherwise(series).alias(op.column))
 
 
 # --- Output shaping ---------------------------------------------------------
