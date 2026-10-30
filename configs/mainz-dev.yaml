@@ -3,7 +3,7 @@ default_language: de
 supported_languages: [en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 12d1ca90394abe1daa989403e224745b92fe2640
+  commit: d582008699dde50a2cf1167b55a15156e4e7a9bf
   dvc_remote: kausal-s3
 name_de: Treibhausgas-Monitor Mainz (Entwicklung)
 name_en: GHG Monitor Mainz (development)
@@ -167,6 +167,8 @@ include:
 # frameworks and of "Paris read as likely below 2 °C" as the admission criterion is in paths-data
 # modules/fair-share/docs/value-framework-set.md. Nothing reaches the balance.
 - file: modules/fair_share/value_frameworks.yaml
+  allow_override: false
+- file: modules/fair_share/value_framework_v0.yaml
   allow_override: false
 
 #//////  Impact overviews
@@ -747,6 +749,7 @@ params:
   min_value: 1.5
   max_value: 2.0
   step: 0.1
+  unit: K
   is_customizable: true
   is_visible: true
 - id: fair_share_likelihood

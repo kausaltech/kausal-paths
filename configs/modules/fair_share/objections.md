@@ -1,6 +1,7 @@
 # Objections to the Fair-Share Argument
 
 *Produced by Claude Opus 5.5 on 2026-10-07.*
+*Version 2 produced by Claude Opus 5.5 on 2026-10-29.*
 *Responsible: Jouni Tuomisto.*
 
 The carbon budget (`README.md`) answers *how much* a city owes. A city that presents it will hear
@@ -39,7 +40,7 @@ generous readings of the premises a scenario can cut more than fairness requires
 its cut has to be justified by another argument; objection 1 supplies one that does not depend
 on the budget at all.
 
-## Three legs, any one of which suffices
+## Three independent legs
 
 Most objections are not about fairness, so the budget alone cannot meet them. The module rests
 the claim on three independent arguments, each from its own premise:
@@ -50,7 +51,11 @@ the claim on three independent arguments, each from its own premise:
    module; an instance such as `mainz-bisko` already has `energy_spending` and
    `co2_price_paid`.
 
-A sceptic who wants to escape the conclusion has to reject all three premises, not one.
+Each leg supports the claim on its own. A sceptic who wants to escape the conclusion therefore
+has to reject all three premises, or name reasons against the claim (costs, other uses of the
+money) that outweigh all three together; rejecting one premise is not enough. The module computes
+the legs, not that weighing: the reasons against are the reader's to bring, and the model's job is
+to show what the legs amount to, so that the weighing is done in the open.
 
 ## Objection 1: "We are too small to matter"
 
@@ -196,6 +201,33 @@ Whoever demands falling emissions from a majority of the world before acting is,
 bound by this argument. That person is still bound by objection 1, which does not depend on
 others, and by premise 6, if they accept it.
 
+## Objection 4: "I don't accept a global system everyone must obey"
+
+**Strongest form.** There is no universal morality that everyone could be held to. Each country,
+city and person decides what is right. A worldwide sharing-out of the CO₂ budget is a rule imposed
+from outside.
+
+**Premise.** *The tonnes add up under any rule of sharing, including none.* A tonne warms the
+planet the same wherever it is emitted, and warming follows cumulative emissions. Every value framework
+shares this premise, and it is physics, not morality. The objection is then taken
+at its word: **"nobody shares out the task" is admitted as an answer**, value framework V0, and
+the model shows what follows from it. No universal morality is assumed; each reader gives their
+own answers, and the model checks only whether those answers fit together.
+
+**What the model computes** (`value_framework_v0.yaml`).
+
+* `fair_share_value_framework_v0_warming`: the warming by 2100 if countries keep their current
+  policies, from the UNEP Emissions Gap Report: 3.1 °C in the 2024 report, 2.8 °C in the 2025
+  report (the Climate Action Tracker gives 2.7 and 2.6 °C). V0 is not counted among V1–V8: it sets
+  no budget, so no scenario could fail it, and it fails their admission rule.
+* `fair_share_value_framework_v0_overshoot`: that warming minus the reader's own warming limit
+  (`fair_share_temperature_limit`). At the default 1.7 °C it is 1.1 K by the 2025 report.
+
+**The honest result.** Answering V0 does not opt out of a global system; it chooses one, today's,
+and with it about 2.8 °C. That is a position one may hold, and the model does not say it is wrong.
+It says that whoever holds it and also wants a limit between 1.5 and 2 °C has given two answers
+that are about 1 °C apart, and has to give up one of them.
+
 ## Objections not yet modelled
 
 Each has a premise that answers it and something the model could compute. Listed so that the
@@ -222,6 +254,8 @@ include:
 - file: modules/fair_share/objections.yaml
   allow_override: false
 - file: modules/fair_share/emissions_trading.yaml   # German BISKO instances only
+  allow_override: false
+- file: modules/fair_share/value_framework_v0.yaml   # objection 4
   allow_override: false
 ```
 

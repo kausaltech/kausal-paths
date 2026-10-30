@@ -3,6 +3,7 @@
 *Produced by Claude Opus 5.5 on 2026-10-06.*
 *Version 2 produced by Claude Opus 5.5 on 2026-10-07.*
 *Version 3 produced by Claude Opus 5.5 on 2026-10-19.*
+*Version 4 produced by Claude Opus 5.5 on 2026-10-29.*
 *Responsible: Jouni Tuomisto.*
 
 A module that asks whether a city stays within its fair share of what the world may still
@@ -113,6 +114,13 @@ frameworks do not depend on the settings. The verdict is
 `fair_share_value_framework_compatible_share` in 2050; emissions after the model's end are not
 counted.
 
+One more answer is shown but not admitted: V0, *nobody shares out the task; each country does what
+it sees fit*. It sets no budget, so no scenario could fail it, and counting it would lift every
+scenario's compatible share without saying anything about the scenario. Its consequence is a
+temperature instead, since the tonnes add up under any rule or none:
+`value_framework_v0.yaml` shows the warming by 2100 under current policies, from the UNEP
+Emissions Gap Report. It is self-contained and reads `fair_share/warming_outlook`.
+
 The reasoning, the choice of value frameworks and the admission criterion are recorded in
 paths-data (`modules/values/docs/value-frameworks.md` §8,
 `modules/fair-share/docs/value-framework-set.md`). The file needs nothing beyond what
@@ -129,7 +137,7 @@ include:
 An include carries nodes, not parameters, so the instance must also provide:
 
 1. **Global parameters** `country_code` (ISO 3166-1 alpha-2, e.g. `DE`),
-   `fair_share_temperature_limit` (1.5–2.0, step 0.1), `fair_share_likelihood` (%, 50–83,
+   `fair_share_temperature_limit` (`unit: K`, 1.5–2.0, step 0.1), `fair_share_likelihood` (%, 50–83,
    step 1), `fair_share_grandfathering_weight` (%, 0–100) and
    `fair_share_responsibility_start_year` (1850–2020, step 10). Numbers between the steps
    have no row in the data and empty the node. `configs/mainz-dev.yaml` has a complete block.

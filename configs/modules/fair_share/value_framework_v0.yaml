@@ -1,0 +1,98 @@
+# Value framework V0 -- "nobody shares out the task" -- and what follows from it.
+#
+# `value_frameworks.yaml` judges a policy against V1-V8, each a complete way of sharing out one
+# global budget. Asked how the task should be shared, a respondent may also answer that it should
+# not be: each country does what it sees fit. That answer is V0. It is shown, not admitted (decided
+# by Jouni Tuomisto, 29 October 2026):
+#
+# * It sets no budget, so no scenario can fail it. Counted among the admitted value frameworks it
+#   would raise every scenario's compatible share, Business as Usual's included, without saying
+#   anything about the scenario.
+# * It fails the admission rule of `value_frameworks.yaml`, the Paris Agreement read as "likely
+#   below 2 °C".
+#
+# What it does have is a consequence, and the consequence is a temperature, not a budget: the
+# tonnes add up whatever rule shares them out, including no rule. Whoever chose V0 and also
+# agreed that heat waves and crop losses matter sees here what the two answers amount to together.
+# The reasoning is in paths-data `modules/fair-share/docs/value-framework-set.md`, section V0.
+#
+# `fair_share_value_framework_v0_warming` is self-contained. `fair_share_value_framework_v0_overshoot`
+# needs the global parameter `fair_share_temperature_limit` with `unit: K`, which instances
+# including `carbon_budget.yaml` already define (the unit leaves its dataset filter unchanged).
+#
+# Data: `fair_share/warming_outlook`, built by
+# `modules/fair-share/scripts/create_warming_outlook_data.py` in paths-data.
+
+nodes:
+
+- id: fair_share_value_framework_v0_warming
+  is_editable: false
+  name_de: 'V0: Erwärmung bis 2100, wenn jedes Land tut, was es für richtig hält'
+  name_en: 'V0: warming by 2100 if each country does what it sees fit'
+  description_de: |
+    Die Antwort V0 auf die Frage, wie die Aufgabe verteilt werden soll: gar nicht – jedes Land
+    tut, was es für richtig hält. Diese Antwort legt kein Budget fest, deshalb kann kein
+    Szenario an ihr scheitern, und sie zählt nicht zu den Lesarten V1–V8. Sie hat aber eine
+    Folge, denn die Tonnen addieren sich, gleich nach welcher Regel oder ohne Regel sie verteilt
+    werden.<br/>
+    Gezeigt ist die globale Erwärmung bis 2100 gegenüber vorindustrieller Zeit, wenn die Länder
+    bei ihrer heutigen Politik bleiben, nach dem Emissions Gap Report des
+    Umweltprogramms der Vereinten Nationen (UNEP). Das Jahr ist das Jahr des Berichts, nicht das
+    der Erwärmung: 3,1 °C im Bericht 2024, 2,8 °C im Bericht 2025. Es sind mittlere Werte; die
+    Berichte nennen eine Spanne darum. Der Climate Action Tracker kommt auf 2,7 und 2,6 °C.
+  description_en: |
+    Answer V0 to the question of how the task should be shared out: not at all, each country
+    does what it sees fit. This answer sets no budget, so no scenario can fail it, and it is not
+    one of the value frameworks V1–V8. It does have a consequence, because the tonnes add up
+    whatever rule shares them out, or none.<br/>
+    Shown is global warming by 2100 above pre-industrial if countries keep their current
+    policies, according to the Emissions Gap Report of the United Nations Environment Programme
+    (UNEP). The year is the year of the report, not of the warming: 3.1 °C in the 2024 report,
+    2.8 °C in the 2025 report. These are central values; the reports give a range around them.
+    The Climate Action Tracker arrives at 2.7 and 2.6 °C.
+  type: formula.FormulaNode
+  quantity: temperature
+  unit: K
+  input_datasets:
+  - id: fair_share/warming_outlook
+    tags: [warming]
+    column: current_policies
+  params:
+  - id: formula
+    value: warming
+
+# The consistency check: V0 against the reader's own warming limit. The fair-share settings ask
+# for a limit (premise 1); whoever also answers V0 sees how far the two answers lie apart. No
+# moral premise is involved, only the reader's own two answers.
+
+- id: fair_share_value_framework_v0_overshoot
+  is_editable: false
+  name_de: 'V0: Abstand zur eigenen Erwärmungsgrenze'
+  name_en: 'V0: distance from your own warming limit'
+  description_de: |
+    Um wie viel die Erwärmung, zu der V0 führt („jedes Land tut, was es für richtig hält“), über
+    der Erwärmungsgrenze liegt, die in den Einstellungen gewählt ist (Prämisse 1 des fairen
+    Anteils).<br/>
+    Wer V0 vertritt und zugleich eine Grenze von 1,5 bis 2 °C für richtig hält, gibt zwei
+    Antworten, die nicht zusammenpassen: Diese Zahl zeigt, wie weit sie auseinanderliegen. Das
+    ist kein Urteil darüber, welche der beiden Antworten richtig ist. Wer den Abstand schließen
+    will, kann die Grenze höher setzen oder sich für eine Lesart entscheiden, die die Aufgabe
+    verteilt.
+  description_en: |
+    How far the warming that V0 leads to ("each country does what it sees fit") lies above the
+    warming limit chosen in the settings (premise 1 of the fair share).<br/>
+    Whoever holds V0 and also thinks a limit of 1.5 to 2 °C right gives two answers that do not
+    fit together: this number shows how far apart they are. It is no verdict on which of the two
+    is right. Whoever wants to close the gap can raise the limit, or choose a value framework that
+    shares out the task.
+  type: formula.FormulaNode
+  quantity: temperature
+  unit: K
+  input_nodes:
+  - id: fair_share_value_framework_v0_warming
+    tags: [warming]
+  params:
+  - id: formula
+    value: warming - constant
+  - id: constant
+    ref: fair_share_temperature_limit
