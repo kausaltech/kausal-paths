@@ -41,8 +41,10 @@ of what it emits.
 
 For outcome nodes, the requested result shape is set explicitly by the user
 (e.g. “I want `sector` in the final output”). That is an output-port
-declaration, not the node signature's `requires` facet; the signature relates
-the declared output back to the node's inputs.
+assertion, not the node signature's `requires` facet; the signature relates
+the asserted output back to the node's inputs. Every other output shape is
+inferred where the node's rules allow it; see
+[Output shapes are inferred](#output-shapes-are-inferred).
 
 
 ### Dimension transformations on edges
@@ -230,7 +232,7 @@ refuse non-structural dimensions rather than silently summing them.
 | What | Where | Static or computed? |
 |---|---|---|
 | Node class shape rules | `Node.shape_rules(meta)` on the class, or the compiled pipeline | Static (per class/pipeline) |
-| Outcome node required dims | `OutputPortDef.dimensions` | Static (user-configured) |
+| Output dimension assertion (outcome shape, or where inference cannot reach) | `OutputPortDef.dimensions`; `None` when inferred | Static (user-configured) |
 | Consuming-port shape declaration (ex-`FlattenTransformation`) | `InputPortDef.required_dimensions` | Static (user-configured) |
 | Port role | `InputPortDef.role` / `OutputPortDef.role`, matching a class-level declaration | Static (set at port creation) |
 | Binding transformations | `NodeInputPortBinding.transformations`, presented as `PortBindingDef.transformations` on the **consuming** port | Static (user-configured) |
@@ -262,6 +264,9 @@ Rules:
   outcome's requested result shape is instead authored on its output port; the
   node's shape rule carries it back to the inputs. Everywhere else the input
   requirement is computed.
+- `OutputPortDef.dimensions` is an authored *assertion*, not a declaration the
+  shape is built from. `None` asserts nothing; the runtime then uses the
+  inferred set, which is never written back.
 - Propagation results are exposed as separate derived GraphQL fields —
   `effectiveShape` on both port types, `constraintConflicts` on the instance
   editor and on nodes — never by overwriting the authored one.
@@ -310,21 +315,19 @@ class OutputPortDef(I18nBaseModel):
     id: UUID
     identifier: MixedCaseIdentifier | None = None
     role: MixedCaseIdentifier | None = None
-    dimensions: UniqueList[DimensionIdentifierRef] = []             # seeds the output when non-empty
+    dimensions: UniqueList[DimensionIdentifierRef] | None = None    # asserted exact set; None = inferred
     unit: Unit
     quantity: QuantityKindRef | None = None
 ```
 
-`OutputPortDef.dimensions == []` is ambiguous on its own: it can mean "scalar
-output" or "not known yet". The solver keeps the distinction in its derived
-facts instead of in a new authored field: an empty authored list seeds nothing,
-and the port's exact set is then whatever the node rule derives from its
-inputs; only a rule (or an outcome declaration) pins an exact empty set.
-Internally facts carry `known: frozenset[UUID] | None`, where `None` is unknown
-and an empty set is an exact scalar, with the consumer requirement as a
-separate lower-bound set. Neither fact is written back into the authored port.
-External placeholder datasets with no declared dimensions are *unknown*, not
-scalar.
+`OutputPortDef.dimensions` has three values: `None` asserts nothing, `[]`
+asserts a scalar, and a list asserts that exact set. An assertion seeds the
+port's exact fact, so an inference that disagrees with it is an ordinary
+conflict naming both origins. Internally facts carry
+`known: frozenset[UUID] | None`, where `None` is unknown and an empty set is an
+exact scalar, with the consumer requirement as a separate lower-bound set.
+Neither fact is written back into the authored port. External placeholder
+datasets with no declared dimensions are *unknown*, not scalar.
 
 Port UUIDs are durable instance-local identity and are what bindings refer to.
 Sync preserves them: the parser keeps an authored UUID, otherwise matches the
@@ -357,6 +360,139 @@ exist in the class declarations, and formats uniform `inferred_port_role` /
 recomputed per hydrated graph, never serialized. Implementing the hook for a
 new node class is always wrong — new classes declare roles at port creation —
 and the whole mechanism dies once persisted ports carry explicit roles.
+
+
+### Output shapes are inferred
+
+*Snapshot v18 (2026-10).*
+
+Until v18 a node declared its output dimensions once, in
+`NodeSpec.output_dimensions`, and the runtime asserted every output frame
+against that list, an empty list meaning a scalar. The solver never saw it: the
+parser did not copy it onto the ports, which is why a pass-through
+`AdditiveNode` still had to be told what its inputs had already decided. The
+node-level list is gone. Dimensions belong to output ports, and the authored
+value there is an assertion, checked against what the node's rules infer.
+
+**Where the runtime gets its dimensions.** For each output port, the loader
+takes the assertion when there is one, and otherwise the solved exact set
+(`InstanceLoader._resolve_output_dimensions`). The node computes one frame for
+all its ports, so `Node.output_dimensions` is their union, in the order of the
+instance's dimension catalog. The loader solves only when some port asserts
+nothing, and without dataset profiles: datasets contribute their schema
+dimensions, and profiles would add only categories.
+
+**What cannot be inferred.** An output port that asserts nothing and that the
+solver cannot determine is reported as `undetermined_output_dimensions`, in
+`ConstraintSolveResult.undetermined` rather than among the conflicts. It blocks
+publication and makes the node fail at initialization — in a tolerant load the
+node is marked failed, otherwise the load raises — but it does not reject an
+edit. Removing the only input of an additive node legitimately unpins its
+shape until the next input is connected, and a baseline-diff validation that
+counted it would refuse the removal. `blocking` is the union the publication
+gate, `constraintConflicts` and `test_instance` problems use.
+
+The solver reaches a port only through a shape rule, so a class without rules
+always needs an assertion. Today that is every class except the additive and
+multiplicative ones (and the subclasses that keep their computation) and two
+Zürich classes: `GenericNode`, every action class and the classes carrying
+class-level `output_dimension_ids` all assert.
+
+**The migration did not change what anything computes.** Migration 0088 and
+the v18 snapshot upgrader copy each node's old list onto every one of its
+output ports, an empty list as `[]` (a scalar), never as `None`. YAML has no
+spelling for an inferred shape, so the parser does the same: a node's
+`output_dimensions`, or their absence, becomes the assertion on each port.
+What did change is that the solver now sees those assertions, so an instance
+can show conflicts it always had and never reported. On the database-sourced
+drafts of a local copy of the fleet (73 instances) that was 5 conflicts in 2
+instances, and the one examined is a node that fails to compute today.
+
+A parsed YAML snapshot carries no dimension catalog, so until v18 the solver
+could resolve no dimension reference in a YAML graph and reported every one as
+`unknown_dimension_reference` (143 on espoo alone). The loader now gives the
+graph a catalog built from the YAML's own dimension configs, with UUIDs
+invented deterministically like those of the YAML graph's dataset entries, so
+building a YAML graph still reads nothing from the database
+(`InstanceLoader._graph_dimension_catalog`). With it, the YAML fleet shows
+about 180 conflicts the assertions introduce, in 18 instances. Not all of them
+are model debt; see open items 13 and 14.
+
+**Withdrawing redundant assertions.** `prune_output_dimensions` solves a
+database-sourced draft with every output assertion withdrawn, and removes the
+ones inference reproduces (`nodes/constraints/assertions.py`). Withdrawing
+them all at once is sound because an assertion only adds facts, so the ones
+that stay can only keep the others determined. An outcome node's assertion
+always stays: it is the requested result shape, which inference checks rather
+than replaces. The command reports what it keeps by node class, which makes it
+the measure of shape-rule coverage. `sync_instance_to_db` rewrites the specs
+from the YAML and so re-asserts everything; prune after a sync.
+
+**Editor.** `createNode` and `updateNode` no longer take `outputDimensions`;
+an output port's `dimensions` is the assertion, null inferring it and an empty
+list asserting a scalar. A port created from the legacy `outputMetrics` input
+infers. `OutputPortType.dimensions` is the assertion and `effectiveShape` the
+solved shape; `NodeEditorFields.outputDimensions` still reports the runtime
+union.
+
+
+### What the solver knows of a DVC source
+
+A DVC dataset has no schema in a YAML graph, so unless something records its
+shape the solver can infer nothing downstream of it. The shape — the columns
+it is indexed by, and its metric columns with their units — is recorded the
+first time the runtime loads the parquet (`Context.load_dvc_dataset` →
+`datasets/dvc_shapes.py`), keyed by the parquet's content hash in the
+rebuildable `DVCSourceShape` table, so every revision that pins an unchanged
+file shares it. A graph built later finds it through the revision's persisted
+manifest, without reading git or DVC; a `.dvc` file that names index columns
+gives the shape even before a load. dvc-pandas writes them on every push
+since `d6a568c`; older files do not have them, and their shapes come from the
+first load instead.
+
+An indexed source is known. An index column named after a model dimension is
+that dimension; any other — `Sektori1`, `Vuosi`, `Kaupunki` — is a raw key
+column, kept in `DatasetMeta.raw_key_columns`. The solver follows each
+binding's raw columns through its column operations: `rename_column` into a
+dimension adds it and into `Year` consumes it, and `filter_column` with
+`drop_col` or `flatten` consumes it. What is left once every raw column is
+consumed is that binding's view of the source. A raw column left over makes
+the binding's shape unknown, not a conflict, because some node classes read
+raw columns themselves (`gpc.DatasetNode`, `finland.population.Population`),
+and the parameter-store datasets (`nzc/defaults` and its siblings) never
+resolve to a fixed shape. An unindexed source is known only when it holds
+nothing but `Year`, metrics and provenance.
+
+The shape is per metric. A source with several metrics marks a dimension that
+does not apply to one of them with nulls, and the runtime drops a column that is
+null throughout what a binding selected (`interpolate` does so as a side effect
+of its wide-and-back round trip). So the recorded shape names each metric's
+dimension columns, the graph carries the rest as
+`DatasetMetricMeta.absent_key_columns`, and the solver leaves them out of a
+binding to that metric. `yolo/agriculture` is the case: indexed by seven
+dimensions, while `emission_factor_pumps` has values in four. A column a metric
+fills only in some rows (`crop` for `emission_factor`, which has it for rice and
+not for lime) is recorded too, as `partial_key_columns`: a binding that selects
+categories may leave it null throughout and so dropped, which cannot be told
+without the data, so such a binding's shape is unknown. A `.dvc` file's index
+columns give a shape only for a single-metric source, since the file cannot
+say which dimensions each metric has.
+
+A shape is recorded when the runtime reads the parquet, and a binding served
+from the prepared-dataset cache does not, so on such a hit the context reads
+the source once if no shape of the current version is recorded for its
+content hash (`Context.ensure_dvc_source_shape`). Bumping
+`DVC_SOURCE_SHAPE_VERSION` therefore costs one read per source, on its next
+computation.
+
+A YAML graph marks known datasets with `DatasetMeta.dimensions_known`. The
+flag is separate from `is_external_placeholder`, which data entry reads. The
+parser's `datasets:` entries name no dimensions, and are marked unknown rather
+than read as scalar, as they were before.
+
+The categories of a source's columns are not recorded. An editor that needs
+them reads the parquet when it does; checking a binding's values against the
+source belongs at the mutation that writes it, and again when the pin moves.
 
 
 ### Node shape rules
@@ -771,9 +907,9 @@ The ops:
 | `filter_temporal` | edge, dataset | Currently the yearly specialization (`min_year` / `max_year`). |
 | `ensure_unit` | edge, dataset | Explicit conversion declared on the binding; the unit analog of a dimension adapter. |
 | `tag_operation` | edge, dataset | A registered tag behavior applied as an ordered stage. |
-| `filter_column` | dataset | Legacy, pre-dimension column filtering. Shape-neutral to the solver unless its column is one of the dataset's declared dimensions, in which case it filters and, with `drop_col`, removes that dimension. |
-| `rename_column` | dataset | Legacy wide-DVC column labels. |
-| `rename_item` | dataset | Category value remapping. |
+| `filter_column` | dataset | Legacy, pre-dimension column filtering. On a column that is a dimension it filters and, with `drop_col`, removes that dimension; on a raw key column it consumes the column (see [What the solver knows of a DVC source](#what-the-solver-knows-of-a-dvc-source)). Selecting no row fails at run time with the values there are; excluding nothing does not, since an earlier filter may already have removed them. |
+| `rename_column` | dataset | Legacy wide-DVC column labels. The solver follows a raw key column renamed into a dimension or `Year`. |
+| `rename_item` | dataset | Renames one whole value of a column, and fails when the column does not hold it. Until October 2026 it replaced substrings, so `Diesel` also rewrote `Biodiesel`. |
 | `set_forecast_from` | dataset | Sets the forecast **qualifier**; see `metric-dataframe.md`. |
 | `interpolate` | dataset | Fills missing interior years linearly; the interpolation qualifier follows the `MetricDataFrame` migration. |
 | `backfill` | dataset | Copies the first known value backwards over existing leading null rows. |
@@ -811,6 +947,10 @@ literally; it does not choose the metric.
 - `supported_dimensions`, `DatasetPortSpec.output_dimensions`, and the
   deprecated identifier-era GraphQL surface removed.
 
+- Output dimensions live on output ports as assertions, and the runtime infers
+  them where none is made (snapshot v18; see
+  [Output shapes are inferred](#output-shapes-are-inferred)).
+
 **Open, in no particular dependency order:**
 
 1. The multi-group `required_dimensions` fill in the exporter and parser is
@@ -830,3 +970,75 @@ literally; it does not choose the metric.
    later step once the registry has enough coverage.
 7. Snapshot identifier upgraders go only when the supported revision window
    allows.
+8. **Shape-rule coverage**, which is what lets assertions go. In the order of
+   what it unlocks: `GenericNode` through the pipeline compilation that
+   already exists (`pipeline_compile.py`, used only by its tests); the action
+   classes, `AdditiveAction` first, whose paired input and output share a
+   shape; and the classes with class-level `output_dimension_ids`
+   (`buildings.py`, `aluesarjat.py`, `zuerich.py`), which are hand-written
+   `produces` and become the first production `dimension_transform` rules
+   (item 4). Measure progress with `prune_output_dimensions`.
+9. **Consumers per output port.** The runtime still keeps one dimension set
+   per node, the union of its ports. `NodeMetric` is the runtime projection of
+   an output port and should carry its resolved dimensions, and be named for
+   what it is. Then `validate_dims` checks the frame against the union with
+   each port's other dimensions null, `metric_gen` (which already takes a
+   port), Excel export and the cache hash read the port, and action hooks
+   target an output port instead of a node. The explanation system reads the
+   asserted union from the spec; it should read the solved shapes.
+10. **The unit, the same way.** `OutputPortDef.unit` is required, so a
+    pass-through node still needs a unit. Make it optional: the derived unit
+    (`same` keeps a convertible unit, `product` multiplies) is the default, and
+    an authored unit becomes a conversion target, checked convertible and
+    applied with `ensure_unit` at the output — the `t/capita/a · capita → kt/a`
+    case. Products will need it more than sums, because pint's derived units
+    are correct but often unreadable. Quantity stays a declaration until the
+    quantity algebra derives (item 6).
+11. **`NodeSpec.input_dimensions`** is still node-level. It duplicates
+    class-level `requires` on the classes that read it (`linear.py`, `gpc.py`,
+    `shift.py`, `generic.py`), and belongs on input ports as
+    `required_dimensions` or in the class's rules.
+12. **A YAML spelling for "inferred"**, or the end of YAML-to-database
+    syncing; until one of them, every sync re-asserts what pruning withdrew.
+13. **Multi-metric nodes over-assert their ports.** The node-level list was
+    the union of the frame's dimensions, and v18 copied it onto every port. A
+    port carries one metric, and a multi-metric node marks a dimension that
+    does not apply to one of its metrics with nulls, which the runtime drops
+    from what an edge delivers (`runtime_input.py`). So a port can be narrower
+    than the union. Espoo's transport actions assert
+    `{economic_sector, vehicle_type}` on their `currency` port, which
+    `implementation_costs` receives as a scalar: 12 false conflicts there,
+    about 33 across the fleet. Decided: each port gets its own true
+    dimensions. That needs a YAML spelling per port (item 12), and finding
+    them for a multi-metric node takes its computed output, since the YAML
+    holds only the union.
+14. **DVC sources in YAML graphs.** Done in part (see
+    [What the solver knows of a DVC source](#what-the-solver-knows-of-a-dvc-source)).
+    What remains:
+    - An unindexed source with key columns besides its metrics stays unknown.
+      226 of the 603 used DVC sources are unindexed, and nothing records which
+      of their columns are keys rather than qualifiers or time, so the roles
+      would have to be recorded first.
+    - `GenericDataset`, which every `GenericNode` that is not additive reads
+      through, renames columns to lowercase ASCII, maps category labels to
+      ids through aliases, turns a `Unit` column into metrics, drops
+      all-`.` columns and indexes every string column, all after the
+      binding's operations. The solver models none of this, so such a binding
+      is known only when its operations consume every raw column. The
+      explicit form of the alias mapping is a `map_values` operation (a
+      `replace_strict` with `passthrough`, `error` or `drop` for unmatched
+      values), not yet written.
+    - Checking `filter_column`, `rename_item` and exclusions against the
+      source's values at the mutation that writes a binding, and again when
+      the pin moves. At run time an exclusion that matches nothing cannot be
+      told from one an earlier filter made redundant.
+    - A database-sourced instance's placeholder rows still carry the schema the
+      sync gave them once. They should take the recorded shape, and refresh
+      when the content hash they were made from changes, which
+      `dataset_status` would then report.
+    - A YAML graph does not read database datasets' schemas, by contract, so a
+      YAML instance's database datasets stay unknown to it.
+15. **Model editor UI.** Show `effectiveShape` instead of the authored
+    dimensions, create ports as inferred where the node class has shape rules,
+    and ask for dimensions where it has none — which needs the class's ability
+    to infer exposed in the schema.

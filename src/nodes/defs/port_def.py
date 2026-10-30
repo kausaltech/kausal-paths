@@ -208,7 +208,12 @@ class OutputPortDef(I18nBaseModel):
     """DataFrame column name for this port. When None, inferred by the loader."""
     is_editable: bool = True
     """Whether the user can modify this port in the model editor."""
-    dimensions: UniqueList[DimensionIdentifierRef] = Field(default_factory=list)
+    dimensions: UniqueList[DimensionIdentifierRef] | None = None
+    """
+    An authored assertion of the port's exact dimension set, checked against the shape the
+    node's rules infer from its inputs. ``None`` asserts nothing: the shape is inferred, and
+    a port whose shape cannot be inferred blocks publication. ``[]`` asserts a scalar.
+    """
 
     _metric_id: str | None = PrivateAttr(default=None)
 

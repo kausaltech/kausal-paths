@@ -24,6 +24,7 @@ from paths.const import MODEL_CACHE_OP, MODEL_CALC_OP
 
 from common import base32_crockford, qualifiers
 from common.cache import Cache
+from datasets.dvc_shapes import dvc_source_shape_is_recorded, record_dvc_source_shape
 from datasets.manifests import persisted_manifest
 from datasets.prepared import PreparedDatasetStore
 from datasets.runtime import DVCDataset, FixedDataset
@@ -437,6 +438,20 @@ class Context:
     def prepared_dataset_store(self) -> PreparedDatasetStore:
         return PreparedDatasetStore()
 
+    def ensure_dvc_source_shape(self, ds_id: str) -> None:
+        """
+        Load a DVC dataset whose shape is not yet recorded, so that loading records it.
+
+        A binding served from the prepared-dataset cache never reads its parquet, so without
+        this a source would get no shape, or keep one in an outdated format, for as long as
+        its prepared frames last. The load is once per content hash and shape version.
+        """
+        manifest = self.dvc_source_manifest
+        source = manifest.datasets.get(ds_id) if manifest is not None else None
+        if source is None or ds_id in self.dvc_datasets or dvc_source_shape_is_recorded(source.content_hash):
+            return
+        self.load_dvc_dataset(ds_id)
+
     def load_dvc_dataset(self, ds_id: str) -> dvc_pandas.Dataset:
         """
         Load a DVC dataset into the context.
@@ -474,6 +489,7 @@ class Context:
             ):
                 ds = self.dvc_manifest_loader.load(manifest.datasets[ds_id])
             self.dvc_datasets[ds_id] = ds
+            record_dvc_source_shape(ds)
             return ds
 
         if not self.dataset_repo.has_dataset(ds_id):
@@ -496,6 +512,7 @@ class Context:
             if event is not None:
                 event.set_attr('dataset.in_memory.bytes', estimate_size_bytes(getattr(ds, 'df', None)))
         self.dvc_datasets[ds_id] = ds
+        record_dvc_source_shape(ds)
         return ds
 
     def get_all_dvc_dataset_ids(self) -> set[str]:

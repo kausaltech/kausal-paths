@@ -70,7 +70,7 @@ def _node_spec(**overrides: Any) -> NodeSpec:
     defaults: dict[str, Any] = {
         'type_config': SimpleConfig(node_class=SIMPLE_NODE_CLASS),
         'input_ports': [],
-        'output_ports': [OutputPortDef(id=_port_id('default'), unit=unit, quantity='emissions')],
+        'output_ports': [OutputPortDef(id=_port_id('default'), unit=unit, quantity='emissions', dimensions=[])],
     }
     defaults.update(overrides)
     return NodeSpec(**defaults)
@@ -201,6 +201,7 @@ def test_additive_action_binds_two_metrics_of_the_same_dataset_to_paired_ports(
         column_id='energy',
         quantity='energy',
         unit=unit_registry.parse_units('kWh'),
+        dimensions=[],
     )
     cost_output = OutputPortDef(
         id=_port_id('cost_output'),
@@ -208,6 +209,7 @@ def test_additive_action_binds_two_metrics_of_the_same_dataset_to_paired_ports(
         column_id='cost',
         quantity='currency',
         unit=unit_registry.parse_units('EUR'),
+        dimensions=[],
     )
     outputs = [energy_output, cost_output]
     inputs = pair_input_ports_to_outputs([], outputs, role='input', keep_unpaired=False)
@@ -894,7 +896,9 @@ def _edge_between_two_nodes(ic: InstanceConfig, transformations: list[Any] | Non
     from nodes.models import NodeInputPortBinding
 
     unit = unit_registry.parse_units('kt/a')
-    producer = NodeConfigFactory.create(instance=ic, identifier='producer', spec=_node_spec())
+    # The producer's shape is left open: the tests put whatever transformations they need on the edge.
+    producer_output = OutputPortDef(id=_port_id('default'), unit=unit, quantity='emissions', dimensions=None)
+    producer = NodeConfigFactory.create(instance=ic, identifier='producer', spec=_node_spec(output_ports=[producer_output]))
     consumer = NodeConfigFactory.create(
         instance=ic,
         identifier='consumer',

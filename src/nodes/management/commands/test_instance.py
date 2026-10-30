@@ -1169,7 +1169,7 @@ class Command(BaseCommand):
             graph = get_instance_graph(ic, PreferredInstanceSource.DRAFT, resolved_source=source)
         violations = collect_instance_dataset_violations(ic)
         result = solve_instance_constraints(ic, graph, source)
-        problems = [ProblemDetail.from_conflict(conflict) for conflict in result.conflicts]
+        problems = [ProblemDetail.from_conflict(conflict) for conflict in result.blocking]
         # What the solver could not check blocks nothing, but is recorded so it is never taken as passed.
         problems.extend(ProblemDetail.from_conflict(notice, notice=True) for notice in result.notices)
         problems.extend(ProblemDetail.from_violation(violation) for violation in violations)
