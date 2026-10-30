@@ -70,6 +70,14 @@ data_entry:
       kind: input_port
       input: combined_heat_and_power_chp_fraction
       port: t_supply
+    - id: combined_heat_and_power_chp_fraction:t_return
+      kind: input_port
+      input: combined_heat_and_power_chp_fraction
+      port: t_return
+    - id: district_heating_emission_factor_exergetic:network_loss_fraction
+      kind: input_port
+      input: district_heating_emission_factor_exergetic
+      port: network_loss_fraction
   - id: emission_factors
     name_de: Emissionsfaktoren
     name_en: Emission factors
@@ -601,29 +609,43 @@ datasets:
   - id: quality
     validation_rules:
     - {kind: value_range, enforcement: block_edit, min: 0, max: 1}
-- id: kommune/kwk_anlagenparameter                     # plant electricity fraction and supply temperature
+- id: kommune/kwk_anlagenparameter                     # plant electricity fraction, network temperatures and losses
   is_editable: true
   metrics:
+  # The two shares are entered in %, the temperatures in °C (degC), the units a utility and a
+  # climate coordinator use; BiskoChpNode converts them to dimensionless and K. A value_range is
+  # checked against the stored number in the metric's own unit, so the bounds below are in % and
+  # °C. Changed from dimensionless and K on 2026-10-24.
   - id: electricity_fraction
     validation_rules:
-    - {kind: value_range, enforcement: block_edit, min: 0, max: 1}
+    - {kind: value_range, enforcement: block_edit, min: 0, max: 100}
+  # Supply and return temperature of the heat network. The exergetic allocation weights heat by
+  # 1 - 283 K / T_m, T_m their thermodynamic mean, and 283 K (9.85 °C) is BISKO's ambient
+  # temperature, so both must be warmer than that. That the supply is not below the return is a
+  # relation between two metrics, which a value_range cannot state; BiskoChpNode refuses it.
   - id: t_supply
     validation_rules:
-    # BISKO fixes the return temperature at 283 K; the supply must be strictly warmer for
-    # the exergetic allocation to be defined.
-    - {kind: value_range, enforcement: block_edit, min: 283, exclusive_min: true}
-  # No `quality` metrics here, unlike the other municipal datasets. This is the one dataset whose
-  # binding is anonymous -- ChpNode resolves electricity_fraction / t_supply / t_return by name and
-  # so cannot pin a `column:`. The port resolver maps an anonymous input to its persisted ports by
-  # metric name, so a *new* metric has no port to match and falls through to the binding's whole
-  # port group, which holds two: `AmbiguousYamlPortReferenceError` on the next
-  # sync_instance_to_db. Tried on 2026-08-21 and reverted.
-  #
-  # The Prüfschritt 7.1 case for grading these is also the weakest of the set: they are plant
-  # operating parameters rather than balance input fields, and they are only reachable at all under
-  # Möglichkeit 1. If a certifier does ask for them, the fix belongs in the resolver -- teaching it
-  # that an unmatched metric on an anonymous binding should mint a fresh port rather than guess
-  # among the existing ones -- not in this declaration.
+    - {kind: value_range, enforcement: block_edit, min: 9.85, exclusive_min: true}
+  - id: t_return
+    validation_rules:
+    - {kind: value_range, enforcement: block_edit, min: 9.85, exclusive_min: true}
+  # Heat lost in the network as a share of the heat DELIVERED to consumers, not of the heat fed
+  # in: the factor at the house connection is the factor at the plant × (1 + losses). That is the
+  # definition of the Agentur's and ifeu's calculation aid, which the certifier checks against,
+  # and its 15 % is the shipped default -- the one value this dataset pre-fills, because BISKO
+  # sets none and the certifier asked for it (2026-10-23). Utilities usually report losses as a
+  # share of the heat fed in (AGFW); convert with L_delivered = L_fed / (1 - L_fed). Read by
+  # district_heating_emission_factor_exergetic. The upper bound is a plausibility limit: a
+  # network losing as much heat as it delivers is a data-entry error. (Named `_fraction`, like
+  # electricity_fraction and the quantity kind both carry; `network_loss_share` until 2026-10-24.)
+  - id: network_loss_fraction
+    validation_rules:
+    - {kind: value_range, enforcement: block_edit, min: 0, max: 100}
+  # No `quality` metrics here, unlike the other municipal datasets. The Prüfschritt 7.1 case for
+  # grading these is the weakest of the set: they are plant and network operating parameters rather
+  # than balance input fields, and they are only reachable at all under Möglichkeit 1. Since
+  # 2026-09-30 every consumer binds one `column:`, so a metric added here no longer falls through
+  # to an ambiguous port group on sync, which is what stopped the 2026-08-21 attempt.
 - id: kommune/gemeldete_emissionen               # the city's own reported inventory
   is_editable: true
   metrics:
@@ -916,7 +938,8 @@ dimensions:
     label_en: Geothermal
     label_de: Geothermie
     # 'geothermatl' was this category's id until 2026-10-08 -- a typo the factor tables were
-    # imported under. The alias keeps that data resolving here.
+    # imported under. The alias keeps imported data resolving here; the DVC bindings below
+    # explicitly rename the old id before the data enters the canonical category domain.
     aliases: [geothermatl, Geothermite]
     color: '#005757'
     group: heat
@@ -2272,6 +2295,17 @@ nodes:
     allocation divides the fuel emissions between heat and electricity, and the result becomes the
     network's own emission factor. A year the supplier has not reported falls through to
     Möglichkeit 3 or 2; <i>Own CHP plant data availability</i> reports which years those are.<br/>
+    The heat that the plants with entered fuel fed into the network goes in the row
+    <i>District heating / heat output</i>: it is the denominator of the factor. The other
+    heat-output rows are for heat whose fuel is not entered. Electricity output has no row; it
+    enters as the electricity fraction in the combined heat and power parameters.<br/>
+    <b>One combined heat and power system.</b> All fuel entered here is split between heat and
+    electricity with the one electricity fraction of <i>KWK-Anlagenparameter</i>, so Möglichkeit 1
+    describes a network supplied by a single CHP system. A network that also has separate
+    heat-only plants (peak-load boilers, power-to-heat) cannot be described here: their fuel would
+    be split as if it were CHP fuel and most of its emissions would be lost. For such a network,
+    declare the predominant generation variant (Möglichkeit 3) or use the standard factor
+    (Möglichkeit 2).<br/>
     Not to be confused with the <b>consumption side</b> — the district heating the four stationary
     sectors buy at the house connection, which is part of <i>Final energy use</i> and is what any
     Fernwärme emission factor is ultimately applied to, on all three routes.
@@ -2284,6 +2318,18 @@ nodes:
     entsteht der netzeigene Emissionsfaktor. Ein Jahr ohne Meldung des Versorgers fällt auf
     Möglichkeit 3 oder 2 zurück; „Datenverfügbarkeit der eigenen KWK-Anlagendaten" weist aus,
     welche Jahre das sind.<br/>
+    Die Wärme, die die Anlagen mit eingetragenem Brennstoffeinsatz ins Netz eingespeist haben,
+    gehört in die Zeile <i>Fernwärme / Wärmeabgabe</i>: Sie ist der Nenner des Faktors. Die übrigen
+    Wärmeabgabe-Zeilen sind für Wärme, deren Brennstoff nicht eingetragen ist. Für die
+    Stromerzeugung gibt es keine Zeile; sie geht als Stromanteil in die KWK-Anlagenparameter
+    ein.<br/>
+    <b>Ein KWK-System.</b> Der gesamte hier eingetragene Brennstoff wird mit dem einen Stromanteil
+    aus „KWK-Anlagenparameter" zwischen Wärme und Strom aufgeteilt; Möglichkeit 1 beschreibt also
+    ein Netz, das von einem einzigen KWK-System versorgt wird. Ein Netz mit zusätzlichen reinen
+    Wärmeerzeugern (Spitzenlastkessel, Power-to-Heat) lässt sich hier nicht abbilden: Ihr Brennstoff
+    würde wie KWK-Brennstoff aufgeteilt, und der größte Teil seiner Emissionen ginge verloren. Für
+    ein solches Netz die überwiegende Erzeugungsvariante erklären (Möglichkeit 3) oder den
+    Standardfaktor verwenden (Möglichkeit 2).<br/>
     Nicht zu verwechseln mit der <b>Verbrauchsseite</b> – der Fernwärme, die die vier stationären
     Sektoren am Hausanschluss beziehen. Diese steht in „Endenergieverbrauch" und ist die Größe, auf
     die ein Fernwärme-Emissionsfaktor auf allen drei Wegen letztlich angewendet wird.
@@ -2294,23 +2340,27 @@ nodes:
   input_dimensions: [energy_carrier, per_what_energy]
   output_dimensions: [energy_carrier, per_what_energy]
   input_datasets:
+  # No `extend`: a plant-data year is a year the supplier reported. Extending would carry the last
+  # reported year into later historical years, and since whether a year has plant data decides
+  # its BISKO route, that would change the method on figures nobody entered. The forecast holds
+  # the factor instead (`hold_into_forecast` in district_heating_emission_factor_exergetic).
   - id: kommune/fernwaerme_energieeinsatz
+    binding_owner: instance
     column: default
-    extend: true    # GenericNode extended its dataset; keep that explicit
-    forecast_from: 2024
-      # empty_to_zero: the plant template ships blank from 2026-08-21, and selection drops null
-      # values -- leaving no rows, so `_linear_interpolate` asserts on a null min_year long before
-      # anything says which dataset was empty. This node has to compute either way; the zeros decide
-      # nothing, because district_heating_emissions reads coverage from
-      # district_heating_plant_data_availability, which reads the same dataset untagged and so still
-      # sees the blanks. Until the template was blanked this binding needed no tag, because the
-      # dataset shipped zeros -- which is exactly the confusion finding 1.4 is about.
+    # empty_to_zero: the plant template ships blank from 2026-08-21, and selection drops null
+    # values -- leaving no rows, so `_linear_interpolate` asserts on a null min_year long before
+    # anything says which dataset was empty. This node has to compute either way; the zeros decide
+    # nothing: district_heating_emission_factor_exergetic requires both heat output and CHP
+    # parameters before the plant-data route is selected. Until the template was blanked this binding needed no tag, because the
+    # dataset shipped zeros -- which is exactly the confusion finding 1.4 is about.
     tags: [empty_to_zero]
     filters:
+    - rename_item: energy_carrier|geothermatl
+      value: geothermal
+      allow_missing: true
     - column: upstream_included
       value: 'yes'
 
-    binding_owner: instance
 - id: district_heating_fuel_emission_factors
   is_editable: false
   name_de: Fernwärme Brennstoffemissionfaktoren
@@ -2540,19 +2590,21 @@ nodes:
     For which year the city has supplied district heating plant data (1) and for which it has not
     (0). Read from the dataset before interpolation, zero-filling or extension, so an empty
     template does not claim to cover every year.<br/>
-    This is what selects BISKO Möglichkeit 1 in <code>district_heating_emissions</code>. Reported
-    per fuel and per side of the plant, because both the fuel input and the heat output are needed
-    before the exergetic allocation can produce a factor — a year with fuel input and no heat
-    output has nothing to divide by.<br/>
+    Reported per fuel and per side of the plant, because both the fuel input and the heat output
+    are needed before the exergetic allocation can produce a factor — a year with fuel input and no
+    heat output has nothing to divide by. Whether a year is computed by BISKO Möglichkeit 1 also
+    depends on the combined heat and power parameters; <i>BISKO district heating method in
+    force</i> shows the result.<br/>
     Values: 1 = a value has been entered, 0 = no value. The value has no unit.
   description_de: |
     Für welches Jahr die Kommune Anlagendaten zur Fernwärme geliefert hat (1) und für welches nicht
     (0). Gelesen wird der Datensatz vor Interpolation, Nullauffüllung und Fortschreibung, damit eine
     leere Vorlage nicht beansprucht, jedes Jahr abzudecken.<br/>
-    Damit wird in <code>district_heating_emissions</code> die BISKO-Möglichkeit 1 ausgewählt.
     Ausgewiesen je Brennstoff und je Seite der Anlage, denn für die exergetische Allokation werden
     sowohl der Brennstoffeinsatz als auch die Wärmeabgabe benötigt – ein Jahr mit Brennstoffeinsatz
-    ohne Wärmeabgabe hat keinen Nenner.<br/>
+    ohne Wärmeabgabe hat keinen Nenner. Ob ein Jahr nach BISKO-Möglichkeit 1 berechnet wird, hängt
+    außerdem von den KWK-Anlagenparametern ab; das Ergebnis zeigt <i>Angewandte BISKO-Möglichkeit
+    für Fernwärme</i>.<br/>
     Werte: 1 = ein Wert ist eingetragen, 0 = kein Wert. Der Wert hat keine Einheit.
   type: simple.DataAvailabilityNode
   quantity: fraction
@@ -2561,12 +2613,20 @@ nodes:
   output_dimensions: [energy_carrier, per_what_energy]
   input_datasets:
   - id: kommune/fernwaerme_energieeinsatz
+    binding_owner: instance
     column: default
     filters:
+    - rename_item: energy_carrier|geothermatl
+      value: geothermal
+      allow_missing: true
     - column: upstream_included
       value: 'yes'
   - id: de/kategorien_fernwaerme_anlagen
     tags: [template]
+    filters:
+    - rename_item: energy_carrier|geothermatl
+      value: geothermal
+      allow_missing: true
 
 - id: district_heating_emission_factor_predominant_variant
   is_editable: false
@@ -2650,28 +2710,41 @@ nodes:
     own plant data through the exergetic allocation, <b>2</b> the standard Fernwärme factor,
     <b>3</b> the declared Table 5 generation variant.<br/>
     There is no setting behind this. The route follows from what the city has supplied, one year at
-    a time: plant data wins where it exists, a declared variant where there is no plant data, and
-    the standard factor everywhere else. This node shows which route the model took in each
+    a time: plant data wins where it is complete, a declared variant where it is not, and the
+    standard factor everywhere else. This node shows which route the model took in each
     year.<br/>
-    Option 1 (the city's own plant data) is temporarily not offered; plant data that has been
-    entered does not affect the balance for now.<br/>
+    <b>When plant data counts as complete.</b> Möglichkeit 1 applies in a year only when all
+    three are entered for it: (1) the fuel input of the plants, (2) the heat they fed into the
+    network (row <i>District heating / heat output</i> of the plant data), and (3) the combined
+    heat and power parameters: the electricity fraction and the supply and return temperatures
+    of the network. The network losses are pre-filled with 15 %. A year missing any of these is
+    computed with Möglichkeit 3 or 2, and the plant data entered for it has no effect.
+    Möglichkeit 1 covers a network supplied by one combined heat and power system; a network that
+    also has separate heat-only plants is reported with Möglichkeit 3 or 2.<br/>
     The value is the code of the route (1, 2 or 3, as described above) and has no unit.
   description_de: |
     Welchen der drei BISKO-Wege für Fernwärme die Bilanz verwendet hat, je Jahr: <b>1</b> die
     eigenen Anlagendaten der Kommune über die exergetische Allokation, <b>2</b> den
     Standard-Fernwärmefaktor, <b>3</b> die erklärte Erzeugungsvariante aus Tabelle 5.<br/>
     Dahinter steht keine Einstellung. Der Weg ergibt sich jahresweise aus dem, was die Kommune
-    geliefert hat: Anlagendaten haben Vorrang, wo sie vorliegen, eine erklärte Variante dort, wo
-    keine Anlagendaten vorliegen, und sonst der Standardfaktor. Dieser Knoten zeigt, welchen Weg das
-    Modell in jedem Jahr genommen hat.<br/>
-    Möglichkeit 1 (eigene Anlagendaten der Kommune) wird vorübergehend nicht angeboten;
-    eingetragene Anlagendaten wirken sich vorerst nicht auf die Bilanz aus.<br/>
+    geliefert hat: Anlagendaten haben Vorrang, wo sie vollständig sind, eine erklärte Variante dort,
+    wo sie es nicht sind, und sonst der Standardfaktor. Dieser Knoten zeigt, welchen Weg das Modell
+    in jedem Jahr genommen hat.<br/>
+    <b>Wann Anlagendaten vollständig sind.</b> Möglichkeit 1 gilt in einem Jahr nur, wenn für
+    dieses Jahr alle drei Angaben vorliegen: (1) der Brennstoffeinsatz der Anlagen, (2) die Wärme,
+    die sie ins Netz eingespeist haben (Zeile <i>Fernwärme / Wärmeabgabe</i> der Anlagendaten), und
+    (3) die KWK-Anlagenparameter: Stromanteil sowie Vorlauf- und Rücklauftemperatur des Netzes. Die
+    Netzverluste sind mit 15 % vorbelegt. Fehlt eine davon, wird das Jahr nach Möglichkeit 3 oder 2
+    berechnet, und die dafür eingetragenen Anlagendaten wirken sich nicht aus. Möglichkeit 1
+    bildet ein Netz ab, das von einem KWK-System versorgt wird; ein Netz mit zusätzlichen reinen
+    Wärmeerzeugern wird nach Möglichkeit 3 oder 2 bilanziert.<br/>
     Der Wert ist der Code des Wegs (1, 2 oder 3, wie oben beschrieben) und hat keine Einheit.
   type: formula.FormulaNode
   quantity: fraction
   unit: dimensionless
   input_nodes:
-  # Option 1 is switched off for now (see district_heating_emissions), so code 1 cannot occur.
+  - id: district_heating_emission_factor_exergetic
+    tags: [plant]
   - id: district_heating_predominant_variant_availability
     tags: [variant]
     from_dimensions:
@@ -2684,7 +2757,9 @@ nodes:
     # would otherwise report a route the balance did not take.
     # inventory_only: an indicator about the data the balance ran on, so it ends at the last
     # historical year; a forecast year has no data for it to describe.
-    formula: inventory_only(min(variant, 1) * 3 + (1 - min(variant, 1)) * 2)
+    # (plant >= 0) is the plant-data coverage that district_heating_emissions uses, and it wins
+    # over the other two the same way: it is 1 -- the code -- in exactly the years it covers.
+    formula: inventory_only(prefer_by_year(plant >= 0, min(variant, 1) * 3 + (1 - min(variant, 1)) * 2, plant >= 0))
 
 - id: district_heating_emissions
   is_editable: false
@@ -2705,9 +2780,9 @@ nodes:
     year at a time, and an all-or-nothing switch makes it choose between discarding two years of
     plant data and losing every earlier year.<br/>
     Within one year the routes never mix: <code>prefer_by_year</code> serves a covered year
-    entirely from the preferred source. A year the city covered only partly is still that city's
-    year, and the gaps are reported by the availability nodes rather than filled from the
-    fallback.<br/>
+    entirely from the preferred source. A year counts as covered by plant data only when its factor
+    can be computed: fuel input, the heat fed into the network and the combined heat and power
+    parameters. Otherwise the year takes Möglichkeit 3 or 2.<br/>
     The selected total is distributed across sectors in proportion to each sector's share of the
     city's district heating consumption, because that is the only sector information the data
     carries.
@@ -2728,9 +2803,9 @@ nodes:
     Berichtsjahr für Berichtsjahr auf, und ein Alles-oder-nichts-Schalter zwingt sie zur Wahl
     zwischen dem Verwerfen zweier Jahre mit Anlagendaten und dem Verlust aller früheren Jahre.<br/>
     Innerhalb eines Jahres vermischen sich die Wege nie: <code>prefer_by_year</code> bedient ein
-    abgedecktes Jahr vollständig aus der bevorzugten Quelle. Ein von der Kommune nur teilweise
-    gefülltes Jahr bleibt ihr Jahr, und die Lücken werden von den Verfügbarkeitsknoten ausgewiesen,
-    statt aus dem Rückfallweg aufgefüllt zu werden.<br/>
+    abgedecktes Jahr vollständig aus der bevorzugten Quelle. Durch Anlagendaten abgedeckt ist ein
+    Jahr nur, wenn sich sein Faktor berechnen lässt: Brennstoffeinsatz, ins Netz eingespeiste Wärme
+    und KWK-Anlagenparameter. Sonst gilt für das Jahr Möglichkeit 3 oder 2.<br/>
     Die gewählte Gesamtmenge wird anteilig am Fernwärmeverbrauch der Sektoren verteilt, da die Daten
     keine andere Sektorinformation enthalten.
   type: formula.FormulaNode
@@ -2739,17 +2814,15 @@ nodes:
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_nodes:
-  # OPTION 1 (plant input and output data, exergetic allocation) IS SWITCHED OFF, 2026-10-15,
-  # until the certifier's consultation with ifeu on the method is settled; options 2 and 3 are
-  # enough for the review, and the BISKO check then does not depend on ifeu's answer. The
-  # plant-data nodes still compute, they just do not reach the balance. To restore, put back the
-  # two inputs and the formula below (git history has them verbatim):
-  #   - id: district_heating_emissions_exergetic        (tags: [plant], flatten per_what_energy and
-  #     energy_carrier, to_dimensions energy_carrier: [district_heating])
-  #   - id: district_heating_plant_data_availability    (tags: [plant_coverage], flatten both)
-  #   formula: empty_to_zero(prefer_by_year(plant, prefer_by_year(variant, standard,
-  #     variant_coverage), plant_coverage) * share / sum_dim(share, sector))
-  # and the plant term in district_heating_method_in_force.
+  # Möglichkeit 1 is valued as a factor on the consumption, not as the plant's allocated total,
+  # because BISKO's factor is per MWh of final energy and so includes the network losses.
+  - id: district_heating_emissions_plant_factor
+    tags: [plant]
+  # Coverage is the factor itself: it exists exactly in the years whose plant data contain a
+  # heat output and whose CHP parameters are complete. (factor >= 0) turns it into 1 for those
+  # years, so an all-renewable network whose factor is a genuine 0 still counts as covered.
+  - id: district_heating_emission_factor_exergetic
+    tags: [plant_factor]
   - id: district_heating_emissions_predominant_variant
     tags: [variant]
   - id: district_heating_emissions_standard
@@ -2780,7 +2853,8 @@ nodes:
     # zero sector total, and that is NaN rather than null. Semantically the right answer is zero --
     # no district heating, no district heating emissions. duesseldorf-bisko is the live case; its
     # series collapses to zero from 2020 (see data/TODO.md item 20).
-    value: empty_to_zero(prefer_by_year(variant, standard, variant_coverage) * share / sum_dim(share, sector))
+    value: empty_to_zero(prefer_by_year(plant, prefer_by_year(variant, standard, variant_coverage),
+      plant_factor >= 0) * share / sum_dim(share, sector))
 - id: stationary_emissions
   is_editable: false
   name_de: Stationäre Emissionen
@@ -2814,8 +2888,8 @@ nodes:
     emissions) are not included. The gases considered are CO<sub>2</sub>, CH<sub>4</sub>, and N<sub>2</sub>O, and the
     values are CO<sub>2</sub> equivalents for 100-year global warming potential.<br/>
     These emission factors were received from IFEU, and they are updated annually. The detailed data sources are given
-    in the dataset. There are two versions of this dataset, national and local, switched with the
-    national vs. local toggle in the 'Edit scenario' panel. The local one holds only what the city
+    in the dataset. There are two versions of this dataset, national and local, switched with
+    the setting <i>Use national rather than locally held emission factors</i>. The local one holds only what the city
     admin user has entered there: with the toggle on local, each energy carrier and year takes the
     local factor where there is one and the national factor otherwise, so a local table left empty
     gives the national result.
@@ -2827,7 +2901,7 @@ nodes:
     Treibhauspotenzial (GWP).<br/>
     Diese Emissionsfaktoren stammen von IFEU und werden jährlich aktualisiert. Die detaillierten Datenquellen sind
     im Datensatz angegeben. Es gibt zwei Versionen dieses Datensatzes, national und lokal, umschaltbar
-    mit dem national-vs.-lokal-Schalter im Panel „Szenario bearbeiten“. Die lokale enthält nur, was
+    mit der Einstellung <i>Nationale Emissionsfaktoren statt lokal hinterlegter nutzen</i>. Die lokale enthält nur, was
     die Stadt-Administration dort eingetragen hat: Steht der Schalter auf lokal, gilt für jeden
     Energieträger und jedes Jahr der lokale Faktor, wo es einen gibt, sonst der nationale – eine leer
     gelassene lokale Tabelle ergibt also das nationale Ergebnis.
@@ -2837,14 +2911,14 @@ nodes:
   input_dimensions: [energy_carrier]
   output_dimensions: [energy_carrier]
   input_datasets:
-  - id: de/emissionsfaktoren_endenergie    # standard ifeu dataset
+  - id: de/emissionsfaktoren_endenergie  # standard ifeu dataset
     tags: [national]
     filters:
     - column: per_what_energy
     - column: upstream_included
   - id: kommune/emissionsfaktoren_endenergie
-    tags: [local]
     binding_owner: instance
+    tags: [local]
   params:
   - id: formula
     value: extend_all(select_port(condition, national, coalesce_df(local, national)))
@@ -2870,7 +2944,7 @@ nodes:
     (grey emissions) are not included. The gases are CO<sub>2</sub>, CH<sub>4</sub> and
     N<sub>2</sub>O, as CO<sub>2</sub> equivalents over 100 years. They come from ifeu and are
     updated annually; the data sources are given in the dataset.<br/>
-    There are a national and a local version, switchable in the 'Edit scenario' panel. The local
+    There are a national and a local version, switchable with the setting <i>Use national rather than locally held emission factors</i>. The local
     one holds only what a city admin has entered: with the switch on local, each carrier and year
     takes the local factor where there is one and the national factor otherwise. A balance computed
     on local factors
@@ -2894,7 +2968,7 @@ nodes:
     Vorprodukte (graue Emissionen) sind nicht enthalten. Berücksichtigt sind CO<sub>2</sub>,
     CH<sub>4</sub> und N<sub>2</sub>O als CO<sub>2</sub>-Äquivalente über 100 Jahre. Sie stammen
     von ifeu und werden jährlich aktualisiert; die Datenquellen stehen im Datensatz.<br/>
-    Es gibt eine nationale und eine lokale Fassung, umschaltbar im Panel „Szenario bearbeiten". Die
+    Es gibt eine nationale und eine lokale Fassung, umschaltbar mit der Einstellung <i>Nationale Emissionsfaktoren statt lokal hinterlegter nutzen</i>. Die
     lokale enthält nur, was die Stadt-Administration eingetragen hat: Steht der Schalter auf lokal,
     gilt für jeden Energieträger und jedes Jahr der lokale Faktor, wo es einen gibt, sonst der
     nationale. Eine Bilanz auf lokalen Faktoren ist nicht BISKO-konform, und „Hat nationale Stromemissionsfaktoren?" fällt auf 0, sobald der Schalter
@@ -2912,13 +2986,13 @@ nodes:
   input_dimensions: [energy_carrier, per_what_energy]
   output_dimensions: [energy_carrier, per_what_energy]
   input_datasets:
-  - id: de/emissionsfaktoren_erzeugung    # ifeu dataset, name of tab in excel, rename at some point, does not filter by city here
+  - id: de/emissionsfaktoren_erzeugung  # ifeu dataset, name of tab in excel, rename at some point, does not filter by city here
     filters:
     - column: upstream_included
     tags: [national]
-  - id: kommune/emissionsfaktoren_erzeugung    # seeded from the national table; replace with city-specific values IF NEEDED
-    tags: [local]
+  - id: kommune/emissionsfaktoren_erzeugung  # seeded from the national table; replace with city-specific values IF NEEDED
     binding_owner: instance
+    tags: [local]
   params:
   - id: formula
     value: extend_all(select_port(condition, national, coalesce_df(local, national)))
@@ -2940,9 +3014,11 @@ nodes:
     included. The gases considered are CO<sub>2</sub>, CH<sub>4</sub>, and N<sub>2</sub>O, and the values
     are CO<sub>2</sub> equivalents for 100-year global warming potential.<br/>
     These emission factors were received from IFEU, and they are updated annually.
-    There are two versions of this dataset, national and local, switched with the national vs.
-    local toggle in the 'Edit scenario' panel. The local one holds only what the city admin user has
-    entered there: with the toggle on local, each energy carrier and year takes the local factor
+    BISKO Möglichkeit 1 uses the heat factors for heat fed into the district heating network whose
+    fuel input is not entered.<br/>
+    There are two versions of this dataset, national and local, switched with
+    the setting <i>Use national rather than locally held emission factors</i>. A balance on local factors is not BISKO-conform. The local one holds only what the
+    city admin user has entered there: with the toggle on local, each energy carrier and year takes the local factor
     where there is one and the national factor otherwise, so a local table left empty gives the
     national result.
   description_de: |
@@ -2958,8 +3034,10 @@ nodes:
     N<sub>2</sub>O, und die Werte sind CO<sub>2</sub>-Äquivalente für ein 100-jähriges
     Treibhauspotenzial (GWP).<br/>
     Diese Emissionsfaktoren stammen von IFEU und werden jährlich aktualisiert.
-    Es gibt zwei Versionen dieses Datensatzes, national und lokal, umschaltbar mit dem
-    national-vs.-lokal-Schalter im Panel „Szenario bearbeiten“. Die lokale enthält nur, was die
+    Die BISKO-Möglichkeit 1 verwendet die Wärmefaktoren für Wärme, die ins Fernwärmenetz eingespeist
+    wird, ohne dass ihr Brennstoffeinsatz eingetragen ist.<br/>
+    Es gibt zwei Versionen dieses Datensatzes, national und lokal, umschaltbar mit
+    der Einstellung <i>Nationale Emissionsfaktoren statt lokal hinterlegter nutzen</i>. Eine Bilanz auf lokalen Faktoren ist nicht BISKO-konform. Die lokale enthält nur, was die
     Stadt-Administration dort eingetragen hat: Steht der Schalter auf lokal, gilt für jeden
     Energieträger und jedes Jahr der lokale Faktor, wo es einen gibt, sonst der nationale – eine leer
     gelassene lokale Tabelle ergibt also das nationale Ergebnis.
@@ -2969,13 +3047,13 @@ nodes:
   input_dimensions: [energy_carrier, per_what_energy]
   output_dimensions: [energy_carrier, per_what_energy]
   input_datasets:
-  - id: de/emissionsfaktoren_ohne_brennstoffinput   # ifeu dataset, national value (not separated for municipalities)
+  - id: de/emissionsfaktoren_ohne_brennstoffinput # ifeu dataset, national value (not separated for municipalities)
     filters:
     - column: upstream_included
     tags: [national]
   - id: kommune/emissionsfaktoren_ohne_brennstoffinput
-    tags: [local]
     binding_owner: instance
+    tags: [local]
   params:
   - id: formula
     value: extend_all(select_port(condition, national, coalesce_df(local, national)))
@@ -3051,59 +3129,73 @@ nodes:
   description_en: |
     A combined heat and power plant burns one lot of fuel and sells two products, so its emissions
     have to be divided between them. BISKO criterion 6 prescribes how: the exergetic (Carnot)
-    method, which weights each product by the work it could do rather than by its energy content,
-    with the return temperature of the network fixed at 283 K. This moves the larger share of the
-    emissions onto electricity, because heat delivered at 373 K can do far less work than the same
-    quantity of electricity. This node computes the two fractions, which always sum to 1; the
-    district heating one is what
+    method, which weights each product by the work it could do rather than by its energy content.
+    Electricity counts in full. Heat counts with the factor 1 − 283 K / T<sub>m</sub>, where
+    283 K is the ambient temperature BISKO fixes and T<sub>m</sub> is the thermodynamic mean
+    temperature of the network, (T<sub>supply</sub> − T<sub>return</sub>) /
+    ln(T<sub>supply</sub> / T<sub>return</sub>). A network running at 110/60 °C gives 0.21. This
+    moves the larger share of the emissions onto electricity, because heat at that temperature can
+    do far less work than the same quantity of electricity. This node computes the two fractions,
+    which always sum to 1; the district heating one is what
     <code>district_heating_fuel_emission_factors</code> multiplies the fuel factors by. The
     electricity fraction is computed but deliberately unused: BISKO requires the national
     electricity factor rather than a locally derived one.<br/>
-    The node type is <code>BiskoChpNode</code>, which fixes the method and the return temperature
+    The node type is <code>BiskoChpNode</code>, which fixes the method and the ambient temperature
     in code. They cannot be changed here or in a scenario, so the conformity is a property of the
     model rather than of a setting somebody might edit.<br/>
-    What is city-specific is the electricity fraction of the plant's output and the supply
-    temperature of the network, and both move from year to year as the plant is dispatched
-    differently.
+    What is city-specific is the electricity fraction of the plant's output and the supply and
+    return temperatures of the network. All three move from year to year as the plant is
+    dispatched differently, and all three are required: the model does not substitute a typical
+    exergy factor for missing temperatures, so a year without them has no allocation.
   description_de: |
     Ein Heizkraftwerk verbrennt einen Brennstoff und verkauft zwei Produkte, seine Emissionen
     müssen also zwischen beiden aufgeteilt werden. BISKO-Kriterium 6 schreibt vor, wie: nach der
     exergetischen Methode (Carnot-Methode), die jedes Produkt nach seinem Arbeitsvermögen und
-    nicht nach seinem Energieinhalt gewichtet, mit einer auf 283 K festgelegten Rücklauftemperatur.
-    Dadurch entfällt der größere Teil der Emissionen auf den Strom, denn Wärme mit 373 K kann
-    weit weniger Arbeit leisten als dieselbe Menge Strom. Dieser Knoten berechnet die beiden
-    Faktoren, die sich stets zu 1 addieren; mit dem Fernwärmefaktor multipliziert
-    <code>district_heating_fuel_emission_factors</code> die Brennstofffaktoren. Der Stromfaktor
-    wird berechnet, aber bewusst nicht verwendet: BISKO verlangt den nationalen und nicht einen
-    lokal abgeleiteten Stromfaktor.<br/>
-    Der Knotentyp ist <code>BiskoChpNode</code>, der die Methode und die Rücklauftemperatur im Code
+    nicht nach seinem Energieinhalt gewichtet. Strom zählt voll. Wärme zählt mit dem Faktor
+    1 − 283 K / T<sub>m</sub>; dabei ist 283 K die von BISKO festgelegte Umgebungstemperatur und
+    T<sub>m</sub> die thermodynamische Mitteltemperatur des Netzes,
+    (T<sub>Vorlauf</sub> − T<sub>Rücklauf</sub>) / ln(T<sub>Vorlauf</sub> / T<sub>Rücklauf</sub>).
+    Ein Netz mit 110/60 °C ergibt 0,21. Dadurch entfällt der größere Teil der Emissionen auf den
+    Strom, denn Wärme auf diesem Temperaturniveau kann weit weniger Arbeit leisten als dieselbe
+    Menge Strom. Dieser Knoten berechnet die beiden Faktoren, die sich stets zu 1 addieren; mit
+    dem Fernwärmefaktor multipliziert <code>district_heating_fuel_emission_factors</code> die
+    Brennstofffaktoren. Der Stromfaktor wird berechnet, aber bewusst nicht verwendet: BISKO
+    verlangt den nationalen und nicht einen lokal abgeleiteten Stromfaktor.<br/>
+    Der Knotentyp ist <code>BiskoChpNode</code>, der die Methode und die Umgebungstemperatur im Code
     festlegt. Sie sind weder hier noch in einem Szenario änderbar, die Konformität ist also eine
     Eigenschaft des Modells und nicht einer Einstellung, die jemand bearbeiten könnte.<br/>
-    Stadtspezifisch sind der Stromanteil an der Erzeugung und die Vorlauftemperatur des Netzes, und
-    beide ändern sich von Jahr zu Jahr mit der Fahrweise der Anlage.
+    Stadtspezifisch sind der Stromanteil an der Erzeugung sowie die Vorlauf- und
+    Rücklauftemperatur des Netzes. Alle drei ändern sich von Jahr zu Jahr mit der Fahrweise der
+    Anlage, und alle drei sind erforderlich: Das Modell ersetzt fehlende Temperaturen nicht durch
+    einen typischen Exergiefaktor, ein Jahr ohne sie hat also keine Aufteilung.
   type: generic.BiskoChpNode
   quantity: fraction
   unit: '%'
   output_dimensions: [energy_carrier]
-  # No parameters: BiskoChpNode fixes the method, and everything else describes the physical
-  # plant, so it comes from the dataset and nowhere else. Each input is its own port, named after
-  # the column bound to it, one value per year: electricity_fraction (dimensionless) and t_supply
-  # (K). Series are interpolated over internal gaps and held constant outside the years they
-  # cover. Where a heat supplier gives a range rather than a figure (Mainz: 90-115 °C by season),
-  # the dataset carries the midpoint and the row comment carries the range.
-  # The shared dataset holds placeholders (0.3 and 373 K in every year); a city replaces it with
-  # its own via dataset_replacements once the utility delivers, and city admins can edit the
-  # values in the admin UI. A missing column is a sync error naming it.
+  # No parameters: BiskoChpNode fixes the method and the 283 K ambient temperature, and everything
+  # else describes the physical plant, so it comes from the dataset and nowhere else. Each input is
+  # its own port, named after the column bound to it, one value per year: electricity_fraction
+  # (%), t_supply and t_return (°C); the node converts. Only the years entered count; see
+  # BiskoChpNode. Where a heat supplier gives a range rather than a figure
+  # (Mainz: 90-115 °C by season), the dataset carries the midpoint and the row comment carries the
+  # range.
+  # The shared dataset carries the columns and no values, so a city that enters plant data without
+  # the parameters gets a validation problem rather than a stand-in. A city replaces it with its own
+  # via dataset_replacements once the utility delivers, and city admins can edit the values in the
+  # admin UI. A missing column is a sync error naming it.
   input_datasets:
   - id: kommune/kwk_anlagenparameter
+    binding_owner: instance
     column: electricity_fraction
-    binding_owner: instance
   - id: kommune/kwk_anlagenparameter
-    column: t_supply
-
-  #//////  Transport  /////////////////////////////////////////////////////////////////////////////////
-
     binding_owner: instance
+    column: t_supply
+  - id: kommune/kwk_anlagenparameter
+    binding_owner: instance
+    column: t_return
+
+#//////  Transport  /////////////////////////////////////////////////////////////////////////////////
+
 - id: passenger_kilometers_own
   is_editable: false
   name_en: Passenger kilometers - own data
@@ -4423,7 +4515,7 @@ nodes:
   name_de: Werden die Fernwärmeemissionen exergetisch alloziert?
   description_en: |
     BISKO criterion 6 requires the coupled products of combined heat and power to be split by
-    the exergetic (Carnot) method, with the district heating return temperature fixed at 283 K.
+    the exergetic (Carnot) method, with the ambient temperature fixed at 283 K.
     This node answers that question directly, and it is the only one of the conformity tests
     that can: it asks the allocation node itself which method it applies, rather than trying to
     infer the method from the numbers that came out of it.<br/>
@@ -4443,17 +4535,18 @@ nodes:
     much the city knows, not which method was applied, which is why
     <code>district_heating_method_in_force</code> reports the route separately instead of this
     node branching on it.<br/>
-    A locally edited factor would break that guarantee for Möglichkeit 2 and 3, and it is caught
-    by <code>has_national_electricity_emission_factors</code>, which gates on the same
+    No locally edited factor reaches Möglichkeit 2 or 3. A locally edited factor for heat without
+    fuel data can reach Möglichkeit 1, and it is caught by
+    <code>has_national_electricity_emission_factors</code>, which gates on the same
     <code>use_national_values</code> switch that selects the national factor tables.<br/>
-    What this node does <i>not</i> test is whether the electricity fraction and supply
-    temperature fed into the split are plausible. That is a separate question, and
+    What this node does <i>not</i> test is whether the electricity fraction and network
+    temperatures fed into the split are plausible. That is a separate question, and
     <code>has_district_heating_factor_within_bisko_variants</code> asks it as a diagnostic.<br/>
     Values: 1 = yes, 0 = no. The value has no unit.
   description_de: |
     BISKO-Kriterium 6 verlangt, dass die Koppelprodukte der Kraft-Wärme-Kopplung nach der
     exergetischen Methode (Carnot-Methode) aufgeteilt werden, mit einer auf 283 K festgelegten
-    Rücklauftemperatur. Dieser Knoten beantwortet genau diese Frage, und er ist der einzige der
+    Umgebungstemperatur. Dieser Knoten beantwortet genau diese Frage, und er ist der einzige der
     Konformitätstests, der das kann: Er fragt den Allokationsknoten selbst, welche Methode er
     anwendet, statt die Methode aus den Ergebniszahlen zu erschließen.<br/>
     Zwei Bedingungen müssen zusammen erfüllt sein. Die Methode muss die vorgeschriebene sein —
@@ -4472,10 +4565,11 @@ nodes:
     unterscheiden sich darin, wie viel die Kommune weiß, nicht darin, welche Methode angewandt
     wurde; deshalb weist <code>district_heating_method_in_force</code> den Weg gesondert aus, statt
     dass dieser Knoten danach verzweigt.<br/>
-    Ein lokal geänderter Faktor würde diese Zusicherung für die Möglichkeiten 2 und 3 aufheben; das
-    fängt <code>has_national_electricity_emission_factors</code> ab, der auf denselben Schalter
+    Kein lokal geänderter Faktor erreicht die Möglichkeiten 2 und 3. Ein lokal geänderter Faktor für
+    Wärme ohne Brennstoffangaben kann Möglichkeit 1 erreichen; das fängt
+    <code>has_national_electricity_emission_factors</code> ab, der auf denselben Schalter
     <code>use_national_values</code> prüft, der die nationalen Faktortabellen auswählt.<br/>
-    Nicht geprüft wird, ob der Stromanteil und die Vorlauftemperatur, die in die Aufteilung
+    Nicht geprüft wird, ob der Stromanteil und die Netztemperaturen, die in die Aufteilung
     eingehen, plausibel sind. Das ist eine eigene Frage, die
     <code>has_district_heating_factor_within_bisko_variants</code> als Diagnose stellt.<br/>
     Werte: 1 = ja, 0 = nein. Der Wert hat keine Einheit.
@@ -4655,6 +4749,9 @@ nodes:
     # until a city grades something, and an empty frame has no dimensions.
     tags: [empty_to_zero]
     filters:
+    - rename_item: energy_carrier|geothermatl
+      value: geothermal
+      allow_missing: true
     - column: upstream_included
       value: 'yes'
 
@@ -5756,10 +5853,17 @@ nodes:
   - id: kommune/fernwaerme_energieeinsatz
     column: default
     filters:
+    - rename_item: energy_carrier|geothermatl
+      value: geothermal
+      allow_missing: true
     - column: upstream_included
       value: 'yes'
   - id: de/kategorien_fernwaerme_anlagen
     tags: [template]
+    filters:
+    - rename_item: energy_carrier|geothermatl
+      value: geothermal
+      allow_missing: true
 
 - id: has_all_district_heating_energy_use_data
   is_editable: false
@@ -5931,37 +6035,87 @@ nodes:
   is_editable: false
   name_en: District heating emission factor from plant data
   name_de: Fernwärmeemissionsfaktor aus Anlagendaten
+  description_en: |
+    BISKO Möglichkeit 1: the emission factor of the city's own heat network, per MWh of final
+    energy at the house connection.<br/>
+    It is formed in two steps. First, the emissions allocated to heat by the exergetic method
+    (<i>District heating emissions from plant data</i>) are divided by the heat the plants fed
+    into the network. That gives the factor <i>ab Kraftwerk</i>. Second, the network losses are
+    added on top, because the consumers receive less heat than was fed in:
+    factor = factor ab Kraftwerk × (1 + losses). The losses are the heat lost in the network as a
+    share of the heat <b>delivered</b> to consumers, as in the calculation aid of the Agentur für
+    kommunalen Klimaschutz and ifeu. The default is 15 %; a city replaces it with its utility's
+    figure in <i>KWK-Anlagenparameter</i>.<br/>
+    A year has a factor only when the plant data contain a heat output <b>and</b> the
+    combined heat and power parameters are entered: the electricity fraction and the supply and
+    return temperatures. Fuel input alone has nothing to divide by, and without the parameters
+    the fuel emissions cannot be split. Such a year is served by Möglichkeit 3 or 2 instead, and
+    <i>Own CHP plant data availability</i> shows the gap.<br/>
+    The factor is that of a network supplied by one combined heat and power system; a network with
+    separate heat-only plants uses Möglichkeit 3 or 2 (see <i>District heating plant fuel input and
+    heat output</i>).
+  description_de: |
+    BISKO-Möglichkeit 1: der Emissionsfaktor des eigenen Wärmenetzes der Kommune, je MWh
+    Endenergie am Hausanschluss.<br/>
+    Er entsteht in zwei Schritten. Zuerst werden die Emissionen, die die exergetische Allokation
+    der Wärme zuteilt („Fernwärmeemissionen aus Anlagendaten"), durch die Wärme geteilt, die die
+    Anlagen ins Netz eingespeist haben. Das ergibt den Faktor ab Kraftwerk. Danach kommen die
+    Netzverluste hinzu, weil bei den Verbrauchern weniger Wärme ankommt als eingespeist wurde:
+    Faktor = Faktor ab Kraftwerk × (1 + Verluste). Die Verluste sind die im Netz verlorene Wärme
+    als Anteil der an die Verbraucher <b>abgegebenen</b> Wärme, wie in der Berechnungshilfe der
+    Agentur für kommunalen Klimaschutz und des ifeu. Voreingestellt sind 15 %; eine Kommune
+    ersetzt den Wert durch die Angabe ihres Versorgers in „KWK-Anlagenparameter".<br/>
+    Ein Jahr hat nur dann einen Faktor, wenn die Anlagendaten eine Wärmeabgabe enthalten
+    <b>und</b> die KWK-Anlagenparameter eingetragen sind: Stromanteil, Vorlauf- und
+    Rücklauftemperatur. Ein Brennstoffeinsatz allein hat keinen Nenner, und ohne die Parameter
+    lassen sich die Brennstoffemissionen nicht aufteilen. Ein solches Jahr wird nach
+    Möglichkeit 3 oder 2 bilanziert, und „Datenverfügbarkeit der eigenen KWK-Anlagendaten" weist
+    die Lücke aus.<br/>
+    Der Faktor ist der eines Netzes, das von einem KWK-System versorgt wird; ein Netz mit
+    zusätzlichen reinen Wärmeerzeugern verwendet Möglichkeit 3 oder 2 (siehe „Energieeinsatz und
+    Wärmeabgabe der Fernwärmeanlagen").
   type: formula.FormulaNode
   quantity: emission_factor
   unit: g_co2e/kWh
-  input_dimensions:
-  - energy_carrier
-  - per_what_energy
+  input_dimensions: [energy_carrier, per_what_energy]
   output_dimensions: []
   input_nodes:
   - id: district_heating_emissions_exergetic
-    tags:
-    - emissions
+    tags: [emissions]
   - id: district_heating_energy_use
-    tags:
-    - heat
+    tags: [heat]
     from_dimensions:
     - id: per_what_energy
-      categories:
-      - heat_output
+      categories: [heat_output]
       flatten: true
+  # The heat share of the exergetic split. Read only for whether it exists: a year whose plant
+  # parameters are blank has no split, so its fuel emissions are missing from `emissions`, and a
+  # factor formed from the rest would be too low -- zero, for a network of fuel-fired plants.
+  - id: combined_heat_and_power_chp_fraction
+    tags: [allocation]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [district_heating]
+      flatten: true
+  input_datasets:
+  # Read as entered, year by year, like every input of this factor: no interpolation and no
+  # backfill. The shipped template pre-fills 15 % in every year a city can report, so a year
+  # lacks losses only if someone deleted them, and then it has no factor.
+  - id: kommune/kwk_anlagenparameter
+    binding_owner: instance
+    column: network_loss_fraction
+    tags: [losses]
   params:
-    formula: sum_dim(sum_dim(emissions, energy_carrier), per_what_energy) / sum_dim(heat, energy_carrier)
-  input_validation:
-    # Möglichkeit 1 needs the network's heat output beside its fuel input. A year with fuel
-    # input and no heat output has no factor here, so `district_heating_emission_factor` serves
-    # it from the variant or the standard factor: a correct balance on another route, which is
-    # why the gap blocks submission and not publication. Any heat row satisfies it, since the
-    # formula only needs the total.
-    district_heating_energy_use:
-      required_if_positive: district_heating_emissions_exergetic
-      required: true
-      enforcement: block_submission
+    # drop_nans/drop_infs: a year whose plant data has no heat output divides by zero. It must
+    # have no factor rather than an infinite one, so that district_heating_emissions falls back
+    # to Möglichkeit 3 or 2 for it. (allocation >= 0) is 1 where the split exists and leaves no
+    # row where it does not, for the same reason. The products join on year, so a historical year
+    # has a factor only if plant data, split and losses were all entered for it.
+    #
+    # hold_into_forecast: forecast years -- and only those -- take the latest factor, held flat.
+    formula: hold_into_forecast(drop_infs(drop_nans(sum_dim(sum_dim(emissions, energy_carrier), per_what_energy) /
+      sum_dim(heat, energy_carrier))) * (1 + losses) * (allocation >= 0))
+
 - id: district_heating_emission_factor_standard
   is_editable: false
   name_en: Standard district heating emission factor
@@ -6003,23 +6157,14 @@ nodes:
   - id: district_heating_emission_factor_standard
     tags:
     - standard
-  - id: district_heating_energy_use
+  - id: district_heating_predominant_variant_availability
     tags:
-    - activity
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
-    - id: per_what_energy
-      flatten: true
-  - id: district_heating_predominant_variant
-    tags:
-    - declared
+    - variant_coverage
     from_dimensions:
     - id: energy_carrier
       flatten: true
   params:
-    formula: prefer_by_year(plant, prefer_by_year(variant, standard, qualifier(declared, reported.any)),
-      qualifier(activity, reported.any))
+    formula: prefer_by_year(plant, prefer_by_year(variant, standard, variant_coverage), plant >= 0)
 - id: has_valid_stationary_data
   is_editable: false
   name_en: Are stationary energy inputs complete and graded?
@@ -6057,3 +6202,34 @@ nodes:
     - variant
   params:
     formula: valid_inputs(balance) * valid_inputs(plant) * valid_inputs(variant)
+
+- id: district_heating_emissions_plant_factor
+  is_editable: false
+  name_en: District heating emissions from the plant data factor
+  name_de: Fernwärmeemissionen aus dem Faktor der Anlagendaten
+  description_en: |
+    BISKO Möglichkeit 1 in the balance: the city's district heating consumption valued with the
+    factor of its own network (<i>District heating emission factor from plant data</i>). The
+    consumption is the final energy the sectors buy at the house connection, so the factor is
+    the one that already includes the network losses.
+  description_de: |
+    BISKO-Möglichkeit 1 in der Bilanz: der Fernwärmeverbrauch der Kommune, bewertet mit dem
+    Faktor ihres eigenen Netzes („Fernwärmeemissionsfaktor aus Anlagendaten"). Der Verbrauch ist
+    die Endenergie, die die Sektoren am Hausanschluss beziehen; deshalb ist es der Faktor, der
+    die Netzverluste bereits enthält.
+  type: simple.MultiplicativeNode2
+  quantity: emissions
+  unit: kt_co2e/a
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_nodes:
+  - id: final_energy_use_corrected
+    from_dimensions:
+    - id: energy_carrier
+      categories: [district_heating]
+    - id: sector
+      flatten: true
+  - id: district_heating_emission_factor_exergetic
+    to_dimensions:
+    - id: energy_carrier
+      categories: [district_heating]
