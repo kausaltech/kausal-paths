@@ -554,7 +554,7 @@ def _rename_item(df: ppl.PathsDataFrame, op: RenameItemOp, env: PipelineEnv) -> 
     if df.schema[op.column] != pl.Utf8:
         series = series.cast(pl.Utf8)
     matches = df.filter(series == op.old_item)
-    if len(matches) == 0 and len(df) > 0:
+    if len(matches) == 0 and len(df) > 0 and not op.allow_missing:
         available = ', '.join(sorted(str(value) for value in df[op.column].unique().to_list()))
         env.fail(f"No value of column '{op.column}' is {op.old_item!r}. Available: {available}")
     return df.with_columns(pl.when(series == op.old_item).then(pl.lit(op.new_item)).otherwise(series).alias(op.column))
