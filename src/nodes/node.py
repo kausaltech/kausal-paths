@@ -2290,14 +2290,12 @@ class Node:
     def check(self):  # noqa: C901
         df = self.get_output_pl()
         for m in self.output_metrics.values():
-            if False:
-                # Nodes can now always have nulls in the output
-                nulls = df.filter(pl.col(m.column_id).is_null())
-                if len(nulls) and not self.allow_nulls:
-                    raise NodeError(self, 'Output has nulls in column %s' % m.column_id)
+            # Nulls are valid outputs; NaN and infinity are not.
             nans = df.filter(pl.col(m.column_id).is_nan())
             if len(nans):
                 raise NodeError(self, 'Output has NaNs in column %s' % m.column_id)
+            if df[m.column_id].is_infinite().any():
+                raise NodeError(self, 'Output has infinite values in column %s' % m.column_id)
 
         if self._baseline_values is not None:
             bdf = self._baseline_values
@@ -2305,6 +2303,8 @@ class Node:
                 nulls = bdf.filter(pl.col(m.column_id).is_null() | pl.col(m.column_id).is_nan())
                 if len(nulls):
                     raise NodeError(self, 'Baseline output has nulls or NaNs in column %s' % m.column_id)
+                if bdf[m.column_id].is_infinite().any():
+                    raise NodeError(self, 'Baseline output has infinite values in column %s' % m.column_id)
 
         try:
             dm = DimensionalMetric.from_node(self)
@@ -2314,6 +2314,8 @@ class Node:
             for v in dm.values:
                 if math.isnan(v):
                     raise NodeError(self, 'Output metric has NaNs')
+                if math.isinf(v):
+                    raise NodeError(self, 'Output metric has infinite values')
 
     def _filter_measure_datapoint_years(self, df: ppl.PathsDataFrame, dims: list[VisualizationNodeDimension]) -> list[int]:
         for dim in dims:
