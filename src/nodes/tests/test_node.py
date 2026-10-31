@@ -5,7 +5,7 @@ import polars as pl
 import pytest
 
 from common.polars import DataFrameMeta, to_ppdf
-from nodes.constants import VALUE_COLUMN, YEAR_COLUMN
+from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from nodes.dimensions import Dimension, DimensionCategory
 from nodes.edges import Edge, EdgeDimension
 from nodes.exceptions import NodeError
@@ -18,6 +18,24 @@ if TYPE_CHECKING:
     from nodes.node import Node
 
 pytestmark = pytest.mark.django_db
+
+
+@pytest.mark.parametrize('value', [math.inf, -math.inf])
+@pytest.mark.parametrize('baseline', [False, True])
+def test_node_check_rejects_infinity(node: Node, monkeypatch: pytest.MonkeyPatch, value: float, baseline: bool) -> None:
+    def frame(metric_value: float) -> PathsDataFrame:
+        return to_ppdf(
+            pl.DataFrame({YEAR_COLUMN: [2023], VALUE_COLUMN: [metric_value], FORECAST_COLUMN: [False]}),
+            meta=DataFrameMeta(units={VALUE_COLUMN: node.unit}, primary_keys=[YEAR_COLUMN]),
+        )
+
+    output = frame(1.0 if baseline else value)
+    monkeypatch.setattr(node, 'get_output_pl', lambda: output)
+    if baseline:
+        node._baseline_values = frame(value)
+    message = 'Baseline output' if baseline else 'Output'
+    with pytest.raises(NodeError, match=f'{message} has infinite values in column Value'):
+        node.check()
 
 
 def test_node_get_downstream_nodes(context: Context, node):
