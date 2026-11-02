@@ -1,11 +1,12 @@
 id: climaville-c4c
 default_language: en
-supported_languages: []
+supported_languages: [de]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: d9e5892252e0f6e81d9f2975df1ac8d7e9539c51
   dvc_remote: kausal-s3
 name_en: Climaville Greenhouse Gas Inventory
+name_de: Treibhausgasbilanz Climaville
 owner: City of Climaville
 theme_identifier: eu-climate-4-cast
 target_year: 2035
@@ -30,6 +31,7 @@ impact_overviews:
   effect_unit: t
   plot_limit_for_indicator: 10000
   label: Cost Efficiency
+  label_de: Kosteneffizienz
 
 - graph_type: cost_benefit
   effect_node: net_costs
@@ -37,303 +39,437 @@ impact_overviews:
   outcome_dimension: cost_type
   label_en: Cost-Benefit
   label_da: Kost-nytte
+  label_de: Kosten-Nutzen
 
 action_groups:
 - id: energy
   name_en: Energy
+  name_de: Energie
   color: '#4E79A7'
 - id: transportation
   name_en: Transportation
+  name_de: Verkehr
   color: '#E15759'
 - id: transportation_sump
   name_en: Transportation (Sustainable Urban Mobility Plan)
+  name_de: Verkehr (Plan für nachhaltige urbane Mobilität)
   color: '#E15759'
 - id: waste
   name_en: Waste
+  name_de: Abfall
   color: '#59A14F'
 - id: ippu
   name_en: Industrial Process & Product Use
+  name_de: Industrieprozesse und Produktverwendung
   color: '#F28E2B'
 - id: afolu
   name_en: Agriculture, Forestry & Other Land Use
+  name_de: Landwirtschaft, Forstwirtschaft und sonstige Landnutzung
   color: '#B07AA1'
 
 dimensions:
 - id: energy_usage
   label: Energy Usage
+  label_de: Energienutzung
   categories:
   - id: electricity_consumption
     label: Electricity Consumption
+    label_de: Stromverbrauch
   - id: distribution_loss
     label: Distribution Loss
+    label_de: Netzverluste
   - id: transportation
     label: Transportation
+    label_de: Verkehr
 
 - id: owner
   label: Owner
+  label_de: Eigentümer
   categories:
   - id: municipal
     label: Municipal
+    label_de: Kommunal
   - id: private
     label: Private
+    label_de: Privat
 
 - id: vehicle_type
   label: Vehicle Type
+  label_de: Fahrzeugtyp
   categories:
   - id: buses
     label: Buses
+    label_de: Busse
   - id: cycling
     label: Cycling
+    label_de: Radverkehr
   - id: mopeds
     label: Mopeds
+    label_de: Mopeds
   - id: motorcycles
     label: Motorcycles
+    label_de: Motorräder
   - id: passenger_cars
     label: Passenger Cars
+    label_de: Pkw
   - id: trucks
     label: Trucks
+    label_de: Lkw
   - id: vans
     label: Vans
+    label_de: Transporter
 
   - id: rail
     label: Rail
+    label_de: Schiene
   - id: inter_city_trains
     label: InterCity Trains
+    label_de: Fernverkehrszüge
   - id: light_rail
     label: Light Rail
+    label_de: Stadtbahn
   - id: local_trains
     label: Local Trains
+    label_de: Nahverkehrszüge
   - id: regional_trains
     label: Regional Trains
+    label_de: Regionalzüge
 
   - id: ferry
     label: Ferry
+    label_de: Fähren
   - id: aviation
     label: Aviation
+    label_de: Luftverkehr
 
 - id: emission_source
   label: Emission Source
+  label_de: Emissionsquelle
   categories:
   - id: digestion
     label: Digestion
+    label_de: Verdauung
   - id: housing_manure_storage
     label: Housing & Manure Storage
+    label_de: Stallhaltung und Wirtschaftsdüngerlagerung
 
 - id: ghg
   label: GHG
+  label_de: Treibhausgas
   categories:
   - id: co2
     label: CO2
+    label_de: CO2
   - id: co2e
     label: CO2e
+    label_de: CO2-Äq.
   - id: ch4
     label: CH4
+    label_de: CH4
   - id: n2o
     label: N2O
+    label_de: N2O
 
 - id: energy_carrier
   label: Energy Carrier
+  label_de: Energieträger
   categories:
   - id: ambient_industrial_waste_heat_geothermal_energy
     label: Ambient & Industrial Waste Heat, Geothermal Energy
+    label_de: Umweltwärme, industrielle Abwärme und Geothermie
   - id: bio_oil
     label: Bio Oil
+    label_de: Bioöl
   - id: bio_natural_gas
     label: Bio Natural Gas
+    label_de: Biomethan
   - id: biodegradable_waste
     label: Biodegradable Waste
+    label_de: Biologisch abbaubare Abfälle
   - id: biodiesel
     label: Biodiesel
+    label_de: Biodiesel
   - id: biogas
     label: Biogas
+    label_de: Biogas
   - id: coal
     label: Coal
+    label_de: Kohle
   - id: diesel
     label: Diesel
+    label_de: Diesel
   - id: electricity
     label: Electricity
+    label_de: Strom
   - id: fuel_oil
     label: Fuel Oil
+    label_de: Heizöl
   - id: gasoline
     label: Gasoline
+    label_de: Benzin
   - id: gasoline_hybrid
     label: Gasoline Hybrid
+    label_de: Benzin-Hybrid
   - id: jp_1_jp_4
     label: Kerosene
+    label_de: Kerosin
   - id: liquefied_petroleum_gas
     label: Liquefied Petroleum Gas (LPG)
+    label_de: Flüssiggas
   - id: natural_gas
     label: Natural Gas
+    label_de: Erdgas
   - id: non_biodegradable_waste
     label: Non-Biodegradable Waste
+    label_de: Biologisch nicht abbaubare Abfälle
   - id: other_renewable_energy
     label: Other Renewable Energy
+    label_de: Sonstige erneuerbare Energien
   - id: other_wood
     label: Other Wood
+    label_de: Sonstiges Holz
   - id: refinery_gas
     label: Refinery Gas
+    label_de: Raffineriegas
   - id: solar_power
     label: Solar Power
+    label_de: Solarstrom
   - id: straw
     label: Straw
+    label_de: Stroh
   - id: unclassified_biomass
     label: Unclassified Biomass
+    label_de: Nicht klassifizierte Biomasse
   - id: waste_oil
     label: Waste Oil
+    label_de: Altöl
   - id: wind_power
     label: Wind Power
+    label_de: Windstrom
   - id: wood_biomass_waste
     label: Wood & Biomass Waste
+    label_de: Holz- und Biomasseabfälle
   - id: wood_chips
     label: Wood Chips
+    label_de: Holzhackschnitzel
   - id: wood_pellets
     label: Wood Pellets
+    label_de: Holzpellets
   - id: import_electricity
     label: Import Electricity
+    label_de: Importierter Strom
   - id: biogenic_fuels
     label: Biogenic Fuels
+    label_de: Biogene Kraftstoffe
 
 - id: cost_type
   label: Cost Type
+  label_de: Kostenart
   categories:
   - id: infrastructure
     label: Infrastructure
+    label_de: Infrastruktur
   - id: operations
     label: Operations
+    label_de: Betrieb
 
 - id: sector
   label: Emission Sector
+  label_de: Emissionssektor
   categories:
   - id: i
     label: I Energy
+    label_de: I Energie
   - id: i1
     label: Combined Heat & Power (CHP)
+    label_de: Kraft-Wärme-Kopplung (KWK)
   - id: i11
     label: 'CHP: District Heat'
+    label_de: 'KWK: Fernwärme'
   - id: i12
     label: 'CHP: Electricity Generation'
+    label_de: 'KWK: Stromerzeugung'
   - id: i2
     label: I.2 Electricity
+    label_de: I.2 Strom
   - id: i21
     label: I.2.1 Renewable Electricity Generation
+    label_de: I.2.1 Erneuerbare Stromerzeugung
   - id: i22
     label: I.2.2 Electricity Demand
+    label_de: I.2.2 Strombedarf
   - id: i3
     label: I.3 Manufacturing
+    label_de: I.3 Verarbeitendes Gewerbe
   - id: i4
     label: I.4 Other
+    label_de: I.4 Sonstiges
   - id: i41
     label: 'I.4.1 Other: Heating'
+    label_de: 'I.4.1 Sonstiges: Heizen'
   - id: i42
     label: 'I.4.2 Other: Energy Consumption'
+    label_de: 'I.4.2 Sonstiges: Energieverbrauch'
   - id: i5
     label: I.5 Non-road
+    label_de: I.5 Mobile Maschinen
   - id: i51
     label: 'I.5.1 Non-road: Agriculture'
+    label_de: 'I.5.1 Mobile Maschinen: Landwirtschaft'
   - id: i52
     label: 'I.5.2 Non-road: Forestry'
+    label_de: 'I.5.2 Mobile Maschinen: Forstwirtschaft'
   - id: i53
     label: 'I.5.3 Non-road: Commercial & Institutional'
+    label_de: 'I.5.3 Mobile Maschinen: Gewerbe und öffentliche Einrichtungen'
   - id: i54
     label: 'I.5.4 Non-road: Residential'
+    label_de: 'I.5.4 Mobile Maschinen: Haushalte'
   - id: i55
     label: 'I.5.5 Non-road: Construction & Civil Engineering'
+    label_de: 'I.5.5 Mobile Maschinen: Hoch- und Tiefbau'
   - id: i56
     label: 'I.5.6 Non-road: Fishing'
+    label_de: 'I.5.6 Mobile Maschinen: Fischerei'
   - id: ii
     label: II Transportation
+    label_de: II Verkehr
   - id: ii1
     label: II.1 On-Road Transport
+    label_de: II.1 Straßenverkehr
   - id: ii2
     label: II.2 Rail Transport
+    label_de: II.2 Schienenverkehr
   - id: ii3
     label: II.3 Waterborne Transport
+    label_de: II.3 Schiffsverkehr
   - id: ii4
     label: II.4 Aviation
+    label_de: II.4 Luftverkehr
   - id: iii
     label: III Waste
+    label_de: III Abfall
   - id: iii1
     label: Landfill Waste
+    label_de: Deponierte Abfälle
   - id: iii2
     label: Biogas Production
+    label_de: Biogaserzeugung
   - id: iii3
     label: Wastewater
+    label_de: Abwasser
   - id: iv
     label: IPPU
+    label_de: Industrieprozesse und Produktverwendung
   - id: iv1
     label: 'IPPU: Industrial Processes'
+    label_de: Industrieprozesse
   - id: iv2
     label: 'IPPU: Product Use'
+    label_de: Produktverwendung
   - id: v
     label: AFOLU
+    label_de: Landwirtschaft, Forstwirtschaft und sonstige Landnutzung
   - id: v1
     label: Land
+    label_de: Flächen
   - id: v11
     label: Cultivation
+    label_de: Ackerbau
   - id: v111
     label: 'Cultivation: Conventional Farming'
+    label_de: 'Ackerbau: konventionell'
   - id: v112
     label: 'Cultivation: Organic Farming'
+    label_de: 'Ackerbau: ökologisch'
   - id: v13
     label: Forestry
+    label_de: Forstwirtschaft
   - id: v131
     label: 'Forestry: Permanent Forest'
+    label_de: 'Forstwirtschaft: Dauerwald'
   - id: v132
     label: 'Forestry: Afforestation'
+    label_de: 'Forstwirtschaft: Aufforstung'
   - id: v2
     label: Livestock
+    label_de: Nutztiere
   - id: v21
     label: Cattle
+    label_de: Rinder
   - id: v22
     label: Pigs
+    label_de: Schweine
   - id: v23
     label: Poultry
+    label_de: Geflügel
   - id: v24
     label: Other Livestock
+    label_de: Sonstige Nutztiere
   - id: v25
     label: Manure Delivered to Biogas Facilities
+    label_de: An Biogasanlagen gelieferter Wirtschaftsdünger
 
 - id: action
   label: Action
+  label_de: Maßnahme
   categories:
   - id: biocover_on_landfills
     label: Biocover on Landfills
+    label_de: Methanoxidationsschichten auf Deponien
   - id: biogenic_energy_park
     label: Biogenic Energy Park
+    label_de: Bioenergiepark
   - id: carbon_capture_and_storage
     label: Carbon Capture & Storage (CCS) for CHP Plant
+    label_de: CO2-Abscheidung und -Speicherung (CCS) im KWK-Kraftwerk
   - id: climate_supervision_and_action_plans
     label: Climate Supervision & Action Plans
+    label_de: Klimaaufsicht und Klimaschutzpläne
   - id: conversion_to_forestry_and_nature
     label: Conversion of Land to Forest
+    label_de: Umwandlung von Flächen in Wald
   - id: energy_efficiency_improvements
     label: Energy Efficiency Improvements
+    label_de: Energieeffizienzmaßnahmen
   - id: energy_efficient_municipal_buildings
     label: Energy Efficiency in Municipal Buildings
+    label_de: Energieeffizienz in kommunalen Gebäuden
   - id: extraction_of_organic_soils
     label: Extraction of Organic Soils
+    label_de: Herausnahme organischer Böden aus der Nutzung
   - id: green_materials_in_industry_and_construction
     label: Green Materials in Industry & Construction
+    label_de: Klimafreundliche Materialien in Industrie und Bau
   - id: green_district_heating_of_the_future
     label: Next-Generation Green District Heating
+    label_de: Klimafreundliche Fernwärme der nächsten Generation
   - id: expansion_of_renewable_energy
     label: Renewable Energy Development
+    label_de: Ausbau erneuerbarer Energien
   - id: sustainable_air_and_maritime_transport
     label: Sustainable Air & Maritime Transport
+    label_de: Nachhaltiger Luft- und Schiffsverkehr
   - id: sustainable_municipal_facilities
     label: Sustainable Municipal Facilities
+    label_de: Nachhaltige kommunale Einrichtungen
   - id: sustainable_soil_management
     label: Sustainable Surplus Soil Transportation
+    label_de: Nachhaltiger Transport von Überschussboden
   - id: optimized_and_emission_free_municipal_fleet
     label: Zero-Emission & Optimized Municipal Fleet
+    label_de: Emissionsfreier und optimierter kommunaler Fuhrpark
   - id: zero_emission_municipal_machinery_and_driving
     label: Zero-Emission Municipal Machinery
+    label_de: Emissionsfreie kommunale Maschinen
   - id: green_mobility_plan
     label: Zero-Emission Zone in City Center
+    label_de: Null-Emissions-Zone in der Innenstadt
 
 emission_sectors:
 - id: net_emissions
   name_en: Net Emissions
+  name_de: Nettoemissionen
   is_outcome: true
   target_year_goal: 0
 
@@ -341,6 +477,7 @@ nodes:
 
 - id: energy_emission_factors
   name_en: Energy Emission Factors
+  name_de: Emissionsfaktoren Energie
   type: simple.AdditiveNode
   quantity: emission_factor
   unit: kg/kWh
@@ -356,6 +493,7 @@ nodes:
 - id: energy_emissions
   name_en: Energy Emissions
   name_da: Energi
+  name_de: Emissionen Energie
   color: '#4E79A7'
   type: simple.AdditiveNode
   quantity: emissions
@@ -381,6 +519,7 @@ nodes:
 
 - id: chp_district_heat_energy_consumption
   name_en: CHP District Heat Energy Consumption (Excluding Electricity)
+  name_de: 'KWK-Fernwärme: Energieverbrauch (ohne Strom)'
   type: simple.AdditiveNode
   quantity: energy
   unit: MWh/a
@@ -402,6 +541,7 @@ nodes:
 
 - id: chp_district_heat_electricity_consumption
   name_en: CHP District Heat Electricity Consumption
+  name_de: 'KWK-Fernwärme: Stromverbrauch'
   type: simple.AdditiveNode
   quantity: energy
   unit: MWh/a
@@ -421,7 +561,9 @@ nodes:
 
 - id: chp_district_heat_emissions
   name_en: CHP District Heat Emissions
+  name_de: 'KWK-Fernwärme: Emissionen'
   short_name: District Heat Emissions
+  short_name_de: Emissionen Fernwärme
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t/a
@@ -439,6 +581,7 @@ nodes:
 
 - id: chp_electricity_generation_energy_consumption
   name_en: CHP Electricity Generation Energy Consumption
+  name_de: 'KWK-Stromerzeugung: Energieverbrauch'
   type: simple.AdditiveNode
   quantity: energy
   unit: MWh/a
@@ -456,7 +599,9 @@ nodes:
 
 - id: chp_electricity_generation_emissions
   name_en: CHP Electricity Generation Emissions
+  name_de: 'KWK-Stromerzeugung: Emissionen'
   short_name: Electricity Generation Emissions
+  short_name_de: Emissionen Stromerzeugung
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t/a
@@ -474,6 +619,7 @@ nodes:
 
 - id: chp_electricity_generation_energy_factors
   name_en: CHP Electricity Generation Energy Factors
+  name_de: 'KWK-Stromerzeugung: Energiefaktoren'
   type: simple.AdditiveNode
   quantity: energy_factor
   unit: MWh/MWh
@@ -491,6 +637,7 @@ nodes:
 
 - id: chp_electricity_generation_energy_production
   name_en: CHP Electricity Generation Energy Production
+  name_de: 'KWK-Stromerzeugung: Energieerzeugung'
   type: simple.MultiplicativeNode
   quantity: energy
   unit: MWh/a
@@ -506,6 +653,7 @@ nodes:
 
 - id: chp_emissions
   name_en: Combined Heat & Power (CHP) Emissions
+  name_de: Emissionen Kraft-Wärme-Kopplung (KWK)
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
@@ -524,6 +672,7 @@ nodes:
 
 - id: renewable_electricity_generation
   name_en: Renewable Electricity Generation
+  name_de: Erneuerbare Stromerzeugung
   type: simple.AdditiveNode
   quantity: energy
   unit: MWh/a
@@ -540,6 +689,7 @@ nodes:
 
 - id: electricity_demand
   name_en: Electricity Demand
+  name_de: Strombedarf
   type: simple.AdditiveNode
   quantity: energy
   unit: MWh/a
@@ -555,6 +705,7 @@ nodes:
 
 - id: electricity_import
   name_en: Electricity Import
+  name_de: Stromimport
   type: simple.AdditiveNode
   quantity: energy
   unit: MWh/a
@@ -588,6 +739,7 @@ nodes:
 
 - id: electricity_emissions
   name_en: Electricity Emissions
+  name_de: Emissionen Strom
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t/a
@@ -607,6 +759,7 @@ nodes:
 
 - id: manufacturing_energy_consumption
   name_en: Manufacturing Energy Consumption
+  name_de: Energieverbrauch verarbeitendes Gewerbe
   type: simple.AdditiveNode
   quantity: energy
   unit: MWh/a
@@ -623,6 +776,7 @@ nodes:
 
 - id: manufacturing_emissions
   name_en: Manufacturing Emissions
+  name_de: Emissionen verarbeitendes Gewerbe
   type: formula.FormulaNode
   quantity: emissions
   unit: t/a
@@ -649,6 +803,7 @@ nodes:
 
 - id: other_energy_consumption
   name_en: Other Energy Consumption
+  name_de: Sonstiger Energieverbrauch
   type: simple.AdditiveNode
   quantity: energy
   unit: MWh/a
@@ -661,7 +816,9 @@ nodes:
 
 - id: other_energy_heating_emissions
   name_en: Other Energy Heating Emissions
+  name_de: 'Emissionen sonstige Energie: Heizen'
   short_name: Heating Emissions
+  short_name_de: Emissionen Heizen
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t/a
@@ -679,7 +836,9 @@ nodes:
 
 - id: other_energy_consumption_emissions
   name_en: Other Energy Consumption Emissions
+  name_de: Emissionen sonstiger Energieverbrauch
   short_name: Consumption Emissions
+  short_name_de: Emissionen Energieverbrauch
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t/a
@@ -697,6 +856,7 @@ nodes:
 
 - id: other_energy_emissions
   name_en: Other Energy Emissions
+  name_de: Emissionen sonstige Energie
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
@@ -710,7 +870,9 @@ nodes:
 
 - id: nonroad_energy_agriculture_emissions
   name_en: Off-Road Energy Agriculture Emissions
+  name_de: 'Emissionen mobile Maschinen: Landwirtschaft'
   short_name: Agriculture Emissions
+  short_name_de: Emissionen Landwirtschaft
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
@@ -726,7 +888,9 @@ nodes:
 
 - id: nonroad_energy_forestry_emissions
   name_en: Off-Road Energy Forestry Emissions
+  name_de: 'Emissionen mobile Maschinen: Forstwirtschaft'
   short_name: Forestry Emissions
+  short_name_de: Emissionen Forstwirtschaft
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
@@ -742,7 +906,9 @@ nodes:
 
 - id: nonroad_energy_commercial_institutional_emissions
   name_en: Off-Road Energy Commercial & Institutional Emissions
+  name_de: 'Emissionen mobile Maschinen: Gewerbe und öffentliche Einrichtungen'
   short_name: Commercial & Institutional Emissions
+  short_name_de: Emissionen Gewerbe und öffentliche Einrichtungen
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
@@ -758,7 +924,9 @@ nodes:
 
 - id: nonroad_energy_residential_emissions
   name_en: Off-Road Energy Residential Emissions
+  name_de: 'Emissionen mobile Maschinen: Haushalte'
   short_name: Residential Emissions
+  short_name_de: Emissionen Haushalte
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
@@ -774,7 +942,9 @@ nodes:
 
 - id: nonroad_energy_construction_engineering_emissions
   name_en: Off-Road Energy Construction & Civil Engineering Emissions
+  name_de: 'Emissionen mobile Maschinen: Hoch- und Tiefbau'
   short_name: Construction & Civil Engineering Emissions
+  short_name_de: Emissionen Hoch- und Tiefbau
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
@@ -790,7 +960,9 @@ nodes:
 
 - id: nonroad_energy_fishing_emissions
   name_en: Off-Road Energy Fishing Emissions
+  name_de: 'Emissionen mobile Maschinen: Fischerei'
   short_name: Fishing Emissions
+  short_name_de: Emissionen Fischerei
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
@@ -806,6 +978,7 @@ nodes:
 
 - id: nonroad_energy_emissions
   name_en: Off-Road Energy Emissions
+  name_de: Emissionen mobile Maschinen
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
@@ -823,6 +996,7 @@ nodes:
 
 - id: transportation_energy_biogenic_shares
   name_en: Transportation Energy Biogenic Shares
+  name_de: Biogene Anteile Verkehrsenergie
   type: simple.AdditiveNode
   quantity: fraction
   unit: '%'
@@ -835,6 +1009,7 @@ nodes:
 
 - id: transportation_energy_emission_factors
   name_en: Transportation Energy Emission Factors
+  name_de: Emissionsfaktoren Verkehrsenergie
   type: simple.MultiplicativeNode
   quantity: emission_factor
   unit: kg/kWh
@@ -850,6 +1025,7 @@ nodes:
 
 - id: transportation_mileage_emission_factors
   name_en: Transportation Mileage Emission Factors
+  name_de: Emissionsfaktoren Fahrleistung Verkehr
   type: simple.AdditiveNode
   quantity: emission_factor
   unit: g/km
@@ -866,6 +1042,7 @@ nodes:
 
 - id: gasoline_hybrid_shares
   name_en: Transportation Energy Hybrid Shares
+  name_de: Hybridanteile Verkehrsenergie
   type: simple.AdditiveNode
   quantity: fraction
   unit: '%'
@@ -878,6 +1055,7 @@ nodes:
 
 - id: gasoline_hybrid_emission_factors
   name_en: Gasoline Hybrid Emission Factors
+  name_de: Emissionsfaktoren Benzin-Hybrid
   type: simple.MultiplicativeNode
   quantity: emission_factor
   unit: kg/kWh
@@ -897,6 +1075,7 @@ nodes:
 - id: transportation_emissions
   name_en: Transportation Emissions
   name_da: Transport og Mobilitet
+  name_de: Emissionen Verkehr
   color: '#E15759'
   type: simple.AdditiveNode
   quantity: emissions
@@ -920,6 +1099,7 @@ nodes:
 
 - id: onroad_transport_emissions
   name_en: On-Road Transport Emissions
+  name_de: Emissionen Straßenverkehr
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
@@ -939,6 +1119,7 @@ nodes:
 
 - id: onroad_transport_bus_mileage
   name_en: On-Road Transport Bus Mileage
+  name_de: 'Straßenverkehr: Fahrleistung Busse'
   type: simple.AdditiveNode
   quantity: mileage
   unit: km/a
@@ -957,6 +1138,7 @@ nodes:
 
 - id: onroad_transport_bus_energy_factors
   name_en: On-Road Transport Bus Energy Factors
+  name_de: 'Straßenverkehr: Energiefaktoren Busse'
   type: simple.AdditiveNode
   quantity: energy_factor
   unit: MJ/km
@@ -975,6 +1157,7 @@ nodes:
 
 - id: onroad_transport_bus_energy_consumption
   name_en: On-Road Transport Bus Energy Consumption
+  name_de: 'Straßenverkehr: Energieverbrauch Busse'
   type: simple.MultiplicativeNode
   quantity: energy
   unit: MWh/a
@@ -986,7 +1169,9 @@ nodes:
 
 - id: onroad_transport_bus_emissions
   name_en: On-Road Transport Bus Emissions
+  name_de: 'Straßenverkehr: Emissionen Busse'
   short_name: Bus Emissions
+  short_name_de: Emissionen Busse
   type: formula.FormulaNode
   quantity: emissions
   unit: t/a
@@ -1043,6 +1228,7 @@ nodes:
 
 - id: onroad_transport_vehicle_mileage_baseline
   name_en: On-Road Transport Vehicle Mileage (Baseline)
+  name_de: 'Straßenverkehr: Fahrleistung Fahrzeuge (Referenzszenario)'
   type: simple.AdditiveNode
   quantity: mileage
   unit: km/a
@@ -1062,6 +1248,7 @@ nodes:
 
 - id: onroad_transport_passenger_car_mileage_reduction_zez
   name_en: On-Road Transport Passenger Car Mileage Reduction (ZEZ)
+  name_de: 'Straßenverkehr: Rückgang der Pkw-Fahrleistung (Null-Emissions-Zone)'
   type: formula.FormulaNode
   quantity: mileage
   unit: km/a
@@ -1078,6 +1265,7 @@ nodes:
 
 - id: onroad_transport_vehicle_mileage
   name_en: On-Road Transport Vehicle Mileage
+  name_de: 'Straßenverkehr: Fahrleistung Fahrzeuge'
   type: simple.AdditiveNode
   quantity: mileage
   unit: km/a
@@ -1089,6 +1277,7 @@ nodes:
 
 - id: onroad_transport_vehicle_energy_factors
   name_en: On-Road Transport Vehicle Energy Factors
+  name_de: 'Straßenverkehr: Energiefaktoren Fahrzeuge'
   type: simple.AdditiveNode
   quantity: energy_factor
   unit: MJ/km
@@ -1108,6 +1297,7 @@ nodes:
 
 - id: onroad_transport_vehicle_energy_consumption
   name_en: On-Road Transport Vehicle Energy Consumption
+  name_de: 'Straßenverkehr: Energieverbrauch Fahrzeuge'
   type: simple.MultiplicativeNode
   quantity: energy
   unit: MWh/a
@@ -1119,7 +1309,9 @@ nodes:
 
 - id: onroad_transport_passenger_car_emissions
   name_en: On-Road Transport Passenger Car Emissions
+  name_de: 'Straßenverkehr: Emissionen Pkw'
   short_name: Passenger Car Emissions
+  short_name_de: Emissionen Pkw
   type: formula.FormulaNode
   quantity: emissions
   unit: t/a
@@ -1187,7 +1379,9 @@ nodes:
 
 - id: onroad_transport_truck_emissions
   name_en: On-Road Transport Truck Emissions
+  name_de: 'Straßenverkehr: Emissionen Lkw'
   short_name: Truck Emissions
+  short_name_de: Emissionen Lkw
   type: formula.FormulaNode
   quantity: emissions
   unit: t/a
@@ -1240,7 +1434,9 @@ nodes:
 
 - id: onroad_transport_van_emissions
   name_en: On-Road Transport Van Emissions
+  name_de: 'Straßenverkehr: Emissionen Transporter'
   short_name: Van Emissions
+  short_name_de: Emissionen Transporter
   type: formula.FormulaNode
   quantity: emissions
   unit: t/a
@@ -1308,7 +1504,9 @@ nodes:
 
 - id: onroad_transport_other_emissions
   name_en: On-Road Transport Bicycle, Moped & Motorcycle Emissions
+  name_de: 'Straßenverkehr: Emissionen Fahrräder, Mopeds und Motorräder'
   short_name: Bicycle, Moped & Motorcycle Emissions
+  short_name_de: Emissionen Fahrräder, Mopeds und Motorräder
   type: formula.FormulaNode
   quantity: emissions
   unit: t/a
@@ -1361,6 +1559,7 @@ nodes:
 
 - id: rail_transport_mileage
   name_en: Rail Transport Mileage
+  name_de: 'Schienenverkehr: Fahrleistung'
   type: simple.AdditiveNode
   quantity: mileage
   unit: km/a
@@ -1377,6 +1576,7 @@ nodes:
 
 - id: rail_transport_energy_factors
   name_en: Rail Transport Energy Factors
+  name_de: 'Schienenverkehr: Energiefaktoren'
   type: simple.AdditiveNode
   quantity: energy_factor
   unit: kWh/km
@@ -1393,6 +1593,7 @@ nodes:
 
 - id: rail_transport_energy_consumption
   name_en: Rail Transport Energy Consumption
+  name_de: 'Schienenverkehr: Energieverbrauch'
   type: simple.MultiplicativeNode
   quantity: energy
   unit: MWh/a
@@ -1404,7 +1605,9 @@ nodes:
 
 - id: rail_transport_regional_train_emissions
   name_en: Rail Transport Regional Train Emissions
+  name_de: 'Schienenverkehr: Emissionen Regionalzüge'
   short_name: Regional Train Emissions
+  short_name_de: Emissionen Regionalzüge
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t/a
@@ -1425,7 +1628,9 @@ nodes:
 
 - id: rail_transport_inter_city_train_emissions
   name_en: Rail Transport InterCity Train Emissions
+  name_de: 'Schienenverkehr: Emissionen Fernverkehrszüge'
   short_name: InterCity Train Emissions
+  short_name_de: Emissionen Fernverkehrszüge
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t/a
@@ -1446,7 +1651,9 @@ nodes:
 
 - id: rail_transport_local_train_emissions
   name_en: Rail Transport Local Train Emissions
+  name_de: 'Schienenverkehr: Emissionen Nahverkehrszüge'
   short_name: Local Train Emissions
+  short_name_de: Emissionen Nahverkehrszüge
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t/a
@@ -1467,7 +1674,9 @@ nodes:
 
 - id: rail_transport_light_rail_emissions
   name_en: Rail Transport Light Rail Emissions
+  name_de: 'Schienenverkehr: Emissionen Stadtbahn'
   short_name: Light Rail Emissions
+  short_name_de: Emissionen Stadtbahn
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t/a
@@ -1488,6 +1697,7 @@ nodes:
 
 - id: rail_transport_emissions
   name_en: Rail Transport Emissions
+  name_de: Emissionen Schienenverkehr
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
@@ -1510,6 +1720,7 @@ nodes:
 
 - id: waterborne_transport_energy_consumption
   name_en: Waterborne Transport Energy Consumption
+  name_de: Energieverbrauch Schiffsverkehr
   type: simple.AdditiveNode
   quantity: energy
   unit: MWh/a
@@ -1526,6 +1737,7 @@ nodes:
 
 - id: waterborne_transport_emissions
   name_en: Waterborne Transport Emissions
+  name_de: Emissionen Schiffsverkehr
   type: formula.FormulaNode
   quantity: emissions
   unit: t/a
@@ -1559,6 +1771,7 @@ nodes:
 
 - id: aviation_energy_consumption
   name_en: Aviation Energy Consumption
+  name_de: Energieverbrauch Luftverkehr
   type: simple.AdditiveNode
   quantity: energy
   unit: MWh/a
@@ -1575,6 +1788,7 @@ nodes:
 
 - id: aviation_emissions
   name_en: Aviation Emissions
+  name_de: Emissionen Luftverkehr
   type: formula.FormulaNode
   quantity: emissions
   unit: t/a
@@ -1605,6 +1819,7 @@ nodes:
 
 - id: waste_emissions
   name_en: Waste Emissions
+  name_de: Emissionen Abfall
   color: '#B07AA1'
   type: simple.AdditiveNode
   quantity: emissions
@@ -1624,6 +1839,7 @@ nodes:
 
 - id: ippu_emissions
   name_en: Industrial Process & Product Use Emissions
+  name_de: Emissionen Industrieprozesse und Produktverwendung
   color: '#f28e2b'
   type: simple.AdditiveNode
   quantity: emissions
@@ -1646,6 +1862,7 @@ nodes:
 - id: afolu_emissions
   name_en: Agriculture, Forestry & Other Land Use Emissions
   name_da: Natur og Landbrug
+  name_de: Emissionen Landwirtschaft, Forstwirtschaft und sonstige Landnutzung
   color: '#59A14F'
   type: simple.AdditiveNode
   quantity: emissions
@@ -1668,6 +1885,7 @@ nodes:
 
 - id: land_emission_factors
   name_en: Land Emission Factors
+  name_de: Emissionsfaktoren Flächen
   type: simple.AdditiveNode
   quantity: emission_factor
   unit: t/ha/a
@@ -1681,6 +1899,7 @@ nodes:
 
 - id: land_areas
   name_en: Land Areas
+  name_de: Flächen
   type: simple.AdditiveNode
   quantity: area
   unit: ha
@@ -1696,6 +1915,7 @@ nodes:
 
 - id: cultivation_emissions
   name_en: Cropland Emissions
+  name_de: Emissionen Ackerland
   type: formula.FormulaNode
   quantity: emissions
   unit: t/a
@@ -1724,6 +1944,7 @@ nodes:
 
 - id: forestry_emissions
   name_en: Forest Sequestration
+  name_de: Kohlenstoffbindung im Wald
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t/a
@@ -1740,6 +1961,7 @@ nodes:
 
 - id: land_emissions
   name_en: Land Emissions
+  name_de: Emissionen Flächen
   type: simple.AdditiveNode
   quantity: emissions
   unit: t/a
@@ -1753,6 +1975,7 @@ nodes:
 
 - id: livestock_emission_factors
   name_en: Livestock Emission Factors
+  name_de: Emissionsfaktoren Nutztiere
   type: simple.AdditiveNode
   quantity: emission_factor
   unit: kg/count/a
@@ -1766,6 +1989,7 @@ nodes:
 
 - id: livestock_counts
   name_en: Livestock Counts
+  name_de: Nutztierbestand
   type: simple.AdditiveNode
   quantity: number
   unit: count
@@ -1782,6 +2006,7 @@ nodes:
 
 - id: livestock_emissions
   name_en: Livestock Emissions
+  name_de: Emissionen Nutztiere
   type: formula.FormulaNode
   quantity: emissions
   unit: t/a
@@ -1806,6 +2031,7 @@ nodes:
 
 - id: energy_costs
   name_en: Energy Costs
+  name_de: Energiekosten
   color: '#4E79A7'
   type: simple.AdditiveNode
   quantity: currency
@@ -1817,6 +2043,7 @@ nodes:
 
 - id: transportation_costs
   name_en: Transportation Costs
+  name_de: Kosten Verkehr
   color: '#E15759'
   type: simple.AdditiveNode
   quantity: currency
@@ -1828,6 +2055,7 @@ nodes:
 
 - id: waste_costs
   name_en: Waste Costs
+  name_de: Kosten Abfall
   color: '#59A14F'
   type: simple.AdditiveNode
   quantity: currency
@@ -1839,6 +2067,7 @@ nodes:
 
 - id: ippu_costs
   name_en: Industrial Process & Product Use Costs
+  name_de: Kosten Industrieprozesse und Produktverwendung
   color: '#F28E2B'
   type: simple.AdditiveNode
   quantity: currency
@@ -1850,6 +2079,7 @@ nodes:
 
 - id: afolu_costs
   name_en: Agriculture, Forestry & Other Land Use Costs
+  name_de: Kosten Landwirtschaft, Forstwirtschaft und sonstige Landnutzung
   color: '#B07AA1'
   type: simple.AdditiveNode
   quantity: currency
@@ -1861,6 +2091,7 @@ nodes:
 
 - id: net_costs
   name_en: Net Costs
+  name_de: Nettokosten
   type: simple.AdditiveNode
   quantity: currency
   unit: EUR/a
@@ -1871,6 +2102,7 @@ actions:
 # ----- Energy
 - id: carbon_capture_and_storage
   name_en: Carbon Capture and Storage (CCS) for the Combined Heat and Power (CHP) Plant
+  name_de: CO2-Abscheidung und -Speicherung (CCS) im Kraft-Wärme-Kopplungs-Kraftwerk (KWK)
   group: energy
   type: simple.AdditiveAction
   input_dimensions: [energy_carrier, energy_usage, cost_type, sector, ghg]
@@ -1922,6 +2154,7 @@ actions:
 
 - id: energy_efficiency_improvements
   name_en: Energy Efficiency Improvements in Residential and Commercial Buildings
+  name_de: Energieeffizienzmaßnahmen in Wohn- und Gewerbegebäuden
   group: energy
   type: simple.AdditiveAction
   input_dimensions: [energy_carrier, energy_usage, cost_type, sector]
@@ -1970,6 +2203,7 @@ actions:
 
 - id: energy_efficient_municipal_buildings
   name_en: Energy Efficiency Improvements in Climaville Municipal Buildings
+  name_de: Energieeffizienzmaßnahmen in den kommunalen Gebäuden von Climaville
   group: energy
   type: simple.AdditiveAction
   input_dimensions: [energy_carrier, energy_usage, cost_type, sector]
@@ -2037,6 +2271,7 @@ actions:
 
 - id: expansion_of_renewable_energy
   name_en: 'Renewable Energy Development: New Wind and Solar Infrastructure'
+  name_de: 'Ausbau erneuerbarer Energien: neue Wind- und Solaranlagen'
   group: energy
   type: simple.AdditiveAction
   input_dimensions: [energy_carrier, cost_type, sector]
@@ -2084,6 +2319,7 @@ actions:
 
 - id: green_district_heating_of_the_future
   name_en: Next-Generation Green District Heating Programme
+  name_de: Programm für klimafreundliche Fernwärme der nächsten Generation
   group: energy
   type: simple.AdditiveAction
   input_dimensions: [energy_carrier, cost_type, sector]
@@ -2140,6 +2376,7 @@ actions:
 
 - id: sustainable_municipal_facilities
   name_en: Sustainable Construction and Municipal Facilities
+  name_de: Nachhaltiges Bauen und kommunale Einrichtungen
   group: energy
   type: simple.AdditiveAction
   input_dimensions: [energy_carrier, cost_type, sector, ghg]
@@ -2178,6 +2415,7 @@ actions:
 
 - id: zero_emission_municipal_machinery_and_driving
   name_en: Zero-Emission Municipal Machinery
+  name_de: Emissionsfreie kommunale Maschinen
   group: energy
   type: simple.AdditiveAction
   quantity: emissions
@@ -2200,6 +2438,7 @@ actions:
 # ----- Transportation
 - id: optimized_and_emission_free_municipal_fleet
   name_en: Zero-Emission and Optimized Municipal Vehicle Fleet
+  name_de: Emissionsfreier und optimierter kommunaler Fuhrpark
   group: transportation
   type: simple.AdditiveAction
   input_dimensions: [vehicle_type, energy_carrier, cost_type, sector]
@@ -2237,6 +2476,7 @@ actions:
 
 - id: sustainable_air_and_maritime_transport
   name_en: Sustainable Fuel and Electrification in Air and Maritime Transportation
+  name_de: Nachhaltige Kraftstoffe und Elektrifizierung im Luft- und Schiffsverkehr
   group: transportation
   type: simple.AdditiveAction
   input_dimensions: [vehicle_type, energy_carrier, cost_type, sector]
@@ -2285,6 +2525,7 @@ actions:
 
 - id: sustainable_soil_management
   name_en: Sustainable Surplus Soil Transportation
+  name_de: Nachhaltiger Transport von Überschussboden
   group: transportation
   type: simple.AdditiveAction
   input_dimensions: [vehicle_type, energy_carrier, cost_type, sector]
@@ -2323,6 +2564,7 @@ actions:
 # ----- Sustainable Urban Mobility Plan
 - id: green_mobility_2a2_zero_emission_zone
   name_en: Zero-Emission Zone (ZEZ) in the Climaville City Center
+  name_de: Null-Emissions-Zone in der Innenstadt von Climaville
   group: transportation_sump
   type: simple.AdditiveAction
   input_dimensions: [sector, cost_type]
@@ -2361,6 +2603,7 @@ actions:
 - id: biocover_on_landfills
   name_en: Biocover on Landfills
   name_da: Biocover på deponier
+  name_de: Methanoxidationsschichten auf Deponien
   group: waste
   type: simple.AdditiveAction
   input_dimensions: [sector, ghg, cost_type]
@@ -2396,6 +2639,7 @@ actions:
 - id: green_materials_in_industry_and_construction
   name_en: Green Materials in Industry and Construction
   name_da: Klimavenlige materialer i industrien og byggeriet
+  name_de: Klimafreundliche Materialien in Industrie und Bau
   group: ippu
   type: simple.AdditiveAction
   input_dimensions: [sector, ghg, cost_type]
@@ -2431,6 +2675,7 @@ actions:
 - id: biogenic_energy_park
   name_en: Biogenic Energy Park
   name_da: Biogen energipark
+  name_de: Bioenergiepark
   group: afolu
   type: simple.AdditiveAction
   input_dimensions: [sector, emission_source, cost_type, ghg]
@@ -2481,6 +2726,7 @@ actions:
 - id: climate_supervision_and_action_plans
   name_en: Climate Supervision and Action Plans
   name_da: Klimatilsyn og klimahandleplaner
+  name_de: Klimaaufsicht und Klimaschutzpläne
   group: afolu
   type: simple.AdditiveAction
   input_dimensions: [sector, cost_type, ghg]
@@ -2516,6 +2762,7 @@ actions:
 - id: conversion_to_forestry_and_nature
   name_en: Conversion to Forestry and Nature
   name_da: Omdannelse til skov og natur
+  name_de: Umwandlung in Wald- und Naturflächen
   group: afolu
   type: simple.AdditiveAction
   input_dimensions: [sector, cost_type]
@@ -2549,6 +2796,7 @@ actions:
 - id: extraction_of_organic_soils
   name_en: Extraction of Organic Soils
   name_da: Udtagning af lavbundsjord
+  name_de: Herausnahme organischer Böden aus der Nutzung
   group: afolu
   type: simple.AdditiveAction
   input_dimensions: [sector, cost_type]
@@ -2582,20 +2830,25 @@ actions:
 pages:
 - id: home
   name_en: Climaville Greenhouse Gas Inventory
+  name_de: Treibhausgasbilanz Climaville
   path: /
   type: emission
   outcome_node: net_emissions
   lead_title: Climate Action Decision Support (CADS) Tool
+  lead_title_de: Entscheidungshilfe für Klimaschutzmaßnahmen (CADS-Tool)
   lead_paragraph: The Climate Action Decision Support (CADS) Tool was developed by the Climate-4-CAST project, funded by the EU Interreg Baltic Sea Region Programme.
+  lead_paragraph_de: Die Entscheidungshilfe für Klimaschutzmaßnahmen (Climate Action Decision Support, CADS) wurde im Projekt Climate-4-CAST entwickelt, gefördert durch das EU-Programm Interreg Ostseeraum (Baltic Sea Region).
 
 scenarios:
 - id: baseline
   name_en: Baseline
+  name_de: Referenzszenario
 
 - id: default
   default: true
   name_en: Climate Action Plan
   name_da: Klimaplanen 2025-2030
+  name_de: Klimaschutzplan
   all_actions_enabled: true
   params:
   - id: carbon_capture_and_storage.enabled
