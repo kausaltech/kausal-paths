@@ -1641,13 +1641,15 @@ class InstanceLoader:
                 self.db_datasets = {}
                 return
             self.instance.config = ic
+        # Keyed by the binding's runtime dataset id: the identifier, or the uuid of a
+        # dataset that has none, as the published loader and the snapshot do.
         ds_objs = list(
             DBDatasetModel.objects.qs
             .for_instance_config(ic)
-            .filter(is_external_placeholder=False, identifier__isnull=False)
+            .filter(is_external_placeholder=False)
             .only('uuid', 'identifier', 'last_modified_at', 'spec', 'is_external_placeholder')
         )
-        self.db_datasets = {cast('str', ds.identifier): ds for ds in ds_objs}
+        self.db_datasets = {ds.identifier or str(ds.uuid): ds for ds in ds_objs}
         from nodes.dataset_materialization import ensure_dataset_materializations
         from nodes.datasets import CurrentDatasetPayloadStore, DatasetPayloadRef
 
@@ -1658,18 +1660,17 @@ class InstanceLoader:
             materialization = by_dataset.get(dataset.pk)
             if materialization is None:
                 raise RuntimeError(f'Dataset {dataset.uuid} could not be materialized')
-            assert dataset.identifier is not None
             ref = DatasetPayloadRef(
                 payload_id=materialization.pk,
                 dataset_pk=dataset.pk,
                 dataset_uuid=str(dataset.uuid),
-                identifier=dataset.identifier,
+                identifier=dataset.identifier or str(dataset.uuid),
                 content_hash=materialization.content_hash,
                 generation=materialization.generation,
                 forecast_from=materialization.forecast_from,
             )
             refs.append(ref)
-            self.db_dataset_refs[dataset.identifier] = ref
+            self.db_dataset_refs[ref.identifier] = ref
         self.dataset_payload_store = CurrentDatasetPayloadStore(refs)
 
     def _finish_init(self) -> None:

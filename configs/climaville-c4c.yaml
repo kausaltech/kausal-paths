@@ -20,6 +20,7 @@ emission_dimensions: [ghg]
 features:
   baseline_visible_in_graphs: true
   use_datasets_from_db: true
+  forecast_after_maximum_historical_year: true
   enable_user_management: true
 
 impact_overviews:

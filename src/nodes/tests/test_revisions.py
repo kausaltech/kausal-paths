@@ -28,6 +28,7 @@ from nodes.models import NodeInputPortBinding
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory, NodeConfigFactory
 
 if TYPE_CHECKING:
+    from nodes.datasets import DatasetWithFilters
     from nodes.models import InstanceConfig
 
 
@@ -863,7 +864,7 @@ def test_dataset_binding_snapshot_pins_dataset_revision(empty_db_instance: Insta
     assert source.dataset_revision == pinned_rev
 
 
-def _make_materialized_dataset(instance_config: InstanceConfig, identifier: str, value: str):
+def _make_materialized_dataset(instance_config: InstanceConfig, identifier: str | None, value: str):
     from datetime import date
     from decimal import Decimal
 
@@ -988,7 +989,7 @@ def test_draft_and_published_runtime_share_serialized_dataset_path(empty_db_inst
     from django.db import transaction
 
     from nodes.dataset_materialization import refresh_dataset_materialization
-    from nodes.datasets import DatasetWithFilters, SerializedDBDataset
+    from nodes.datasets import SerializedDBDataset
     from nodes.defs.node_defs import SimpleConfig
     from nodes.defs.port_def import InputPortDef, OutputPortDef
     from nodes.models import NodeConfig, PreferredInstanceSource
@@ -1064,6 +1065,43 @@ def test_draft_and_published_runtime_share_serialized_dataset_path(empty_db_inst
         republished.context.nodes['runtime_node'].input_dataset_instances[0],
     )
     assert float(republished_dataset.get_copy()['value'][0]) == 20
+
+
+def test_dataset_without_identifier_loads_in_draft_and_published_runtime(empty_db_instance: InstanceConfig):
+    """A dataset with no identifier is bound by its uuid, and both runtimes must find it by that."""
+    from typing import cast
+
+    from nodes.defs.node_defs import SimpleConfig
+    from nodes.defs.port_def import InputPortDef, OutputPortDef
+    from nodes.models import NodeConfig, PreferredInstanceSource
+    from nodes.tests.test_model_editor import SIMPLE_NODE_CLASS, _port_uuid
+    from nodes.units import unit_registry
+
+    assert empty_db_instance.spec is not None
+    empty_db_instance.spec.features.use_datasets_from_db = True
+    empty_db_instance.save(update_fields=['spec'])
+
+    dataset, metric, _point, _materialization = _make_materialized_dataset(empty_db_instance, None, '10')
+    port_id = _port_uuid('anonymous-value')
+    unit = unit_registry.parse_units('t/a')
+    node = NodeConfig.objects.create(
+        instance=empty_db_instance,
+        identifier='anonymous_node',
+        name='Anonymous node',
+        spec=NodeSpec(
+            type_config=SimpleConfig(node_class=SIMPLE_NODE_CLASS),
+            input_ports=[InputPortDef(id=port_id, unit=unit, quantity='emissions')],
+            output_ports=[OutputPortDef(id=_port_uuid('anonymous-output'), unit=unit, quantity='emissions')],
+        ),
+    )
+    NodeInputPortBinding.objects.create(instance=empty_db_instance, node=node, port_id=port_id, dataset=dataset, metric=metric)
+
+    empty_db_instance.publish_instance()
+    empty_db_instance.refresh_from_db()
+    for source in (PreferredInstanceSource.DRAFT, PreferredInstanceSource.PUBLISHED):
+        instance = empty_db_instance._create_from_config(source=source)
+        (runtime_dataset,) = instance.context.nodes['anonymous_node'].input_dataset_instances
+        assert float(cast('DatasetWithFilters', runtime_dataset).get_copy()['value'][0]) == 10
 
 
 def test_current_dataset_payload_store_bulk_loads_once(empty_db_instance: InstanceConfig):
