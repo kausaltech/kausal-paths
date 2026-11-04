@@ -887,6 +887,13 @@ def push_to_dvc(
 
     # TODO If pushing fails and you end up having a local commit, you cannot push again.
     # Then, you can just remove the local cache, e.g. rm -rf /Users/jouni/Library/Caches/dvc-pandas/
+    # Or push the stranded commit by hand: git -C <cache clone> push origin master.
+    # A push the server refuses for one branch fails *silently*: dvc-pandas' Repository.push() calls
+    # pygit2's remote.push() with GitRemoteCallbacks, which has no push_update_reference callback,
+    # and pygit2 reports a per-branch refusal only through that callback. The upload then prints
+    # "Dataset pushed" while the commit exists only in the cache clone, and the next run fails with
+    # "Current HEAD is 1 commits ahead". Fix in dvc-pandas: raise from push_update_reference when
+    # its message is set, so push_dataset() rolls the local commit back as it does for other errors.
     repo.push_dataset(ds)
     print(f'Dataset pushed to DVC at {output_path}')
 

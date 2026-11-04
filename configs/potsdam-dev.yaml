@@ -1,13 +1,29 @@
+# GENERATED from potsdam-gpc.yaml by paths-data models/potsdam/scripts/make_potsdam_dev.py.
+# Do not edit; edit potsdam-gpc.yaml and re-run the script.
+
+# log 2025-08-27
+# Trend-Szenario and MASTERPLAN-Szenario are taken from Zielwerte Masterplan V3.4
+#  https://docs.google.com/spreadsheets/d/1KRb2OxOsz9DHG31R6KkE5pxQqz9MUcwF/edit?gid=1016792586#gid=1016792586
+# Comparison: Sheets Kerndaten and action add have identical data. Only the calculated values differ. --> Use Kerndaten.
+# The new action impacts from action impact 20250815.xlsx are used.
+# https://docs.google.com/spreadsheets/d/1pW5Un-rUGLyM8FbMdsRELq4W9Q_ZNx_b/edit?gid=1524147948#gid=1524147948
+# Comparison showed that energietraeger_GHD.xlsx and other 4 energy files from KlimaSchutz-Planer are very close although not identical to Zielwerte Masterplan V3.4.xlsx. So, the Masterplan data is now used.
+# Procedure:
+# Use the Actual values when available and Trend Scenario values for forecasts.
+# 1 Sum up all action impacts as emissions. Plain GenericNode
+# 2 Split the total impact to energy carriers by using the Trend scenario energy variable with tag use_as_shares.
+# 3 Compute the impact in correct units by dividiing the emission impact by energy or emission factor.
+# 4 Add the impact to the Trend scenario emission factor or energy, respectively.
 
 id: potsdam-dev
 default_language: de
 supported_languages: [en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 2ce1d2c008e5f10c78c2c394a9e8823cba6081c8
+  commit: a11e56aa20e14944d712aa63dd3332c61ad9f120
   dvc_remote: kausal-s3
 name: Treibhausgas-Monitor (Entwurf)
-owner: Stadt Potsdam
+owner: Landeshauptstadt Potsdam
 theme_identifier: de-potsdam
 target_year: 2045
 model_end_year: 2050
@@ -25,7 +41,14 @@ terms:
   custom_scenario: Eigenes Szenario
   custom_scenario_en: My own scenario
 
-impact_overviews:
+# ProPotsdam sub-model: a draft made to show modelling options, not commissioned. It lives in
+# modules/pro_potsdam.yaml; to bring it back, uncomment the include, the impact_overviews and the
+# ProPotsdam params of the scenarios `default` and `additional_actions` (all marked "ProPotsdam").
+# potsdam-dev is this file with those blocks uncommented.
+include:
+- file: modules/pro_potsdam.yaml
+
+impact_overviews:  # ProPotsdam
 
 - graph_type: simple_effect
   effect_node: pro_potsdam_emissions
@@ -53,10 +76,10 @@ impact_overviews:
 
 params:
 - id: weather_correction
-  label_de: Wärmeverbrauch witterungsbereinigt (auf ein Normaljahr umgerechnet)
-  label_en: Weather-corrected heat use (converted to an average year)
-  # The UI shows only the label of a switch, not its description, so the label has to explain
-  # itself. The description is for the API and for a UI that shows it later.
+  # Label agreed with the city on 19 Oct 2026. The UI shows only the label of a switch, not its
+  # description; the description is for the API and for a UI that shows it later.
+  label_de: Verbrauch witterungsbereinigt
+  label_en: Weather-corrected consumption
   description_de: Ein kalter Winter erhöht den Heizenergieverbrauch, ein milder senkt ihn. Ist
     der Schalter an, wird der Wärmeverbrauch jedes Jahres auf ein durchschnittliches Wetterjahr
     umgerechnet, damit sich die Jahre vergleichen lassen. Grundlage sind die Heizgradtage für
@@ -82,16 +105,11 @@ params:
   is_visible: false
 
 action_groups:
-# Four groups since 5 Oct 2026, for a shorter actions list: heat no longer split into networks and
-# individual supply, and one group each for electricity and transport.
-- id: heat_generation
-  name: Ausbau Erneuerbare Energien in der Wärmeerzeugung
-  name_en: Expansion of Renewable Energy in Heat Generation
+# Three groups since 4 Nov 2026, one per sector of the Masterplan, for a short actions list.
+- id: heat
+  name: Wärme
+  name_en: Heat
   color: '#D4691A'
-- id: heat_consumption
-  name: Änderung im Wärmeverbrauch
-  name_en: Changes in Heat Consumption
-  color: '#B85450'
 - id: electricity
   name: Strom
   name_en: Electricity
@@ -102,153 +120,162 @@ action_groups:
   color: '#0505A0'
 
 dimensions:
-# Copied from frameworks/standard_dims.yaml on 5 Oct 2026, with only the categories Potsdam's data
-# and config use, and no longer included: Potsdam's labels, help texts and colours are its own.
-- id: cost_type
-  label_en: Cost Type
-  label_de: Kostenart
-  help_text_de: Die Wohnkosten der Mieterinnen und Mieter der ProPotsdam nach Art, die
-    Energiekosten für Wärme und die Kaltmiete. Die Zahlen sind vorläufige Platzhalter, bis die
-    Daten der ProPotsdam vorliegen.
-  help_text_en: The housing costs of ProPotsdam's tenants by type, the energy costs for heat and
-    the cold rent. The figures are placeholders until ProPotsdam's data arrive.
-  categories:
-  - id: energy_costs
-    label_en: Energy Costs
-    label_de: Energiekosten
-  - id: rent
-    label_en: Cold rent
-    label_de: Kaltmiete
-
+# Copied from frameworks/standard_dims.yaml on 5 Oct 2026 (in potsdam-dev), with only the
+# categories Potsdam's data and config use, and no longer included: Potsdam's labels, help texts
+# and colours are its own.
 - id: energy_carrier
   label_en: Energy carrier
   label_de: Energieträger
   help_text_de: Die Energie nach Brennstoff oder Versorgungsart. Fernwärme und Nahwärme kommen aus
     Wärmenetzen, und ihre Emissionen hängen davon ab, womit das Netz die Wärme erzeugt.
-    Umweltwärme ist die Wärme, die Wärmepumpen aus Luft, Boden oder Wasser gewinnen; den Strom
-    dafür zeigt der Heizstrom.
+    Umweltwärme ist die Wärme, die Wärmepumpen aus Luft, Boden oder Wasser gewinnen; ihr sind
+    auch die Emissionen des Stroms zugerechnet, den die Wärmepumpen verbrauchen. Heizstrom ist
+    nur der Strom für Nachtspeicherheizungen im Heizstromtarif.
   help_text_en: Energy by fuel or type of supply. District heating and local heating networks
     supply heat through a network, and their emissions depend on what the network makes the heat
     from. Environmental heat is the heat that heat pumps take from air, ground or water; the
-    electricity they use is shown as heating electricity.
+    emissions of the electricity the heat pumps use are counted with it. Heating electricity is
+    only the electricity for night storage heaters on the heating tariff.
   categories:
   - id: petrol
     label_en: Petrol
     label_de: Benzin
     aliases: [benzin_fossil, benzin, gasoline]
-    color: '#B71C1C'
+    color: '#eb6834'
   - id: bio_petrol
     label_en: Bio petrol
     label_de: Biobenzin
     aliases: [benzin_biogen, biobenzin]
-    color: '#4A7C1F'
+    color: '#184f95'
   - id: diesel
     label_en: Diesel
     label_de: Diesel
     aliases: [diesel_fossil]
-    color: '#8B0000'
+    color: '#1baf7a'
   - id: biodiesel
     label_en: Biodiesel
     label_de: Diesel biogen
     aliases: [diesel_biogen]
-    color: '#386113'
+    color: '#a8401a'
   - id: heating_oil
     label_en: Heating oil
     label_de: Heizöl
     aliases: [heizol]
-    color: '#7B1A00'
+    color: '#6250d6'
   - id: natural_gas
     label_en: Natural gas
     label_de: Erdgas
     aliases: [gas, erdgas]
-    color: '#1A5276'
+    color: '#2a78d6'
   - id: lpg
     label_en: LPG (Liquefied petroleum gas)
     label_de: LPG
-    color: '#BF4500'
+    color: '#4d4d4d'
   - id: cng_fossil
     label_en: CNG fossil
     label_de: CNG fossil
-    color: '#154360'
+    color: '#3b2e8a'
   - id: biogas
     label_en: Biogas
     label_de: Biogas
     aliases: [biogas]
-    color: '#0D6B4D'
+    color: '#f3b3cb'
   - id: hard_coal
     label_en: Hard coal
     label_de: Steinkohle
     aliases: [kohle, steinkohle]
-    color: '#2C2C2C'
+    color: '#e34948'
   - id: biomass
     label_en: Biomass
     label_de: Biomasse
     aliases: [biomasse]
-    color: '#2E7D32'
+    color: '#0e6b4a'
   - id: electricity
     label_en: Electricity
     label_de: Strom
     aliases: [strom, electric]
-    color: '#1565C0'
+    color: '#eda100'
   - id: driving_electricity
     label_en: Driving electricity
     label_de: Fahrstrom
     aliases: [fahrstrom, strom_fahrstrom]
-    color: '#5C6BC0'
+    color: '#f6cf6b'
   - id: heating_electricity
     label_en: Heating electricity
     label_de: Heizstrom
     aliases: [heizstrom]
-    color: '#6A1B9A'
+    color: '#8a5e00'
   - id: district_heating
     label_en: District heating
     label_de: Fernwärme
     aliases: [fernwarme]
-    color: '#922B00'
+    color: '#e87ba4'
   - id: local_heating
     label_en: Local heating
     label_de: Nahwärme
     aliases: [nahwarme]
-    color: '#A33300'
+    color: '#f5a582'
   - id: solar_thermal
     label_en: Solar thermal
     label_de: Solarthermie
     aliases: [solarthermie]
-    color: '#BF5C00'
+    color: '#86b6ef'
   - id: environmental_heat
     label_en: Environmental heat / Heat pump
     label_de: Umweltwärme
     aliases: [umweltwarme]
-    color: '#006D6D'
+    color: '#008300'
   - id: hydrogen
     label_en: Hydrogen
     label_de: Wasserstoff
     aliases: [wasserstoff]
-    color: '#007A8A'
+    color: '#a99cf0'
+  # Rows of potsdam-gpc's city-edited datasets carry these three, all empty except a few
+  # emissions of other_conventional in heating.
+  - id: kerosene
+    label_en: Kerosene
+    label_de: Kerosin
+    aliases: [kerosin]
+    color: '#7fd6b5'
+  - id: other_renewables
+    label_en: Other renewables
+    label_de: Sonstige Erneuerbare
+    aliases: [sonstige_erneuerbare]
+    color: '#a3456f'
+  - id: other_conventional
+    label_en: Other conventional
+    label_de: Sonstige Konventionelle
+    aliases: [sonstige_konventionelle]
+    color: '#c4c4c4'
 
 - id: sector
   label_en: Sector
   label_de: Sektoren
-  help_text_de: Die Sektoren des Masterplans 100% Klimaschutz, Wärme, Strom und Verkehr. Der Strom
-    für Heizungen und Wärmepumpen (Heizstrom) zählt zur Wärme, der Strom für Elektrofahrzeuge
-    (Fahrstrom) zum Verkehr.
+  help_text_de: Die Sektoren des Masterplans 100% Klimaschutz, Wärme, Strom und Verkehr. Zur Wärme
+    zählen der Strom für Nachtspeicherheizungen (Heizstrom) und die Emissionen des Stroms für
+    Wärmepumpen (in der Umweltwärme), zum Verkehr der Strom für Elektrofahrzeuge (Fahrstrom).
   help_text_en: The sectors of the Master Plan 100% Climate Protection, heat, electricity and
-    transport. Electricity for heating and heat pumps counts as heat, and electricity for
-    electric vehicles as transport.
+    transport. Heat includes the electricity for night storage heaters and the emissions of the
+    electricity for heat pumps (in environmental heat), and transport the electricity for
+    electric vehicles.
+  # The colours of the sector nodes (electricity_emissions, heating_emissions, transport_emissions),
+  # so that a sector looks the same in the node split and in this dimension.
   categories:
   - id: transport
     label_en: Transport
     label_de: Verkehr
     aliases: [verkehr, Mobilität]
-    color: '#5341a4' # IKKA colors from https://koeln-klima-copy1.watch-test.kausal.tech/thg
+    color: '#299575'
   - id: electricity
     label_en: Electricity
     label_de: Strom
     aliases: [strom]
+    color: '#2B729C'
   - id: heating
     label_en: Heating
     label_de: Wärme
     aliases: [warme]
+    color: '#9C2B54'
 
 - id: decision
   label_en: Decision
@@ -350,28 +377,11 @@ dimensions:
     label_en: Actual
     aliases: [aktual]
 
-- id: stakeholder
-  label_en: Stakeholder
-  label_de: Akteur
-  help_text_de: Wer die Kosten trägt. Bisher sind nur die Kosten der Mieterinnen und Mieter
-    berechnet; ProPotsdam, Stadt und Gesellschaft kommen hinzu, wenn die Daten vorliegen.
-  help_text_en: Who bears the costs. So far only the tenants' costs are calculated; ProPotsdam,
-    the city and society follow when the data arrive.
-  categories:
-  - id: tenant
-    label_en: Tenant
-    label_de: Mieterin / Mieter
-  - id: pro_potsdam
-    label_en: ProPotsdam
-    label_de: ProPotsdam
-  - id: city
-    label_en: City of Potsdam
-    label_de: Stadt Potsdam
-  - id: society
-    label_en: Society / Climate
-    label_de: Gesellschaft / Klima
-
 emission_sectors:
+
+# Sector goals: the Masterplan 100% Klimaschutz scenario, THG block of sheet Kerndaten in
+# Zielwerte Masterplan V3.4.xlsx, t/a converted to kt/a. They sum to the goal of net_emissions, and
+# like it they put the workbook's 2050 value at 2045, the target year.
 
 - id: electricity_emissions
   name: Strom-Emissionen
@@ -383,6 +393,21 @@ emission_sectors:
     from_dimensions:
     - id: sector
       categories: [electricity]
+  - id: heat_pump_electricity_emissions
+    tags: [arithmetic_inverse]
+  goals:
+  - label_de: Ziel Strom-Emissionen
+    label_en: Electricity emissions goal
+    default: true
+    linear_interpolation: true
+    auto_start: true
+    values:
+    - year: 2030
+      value: 108.524
+    - year: 2040
+      value: 59.521
+    - year: 2045
+      value: 11.215
 
 - id: heating_emissions
   name: Wärme-Emissionen
@@ -394,6 +419,19 @@ emission_sectors:
     from_dimensions:
     - id: sector
       categories: [heating]
+  goals:
+  - label_de: Ziel Wärme-Emissionen
+    label_en: Heating emissions goal
+    default: true
+    linear_interpolation: true
+    auto_start: true
+    values:
+    - year: 2030
+      value: 221.510
+    - year: 2040
+      value: 142.688
+    - year: 2045
+      value: 65.230
 
 - id: transport_emissions
   name: Verkehr-Emissionen
@@ -405,6 +443,19 @@ emission_sectors:
     from_dimensions:
     - id: sector
       categories: [transport]
+  goals:
+  - label_de: Ziel Verkehr-Emissionen
+    label_en: Transport emissions goal
+    default: true
+    linear_interpolation: true
+    auto_start: true
+    values:
+    - year: 2030
+      value: 153.027
+    - year: 2040
+      value: 94.263
+    - year: 2045
+      value: 41.891
 
 nodes:
 
@@ -424,6 +475,7 @@ nodes:
   is_outcome: true
   goals:
   - label_de: Ziel Netto-Emissionen
+    label_en: Net emissions goal
     default: true
     is_main_goal: true
     linear_interpolation: true
@@ -447,7 +499,7 @@ nodes:
   output_dimensions: [sector]
   # The standard Eurostat factors for NUTS DE404, reference 1980-2014, built in
   # paths-data/models/potsdam (decision 5). The last value carries through the forecast on
-  # purpose, as in every city. potsdam-gpc still reads the city's table, potsdam/witterungsbereinigung.
+  # purpose, as in every city. Replaced the city's table, potsdam/witterungsbereinigung, on 4 Nov 2026.
   input_datasets:
   - id: potsdam/witterungsbereinigung_eurostat
     forecast_from: 2024
@@ -658,6 +710,40 @@ nodes:
   - id: corrected_energy
   - id: corrected_emission_factor
 
+# Heat-pump electricity is in Strom, and its emissions are also in Umweltwärme, whose emission
+# factor is the grid factor divided by about 3.1: the same emissions were counted twice (finding 19
+# in paths-data models/potsdam). BISKO counts them in Umweltwärme, so they are subtracted from Strom
+# here rather than from the data, whose figures stay as the city delivered them. Only emissions are
+# corrected; the electricity energy still includes the heat pumps.
+- id: heat_pump_electricity_emissions
+  name: Emissionen des Wärmepumpenstroms
+  name_en: Emissions of heat-pump electricity
+  description: Die Emissionen des Stroms, den Wärmepumpen verbrauchen. Sie sind in der
+    Umweltwärme enthalten und werden deshalb von den Strom-Emissionen abgezogen, damit sie nicht
+    doppelt zählen.
+  description_en: The emissions of the electricity that heat pumps use. They are included in
+    environmental heat and are therefore subtracted from the electricity emissions, so that they
+    are not counted twice.
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_nodes:
+  - id: corrected_emissions
+    from_dimensions:
+    - id: sector
+      categories: [heating]
+      flatten: true
+    - id: energy_carrier
+      categories: [environmental_heat]
+      flatten: true
+    to_dimensions:
+    - id: sector
+      categories: [electricity]
+    - id: energy_carrier
+      categories: [electricity]
+
 ##### COSTS
 
 # - id: energy_prices
@@ -692,197 +778,6 @@ nodes:
 #     - id: sector
 #       flatten: true
 
-##### PRO POTSDAM SUB-MODEL
-# Placeholder values — will be updated from ProPotsdam Excel (Sebastian Möller).
-# ~18,000 units × 70 m²/apt × 95 kWh/m²a ≈ 120,000 MWh/a; 90% on district heating.
-
-- id: pro_potsdam_apartments
-  name: ProPotsdam Wohneinheiten
-  name_en: ProPotsdam Apartments
-  type: simple.AdditiveNode
-  quantity: number
-  unit: dimensionless
-  historical_values: [[2023, 18000]]
-  forecast_values: [[2024, 18000], [2050, 18000]]
-
-- id: pro_potsdam_floor_area_per_apt
-  name: ProPotsdam Wohnfläche je Wohnung
-  name_en: ProPotsdam Floor Area per Apartment
-  type: simple.AdditiveNode
-  quantity: floor_area
-  unit: m**2
-  historical_values: [[2023, 70]]
-  forecast_values: [[2024, 70], [2050, 70]]
-
-- id: pro_potsdam_total_floor_area
-  name: ProPotsdam Gesamtwohnfläche
-  name_en: ProPotsdam Total Floor Area
-  type: simple.MultiplicativeNode
-  quantity: floor_area
-  unit: m**2
-  input_nodes:
-  - id: pro_potsdam_apartments
-  - id: pro_potsdam_floor_area_per_apt
-    tags: [non_additive]
-
-- id: pro_potsdam_heat_demand_per_m2
-  name: ProPotsdam Wärmebedarf je m²
-  name_en: ProPotsdam Heat Demand per m²
-  type: simple.AdditiveNode
-  quantity: energy
-  unit: kWh/m**2/a
-  historical_values: [[2023, 95]]
-  forecast_values: [[2024, 95], [2050, 95]]
-
-- id: pro_potsdam_heat_demand
-  name: ProPotsdam Wärmebedarf gesamt
-  name_en: ProPotsdam Total Heat Demand
-  type: simple.MultiplicativeNode
-  quantity: energy
-  unit: MWh/a
-  input_nodes:
-  - id: pro_potsdam_total_floor_area
-  - id: pro_potsdam_heat_demand_per_m2
-
-- id: pro_potsdam_emissions
-  name: ProPotsdam CO₂-Emissionen (Fernwärme)
-  name_en: ProPotsdam CO₂ Emissions (District Heating)
-  type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: kt/a
-  is_outcome: true
-  input_nodes:
-  - id: pro_potsdam_heat_demand
-  - id: corrected_emission_factor
-    from_dimensions:
-    - id: energy_carrier
-      categories: [district_heating]
-      flatten: true
-    - id: sector
-      categories: [heating]
-      flatten: true
-  # No edge to net_emissions: these emissions are already part of heating_emissions (district
-  # heating), so the edge counted them twice, 18 kt in 2023. This node is an outcome on its own.
-
-# The effect node of the cost-efficiency overview, not an inventory: it counts the ProPotsdam
-# district heating emissions twice, once in net_emissions and once on their own. That is
-# deliberate. The ProPotsdam actions reach only pro_potsdam_emissions and the Masterplan actions
-# only net_emissions, so each action's effect shows here. The district heating actions reach both,
-# and their effect here is the sum of the two.
-- id: emission_reductions
-  name: Emissionsminderung (Stadt und ProPotsdam)
-  name_en: Emission reductions (city and ProPotsdam)
-  type: generic.GenericNode
-  quantity: emissions
-  unit: kt/a
-  input_dimensions: [energy_carrier, sector]
-  output_dimensions: [energy_carrier, sector]
-  input_nodes:
-  - id: net_emissions
-  - id: pro_potsdam_emissions
-    to_dimensions:
-    - id: sector
-      categories: [heating]
-    - id: energy_carrier
-      categories: [district_heating]
-
-##### PRO POTSDAM COST NODES (step 5)
-# Energy price node deferred — awaiting EWP data.
-
-- id: pro_potsdam_cold_rent_per_m2
-  name: ProPotsdam Kaltmiete je m²
-  name_en: ProPotsdam Cold Rent per m²
-  type: simple.AdditiveNode
-  quantity: unit_price
-  unit: EUR/m**2/a
-  # 18 EUR/m²/month × 12 months = 216 EUR/m²/a
-  historical_values: [[2023, 216]]
-  forecast_values: [[2024, 216], [2050, 216]]
-
-- id: pro_potsdam_cold_rent
-  name: ProPotsdam Kaltmiete gesamt
-  name_en: ProPotsdam Total Cold Rent
-  type: simple.MultiplicativeNode
-  quantity: currency
-  unit: MEUR/a
-  is_outcome: true
-  input_dimensions: [cost_type, stakeholder]
-  output_dimensions: [cost_type, stakeholder]
-  input_nodes:
-  - id: pro_potsdam_total_floor_area
-  - id: pro_potsdam_cold_rent_per_m2
-    to_dimensions:
-    - id: cost_type
-      categories: [rent]
-    - id: stakeholder
-      categories: [tenant]
-
-# placeholder: 0.15 EUR/kWh = 150 EUR/MWh; replace with EWP/Gasag data
-- id: pro_potsdam_average_energy_price
-  name: ProPotsdam Ø Wärmepreis
-  name_en: ProPotsdam Avg. Heat Energy Price
-  type: simple.AdditiveNode
-  quantity: unit_price
-  unit: EUR/MWh
-  historical_values: [[2023, 150]]
-  forecast_values: [[2024, 150], [2050, 150]]
-
-- id: pro_potsdam_energy_costs
-  name: ProPotsdam Energiekosten Wärme
-  name_en: ProPotsdam Heat Energy Costs
-  type: simple.MultiplicativeNode
-  quantity: currency
-  unit: MEUR/a
-  input_dimensions: [cost_type, stakeholder]
-  output_dimensions: [cost_type, stakeholder]
-  input_nodes:
-  - id: pro_potsdam_heat_demand
-  - id: pro_potsdam_average_energy_price
-    to_dimensions:
-    - id: cost_type
-      categories: [energy_costs]
-    - id: stakeholder
-      categories: [tenant]
-
-- id: pro_potsdam_total_costs
-  name: ProPotsdam Gesamtkosten (Miete + Energie)
-  name_en: ProPotsdam Total Costs (Rent + Energy)
-  type: simple.AdditiveNode
-  quantity: currency
-  unit: MEUR/a
-  input_dimensions: [cost_type, stakeholder]
-  output_dimensions: [cost_type, stakeholder]
-  is_outcome: true
-  input_nodes:
-  - id: pro_potsdam_cold_rent
-  - id: pro_potsdam_energy_costs
-
-# energy_carrier × sector from corrected_energy; to be replaced with ProPotsdam-specific data
-- id: corrected_energy_costs
-  name: Energiekosten gesamt (alle Sektoren, vorläufig)
-  name_en: Total energy costs (all sectors, placeholder)
-  type: simple.MultiplicativeNode
-  quantity: currency
-  unit: MEUR/a
-  input_dimensions: [energy_carrier, sector]
-  output_dimensions: [energy_carrier, sector]
-  input_nodes:
-  - id: pro_potsdam_average_energy_price
-  - id: corrected_energy
-
-- id: total_costs
-  name: Gesamtkosten
-  name_en: Total costs
-  type: simple.AdditiveNode
-  quantity: currency
-  unit: MEUR/a
-  input_dimensions: [cost_type, stakeholder]
-  output_dimensions: [cost_type, stakeholder]
-  is_outcome: true
-  input_nodes:
-  - id: pro_potsdam_cold_rent
-  - id: pro_potsdam_energy_costs
-
 # SUMMARY IMPACTS
 
 - id: heat_generation_networks
@@ -916,7 +811,7 @@ nodes:
     - id: sector
       categories: [heating]
     - id: energy_carrier
-      categories: [district_heating]
+      categories: [district_heating, solar_thermal, biogas, biomass] #, local_heating, environmental_heat]
       exclude: true
   params:
     operations: add,use_as_shares
@@ -1024,7 +919,7 @@ actions:
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
-  group: heat_generation
+  group: heat
   input_datasets:
   - id: potsdam/action_impact
     forecast_from: 2025
@@ -1042,7 +937,7 @@ actions:
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
-  group: heat_generation
+  group: heat
   input_datasets:
   - id: potsdam/action_impact
     forecast_from: 2025
@@ -1060,7 +955,7 @@ actions:
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
-  group: heat_generation
+  group: heat
   input_datasets:
   - id: potsdam/action_impact
     forecast_from: 2025
@@ -1077,7 +972,7 @@ actions:
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
-  group: heat_generation
+  group: heat
   input_datasets:
   - id: potsdam/action_impact
     forecast_from: 2025
@@ -1095,7 +990,7 @@ actions:
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
-  group: heat_generation
+  group: heat
   input_datasets:
   - id: potsdam/action_impact
     forecast_from: 2025
@@ -1112,7 +1007,7 @@ actions:
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
-  group: heat_generation
+  group: heat
   input_datasets:
   - id: potsdam/action_impact
     forecast_from: 2025
@@ -1131,7 +1026,7 @@ actions:
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
-  group: heat_consumption
+  group: heat
   input_datasets:
   - id: potsdam/action_impact
     forecast_from: 2025
@@ -1149,7 +1044,7 @@ actions:
   type: simple.GenericAction
   quantity: emissions
   unit: kt/a
-  group: heat_consumption
+  group: heat
   input_datasets:
   - id: potsdam/action_impact
     forecast_from: 2025
@@ -1279,94 +1174,6 @@ actions:
   output_nodes:
   - id: transport_consumption
 
-##### PRO POTSDAM ACTIONS
-# EH55 / EH40 renovation effects on heat demand are placeholder values.
-# Will be replaced with data from ProPotsdam Excel (Sebastian Möller).
-# 14% of 120,000 MWh/a ≈ 16,800 MWh/a; ramp: 0 → full effect by 2050.
-
-- id: pro_potsdam_renovation_eh55
-  name: ProPotsdam Sanierung EH 55
-  name_en: ProPotsdam Renovation EH 55
-  type: simple.AdditiveAction
-  group: heat_consumption
-  output_metrics:
-  - id: energy_reduction
-    unit: kWh/m**2/a
-    quantity: energy
-  - id: additional_cost
-    unit: EUR/m**2/month
-    quantity: unit_price
-  input_datasets:
-  - id: potsdam/pro_potsdam_renovation
-    forecast_from: 2025
-    interpolate: true
-    filters:
-    - column: action
-      value: eh55
-  output_nodes:
-  - id: pro_potsdam_heat_demand_per_m2
-    metrics: [energy_reduction]
-  - id: pro_potsdam_cold_rent_per_m2
-    metrics: [additional_cost]
-
-- id: pro_potsdam_renovation_eh40
-  name: ProPotsdam Sanierung EH 40 (zusätzlich zu EH 55)
-  name_en: ProPotsdam Renovation EH 40 (additional to EH 55)
-  # Note: only meaningful when pro_potsdam_renovation_eh55 is also enabled
-  type: simple.AdditiveAction
-  group: heat_consumption
-  output_metrics:
-  - id: energy_reduction
-    unit: kWh/m**2/a
-    quantity: energy
-  - id: additional_cost
-    unit: EUR/m**2/month
-    quantity: unit_price
-  input_datasets:
-  - id: potsdam/pro_potsdam_renovation
-    forecast_from: 2025
-    interpolate: true
-    filters:
-    - column: action
-      value: eh40
-  output_nodes:
-  - id: pro_potsdam_heat_demand_per_m2
-    metrics: [energy_reduction]
-  - id: pro_potsdam_cold_rent_per_m2
-    metrics: [additional_cost]
-
-- id: pro_potsdam_rent_subsidy
-  name: ProPotsdam Mietsubvention
-  name_en: ProPotsdam Rent Subsidy
-  type: simple.AdditiveAction
-  quantity: currency
-  unit: MEUR/a
-  group: heat_consumption
-  # Placeholder: no effect until stakeholder-split cold_rent node is built
-  historical_values: [[2023, 0]]
-  forecast_values: [[2024, 0], [2050, 0]]
-  output_nodes:
-  - id: pro_potsdam_cold_rent
-    tags: [additive]
-    to_dimensions:
-    - id: cost_type
-      categories: [rent]
-    - id: stakeholder
-      categories: [tenant]
-
-- id: individual_heating_transition
-  name: Umstieg Einzelversorgung auf Wärmepumpen
-  name_en: Individual Heating Transition to Heat Pumps
-  type: simple.GenericAction
-  quantity: emissions
-  unit: kt/a
-  group: heat_generation
-  # Placeholder: impact trajectory to be set from Kommunale Wärmeplanung data
-  historical_values: [[2023, 0]]
-  forecast_values: [[2024, 0], [2050, 0]]
-  output_nodes:
-  - id: heat_generation_individual
-
 pages:
 - id: home
   name: Klima-Monitor-Potsdam Treibhausgasinventar
@@ -1384,9 +1191,8 @@ pages:
 
 scenarios:
 
-# Names and descriptions revised for the city's edit requests of 27 Aug 2026 (rows 9 and 18).
-# The two "nur" scenarios are subsets of the Masterplan, so that the list nests:
-# Trend > nur Energieeinsparung > nur erneuerbare Energieversorgung > Masterplan > Masterplan + KWP.
+# Names and descriptions revised for the city's edit requests of 27 Aug 2026 (rows 9 and 18). The
+# two "nur" scenarios were deleted as agreed with the city on 19 Oct 2026.
 # The UI does not show scenario descriptions yet; the names must carry the meaning on their own.
 
 - id: baseline
@@ -1415,8 +1221,7 @@ scenarios:
     value: false
   - id: re_expansion_masterplan_kwp.enabled
     value: false
-  # The ProPotsdam actions are placeholders for a separate question, with their own scenarios
-  # below. all_actions_enabled would otherwise put them into the Masterplan.
+  # ProPotsdam: placeholders, kept out of the Masterplan that all_actions_enabled would put them in.
   - id: pro_potsdam_renovation_eh55.enabled
     value: false
   - id: pro_potsdam_renovation_eh40.enabled
@@ -1435,101 +1240,10 @@ scenarios:
     renewables by 2045.
   all_actions_enabled: true
   params:
-  # The ProPotsdam actions are placeholders for a separate question, with their own scenarios
-  # below. all_actions_enabled would otherwise put them into the Masterplan.
+  # ProPotsdam: placeholders, kept out of the Masterplan that all_actions_enabled would put them in.
   - id: pro_potsdam_renovation_eh55.enabled
     value: false
   - id: pro_potsdam_renovation_eh40.enabled
     value: false
   - id: pro_potsdam_rent_subsidy.enabled
     value: false
-
-- id: emission_factors_only
-  name: 'Masterplan: nur erneuerbare Energieversorgung'
-  name_en: 'Master Plan: renewable energy supply only'
-  description: Nur der Teil des Masterplans, der die Energie sauberer macht, mit erneuerbaren
-    Energien in Fernwärme, Nahwärme, Strom und Verkehr. Der Energieverbrauch folgt dem Trend.
-    Zusammen mit »Masterplan, nur Energieeinsparung« zeigt es, woher die Minderung des
-    Masterplans kommt. Die beiden Teile ergeben zusammen etwas mehr als den Masterplan, weil
-    eingesparte Energie nicht mehr sauberer gemacht werden muss.
-  description_en: Only the part of the Master Plan that makes energy cleaner, with renewables in
-    district heating, local heating networks, electricity and transport. Energy use follows the
-    trend. Together with "Master Plan, energy savings only" it shows where the Master Plan's
-    reduction comes from. The two parts add up to slightly more than the Master Plan, because
-    energy that is saved no longer needs to be made cleaner.
-  params:
-  # Enable the emission-factor actions of the Masterplan. The 2040-2045 district heating step and
-  # the KWP expansion belong to "Masterplan + Kommunale Wärmeplanung", not to the Masterplan.
-  - id: district_heating_until_2030.enabled
-    value: true
-  - id: district_heating_2030_2040.enabled
-    value: true
-  - id: district_heating_2040_2045.enabled
-    value: false
-  - id: local_heating_networks_2045.enabled
-    value: true
-  - id: re_expansion_masterplan_2045.enabled
-    value: true
-  - id: re_expansion_masterplan_kwp.enabled
-    value: false
-  - id: pv_rooftop_expansion.enabled
-    value: true
-  - id: ground_mounted_pv_expansion.enabled
-    value: true
-  - id: wind_power_potential.enabled
-    value: true
-  - id: improved_federal_grid_mix.enabled
-    value: true
-  - id: fossil_fuel_replacement.enabled
-    value: true
-  # Disable energy-based actions
-  - id: district_heating_reduction_renovation.enabled
-    value: false
-  - id: decentralized_heat_reduction_renovation.enabled
-    value: false
-  - id: electricity_consumption_reduction.enabled
-    value: false
-  - id: local_transport_energy_reduction.enabled
-    value: false
-
-- id: energy_savings_only
-  name: 'Masterplan: nur Energieeinsparung'
-  name_en: 'Master Plan: energy savings only'
-  description: Nur der Teil des Masterplans, der Energie spart, durch Gebäudesanierung und
-    weniger Energieverbrauch bei Strom und Verkehr. Die Energie wird so erzeugt wie im Trend.
-  description_en: Only the part of the Master Plan that saves energy, through building
-    renovation and lower energy use in electricity and transport. Energy is produced as in the
-    trend.
-  params:
-  # Disable emission-factor-based actions
-  - id: district_heating_until_2030.enabled
-    value: false
-  - id: district_heating_2030_2040.enabled
-    value: false
-  - id: district_heating_2040_2045.enabled
-    value: false
-  - id: local_heating_networks_2045.enabled
-    value: false
-  - id: re_expansion_masterplan_2045.enabled
-    value: false
-  - id: re_expansion_masterplan_kwp.enabled
-    value: false
-  - id: pv_rooftop_expansion.enabled
-    value: false
-  - id: ground_mounted_pv_expansion.enabled
-    value: false
-  - id: wind_power_potential.enabled
-    value: false
-  - id: improved_federal_grid_mix.enabled
-    value: false
-  - id: fossil_fuel_replacement.enabled
-    value: false
-  # Enable energy-based actions
-  - id: district_heating_reduction_renovation.enabled
-    value: true
-  - id: decentralized_heat_reduction_renovation.enabled
-    value: true
-  - id: electricity_consumption_reduction.enabled
-    value: true
-  - id: local_transport_energy_reduction.enabled
-    value: true

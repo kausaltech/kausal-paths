@@ -1,0 +1,337 @@
+# ProPotsdam housing sub-model: EH 55 vs EH 40 renovation of ProPotsdam's housing stock, its
+# district heating emissions, and the tenants' rent and energy costs.
+#
+# A draft, not commissioned work: made for potsdam-dev in Apr 2026 to show what Paths can model, after
+# the meeting of 9 Apr 2026 with the city, ProPotsdam and Energieforum Potsdam. Every figure is a
+# placeholder until ProPotsdam and EWP deliver data (paths-data models/potsdam, tasks.md).
+#
+# Not stand-alone. The nodes refer to potsdam-gpc's net_emissions, corrected_emission_factor,
+# corrected_energy and heat_generation_individual, and the actions to its action group `heat`. To use
+# it for another city, those are the nodes to map.
+#
+# An include carries dimensions, nodes, actions and dataset metadata only. The host config also
+# needs, from the commented blocks in configs/potsdam-gpc.yaml:
+# * the three impact_overviews (pro_potsdam_emissions, cost efficiency, cost_benefit), and
+# * the scenario params that switch the three ProPotsdam actions off in every scenario with
+#   all_actions_enabled, so that the placeholders stay out of the Masterplan.
+
+dimensions:
+- id: cost_type
+  label_en: Cost Type
+  label_de: Kostenart
+  help_text_de: Die Wohnkosten der Mieterinnen und Mieter der ProPotsdam nach Art, die
+    Energiekosten für Wärme und die Kaltmiete. Die Zahlen sind vorläufige Platzhalter, bis die
+    Daten der ProPotsdam vorliegen.
+  help_text_en: The housing costs of ProPotsdam's tenants by type, the energy costs for heat and
+    the cold rent. The figures are placeholders until ProPotsdam's data arrive.
+  categories:
+  - id: energy_costs
+    label_en: Energy Costs
+    label_de: Energiekosten
+  - id: rent
+    label_en: Cold rent
+    label_de: Kaltmiete
+
+- id: stakeholder
+  label_en: Stakeholder
+  label_de: Akteur
+  help_text_de: Wer die Kosten trägt. Bisher sind nur die Kosten der Mieterinnen und Mieter
+    berechnet; ProPotsdam, Stadt und Gesellschaft kommen hinzu, wenn die Daten vorliegen.
+  help_text_en: Who bears the costs. So far only the tenants' costs are calculated; ProPotsdam,
+    the city and society follow when the data arrive.
+  categories:
+  - id: tenant
+    label_en: Tenant
+    label_de: Mieterin / Mieter
+  - id: pro_potsdam
+    label_en: ProPotsdam
+    label_de: ProPotsdam
+  - id: city
+    label_en: City of Potsdam
+    label_de: Landeshauptstadt Potsdam
+  - id: society
+    label_en: Society / Climate
+    label_de: Gesellschaft / Klima
+
+nodes:
+
+##### PRO POTSDAM SUB-MODEL
+# Placeholder values — will be updated from ProPotsdam Excel (Sebastian Möller).
+# ~18,000 units × 70 m²/apt × 95 kWh/m²a ≈ 120,000 MWh/a; 90% on district heating.
+
+- id: pro_potsdam_apartments
+  name: ProPotsdam Wohneinheiten
+  name_en: ProPotsdam Apartments
+  type: simple.AdditiveNode
+  quantity: number
+  unit: dimensionless
+  historical_values: [[2023, 18000]]
+  forecast_values: [[2024, 18000], [2050, 18000]]
+
+- id: pro_potsdam_floor_area_per_apt
+  name: ProPotsdam Wohnfläche je Wohnung
+  name_en: ProPotsdam Floor Area per Apartment
+  type: simple.AdditiveNode
+  quantity: floor_area
+  unit: m**2
+  historical_values: [[2023, 70]]
+  forecast_values: [[2024, 70], [2050, 70]]
+
+- id: pro_potsdam_total_floor_area
+  name: ProPotsdam Gesamtwohnfläche
+  name_en: ProPotsdam Total Floor Area
+  type: simple.MultiplicativeNode
+  quantity: floor_area
+  unit: m**2
+  input_nodes:
+  - id: pro_potsdam_apartments
+  - id: pro_potsdam_floor_area_per_apt
+    tags: [non_additive]
+
+- id: pro_potsdam_heat_demand_per_m2
+  name: ProPotsdam Wärmebedarf je m²
+  name_en: ProPotsdam Heat Demand per m²
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: kWh/m**2/a
+  historical_values: [[2023, 95]]
+  forecast_values: [[2024, 95], [2050, 95]]
+
+- id: pro_potsdam_heat_demand
+  name: ProPotsdam Wärmebedarf gesamt
+  name_en: ProPotsdam Total Heat Demand
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: MWh/a
+  input_nodes:
+  - id: pro_potsdam_total_floor_area
+  - id: pro_potsdam_heat_demand_per_m2
+
+- id: pro_potsdam_emissions
+  name: ProPotsdam CO₂-Emissionen (Fernwärme)
+  name_en: ProPotsdam CO₂ Emissions (District Heating)
+  type: simple.MultiplicativeNode
+  quantity: emissions
+  unit: kt/a
+  is_outcome: true
+  input_nodes:
+  - id: pro_potsdam_heat_demand
+  - id: corrected_emission_factor
+    from_dimensions:
+    - id: energy_carrier
+      categories: [district_heating]
+      flatten: true
+    - id: sector
+      categories: [heating]
+      flatten: true
+  # No edge to net_emissions: these emissions are already part of heating_emissions (district
+  # heating), so the edge counted them twice, 18 kt in 2023. This node is an outcome on its own.
+
+# The effect node of the cost-efficiency overview, not an inventory: it counts the ProPotsdam
+# district heating emissions twice, once in net_emissions and once on their own. That is
+# deliberate. The ProPotsdam actions reach only pro_potsdam_emissions and the Masterplan actions
+# only net_emissions, so each action's effect shows here. The district heating actions reach both,
+# and their effect here is the sum of the two.
+- id: emission_reductions
+  name: Emissionsminderung (Stadt und ProPotsdam)
+  name_en: Emission reductions (city and ProPotsdam)
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_nodes:
+  - id: net_emissions
+  - id: pro_potsdam_emissions
+    to_dimensions:
+    - id: sector
+      categories: [heating]
+    - id: energy_carrier
+      categories: [district_heating]
+
+##### PRO POTSDAM COST NODES (step 5)
+# Energy price node deferred — awaiting EWP data.
+
+- id: pro_potsdam_cold_rent_per_m2
+  name: ProPotsdam Kaltmiete je m²
+  name_en: ProPotsdam Cold Rent per m²
+  type: simple.AdditiveNode
+  quantity: unit_price
+  unit: EUR/m**2/a
+  # 18 EUR/m²/month × 12 months = 216 EUR/m²/a
+  historical_values: [[2023, 216]]
+  forecast_values: [[2024, 216], [2050, 216]]
+
+- id: pro_potsdam_cold_rent
+  name: ProPotsdam Kaltmiete gesamt
+  name_en: ProPotsdam Total Cold Rent
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  is_outcome: true
+  input_dimensions: [cost_type, stakeholder]
+  output_dimensions: [cost_type, stakeholder]
+  input_nodes:
+  - id: pro_potsdam_total_floor_area
+  - id: pro_potsdam_cold_rent_per_m2
+    to_dimensions:
+    - id: cost_type
+      categories: [rent]
+    - id: stakeholder
+      categories: [tenant]
+
+# placeholder: 0.15 EUR/kWh = 150 EUR/MWh; replace with EWP/Gasag data
+- id: pro_potsdam_average_energy_price
+  name: ProPotsdam Ø Wärmepreis
+  name_en: ProPotsdam Avg. Heat Energy Price
+  type: simple.AdditiveNode
+  quantity: unit_price
+  unit: EUR/MWh
+  historical_values: [[2023, 150]]
+  forecast_values: [[2024, 150], [2050, 150]]
+
+- id: pro_potsdam_energy_costs
+  name: ProPotsdam Energiekosten Wärme
+  name_en: ProPotsdam Heat Energy Costs
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [cost_type, stakeholder]
+  output_dimensions: [cost_type, stakeholder]
+  input_nodes:
+  - id: pro_potsdam_heat_demand
+  - id: pro_potsdam_average_energy_price
+    to_dimensions:
+    - id: cost_type
+      categories: [energy_costs]
+    - id: stakeholder
+      categories: [tenant]
+
+- id: pro_potsdam_total_costs
+  name: ProPotsdam Gesamtkosten (Miete + Energie)
+  name_en: ProPotsdam Total Costs (Rent + Energy)
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [cost_type, stakeholder]
+  output_dimensions: [cost_type, stakeholder]
+  is_outcome: true
+  input_nodes:
+  - id: pro_potsdam_cold_rent
+  - id: pro_potsdam_energy_costs
+
+# energy_carrier × sector from corrected_energy; to be replaced with ProPotsdam-specific data
+- id: corrected_energy_costs
+  name: Energiekosten gesamt (alle Sektoren, vorläufig)
+  name_en: Total energy costs (all sectors, placeholder)
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_nodes:
+  - id: pro_potsdam_average_energy_price
+  - id: corrected_energy
+
+- id: total_costs
+  name: Gesamtkosten
+  name_en: Total costs
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [cost_type, stakeholder]
+  output_dimensions: [cost_type, stakeholder]
+  is_outcome: true
+  input_nodes:
+  - id: pro_potsdam_cold_rent
+  - id: pro_potsdam_energy_costs
+
+actions:
+
+##### PRO POTSDAM ACTIONS
+# EH55 / EH40 renovation effects on heat demand are placeholder values.
+# Will be replaced with data from ProPotsdam Excel (Sebastian Möller).
+# 14% of 120,000 MWh/a ≈ 16,800 MWh/a; ramp: 0 → full effect by 2050.
+
+- id: pro_potsdam_renovation_eh55
+  name: ProPotsdam Sanierung EH 55
+  name_en: ProPotsdam Renovation EH 55
+  type: simple.AdditiveAction
+  group: heat
+  output_metrics:
+  - id: energy_reduction
+    unit: kWh/m**2/a
+    quantity: energy
+  - id: additional_cost
+    unit: EUR/m**2/month
+    quantity: unit_price
+  input_datasets:
+  - id: potsdam/pro_potsdam_renovation
+    forecast_from: 2025
+    interpolate: true
+    filters:
+    - column: action
+      value: eh55
+  output_nodes:
+  - id: pro_potsdam_heat_demand_per_m2
+    metrics: [energy_reduction]
+  - id: pro_potsdam_cold_rent_per_m2
+    metrics: [additional_cost]
+
+- id: pro_potsdam_renovation_eh40
+  name: ProPotsdam Sanierung EH 40 (zusätzlich zu EH 55)
+  name_en: ProPotsdam Renovation EH 40 (additional to EH 55)
+  # Note: only meaningful when pro_potsdam_renovation_eh55 is also enabled
+  type: simple.AdditiveAction
+  group: heat
+  output_metrics:
+  - id: energy_reduction
+    unit: kWh/m**2/a
+    quantity: energy
+  - id: additional_cost
+    unit: EUR/m**2/month
+    quantity: unit_price
+  input_datasets:
+  - id: potsdam/pro_potsdam_renovation
+    forecast_from: 2025
+    interpolate: true
+    filters:
+    - column: action
+      value: eh40
+  output_nodes:
+  - id: pro_potsdam_heat_demand_per_m2
+    metrics: [energy_reduction]
+  - id: pro_potsdam_cold_rent_per_m2
+    metrics: [additional_cost]
+
+- id: pro_potsdam_rent_subsidy
+  name: ProPotsdam Mietsubvention
+  name_en: ProPotsdam Rent Subsidy
+  type: simple.AdditiveAction
+  quantity: currency
+  unit: MEUR/a
+  group: heat
+  # Placeholder: no effect until stakeholder-split cold_rent node is built
+  historical_values: [[2023, 0]]
+  forecast_values: [[2024, 0], [2050, 0]]
+  output_nodes:
+  - id: pro_potsdam_cold_rent
+    tags: [additive]
+    to_dimensions:
+    - id: cost_type
+      categories: [rent]
+    - id: stakeholder
+      categories: [tenant]
+
+- id: individual_heating_transition
+  name: Umstieg Einzelversorgung auf Wärmepumpen
+  name_en: Individual Heating Transition to Heat Pumps
+  type: simple.GenericAction
+  quantity: emissions
+  unit: kt/a
+  group: heat
+  # Placeholder: impact trajectory to be set from Kommunale Wärmeplanung data
+  historical_values: [[2023, 0]]
+  forecast_values: [[2024, 0], [2050, 0]]
+  output_nodes:
+  - id: heat_generation_individual
