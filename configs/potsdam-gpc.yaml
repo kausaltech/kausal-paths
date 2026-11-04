@@ -19,7 +19,7 @@ dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: a11e56aa20e14944d712aa63dd3332c61ad9f120
   dvc_remote: kausal-s3
-name: Treibhausgas-Monitor
+name: Klimaschutz-Monitor-Potsdam Treibhausgasinventar
 owner: Landeshauptstadt Potsdam
 theme_identifier: de-potsdam
 target_year: 2045
