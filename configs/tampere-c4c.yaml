@@ -4827,7 +4827,7 @@ actions:
     is_customizable: false
     is_visible: false
   - id: to_value
-    value: 37.0
+    value: 39.0
     min_value: 15.0
     max_value: 80.0
     step: 1.0
@@ -4835,7 +4835,7 @@ actions:
     description: Sähkökäyttö
     description_en: Electric propulsion
   - id: constant
-    value: -30.8
+    value: -33.84303536
     unit: '%'
   - id: default_value
     value: 0.0
@@ -4883,7 +4883,7 @@ actions:
     is_customizable: false
     is_visible: false
   - id: to_value
-    value: 18.0
+    value: 34.0
     min_value: 10.0
     max_value: 50.0
     step: 1.0
@@ -4930,7 +4930,7 @@ actions:
     is_customizable: false
     is_visible: false
   - id: to_value
-    value: 4.38
+    value: 20.4
     min_value: 1.0
     max_value: 40.0
     step: 1.0
@@ -6458,7 +6458,7 @@ actions:
   output_dimensions: []
   params:
   - id: to_value
-    value: 20.07666
+    value: 15.085980625
     min_value: 10.0
     max_value: 40.0
     step: 1.0
@@ -6466,7 +6466,7 @@ actions:
     description: Sähkön päästökerroin
     description_en: Electricity emission factor
   - id: constant
-    value: -20.07666
+    value: -15.085980625
     unit: t_co2e/GWh
   - id: default_value
     value: 0.0
