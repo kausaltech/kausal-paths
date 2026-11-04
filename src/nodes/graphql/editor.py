@@ -6,6 +6,7 @@ model instances (NodeConfig, NodeInputPortBinding, ActionGroup, Scenario).
 """
 
 import math
+import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Annotated, Any, TypeGuard, cast
 from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
@@ -48,7 +49,7 @@ from kausal_common.strawberry.pydantic import StrawberryPydanticType, pydantic_i
 from kausal_common.users import user_or_bust, user_or_none
 
 from paths import gql
-from paths.identifiers import identifier_or_none
+from paths.identifiers import LOWER_IDENTIFIER_PATTERN, identifier_or_none
 
 from nodes.change_ops import gql_change_operation, record_change
 from nodes.dataset_materialization import refresh_dataset_materialization
@@ -620,6 +621,24 @@ class NodePortRefInput:
             "node class's port declarations."
         ),
     )
+
+
+def _require_identifier(info: gql.Info, value: str, kind: str) -> str:
+    """
+    Reject an identifier the runtime model would not accept.
+
+    The ORM fields validate only on `full_clean()`, which these mutations do not call, and their
+    pattern allows hyphens; the runtime (`paths.identifiers.Identifier`) does not. An identifier
+    with a capital, an umlaut or a hyphen therefore saved fine and then broke the whole model on
+    the next load, with no way back except the database. Checking here keeps it out.
+    """
+    if not re.fullmatch(LOWER_IDENTIFIER_PATTERN, value):
+        raise GraphQLValidationError(
+            info,
+            f'Invalid {kind} identifier "{value}": use only lowercase letters a-z, digits and '
+            'underscores (no capitals, umlauts, spaces or hyphens), e.g. "district_heating".',
+        )
+    return value
 
 
 @sb.input
@@ -1612,6 +1631,7 @@ class InstanceEditorMutation:
         ic = root.instance
         if not NodeConfig.gql_create_allowed(info, ic):
             raise PermissionDeniedError(info, 'Permission denied for create')
+        _require_identifier(info, str(input.identifier), 'node')
 
         from nodes.instance_graph import node_class_for_type_config
 
@@ -2065,6 +2085,8 @@ class InstanceEditorMutation:
             for item in input:
                 cat_uuid = item.id.value if is_maybe_set(item.id) else uuid4()
                 identifier = item.identifier.value if is_maybe_set(item.identifier) else None
+                if identifier is not None:
+                    _require_identifier(info, identifier, 'category')
 
                 if identifier is not None and dim.categories.filter(identifier=identifier).exists():
                     raise GraphQLValidationError(
@@ -2112,7 +2134,7 @@ class InstanceEditorMutation:
 
         updates: dict[str, object] = {}
         if is_maybe_set(item.identifier):
-            updates['identifier'] = item.identifier.value
+            updates['identifier'] = _require_identifier(info, item.identifier.value, 'category')
         if is_maybe_set(item.label):
             updates['label'] = item.label.value
         if updates:
@@ -2195,6 +2217,10 @@ class InstanceEditorMutation:
     def create_dimension(self, info: gql.Info, root: sb.Parent[Me], input: CreateDimensionInput) -> DimensionType:
         ic = root.instance
         ct = _instance_ct(ic)
+        _require_identifier(info, input.identifier, 'dimension')
+        for item in input.categories:
+            if is_maybe_set(item.identifier):
+                _require_identifier(info, item.identifier.value, 'category')
         if DimensionScope.objects.for_instance_config(ic).filter(identifier=input.identifier).exists():
             raise GraphQLValidationError(
                 info,

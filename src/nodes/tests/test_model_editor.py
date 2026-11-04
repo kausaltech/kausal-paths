@@ -565,6 +565,25 @@ def test_create_node_simple(gql_client: PathsTestClient, db_instance_config: Ins
     assert node['editor']['spec']['typeConfig']['nodeClass'] == SIMPLE_NODE_CLASS
 
 
+@pytest.mark.parametrize('identifier', ['NewNode', 'wärme_node', 'new-node'])
+def test_create_node_invalid_identifier_fails(gql_client: PathsTestClient, db_instance_config: InstanceConfig, identifier: str):
+    gql_client.query_errors(
+        CREATE_NODE,
+        variables={
+            'instanceId': str(db_instance_config.pk),
+            'input': {
+                'identifier': identifier,
+                'name': 'New Node',
+                'kind': 'SIMPLE',
+                'config': {'simple': {'nodeClass': SIMPLE_NODE_CLASS}},
+                'outputPorts': [{'unit': 'kt/a', 'quantity': 'emissions'}],
+            },
+        },
+        assert_error_message='Invalid node identifier',
+    )
+    assert not db_instance_config.nodes.filter(identifier=identifier).exists()
+
+
 def test_query_instance_quantity_kinds_with_used_units(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
     node_specs = [
         ('emissions_kt_1', 'kt/a', 'emissions'),

@@ -255,6 +255,36 @@ def test_create_category_duplicate_identifier_fails(gql_client: PathsTestClient,
     )
 
 
+INVALID_IDENTIFIERS = ['Energy', 'wärme', 'district-heating', 'two words', '']
+
+
+@pytest.mark.parametrize('identifier', INVALID_IDENTIFIERS)
+def test_create_category_invalid_identifier_fails(
+    gql_client: PathsTestClient, db_instance_config: InstanceConfig, identifier: str
+):
+    """An identifier the runtime model rejects must not reach the database."""
+    dim = _make_dimension(db_instance_config, 'sector', 'Sector')
+    gql_client.query_errors(
+        CREATE_CATS,
+        variables={
+            'instanceId': str(db_instance_config.pk),
+            'input': [{'dimensionId': str(dim.uuid), 'label': 'Energy', 'identifier': identifier}],
+        },
+        assert_error_message='Invalid category identifier',
+    )
+    assert not DimensionCategory.objects.filter(dimension=dim).exists()
+
+
+def test_create_category_lowercase_digits_underscore_ok(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
+    dim = _make_dimension(db_instance_config, 'sector', 'Sector')
+    result = _create_cats(
+        gql_client,
+        db_instance_config,
+        [{'dimensionId': str(dim.uuid), 'label': 'Wärme 2', 'identifier': 'waerme_2'}],
+    )
+    assert result['categories'][0]['identifier'] == 'waerme_2'
+
+
 def test_create_category_with_client_uuid(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
     dim = _make_dimension(db_instance_config, 'sector', 'Sector')
     client_uuid = uuid4()
@@ -409,6 +439,24 @@ def test_update_category_identifier(gql_client: PathsTestClient, db_instance_con
         ],
     )
     assert result['categories'][0]['identifier'] == 'renewable'
+
+
+@pytest.mark.parametrize('identifier', INVALID_IDENTIFIERS)
+def test_update_category_invalid_identifier_fails(
+    gql_client: PathsTestClient, db_instance_config: InstanceConfig, identifier: str
+):
+    dim = _make_dimension(db_instance_config, 'sector', 'Sector', ['Energy'])
+    cat = DimensionCategory.objects.get(dimension=dim, identifier='energy')
+    gql_client.query_errors(
+        UPDATE_CATS,
+        variables={
+            'instanceId': str(db_instance_config.pk),
+            'input': [{'categoryId': str(cat.uuid), 'identifier': identifier}],
+        },
+        assert_error_message='Invalid category identifier',
+    )
+    cat.refresh_from_db()
+    assert cat.identifier == 'energy'
 
 
 def test_update_category_updates_spec_dimensions(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
@@ -711,6 +759,33 @@ def test_create_dimension_duplicate_identifier_fails(gql_client: PathsTestClient
             'input': {'identifier': 'sector', 'name': 'Sector again'},
         },
     )
+
+
+@pytest.mark.parametrize(
+    ('dim_identifier', 'cat_identifier', 'kind'),
+    [
+        ('Sector', 'energy', 'dimension'),
+        ('sector-type', 'energy', 'dimension'),
+        ('sector', 'Fernwärme', 'category'),
+    ],
+)
+def test_create_dimension_invalid_identifier_fails(
+    gql_client: PathsTestClient, db_instance_config: InstanceConfig, dim_identifier: str, cat_identifier: str, kind: str
+):
+    ic = db_instance_config
+    gql_client.query_errors(
+        CREATE_DIM,
+        variables={
+            'instanceId': str(ic.pk),
+            'input': {
+                'identifier': dim_identifier,
+                'name': 'Sector',
+                'categories': [{'label': 'Energy', 'identifier': cat_identifier}],
+            },
+        },
+        assert_error_message=f'Invalid {kind} identifier',
+    )
+    assert not DimensionScope.objects.for_instance_config(ic).exists()
 
 
 def test_delete_dimension(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
