@@ -525,6 +525,15 @@ dimensions:
   - id: electrification_of_combination_trucks
     label: Yhdistelmäajoneuvojen sähköistyminen
     label_en: Electrification of combination trucks
+  - id: emission_free_construction_sites
+    label: Päästöttömät työmaat (Green Deal)
+    label_en: Emission-free construction sites
+  - id: renewable_hydrogen_and_emethane_plant
+    label: Uusiutuvan vedyn ja sähkömetaanin tuotantolaitos
+    label_en: Renewable hydrogen and e-methane plant
+  - id: reduce_speedlimits_on_highways
+    label: Nopeusrajoitusten alentaminen maanteillä
+    label_en: Reduce speed limits on highways
 
 # ----- Kelicobe
 
