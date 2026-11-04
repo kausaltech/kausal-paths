@@ -521,6 +521,56 @@ instances in September 2026 (a rename).
 Wagtail's redirect handler creates redirects from the old paths as a side effect, so
 existing bookmarks keep working.
 
+## check_identifiers and rename_dimension_category
+
+The runtime accepts only `^[a-z0-9_]+$` for node, dimension and category identifiers. Before
+the model editor checked this (November 2026), it saved a category such as `Straßenbahn` or
+`gaz ziemny` without complaint. The instance then fails to load, and the editor fails with it, so
+the identifier cannot be corrected from the editor.
+
+`check_identifiers` finds such identifiers. It is read-only, so it is safe to run in production:
+
+```bash
+python manage.py check_identifiers                    # every instance
+python manage.py check_identifiers <instance> ...
+```
+
+It reports one tab-separated line per finding. The finding comes from the category row
+(`category`), the dimension (`dimension`), the node (`node`), or the copy in
+`InstanceConfig.spec.dimensions` (`spec`). After the list, it prints the repair command for each
+database-sourced instance with a bad category.
+
+`rename_dimension_category` makes the repair. It only plans unless given `--apply`:
+
+```bash
+python manage.py rename_dimension_category <instance> --auto            # plan
+python manage.py rename_dimension_category <instance> --auto --apply
+python manage.py rename_dimension_category <instance> --rename 'waste:Sewage 2=sewage_sludge' --apply
+```
+
+- `--auto` proposes an identifier for every invalid category by transliteration
+  (`Straßenbahn` → `strassenbahn`, `paliwo węglowe` → `paliwo_weglowe`). It adds `_2` when the
+  name is taken.
+- `--rename DIM:OLD=NEW` names one category explicitly, and takes precedence over `--auto`.
+
+The category row keeps its pk and UUID, so data points and other foreign keys follow it. The
+command rewrites `spec.dimensions` from the rows, as the editor does, but only for a dimension the
+spec already holds. A dimension that datasets use only is not added to the spec.
+
+What it refuses:
+
+- **Yaml-sourced instances.** Their categories come from the YAML, so the fix belongs there.
+- **Other text references to the old identifier.** It searches node specs, binding
+  transformations and the rest of the instance spec, and refuses while any match. Override with
+  `--allow-references`; those references then need fixing by hand.
+- **A target that is invalid or already taken.**
+
+Any refusal means nothing is written. A published instance keeps serving its live revision, so
+publish it again afterwards.
+
+Node identifiers are not covered. Edges and pages refer to nodes, so renaming one is a different
+repair.
+
 ## sync_instance_to_db
 
 Exports runtime node specs from YAML-loaded instances into the DB.

@@ -21,9 +21,9 @@ identifier can sit there as well as in the row.
     python manage.py check_identifiers potsdam-gpc muenchen-bisko
 
 Output is one tab-separated line per finding, so it survives a narrow terminal and can be piped.
-Nothing is written. A row is fixed by setting a valid identifier, in the editor (now that it
-validates) or from ``shell_plus`` with ``queryset.update()``. A database-sourced instance then needs
-its spec mirror to follow: re-saving the category in the editor does that.
+Nothing is written. For a database-sourced instance, ``rename_dimension_category <instance> --auto``
+repairs the categories, row and spec mirror together; the command lines are printed at the end. A
+yaml-sourced instance is fixed in its YAML.
 """
 
 import re
@@ -98,6 +98,11 @@ class Command(BaseCommand):
         self.stdout.write('\t'.join(COLUMNS))
         for f in sorted(findings, key=lambda f: (f.scope, f.where, f.container, f.identifier)):
             self.stdout.write(f.row())
+        fixable = sorted({f.scope for f in findings if f.where in ('category', 'spec') and f.config_source == 'database'})
+        if fixable:
+            self.stdout.write('\nTo repair the categories (plan first, then add --apply):')
+            for scope in fixable:
+                self.stdout.write(f'python manage.py rename_dimension_category {scope} --auto')
 
     @staticmethod
     def _scan_dimension_rows(ic_by_pk: dict[int, InstanceConfig], include_unscoped: bool) -> list[Finding]:
