@@ -3581,6 +3581,83 @@ nodes:
   output_nodes:
   - id: total_costs
 
+# ----- Emissions
+
+- id: emissions_impacts
+  name: Emissions impacts
+  name_en: Emissions impacts
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [action]
+  output_dimensions: [action]
+
+- id: emissions_reductions
+  name: Emissions reductions
+  name_en: Emissions reductions
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [action]
+  output_dimensions: [action]
+  input_nodes:
+  - id: emissions_impacts
+    tags: [make_nonpositive]
+
+- id: emissions_increases
+  name: Emissions increases
+  name_en: Emissions increases
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [action]
+  output_dimensions: [action]
+  input_nodes:
+  - id: emissions_impacts
+    tags: [make_nonnegative]
+
+- id: emissions_cost_reductions
+  name: Emissions cost reductions
+  name_en: Emissions cost reductions
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: [cost_type, owner, action]
+  output_dimensions: [cost_type, owner, action]
+  input_nodes:
+  - id: emissions_reductions
+    to_dimensions:
+    - id: action
+  - id: carbon_unit_price
+    to_dimensions:
+    - id: cost_type
+      categories: [carbon_shadow]
+    - id: owner
+      categories: [society]
+  output_nodes:
+  - id: total_benefits
+
+- id: emissions_cost_increases
+  name: Emissions cost increases
+  name_en: Emissions cost increases
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: [cost_type, owner, action]
+  output_dimensions: [cost_type, owner, action]
+  input_nodes:
+  - id: emissions_increases
+    to_dimensions:
+    - id: action
+  - id: carbon_unit_price
+    to_dimensions:
+    - id: cost_type
+      categories: [carbon_shadow]
+    - id: owner
+      categories: [society]
+  output_nodes:
+  - id: total_costs
+
 # ----- Mileage
 
 - id: transport_kilometer_impacts
@@ -4092,6 +4169,29 @@ nodes:
     from_dimensions:
     - id: action
       categories: [tramline_3_construction]
+  output_nodes:
+  - id: transportation_cost_benefit
+
+- id: reduce_speedlimits_on_highways_cost_benefit
+  name: Nopeusrajoitusten alentaminen maanteillä
+  name_en: Reduce speed limits on highways
+  color: '#668EC9'
+  type: formula.FormulaNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [cost_type, owner, action]
+  output_dimensions: [cost_type, owner, action]
+  params:
+    formula: total_costs + total_benefits
+  input_nodes:
+  - id: total_costs
+    from_dimensions:
+    - id: action
+      categories: [reduce_speedlimits_on_highways]
+  - id: total_benefits
+    from_dimensions:
+    - id: action
+      categories: [reduce_speedlimits_on_highways]
   output_nodes:
   - id: transportation_cost_benefit
 
@@ -5603,6 +5703,35 @@ actions:
       flatten: true
     - id: scope
       flatten: true
+
+- id: reduce_speedlimits_on_highways
+  name: Nopeusrajoitusten alentaminen maanteillä
+  name_en: Reduce speed limits on highways
+  type: simple.AdditiveAction
+  group: transportation
+  unit: t_co2e/a
+  quantity: emissions
+  input_dimensions: [action]
+  output_dimensions: [action]
+  input_datasets:
+  - id: tampere/transportation_actions
+    column: emissions
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - dimension: action
+      categories: [reduce_speedlimits_on_highways]
+    - column: owner
+    - column: vehicle_type
+    - column: cost_type
+    - column: scope
+    - column: energy_carrier
+  output_nodes:
+  - id: transportation_emissions
+    from_dimensions:
+    - id: action
+      flatten: true
+  - id: emissions_impacts
 
 # ----- Rakennuksen Lämmitys
 - id: aahps_in_municipal_building_stock
