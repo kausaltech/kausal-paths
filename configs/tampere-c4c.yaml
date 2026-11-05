@@ -45,8 +45,8 @@ impact_overviews:
   label_en: Cost-benefit
 
 - graph_type: return_on_investment
-  cost_node: aggregate_total_costs
-  effect_node: aggregate_total_benefits
+  cost_node: total_costs
+  effect_node: total_benefits
   indicator_unit: '%'
   label_fi: Tuotto-odotus
   label_en: Return on investment
@@ -234,17 +234,6 @@ dimensions:
   - id: scope2
     label: Scope 2
     label_en: Scope 2
-
-- id: cost_benefit
-  label: Cost-benefit
-  label_en: Cost-benefit
-  categories:
-  - id: cost
-    label: Cost
-    label_en: Cost
-  - id: benefit
-    label: Benefit
-    label_en: Benefit
 
 - id: sector
   label: GPC-sektori
@@ -1401,31 +1390,6 @@ nodes:
     to_dimensions:
     - id: energy_carrier
     - id: scope
-
-- id: industrial_electricity_consumption_price
-  name: Teollisuuden sähkönkulutuksen kustannukset
-  name_en: Industrial electricity consumption cost
-  type: simple.MultiplicativeNode
-  quantity: currency
-  unit: EUR/a
-  input_dimensions: [energy_carrier, scope, cost_type]
-  output_dimensions: [energy_carrier, scope, cost_type]
-  input_nodes:
-  - id: industrial_electricity_consumption
-    to_dimensions:
-    - id: energy_carrier
-    - id: scope
-  - id: energy_unit_prices
-    to_dimensions:
-    - id: energy_carrier
-    - id: cost_type
-  output_nodes:
-  - id: electricity_consumption_price
-    from_dimensions:
-    - id: energy_carrier
-      flatten: true
-    - id: scope
-      flatten: true
 
 - id: industrial_electricity_emission_factors
   name: Teollisuuden sähkönkulutuksen päästökerroin
@@ -3335,30 +3299,6 @@ nodes:
   unit: EUR/a
   input_dimensions: [cost_type, owner, action]
   output_dimensions: [cost_type, owner, action]
-  output_nodes:
-  - id: aggregate_total_costs
-    from_dimensions:
-    - id: cost_type
-      flatten: true
-    - id: owner
-      flatten: true
-    - id: action
-      flatten: true
-    to_dimensions: []
-
-- id: aggregate_total_costs
-  name: Kustannusten kokonaismäärä
-  name_en: Aggregate total costs
-  type: simple.AdditiveNode
-  quantity: currency
-  unit: EUR/a
-  input_dimensions: []
-  output_dimensions: []
-  output_nodes:
-  - id: cost_benefit_analysis
-    to_dimensions:
-    - id: cost_benefit
-      categories: [cost]
 
 - id: total_benefits
   name: Kokonaishyödyt
@@ -3368,39 +3308,6 @@ nodes:
   unit: EUR/a
   input_dimensions: [cost_type, owner, action]
   output_dimensions: [cost_type, owner, action]
-  output_nodes:
-  - id: aggregate_total_benefits
-    from_dimensions:
-    - id: cost_type
-      flatten: true
-    - id: owner
-      flatten: true
-    - id: action
-      flatten: true
-    to_dimensions: []
-
-- id: aggregate_total_benefits
-  name: Hyötyjen kokonaismäärä
-  name_en: Aggregate total benefits
-  type: simple.AdditiveNode
-  quantity: currency
-  unit: EUR/a
-  input_dimensions: []
-  output_dimensions: []
-  output_nodes:
-  - id: cost_benefit_analysis
-    to_dimensions:
-    - id: cost_benefit
-      categories: [benefit]
-
-- id: cost_benefit_analysis
-  name: Kustannukset ja hyödyt
-  name_en: Costs and benefits
-  type: simple.AdditiveNode
-  quantity: currency
-  unit: kEUR/a
-  input_dimensions: [cost_benefit]
-  output_dimensions: [cost_benefit]
 
 # ----- Energy
 
