@@ -331,6 +331,11 @@ The first is written against a real build, anonymised as "Test City" — a publi
 repo is not the place to publish the list of problems found in a named city's
 inventory. Keep it that way when adding examples.
 
+To check whether two versions of a model agree — YAML vs DB draft, draft vs
+published, DB row vs DVC, producer output vs either, local vs production — start
+from [`docs/comparing-model-versions.md`](docs/comparing-model-versions.md). It
+says which copy each reader actually sees and which command compares which pair.
+
 ### Trailhead Migration
 
 @docs/trailhead/tools.md
