@@ -4386,6 +4386,29 @@ nodes:
   output_nodes:
   - id: building_heating_cost_benefit
 
+- id: energy_efficiency_renovations_in_private_buildings_cost_benefit
+  name: Korjausrakentaminen yksityisissä kiinteistöissä
+  name_en: Energy efficiency renovations in private buildings
+  color: '#AD3963'
+  type: formula.FormulaNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [cost_type, owner, action]
+  output_dimensions: [cost_type, owner, action]
+  params:
+    formula: total_costs + total_benefits
+  input_nodes:
+  - id: total_costs
+    from_dimensions:
+    - id: action
+      categories: [energy_efficiency_renovations_in_private_buildings]
+  - id: total_benefits
+    from_dimensions:
+    - id: action
+      categories: [energy_efficiency_renovations_in_private_buildings]
+  output_nodes:
+  - id: building_heating_cost_benefit
+
 - id: building_heating_cost_benefit
   name: Rakennuksen lämmitys kustannukset ja hyödyt
   name_en: Building heating costs and benefits
@@ -4719,6 +4742,28 @@ nodes:
   output_dimensions: []
 
 - id: steering_private_new_construction_electricity
+  name: Vaikutus (Energiaa, Sähkö)
+  name_en: Impact (Electricity)
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  order: 4
+  is_outcome: true
+  input_dimensions: []
+  output_dimensions: []
+
+- id: energy_efficiency_renovations_in_private_buildings_district_heating
+  name: Vaikutus (Energiaa, Kaukolämpö)
+  name_en: Impact (District Heating)
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  order: 3
+  is_outcome: true
+  input_dimensions: []
+  output_dimensions: []
+
+- id: energy_efficiency_renovations_in_private_buildings_electricity
   name: Vaikutus (Energiaa, Sähkö)
   name_en: Impact (Electricity)
   type: simple.AdditiveNode
@@ -6131,6 +6176,102 @@ actions:
     - id: scope
       flatten: true
   - id: steering_private_new_construction_electricity
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      categories: [electricity]
+      flatten: true
+    - id: scope
+      flatten: true
+
+- id: energy_efficiency_renovations_in_private_buildings
+  name: 'YKSITYINEN: Korjausrakentaminen yksityisissä kiinteistöissä'
+  name_en: 'PRIVATE: Energy efficiency renovations in private buildings'
+  type: simple.AdditiveAction
+  group: building_heating
+  unit: GWh/a
+  quantity: energy
+  input_dimensions: [action, owner, heating, energy_carrier, scope]
+  output_dimensions: [action, owner, heating, energy_carrier, scope]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: tampere/stationary_actions
+    column: energy
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - dimension: action
+      categories: [energy_efficiency_renovations_in_private_buildings]
+    - column: ghg
+    - column: cost_type
+  output_nodes:
+  - id: district_heating_energy_consumption
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: heating
+      categories: [district_heat]
+    to_dimensions:
+    - id: heating
+    - id: energy_carrier
+    - id: scope
+  - id: direct_electric_heating_electricity_consumption
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: heating
+      categories: [direct_electric_heat]
+    to_dimensions:
+    - id: heating
+    - id: energy_carrier
+    - id: scope
+  - id: other_electricity_consumption
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: heating
+      categories: [district_heat, direct_electric_heat]
+      exclude: true
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+    - id: scope
+  - id: energy_consumption_impacts
+    from_dimensions:
+    - id: heating
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: action
+    - id: owner
+    - id: energy_carrier
+  - id: energy_efficiency_renovations_in_private_buildings_district_heating
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      categories: [district_heat]
+      flatten: true
+    - id: scope
+      flatten: true
+  - id: energy_efficiency_renovations_in_private_buildings_electricity
     from_dimensions:
     - id: action
       flatten: true
