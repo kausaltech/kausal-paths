@@ -7150,13 +7150,27 @@ scenarios:
   name: Varmistuneet toimenpiteet
   name_en: Confirmed measures
   params:
+  - id: electrification_of_combination_trucks.enabled
+    value: true
+  - id: parking_policy_to_support_sustainable_mobility.enabled
+    value: true
+  - id: plusbus_investments.enabled
+    value: true
   - id: tramline_3_construction.enabled
+    value: true
+  - id: energy_efficiency_renovations_in_buildings.enabled
+    value: true
+  - id: steering_private_new_construction.enabled
     value: true
   - id: change_streetlights_to_led.enabled
     value: true
   - id: energy_efficiency_of_new_construction.enabled
     value: true
+  - id: parameter_electricity_emission_factor.enabled
+    value: true
   - id: parameter_discount_rate.enabled
+    value: true
+  - id: parameter_diesel_price.enabled
     value: true
   - id: parameter_district_heating_price.enabled
     value: true
@@ -7164,9 +7178,52 @@ scenarios:
     value: true
   - id: parameter_oil_price.enabled
     value: true
+  - id: parameter_petrol_price.enabled
+    value: true
+
+- id: roadmap
+  name: Hiilineutraali Tampere 2030 -tiekartta
+  name_en: Carbon-neutral Tampere 2030 roadmap
+  params:
+  - id: electrification_of_bus_traffic.enabled
+    value: true
+  - id: electrification_of_combination_trucks.enabled
+    value: true
+  - id: improving_the_service_level_of_public_transport.enabled
+    value: true
+  - id: promoting_walking_and_cycling.enabled
+    value: true
+  - id: parking_policy_to_support_sustainable_mobility.enabled
+    value: true
+  - id: plusbus_investments.enabled
+    value: true
+  - id: tramline_3_construction.enabled
+    value: true
+  - id: energy_efficiency_renovations_in_buildings.enabled
+    value: true
+  - id: steering_private_new_construction.enabled
+    value: true
+  - id: change_streetlights_to_led.enabled
+    value: true
+  - id: energy_efficiency_of_new_construction.enabled
+    value: true
+  - id: parameter_electricity_emission_factor.enabled
+    value: true
+  - id: parameter_discount_rate.enabled
+    value: true
+  - id: parameter_diesel_price.enabled
+    value: true
+  - id: parameter_district_heating_price.enabled
+    value: true
+  - id: parameter_electricity_price.enabled
+    value: true
+  - id: parameter_oil_price.enabled
+    value: true
+  - id: parameter_petrol_price.enabled
+    value: true
 
 - id: default
   default: true
-  name: Hiilineutraali Tampere 2030 -tiekartta
-  name_en: Carbon-neutral Tampere 2030 roadmap
+  name: Hiilineutraali Tampere 2030 -tiekartta+
+  name_en: Carbon-neutral Tampere 2030 roadmap+
   all_actions_enabled: true
