@@ -24,12 +24,12 @@ from params.param import BoolParameter
 
 pytestmark = pytest.mark.django_db
 
-# The reviewed main revision 136c060e, with municipal overlap disabled in bisko.
+# The reviewed main revision d5ed3448, with municipal overlap disabled in bisko.
 # Changing the certification model must be deliberate.
 CERTIFICATION_FILES = {
     'bisko.yaml': '16c01e226dbaf85d9ed8aaa773af0afff609ff7d54369ea18203bc44aed9a657',
     'pruefstadt-bisko.yaml': '97e0759909c031c02f8afd6589b6e174f565e2303ccc27a3e6f97f23863adbd6',
-    'modules/bisko/model.yaml': 'fd92cb4c6603cff44bc369d97b2bfb06418062d9d4dd4fd695ebef058bd0f0ec',
+    'modules/bisko/model.yaml': '99735d2705ead6ceb007deab27d29b697820e5efc8c7d4282f6f339a318d75e2',
 }
 
 

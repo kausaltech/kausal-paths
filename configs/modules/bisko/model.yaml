@@ -1,6 +1,8 @@
-# BISKO module, version 1.3 (2026-10-26): the version submitted for BISKO certification by the
-# Agentur für kommunalen Klimaschutz and reviewed by it on 2026-10-26. A certificate names this
-# number, so from that review on a change to what the module computes gets a new one (1.4), recorded with its date and reason in the version list of
+# BISKO module, version 1.3: the version submitted for BISKO certification by the Agentur für
+# kommunalen Klimaschutz, as it stands at the end of the third review round (the round's last
+# finding, a Datengüte on every stationary value the city entered, went in on 2026-11-02). A
+# certificate names this number, so once 1.3 is published beyond the certifier's reviewers a change
+# to what the module computes gets a new one (1.4), recorded with its date and reason in the version list of
 # modules/bisko/README.md in paths-data, and shown to users on the front page of each instance.
 #
 # Every dataset this module reads is declared here with its ownership class, so the
@@ -4244,7 +4246,8 @@ nodes:
         in force and did allocate something. The criterion is the method; whether the resulting
         factor sits inside the Table 5 range is reported separately as a diagnostic and does not
         affect conformity.</li>
-      <li><b>Data quality</b> — the grid-bound carriers reach quality A.</li>
+      <li><b>Data quality</b> — every value the city entered carries a Datengüte, and the
+        grid-bound carriers reach quality A.</li>
     </ol>
     Criterion 2 is a property of the model's structure rather than of a city's data, so it has no
     runtime test. Municipal facilities and the municipal fleet are deliberately excluded from the
@@ -4271,7 +4274,8 @@ nodes:
         Methode ist in Kraft und hat auch etwas verteilt. Das Kriterium ist die Methode; ob der
         resultierende Fernwärmefaktor in der Spannweite von Tabelle 5 liegt, wird separat als
         Diagnose ausgewiesen und beeinflusst die Konformität nicht.</li>
-      <li><b>Datengüte</b> — die leitungsgebundenen Energieträger erreichen Güte A.</li>
+      <li><b>Datengüte</b> — jeder von der Kommune eingetragene Wert trägt eine Datengüte, und
+        die leitungsgebundenen Energieträger erreichen Güte A.</li>
     </ol>
     Kriterium 2 ist eine Eigenschaft der Modellstruktur und nicht der Daten einer Kommune und hat
     daher keinen Laufzeittest. Kommunale Einrichtungen und der kommunale Fuhrpark sind von den
@@ -4317,11 +4321,14 @@ nodes:
     tags: [quality_grades]
   - id: has_all_transport_data_quality_grades
     tags: [transport_grades]
+  # ... and on every stationary and district heating value the city entered, required or not.
+  - id: has_all_stationary_data_quality_grades
+    tags: [stationary_grades]
   params:
     # inventory_only: an indicator about the data the balance ran on, so it ends at the last
     # historical year; a forecast year has no data for it to describe.
     formula: inventory_only(weather * electricity * district_heating
-      * grid_energy * quality_grades * transport_grades * grid_bound * non_grid_bound
+      * grid_energy * quality_grades * transport_grades * stationary_grades * grid_bound * non_grid_bound
       * other_transport * road_transport)
 
 - id: has_no_weather_correction
@@ -5601,6 +5608,179 @@ nodes:
     formula: prod_dim(prod_dim(max(complement(mileage + 0 * mileage_grade), mileage_grade), road_type), vehicle_type)
       * prod_dim(prod_dim(max(complement(road_energy + 0 * road_energy_grade), road_energy_grade), energy_carrier), vehicle_type)
       * prod_dim(prod_dim(max(complement(other + 0 * other_grade), other_grade), energy_carrier), vehicle_type)
+
+# Criterion 7.1 for the stationary and district heating inputs, the same implication as for
+# transport: every value the city entered carries a Datengüte. has_all_data_quality_grades asks
+# only that the 21 required cells be graded, so a value on any other carrier (biogas, propane,
+# local heating, ...) or in municipal facilities could go ungraded while the year stayed conform.
+# The certifier found exactly that on Prüfstadt: Industrie/Biogas 2020 ungraded, which the dataset's
+# own requires_metric rule reported and the conformity check did not (third Prüflauf, 2026-11-02).
+# The rule this gate enforces is the one the dataset declares: every dataset in this module carrying
+# `requires_metric: quality` is covered here or by has_all_transport_data_quality_grades, except
+# kommune/gemeldete_emissionen and kommune/verkehrsleistung_personen, which are not balance inputs.
+
+- id: final_energy_use_all_sectors_availability
+  is_editable: false
+  name_en: Final energy use entries, all carriers and sectors
+  name_de: Eingetragene Endenergiewerte, alle Energieträger und Sektoren
+  description_en: |
+    For which sector, energy carrier and year the city has entered a final energy value (1) and for
+    which not (0), over every carrier and all four sectors, municipal facilities included. Unlike
+    <i>Final energy use data availability</i> it says nothing about which cells are required; it is
+    the value side of <i>Has a Datengüte for every stationary value the city entered?</i><br/>
+    Values: 1 = a value has been entered, 0 = no value. The value has no unit.
+  description_de: |
+    Für welchen Sektor, Energieträger und welches Jahr die Kommune einen Endenergiewert eingetragen
+    hat (1) und für welche nicht (0), über alle Energieträger und alle vier Sektoren einschließlich
+    der kommunalen Einrichtungen. Anders als „Datenverfügbarkeit des Endenergieverbrauchs" sagt der
+    Knoten nichts darüber, welche Zellen Pflicht sind; er ist die Wertseite von „Liegt für jeden von
+    der Kommune eingetragenen stationären Wert eine Datengüte vor?".<br/>
+    Werte: 1 = ein Wert ist eingetragen, 0 = kein Wert. Der Wert hat keine Einheit.
+  type: simple.DataAvailabilityNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: kommune/endenergieverbrauch
+    column: Value
+    filters:
+    # The four BISKO sectors, named for the reason given at final_energy_use_availability: an
+    # unknown category fails the node. Municipal facilities are in, unlike there: their absence is
+    # allowed, an ungraded value in them is not.
+    - dimension: sector
+      categories: [private_households, commerce_trade_services, industry, municipal_facilities]
+  # Only so that an empty dataset still yields a frame with dimensions; the union with the data's
+  # own cells means every entered carrier is reported, required or not.
+  - id: de/pflichtkategorien_endenergie
+    tags: [template]
+
+- id: final_energy_use_all_sectors_quality_availability
+  is_editable: false
+  name_en: Final energy use Datengüte entries, all carriers and sectors
+  name_de: Eingetragene Datengüte der Endenergiewerte, alle Energieträger und Sektoren
+  description_en: |
+    For which sector, energy carrier and year the city has entered a Datengüte (1) and for which not
+    (0), over the same cells as <i>Final energy use entries, all carriers and sectors</i>.<br/>
+    Values: 1 = a value has been entered, 0 = no value. The value has no unit.
+  description_de: |
+    Für welchen Sektor, Energieträger und welches Jahr die Kommune eine Datengüte eingetragen hat
+    (1) und für welche nicht (0), über dieselben Zellen wie „Eingetragene Endenergiewerte, alle
+    Energieträger und Sektoren".<br/>
+    Werte: 1 = ein Wert ist eingetragen, 0 = kein Wert. Der Wert hat keine Einheit.
+  type: simple.DataAvailabilityNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: kommune/endenergieverbrauch
+    column: quality
+    filters:
+    - dimension: sector
+      categories: [private_households, commerce_trade_services, industry, municipal_facilities]
+  - id: de/pflichtkategorien_endenergie
+    tags: [template]
+
+- id: district_heating_plant_quality_availability
+  is_editable: false
+  name_en: Own CHP plant data Datengüte availability
+  name_de: Datenverfügbarkeit der Datengüte der eigenen KWK-Anlagendaten
+  description_en: |
+    For which cells of the city's district heating plant data a Datengüte has been entered (1) and
+    for which not (0). The same cells as <i>Own CHP plant data availability</i>, so the two can be
+    compared cell by cell.<br/>
+    Values: 1 = a value has been entered, 0 = no value. The value has no unit.
+  description_de: |
+    Für welche Zellen der Fernwärme-Anlagendaten der Kommune eine Datengüte eingetragen ist (1) und
+    für welche nicht (0). Dieselben Zellen wie „Datenverfügbarkeit der eigenen KWK-Anlagendaten",
+    sodass beide Zelle für Zelle verglichen werden können.<br/>
+    Werte: 1 = ein Wert ist eingetragen, 0 = kein Wert. Der Wert hat keine Einheit.
+  type: simple.DataAvailabilityNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [energy_carrier, per_what_energy]
+  output_dimensions: [energy_carrier, per_what_energy]
+  input_datasets:
+  - id: kommune/fernwaerme_energieeinsatz
+    column: quality
+    filters:
+    - column: upstream_included
+      value: 'yes'
+  - id: de/kategorien_fernwaerme_anlagen
+    tags: [template]
+
+- id: district_heating_predominant_variant_quality_availability
+  is_editable: false
+  name_en: Declared generation variant Datengüte availability
+  name_de: Datenverfügbarkeit der Datengüte der erklärten Erzeugungsvariante
+  description_en: |
+    For which year and generation variant a Datengüte has been entered (1) and for which not (0).
+    The same cells as <i>Declared generation variant availability</i>.<br/>
+    Values: 1 = a value has been entered, 0 = no value. The value has no unit.
+  description_de: |
+    Für welches Jahr und welche Erzeugungsvariante eine Datengüte eingetragen ist (1) und für welche
+    nicht (0). Dieselben Zellen wie „Datenverfügbarkeit der erklärten Erzeugungsvariante".<br/>
+    Werte: 1 = ein Wert ist eingetragen, 0 = kein Wert. Der Wert hat keine Einheit.
+  type: simple.DataAvailabilityNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [energy_carrier]
+  output_dimensions: [energy_carrier]
+  input_datasets:
+  - id: kommune/fernwaerme_erzeugungsvariante
+    column: quality
+  - id: de/kategorien_fernwaerme_varianten
+    tags: [template]
+
+- id: has_all_stationary_data_quality_grades
+  is_editable: false
+  name_en: Has a Datengüte for every stationary value the city entered?
+  name_de: Liegt für jeden von der Kommune eingetragenen stationären Wert eine Datengüte vor?
+  description_en: |
+    1 when every final energy value, district heating plant value and declared generation variant
+    the city entered for that year carries a Datengüte, 0 when one does not. This covers every
+    energy carrier and all four sectors, municipal facilities included — not only the cells BISKO
+    requires, which <i>Has a Datengüte for every required cell?</i> tests. A value that is entered
+    is a value the balance uses, so it needs a statement of where it came from, whether or not the
+    cell is mandatory.<br/>
+    Which cells are ungraded is shown by comparing <i>Final energy use entries, all carriers and
+    sectors</i> with <i>Final energy use Datengüte entries, all carriers and sectors</i>, and the
+    two district heating availability nodes likewise.<br/>
+    Values: 1 = yes, 0 = no. The value has no unit.
+  description_de: |
+    1, wenn jeder Endenergiewert, jeder Wert der Fernwärme-Anlagendaten und jede erklärte
+    Erzeugungsvariante, die die Kommune für dieses Jahr eingetragen hat, eine Datengüte trägt, 0,
+    wenn einer keine trägt. Geprüft werden alle Energieträger und alle vier Sektoren einschließlich
+    der kommunalen Einrichtungen – nicht nur die von BISKO verlangten Zellen, die „Liegt für jede
+    Pflichtzelle eine Datengüte vor?" prüft. Ein eingetragener Wert geht in die Bilanz ein und
+    braucht deshalb eine Angabe zu seiner Herkunft, ob die Zelle Pflicht ist oder nicht.<br/>
+    Welche Zellen unbewertet sind, zeigt der Vergleich von „Eingetragene Endenergiewerte, alle
+    Energieträger und Sektoren" mit „Eingetragene Datengüte der Endenergiewerte, alle Energieträger
+    und Sektoren", für die Fernwärme ebenso die beiden Verfügbarkeitsknoten.<br/>
+    Werte: 1 = ja, 0 = nein. Der Wert hat keine Einheit.
+  type: formula.FormulaNode
+  quantity: probability
+  unit: dimensionless
+  input_nodes:
+  - id: final_energy_use_all_sectors_availability
+    tags: [energy]
+  - id: final_energy_use_all_sectors_quality_availability
+    tags: [energy_grade]
+  - id: district_heating_plant_data_availability
+    tags: [plant]
+  - id: district_heating_plant_quality_availability
+    tags: [plant_grade]
+  - id: district_heating_predominant_variant_availability
+    tags: [variant]
+  - id: district_heating_predominant_variant_quality_availability
+    tags: [variant_grade]
+  params:
+    # The same implication per cell as has_all_transport_data_quality_grades, max(1 - value
+    # entered, grade entered), and the same `v + 0 * grade` padding for a grade without a value.
+    formula: prod_dim(prod_dim(max(complement(energy + 0 * energy_grade), energy_grade), sector), energy_carrier)
+      * prod_dim(prod_dim(max(complement(plant + 0 * plant_grade), plant_grade), per_what_energy), energy_carrier)
+      * prod_dim(max(complement(variant + 0 * variant_grade), variant_grade), energy_carrier)
 
 - id: final_energy_use_availability
   is_editable: false
