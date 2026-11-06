@@ -80,6 +80,20 @@ def test_a_published_edition_without_a_pin_fails_only_when_read() -> None:
         dataset.data_points()
 
 
+def test_a_published_external_placeholder_needs_no_pin() -> None:
+    """Publication pins only stored datasets, so a placeholder's missing pin is expected, not an error."""
+    query = make_query()
+    query.editions.published = True
+    meta = query.graph.datasets[0]
+    # dataset_by_id is a cached property of the graph; seed it with the placeholder flavour of the same dataset.
+    vars(query.graph)['dataset_by_id'] = {meta.id: meta.model_copy(update={'is_external_placeholder': True})}
+    edition = query.editions.get(meta.id)
+    assert edition is not None
+    assert edition.unavailable is None
+    assert edition.is_live
+    DatasetType.from_edition(edition).data_points()
+
+
 def test_a_reader_without_access_does_not_list_the_dataset() -> None:
     """The graph names the dataset to anyone reading the instance source; a listing still follows the dataset policy."""
     query = make_query()

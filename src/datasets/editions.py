@@ -419,11 +419,16 @@ class DatasetEditions:
             for revision in Revision.objects.filter(pk__in=pins.values()).select_related('content_type')
         }
 
-    def _pinned_revision(self, id: UUID, row: Dataset | None) -> tuple[Revision[Dataset] | None, str | None]:
+    def _pinned_revision(self, meta: DatasetMeta, row: Dataset | None) -> tuple[Revision[Dataset] | None, str | None]:
         """Return the revision a dataset is pinned to, or why the pin cannot be read."""
+        id = meta.id
         revision_id = self.graph.pinned_revisions.get(id)
         if revision_id is None:
-            return None, f'Published dataset {id} has no revision pin' if self.published else None
+            # Publication pins only stored datasets; an external placeholder is read from its
+            # external source in every edition, so a published revision rightly carries no pin for it.
+            if not self.published or meta.is_external_placeholder:
+                return None, None
+            return None, f'Published dataset {id} has no revision pin'
         revision = self._revisions.get(revision_id)
         if (
             revision is None
@@ -471,7 +476,7 @@ class DatasetEditions:
             if meta is None:
                 self._editions[id] = None
             else:
-                revision, unavailable = self._pinned_revision(id, row)
+                revision, unavailable = self._pinned_revision(meta, row)
                 self._editions[id] = DatasetEdition(
                     meta=meta,
                     row=row,
