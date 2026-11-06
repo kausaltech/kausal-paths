@@ -24,6 +24,7 @@ pytestmark = pytest.mark.django_db
 @pytest.mark.parametrize('baseline', [False, True])
 def test_node_check_rejects_infinity(node: Node, monkeypatch: pytest.MonkeyPatch, value: float, baseline: bool) -> None:
     def frame(metric_value: float) -> PathsDataFrame:
+        assert node.unit is not None
         return to_ppdf(
             pl.DataFrame({YEAR_COLUMN: [2023], VALUE_COLUMN: [metric_value], FORECAST_COLUMN: [False]}),
             meta=DataFrameMeta(units={VALUE_COLUMN: node.unit}, primary_keys=[YEAR_COLUMN]),
