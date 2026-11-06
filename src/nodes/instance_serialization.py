@@ -45,6 +45,7 @@ from kausal_common.datasets.models import (
 from kausal_common.i18n.pydantic import (
     TranslatedString,
     get_modeltrans_attrs_from_str,
+    set_i18n_context,
 )
 
 from paths.identifiers import BindingId, NodeId  # noqa: TC002 - Pydantic field
@@ -79,6 +80,8 @@ from nodes.defs.instance_defs import InstanceMetadata, InstanceModelSpec
 from nodes.defs.node_defs import DatasetPortSpec, NodeSpec
 from nodes.defs.transform_def import EdgeTransformOp, PortTransformOp
 from nodes.goals import NodeGoals
+from nodes.instance_graph import node_class_for_type_config
+from nodes.legacy_port_roles import split_legacy_edge_roles
 from nodes.legacy_specs import upgrade_formula_specs_v13
 from nodes.page_snapshot import PageSnapshot, build_instance_page_snapshots
 from nodes.snapshot_base import ModelSnapshot, apply_translated, translated_string_from_model
@@ -125,7 +128,8 @@ if TYPE_CHECKING:
 #        resolution, and each metric validation rule carries its row's uuid.
 #   v18: output dimensions are an assertion on each output port; ``NodeSpec.output_dimensions``
 #        is gone, and ``OutputPortDef.dimensions`` is ``None`` when the shape is inferred.
-SNAPSHOT_SCHEMA_VERSION = 18
+#   v19: legacy edges serving several declared operands have one explicit port per role.
+SNAPSHOT_SCHEMA_VERSION = 19
 
 _MARKDOWN = MarkdownIt('commonmark', {'html': True})
 
@@ -1064,7 +1068,7 @@ class InstanceSnapshot(BaseModel):
         data = deepcopy(data)
         _upgrade_snapshot_data(data, schema_version)
         data['schema_version'] = SNAPSHOT_SCHEMA_VERSION
-        data['snapshot_kind'] = 'legacy'
+        data.setdefault('snapshot_kind', 'legacy')
         return cls.model_validate(data)
 
 
@@ -1090,6 +1094,29 @@ def _move_output_dimensions_to_ports_v18(data: dict[str, Any]) -> None:
             move_output_dimensions_to_ports_v18(node['spec'])
 
 
+def split_legacy_edge_roles_v19(data: dict[str, Any]) -> None:
+    bindings = [InputBindingSnapshot.model_validate(binding) for binding in data.get('bindings', [])]
+    for node in _node_list(data):
+        if not node.get('spec'):
+            continue
+        node_id = UUID(str(node['uuid']))
+        own_bindings = [binding for binding in bindings if binding.node_id == node_id]
+        if not any(binding.node_source is not None and len(binding.tags) > 1 for binding in own_bindings):
+            continue
+        spec = NodeSpec.model_validate(node['spec'])
+        metadata = data.get('metadata', {})
+        with set_i18n_context(metadata.get('primary_language', 'en'), other_languages=metadata.get('other_languages', [])):
+            roles = node_class_for_type_config(spec.type_config).legacy_edge_role_fanout
+        if not roles:
+            continue
+        upgraded_spec, upgraded_bindings = split_legacy_edge_roles(spec, own_bindings, roles)
+        if upgraded_spec is spec:
+            continue
+        node['spec'] = upgraded_spec.model_dump(mode='json')
+        bindings = [binding for binding in bindings if binding.node_id != node_id] + upgraded_bindings
+        data['bindings'] = [binding.model_dump(mode='json') for binding in bindings]
+
+
 _SNAPSHOT_UPGRADERS: tuple[tuple[int, Callable[[dict[str, Any]], object]], ...] = (
     (3, lambda data: _upgrade_node_references_v3(data, _node_list(data))),
     (4, lambda data: _upgrade_node_metadata_v4(_node_list(data))),
@@ -1107,6 +1134,7 @@ _SNAPSHOT_UPGRADERS: tuple[tuple[int, Callable[[dict[str, Any]], object]], ...] 
     ),
     (17, _drop_dead_node_spec_fields_v17),
     (18, _move_output_dimensions_to_ports_v18),
+    (19, split_legacy_edge_roles_v19),
 )
 """Upgrader ``N`` brings serialized snapshot data older than version ``N`` up to it, in place."""
 
