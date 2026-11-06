@@ -11,13 +11,13 @@ if TYPE_CHECKING:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--template', default='bisko')
+    parser.add_argument('--template', default='bisko-base')
     parser.add_argument('--instance', action='append', default=[], help='Attach membership without converting the graph.')
     parser.add_argument(
         '--prepare-from', action='append', default=[], help='Prepare template declarations from verified DB models.'
     )
     parser.add_argument(
-        '--sync-template', action='store_true', help='Sync configs/bisko.yaml into the template before anything else.'
+        '--sync-template', action='store_true', help='Sync the selected template YAML into the template before anything else.'
     )
     parser.add_argument('--publish', action='store_true', help='Publish the template and advance dependent local drafts.')
     parser.add_argument('--reference-instance', help='Use this historical reference-data edition when publishing.')
@@ -35,6 +35,7 @@ def main() -> None:
     from kausal_common.development.django import init_django
 
     init_django()
+    from django.conf import settings
     from django.core.management import call_command
     from django.db import transaction
 
@@ -42,6 +43,13 @@ def main() -> None:
     from frameworks.bisko.legacy_road_fuels import fold_road_biofuels
     from frameworks.bisko.provisioning import setup_bisko
     from frameworks.bisko.quality import provision_bisko_quality_projections
+    from nodes.bisko_certification import CERTIFICATION_INSTANCES
+    from nodes.instance_loader import InstanceLoader
+    from nodes.models import InstanceConfig
+
+    selected = {args.template, *args.instance, *args.prepare_from, *args.convert}
+    if selected & CERTIFICATION_INSTANCES:
+        parser.error('Certification instances cannot be provisioned or converted by this command.')
 
     try:
         with transaction.atomic():
@@ -52,6 +60,9 @@ def main() -> None:
             for change in fold_road_biofuels():
                 print(change)
             if args.sync_template:
+                if not InstanceConfig.objects.filter(identifier=args.template).exists():
+                    loader = InstanceLoader.from_yaml(Path(settings.BASE_DIR) / 'configs' / f'{args.template}.yaml')
+                    InstanceConfig.create_for_instance(loader.instance)
                 call_command('sync_instance_to_db', args.template)
             framework = setup_bisko(template_identifier=args.template, instance_identifiers=tuple(args.instance))
             print(
@@ -86,15 +97,15 @@ def _setup_graphs(framework: Framework, args: argparse.Namespace) -> None:
     from nodes.instance_loader import InstanceYAMLConfig
     from nodes.models import InstanceConfig
 
-    yaml_config = InstanceYAMLConfig.load_for_entrypoint(Path(settings.BASE_DIR) / 'configs/bisko.yaml')
+    template = framework.template_instance
+    assert template is not None
+    yaml_config = InstanceYAMLConfig.load_for_entrypoint(Path(settings.BASE_DIR) / 'configs' / f'{template.identifier}.yaml')
     assert yaml_config.data is not None
     defaults = {
         entry['id']: QualityLevelKey.model_validate(entry['default_quality'])
         for entry in yaml_config.data.get('datasets', [])
         if entry.get('default_quality') is not None
     }
-    template = framework.template_instance
-    assert template is not None
     if args.prepare_from:
         examples = [InstanceConfig.objects.get(identifier=identifier) for identifier in args.prepare_from]
         for change in prepare_template_inputs(framework, examples):

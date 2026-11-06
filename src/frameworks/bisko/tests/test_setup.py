@@ -28,7 +28,7 @@ pytestmark = pytest.mark.django_db
 
 @pytest.fixture
 def template() -> InstanceConfig:
-    return InstanceConfigFactory.create(identifier='bisko', name='BISKO')
+    return InstanceConfigFactory.create(identifier='bisko-base', name='BISKO')
 
 
 def test_setup_is_idempotent_and_keeps_models_and_settings(template: InstanceConfig) -> None:
@@ -307,3 +307,22 @@ def test_default_quality_release_is_idempotent_and_keeps_member_pins() -> None: 
     final = reconcile_bisko_default_quality(framework, defaults)
     assert final is not None
     assert final.pk == advanced.pk
+
+
+@pytest.mark.parametrize('identifier', ['bisko', 'pruefstadt-bisko'])
+def test_setup_refuses_to_adopt_a_certification_instance(template: InstanceConfig, identifier: str) -> None:
+    InstanceConfigFactory.create(identifier=identifier, name=f'Certification {identifier}', config_source='database')
+    with pytest.raises(ValueError, match='certification'):
+        setup_bisko(template_identifier=identifier)
+    with pytest.raises(ValueError, match='certification'):
+        setup_bisko(instance_identifiers=(identifier,))
+    assert not Framework.objects.filter(identifier='bisko').exists()
+
+
+def test_framework_yaml_fallback_uses_the_selected_template(template: InstanceConfig) -> None:
+    framework = setup_bisko()
+    municipality = InstanceConfigFactory.create(identifier='municipality', name='Municipality')
+    FrameworkConfig.objects.create(instance_config=municipality, framework=framework, organization_name='Municipality')
+    entrypoint = municipality.get_yaml_config_entrypoint()
+    assert entrypoint is not None
+    assert entrypoint.name == 'bisko-base.yaml'

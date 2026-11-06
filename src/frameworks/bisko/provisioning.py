@@ -26,6 +26,7 @@ from frameworks.bisko.weather import (
 )
 from frameworks.identity import ensure_municipal_organization
 from frameworks.models import DataQualityLevel, DataQualityScheme, Framework, FrameworkConfig
+from nodes.bisko_certification import CERTIFICATION_INSTANCES
 from nodes.defs.transform_def import FilterColumnOp
 from nodes.models import DatasetMaterialization, InstanceConfig, NodeInputPortBinding
 from nodes.template_graph import template_snapshot
@@ -349,7 +350,7 @@ def provision_german_organization_catalogue() -> None:
 
 
 @transaction.atomic
-def setup_bisko(*, template_identifier: str = 'bisko', instance_identifiers: tuple[str, ...] = ()) -> Framework:  # noqa: C901
+def setup_bisko(*, template_identifier: str = 'bisko-base', instance_identifiers: tuple[str, ...] = ()) -> Framework:  # noqa: C901
     """
     Register BISKO and its quality scale without cloning graphs or creating pages.
 
@@ -360,6 +361,8 @@ def setup_bisko(*, template_identifier: str = 'bisko', instance_identifiers: tup
     membership changes authorization, and YAML membership also changes the model
     entrypoint; it is never inferred from an instance's name.
     """
+    if template_identifier in CERTIFICATION_INSTANCES or CERTIFICATION_INSTANCES.intersection(instance_identifiers):
+        raise ValueError('BISKO certification instances must remain outside the evolving framework.')
     template = InstanceConfig.objects.get(identifier=template_identifier)
     instances = list(InstanceConfig.objects.filter(identifier__in=instance_identifiers).select_for_update())
     missing = set(instance_identifiers) - {instance.identifier for instance in instances}

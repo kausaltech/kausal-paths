@@ -28,34 +28,30 @@ features:
   show_explanations: true
   show_category_warnings: true
 
-# Per-capita figures over editable municipal population, with GISCO LAU as the fallback
-# until a local series is supplied. Years the population series lacks drop out of a
-# normalized metric rather than being divided by a guess.
-normalizations:
-- normalizer_node: population
-  quantities:
-  - id: emissions
-    unit: t_co2e/cap/a
-  - id: energy
-    unit: MWh/cap/a
-
 include:
-- file: modules/bisko/population-defaults.yaml
-  allow_override: false
-  nodes_editable: false
 - file: modules/bisko/model.yaml
-  # The earlier extension deliberately replaces only the population node.
-  allow_override: true
+  allow_override: false
   nodes_editable: false
   # dataset_replacements:
   # - from: kommune/endenergieverbrauch
   #   to: duesseldorf/final_energy
   # - from: kommune/gemeldete_emissionen
   #   to: duesseldorf/historical_emissions
+  # - from: kommune/verkehrsleistung_personen
+  #   to: duesseldorf/passenger_kilometers
 
 #//////  Parameters  ////////////////////////////////////////////////////////////////////////////
 params:
 
+- id: municipality_name
+  label_en: Municipality name
+  label_de: Gemeindename
+  # Filters de/fahrleistung_strassenverkehr and
+  # de/energieverbrauch_uebriger_verkehr, so it must match a municipality that exists in those
+  # datasets. It is not a display name -- the template's display name is set by `name`.
+  value: Düsseldorf
+  is_customizable: false
+  is_visible: false
 - id: ags_number
   label_en: AGS number
   label_de: AGS-Nummer
@@ -79,9 +75,8 @@ params:
   is_visible: false
 # The municipality itself, as a Eurostat GISCO LAU code: `<country>_<national LAU code>`, and
 # for Germany the national LAU code is the AGS -- so this is `DE_` plus `ags_number`, naming
-# Düsseldorf, Stadt. The shared module's `population` node filters the European municipal
-# population table `demography/population_lau` down to this one municipality; this template
-# replaces that node with the municipality's own series, so here it only records the identity.
+# Düsseldorf, Stadt. Read by the `population` node, which filters the European municipal
+# population table `demography/population_lau` down to this one municipality.
 #
 # Declared separately from `ags_number` rather than derived from it, because the model filters on
 # one column with one parameter and the table is Europe-wide: a bare `09761000` is not unique
@@ -94,10 +89,41 @@ params:
   is_customizable: false
   is_visible: false
 
+# Utilities report municipal consumption inside the GHD residual unless the city has had it
+# separated, so BISKO's Leitfaden Datenbeschaffung treats the overlap as the normal case and
+# requires it to be subtracted (Prüfschritt 2.1). Declared per city, because only the city knows
+# how its data was delivered; hidden and not customizable, because it moves the balance and is
+# settled once at setup (agreed with the certifier on 2026-10-15).
+#
+# **A city whose energy data comes from a Klimaschutz-Planer (KSP) export declares false.** KSP
+# keeps the Kommunale Einrichtungen as a sector beside GHD -- its own totals are
+# SUM = GE + HE + IE + KE -- and where a city entered a GHD figure containing them, KSP has already
+# taken them out. Checked on 2026-09-28 against all five KSP cities (Augsburg, Bayreuth,
+# Düsseldorf, Mainz, Schwerin): no exception. Test a new export with
+# paths-data/modules/bisko/ksp_municipal_facilities_check.py.
+#
+# The declaration is one constant for the whole series, so the dataset must follow one rule in
+# every year: an extractor that combines sources (KSP for early years, a utility delivery for
+# later ones) has to bring them all to the same convention before upload -- in practice "beside",
+# since that is what KSP delivers. Test a utility delivery by whether its sector columns sum to its
+# own total with or without the facilities. "Subtracting never goes negative" is not a test: it
+# can only ever prove "beside", never "inside".
+#
+# Municipal facilities are entered separately in this template too. Keep the overlap
+# correction disabled so their consumption is not subtracted from commerce a second time.
+- id: municipal_facilities_included_in_commerce
+  # Hidden and fixed: what the city's data contains is settled once at setup, not by a visitor.
+  # Where KE is shown is the reporting setting report_municipal_facilities_in_commerce.
+  label_en: The entered figure for commerce, trade and services still contains the municipal facilities (they are subtracted, so nothing is counted twice).
+  label_de: Der eingetragene Wert für GHD/Sonstiges enthält die kommunalen Einrichtungen noch (sie werden abgezogen, damit nichts doppelt gezählt wird).
+  value: false
+  is_visible: false
+  is_customizable: false
+
 # Heat-pump electricity sits inside the metered electricity unless the utility has separated it,
 # so the Leitfaden Datenbeschaffung (Schritt 7) treats the overlap as the normal case and asks for
 # it to be subtracted. Declared per city, because only the city knows how its data was delivered;
-# hidden and fixed: settled once at setup.
+# hidden and fixed like municipal_facilities_included_in_commerce: settled once at setup.
 - id: heat_pump_electricity_included_in_electricity
   label_en: The entered electricity consumption still contains the electricity of the heat pumps (it is subtracted, so nothing is counted twice).
   label_de: Der eingetragene Stromverbrauch enthält den Strom der Wärmepumpen noch (er wird abgezogen, damit nichts doppelt gezählt wird).
@@ -151,11 +177,12 @@ result_excels:
     https://docs.google.com/spreadsheets/d/13URk1zrbyu5Dyjw-w7tIiaAlrERNul-L/export?format=xlsx
   name_de: Stadtspezifische Werte aus BISKO-Datensätzen und anderen Quellen
   name_en: City-specific values from BISKO datasets and elsewhere
-  include_qualifiers: true
   node_ids:
   - weather_correction
   - final_energy_use
   - total_final_energy_use          # criterion 2.1: energy by sector incl. transport
+  - municipal_facilities_energy_in_commerce  # criterion 2.1: the KE/GHD double-count correction
+  - final_energy_use_data_quality
   - total_weighted_data_quality     # criterion 7.2: Datengüte of the whole balance
   # - final_municipal_facilities_energy_use_by_type
   # - municipal_fleet_energy
@@ -174,10 +201,15 @@ result_excels:
   - district_heating_method_in_force
   # Prüfschritt 7.1: a Datengüte must be enterable for every input field. The first Prüflauf
   # named the district-heating one as missing; these three are where the grades are shown.
+  - district_heating_energy_use_data_quality
+  # 6.1 Moeglichkeit 3: where a city declares its predominant generation variant, and which
   # years that declaration covers. Verified working on 2026-08-22 -- a declared variant does put
   # route 3 in force -- but it appeared in no result_excels list, which is why the certifier
   # recorded it as "aktuell kann keine ueberwiegende Erzeugungsvariante ausgewaehlt werden".
   - district_heating_predominant_variant
+  - district_heating_predominant_variant_availability
+  - vehicle_kilometers_own_data_quality
+  - other_transport_energy_own_data_quality
   - road_transport_energy_by_road_type  # 2.3: the road-typing view itself; was in no config
   - vehicle_kilometers_own          # 2.3: the own-data mileage route, road-typed
   - other_transport_energy_own      # 1.5: where a city enters rail/water/air consumption
@@ -187,7 +219,14 @@ result_excels:
   - road_transport_activity_source_in_force
   - road_transport_energy_method_in_force
   - other_transport_energy_source_in_force
+  - transport_energy_own_availability
+  - passenger_kilometers_own        # the pkm/vkm distinction the certifier asked about
+  # "Visuelles Ausweisen als Pflichtfeld waere hilfreich" -- raised under 1.2, 1.4 and 1.5.
   # These show which required cell is missing rather than a bare 0.
+  - final_energy_use_availability
+  - other_transport_energy_availability
+  - vehicle_kilometers_own_availability
+
 pages:
 
 - id: home

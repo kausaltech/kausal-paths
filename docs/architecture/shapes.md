@@ -271,7 +271,7 @@ can always see that the conformant figure is not the whole one.
 
 ## In the BISKO module
 
-`configs/modules/bisko/model.yaml` declares the standard shapes (`bisko/*`) from the
+`configs/modules/bisko-base/model.yaml` declares the standard shapes (`bisko/*`) from the
 Methodenpapier and the certification's Prüfprotokoll, and the YAML comments cite them. BISKO has
 no matrix of mandatory sector × carrier cells: it requires a value per carrier for the whole
 municipality, so end energy is required as one group per carrier that any sector satisfies, with

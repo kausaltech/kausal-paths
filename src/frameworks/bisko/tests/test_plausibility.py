@@ -34,7 +34,7 @@ pytestmark = pytest.mark.django_db
 
 @pytest.fixture
 def template() -> InstanceConfig:
-    return InstanceConfigFactory.create(identifier='bisko', name='BISKO')
+    return InstanceConfigFactory.create(identifier='bisko-base', name='BISKO')
 
 
 @pytest.fixture

@@ -36,7 +36,7 @@ features:
   show_category_warnings: true
 
 include:
-- file: modules/bisko/model.yaml
+- file: modules/bisko-base/model.yaml
   allow_override: true
   dataset_replacements:
   - from: kommune/endenergieverbrauch
@@ -755,7 +755,7 @@ nodes:
 
 # Four outcome nodes overridden for exactly one reason: to attach a goal line. All four are
 # otherwise byte-identical copies of the module version -- keep them in step with
-# modules/bisko/model.yaml and modules/gpc/municipal_balance.yaml, since allow_override: true
+# modules/bisko-base/model.yaml and modules/gpc/municipal_balance.yaml, since allow_override: true
 # means a change there does NOT reach Mainz until mirrored here.
 #
 # WHICH GOAL, AND WHY IT IS NOT NET ZERO 2035
@@ -1029,7 +1029,7 @@ nodes:
 
 # The fourth overridden node, and the only one that is not an emissions outcome: it exists here
 # to carry the -50 % final-energy half of Beschluss 0024/2021/1. Byte-identical to
-# modules/bisko/model.yaml apart from the `goals:` block appended at the end -- keep it in step.
+# modules/bisko-base/model.yaml apart from the `goals:` block appended at the end -- keep it in step.
 - id: total_final_energy_use
   is_editable: false
   name_en: Final energy use by sector
@@ -1100,7 +1100,7 @@ nodes:
 # Nodes that exist to answer an indicator from the city's Maßnahmenkatalog, not because the
 # balance needs them. They compute shares from what the model already holds and add no data.
 #
-# They live here rather than in modules/bisko/model.yaml because the indicator set is
+# They live here rather than in modules/bisko-base/model.yaml because the indicator set is
 # Mainz's own selection; the shared module is the BISKO balance, and content that is not
 # the balance should not be mixed into it. If another city adopts the same indicators, move
 # them then, not before.
@@ -4547,12 +4547,12 @@ params:
 # test is one-sided -- a negative proves the facilities are outside GHD, the absence of one proves
 # nothing -- and the declaration removed 58-130 GWh a year (1.4-1.9 % of stationary final energy)
 # a second time. The extractors need no change: none of them adds the facilities into GHD or
-# subtracts them out. The rule for every KSP-sourced city is in configs/bisko.yaml.
+# subtracts them out. The evolving module keeps facilities separate and applies no municipal subtraction.
 
 # The district-heating route is no longer a parameter. BISKO's three Möglichkeiten are chosen per
 # year from what the city has supplied -- plant data, then a declared Table 5 variant, then the
 # standard Fernwärme factor -- exactly as the road-transport own-data preference works. See
-# district_heating_emissions in modules/bisko/model.yaml, and district_heating_method_in_force for
+# district_heating_emissions in modules/bisko-base/model.yaml, and district_heating_method_in_force for
 # which route each year took. `use_exergetic_district_heating` was removed on 2026-08-20.
 
 # Heat-pump electricity sits inside the metered electricity unless the utility has separated it,
