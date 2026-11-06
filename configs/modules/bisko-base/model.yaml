@@ -6170,43 +6170,6 @@ nodes:
       flatten: true
   params:
     formula: prefer_by_year(plant, prefer_by_year(variant, standard, variant_coverage), plant >= 0)
-- id: has_valid_stationary_data
-  is_editable: false
-  name_en: Are stationary energy inputs complete and graded?
-  name_de: Sind die stationären Energieeingaben vollständig und bewertet?
-  type: formula.FormulaNode
-  quantity: probability
-  unit: dimensionless
-  input_dimensions: []
-  output_dimensions: []
-  input_nodes:
-  - id: final_energy_use
-    tags:
-    - consumer
-  params:
-    formula: valid_inputs(consumer)
-
-- id: has_valid_district_heating_inputs
-  is_editable: false
-  name_en: Are district heating inputs valid?
-  name_de: Sind die Fernwärme-Eingaben gültig?
-  type: formula.FormulaNode
-  quantity: probability
-  unit: dimensionless
-  input_dimensions: []
-  output_dimensions: []
-  input_nodes:
-  - id: district_heating_emissions
-    tags:
-    - balance
-  - id: district_heating_emissions_exergetic
-    tags:
-    - plant
-  - id: district_heating_predominant_variant
-    tags:
-    - variant
-  params:
-    formula: valid_inputs(balance) * valid_inputs(plant) * valid_inputs(variant)
 
 - id: district_heating_emissions_plant_factor
   is_editable: false
