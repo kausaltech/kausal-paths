@@ -891,7 +891,9 @@ class InstanceConfig(
         config_base_dir = Path(settings.BASE_DIR, 'configs')
         if self.has_framework_config():
             fw = self.framework_config.framework
-            fw_yaml_path = config_base_dir / f'{fw.identifier}.yaml'
+            template = fw.template_instance
+            yaml_identifier = template.identifier if template is not None else fw.identifier
+            fw_yaml_path = config_base_dir / f'{yaml_identifier}.yaml'
             if fw_yaml_path.exists():
                 return fw_yaml_path
             return None

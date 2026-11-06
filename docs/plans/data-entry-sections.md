@@ -14,7 +14,7 @@ Implementation entry points:
 - `src/nodes/data_entry_yaml.py`: YAML reference resolution;
 - `src/datasets/data_entry.py`: permission-checked, revision-aware data and findings;
 - `src/nodes/graphql/types/data_entry.py`: embedded GraphQL section views;
-- `configs/modules/bisko/model.yaml`: the existing BISKO page placement;
+- `configs/modules/bisko-base/model.yaml`: the existing BISKO page placement;
 - Data Studio's `src/loaders/data-entry.ts`: section, table and count queries.
 
 Implementation boundaries: node classes can declare category-preserving dependencies

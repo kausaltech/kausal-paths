@@ -184,7 +184,7 @@ def publish_bisko_template(framework: Framework) -> None:
 
 
 def test_catalogue_and_import_reuse_existing_municipality(tmp_path: Path) -> None:
-    InstanceConfigFactory.create(identifier='bisko', name='BISKO')
+    InstanceConfigFactory.create(identifier='bisko-base', name='BISKO')
     framework = setup_bisko()
     assert set(OrganizationClass.objects.values_list('identifier', flat=True)) >= {
         identifier for identifier, _ in GERMAN_ORGANIZATION_CLASSES
@@ -214,7 +214,7 @@ def test_catalogue_and_import_reuse_existing_municipality(tmp_path: Path) -> Non
 
 
 def test_setup_requires_nuts3_after_organizations_are_imported(tmp_path: Path) -> None:
-    InstanceConfigFactory.create(identifier='bisko', name='BISKO')
+    InstanceConfigFactory.create(identifier='bisko-base', name='BISKO')
     framework = setup_bisko()
     import_bkg_organizations(snapshot(tmp_path), framework=framework)
     district = OrganizationIdentifier.objects.get(namespace__identifier='ars', identifier='12001').organization
@@ -225,7 +225,7 @@ def test_setup_requires_nuts3_after_organizations_are_imported(tmp_path: Path) -
 
 
 def test_import_rejects_old_parquet_without_nuts3(tmp_path: Path) -> None:
-    InstanceConfigFactory.create(identifier='bisko', name='BISKO')
+    InstanceConfigFactory.create(identifier='bisko-base', name='BISKO')
     framework = setup_bisko()
     source = snapshot(tmp_path)
     pl.read_parquet(source).drop('nuts3').write_parquet(source)
@@ -236,7 +236,7 @@ def test_import_rejects_old_parquet_without_nuts3(tmp_path: Path) -> None:
 
 
 def test_setup_reconciles_existing_municipal_nuts_code_once(tmp_path: Path) -> None:
-    InstanceConfigFactory.create(identifier='bisko', name='BISKO')
+    InstanceConfigFactory.create(identifier='bisko-base', name='BISKO')
     framework = setup_bisko()
     import_bkg_organizations(snapshot(tmp_path), framework=framework)
     municipality = OrganizationIdentifier.objects.get(namespace__identifier='ags', identifier='12001001').organization
@@ -256,7 +256,7 @@ def test_setup_reconciles_existing_municipal_nuts_code_once(tmp_path: Path) -> N
 
 
 def test_repeat_import_only_creates_missing_nuts3_identifiers(tmp_path: Path) -> None:
-    InstanceConfigFactory.create(identifier='bisko', name='BISKO')
+    InstanceConfigFactory.create(identifier='bisko-base', name='BISKO')
     framework = setup_bisko()
     source = snapshot(tmp_path)
     import_bkg_organizations(source, framework=framework)
@@ -272,7 +272,7 @@ def test_repeat_import_only_creates_missing_nuts3_identifiers(tmp_path: Path) ->
 
 
 def test_nine_delegated_accounts_cover_only_their_subtrees(tmp_path: Path) -> None:
-    InstanceConfigFactory.create(identifier='bisko', name='BISKO')
+    InstanceConfigFactory.create(identifier='bisko-base', name='BISKO')
     framework = setup_bisko()
     import_bkg_organizations(snapshot(tmp_path), framework=framework)
     ars = Namespace.objects.get(identifier='ars')
@@ -307,7 +307,7 @@ def test_nine_delegated_accounts_cover_only_their_subtrees(tmp_path: Path) -> No
 
 def test_provision_bisko_test_accounts_is_repeatable(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:  # noqa: PLR0915
     InstanceConfigFactory.create(
-        identifier='bisko',
+        identifier='bisko-base',
         name='BISKO',
         config_source='database',
         owner='Test Owner',
@@ -429,7 +429,7 @@ def test_provision_bisko_test_accounts_is_repeatable(tmp_path: Path, monkeypatch
 
 def test_provision_bisko_test_accounts_rejects_changed_grant_atomically(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     InstanceConfigFactory.create(
-        identifier='bisko',
+        identifier='bisko-base',
         name='BISKO',
         config_source='database',
         owner='Test Owner',
@@ -451,7 +451,7 @@ def test_provision_bisko_test_accounts_rejects_changed_grant_atomically(tmp_path
 
 
 def test_activate_bisko_municipality_requires_published_template(tmp_path: Path) -> None:
-    InstanceConfigFactory.create(identifier='bisko', name='BISKO')
+    InstanceConfigFactory.create(identifier='bisko-base', name='BISKO')
     framework = setup_bisko()
     import_bkg_organizations(snapshot(tmp_path), framework=framework)
     municipality = OrganizationIdentifier.objects.get(namespace__identifier='ars', identifier='030010000001').organization
@@ -467,7 +467,7 @@ def test_activate_bisko_municipality_requires_published_template(tmp_path: Path)
 )
 def test_activation_requires_defaults_atomically(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, missing: str) -> None:
     template = InstanceConfigFactory.create(
-        identifier='bisko',
+        identifier='bisko-base',
         name='BISKO',
         config_source='database',
         owner='Test Owner',
@@ -516,7 +516,7 @@ def test_activation_requires_defaults_atomically(tmp_path: Path, monkeypatch: py
 
 def test_population_activation_uses_published_pin_and_preserves_edits(tmp_path: Path) -> None:
     template = InstanceConfigFactory.create(
-        identifier='bisko',
+        identifier='bisko-base',
         name='BISKO',
         owner='Test Owner',
         config_source='database',
@@ -613,7 +613,7 @@ def test_weather_defaults_seed_on_activation_and_setup_backfills_empty_slot(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     template = InstanceConfigFactory.create(
-        identifier='bisko',
+        identifier='bisko-base',
         name='BISKO',
         config_source='database',
         owner='Test Owner',
@@ -675,7 +675,7 @@ def test_weather_defaults_seed_on_activation_and_setup_backfills_empty_slot(
 
 def test_activate_framework_organization_is_scoped_and_repeatable(tmp_path: Path, client: Client) -> None:  # noqa: PLR0915
     InstanceConfigFactory.create(
-        identifier='bisko',
+        identifier='bisko-base',
         name='BISKO',
         config_source='database',
         owner='Test Owner',
@@ -827,7 +827,7 @@ def test_activate_framework_organization_is_scoped_and_repeatable(tmp_path: Path
 
 
 def test_framework_graphql_lists_only_granted_subtree(tmp_path: Path, client: Client) -> None:
-    InstanceConfigFactory.create(identifier='bisko', name='BISKO')
+    InstanceConfigFactory.create(identifier='bisko-base', name='BISKO')
     framework = setup_bisko()
     import_bkg_organizations(snapshot(tmp_path), framework=framework)
     district = OrganizationIdentifier.objects.get(namespace__identifier='ars', identifier='03001').organization
@@ -955,7 +955,7 @@ def test_framework_graphql_lists_only_granted_subtree(tmp_path: Path, client: Cl
 
 
 def test_district_free_city_population_is_counted_once(client: Client) -> None:
-    InstanceConfigFactory.create(identifier='bisko', name='BISKO')
+    InstanceConfigFactory.create(identifier='bisko-base', name='BISKO')
     framework = setup_bisko()
     state = OrganizationFactory.create(name='State', classification=OrganizationClass.objects.get(identifier='de_state'))
     city = OrganizationFactory.create(
@@ -1000,7 +1000,7 @@ def test_district_free_city_population_is_counted_once(client: Client) -> None:
 
 
 def test_grants_outside_framework_scope_cannot_cross_into_it() -> None:
-    InstanceConfigFactory.create(identifier='bisko', name='BISKO')
+    InstanceConfigFactory.create(identifier='bisko-base', name='BISKO')
     framework = setup_bisko()
     outer = OrganizationFactory.create(name='Outer')
     state = OrganizationFactory.create(parent=outer, name='Custom state')
@@ -1014,7 +1014,7 @@ def test_grants_outside_framework_scope_cannot_cross_into_it() -> None:
 
 
 def test_viewer_grant_cannot_change_organization(tmp_path: Path) -> None:
-    InstanceConfigFactory.create(identifier='bisko', name='BISKO')
+    InstanceConfigFactory.create(identifier='bisko-base', name='BISKO')
     framework = setup_bisko()
     import_bkg_organizations(snapshot(tmp_path), framework=framework)
     state = OrganizationIdentifier.objects.get(namespace__identifier='ars', identifier='03').organization
@@ -1025,7 +1025,7 @@ def test_viewer_grant_cannot_change_organization(tmp_path: Path) -> None:
 
 
 def test_grant_command_requires_framework_coverage(tmp_path: Path) -> None:
-    InstanceConfigFactory.create(identifier='bisko', name='BISKO')
+    InstanceConfigFactory.create(identifier='bisko-base', name='BISKO')
     framework = setup_bisko()
     import_bkg_organizations(snapshot(tmp_path), framework=framework)
     user = UserFactory.create(username='delegated-district')
@@ -1041,7 +1041,7 @@ def test_grant_command_requires_framework_coverage(tmp_path: Path) -> None:
 
 
 def test_organization_role_mutations_require_admin_and_preserve_grant(tmp_path: Path, client: Client) -> None:
-    InstanceConfigFactory.create(identifier='bisko', name='BISKO')
+    InstanceConfigFactory.create(identifier='bisko-base', name='BISKO')
     framework = setup_bisko()
     import_bkg_organizations(snapshot(tmp_path), framework=framework)
     district = OrganizationIdentifier.objects.get(namespace__identifier='ars', identifier='03001').organization
@@ -1093,7 +1093,7 @@ def test_organization_role_mutations_require_admin_and_preserve_grant(tmp_path: 
 
 
 def test_district_grant_reaches_member_instance_but_suspension_blocks_it(tmp_path: Path) -> None:
-    InstanceConfigFactory.create(identifier='bisko', name='BISKO')
+    InstanceConfigFactory.create(identifier='bisko-base', name='BISKO')
     framework = setup_bisko()
     import_bkg_organizations(snapshot(tmp_path), framework=framework)
     ars = Namespace.objects.get(identifier='ars')

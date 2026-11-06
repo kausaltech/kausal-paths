@@ -5,7 +5,7 @@ Population is an editable municipal input (`kommune/bevoelkerung`) in a populati
 municipalities without instances. Municipal per-capita plausibility checks use the editable
 population dataset; territory references continue to describe provider values.
 
-The population extension is included explicitly by `configs/bisko.yaml`; the shared BISKO module
+The population extension is included explicitly by `configs/bisko-base.yaml`; the shared BISKO module
 retains its existing population definition for other city YAML models. The template reads only
 the municipality's own series; GISCO is not a fallback. Activated municipalities receive the
 complete prepared series, and a template upgrade (`setup_bisko --publish`) seeds it into
@@ -98,9 +98,9 @@ pins are skipped. Population refresh changes only untouched provider-owned cells
 new provider references alongside municipal overrides in dataset metadata. Energy is seeded
 once into an untouched empty grid. Final submissions retain their immutable dataset revisions.
 
-Defaults keep commerce and municipal facilities separate, so the template's overlap parameter
-is false. Utility data that includes facilities in commerce must explicitly declare the overlap.
-Existing local parameter overrides are not reset by a reference refresh.
+Defaults keep commerce and municipal facilities separate; the evolving template does not subtract
+municipal facilities from commerce. The certification entrypoints also disable the overlap
+correction: municipal facilities are entered separately in both `bisko` and `pruefstadt-bisko`.
 
 Old published templates must be upgraded before activation can succeed. Backend changes and
 prepared files alone do not migrate or publish those revisions.

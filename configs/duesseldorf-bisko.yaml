@@ -24,7 +24,7 @@ features:
   show_category_warnings: true
 
 include:
-- file: modules/bisko/model.yaml
+- file: modules/bisko-base/model.yaml
   allow_override: true
   dataset_replacements:
   - from: kommune/endenergieverbrauch
@@ -100,7 +100,7 @@ params:
 # The district-heating route is no longer a parameter. BISKO's three Möglichkeiten are chosen per
 # year from what the city has supplied -- plant data, then a declared Table 5 variant, then the
 # standard Fernwärme factor -- exactly as the road-transport own-data preference works. See
-# district_heating_emissions in modules/bisko/model.yaml, and district_heating_method_in_force for
+# district_heating_emissions in modules/bisko-base/model.yaml, and district_heating_method_in_force for
 # which route each year took. `use_exergetic_district_heating` was removed on 2026-08-20.
 
 # Heat-pump electricity sits inside the metered electricity unless the utility has separated it,
@@ -257,7 +257,7 @@ nodes:
 # override does is fold the two together. The route choice it used to carry went away with
 # `use_mileage` on 2026-08-21: road and other transport are now added unconditionally, and the
 # Fahrleistung-versus-Verbrauchsdaten choice is made per year inside
-# `road_transport_energy_by_road_type`. See modules/bisko/model.yaml.
+# `road_transport_energy_by_road_type`. See modules/bisko-base/model.yaml.
 - id: transport_energy
   is_editable: false
   name_de: Endenergieverbrauch Verkehr

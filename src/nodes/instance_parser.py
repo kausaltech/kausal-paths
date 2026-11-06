@@ -34,6 +34,7 @@ from paths.identifiers import identifier_or_none, validate_identifier
 from datasets.validation_rules import rule_list_adapter
 from nodes.actions.action import ENABLED_BY_DEFAULT, ENABLED_PARAM_ID, ActionNode
 from nodes.actions.simple import AdditiveAction
+from nodes.bisko_certification import CERTIFICATION_INSTANCES, certification_yaml
 from nodes.constants import DEFAULT_METRIC, VALUE_COLUMN, DecisionLevel
 from nodes.data_entry_yaml import YAMLAmendment, YAMLDataEntry, YAMLSection, resolve_yaml_data_entry
 from nodes.defs.action_def import ImpactOverviewSpec
@@ -1774,6 +1775,8 @@ def parse_instance_snapshot(
     data_entry_datasets: list[DatasetMeta] | None = None,
 ) -> InstanceSnapshot:
     """Parse a merged YAML config dict into an InstanceSnapshot without building a runtime."""
+    if config.get('id') in CERTIFICATION_INSTANCES:
+        config = certification_yaml(config, instance_uuid)
     parser = InstanceConfigParser(
         config,
         instance_uuid=instance_uuid,

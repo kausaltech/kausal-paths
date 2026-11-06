@@ -160,9 +160,9 @@ def test_invalid_placement_remains_inspectable(graph: InstanceGraph) -> None:
     assert graph.data_entry.sections[-1].kind == 'unplaced'
 
 
-def test_bisko_yaml_sections_have_stable_shared_ids() -> None:
+def test_bisko_base_yaml_sections_have_stable_shared_ids() -> None:
 
-    config = InstanceYAMLConfig.load_for_entrypoint(Path('configs/pruefstadt-bisko.yaml'))
+    config = InstanceYAMLConfig.load_for_entrypoint(Path('configs/bisko-base.yaml'))
     assert config.data is not None
     first = parse_instance_snapshot(config.data, instance_uuid=uuid4())
     second = parse_instance_snapshot(config.data, instance_uuid=uuid4())
@@ -171,7 +171,7 @@ def test_bisko_yaml_sections_have_stable_shared_ids() -> None:
     assert [section.id for section in first.spec.data_entry.sections] == [
         section.id for section in second.spec.data_entry.sections
     ]
-    assert len(first.spec.data_entry.sections) == 8
+    assert len(first.spec.data_entry.sections) == 9
     nodes = {node.uuid: node for node in first.nodes}
     for section in first.spec.data_entry.sections:
         for table in section.tables:

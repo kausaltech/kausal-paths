@@ -20,7 +20,7 @@
 # Two instances include it today: one with its data wired in, one as a structural stub.
 # Keep it to cities that have asked for it.
 #
-# ## What it still borrows from `modules/bisko/model.yaml`
+# ## What it still borrows from `modules/bisko-base/model.yaml`
 #
 # `energy_carrier`, `municipal_facility_type`, `vehicle_type` and `scope` are defined
 # there, not here, so this module currently cannot stand alone: a GHG-Protocol balance for
