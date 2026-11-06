@@ -1208,7 +1208,7 @@ def test_dataset_without_identifier_loads_in_draft_and_published_runtime(empty_d
         spec=NodeSpec(
             type_config=SimpleConfig(node_class=SIMPLE_NODE_CLASS),
             input_ports=[InputPortDef(id=port_id, unit=unit, quantity='emissions')],
-            output_ports=[OutputPortDef(id=_port_uuid('anonymous-output'), unit=unit, quantity='emissions')],
+            output_ports=[OutputPortDef(id=_port_uuid('anonymous-output'), unit=unit, quantity='emissions', dimensions=[])],
         ),
     )
     NodeInputPortBinding.objects.create(instance=empty_db_instance, node=node, port_id=port_id, dataset=dataset, metric=metric)

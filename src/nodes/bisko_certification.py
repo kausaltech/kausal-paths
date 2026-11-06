@@ -1,5 +1,5 @@
 """
-Compatibility boundary for the two BISKO certification entrypoints frozen at 136c060e.
+Compatibility boundary for the two BISKO certification entrypoints frozen at d5ed3448.
 
 Their YAML retains the reviewed model with municipal overlap disabled in both entrypoints. Translate
 only authoring syntax here; retain each original requirement and its enforcement tier.
