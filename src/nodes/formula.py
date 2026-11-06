@@ -30,6 +30,14 @@ type EvalOutput = PDF | QuantityType | bool
 LOGICAL_TOLERANCE = 1e-6
 
 
+def _ast_text(node: ast.AST) -> str:
+    """Render a formula fragment back to source text, for error messages."""
+    try:
+        return ast.unparse(node)
+    except Exception:  # a message helper must not mask the real error
+        return type(node).__name__
+
+
 class EvalVars(NamedTuple):
     nodes: dict[str, Node]
     datasets: dict[str, PDF]
@@ -82,7 +90,14 @@ class FormulaNode(Node):
                 df = df.with_columns(pl.lit(is_forecast).alias(FORECAST_COLUMN))
             assert len(df.metric_cols) == 1
             return df.rename({df.metric_cols[0]: VALUE_COLUMN})
-        return varss.parameters[name.id]
+        if name.id in varss.parameters:
+            return varss.parameters[name.id]
+        available = sorted({*varss.nodes, *varss.datasets, *varss.parameters})
+        raise NodeError(
+            self,
+            'Unknown name "%s" in formula. Names available here: %s'
+            % (name.id, ', '.join(available) if available else 'none (the node has no inputs)'),
+        )
 
     def apply_binom(
         self,
@@ -276,9 +291,11 @@ class FormulaNode(Node):
             ast.Pow: self.apply_pow,
         }
 
+        apply = OPERATIONS.get(type(node.op))
+        if apply is None:
+            raise NodeError(self, 'Operator %s is not supported in formulas' % _ast_text(node))
         left_value = self.eval_tree(node.left, varss)
         right_value = self.eval_tree(node.right, varss)
-        apply = OPERATIONS[type(node.op)]
         return apply(left_value, right_value)
 
     def eval_compare(self, node: ast.Compare, varss: EvalVars) -> EvalOutput:
@@ -297,14 +314,17 @@ class FormulaNode(Node):
         if len(node.comparators) != 1:
             raise NotImplementedError('Multiple comparators are not yet supported')
 
+        apply = OPERATIONS.get(type(node.ops[0]))
+        if apply is None:
+            raise NodeError(self, 'Comparison %s is not supported in formulas' % _ast_text(node))
         left_value = self.eval_tree(node.left, varss)
         right_value = self.eval_tree(node.comparators[0], varss)
-        apply = OPERATIONS[type(node.ops[0])]
         return apply(left_value, right_value)
 
     def eval_call(self, node: ast.Call, varss: EvalVars) -> EvalOutput:
         func_name = node.func
-        assert isinstance(func_name, ast.Name)
+        if not isinstance(func_name, ast.Name):
+            raise NodeError(self, 'Only plain function names can be called in formulas, not %s' % _ast_text(node.func))
         func = func_name.id
 
         # output_with_scenario's node argument must not be evaluated under the active scenario,
@@ -349,7 +369,7 @@ class FormulaNode(Node):
         """Handle custom functions not in PathsExt.OPERATIONS."""
         method_name = self._CUSTOM_FUNC_HANDLERS.get(func)
         if method_name is None:
-            raise NotImplementedError(f'Unknown function: {func}')
+            raise NodeError(self, f'Unknown function "{func}" in formula')
         return getattr(self, method_name)(func, node, varss, df)
 
     def _custom_output_with_scenario(self, node: ast.Call, varss: EvalVars) -> EvalOutput:
@@ -611,7 +631,9 @@ class FormulaNode(Node):
             if isinstance(tree, ast_type):
                 return evaluator(tree, varss)
 
-        raise KeyError(tree)
+        if isinstance(tree, ast.UnaryOp):
+            raise NodeError(self, 'Unary operators such as "%s" are not supported in formulas' % _ast_text(tree))
+        raise NodeError(self, 'Expression "%s" is not supported in formulas' % _ast_text(tree))
 
     def _collect_used_node_names(self, tree: ast.AST, varss: EvalVars) -> set[str]:
         """Collect node names that are actually used in the formula AST."""

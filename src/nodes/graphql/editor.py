@@ -5,6 +5,7 @@ Provides queries and mutations for reading and editing DB-sourced
 model instances (NodeConfig, NodeInputPortBinding, ActionGroup, Scenario).
 """
 
+import ast
 import math
 import re
 from dataclasses import dataclass
@@ -56,7 +57,9 @@ from nodes.dataset_materialization import refresh_dataset_materialization
 from nodes.defs import ActionGroup, FormulaConfig, SimpleConfig
 from nodes.defs.node_defs import ActionConfig, NodeKind, NodeSpec, PipelineConfig, TypeConfig
 from nodes.defs.port_def import InputPortDef, OutputPortDef
-from nodes.instance_graph import InstanceGraph, NodeMeta
+from nodes.exceptions import NodeError
+from nodes.formula import FormulaNode
+from nodes.instance_graph import InstanceGraph, NodeMeta, node_class_for_spec
 from nodes.models import InstanceConfig, NodeConfig, NodeInputPortBinding, NodeLayout, NodeLayoutSource
 from nodes.node import Node
 from nodes.units import unit_registry
@@ -1370,6 +1373,143 @@ def _apply_update_node_input(
     _apply_node_data_updates(info, spec, input)
 
 
+FORMULA_PARAM_ID = 'formula'
+
+
+def _new_formula_param() -> StringParameter:
+    """
+    Build a fresh ``formula`` parameter from ``FormulaNode``'s declaration.
+
+    Rebuilt from a dump, as the instance loader does, rather than ``model_copy``: a shallow
+    copy would share the template's subscription lists with every node it is attached to.
+    """
+    template = next(p for p in FormulaNode.allowed_parameters if p.local_id == FORMULA_PARAM_ID)
+    assert isinstance(template, StringParameter)
+    fields = template.model_dump()
+    fields.pop('value', None)
+    return StringParameter(**fields)
+
+
+def _formula_syntax_error(formula: str) -> str | None:
+    try:
+        ast.parse(formula, '<formula>', mode='eval')
+    except SyntaxError as exc:
+        lines = formula.split('\n')
+        lineno = exc.lineno if exc.lineno and exc.lineno <= len(lines) else len(lines)
+        multiline = len(lines) > 1
+        # A formula that stops short ("a *") is reported at offset 0, which is no column at all.
+        if not exc.offset or exc.offset > len(lines[lineno - 1]):
+            position = f'the end of line {lineno}' if multiline and lineno < len(lines) else 'the end of the formula'
+        else:
+            position = f'line {lineno}, column {exc.offset}' if multiline else f'column {exc.offset}'
+        return f'Syntax error at {position}: {exc.msg}'
+    return None
+
+
+def _describe_compute_failure(exc: BaseException) -> str:
+    """
+    Return the most specific message in an exception chain.
+
+    Node computation wraps the real failure (``NodeComputationError('Error computing
+    node') from e``), so the outermost message alone says nothing a formula author can act
+    on. A ``NodeError`` deeper in the chain already names its node; anything else is
+    prefixed with the outermost message so the user still sees which node failed.
+    """
+    innermost = exc
+    while innermost.__cause__ is not None:
+        innermost = innermost.__cause__
+    message = str(innermost) or type(innermost).__name__
+    if innermost is exc or isinstance(innermost, NodeError):
+        return message
+    return f'{exc}: {message}'
+
+
+def _formula_compute_error(info: gql.Info, ic: InstanceConfig, node_identifier: str, formula: str) -> str | None:
+    """
+    Compute the node with ``formula`` in a fresh draft runtime; return the failure, if any.
+
+    The runtime is built for this check and discarded afterwards, so the formula is swapped
+    in without being restored. Upstream nodes are computed (or read from the cache) as
+    usual; only this node's cache is bypassed. Its hash covers parameter values anyway, so
+    a cached result could not be mistaken for the candidate's, but a check that must
+    compute should not depend on that.
+    """
+    from nodes.models import PreferredInstanceSource
+
+    instance = info.context.require_instance(
+        ic,
+        source=PreferredInstanceSource.DRAFT,
+        tolerate_node_failures=False,
+        refresh=True,
+    )
+    try:
+        node = instance.context.nodes.get(node_identifier)
+        if not isinstance(node, FormulaNode):
+            return f'Node "{node_identifier}" is not a formula node in the draft runtime'
+        param = node.parameters.get(FORMULA_PARAM_ID)
+        if param is None:
+            # A node created with a FormulaConfig carries its formula there, which the
+            # runtime does not read, so the node has no formula parameter to swap.
+            param = _new_formula_param()
+            node.add_parameter(param)
+        param.set(formula)
+        node.disable_cache = True
+        node.get_output_pl()
+    except Exception as exc:  # any failure means the formula does not compute
+        return _describe_compute_failure(exc)
+    finally:
+        info.context.invalidate_runtime_instance(ic, source=PreferredInstanceSource.DRAFT)
+    return None
+
+
+def _spec_with_formula(spec: NodeSpec, formula: str) -> NodeSpec:
+    """
+    Return a copy of ``spec`` with ``formula`` written where the runtime reads it.
+
+    The runtime reads the ``formula`` parameter. A spec whose type config is a
+    ``FormulaConfig`` gets the formula there too, so the two copies cannot disagree; the
+    config's copy is not read at runtime, and which of the two is canonical is still open.
+    Other parameters are kept as they are.
+    """
+    spec = spec.model_copy(deep=True)
+    param = next((p for p in spec.params if p.local_id == FORMULA_PARAM_ID), None)
+    if param is None:
+        param = _new_formula_param()
+        spec.params.append(param)
+    param.set(formula, notify=False)
+    if isinstance(spec.type_config, FormulaConfig):
+        spec.type_config = spec.type_config.model_copy(update={'formula': formula})
+    return spec
+
+
+def _drop_scenario_formula_copies(ic: InstanceConfig, node_identifier: str) -> None:
+    """
+    Remove the node's formula from every scenario of the instance spec.
+
+    Older loaders copied each node's parameters, formulas included, into the default
+    scenario. Activating a scenario resets every parameter it names, so a copy there
+    silently overrides the formula stored on the node. The ``formula`` parameter is not
+    customizable, so no scenario should be setting it; the node spec is its one home.
+    """
+    ic.refresh_from_db(fields=['spec'])
+    spec = ic.ensure_spec()
+    global_id = f'{node_identifier}.{FORMULA_PARAM_ID}'
+    removed = {s.id: s.param_values[global_id] for s in spec.scenarios if global_id in s.param_values}
+    if not removed:
+        return
+    spec = spec.model_copy(deep=True)
+    for scenario in spec.scenarios:
+        scenario.param_values.pop(global_id, None)
+    InstanceConfig.objects.filter(pk=ic.pk).update(spec=spec)
+    ic.spec = spec
+    record_change(
+        ic,
+        action='instance.scenario.parameter.remove',
+        before={'parameter': global_id, 'scenarios': removed},
+        after={'parameter': global_id, 'scenarios': {}},
+    )
+
+
 @sb.type
 class NodeEditorMutation:
     instance: sb.Private[InstanceConfig]
@@ -1409,6 +1549,44 @@ class NodeEditorMutation:
             # reflects the committed state.
             nc.refresh_from_db()
             record_change(nc, action='node.update', before=before, after=nc.serializable_data())
+
+        return _resolve_runtime_node(info, nc.instance, nc.pk)
+
+    @gql.mutation(
+        description=(
+            "Replace this formula node's formula. The node is first computed in the draft with the "
+            'new formula; if that fails, nothing is saved and the error says why. Other parameters '
+            'are kept.'
+        ),
+        graphql_type=AnyNodeType,
+    )
+    @staticmethod
+    def set_formula(
+        info: gql.Info,
+        root: sb.Parent[Me],
+        formula: Annotated[str, sb.argument(description='The formula expression, e.g. "energy * emission_factor".')],
+    ) -> Node:
+        meta = root._current_node_meta(info)
+        nc = root.node
+        if not issubclass(node_class_for_spec(meta.spec), FormulaNode):
+            raise GraphQLValidationError(info, f'Node "{nc.identifier}" is not a formula node')
+        formula = formula.strip()
+        if not formula:
+            raise GraphQLValidationError(info, 'The formula is empty')
+        problem = _formula_syntax_error(formula)
+        if problem is None:
+            problem = _formula_compute_error(info, root.instance, nc.identifier, formula)
+        if problem is not None:
+            raise GraphQLValidationError(info, problem)
+
+        spec = _spec_with_formula(meta.spec, formula)
+        with gql_change_operation(info, root.instance, action='node.formula.update'):
+            before = nc.serializable_data()
+            nc.spec = spec
+            NodeConfig.objects.filter(pk=nc.pk).update(spec=spec)
+            nc.refresh_from_db()
+            record_change(nc, action='node.formula.update', before=before, after=nc.serializable_data())
+            _drop_scenario_formula_copies(root.instance, nc.identifier)
 
         return _resolve_runtime_node(info, nc.instance, nc.pk)
 
