@@ -2274,6 +2274,30 @@ def test_instance_graphql_content_comes_from_selected_snapshot(gql_client, empty
     }
 
 
+@pytest.mark.parametrize(('preview', 'expected'), [('DRAFT', 'Draft instance'), ('PUBLISHED', 'Published instance')])
+def test_preview_passed_as_a_variable_selects_the_snapshot(
+    gql_client, empty_db_instance: InstanceConfig, preview: str, expected: str
+):
+    """The UI passes `preview` through a variable; it must select the same snapshot as the literal does."""
+    from nodes.models import test_instance_registry
+
+    empty_db_instance.name = 'Published instance'
+    empty_db_instance.save(update_fields=['name'])
+    empty_db_instance.publish_instance()
+    empty_db_instance.refresh_from_db()
+    empty_db_instance.name = 'Draft instance'
+    empty_db_instance.save(update_fields=['name'])
+    test_instance_registry.pop(empty_db_instance.identifier, None)
+
+    query = """
+    query Q($_identifier: ID, $_preview: PreviewMode) @instance(identifier: $_identifier, preview: $_preview) {
+        instance { name }
+    }
+    """
+    data = gql_client.query_data(query, variables={'_identifier': empty_db_instance.identifier, '_preview': preview})
+    assert data['instance']['name'] == expected
+
+
 def test_published_body_survives_draft_edits(empty_db_instance: InstanceConfig):
     """StreamField body rides in the snapshot; draft body edits don't leak."""
     from nodes.models import PreferredInstanceSource

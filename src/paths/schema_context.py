@@ -8,6 +8,7 @@ from django.conf import settings
 from django.utils import translation
 from graphql import get_argument_values
 from graphql.error import GraphQLError
+from graphql.execution.values import get_variable_values
 from strawberry.utils.operation import get_first_operation
 
 import sentry_sdk
@@ -438,12 +439,35 @@ class PathsSchemaExtension(SchemaExtension[PathsGraphQLContext]):
 
 
 class DetermineInstanceContextExtension(PathsSchemaExtension):
+    # The operation's variables coerced to their declared types, set by determine_instance_and_locale().
+    _variables: dict[str, Any]
+
+    def coerce_variables(self, operation: OperationDefinitionNode) -> dict[str, Any]:
+        """
+        Coerce the request's variables to the types the operation declares.
+
+        The request carries them as JSON, so an enum is a bare name and a UUID a string.
+        get_argument_values() takes a variable's value as it is given, while it coerces a
+        literal, so the directives' arguments would otherwise differ in type depending on
+        how the client wrote them: `preview: DRAFT` arrived as PreviewMode.DRAFT, the same
+        value through `$_preview` as the string 'DRAFT', which matched no mode.
+
+        Invalid variables fall back to the raw values: execution rejects the operation
+        anyway, and reports every invalid variable rather than the first one.
+        """
+        exec_ctx = self.execution_context
+        raw = exec_ctx.variables or {}
+        coerced = get_variable_values(exec_ctx.schema._schema, operation.variable_definitions or (), raw)
+        if isinstance(coerced, list):
+            return raw
+        return coerced
+
     def process_locale_directive(self, ic: InstanceConfig, directive: DirectiveNode) -> str:
         assert locale_directive.graphql_name is not None
         exec_ctx = self.execution_context
         directive_ast = exec_ctx.schema._schema.get_directive(locale_directive.graphql_name)
         assert directive_ast is not None
-        lang = get_argument_values(directive_ast, directive, exec_ctx.variables).get('lang')
+        lang = get_argument_values(directive_ast, directive, self._variables).get('lang')
         if lang is None:
             raise GraphQLError('Locale directive missing lang argument', directive)
 
@@ -493,7 +517,7 @@ class DetermineInstanceContextExtension(PathsSchemaExtension):
         exec_ctx = self.execution_context
         directive_ast = exec_ctx.schema._schema.get_directive(instance_directive_def.graphql_name)
         assert directive_ast is not None
-        arguments = get_argument_values(directive_ast, directive, exec_ctx.variables)
+        arguments = get_argument_values(directive_ast, directive, self._variables)
         identifier = arguments.get('identifier')
         hostname = arguments.get('hostname')
         if identifier:
@@ -516,7 +540,7 @@ class DetermineInstanceContextExtension(PathsSchemaExtension):
         exec_ctx = self.execution_context
         directive_ast = exec_ctx.schema._schema.get_directive(context_directive.graphql_name)
         assert directive_ast is not None
-        ctx = get_argument_values(directive_ast, directive, exec_ctx.variables).get('input')
+        ctx = get_argument_values(directive_ast, directive, self._variables).get('input')
         if ctx is None:
             return None, None
         # FIXME: Filter by user permissions
@@ -577,6 +601,7 @@ class DetermineInstanceContextExtension(PathsSchemaExtension):
         instance_config: InstanceConfig | None = None
         locale: str | None = None
         user = self.get_user()
+        self._variables = self.coerce_variables(operation)
 
         for directive in operation.directives or []:
             directive_name = directive.name.value
