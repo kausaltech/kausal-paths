@@ -1222,3 +1222,17 @@ class Command(BaseCommand):
                     transaction.set_rollback(True)
         if plan_only:
             print('\n[bold]--plan: nothing was written.[/bold] Re-run with --force to apply.')
+        elif ds_ids:
+            self.mark_unpublished_changes(ic)
+
+    @staticmethod
+    def mark_unpublished_changes(ic: InstanceConfig) -> None:
+        """
+        Show the import as a draft change, as `sync_instance_to_db` does.
+
+        A published instance serves its live revision until it is published again, and the
+        model editor offers the Publish button only while this flag is set. An instance that
+        was never published serves its draft directly, so it is left alone.
+        """
+        # queryset.update, not save(): ClusterableModel.save() can revert i18n fields.
+        InstanceConfig.objects.filter(pk=ic.pk, live_revision__isnull=False).update(has_unpublished_changes=True)
