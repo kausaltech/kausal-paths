@@ -90,6 +90,32 @@ def _qual(df: ppl.PathsDataFrame) -> dict[tuple[int | str, ...], FixtureQualifie
 
 
 class TestPairing:
+    @pytest.mark.parametrize('nested_side', ['preferred', 'fallback'])
+    def test_nested_cell_selection_keeps_only_selected_qualifiers(self, nested_side: str) -> None:
+        own = qualifiers.with_selected_source(_frame([(2020, 'gas', 0.0, 1.0, True)]), 'municipal')
+        default = qualifiers.with_selected_source(
+            _frame([(2020, 'gas', 100.0, 0.5, False), (2020, 'electricity', 200.0, 0.5, False)]), 'provider'
+        ).with_columns(pl.lit(value=True).alias(FORECAST_COLUMN))
+        coverage = _frame([(2020, 'gas', 1.0, None, None)], unit='dimensionless', qualified=False)
+        inner = own.paths.prefer_by_cell(default, coverage)
+        if nested_side == 'preferred':
+            selected = inner.paths.prefer_by_cell(default, coverage)
+        else:
+            selected = own.paths.prefer_by_cell(inner, coverage)
+
+        assert set(selected.columns) == set(own.columns)
+        assert selected.qualifier_cols == {VALUE_COLUMN: QUAL}
+        assert selected.get_meta() == own.get_meta()
+        rows = {row['energy_carrier']: row for row in selected.to_dicts()}
+        assert rows['gas'][VALUE_COLUMN] == 0.0
+        assert rows['gas'][QUAL]['quality'] == {'score': 1.0, 'coverage': 1.0}
+        assert rows['gas'][QUAL]['sources'] == ['municipal']
+        assert rows['gas'][FORECAST_COLUMN] is False
+        assert rows['electricity'][VALUE_COLUMN] == 200.0
+        assert rows['electricity'][QUAL]['quality'] == {'score': 0.5, 'coverage': 1.0}
+        assert rows['electricity'][QUAL]['sources'] == ['provider']
+        assert rows['electricity'][FORECAST_COLUMN] is True
+
     def test_cell_selection_keeps_each_sources_grade_and_provenance(self) -> None:
         own = qualifiers.with_selected_source(_frame([(2020, 'gas', 0.0, 1.0, True)]), 'municipal')
         default = qualifiers.with_selected_source(

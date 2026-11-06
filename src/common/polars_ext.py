@@ -1360,10 +1360,11 @@ class PathsExt:
                 .fill_null(value=False)
                 .alias(FORECAST_COLUMN),
             )
-        joined = joined.with_columns(exprs).drop(['_Fallback', '_Covered'])
+        # Drop the temporary metric through PathsDataFrame so its qualifier is
+        # removed too; leaving it behind breaks a surrounding source choice.
+        out = ppl.to_ppdf(joined.with_columns(exprs), meta=meta).drop(['_Fallback', '_Covered'])
         if both_have_forecast:
-            joined = joined.drop('_FallbackForecast')
-        out = ppl.to_ppdf(joined, meta=meta)
+            out = out.drop('_FallbackForecast')
         return out.filter(pl.col(out_col).is_not_null())
 
     def split_categories(self, reference: ppl.PathsDataFrame, dim: str, groups: dict[str, list[str]]) -> ppl.PathsDataFrame:
