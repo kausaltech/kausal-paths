@@ -360,3 +360,29 @@ def test_scenario_type(graphql_client_query_data, context, scenario):
         }
     }
     assert data == expected
+
+
+NODE_TEXTS = """
+query($id: ID!) {
+  node(id: $id) {
+    description
+    explanation
+  }
+}
+"""
+
+
+@pytest.mark.parametrize('show_explanations', [True, False])
+def test_explanation_has_its_own_field_and_never_fills_the_description(
+    graphql_client_query_data, instance, node, monkeypatch, show_explanations: bool
+):
+    # The explanation used to stand in for an empty description, so the editor offered
+    # it for editing and a save turned it into authored text that no longer followed
+    # the model. It now comes only through `explanation`, and only when enabled.
+    instance.features.show_explanations = show_explanations
+    monkeypatch.setattr(type(node), 'get_explanation', lambda _self: '<p>How it is computed</p>')
+
+    data = graphql_client_query_data(NODE_TEXTS, variables={'id': node.id})
+
+    assert data['node']['description'] is None
+    assert data['node']['explanation'] == ('<p>How it is computed</p>' if show_explanations else None)
