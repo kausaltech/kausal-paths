@@ -3,7 +3,7 @@ default_language: en
 supported_languages: []
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 1b83d697491386b93a669af32c9ea270a65bbfba
+  commit: f65d97f2863b7450d2a79a212d8240fa02cb4fd4
   dvc_remote: kausal-s3
 name: Minneapolis Greenhouse Gas Emissions
 owner: City of Minneapolis
@@ -23,6 +23,9 @@ action_groups:
 - id: electricity
   name: Electricity
   color: '#008AC2'
+- id: wastewater
+  name: Wastewater
+  color: '#F68527'
 
 dimensions:
 - id: energy_carrier
@@ -558,6 +561,7 @@ actions:
     filters:
     - column: action
       value: carbon_free_electricity_2040
+    - column: sector
   output_nodes:
   - id: electricity_emission_factors
 
@@ -576,8 +580,30 @@ actions:
     filters:
     - column: action
       value: renewable_electricity_2030
+    - column: sector
   output_nodes:
   - id: electricity_emission_factors
+
+# ----- Wastewater
+- id: wastewater_treatment_reduction
+  name: Reduce emissions from wastewater treatment (10%)
+  type: simple.AdditiveAction
+  group: wastewater
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [ghg, sector]
+  output_dimensions: [ghg, sector]
+  input_datasets:
+  - id: minneapolis/actions
+    column: emissions
+    forecast_from: 2025
+    filters:
+    - column: action
+      value: wastewater_treatment_reduction
+    - column: energy_carrier
+  output_nodes:
+  - id: wastewater_emissions
+    tags: [additive]
 
 pages:
 - id: home
