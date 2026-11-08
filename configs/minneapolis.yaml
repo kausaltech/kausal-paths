@@ -78,6 +78,14 @@ emission_sectors:
 - id: net_emissions
   name: Net Emissions
   is_outcome: true
+  goals:
+  - values: [{'year': 2025, 'value': 2831860},
+             {'year': 2030, 'value': 1371801},
+             {'year': 2035, 'value': 397100},
+             {'year': 2040, 'value': 144400},
+             {'year': 2045, 'value': 72200},
+             {'year': 2050, 'value': 0}]
+    is_main_goal: true
 
 nodes:
 # ----- Electricity
@@ -112,6 +120,13 @@ nodes:
 - id: electricity_emissions
   name: Electricity Emissions
   color: '#008AC2'
+  goals:
+  - values: [{'year': 2025, 'value': 603411},
+             {'year': 2030, 'value': 0},
+             {'year': 2035, 'value': 0},
+             {'year': 2040, 'value': 0},
+             {'year': 2045, 'value': 0},
+             {'year': 2050, 'value': 0}]
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t_co2e/a
@@ -202,6 +217,13 @@ nodes:
 - id: fossil_gas_emissions
   name: Fossil Gas Emissions
   color: '#606263'
+  goals:
+  - values: [{'year': 2025, 'value': 1302452},
+             {'year': 2030, 'value': 967343},
+             {'year': 2035, 'value': 280020},
+             {'year': 2040, 'value': 101826},
+             {'year': 2045, 'value': 50913},
+             {'year': 2050, 'value': 0}]
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t_co2e/a
@@ -360,6 +382,13 @@ nodes:
 - id: onroad_transportation_emissions
   name: On-Road Transportation Emissions
   color: '#A5B73C'
+  goals:
+  - values: [{'year': 2025, 'value': 790056},
+             {'year': 2030, 'value': 345082},
+             {'year': 2035, 'value': 99892},
+             {'year': 2040, 'value': 36324},
+             {'year': 2045, 'value': 18162},
+             {'year': 2050, 'value': 0}]
   type: formula.FormulaNode
   quantity: emissions
   unit: t_co2e/a
@@ -427,6 +456,13 @@ nodes:
 - id: solid_waste_emissions
   name: Solid Waste Emissions
   color: '#FFD135'
+  goals:
+  - values: [{'year': 2025, 'value': 114151},
+             {'year': 2030, 'value': 49859},
+             {'year': 2035, 'value': 14433},
+             {'year': 2040, 'value': 5248},
+             {'year': 2045, 'value': 2624},
+             {'year': 2050, 'value': 0}]
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t_co2e/a
@@ -473,6 +509,13 @@ nodes:
 - id: wastewater_emissions
   name: Wastewater Emissions
   color: '#F68527'
+  goals:
+  - values: [{'year': 2025, 'value': 21790},
+             {'year': 2030, 'value': 9517},
+             {'year': 2035, 'value': 2755},
+             {'year': 2040, 'value': 1002},
+             {'year': 2045, 'value': 501},
+             {'year': 2050, 'value': 0}]
   type: simple.MultiplicativeNode
   quantity: emissions
   unit: t_co2e/a
