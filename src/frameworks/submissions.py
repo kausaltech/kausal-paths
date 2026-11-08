@@ -58,6 +58,9 @@ def create_submission(
         raise SubmissionError(f'{period_start} is before the first historical year {years.min_historical}')
     if kind == SubmissionKind.INVENTORY and years.max_historical is not None and period_end > years.max_historical:
         raise SubmissionError(f'{period_end} is after the last historical year {years.max_historical}')
+    inventory_years = years.historical
+    if kind == SubmissionKind.INVENTORY and inventory_years is not None and period_start not in inventory_years:
+        raise SubmissionError(f'{period_start} is not an inventory year')
 
     same_period = Q(instance_config=ic, kind=kind, period_start=period_start, period_end=period_end)
     with transaction.atomic():

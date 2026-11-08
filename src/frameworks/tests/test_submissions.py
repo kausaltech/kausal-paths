@@ -154,6 +154,14 @@ def test_create_validates_the_period(kwargs: dict[str, Any], message: str) -> No
         ops.create_submission(make_instance(), user=None, **kwargs)
 
 
+def test_skipped_year_cannot_be_submitted() -> None:
+    ic = make_instance()
+    ic.update_years(skipped=[2021])
+    with pytest.raises(ops.SubmissionError, match='not an inventory year'):
+        ops.create_submission(ic, period_start=2021, user=None)
+    assert ops.create_submission(ic, period_start=2020, user=None).period_start == 2020
+
+
 def test_yaml_instance_cannot_be_submitted() -> None:
     with pytest.raises(ops.SubmissionError, match='database-backed'):
         ops.create_submission(make_instance(config_source='yaml'), period_start=2021, user=None)
