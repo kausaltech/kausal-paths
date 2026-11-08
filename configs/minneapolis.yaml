@@ -3,7 +3,7 @@ default_language: en
 supported_languages: []
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: bfa6034a70499712b1e12dea6fbcddfc5c94048f
+  commit: 1b83d697491386b93a669af32c9ea270a65bbfba
   dvc_remote: kausal-s3
 name: Minneapolis Greenhouse Gas Emissions
 owner: City of Minneapolis
@@ -558,6 +558,24 @@ actions:
     filters:
     - column: action
       value: carbon_free_electricity_2040
+  output_nodes:
+  - id: electricity_emission_factors
+
+- id: renewable_electricity_2030
+  name: Minneapolis community-wide electricity is 100% renewable by 2030
+  type: simple.AdditiveAction
+  group: electricity
+  quantity: emission_factor
+  unit: t_co2e/MWh
+  input_dimensions: [ghg, energy_carrier]
+  output_dimensions: [ghg, energy_carrier]
+  input_datasets:
+  - id: minneapolis/actions
+    column: emission_factor
+    forecast_from: 2025
+    filters:
+    - column: action
+      value: renewable_electricity_2030
   output_nodes:
   - id: electricity_emission_factors
 
