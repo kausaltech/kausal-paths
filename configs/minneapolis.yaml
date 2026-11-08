@@ -3,7 +3,7 @@ default_language: en
 supported_languages: []
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 7424223f2e9a24f589a34bfb4855c5d86aa35cd9
+  commit: bfa6034a70499712b1e12dea6fbcddfc5c94048f
   dvc_remote: kausal-s3
 name: Minneapolis Greenhouse Gas Emissions
 owner: City of Minneapolis
@@ -18,6 +18,11 @@ emission_forecast_from: 2025
 emission_dimensions: [sector, ghg]
 features:
   baseline_visible_in_graphs: true
+
+action_groups:
+- id: electricity
+  name: Electricity
+  color: '#008AC2'
 
 dimensions:
 - id: energy_carrier
@@ -530,6 +535,32 @@ nodes:
   output_nodes:
   - id: net_emissions
 
+actions:
+# ----- Electricity
+- id: carbon_free_electricity_2040
+  name: 'Compliance with Minnesota state law: Electric utilities are 100% carbon-free by 2040'
+  type: linear.DatasetReduceAction
+  group: electricity
+  quantity: emission_factor
+  unit: t_co2e/MWh
+  input_dimensions: [ghg, energy_carrier]
+  output_dimensions: [ghg, energy_carrier]
+  input_datasets:
+  - id: minneapolis/electricity
+    column: emission_factor
+    tags: [historical]
+    dropna: true
+    filters:
+    - column: sector
+  - id: minneapolis/actions
+    column: emission_factor
+    tags: [goal]
+    filters:
+    - column: action
+      value: carbon_free_electricity_2040
+  output_nodes:
+  - id: electricity_emission_factors
+
 pages:
 - id: home
   name: Minneapolis Greenhouse Gas Emissions
@@ -540,8 +571,14 @@ pages:
   lead_paragraph: Greenhouse gas inventory (2006-2024) and forecast (2025-2050) for the City of Minneapolis.
 
 scenarios:
+- id: constant_emissions
+  name: Constant Emissions
+
 - id: baseline
-  name: Constant emission
+  name: Current Policy Landscape
+  params:
+  - id: carbon_free_electricity_2040.enabled
+    value: true
 
 - id: default
   default: true
