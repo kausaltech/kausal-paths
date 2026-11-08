@@ -3,7 +3,7 @@ default_language: en
 supported_languages: []
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: afbcf3b4570f7b30d82eb262880e412fc68739cd
+  commit: bb1ffd0592f43b246b7a6e85ab5b8348b020180e
   dvc_remote: kausal-s3
 name: Minneapolis Greenhouse Gas Emissions
 owner: City of Minneapolis
@@ -619,6 +619,25 @@ actions:
     from_dimensions:
     - id: energy_carrier
       categories: [electricity]
+
+- id: commercial_industrial_buildings
+  name: Reduce emissions from industrial, commercial, and multifamily buildings (75%)
+  type: simple.AdditiveAction
+  group: fossil_gas
+  quantity: energy
+  unit: therm/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: minneapolis/actions
+    column: energy_natural_gas
+    forecast_from: 2025
+    filters:
+    - column: action
+      value: commercial_industrial_buildings
+    - column: ghg
+  output_nodes:
+  - id: fossil_gas_consumption
 
 # ----- Wastewater
 - id: wastewater_treatment_reduction
