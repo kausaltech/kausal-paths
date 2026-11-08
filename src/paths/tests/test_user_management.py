@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
 from typing import TYPE_CHECKING
 from unittest.mock import patch
+
+from django.utils import timezone
 
 import pytest
 
@@ -203,6 +206,32 @@ def test_invite_creates_invitation_and_triggers_email(
     send_mock.assert_called_once()
     inv = InstanceInvitation.objects.get(instance_config=managed_instance, email='guest@example.com')
     assert inv.is_valid()
+
+
+def test_invite_replaces_an_expired_invitation(
+    gql_client: PathsTestClient,
+    client: Client,
+    managed_instance: InstanceConfig,
+    owner_user: User,
+):
+    expired = InstanceInvitation.objects.create(
+        instance_config=managed_instance,
+        email='guest@example.com',
+        expires_at=timezone.now() - timedelta(days=1),
+    )
+    client.force_login(owner_user)
+    with patch('users.graphql.mutations.send_instance_invitation'):
+        data = gql_client.query_data(
+            INVITE_QUERY,
+            variables={'instanceId': managed_instance.identifier, 'email': 'guest@example.com'},
+        )
+    assert data['instanceAdmin']['inviteUserToInstance']['__typename'] == 'InstanceInvitation'
+    expired.refresh_from_db()
+    assert expired.is_soft_deleted
+    assert expired.soft_deleted_by == owner_user
+    current = InstanceInvitation.objects.get(instance_config=managed_instance, email='guest@example.com')
+    assert current.pk != expired.pk
+    assert current.is_valid()
 
 
 def test_invite_rejects_existing_user_email(

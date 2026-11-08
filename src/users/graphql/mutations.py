@@ -255,21 +255,26 @@ class InstanceUserMutation:
                 'A user with this email already exists; use addUserToInstance instead.',
                 code='user_exists',
             )
-        existing = InstanceInvitation.objects.filter(
-            instance_config=ic,
-            email=normalized,
-            accepted_at__isnull=True,
-        ).first()
-        if existing is not None and existing.is_valid():
-            raise GraphQLValidationError(
-                info,
-                'An active invitation for this email already exists.',
-                code='invitation_exists',
-            )
         actor = _require_authenticated_user(info)
         try:
             with transaction.atomic():
                 locked = InstanceConfig.objects.select_for_update().get(pk=ic.pk)
+                existing = InstanceInvitation.objects.filter(
+                    instance_config=locked,
+                    email=normalized,
+                    accepted_at__isnull=True,
+                ).first()
+                if existing is not None and existing.is_valid():
+                    raise GraphQLValidationError(
+                        info,
+                        'An active invitation for this email already exists.',
+                        code='invitation_exists',
+                    )
+                if existing is not None:
+                    # Expiry is not part of the uniqueness constraint, so an expired
+                    # invitation still holds the slot until it is retired.
+                    existing.last_modified_by = actor
+                    existing.soft_delete(actor)
                 require_free_seat(locked)
                 inv = InstanceInvitation.objects.create(
                     instance_config=locked,
