@@ -3,7 +3,7 @@ default_language: en
 supported_languages: []
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: f65d97f2863b7450d2a79a212d8240fa02cb4fd4
+  commit: afbcf3b4570f7b30d82eb262880e412fc68739cd
   dvc_remote: kausal-s3
 name: Minneapolis Greenhouse Gas Emissions
 owner: City of Minneapolis
@@ -23,6 +23,9 @@ action_groups:
 - id: electricity
   name: Electricity
   color: '#008AC2'
+- id: fossil_gas
+  name: Fossil Gas
+  color: '#606263'
 - id: wastewater
   name: Wastewater
   color: '#F68527'
@@ -583,6 +586,39 @@ actions:
     - column: sector
   output_nodes:
   - id: electricity_emission_factors
+
+# ----- Fossil Gas
+- id: cordia_district_energy
+  name: Decarbonize Cordia's downtown district energy system
+  type: simple.AdditiveAction
+  group: fossil_gas
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_datasets:
+  - id: minneapolis/actions
+    forecast_from: 2025
+    filters:
+    - column: action
+      value: cordia_district_energy
+    - column: ghg
+  output_metrics:
+  - id: energy_natural_gas
+    unit: therm/a
+    quantity: energy
+  - id: energy_electricity
+    unit: MWh/a
+    quantity: energy
+  output_nodes:
+  - id: fossil_gas_consumption
+    metrics: [energy_natural_gas]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [natural_gas]
+  - id: electricity_consumption
+    metrics: [energy_electricity]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
 
 # ----- Wastewater
 - id: wastewater_treatment_reduction
