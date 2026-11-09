@@ -24,7 +24,7 @@ features:
   show_category_warnings: true
 
 include:
-- file: modules/bisko-base/model.yaml
+- file: modules/bisko/model.yaml
   allow_override: true
   dataset_replacements:
   - from: kommune/endenergieverbrauch
@@ -100,13 +100,24 @@ params:
 # The district-heating route is no longer a parameter. BISKO's three Möglichkeiten are chosen per
 # year from what the city has supplied -- plant data, then a declared Table 5 variant, then the
 # standard Fernwärme factor -- exactly as the road-transport own-data preference works. See
-# district_heating_emissions in modules/bisko-base/model.yaml, and district_heating_method_in_force for
+# district_heating_emissions in modules/bisko/model.yaml, and district_heating_method_in_force for
 # which route each year took. `use_exergetic_district_heating` was removed on 2026-08-20.
+
+- id: municipal_facilities_included_in_commerce
+  # Hidden and fixed: what the city's data contains is settled once at setup, not by a visitor.
+  # Where KE is shown is the reporting setting report_municipal_facilities_in_commerce.
+  label_en: Is the consumption of municipal facilities included in the commerce,
+    trade and services sector?
+  label_de: Sind die Verbräuche der kommunalen Einrichtungen im Sektor
+    GHD/Sonstiges enthalten?
+  value: false
+  is_visible: false
+  is_customizable: false
 
 # Heat-pump electricity sits inside the metered electricity unless the utility has separated it,
 # so the Leitfaden Datenbeschaffung (Schritt 7) treats the overlap as the normal case and asks for
 # it to be subtracted. Declared per city, because only the city knows how its data was delivered;
-# hidden and fixed: settled once at setup.
+# hidden and fixed like municipal_facilities_included_in_commerce: settled once at setup.
 - id: heat_pump_electricity_included_in_electricity
   label_en: The electricity consumption of heat pumps is included in the reported electricity consumption.
   label_de: Der Stromverbrauch der Wärmepumpen ist im ausgewiesenen Stromverbrauch enthalten.
@@ -145,6 +156,7 @@ result_excels:
   - weather_correction
   - final_energy_use
   - total_final_energy_use          # criterion 2.1: energy by sector incl. transport
+  - municipal_facilities_energy_in_commerce  # criterion 2.1: the KE/GHD double-count correction
   - total_weighted_data_quality     # criterion 7.2: Datengüte of the whole balance
   # - final_municipal_facilities_energy_use_by_type
   # - municipal_fleet_energy
@@ -257,7 +269,7 @@ nodes:
 # override does is fold the two together. The route choice it used to carry went away with
 # `use_mileage` on 2026-08-21: road and other transport are now added unconditionally, and the
 # Fahrleistung-versus-Verbrauchsdaten choice is made per year inside
-# `road_transport_energy_by_road_type`. See modules/bisko-base/model.yaml.
+# `road_transport_energy_by_road_type`. See modules/bisko/model.yaml.
 - id: transport_energy
   is_editable: false
   name_de: Endenergieverbrauch Verkehr

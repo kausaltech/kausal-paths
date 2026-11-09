@@ -4,6 +4,14 @@ Compatibility boundary for the two BISKO certification entrypoints frozen at d5e
 Their YAML retains the reviewed model with municipal overlap disabled in both entrypoints. Translate
 only authoring syntax here; retain each original requirement and its enforcement tier.
 New models continue to use the strict shape-based YAML parser.
+
+The municipal models in `FROZEN_MODULE_INSTANCES` include the same frozen module
+(`configs/modules/bisko/model.yaml`), so their YAML passes through the same translation. They
+were moved to `bisko-base` on 6 Nov 2026 and moved back: its data-quality nodes read
+`bisko_quality` qualifiers, which exist only for members of the BISKO framework, so every
+stand-alone city failed `total_weighted_data_quality`. They return to `bisko-base` once that
+works for them or once they join the framework. They are listed explicitly, never inferred, and
+they are not certification instances: `setup_bisko` refuses only `CERTIFICATION_INSTANCES`.
 """
 
 from copy import deepcopy
@@ -17,11 +25,23 @@ if TYPE_CHECKING:
 
 CERTIFICATION_INSTANCES = frozenset({'bisko', 'pruefstadt-bisko'})
 
+FROZEN_MODULE_INSTANCES = CERTIFICATION_INSTANCES | frozenset({
+    'augsburg-bisko',
+    'bayreuth-bisko',
+    'duesseldorf-bisko',
+    'mainz-bisko',
+    'mainz-dev',
+    'reutlingen-klimabilanz',
+    'schwerin-bisko',
+    'testcity-bisko',
+})
+"""Entrypoints whose model is the frozen module, and whose YAML `certification_yaml` translates."""
+
 
 def certification_yaml(config: dict[str, Any], instance_uuid: UUID) -> dict[str, Any]:
     """Compile the frozen YAML's domains and named rule members to native shape identities."""
-    if config.get('id') not in CERTIFICATION_INSTANCES:
-        raise ValueError('Expected a frozen BISKO certification entrypoint')
+    if config.get('id') not in FROZEN_MODULE_INSTANCES:
+        raise ValueError('Expected an entrypoint of the frozen BISKO module')
     result = deepcopy(config)
     for parameter in result.get('params', []):
         if parameter['id'] == 'municipal_facilities_included_in_commerce':

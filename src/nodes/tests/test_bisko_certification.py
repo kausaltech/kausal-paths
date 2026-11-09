@@ -15,7 +15,7 @@ import pytest
 from common.validation import ValidationRuleEnforcement
 from datasets.validation import evaluate_rule
 from datasets.validation_rules import RequiredCombinationsRule
-from nodes.bisko_certification import certification_yaml
+from nodes.bisko_certification import FROZEN_MODULE_INSTANCES, certification_yaml
 from nodes.instance_loader import InstanceYAMLConfig
 from nodes.instance_parser import InstanceParseError, parse_instance_snapshot
 from nodes.models import make_empty_instance_spec
@@ -116,10 +116,19 @@ def test_legacy_domains_are_not_enabled_for_other_models() -> None:
         'target_year': 2030,
         'datasets': [{'id': 'input', 'category_domain': {'mode': 'open', 'combinations': []}}],
     }
-    with pytest.raises(ValueError, match='certification entrypoint'):
+    with pytest.raises(ValueError, match='frozen BISKO module'):
         certification_yaml(config, uuid4())
     with pytest.raises(InstanceParseError, match='category_domain'):
         parse_instance_snapshot(config, instance_uuid=uuid4())
+
+
+def test_frozen_module_instances_are_exactly_its_includers() -> None:
+    """The parser translates the frozen syntax by instance id, so the list must follow the configs."""
+    configs = Path(settings.BASE_DIR) / 'configs'
+    includers = {
+        path.stem for path in configs.glob('*.yaml') if '- file: modules/bisko/model.yaml' in path.read_text(encoding='utf-8')
+    }
+    assert includers == FROZEN_MODULE_INSTANCES
 
 
 def test_framework_template_has_an_independent_entrypoint_and_no_legacy_correction() -> None:
