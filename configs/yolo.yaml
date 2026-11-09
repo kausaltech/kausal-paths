@@ -19,6 +19,18 @@ emission_dimensions: [subsector, scope]
 features:
   baseline_visible_in_graphs: true
 
+impact_overviews:
+- graph_type: simple_effect
+  effect_node: net_emissions
+  indicator_unit: t_co2e
+  invert_effect: true
+  label: Cumulative Emissions Reductions
+
+- graph_type: wedge_diagram
+  effect_node: net_emissions
+  indicator_unit: t_co2e/a
+  label: Emissions Reduction Wedges
+
 action_groups:
 - id: onroad_transportation
   name: Decarbonize Transportation
