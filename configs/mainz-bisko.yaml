@@ -36,7 +36,7 @@ features:
   show_category_warnings: true
 
 include:
-- file: modules/bisko-base/model.yaml
+- file: modules/bisko/model.yaml
   allow_override: true
   dataset_replacements:
   - from: kommune/endenergieverbrauch
@@ -658,7 +658,7 @@ nodes:
     auto_start: false
     values:
     - year: 2045
-      value: 170040.0     # 5 % of the 1990 baseline of 3,400.8 kt_co2e/a -- see the note above
+      value: 173320.0     # 5 % of the 1990 baseline of 3,466.33 kt_co2e/a -- see the note above
 
 
 # The balance beside the balance: BISKO plus what BISKO leaves out.
@@ -755,7 +755,7 @@ nodes:
 
 # Four outcome nodes overridden for exactly one reason: to attach a goal line. All four are
 # otherwise byte-identical copies of the module version -- keep them in step with
-# modules/bisko-base/model.yaml and modules/gpc/municipal_balance.yaml, since allow_override: true
+# modules/bisko/model.yaml and modules/gpc/municipal_balance.yaml, since allow_override: true
 # means a change there does NOT reach Mainz until mirrored here.
 #
 # WHICH GOAL, AND WHY IT IS NOT NET ZERO 2035
@@ -802,13 +802,17 @@ nodes:
 #           v = df.filter(pl.col('Year') == 1990)[col].sum()
 #           print(nid, n.unit, v, 'target:', v * 0.05, v * 0.5)"
 #
-#   net_emissions          1990 = 3,400.8 kt_co2e/a  ->  -95 % =   170.04 kt_co2e/a
-#   total_final_energy_use 1990 = 8,477,235 MWh/a    ->  -50 % = 4,238,618 MWh/a
+#   net_emissions          1990 = 3,466.33 kt_co2e/a ->  -95 % =   173.32 kt_co2e/a
+#   total_final_energy_use 1990 = 8,621,339 MWh/a    ->  -50 % = 4,310,670 MWh/a
 #
-# For scale: 2024 is 1,554.1 kt (-54.3 % against 1990) and 4,973,402 MWh (-41.3 %). The energy
-# target needs a further -14.8 % from today; the emissions target needs -89.1 %. Both 2024 figures
-# moved slightly on 18 Sep 2026 with the chimney-sweep correction; 1990 did not, so the goal
-# values below are unaffected.
+# Recomputed on 9 Nov 2026. The values before (170.04 kt, 4,238,618 MWh) came from the 1990
+# baseline before the import of 29 Sep 2026 (3,400.8 kt, 8,477,235 MWh), while the deck,
+# Beschlussvorlage v13 and the Zusammenfassung already used 173.3 kt and 4,311 GWh. The
+# production spec was brought to these values without a sync, by
+# paths-data models/mainz/scripts/update_goals_and_endenergie.py.
+#
+# For scale: 2024 is 1,516.3 kt (-56.3 % against 1990) and 5,033,603 MWh (-41.6 %). The energy
+# target needs a further -14.4 % from today; the emissions target needs -88.6 %.
 #
 # `auto_start: true` reads the node's own computed value at maximum_historical_year (2024)
 # as the starting point, rather than a number typed into this file -- so the goal line
@@ -837,7 +841,7 @@ nodes:
     auto_start: true
     values:
     - year: 2045
-      value: 170.04     # 5 % of the 1990 baseline of 3,400.8 kt_co2e/a -- see the note above
+      value: 173.32     # 5 % of the 1990 baseline of 3,466.33 kt_co2e/a -- see the note above
 
 - id: net_emissions_by_energy_carrier
   is_editable: false
@@ -869,7 +873,7 @@ nodes:
     auto_start: true
     values:
     - year: 2045
-      value: 170.04     # the same target as net_emissions; this page shows it split by carrier
+      value: 173.32     # the same target as net_emissions; this page shows it split by carrier
 
 - id: municipal_balance_emissions
   is_editable: false
@@ -1029,7 +1033,7 @@ nodes:
 
 # The fourth overridden node, and the only one that is not an emissions outcome: it exists here
 # to carry the -50 % final-energy half of Beschluss 0024/2021/1. Byte-identical to
-# modules/bisko-base/model.yaml apart from the `goals:` block appended at the end -- keep it in step.
+# modules/bisko/model.yaml apart from the `goals:` block appended at the end -- keep it in step.
 - id: total_final_energy_use
   is_editable: false
   name_en: Final energy use by sector
@@ -1093,14 +1097,49 @@ nodes:
     auto_start: true
     values:
     - year: 2045
-      value: 4238618      # 50 % of the 1990 baseline of 8,477,235 MWh/a -- see the note above
+      value: 4310670      # 50 % of the 1990 baseline of 8,621,339 MWh/a -- see the note above
+
+# Overridden for one reason: kWh/a instead of the module's MWh/a, so the /endenergie page
+# (outcome node final_energy_use) shows no drill-down. The outcome page lists every input node
+# whose unit equals the outcome node's exactly and walks on from there, and under
+# final_energy_use that is the module's bookkeeping chain (this node, final_energy_use_corrected,
+# final_energy_use_entered, the municipal-facilities and heat-pump corrections), which visitors
+# read as subsectors. The page was unpublished on 21 Oct 2026 for that reason. The values
+# convert; no output moves. Otherwise a copy of modules/bisko/model.yaml -- keep it in step,
+# since allow_override: true means a module change does NOT reach Mainz until mirrored here.
+# The module itself is hash-pinned for certification, so the change cannot go there.
+- id: final_energy_use_with_municipal_facilities_reporting
+  is_editable: false
+  name_en: Final energy use of the stationary sectors, municipal facilities as reported
+  name_de: Endenergieverbrauch der stationären Sektoren, kommunale Einrichtungen wie ausgewiesen
+  description_en: |
+    The corrected final energy use, with the municipal facilities shown as their own sector or
+    within commerce, trade and services, as the setting <i>Report municipal facilities within
+    commerce, trade and services</i> says. Moving them changes no total.
+  description_de: |
+    Der bereinigte Endenergieverbrauch, mit den kommunalen Einrichtungen als eigenem Sektor oder
+    innerhalb von Gewerbe, Handel, Dienstleistungen, wie es die Einstellung <i>Kommunale
+    Einrichtungen innerhalb von GHD ausweisen</i> vorgibt. Das Verschieben ändert keine Summe.
+  type: formula.FormulaNode
+  quantity: energy
+  unit: kWh/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_nodes:
+  - id: final_energy_use_corrected
+    tags: [energy]
+  params:
+  - id: formula
+    value: select_port(condition, sum_into_cat(energy, sector, [municipal_facilities], commerce_trade_services) + 0 * energy, energy)
+  - id: condition
+    ref: report_municipal_facilities_in_commerce
 
 # --- Indicator nodes -----------------------------------------------------------------
 #
 # Nodes that exist to answer an indicator from the city's Maßnahmenkatalog, not because the
 # balance needs them. They compute shares from what the model already holds and add no data.
 #
-# They live here rather than in modules/bisko-base/model.yaml because the indicator set is
+# They live here rather than in modules/bisko/model.yaml because the indicator set is
 # Mainz's own selection; the shared module is the BISKO balance, and content that is not
 # the balance should not be mixed into it. If another city adopts the same indicators, move
 # them then, not before.
@@ -4547,18 +4586,29 @@ params:
 # test is one-sided -- a negative proves the facilities are outside GHD, the absence of one proves
 # nothing -- and the declaration removed 58-130 GWh a year (1.4-1.9 % of stationary final energy)
 # a second time. The extractors need no change: none of them adds the facilities into GHD or
-# subtracts them out. The evolving module keeps facilities separate and applies no municipal subtraction.
+# subtracts them out. The rule for every KSP-sourced city is in configs/bisko.yaml.
 
 # The district-heating route is no longer a parameter. BISKO's three Möglichkeiten are chosen per
 # year from what the city has supplied -- plant data, then a declared Table 5 variant, then the
 # standard Fernwärme factor -- exactly as the road-transport own-data preference works. See
-# district_heating_emissions in modules/bisko-base/model.yaml, and district_heating_method_in_force for
+# district_heating_emissions in modules/bisko/model.yaml, and district_heating_method_in_force for
 # which route each year took. `use_exergetic_district_heating` was removed on 2026-08-20.
 
 # Heat-pump electricity sits inside the metered electricity unless the utility has separated it,
 # so the Leitfaden Datenbeschaffung (Schritt 7) treats the overlap as the normal case and asks for
 # it to be subtracted. Declared per city, because only the city knows how its data was delivered;
-# hidden and fixed: settled once at setup.
+- id: municipal_facilities_included_in_commerce
+  # Hidden and fixed: what the city's data contains is settled once at setup, not by a visitor.
+  # Where KE is shown is the reporting setting report_municipal_facilities_in_commerce.
+  label_en: Is the consumption of municipal facilities included in the commerce,
+    trade and services sector?
+  label_de: Sind die Verbräuche der kommunalen Einrichtungen im Sektor
+    GHD/Sonstiges enthalten?
+  value: false
+  is_visible: false
+  is_customizable: false
+
+# hidden and fixed like municipal_facilities_included_in_commerce: settled once at setup.
 - id: heat_pump_electricity_included_in_electricity
   label_en: The electricity consumption of heat pumps is included in the reported electricity consumption.
   label_de: Der Stromverbrauch der Wärmepumpen ist im ausgewiesenen Stromverbrauch enthalten.
@@ -4595,6 +4645,7 @@ result_excels:
   - weather_correction
   - final_energy_use
   - total_final_energy_use          # criterion 2.1: energy by sector incl. transport
+  - municipal_facilities_energy_in_commerce  # criterion 2.1: the KE/GHD double-count correction
   - total_weighted_data_quality     # criterion 7.2: Datengüte of the whole balance
   # - final_municipal_facilities_energy_use_by_type
   # - municipal_fleet_energy
@@ -4850,8 +4901,10 @@ scenarios:
 - id: zielpfad_2045
   default: true
   all_actions_enabled: true
-  name_de: 'Zielpfad 2045: zusätzlich vorgeschlagene Maßnahmen'
-  name_en: 'Target path 2045: additional proposed measures'
+  # Named by the city on 21 Oct 2026 (set in production by paths-data
+  # models/mainz/scripts/rename_owner_and_scenario.py); the id stays.
+  name_de: 'Maßnahmenwirkung Mainz – inkl. weiterer Handlungsoptionen'
+  name_en: 'Effect of Mainz measures – incl. further options for action'
   params:
   # The IE Leipzig paths are aggregate outcomes of the Masterplan package and would
   # stack on the individual measures they already contain, so they stay off here as
