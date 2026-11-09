@@ -753,7 +753,33 @@ class InstanceConfig(
         yield 'id', self.pk
         yield 'name', self.name
 
+    def _refuse_switch_of_published_instance_to_yaml(self, update_fields: Iterable[str] | None) -> None:
+        """
+        Refuse to make a published database-sourced instance yaml-sourced.
+
+        A yaml-sourced instance serves its YAML to every visitor, so the switch would publish the
+        YAML with no comparison and no Publish step, while the live revision goes unread. It also
+        costs the stored spec: `ensure_spec()` replaces it with the minimal one derived from the
+        YAML, which drops whatever only the database held, and the dataset rows can then refer to
+        shapes the spec no longer declares, which stops the next sync. Reading the instance through
+        its YAML needs no switch: `python -m tools.debug_instance -i <id> --source yaml` without
+        `--save` changes nothing.
+        """
+        if self.pk is None or self.config_source != 'yaml' or self.live_revision_id is None:
+            return
+        if update_fields is not None and 'config_source' not in update_fields:
+            return
+        previous = InstanceConfig.objects.filter(pk=self.pk).values_list('config_source', flat=True).first()
+        if previous != 'database':
+            return
+        raise ValidationError(
+            f'{self.identifier} has a published revision, so it cannot be switched to YAML: visitors would get '
+            'the YAML at once and the stored spec would be reduced to the minimal one. To read it through its '
+            f'YAML, use `python -m tools.debug_instance -i {self.identifier} --source yaml` without --save.'
+        )
+
     def save(self, *args, update_fields: Iterable[str] | None = None, **kwargs):
+        self._refuse_switch_of_published_instance_to_yaml(update_fields)
         if update_fields is None:
             if not self.uuid or isinstance(self.uuid, DatabaseDefault):
                 self.uuid = uuid.uuid4()

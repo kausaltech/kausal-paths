@@ -5,6 +5,7 @@ from __future__ import annotations
 import uuid
 from typing import TYPE_CHECKING, Any
 
+from django.core.exceptions import ValidationError
 from django.db import connection
 from django.test.utils import CaptureQueriesContext
 
@@ -475,6 +476,29 @@ def test_create_from_config_published_falls_back_to_draft(empty_db_instance: Ins
     instance = empty_db_instance._create_from_config(source='published')
     assert instance is not None
     assert instance.id == empty_db_instance.identifier
+
+
+def test_published_instance_cannot_be_switched_to_yaml(empty_db_instance: InstanceConfig):
+    """The switch would serve the YAML to visitors and reduce the stored spec to the minimal one."""
+    empty_db_instance.publish_instance()
+    empty_db_instance.refresh_from_db()
+    assert empty_db_instance.live_revision_id is not None
+
+    empty_db_instance.config_source = 'yaml'
+    with pytest.raises(ValidationError, match='cannot be switched to YAML'):
+        empty_db_instance.save()
+    with pytest.raises(ValidationError, match='cannot be switched to YAML'):
+        empty_db_instance.save(update_fields=['config_source'])
+    empty_db_instance.refresh_from_db()
+    assert empty_db_instance.config_source == 'database'
+
+
+def test_unpublished_instance_can_still_be_switched_to_yaml(empty_db_instance: InstanceConfig):
+    assert empty_db_instance.live_revision_id is None
+    empty_db_instance.config_source = 'yaml'
+    empty_db_instance.save(update_fields=['config_source'])
+    empty_db_instance.refresh_from_db()
+    assert empty_db_instance.config_source == 'yaml'
 
 
 # ---------------------------------------------------------------------------

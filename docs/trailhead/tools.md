@@ -44,6 +44,14 @@ python -m tools.debug_instance -i budget --source yaml --save
 python -m tools.debug_instance -i budget --source db --save
 ```
 
+**A published instance cannot be switched to YAML**, and `InstanceConfig.save()` refuses it. A
+yaml-sourced instance serves its YAML to every visitor, so the switch would publish the YAML
+with no comparison and no Publish step. It also costs the stored spec: `ensure_spec()` replaces
+it with the minimal one derived from the YAML, so whatever only the database held is lost, and
+dataset rows can be left referring to shapes the spec no longer declares, after which a sync fails
+with `ShapeDomainError`. To look at a published instance through its YAML, leave out `--save`:
+`--source yaml` alone changes nothing.
+
 ### Evaluate Python with instance/ctx/node in scope
 
 ```bash
@@ -939,9 +947,9 @@ which is what made removing it safe rather than plausible.
 
 1. Check the error: `python manage.py test_instance --start-from the_instance --dry-run`
 2. Diff a suspicious node: `python -m tools.debug_instance -i the_instance --diff-node the_node`
-3. Switch to YAML to verify it works: `python -m tools.debug_instance -i the_instance --source yaml --save`
+3. Check that the YAML works: `python -m tools.debug_instance -i the_instance --source yaml` (no `--save`; a published instance refuses the switch)
 4. Fix the construction in `instance_loader.py` (`from_snapshot` builds the runtime from the typed snapshot)
-5. Re-sync and switch back: `python manage.py sync_instance_to_db the_instance`
+5. Re-sync: `python manage.py sync_instance_to_db the_instance`
 
 ### The ClusterableModel save() trap
 
