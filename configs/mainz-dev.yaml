@@ -1163,8 +1163,8 @@ scenarios:
 - id: zielpfad_2045
   default: true
   all_actions_enabled: true
-  name_de: 'Zielpfad 2045: zusätzlich vorgeschlagene Maßnahmen'
-  name_en: 'Target path 2045: additional proposed measures'
+  name_de: 'Maßnahmenwirkung Mainz – inkl. weiterer Handlungsoptionen'
+  name_en: 'Effect of Mainz measures – incl. further options for action'
   params:
   # The IE Leipzig paths are aggregate outcomes of the Masterplan package and would
   # stack on the individual measures they already contain, so they stay off here as
