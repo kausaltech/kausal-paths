@@ -211,3 +211,52 @@ that instance even if a wider organization grant would otherwise allow it.
 The GraphQL mutations `assignOrganizationRole`, `suspendOrganizationRole`,
 and `reactivateOrganizationRole` manage grants. Framework and active subtree
 admins may use them within their scope.
+
+## Complete district demos and year comparisons
+
+After setup, BKG import, population import and template publication, seed complete
+synthetic inventories for all six Ammerland municipalities and all sixteen
+Teltow-Fläming municipalities:
+
+```bash
+python manage.py seed_bisko_aggregation_demo
+python manage.py seed_bisko_aggregation_demo --apply
+```
+
+The first command rehearses the complete operation and rolls back every database
+write. The second creates 44 final inventory submissions: 2022 and 2023 for each
+municipality. No input files or test accounts are required.
+
+With `BISKO_TEST_ACCOUNT_PASSWORD` set, create test accounts for both districts:
+
+```bash
+python manage.py provision_bisko_test_accounts --district 03451 --district 12072 --dry-run
+python manage.py provision_bisko_test_accounts --district 03451 --district 12072
+```
+
+This creates the original 12 regional accounts plus a district admin and editor
+for each requested Landkreis: `bisko-03451-district-admin.fake@kausal.tech`,
+`bisko-03451-district-editor.fake@kausal.tech`, and the corresponding `12072`
+accounts. Their grants cover every municipality below their own district. These
+additional accounts do not activate municipalities or change their inventories.
+Repeated runs reset passwords to the environment's value and preserve the grants;
+changed or suspended grants require explicit resolution. The command supplies its
+own German language context, so it can run directly from the command line.
+
+All demo implementations and tests live under `src/frameworks/bisko/demo/`.
+The three management-command files are entry points; remove those along with
+the demo package when retiring the tools.
+
+The published template's pinned provider defaults supply 2023 stationary energy,
+actual annual population, weather factors and shared transport inputs. The seeder
+invents 2022 stationary energy by applying deterministic changes by municipality,
+sector and carrier to the 2023 estimates; solar thermal and heat-pump energy grow
+into 2023. Both years have invented energy quality grades. All submissions pass
+normal finalisation checks and pin published revisions. The resulting submissions
+participate in ordinary territory aggregations, including the state level.
+
+`--district <ARS>` and `--year 2022 --year 2023` restrict the selection; repeat each
+option to select several. `--seed` defaults to 42. A repeat run verifies the recipe,
+local inputs and final submissions and leaves an unchanged municipality alone.
+Existing instances not created by this seeder, changed recipes and edited local
+inputs are refused. There is no overwrite mode.
