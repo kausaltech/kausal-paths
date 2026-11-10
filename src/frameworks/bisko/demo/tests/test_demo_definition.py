@@ -22,7 +22,7 @@ from kausal_common.datasets.tests.factories import (
     DimensionFactory,
 )
 
-from frameworks.management.commands.load_bisko_demo import (
+from frameworks.bisko.demo.dashboards import (
     CARRIERS,
     DEMO_GRADES,
     SECTORS,
