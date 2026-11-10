@@ -46,8 +46,8 @@ def _municipal_organizations(framework: Framework) -> dict[str, Organization]:
         scope |= Q(organization__path__startswith=path)
     identifiers = OrganizationIdentifier.objects.filter(
         scope,
+        framework.reporting_unit_q('organization__'),
         namespace__identifier='ags',
-        organization__classification__identifier__in=('de_municipality', 'de_district_free_city'),
     ).select_related('organization')
     return {identifier.identifier: identifier.organization for identifier in identifiers}
 
@@ -142,3 +142,19 @@ def population_aggregates(framework: Framework, year: int) -> PopulationYearInde
             current = totals.get(prefix, PopulationAggregate(0, 0))
             totals[prefix] = PopulationAggregate(current.value + value, current.observed + 1)
     return PopulationYearIndex(totals, revision)
+
+
+def unit_populations(framework: Framework, year: int, path: str) -> tuple[dict[int, int], str | None]:
+    """Return one year's observations for the organizations under `path`, by organization pk, and their source revision."""
+    values: dict[int, int] = {}
+    revision: str | None = None
+    rows = OrganizationPopulation.objects.filter(framework=framework, year=year, organization__path__startswith=path).values_list(
+        'organization_id', 'value', 'source_revision'
+    )
+    for organization_id, value, row_revision in rows.iterator():
+        if revision is None:
+            revision = row_revision
+        elif revision != row_revision:
+            raise ValueError(f'Mixed population source revisions for {framework.identifier} in {year}.')
+        values[organization_id] = value
+    return values, revision

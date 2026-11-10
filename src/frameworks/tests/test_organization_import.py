@@ -198,6 +198,7 @@ def test_catalogue_and_import_reuse_existing_municipality(tmp_path: Path) -> Non
     )
     source = snapshot(tmp_path)
     first = import_bkg_organizations(source, framework=framework)
+    assert set(framework.organization_roots.values_list('territorial_reference_date', flat=True)) == {date(2024, 12, 31)}
     assert first.created == 20
     assert first.reused == 1
     assert first.moved == 1

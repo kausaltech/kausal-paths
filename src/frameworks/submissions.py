@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, transaction
-from django.db.models import Q
+from django.db.models import Prefetch, Q
 from django.utils import timezone
 from wagtail.actions.publish_revision import PublishPermissionError
 
@@ -26,7 +26,12 @@ class SubmissionError(ValidationError):
 
 def visible_submissions(ic: InstanceConfig, *, include_open: bool) -> QuerySet[Submission]:
     """Return the submissions of `ic`; open ones are work in progress, the rest are its record."""
-    qs = Submission.objects.filter(instance_config=ic).select_related('finalised_by', 'created_by', 'supersedes')
+    qs = (
+        Submission.objects
+        .filter(instance_config=ic)
+        .select_related('finalised_by', 'created_by', 'supersedes')
+        .prefetch_related(Prefetch('events', queryset=SubmissionEvent.objects.select_related('actor')))
+    )
     if not include_open:
         qs = qs.exclude(status__in=OPEN_STATUSES)
     return qs

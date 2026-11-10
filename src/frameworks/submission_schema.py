@@ -76,7 +76,8 @@ class SubmissionType:
 
     @classmethod
     def from_model(cls, obj: Submission) -> SubmissionType:
-        events = list(obj.events.select_related('actor'))
+        # `.all()` so that a caller listing many submissions can prefetch the events with their actors.
+        events = list(obj.events.all())
         requested = next((event for event in reversed(events) if event.to_status == SubmissionStatus.IN_REVIEW), None)
         return cls(
             id=sb.ID(str(obj.uuid)),

@@ -17,6 +17,8 @@ from .framework import (
     FrameworkManager as FrameworkManager,
     FrameworkQuerySet as FrameworkQuerySet,
     MinMaxDefaultInt as MinMaxDefaultInt,
+    ReportingSpec as ReportingSpec,
+    ReportingUnitSpec as ReportingUnitSpec,
 )
 from .measures import (
     DefaultValueScaling as DefaultValueScaling,

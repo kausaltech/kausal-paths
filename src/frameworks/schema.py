@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Literal, cast
+from datetime import date
+from typing import TYPE_CHECKING, Annotated, Any, Literal, cast
 from uuid import UUID
 
 import graphene
 import strawberry as sb
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.db.models import Count, Q
 from django.db.models.functions import Left
@@ -33,6 +34,15 @@ from nodes.units import unit_registry
 from orgs.models import Organization, OrganizationIdentifier
 from users.models import User
 
+from .aggregation import (
+    Aggregation,
+    AggregationBasis,
+    AggregationEntry,
+    AggregationError,
+    Coverage,
+    ExclusionReason,
+    aggregate,
+)
 from .models import (
     Framework,
     FrameworkConfig,
@@ -43,9 +53,16 @@ from .models import (
     MeasureTemplateDefaultDataPoint,
     MinMaxDefaultInt as MinMaxDefaultIntModel,
     Section,
+    SubmissionKind,
+    SubmissionStatus,
 )
 from .mutations import OrganizationAccessGrantType
-from .organization_access import accessible_organizations, organization_is_in_framework, user_can_access_organization
+from .organization_access import (
+    accessible_organizations,
+    organization_is_in_framework,
+    user_can_access_organization,
+    viewer_scope,
+)
 from .population import population_aggregates
 
 if TYPE_CHECKING:
@@ -58,6 +75,7 @@ if TYPE_CHECKING:
 
     from common import polars as ppl
     from frameworks.models import FrameworkDimensionCategory, NodeDimensionSelection
+    from frameworks.submission_schema import SubmissionType
     from nodes.context import Context
     from nodes.graphql.types.instance import InstanceType
     from nodes.node import Node
@@ -167,19 +185,30 @@ class FrameworkDefaultsType:
     baseline_year: strawberry.auto
 
 
+_MUNICIPALITY_NAME = "Named for one framework's reporting units; use {field}."
+
+
 @register_strawberry_type
 @sb.type(name='OrganizationPopulation')
 class OrganizationPopulationType:
     year: int
     value: int | None
     partial_value: int | None
-    municipality_count: int
-    observed_municipality_count: int
+    reporting_unit_count: int
+    observed_reporting_unit_count: int
     source_revision: str | None
+
+    @sb.field(deprecation_reason=_MUNICIPALITY_NAME.format(field='reportingUnitCount'))
+    def municipality_count(self) -> int:
+        return self.reporting_unit_count
+
+    @sb.field(deprecation_reason=_MUNICIPALITY_NAME.format(field='observedReportingUnitCount'))
+    def observed_municipality_count(self) -> int:
+        return self.observed_reporting_unit_count
 
 
 def _population_type(
-    framework_pk: int, path: str, municipality_count: int, context: PathsGraphQLContext, year: int
+    framework_pk: int, path: str, reporting_unit_count: int, context: PathsGraphQLContext, year: int
 ) -> OrganizationPopulationType:
     key = (framework_pk, year)
     indexes = context.organization_population_indexes
@@ -191,11 +220,134 @@ def _population_type(
     partial = aggregate.value if aggregate else None
     return OrganizationPopulationType(
         year=year,
-        value=partial if observed == municipality_count and observed > 0 else None,
+        value=partial if observed == reporting_unit_count and observed > 0 else None,
         partial_value=partial,
-        municipality_count=municipality_count,
-        observed_municipality_count=observed,
+        reporting_unit_count=reporting_unit_count,
+        observed_reporting_unit_count=observed,
         source_revision=index.source_revision,
+    )
+
+
+AggregationBasisEnum = sb.enum(AggregationBasis, name='AggregationBasis')
+AggregationExclusionReasonEnum = sb.enum(ExclusionReason, name='AggregationExclusionReason')
+
+
+@sb.type(name='AggregationCoverage', description="How much of a territory's reporting units a published sum rests on.")
+class AggregationCoverageType:
+    reporting_unit_count: int = sb.field(description='Reporting units in the territory that existed in the year.')
+    activated_count: int | None = sb.field(description='Units that hold an instance. Null where withheld.')
+    finalised_count: int | None = sb.field(description='Units with a final submission. Null where withheld.')
+    population: int | None = sb.field(description='Reference population of all units; null unless every unit has one.')
+    partial_population: int | None = sb.field(description='Reference population of the units that have an observation.')
+    finalised_population: int | None = sb.field(
+        description='Reference population of the finalised units; null if one lacks an observation, or where withheld.'
+    )
+
+    @classmethod
+    def from_coverage(cls, coverage: Coverage) -> AggregationCoverageType:
+        return cls(
+            reporting_unit_count=coverage.reporting_units,
+            activated_count=coverage.activated,
+            finalised_count=coverage.finalised,
+            population=coverage.population,
+            partial_population=coverage.partial_population,
+            finalised_population=coverage.finalised_population,
+        )
+
+
+@sb.type(name='AggregationEntry', description='One organization in an aggregation: the aggregated one, or a member.')
+class AggregationEntryType:
+    organization: FrameworkOrganizationType
+    collapsed_from: FrameworkOrganizationType | None = sb.field(
+        description='The territory this reporting unit stands for, when that territory holds nothing but the unit.'
+    )
+    is_reporting_unit: bool
+    exclusion_reason: AggregationExclusionReasonEnum | None = sb.field(  # type: ignore[valid-type]
+        description='Why a reporting unit does not count as finalised. Null when it does, and for territories.'
+    )
+    open_status: SubmissionStatus | None = sb.field(
+        description='Draft or in review, when there is an open submission. Beside a final one, it is a correction.'
+    )
+    latest_year: int | None = sb.field(description='The newest year with any submission of this kind.')
+    coverage: AggregationCoverageType
+    details_withheld: bool = sb.field(description="The viewer sees this organization's totals, not its submissions.")
+    figures_withheld: bool = sb.field(
+        description='The territory holds too few reporting units for its totals to be shown to this viewer.'
+    )
+    entry: sb.Private[AggregationEntry]
+
+    @sb.field(
+        graphql_type=Annotated['SubmissionType', sb.lazy('frameworks.submission_schema')] | None,
+        description=(
+            "The organization's own final submission. For a territory it stands beside the members' sum and is never added to it."
+        ),
+    )
+    def final_submission(self) -> Any:
+        from frameworks.submission_schema import SubmissionType
+
+        submission = self.entry.final_submission
+        return SubmissionType.from_model(submission) if submission is not None else None
+
+
+@sb.type(name='OrganizationAggregation')
+class OrganizationAggregationType:
+    """
+    The reporting units beneath one organization, for one kind of submission and one year.
+
+    Computed on read from the organization tree and the submissions. A later
+    correction or a change to the tree therefore changes it.
+    """
+
+    kind: SubmissionKind
+    year: int
+    basis: AggregationBasisEnum  # type: ignore[valid-type]
+    territorial_reference_date: date | None = sb.field(
+        description='The date whose administrative boundaries the organization tree describes.'
+    )
+    population_source_revision: str | None
+    own: AggregationEntryType = sb.field(
+        description='The aggregated organization itself, with the coverage of its whole subtree.'
+    )
+    members: list[AggregationEntryType] = sb.field(description='The direct children, one page of them.')
+    member_count: int = sb.field(description='How many members there are, whatever the page.')
+    members_restricted: bool = sb.field(description='Only the members on the way to what the viewer holds are listed.')
+
+
+def _aggregation_type(framework: Framework, result: Aggregation) -> OrganizationAggregationType:
+    entries = [result.own, *result.members]
+    organizations = {entry.organization.pk: entry.organization for entry in entries}
+    organizations.update({entry.collapsed_from.pk: entry.collapsed_from for entry in entries if entry.collapsed_from})
+    types = {
+        org.pk: org_type
+        for org, org_type in zip(
+            organizations.values(), _organization_types(framework, list(organizations.values())), strict=True
+        )
+    }
+
+    def entry_type(entry: AggregationEntry) -> AggregationEntryType:
+        return AggregationEntryType(
+            organization=types[entry.organization.pk],
+            collapsed_from=types[entry.collapsed_from.pk] if entry.collapsed_from else None,
+            is_reporting_unit=entry.is_reporting_unit,
+            exclusion_reason=entry.exclusion_reason,
+            open_status=entry.open_status,
+            latest_year=entry.latest_year,
+            coverage=AggregationCoverageType.from_coverage(entry.coverage),
+            details_withheld=entry.details_withheld,
+            figures_withheld=entry.figures_withheld,
+            entry=entry,
+        )
+
+    return OrganizationAggregationType(
+        kind=result.kind,
+        year=result.year,
+        basis=result.basis,
+        territorial_reference_date=result.territorial_reference_date,
+        population_source_revision=result.population_source_revision,
+        own=entry_type(result.own),
+        members=[entry_type(entry) for entry in result.members],
+        member_count=result.member_count,
+        members_restricted=result.members_restricted,
     )
 
 
@@ -208,18 +360,78 @@ class FrameworkOrganizationType:
     ars: str | None
     ags: str | None
     instance_identifier: str | None
-    municipality_count: int
-    activated_municipality_count: int
-    unactivated_municipality_count: int
+    reporting_unit_count: int = sb.field(
+        description='Organizations beneath this one, itself included, that are expected to report.'
+    )
+    activated_reporting_unit_count: int = sb.field(description='Reporting units that hold an instance.')
+    unactivated_reporting_unit_count: int
     framework_pk: sb.Private[int]
     path: sb.Private[str]
 
-    @sb.field(description='Population for a year; value is null unless every municipality has an observation.')
+    @sb.field(deprecation_reason=_MUNICIPALITY_NAME.format(field='reportingUnitCount'))
+    def municipality_count(self) -> int:
+        return self.reporting_unit_count
+
+    @sb.field(deprecation_reason=_MUNICIPALITY_NAME.format(field='activatedReportingUnitCount'))
+    def activated_municipality_count(self) -> int:
+        return self.activated_reporting_unit_count
+
+    @sb.field(deprecation_reason=_MUNICIPALITY_NAME.format(field='unactivatedReportingUnitCount'))
+    def unactivated_municipality_count(self) -> int:
+        return self.unactivated_reporting_unit_count
+
+    @sb.field(description='Population for a year; value is null unless every reporting unit has an observation.')
     def population(self, info: gql.Info, year: int) -> OrganizationPopulationType:
-        return _population_type(self.framework_pk, self.path, self.municipality_count, info.context, year)
+        return _population_type(self.framework_pk, self.path, self.reporting_unit_count, info.context, year)
 
+    @sb.field(description='The organizations above this one within the framework, outermost first.')
+    def ancestors(self) -> list[FrameworkOrganizationType]:
+        framework = Framework.objects.get(pk=self.framework_pk)
+        roots = list(framework.organization_roots.values_list('organization__path', flat=True))
+        prefixes = [
+            self.path[:length]
+            for length in range(Organization.steplen, len(self.path), Organization.steplen)
+            if any(self.path[:length].startswith(root) for root in roots)
+        ]
+        organizations = list(Organization.objects.filter(path__in=prefixes).select_related('classification').order_by('path'))
+        return _organization_types(framework, organizations)
 
-MUNICIPALITY_CLASSES = ('de_municipality', 'de_district_free_city')
+    @sb.field(
+        description=(
+            'Which reporting units beneath this organization have a final submission for the year, with the direct '
+            'children as members. A viewer who only holds something inside the organization gets its totals and the '
+            'members on the way to what they hold.'
+        )
+    )
+    def aggregation(
+        self,
+        info: gql.Info,
+        year: int,
+        kind: SubmissionKind = SubmissionKind.INVENTORY,
+        first: int = 100,
+        offset: int = 0,
+    ) -> OrganizationAggregationType:
+        if not 1 <= first <= 200 or offset < 0:
+            raise GraphQLError('first must be between 1 and 200 and offset must be nonnegative')
+        user = info.context.get_user()
+        if not isinstance(user, User):
+            raise GraphQLError('Authentication required')
+        framework = Framework.objects.get(pk=self.framework_pk)
+        organization = Organization.objects.get(path=self.path)
+        try:
+            result = aggregate(
+                framework,
+                organization,
+                year=year,
+                kind=kind,
+                scope=viewer_scope(framework, user),
+                first=first,
+                offset=offset,
+            )
+        except (AggregationError, PermissionDenied) as error:
+            message = error.messages[0] if isinstance(error, ValidationError) else str(error)
+            raise GraphQLError(message) from error
+        return _aggregation_type(framework, result)
 
 
 def _organization_types(framework: Framework, organizations: list[Organization]) -> list[FrameworkOrganizationType]:
@@ -246,11 +458,7 @@ def _organization_types(framework: Framework, organizations: list[Organization])
         prefix_length = depth * Organization.steplen
         counts = (
             Organization.objects
-            .filter(
-                subtree,
-                classification__identifier__in=MUNICIPALITY_CLASSES,
-                identifiers__namespace__identifier='ags',
-            )
+            .filter(subtree, framework.reporting_unit_q())
             .annotate(prefix=Left('path', prefix_length))
             .values('prefix')
             .annotate(count=Count('pk'))
@@ -261,12 +469,7 @@ def _organization_types(framework: Framework, organizations: list[Organization])
             active_subtree |= Q(instance_config__organization__path__startswith=org.path)
         active_counts = (
             FrameworkConfig.objects
-            .filter(
-                active_subtree,
-                framework=framework,
-                instance_config__organization__classification__identifier__in=MUNICIPALITY_CLASSES,
-                instance_config__organization__identifiers__namespace__identifier='ags',
-            )
+            .filter(active_subtree, framework.reporting_unit_q('instance_config__organization__'), framework=framework)
             .annotate(prefix=Left('instance_config__organization__path', prefix_length))
             .values('prefix')
             .annotate(count=Count('instance_config__organization_id', distinct=True))
@@ -280,9 +483,9 @@ def _organization_types(framework: Framework, organizations: list[Organization])
             ars=identifiers[org.pk].get('ars'),
             ags=identifiers[org.pk].get('ags'),
             instance_identifier=activated.get(org.pk),
-            municipality_count=total_by_path.get(org.path, 0),
-            activated_municipality_count=activated_by_path.get(org.path, 0),
-            unactivated_municipality_count=total_by_path.get(org.path, 0) - activated_by_path.get(org.path, 0),
+            reporting_unit_count=total_by_path.get(org.path, 0),
+            activated_reporting_unit_count=activated_by_path.get(org.path, 0),
+            unactivated_reporting_unit_count=total_by_path.get(org.path, 0) - activated_by_path.get(org.path, 0),
             framework_pk=framework.pk,
             path=org.path,
         )
@@ -411,8 +614,11 @@ class FrameworkType(DjangoNode[Framework]):
         user = info.context.get_user()
         if not isinstance(user, User):
             return None
-        organization = accessible_organizations(root, user).filter(uuid=id).select_related('classification').first()
-        if organization is None:
+        organization = Organization.objects.filter(uuid=id).select_related('classification').first()
+        if organization is None or not organization_is_in_framework(root, organization):
+            return None
+        # A municipal account holds no grant, but it may read the organization of its own instance.
+        if not viewer_scope(root, user).covers(organization.path):
             return None
         return _organization_types(root, [organization])[0]
 

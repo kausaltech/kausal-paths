@@ -25,7 +25,14 @@ from frameworks.bisko.weather import (
     seed_weather_defaults,
 )
 from frameworks.identity import ensure_municipal_organization
-from frameworks.models import DataQualityLevel, DataQualityScheme, Framework, FrameworkConfig
+from frameworks.models import (
+    DataQualityLevel,
+    DataQualityScheme,
+    Framework,
+    FrameworkConfig,
+    ReportingSpec,
+    ReportingUnitSpec,
+)
 from nodes.bisko_certification import CERTIFICATION_INSTANCES
 from nodes.defs.transform_def import FilterColumnOp
 from nodes.models import DatasetMaterialization, InstanceConfig, NodeInputPortBinding
@@ -56,6 +63,10 @@ GERMAN_ORGANIZATION_CLASSES = (
     ('de_verbandsgemeinde', 'Verbandsgemeinde'),
     ('de_amt', 'Amt'),
     ('de_municipality', 'Gemeinde'),
+)
+# A kreisfreie Stadt is two tree nodes; only the one that carries an AGS reports.
+BISKO_REPORTING = ReportingSpec(
+    units=ReportingUnitSpec(classes=['de_municipality', 'de_district_free_city'], identifier_namespace='ags')
 )
 GERMAN_IDENTIFIER_NAMESPACES = (
     ('ars', 'Amtlicher Regionalschlüssel'),
@@ -391,6 +402,9 @@ def setup_bisko(*, template_identifier: str = 'bisko-base', instance_identifiers
     if framework.max_user_accounts_per_instance is None:
         framework.max_user_accounts_per_instance = 5
         framework.save(update_fields=['max_user_accounts_per_instance'])
+    if not framework.reporting.units.classes:
+        framework.reporting = BISKO_REPORTING
+        framework.save(update_fields=['reporting'])
 
     provision_german_organization_catalogue()
     _check_nuts3_identifiers()

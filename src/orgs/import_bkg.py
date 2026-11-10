@@ -2,6 +2,7 @@
 
 from collections import defaultdict
 from dataclasses import dataclass
+from datetime import date
 from typing import TYPE_CHECKING
 
 from django.db import transaction
@@ -95,6 +96,9 @@ def _validated_rows(frame: pl.DataFrame) -> list[dict[str, object]]:  # noqa: C9
 def import_bkg_organizations(source: str | Path, *, framework: Framework) -> ImportResult:  # noqa: C901, PLR0912, PLR0915
     """Reconcile by ARS/AGS, preserving existing organization and instance FKs."""
     rows = _validated_rows(pl.read_parquet(source))
+    vintage = rows[0]['source_vintage']
+    if not isinstance(vintage, date):
+        raise ValueError(f'BKG source vintage must be a date, not {vintage!r}')  # noqa: TRY004
     classes = {obj.identifier: obj for obj in OrganizationClass.objects.all()}
     unknown = {str(row['classification_identifier']) for row in rows} - classes.keys()
     if unknown:
@@ -178,8 +182,11 @@ def import_bkg_organizations(source: str | Path, *, framework: Framework) -> Imp
             )
             identifiers_created += was_created
         if parent is None:
-            _, was_attached = FrameworkOrganizationRoot.objects.get_or_create(framework=framework, organization=org)
+            root, was_attached = FrameworkOrganizationRoot.objects.get_or_create(framework=framework, organization=org)
             roots_attached += was_attached
+            if root.territorial_reference_date != vintage:
+                root.territorial_reference_date = vintage
+                root.save(update_fields=['territorial_reference_date'])
     # All administrative rows are reconciled before attaching statistical identifiers.
     # On a repeat import this writes only the missing identifiers, without saving Organizations.
     district_rows = [row for row in rows if len(str(row['ars'])) == 5]

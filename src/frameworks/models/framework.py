@@ -4,8 +4,9 @@ from django.contrib.auth.models import Group
 from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
+from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from django_pydantic_field import SchemaField
 
@@ -66,6 +67,33 @@ class MinMaxDefaultInt(BaseModel):
 class FrameworkDefaults(BaseModel):
     target_year: MinMaxDefaultInt = MinMaxDefaultInt(min=2030, default=2030, max=2050)
     baseline_year: MinMaxDefaultInt = MinMaxDefaultInt(min=2018, default=None, max=2025)
+
+
+class ReportingUnitSpec(BaseModel):
+    """
+    Which organizations a framework expects to report.
+
+    A reporting unit is an organization that is expected to hold an instance and
+    submit: a municipality under BISKO, a member state or a department elsewhere.
+    The declaration is what lets coverage count the units that are absent.
+    """
+
+    classes: list[str] = Field(default_factory=list)
+    """Identifiers of the organization classes whose members report. Empty: the framework has no reporting units."""
+
+    identifier_namespace: str | None = None
+    """If set, only organizations carrying an identifier in this namespace count."""
+
+
+class ReportingSpec(BaseModel):
+    units: ReportingUnitSpec = Field(default_factory=ReportingUnitSpec)
+
+    min_units_for_ancestor_total: int = Field(default=3, ge=1)
+    """
+    Smallest number of reporting units a territory must hold before its totals are shown to a
+    viewer who may not see its members. Below it, one member's figures follow from the total
+    and the viewer's own.
+    """
 
 
 class Framework(CacheablePathsModel['FrameworkSpecificCache'], UUIDIdentifiedModel):
@@ -155,6 +183,7 @@ class Framework(CacheablePathsModel['FrameworkSpecificCache'], UUIDIdentifiedMod
     )
 
     defaults = SchemaField(schema=FrameworkDefaults, default=FrameworkDefaults)
+    reporting = SchemaField(schema=ReportingSpec, default=ReportingSpec)
 
     admin_group: OneToOne[Group | None] = models.OneToOneField(
         Group,
@@ -195,6 +224,16 @@ class Framework(CacheablePathsModel['FrameworkSpecificCache'], UUIDIdentifiedMod
 
     def __str__(self):
         return self.name
+
+    def reporting_unit_q(self, prefix: str = '') -> Q:
+        """Match the organizations this framework expects to report; `prefix` is the lookup path to the organization."""
+        units = self.reporting.units
+        if not units.classes:
+            return Q(**{f'{prefix}pk__in': []})
+        q = Q(**{f'{prefix}classification__identifier__in': units.classes})
+        if units.identifier_namespace is not None:
+            q &= Q(**{f'{prefix}identifiers__namespace__identifier': units.identifier_namespace})
+        return q
 
     def validate_population_revision(self, repo_spec: DatasetRepoSpec | None) -> None:
         """Require the published method and territorial population projection to share a pin."""

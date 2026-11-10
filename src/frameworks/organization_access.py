@@ -1,5 +1,6 @@
 """Framework-scoped organization access, including delegated subtree grants."""
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal
 
 from django.db.models import Exists, F, OuterRef, Q, QuerySet
@@ -50,6 +51,57 @@ def accessible_organizations(
         if any(path.startswith(root_path) for root_path in roots):
             access_q |= Q(path__startswith=path)
     return Organization.objects.filter(scope_q & access_q)
+
+
+@dataclass(frozen=True)
+class ViewerScope:
+    """
+    The subtrees of a framework's organization tree that one user may read.
+
+    Unlike `accessible_organizations`, this also knows what lies *above* those
+    subtrees: a territory that contains something the user may read is not itself
+    readable, but its totals may be shown.
+    """
+
+    everything: bool
+    paths: tuple[str, ...]
+
+    def covers(self, path: str) -> bool:
+        """Whether the organization at `path` lies in a subtree the user may read."""
+        return self.everything or any(path.startswith(own) for own in self.paths)
+
+    def is_above(self, path: str) -> bool:
+        """Whether the organization at `path` contains, without being, something the user may read."""
+        return any(own.startswith(path) and own != path for own in self.paths)
+
+
+def viewer_scope(framework: Framework, user: User) -> ViewerScope:
+    """
+    Resolve what a user may read in a framework's organization tree.
+
+    Subtree grants count, and so does the organization of every instance the
+    user holds an active membership in: a municipal account has no grant, but it
+    may read its own organization.
+    """
+    from nodes.models import InstanceMemberAssignment
+
+    roots = list(framework.organization_roots.values_list('organization__path', flat=True))
+    if not roots or not user.is_authenticated:
+        return ViewerScope(everything=False, paths=())
+    if (
+        user.is_superuser
+        or user.has_instance_role(framework_admin_role, framework)
+        or user.has_instance_role(framework_viewer_role, framework)
+    ):
+        return ViewerScope(everything=True, paths=tuple(roots))
+    grants = OrganizationAccessGrant.objects.filter(
+        framework=framework, user=user, role__in=ObjectRole.get_roles_for_action('view'), suspended_at__isnull=True
+    ).values_list('organization__path', flat=True)
+    memberships = InstanceMemberAssignment.objects.filter(
+        user=user, suspended_at__isnull=True, instance_config__framework_config__framework=framework
+    ).values_list('instance_config__organization__path', flat=True)
+    paths = {path for path in (*grants, *memberships) if path and any(path.startswith(root) for root in roots)}
+    return ViewerScope(everything=False, paths=tuple(sorted(paths)))
 
 
 def organization_is_in_framework(framework: Framework, organization: Organization) -> bool:

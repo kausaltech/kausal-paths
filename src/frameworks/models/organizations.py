@@ -10,6 +10,11 @@ from kausal_common.people.models import ObjectRole
 class FrameworkOrganizationRoot(models.Model):
     framework = models.ForeignKey('frameworks.Framework', on_delete=models.CASCADE, related_name='organization_roots')
     organization = models.ForeignKey('orgs.Organization', on_delete=models.PROTECT, related_name='framework_roots')
+    territorial_reference_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text='The date whose administrative boundaries the tree under this root describes.',
+    )
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=['framework', 'organization'], name='unique_framework_organization_root')]
