@@ -435,6 +435,12 @@ dimensions:
   - id: major_events
     label_en: Major events (total)
     label_de: Großveranstaltungen (Gesamt)
+  # --- Commuting as a finished figure ---
+  # Commuting emissions taken over as computed per employee, where a city has a
+  # per-employee figure and no survey by mode of transport.
+  - id: commuting_per_employee
+    label_en: Commuting (per employee, total)
+    label_de: Arbeitswege (je Beschäftigtem, Gesamt)
 
 # Propulsion/Fuel Types (Antriebsart):
 #   Elektro = Electric (for electrified rail) 
@@ -1172,15 +1178,17 @@ nodes:
       flatten: true
 - id: municipal_event_emissions
   is_editable: false
-  name_de: Emissionen aus Großveranstaltungen der Stadtverwaltung
-  name_en: City administration major event emissions
+  name_de: Übernommene Scope-3-Emissionen der Stadtverwaltung
+  name_en: City administration Scope 3 emissions taken over as computed
   color: '#546E7A'
   description_de: |
-    Bereits berechnete Emissionen, keine Aktivitätsdaten. Betrifft im Wesentlichen 2019;
-    2020 und 2021 fielen die Veranstaltungen pandemiebedingt aus.
+    Bereits berechnete Emissionen, keine Aktivitätsdaten. Die Bilanzkategorie zeigt, worum
+    es sich handelt: Großveranstaltungen, für die nur die fertige Summe vorliegt, und, wo eine
+    Stadt sie so liefert, Arbeitswege als Summe je Beschäftigtem.
   description_en: |
-    Already-computed emissions, not activity data. Material for 2019 only; the events did
-    not take place in 2020 and 2021.
+    Already-computed emissions, not activity data. The inventory category shows what they
+    are: major events, for which only the finished total exists, and, where a city supplies
+    them in that form, commuting as a total per employee.
   type: generic.GenericNode
   params:
     operations: add_datasets,add,multiply
@@ -1189,18 +1197,15 @@ nodes:
   input_dimensions: [ghg_category, municipal_facility_type, emission_source, scope]
   output_dimensions: [ghg_category, municipal_facility_type, emission_source, scope]
   input_datasets:
-  # NOTE: this binding carries no `extend: true`, and until 10 Sep 2026 the series therefore
-  # stopped at its last reported year and the node read null afterwards. It now holds that
-  # year's value forward, because `AdditiveNode2` honours the binding's extend flag and
-  # `GenericNode` does not -- converting the node for the measure changed this as a side
-  # effect. `extend: false` does not suppress it; the extension is not the binding's.
-  #
-  # The effect is well under a per mille of `municipal_scope3_emissions`, and neither reading
-  # is right: holding a pandemic-suppressed year flat is wrong, and null reads as a measured
-  # zero that was never measured. Left as it now is rather than fought, and recorded so the
-  # change is not mistaken for data. See the city's own README.
+  # `extend: true` holds the last reported year forward. Added 10 Nov 2026, when a city's
+  # commuting came in as a finished figure: without it the series stopped at its last year and
+  # the node read nothing afterwards, contrary to an earlier note here that GenericNode held the
+  # value forward anyway (checked: it did not). Events are carried too, where the last year is a
+  # pandemic-suppressed one; that is about a tonne a year in Mainz, and neither reading is right
+  # for it, but commuting needs the carry.
   - id: gpc/municipal_balance_activity
     column: emissions
+    extend: true
     filters:
     - column: energy_carrier
     - column: vehicle_type

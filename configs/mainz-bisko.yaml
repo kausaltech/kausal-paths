@@ -649,6 +649,19 @@ nodes:
       flatten: true
     - id: scope
       flatten: true
+  # Outside the administration balance since 10 Nov 2026 (see the override of
+  # municipal_street_lighting_emissions below), but still here, so that the LED measure
+  # (knsv_led_strassenbeleuchtung) keeps its impact bar on /massnahmen.
+  - id: municipal_street_lighting_emissions
+    from_dimensions:
+    - id: ghg_category
+      flatten: true
+    - id: municipal_facility_type
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: scope
+      flatten: true
   goals:
   - label_de: 'Ziel: -95 % ggue. 1990 bis 2045 (Beschluss 0024/2021/1)'
     label_en: 'Goal: -95 % vs 1990 by 2045 (council resolution 0024/2021/1)'
@@ -807,9 +820,8 @@ nodes:
 #
 # Recomputed on 9 Nov 2026. The values before (170.04 kt, 4,238,618 MWh) came from the 1990
 # baseline before the import of 29 Sep 2026 (3,400.8 kt, 8,477,235 MWh), while the deck,
-# Beschlussvorlage v13 and the Zusammenfassung already used 173.3 kt and 4,311 GWh. The
-# production spec was brought to these values without a sync, by
-# paths-data models/mainz/scripts/update_goals_and_endenergie.py.
+# Beschlussvorlage v13 and the Zusammenfassung already used 173.3 kt and 4,311 GWh. They reach
+# the site with the sync and publish of 10 Nov 2026.
 #
 # For scale: 2024 is 1,516.3 kt (-56.3 % against 1990) and 5,033,603 MWh (-41.6 %). The energy
 # target needs a further -14.4 % from today; the emissions target needs -88.6 %.
@@ -886,10 +898,13 @@ nodes:
     <b>Diese Summe umfasst Scope 1 und Scope 2.</b> Scope 3 wird vollständig berechnet und
     ist in den einzelnen Kategorien sowie in der nachrichtlichen Position
     „Scope-3-Emissionen der Stadtverwaltung“ einsehbar, geht hier aber nicht in die
-    Gesamtsumme ein. Zwei Gründe: Scope 1 und 2 sind die verbindlichen Bestandteile der
-    Bilanz, Scope 3 ist optional; und für Scope 3 liegen nach 2021 keine Daten vor, sodass
-    eine Gesamtsumme mit Scope 3 ab 2022 sinken würde, weil Daten fehlen, und nicht, weil
-    Emissionen vermieden wurden.<br/>
+    Gesamtsumme ein, weil Scope 1 und 2 die verbindlichen Bestandteile der Bilanz sind und
+    Scope 3 optional ist. Für Scope 3 wurden nach 2021 keine Daten erhoben; ab 2022 gilt
+    daher der Wert von 2021. Nur die Vorketten von Strom und Wärme folgen dem gemessenen
+    Verbrauch.<br/>
+    Der Strom wird mit dem Bundesstrommix bewertet (standortbasiert), nicht mit dem
+    bezogenen Ökostrom, und die Straßenbeleuchtung ist nicht enthalten. Beides entspricht der
+    Startbilanz von Arqum, an die diese Bilanz anschließt.<br/>
     <b>Diese Bilanz ist nicht Teil der territorialen BISKO-Bilanz und darf nicht zu ihr
     addiert werden.</b> Die Energie der kommunalen Liegenschaften ist dort bereits im
     Sektor „Kommunale Einrichtungen“ enthalten, und die Scope-3-Anteile liegen außerhalb
@@ -899,10 +914,13 @@ nodes:
     down by inventory category, property group and scope.<br/>
     <b>This total covers Scope 1 and Scope 2.</b> Scope 3 is computed in full and can be
     inspected in the individual categories and in the memo item “City administration
-    Scope 3 emissions”, but it is not summed into the total here. Two reasons: Scope 1 and
-    2 are the mandatory parts of the balance and Scope 3 is optional; and no Scope 3 data
-    exists after 2021, so a total including it would fall from 2022 onwards because data
-    is missing, not because emissions were avoided.<br/>
+    Scope 3 emissions”, but it is not summed into the total here, because Scope 1 and 2
+    are the mandatory parts of the balance and Scope 3 is optional. Scope 3 was not
+    collected after 2021, so from 2022 the 2021 value applies. Only the supply chains of
+    electricity and heat follow the metered consumption.<br/>
+    Electricity is valued at the national grid mix (location-based), not at the purchased
+    green power, and street lighting is not included. Both follow Arqum's starting balance,
+    which this balance continues.<br/>
     <b>This balance is not part of the territorial BISKO inventory and must not be added
     to it.</b> Municipal building energy is already counted there in the municipal
     facilities sector, and the Scope 3 components lie outside the territorial boundary.
@@ -932,6 +950,36 @@ nodes:
     values:
     - year: 2035
       value: 0
+
+# Overridden for one reason: street lighting is not part of Mainz's administration balance since
+# 10 Nov 2026. Herr Winkler asked for it to be taken out, as Arqum's boundary leaves it out (the
+# boundary is the properties, and a street lamp is not one); Herr Lorig agreed on 9 Nov 2026. So
+# this node has no edges into municipal_balance_emissions or municipal_scope3_emissions. It is
+# still computed and shown, and emission_reductions above takes it, so that the LED measure keeps
+# its impact. Otherwise a copy of modules/gpc/municipal_balance.yaml -- keep it in step, since
+# allow_override: true means a change there does NOT reach Mainz until mirrored here.
+- id: municipal_street_lighting_emissions
+  is_editable: false
+  name_de: Emissionen aus der Straßenbeleuchtung der Stadtverwaltung
+  name_en: City administration street lighting emissions
+  color: '#F57F17'
+  description_de: |
+    Nicht Teil der Treibhausgasbilanz der Stadtverwaltung: Die Bilanzgrenze sind die
+    Liegenschaften, wie in der Startbilanz von Arqum, und die Straßenbeleuchtung ist keine.
+    Sie wird hier gesondert ausgewiesen, weil die Umrüstung auf LED eine Maßnahme der
+    Stadtverwaltung ist.
+  description_en: |
+    Not part of the city administration's GHG balance: its boundary is the properties, as in
+    Arqum's starting balance, and street lighting is not one. It is shown here separately,
+    because the conversion to LED is a measure of the city administration.
+  type: simple.MultiplicativeNode2
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [ghg_category, municipal_facility_type, energy_carrier, scope]
+  output_dimensions: [ghg_category, municipal_facility_type, energy_carrier, scope]
+  input_nodes:
+  - id: municipal_street_lighting_energy
+  - id: municipal_building_energy_ef
 
 # RENTED PROPERTIES (MIETLIEGENSCHAFTEN) -- a branch of their own, beside the module's
 # building energy rather than inside it.
@@ -2722,12 +2770,12 @@ actions:
   description_de: |
     Die Straßenbeleuchtung der Stadt wird auf LED-Technik umgerüstet. Zweck ist, einen
     Stromverbrauch zu senken, der rund um die Uhr anfällt und den die Stadt vollständig selbst in
-    der Hand hat: Die Straßenbeleuchtung ist ein eigener Posten der Verwaltungsbilanz und lag 2024
-    bei 6,6 Gigawattstunden.<br/>
+    der Hand hat. Sie lag 2024 bei 6,6 Gigawattstunden.<br/>
     Die Maßnahme gehört zum Konzept Klimaneutrale Stadtverwaltung (Maßnahmensteckbrief B6). Sie
     sieht bis 2035 die Umrüstung aller Straßenleuchten auf LED vor und bis 2030 einen stark
     gestiegenen Anteil an Solarlampen. Die Straßenbeleuchtung zählt nicht zu den Liegenschaften
-    der Stadt und wird in der Bilanz deshalb getrennt von den Gebäuden ausgewiesen.<br/>
+    der Stadt und ist deshalb, wie in der Startbilanz von Arqum, nicht Teil der
+    Treibhausgasbilanz der Stadtverwaltung; sie wird gesondert ausgewiesen.<br/>
     Im Modell senkt sie den Stromverbrauch der Straßenbeleuchtung bis 2035 um 30 % und wirkt damit
     auf den Energieverbrauch der Straßenbeleuchtung.<br/>
     Ein Hinweis zur Einordnung: Die 30 % sind eine Annahme dieses Modells; der Steckbrief stuft
@@ -2737,12 +2785,12 @@ actions:
   description_en: |
     The city's street lighting is converted to LED technology. The purpose is to reduce an
     electricity consumption that runs around the clock and is entirely within the city's own
-    control: street lighting is a separate item in the administration's balance and stood at 6.6
-    gigawatt-hours in 2024.<br/>
+    control. It stood at 6.6 gigawatt-hours in 2024.<br/>
     The measure belongs to the Climate-Neutral Administration concept (measure sheet B6). It calls
     for converting all street lamps to LED by 2035 and for a strongly increased share of solar
-    lamps by 2030. Street lighting is not one of the city's properties and is therefore reported
-    separately from the buildings in the balance.<br/>
+    lamps by 2030. Street lighting is not one of the city's properties and is therefore, as in
+    Arqum's starting balance, not part of the city administration's GHG balance; it is reported
+    separately.<br/>
     In the model it reduces the electricity used for street lighting by 30 % by 2035, and so acts
     on street lighting energy use.<br/>
     One caveat for reading the figure: the 30 % is an assumption of this model; the measure sheet
