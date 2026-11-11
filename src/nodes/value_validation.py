@@ -1,7 +1,8 @@
 """Validate delivered values independently of whether a binding comes from a dataset or a node."""
 
+from collections import Counter
 from contextlib import nullcontext
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Literal
 from uuid import UUID
 
@@ -96,6 +97,21 @@ class ValueValidationViolation(BaseModel):
     years: list[int]
     categories: dict[str, str] = Field(default_factory=dict)
     enforcement: PublishOrSubmitEnforcement = ValidationRuleEnforcement.BLOCK_PUBLISH
+
+
+@dataclass(slots=True)
+class RequirementCounts:
+    """
+    How many requirements applied in each year, and how many of them were not met.
+
+    One requirement is one required value in one year: a contract's year-level
+    requirement, one required group of its shape, or one combination required by
+    another input's positive value. A requirement that fails on several counts
+    (no value, or several qualifiers) is still one unmet requirement.
+    """
+
+    applicable: Counter[int] = field(default_factory=Counter)
+    unmet: Counter[int] = field(default_factory=Counter)
 
 
 def publication_blockers(violations: list[ValueValidationViolation]) -> list[ValueValidationViolation]:
@@ -257,6 +273,7 @@ def validate_value_contract(
     binding_uuid: UUID | None = None,
     required_values: PathsDataFrame | None = None,
     shape: EffectiveShape | None = None,
+    counts: RequirementCounts | None = None,
 ) -> list[ValueValidationViolation]:
     """Missing rows and nulls both fail a declared requirement; zero is an ordinary value."""
     present = df.filter(pl.col(VALUE_COLUMN).is_not_null() & pl.col(VALUE_COLUMN).is_finite())
@@ -273,6 +290,9 @@ def validate_value_contract(
         for year in requirement_years:
             rows_by_alternative = [rows.filter(pl.col(YEAR_COLUMN) == year) for rows in candidates]
             failures = requirement_failures(rows_by_alternative, requirement.qualifiers)
+            if counts is not None:
+                counts.applicable[year] += 1
+                counts.unmet[year] += bool(failures)
             for code, message in failures:
                 problems.append(
                     ValueValidationViolation(
@@ -408,7 +428,11 @@ def _unknown_shape(node_uuid: UUID, port_uuid: UUID, shape_id: UUID, years: list
 
 
 def collect_instance_value_violations(  # noqa: C901, PLR0912, PLR0915
-    instance: Instance, *, node_uuid: UUID | None = None, undeclared: Literal['report', 'evaluate'] = 'report'
+    instance: Instance,
+    *,
+    node_uuid: UUID | None = None,
+    undeclared: Literal['report', 'evaluate'] = 'report',
+    counts: RequirementCounts | None = None,
 ) -> list[ValueValidationViolation]:
     """
     Read consumer-owned contracts through the graph's dataset-or-edge binding abstraction.
@@ -534,6 +558,7 @@ def collect_instance_value_violations(  # noqa: C901, PLR0912, PLR0915
                         port_uuid=port.id,
                         required_values=required_values,
                         shape=shape,
+                        counts=counts,
                     )
                 )
     return problems

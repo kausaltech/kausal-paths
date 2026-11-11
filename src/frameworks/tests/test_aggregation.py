@@ -23,11 +23,15 @@ from frameworks.aggregation import Aggregation, AggregationBasis, AggregationErr
 from frameworks.models import (
     Framework,
     FrameworkOrganizationRoot,
+    IndicatorCell,
+    IndicatorProvenance,
+    IndicatorValue,
     OrganizationAccessGrant,
     OrganizationPopulation,
     ReportingSpec,
     ReportingUnitSpec,
     Submission,
+    SubmissionIndicators,
     SubmissionStatus,
 )
 from frameworks.organization_access import ViewerScope, viewer_scope
@@ -419,3 +423,182 @@ def test_graphql_refuses_an_aggregation_outside_the_viewers_reach(tree: Tree, cl
     south = gql.query_data(query, variables={'id': str(tree.orgs['south'].uuid)})['framework']['organization']
     assert [member['organization']['name'] for member in south['aggregation']['members']] == ['f', 'g']
     assert [ancestor['name'] for ancestor in south['ancestors']] == ['state']
+
+
+# --- figures ---
+
+
+def _figures(
+    energy: dict[str, float], quality: float | None, *, template_revision: int = 1, unit: str = 'MWh/a'
+) -> SubmissionIndicators:
+    values = {
+        'energy': IndicatorValue(
+            unit=unit,
+            dimensions=['sector'],
+            composition='sum',
+            total=sum(energy.values()),
+            cells=[IndicatorCell(categories={'sector': sector}, value=value) for sector, value in energy.items()],
+        ),
+        'quality': IndicatorValue(unit='%', composition='weighted_mean', weight='energy', total=quality),
+        'intensity': IndicatorValue(unit='MWh/cap/a', composition='none', total=5),
+    }
+    return SubmissionIndicators(
+        status='computed',
+        year=YEAR,
+        values=values,
+        provenance=IndicatorProvenance(computed_at=datetime(2024, 3, 1, tzinfo=UTC), template_revision=template_revision),
+    )
+
+
+def _freeze(tree: Tree, name: str, indicators: SubmissionIndicators) -> None:
+    Submission.objects.filter(instance_config=tree.instances[name], status=SubmissionStatus.FINAL, period_start=YEAR).update(
+        indicators=indicators
+    )
+
+
+@pytest.fixture
+def figures(tree: Tree) -> Tree:
+    _freeze(tree, 'a', _figures({'homes': 60, 'industry': 40}, 80))
+    _freeze(tree, 'd', _figures({'homes': 300}, 40))
+    _freeze(tree, 'f', _figures({'industry': 600}, None, template_revision=2))
+    # The district's own balance covers the same ground as a and d and must not be added to them.
+    _freeze(tree, 'north', _figures({'homes': 9999}, 100))
+    return tree
+
+
+def test_a_territory_composes_the_figures_of_its_finalised_units(figures: Tree) -> None:
+    north = figures.aggregate('state').members[0].figures
+
+    assert north is not None
+    energy = north.indicators['energy']
+    assert (energy.value.total, energy.contributors) == (400, 2)
+    assert {cell.categories['sector']: cell.value for cell in energy.value.cells} == {'homes': 360, 'industry': 40}
+    # Weighted by energy, not averaged: (80 x 100 + 40 x 300) / 400.
+    assert (north.indicators['quality'].value.total, north.indicators['quality'].contributors) == (50, 2)
+    assert 'intensity' not in north.indicators
+    assert (north.incompatible, north.template_revisions) == ([], 1)
+
+
+def test_the_sum_says_how_many_method_versions_it_adds(figures: Tree) -> None:
+    state = figures.aggregate('state').own.figures
+
+    assert state is not None
+    assert state.indicators['energy'].value.total == 1000
+    # f has no quality score, so the mean rests on two of the three submissions.
+    assert (state.indicators['quality'].value.total, state.indicators['quality'].contributors) == (50, 2)
+    assert state.template_revisions == 2
+
+
+def test_figures_that_disagree_on_their_unit_are_left_out_not_converted(figures: Tree) -> None:
+    _freeze(figures, 'd', _figures({'homes': 300}, 40, unit='GWh/a'))
+
+    north = figures.aggregate('north').own.figures
+
+    assert north is not None
+    assert north.incompatible == ['energy', 'quality']
+    assert north.indicators == {}
+
+
+def test_a_sum_of_too_few_units_is_withheld_from_a_viewer_outside_the_territory(figures: Tree) -> None:
+    scope = viewer_scope(figures.framework, figures.member('a'))
+
+    north = figures.aggregate('north', scope=scope)
+
+    # Five units, so the coverage is shown; two of them final, so the sum would give d away.
+    assert north.own.coverage.finalised == 2
+    assert north.own.figures is None
+    # The viewer's own unit is the viewer's to read.
+    own = north.members[0].figures
+    assert own is not None
+    assert own.indicators['energy'].value.total == 100
+
+
+def test_graphql_gives_composed_figures_and_a_units_own(figures: Tree, client: Client) -> None:
+    reader = UserFactory.create()
+    OrganizationAccessGrant.objects.create(
+        framework=figures.framework, organization=figures.orgs['state'], user=reader, role=ObjectRole.VIEWER
+    )
+    client.force_login(reader)
+    query = (
+        """
+        query ($id: ID!) {
+          framework(identifier: "%s") {
+            organization(id: $id) {
+              aggregation(year: 2023) {
+                own { figures {
+                  templateRevisionCount incompatibleIndicators
+                  indicator(id: "energy") {
+                    contributorCount
+                    value { id unit total composition cells { value categories { dimension category } } }
+                  }
+                } }
+                members { finalSubmission { indicators {
+                  status isStale value(id: "quality") { total weight }
+                } } }
+              }
+            }
+          }
+        }
+    """
+        % figures.framework.identifier
+    )
+
+    result = PathsTestClient(client).query_data(query, variables={'id': str(figures.orgs['north'].uuid)})
+    aggregation = result['framework']['organization']['aggregation']
+
+    assert aggregation['own']['figures'] == {
+        'templateRevisionCount': 1,
+        'incompatibleIndicators': [],
+        'indicator': {
+            'contributorCount': 2,
+            'value': {
+                'id': 'energy',
+                'unit': 'MWh/a',
+                'total': 400.0,
+                'composition': 'SUM',
+                'cells': [
+                    {'value': 360.0, 'categories': [{'dimension': 'sector', 'category': 'homes'}]},
+                    {'value': 40.0, 'categories': [{'dimension': 'sector', 'category': 'industry'}]},
+                ],
+            },
+        },
+    }
+    a = aggregation['members'][0]['finalSubmission']['indicators']
+    assert a == {'status': 'COMPUTED', 'isStale': False, 'value': {'total': 80.0, 'weight': 'energy'}}
+
+
+def test_graphql_lists_final_submissions_only_within_the_viewers_reach(figures: Tree, client: Client) -> None:
+    query = (
+        """
+        query ($organization: ID) {
+          framework(identifier: "%s") {
+            finalSubmissions(year: 2023, organizationId: $organization) {
+              organization { name }
+              instanceIdentifier
+              submission { status indicators { value(id: "energy") { total } } }
+            }
+          }
+        }
+    """
+        % figures.framework.identifier
+    )
+    reader = UserFactory.create()
+    OrganizationAccessGrant.objects.create(
+        framework=figures.framework, organization=figures.orgs['state'], user=reader, role=ObjectRole.VIEWER
+    )
+    client.force_login(reader)
+    gql = PathsTestClient(client)
+
+    everything = gql.query_data(query)['framework']['finalSubmissions']
+    # Reporting units only: the district's own balance is not a unit's submission.
+    assert [(row['organization']['name'], row['submission']['indicators']['value']['total']) for row in everything] == [
+        ('a', 100.0),
+        ('d', 300.0),
+        ('f', 600.0),
+    ]
+    south = gql.query_data(query, variables={'organization': str(figures.orgs['south'].uuid)})['framework']['finalSubmissions']
+    assert [row['instanceIdentifier'] for row in south] == ['aggregation-f']
+
+    client.force_login(figures.member('a'))
+    own = PathsTestClient(client).query_data(query)['framework']['finalSubmissions']
+    assert [row['organization']['name'] for row in own] == ['a']

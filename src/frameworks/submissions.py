@@ -10,10 +10,14 @@ from django.db.models import Prefetch, Q
 from django.utils import timezone
 from wagtail.actions.publish_revision import PublishPermissionError
 
+from frameworks.indicators import IndicatorComputationError, materialise_final_submission, materialise_open_submissions
 from frameworks.models import Submission, SubmissionEvent, SubmissionKind, SubmissionStatus
 from frameworks.models.submission import OPEN_STATUSES
+from nodes.change_ops import current_operation_or_none
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from django.db.models import QuerySet
 
     from nodes.models import InstanceConfig
@@ -22,6 +26,33 @@ if TYPE_CHECKING:
 
 class SubmissionError(ValidationError):
     pass
+
+
+class YearLockedError(SubmissionError):
+    pass
+
+
+def locked_years(ic: InstanceConfig) -> frozenset[int]:
+    """
+    Return the years whose data is read-only: those with a final inventory and no open one.
+
+    A finalised year is the record of what was delivered. It is unlocked by opening a
+    correction (`create_submission`), and locked again when that is finalised or discarded.
+    """
+    rows = Submission.objects.filter(
+        instance_config=ic, kind=SubmissionKind.INVENTORY, status__in=(*OPEN_STATUSES, SubmissionStatus.FINAL)
+    ).values_list('period_start', 'status')
+    final = {year for year, status in rows if status == SubmissionStatus.FINAL}
+    return frozenset(final - {year for year, status in rows if status in OPEN_STATUSES})
+
+
+def require_years_unlocked(ic: InstanceConfig, years: Iterable[int]) -> None:
+    """Refuse a write to the values of a finalised year. Comments stay possible: reviewing a final balance is legitimate."""
+    locked = sorted(set(years) & locked_years(ic))
+    if locked:
+        raise YearLockedError(
+            f'{", ".join(map(str, locked))} has a final submission and is read-only; open a correction to change it'
+        )
 
 
 def visible_submissions(ic: InstanceConfig, *, include_open: bool) -> QuerySet[Submission]:
@@ -84,9 +115,13 @@ def create_submission(
                     last_modified_by=user,
                 )
                 _record(submission, from_status=None, to_status=SubmissionStatus.DRAFT, user=user)
-                return submission
         except IntegrityError as exc:
             raise SubmissionError('This period already has an open submission') from exc
+        if current_operation_or_none() is None:
+            # A new draft shows the current figures at once. Inside a change operation, its end writes them.
+            materialise_open_submissions(ic)
+            submission.refresh_from_db(fields=['indicators'])
+        return submission
 
 
 def _record(
@@ -164,4 +199,9 @@ def finalise(submission: Submission, *, user: User | None) -> Submission:
         locked.finalised_by = user
         locked.last_modified_by = user
         locked.save()
+        try:
+            # From the revision just pinned, so the frozen figures are exactly what that revision gives.
+            materialise_final_submission(locked)
+        except IndicatorComputationError as exc:
+            raise SubmissionError(f'The figures of the submission could not be computed: {exc}') from exc
     return locked

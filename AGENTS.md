@@ -208,6 +208,12 @@ implement a new policy.
   ports for their requirements; a template's extension points are closed and extended per
   municipality. See [`docs/architecture/shapes.md`](docs/architecture/shapes.md).
 
+- **Submission indicators**: the figures a model declares (`submission_indicators:` in the
+  template) are stored on each `Submission`, rewritten on every change of the draft and frozen at
+  finalisation, so that views over many instances never compute a model. Aggregation over the
+  organisation tree composes them on read. See
+  [`docs/architecture/submission-indicators.md`](docs/architecture/submission-indicators.md).
+
 #### Real-Time Features
 - Django Channels for WebSocket connections
 - Async calculation engine with live progress updates

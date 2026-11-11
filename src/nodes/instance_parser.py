@@ -46,6 +46,7 @@ from nodes.defs.graph import (
     QualityLevelKey,
     ValidationRuleMeta,
 )
+from nodes.defs.indicator_defs import SubmissionIndicatorsSpec
 from nodes.defs.instance_defs import (
     ActionGroup,
     DatasetRepoSpec,
@@ -611,6 +612,11 @@ class InstanceConfigParser:
             action_groups=agcs,
             scenarios=scenarios,
             shapes=self._parse_shapes(),
+            submission_indicators=(
+                SubmissionIndicatorsSpec.model_validate(config['submission_indicators'])
+                if config.get('submission_indicators') is not None
+                else None
+            ),
             theme_identifier=config.get('theme_identifier'),
             sample_size=config.get('sample_size', 0),
         )

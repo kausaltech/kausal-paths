@@ -12,6 +12,8 @@ from kausal_common.users import user_or_none
 from paths import gql
 
 from frameworks import submissions as ops
+from frameworks.indicator_schema import SubmissionIndicatorsType
+from frameworks.indicators import indicators_are_stale
 from frameworks.models import Submission, SubmissionEvent, SubmissionKind, SubmissionStatus
 from nodes.graphql.types.constraints import ConstraintViolationsType
 from nodes.graphql.types.problems import DatasetValidationViolationsType, NodeValueValidationViolationsType
@@ -73,6 +75,15 @@ class SubmissionType:
         description='Who last moved the submission into review; null if it never was.',
     )
     review_requested_at: datetime | None
+    submission: sb.Private[Submission]
+
+    @sb.field(description='The figures the model gives for the period; null where the model declares none.')
+    def indicators(self) -> SubmissionIndicatorsType | None:
+        stored = self.submission.indicators
+        if stored is None:
+            return None
+        stale = indicators_are_stale(self.submission, self.submission.instance_config)
+        return SubmissionIndicatorsType.from_indicators(stored, is_stale=stale)
 
     @classmethod
     def from_model(cls, obj: Submission) -> SubmissionType:
@@ -94,6 +105,7 @@ class SubmissionType:
             events=[SubmissionEventType.from_model(event) for event in events],
             review_requested_by=requested.actor if requested is not None else None,
             review_requested_at=requested.created_at if requested is not None else None,
+            submission=obj,
         )
 
 

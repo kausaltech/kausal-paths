@@ -144,6 +144,40 @@ params:
 
 
 
+#//////  Submission indicators  /////////////////////////////////////////////////////////////////
+# The figures stored on every submission, so that views over many municipalities read them
+# without computing each model (docs/architecture/submission-indicators.md). `settings` are the
+# BISKO-conformant ones: Bundesmix and no weather correction, whatever a visitor has chosen.
+# `composition` says how a figure adds up over a Kreis or a Land: the default is a cell-by-cell
+# sum; the Datengüte is a mean weighted by final energy and is never averaged.
+submission_indicators:
+  settings:
+  - parameter: use_national_values
+    value: true
+  - parameter: weather_correction
+    value: false
+  declarations:
+  - heat_pump_electricity_included_in_electricity
+  indicators:
+  - id: emissions
+    node: net_emissions
+    dimensions: [sector, energy_carrier]
+  - id: final_energy
+    node: total_final_energy_use
+    dimensions: [sector, energy_carrier]
+  - id: emissions_local_mix
+    node: net_emissions
+    dimensions: [sector, energy_carrier]
+    settings:
+    - parameter: use_national_values
+      value: false
+  - id: data_quality
+    node: total_weighted_data_quality
+    composition: weighted_mean
+    weight: final_energy
+  - id: population
+    node: population
+
 #//////  Result Excels  /////////////////////////////////////////////////////////////////////////
 result_excels:
 - base_excel_url:

@@ -6,9 +6,9 @@ which of the reporting units beneath it have a final submission, and lists its
 direct children as members. Nothing is stored: the tree, the instances and the
 submissions are the record.
 
-The basis is the published sum: only final submissions count. What a unit's
-final submission *contains* is not read here; the stored figures that a sum
-needs are added to submissions separately.
+The basis is the published sum: only final submissions count, and a territory's
+figures are composed from the figures frozen on them (`frameworks.composition`).
+No runtime is built.
 """
 
 from collections import defaultdict
@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db.models import Max, Prefetch, Q
 
+from frameworks.composition import Composition, compose
 from frameworks.models import (
     FrameworkConfig,
     FrameworkOrganizationRoot,
@@ -33,7 +34,7 @@ from frameworks.population import unit_populations
 from orgs.models import Organization
 
 if TYPE_CHECKING:
-    from frameworks.models import Framework
+    from frameworks.models import Framework, SubmissionIndicators
     from frameworks.organization_access import ViewerScope
 
 
@@ -87,6 +88,11 @@ class AggregationEntry:
     latest_year: int | None
     """The newest year for which the organization has any submission of this kind."""
     coverage: Coverage
+    figures: Composition | None
+    """
+    The figures of the finalised reporting units beneath this organization, composed. The
+    organization's own balance is not among them. Null where withheld.
+    """
     details_withheld: bool
     """The viewer may see this organization's totals, but not its submissions or members."""
     figures_withheld: bool
@@ -131,6 +137,15 @@ class _Subtree:
     open_statuses: dict[int, SubmissionStatus]
     populations: dict[int, int]
     population_revision: str | None
+    indicators: dict[int, SubmissionIndicators]
+    """The frozen figures of each finalised reporting unit, by organization."""
+
+    def figures(self, path: str) -> Composition:
+        return compose([
+            self.indicators[pk]
+            for pk, unit_path in self.unit_paths.items()
+            if unit_path.startswith(path) and pk in self.indicators
+        ])
 
     def coverage(self, path: str) -> Coverage:
         units = [pk for pk, unit_path in self.unit_paths.items() if unit_path.startswith(path)]
@@ -187,7 +202,15 @@ def _load_subtree(framework: Framework, organization: Organization, *, kind: Sub
         elif open_statuses.get(organization_id) != SubmissionStatus.IN_REVIEW:
             open_statuses[organization_id] = SubmissionStatus(status)
     populations, revision = unit_populations(framework, year, organization.path)
-    return _Subtree(unit_paths, instances, finals, open_statuses, populations, revision)
+    by_submission = {
+        pk: indicators
+        for pk, indicators in Submission.objects.filter(
+            pk__in=[pk for organization_id, pk in finals.items() if organization_id in unit_paths]
+        ).values_list('pk', 'indicators')
+        if indicators is not None
+    }
+    indicators = {organization_id: by_submission[pk] for organization_id, pk in finals.items() if pk in by_submission}
+    return _Subtree(unit_paths, instances, finals, open_statuses, populations, revision, indicators)
 
 
 def _exclusion_reason(subtree: _Subtree, organization_id: int) -> ExclusionReason | None:
@@ -234,10 +257,13 @@ def _restrict(entry: AggregationEntry, *, minimum_units: int) -> AggregationEntr
     """Reduce an entry to what a viewer outside it may see: its totals, if it holds enough units to hide each one."""
     coverage = entry.coverage
     too_few = coverage.reporting_units < minimum_units
+    # A sum of fewer finalised units than the minimum gives each one away, however large the territory.
+    figures = entry.figures if not too_few and (coverage.finalised or 0) >= minimum_units else None
     if too_few:
         coverage = replace(coverage, activated=None, finalised=None, finalised_population=None)
     return replace(
         entry,
+        figures=figures,
         instance_identifier=None,
         final_submission=None,
         open_status=None,
@@ -326,6 +352,7 @@ def aggregate(
             exclusion_reason=_exclusion_reason(subtree, org.pk) if is_unit else None,
             latest_year=latest_years.get(org.pk),
             coverage=subtree.coverage(org.path),
+            figures=subtree.figures(org.path),
             details_withheld=False,
             figures_withheld=False,
         )

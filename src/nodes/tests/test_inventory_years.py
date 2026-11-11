@@ -116,7 +116,7 @@ class TestYearsSpec:
 
 class TestInventoryYears:
     @pytest.mark.parametrize('with_framework', [False, True])
-    def test_add_seeds_blank_cells_and_opens_no_submission(
+    def test_add_seeds_blank_cells_and_opens_a_draft_only_in_a_framework(
         self,
         gql_client: PathsTestClient,
         db_instance_config: InstanceConfig,
@@ -134,7 +134,9 @@ class TestInventoryYears:
         assert ds.data_points.get(date__year=2023, metric=metric).value is None
         # The first write declares the span, which until now was undeclared.
         assert _years(db_instance_config) == (2010, 2023, [])
-        assert not Submission.objects.filter(instance_config=db_instance_config).exists()
+        # A year being entered in a framework always has an open submission; elsewhere nothing is opened.
+        opened = list(Submission.objects.filter(instance_config=db_instance_config).values_list('period_start', 'status'))
+        assert opened == ([(2023, 'draft')] if with_framework else [])
 
     @pytest.mark.usefixtures('dataset')
     def test_skipping_ahead_and_back(self, gql_client: PathsTestClient, db_instance_config: InstanceConfig) -> None:
@@ -239,16 +241,48 @@ class TestInventoryYears:
         assert 'only inventory year' in result['messages'][0]['message']
 
     @pytest.mark.usefixtures('dataset')
-    def test_a_year_with_a_submission_cannot_be_removed(
+    def test_a_year_with_a_submission_under_way_cannot_be_removed(
         self, gql_client: PathsTestClient, db_instance_config: InstanceConfig
     ) -> None:
         FrameworkConfigFactory.create(instance_config=db_instance_config)
-        submissions.create_submission(db_instance_config, period_start=2021, user=None)
+        submission = submissions.create_submission(db_instance_config, period_start=2021, user=None)
+        submissions.request_review(submission, user=None)
 
         result = _remove(gql_client, db_instance_config, 2021, force=True)
         assert result['__typename'] == 'OperationInfo'
-        assert 'has a submission (draft)' in result['messages'][0]['message']
+        assert 'has a submission (in review)' in result['messages'][0]['message']
         assert _years(db_instance_config) == (2010, 2022, None)
+
+    def test_an_untouched_draft_goes_with_its_year(
+        self, gql_client: PathsTestClient, db_instance_config: InstanceConfig, dataset: tuple[Dataset, DatasetMetric]
+    ) -> None:
+        FrameworkConfigFactory.create(instance_config=db_instance_config)
+        _add(gql_client, db_instance_config, 2023)
+        assert Submission.objects.filter(instance_config=db_instance_config, period_start=2023).exists()
+
+        # Adding a year can be undone.
+        assert _remove(gql_client, db_instance_config, 2023)['__typename'] == 'RemoveInventoryYearResult'
+        assert not Submission.objects.filter(instance_config=db_instance_config).exists()
+        assert _years(db_instance_config)[1] == 2022
+
+    def test_a_draft_with_entered_data_keeps_its_year(
+        self, gql_client: PathsTestClient, db_instance_config: InstanceConfig, dataset: tuple[Dataset, DatasetMetric]
+    ) -> None:
+        ds, _metric = dataset
+        FrameworkConfigFactory.create(instance_config=db_instance_config)
+        _add(gql_client, db_instance_config, 2023)
+        point = ds.data_points.get(date__year=2023)
+        point.value = Decimal(5)
+        point.save()
+
+        result = _remove(gql_client, db_instance_config, 2023, force=True)
+        assert result['__typename'] == 'OperationInfo'
+        assert 'discard the submission before removing the year' in result['messages'][0]['message']
+        assert _years(db_instance_config)[1] == 2023
+
+        # Discarding the draft is the explicit step; then the year goes like any other.
+        submissions.discard(Submission.objects.get(instance_config=db_instance_config, period_start=2023))
+        assert _remove(gql_client, db_instance_config, 2023, force=True)['__typename'] == 'RemoveInventoryYearResult'
 
     @pytest.mark.usefixtures('dataset')
     def test_an_inventory_year_cannot_be_added_twice(

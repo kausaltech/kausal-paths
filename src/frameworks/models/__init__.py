@@ -20,6 +20,13 @@ from .framework import (
     ReportingSpec as ReportingSpec,
     ReportingUnitSpec as ReportingUnitSpec,
 )
+from .indicators import (
+    Completeness as Completeness,
+    IndicatorCell as IndicatorCell,
+    IndicatorProvenance as IndicatorProvenance,
+    IndicatorValue as IndicatorValue,
+    SubmissionIndicators as SubmissionIndicators,
+)
 from .measures import (
     DefaultValueScaling as DefaultValueScaling,
     Measure as Measure,

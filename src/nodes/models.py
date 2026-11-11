@@ -1342,11 +1342,23 @@ class InstanceConfig(
         Returns ``None`` if the instance has never been published, so the
         caller can fall back to the draft (tables) path.
         """
-        from .instance_loader import InstanceLoader
-
         rev = self.live_revision
         if rev is None:
             return None
+        return self.create_instance_from_revision(rev)
+
+    def create_instance_from_revision(self, rev: Revision) -> Instance | None:
+        """
+        Hydrate an Instance from one of this instance's published revisions, live or not.
+
+        A revision is a frozen model: its snapshot, and from schema version 7 the
+        dataset revisions it pinned. Returns ``None`` for a revision that predates
+        the structured snapshot.
+        """
+        from .instance_loader import InstanceLoader
+
+        if rev.base_content_type_id != ContentType.objects.get_for_model(type(self)).pk or rev.object_id != str(self.pk):
+            raise ValueError(f'Revision {rev.pk} does not belong to instance {self.identifier}')
         content = rev.content or {}
         snapshot_data = content.get('model_snapshot') or {}
         structured = snapshot_data.get('structured')

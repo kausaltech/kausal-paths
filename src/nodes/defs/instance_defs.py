@@ -33,6 +33,7 @@ from params.discover import AnyParameter
 
 from .action_def import ImpactOverviewSpec
 from .data_entry import DataEntryDefinition
+from .indicator_defs import SubmissionIndicatorsSpec
 
 if TYPE_CHECKING:
     from nodes.models import InstanceConfig
@@ -258,6 +259,8 @@ class InstanceModelSpec(I18nBaseModel):
     action_groups: list[ActionGroup] = Field(default_factory=list)
     scenarios: list[Scenario] = Field(default_factory=list)
     shapes: list[ShapeSpec] = Field(default_factory=list)
+    submission_indicators: SubmissionIndicatorsSpec | None = None
+    """The figures stored on a submission of this model; see `nodes.defs.indicator_defs`."""
     theme_identifier: str | None = None
     sample_size: int = 0
     """Sample only every Nth year in computations (0 = no sampling)."""
@@ -298,6 +301,8 @@ class InstanceModelSpec(I18nBaseModel):
         # Likewise for shapes, which pinned templates published before them do not carry.
         if not self.shapes:
             data.pop('shapes', None)
+        if self.submission_indicators is None:
+            data.pop('submission_indicators', None)
         if self._is_composed:
             return data
         for field in ('dataset_repo', 'theme_identifier', 'sample_size'):

@@ -7,6 +7,7 @@ import strawberry as sb
 
 from datasets.data_entry import DataEntryQuery
 from datasets.graphql.types import DatasetType
+from frameworks.submissions import locked_years
 from nodes.data_entry import EntrySelection
 from nodes.graphql.types.problems import DatasetPlausibilityFindingType
 
@@ -245,6 +246,15 @@ class DataEntryType:
     @sb.field
     def years(self) -> list[int]:
         return self._query.years
+
+    @sb.field(
+        description=(
+            'The years whose values are read-only: those with a final submission and no open one. '
+            'Opening a correction for a year unlocks it.'
+        )
+    )
+    def locked_years(self) -> list[int]:
+        return sorted(locked_years(self._query.editions.config))
 
     @sb.field
     def default_year(self) -> int | None:

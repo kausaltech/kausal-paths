@@ -7,8 +7,12 @@ from typing import TYPE_CHECKING, ClassVar
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
+from django_pydantic_field import SchemaField
+
 from kausal_common.models.modification_tracking import UserModifiableModel
 from kausal_common.models.uuid import UUIDIdentifiedModel
+
+from .indicators import SubmissionIndicators
 
 if TYPE_CHECKING:
     from wagtail.models import Revision
@@ -69,6 +73,11 @@ class Submission(UserModifiableModel, UUIDIdentifiedModel):
     supersedes: FK[Submission | None] = models.ForeignKey(
         'self', on_delete=models.PROTECT, null=True, blank=True, related_name='superseded_by'
     )
+    indicators = SchemaField(schema=SubmissionIndicators, null=True, blank=True)
+    """
+    The figures the model gives for the period. An open submission's are rewritten as the
+    draft changes; a final submission's are frozen with it. Null where the model declares none.
+    """
 
     instance_config_id: int
     instance_revision_id: int | None

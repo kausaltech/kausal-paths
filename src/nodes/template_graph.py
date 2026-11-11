@@ -21,6 +21,7 @@ from datasets.shape_domain import SHAPE_SPEC_KEY
 from datasets.snapshot import DatasetSnapshot
 from datasets.year_slots import ensure_empty_year
 from frameworks.models import Framework
+from nodes.change_ops import announce_draft_change
 from nodes.constraints.validation import InstanceConstraintError, solve_instance_constraints
 from nodes.instance_graph import NodeEditContext, NodeMeta, build_instance_graph
 from nodes.instance_graph_cache import resolve_instance_source
@@ -413,6 +414,7 @@ def upgrade_template_instance(instance: InstanceConfig, revision: Revision, *, u
     ensure_instance_shapes(spec, candidate.spec)
     instance.spec = spec
     instance.save(update_fields=['template_revision', 'node_settings', 'spec'])
+    announce_draft_change(instance)
     instance.invalidate_cache()
 
 

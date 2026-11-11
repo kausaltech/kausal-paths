@@ -146,3 +146,36 @@ class ModelOverrides:
                 string_value=override.string_value,
             )
         return values
+
+
+def activate_settings(context: Context, storage: InstanceDataStorage) -> None:
+    """
+    Make `storage` the settings of a runtime: its scenario, its custom parameter values and its normalization.
+
+    The one place a runtime takes its settings from a storage, whether that is a
+    visitor's session, a `model(...)` field's overrides, or settings a caller
+    outside any request prescribes.
+    """
+    context.setting_storage = storage
+    active_scenario_id = storage.get_active_scenario()
+    scenario = context.get_scenario(active_scenario_id) if active_scenario_id else None
+
+    # Tell the custom scenario about the user setting so that
+    # it can locate the customized parameters.
+    if context.custom_scenario is not None:
+        context.custom_scenario.set_storage(storage)
+
+    if scenario is None:
+        scenario = context.get_default_scenario()
+
+    if storage.has_option('normalizer'):
+        context.set_option('normalizer', storage.get_option('normalizer'))
+    else:
+        for normalization in context.normalizations.values():
+            if normalization.spec.default:
+                context.active_normalization = normalization
+                break
+        else:
+            context.active_normalization = None
+
+    context.activate_scenario(scenario)

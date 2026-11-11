@@ -26,6 +26,7 @@ from nodes.constraints.validation import solve_instance_constraints
 from nodes.instance_graph import NodeEditContext
 from nodes.instance_graph_cache import get_instance_graph, load_instance_snapshot, resolve_instance_source
 from nodes.models import InstanceConfig, PreferredInstanceSource
+from params.overrides import activate_settings
 from params.storage import InstanceDataStorage, SessionStorage
 from users.models import User
 
@@ -682,32 +683,7 @@ class ActivateInstanceContextExtension(PathsSchemaExtension):
         if overrides is not None:
             # Validated against this runtime, so an unknown id is refused rather than ignored.
             storage = overrides.storage_for(context, session_storage.data)
-        context.setting_storage = storage
-
-        active_scenario_id = storage.get_active_scenario()
-        scenario = context.get_scenario(active_scenario_id) if active_scenario_id else None
-
-        # Tell the custom scenario about the user setting so that
-        # it can locate the customized parameters.
-        if context.custom_scenario is not None:
-            context.custom_scenario.set_storage(storage)
-
-        if scenario is None:
-            scenario = context.get_default_scenario()
-
-        # Activate normalization
-        if storage.has_option('normalizer'):
-            val = storage.get_option('normalizer')
-            context.set_option('normalizer', val)
-        else:
-            for n in context.normalizations.values():
-                if n.spec.default:
-                    context.active_normalization = n
-                    break
-            else:
-                context.active_normalization = None
-
-        context.activate_scenario(scenario)
+        activate_settings(context, storage)
 
     def _resolve_preview_source(
         self,

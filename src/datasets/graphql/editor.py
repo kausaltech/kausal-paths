@@ -46,6 +46,7 @@ from frameworks.evidence import (
     validate_evidence,
 )
 from frameworks.models import DataEvidenceKind, Framework
+from frameworks.submissions import require_years_unlocked
 from nodes.change_ops import gql_change_operation, record_change
 from nodes.graphql.types.problems import DatasetPlausibilityFindingType, DatasetValidationViolationType
 from nodes.models import DatasetMaterialization, InstanceConfig
@@ -400,6 +401,7 @@ class DatasetEditorMutation:
         with transaction.atomic():
             dataset = Dataset.objects.select_for_update().get(pk=dataset.pk)
             with gql_change_operation(info, root.instance, action='dataset.datapoint.create'):
+                require_years_unlocked(root.instance, {item.date.year for item in input})
                 for item in input:
                     serializer = DataPointSerializer(
                         data=DatasetEditorMutation._serialize_input(item),
@@ -461,6 +463,7 @@ class DatasetEditorMutation:
                         uuid=str(item.data_point_id),
                         for_action='change',
                     )
+                    require_years_unlocked(root.instance, {data_point.date.year})
                     serializer = DataPointSerializer(
                         data_point,
                         data=DatasetEditorMutation._serialize_input(item.input),
@@ -533,6 +536,7 @@ class DatasetEditorMutation:
                 for data_point_id in data_point_ids
             ]
             with gql_change_operation(info, root.instance, action='dataset.datapoint.delete'):
+                require_years_unlocked(root.instance, {data_point.date.year for data_point in data_points})
                 for data_point in data_points:
                     deleted_ids.append(sb.ID(str(data_point.uuid)))
                     record_change(

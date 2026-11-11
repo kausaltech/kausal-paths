@@ -8,7 +8,7 @@ import graphene
 import strawberry as sb
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
-from django.db.models import Count, Q
+from django.db.models import Count, Prefetch, Q
 from django.db.models.functions import Left
 from django.urls import reverse
 from django.utils import timezone
@@ -43,6 +43,7 @@ from .aggregation import (
     ExclusionReason,
     aggregate,
 )
+from .indicator_schema import ComposedIndicatorType
 from .models import (
     Framework,
     FrameworkConfig,
@@ -53,6 +54,8 @@ from .models import (
     MeasureTemplateDefaultDataPoint,
     MinMaxDefaultInt as MinMaxDefaultIntModel,
     Section,
+    Submission,
+    SubmissionEvent,
     SubmissionKind,
     SubmissionStatus,
 )
@@ -80,6 +83,8 @@ if TYPE_CHECKING:
     from nodes.graphql.types.instance import InstanceType
     from nodes.node import Node
     from nodes.units import Unit
+
+    from .composition import Composition
 
 
 strawberry = sb
@@ -255,6 +260,35 @@ class AggregationCoverageType:
         )
 
 
+@sb.type(name='AggregationFigures')
+class AggregationFiguresType:
+    indicators: list[ComposedIndicatorType]
+    incompatible_indicators: list[str] = sb.field(
+        description='Figures left out because the submissions disagree on their unit, dimensions or composition.'
+    )
+    template_revision_count: int = sb.field(
+        description=(
+            'How many template revisions the summed submissions were finalised under. Above one, the sum adds '
+            'figures of different method versions: it is a published sum, not a harmonised one.'
+        )
+    )
+
+    @sb.field(description='One composed figure by its identifier.')
+    def indicator(self, id: str) -> ComposedIndicatorType | None:
+        return next((indicator for indicator in self.indicators if indicator.value.id == id), None)
+
+    @classmethod
+    def from_composition(cls, composition: Composition) -> AggregationFiguresType:
+        return cls(
+            indicators=[
+                ComposedIndicatorType.from_composed(identifier, composed)
+                for identifier, composed in composition.indicators.items()
+            ],
+            incompatible_indicators=composition.incompatible,
+            template_revision_count=composition.template_revisions,
+        )
+
+
 @sb.type(name='AggregationEntry', description='One organization in an aggregation: the aggregated one, or a member.')
 class AggregationEntryType:
     organization: FrameworkOrganizationType
@@ -270,6 +304,12 @@ class AggregationEntryType:
     )
     latest_year: int | None = sb.field(description='The newest year with any submission of this kind.')
     coverage: AggregationCoverageType
+    figures: AggregationFiguresType | None = sb.field(
+        description=(
+            'The figures of the finalised reporting units beneath this organization, composed from what each one '
+            "froze. The organization's own balance is not among them. Null where withheld."
+        )
+    )
     details_withheld: bool = sb.field(description="The viewer sees this organization's totals, not its submissions.")
     figures_withheld: bool = sb.field(
         description='The territory holds too few reporting units for its totals to be shown to this viewer.'
@@ -333,6 +373,7 @@ def _aggregation_type(framework: Framework, result: Aggregation) -> Organization
             open_status=entry.open_status,
             latest_year=entry.latest_year,
             coverage=AggregationCoverageType.from_coverage(entry.coverage),
+            figures=AggregationFiguresType.from_composition(entry.figures) if entry.figures is not None else None,
             details_withheld=entry.details_withheld,
             figures_withheld=entry.figures_withheld,
             entry=entry,
@@ -434,6 +475,20 @@ class FrameworkOrganizationType:
         return _aggregation_type(framework, result)
 
 
+@register_strawberry_type
+@sb.type(name='FinalSubmissionEntry', description='One reporting unit and its final submission for a year.')
+class FinalSubmissionEntryType:
+    organization: FrameworkOrganizationType
+    instance_identifier: str
+    entry: sb.Private[Submission]
+
+    @sb.field(graphql_type=Annotated['SubmissionType', sb.lazy('frameworks.submission_schema')])
+    def submission(self) -> Any:
+        from frameworks.submission_schema import SubmissionType
+
+        return SubmissionType.from_model(self.entry)
+
+
 def _organization_types(framework: Framework, organizations: list[Organization]) -> list[FrameworkOrganizationType]:
     if not organizations:
         return []
@@ -523,6 +578,19 @@ class FrameworkType(DjangoNode[Framework]):
         id=graphene.ID(required=True),
         description='One accessible administrative organization by UUID.',
     )
+    final_submissions = graphene.List(
+        graphene.NonNull(lambda: FinalSubmissionEntryType),
+        year=graphene.Int(required=True),
+        organization_id=graphene.ID(),
+        first=graphene.Int(default_value=100),
+        offset=graphene.Int(default_value=0),
+        required=True,
+        description=(
+            'The final submissions of one year with their stored figures, for every reporting unit the viewer may '
+            'read, optionally within one organization. For comparison and bulk export; what share of a territory '
+            'they cover is stated by its aggregation.'
+        ),
+    )
     organization_grants = graphene.List(
         graphene.NonNull(OrganizationAccessGrantType),
         organization_id=graphene.ID(),
@@ -531,6 +599,52 @@ class FrameworkType(DjangoNode[Framework]):
         required=True,
         description='Organization grants visible to a framework or subtree administrator.',
     )
+
+    @staticmethod
+    def resolve_final_submissions(
+        root: Framework, info: GQLInfo, year: int, organization_id: str | None = None, first: int = 100, offset: int = 0
+    ) -> list[FinalSubmissionEntryType]:
+        if not 1 <= first <= 200 or offset < 0:
+            raise GraphQLError('first must be between 1 and 200 and offset must be nonnegative', nodes=info.field_nodes)
+        user = info.context.get_user()
+        if not isinstance(user, User):
+            return []
+        scope = viewer_scope(root, user)
+        readable = Q(pk__in=[])
+        for path in scope.paths:
+            readable |= Q(instance_config__organization__path__startswith=path)
+        submissions = Submission.objects.filter(
+            readable,
+            root.reporting_unit_q('instance_config__organization__'),
+            instance_config__framework_config__framework=root,
+            kind=SubmissionKind.INVENTORY,
+            period_start=year,
+            status=SubmissionStatus.FINAL,
+        )
+        if organization_id is not None:
+            organization = Organization.objects.filter(uuid=organization_id).first()
+            if organization is None:
+                return []
+            submissions = submissions.filter(instance_config__organization__path__startswith=organization.path)
+        page = list(
+            submissions
+            .select_related('instance_config__organization__classification', 'finalised_by', 'created_by', 'supersedes')
+            .prefetch_related(Prefetch('events', queryset=SubmissionEvent.objects.select_related('actor')))
+            .order_by('instance_config__organization__path', 'pk')
+            .distinct()[offset : offset + first]
+        )
+        organizations = {
+            submission.instance_config.organization.pk: submission.instance_config.organization for submission in page
+        }
+        types = dict(zip(organizations, _organization_types(root, list(organizations.values())), strict=True))
+        return [
+            FinalSubmissionEntryType(
+                organization=types[submission.instance_config.organization.pk],
+                instance_identifier=submission.instance_config.identifier,
+                entry=submission,
+            )
+            for submission in page
+        ]
 
     @staticmethod
     def resolve_organization_grants(

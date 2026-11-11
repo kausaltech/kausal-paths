@@ -33,6 +33,7 @@ from typing import TYPE_CHECKING, Any
 
 from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
+from django.dispatch import Signal
 from graphql.error import GraphQLError
 
 from kausal_common.users import user_or_none
@@ -61,6 +62,20 @@ _current_op: ContextVar[InstanceChangeOperation | None] = ContextVar(
     'instance_current_change_operation',
     default=None,
 )
+
+
+instance_draft_changed = Signal()
+"""
+Sent when an instance's draft has changed and the change is complete.
+
+That is at the end of every outermost change operation whose block finished
+without an error, with ``operation`` set; and by a writer outside a change
+operation that announces its change, with ``operation=None``.
+
+Receivers get ``instance_config`` and run inside the writer's transaction, so what
+they derive from the draft commits or rolls back with the change that caused it.
+A receiver that raises rolls the whole change back.
+"""
 
 
 class NoActiveChangeOperation(RuntimeError):  # noqa: N818
@@ -126,6 +141,16 @@ def get_current_operation() -> InstanceChangeOperation:
 def current_operation_or_none() -> InstanceChangeOperation | None:
     """Return the active operation or ``None``. Use for conditional recording."""
     return _current_op.get()
+
+
+def announce_draft_change(ic: InstanceConfig) -> None:
+    """
+    Announce a draft change made by a writer that may be running outside a change operation.
+
+    Inside one, nothing is sent: the end of the operation announces the change.
+    """
+    if _current_op.get() is None:
+        instance_draft_changed.send(sender=InstanceConfig, instance_config=ic, operation=None)
 
 
 @contextmanager
@@ -202,6 +227,7 @@ def change_operation(
             yield op
         finally:
             _current_op.reset(token)
+        instance_draft_changed.send(sender=InstanceConfig, instance_config=ic, operation=op)
         ic.invalidate_cache()
 
 

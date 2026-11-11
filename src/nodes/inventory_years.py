@@ -11,8 +11,12 @@ Removing a year is the inverse: it deletes the year's local cells and
 un-declares it. An inner year becomes skipped; an edge year shrinks the span to
 the nearest inventory year that remains.
 
-Submissions are not touched. A submission is its own interaction, and a year
-that has one cannot be removed.
+A year that is being entered always has an open submission, so that its figures
+are stored as the draft changes. In an instance that belongs to a framework,
+adding a year therefore opens a draft submission for it, unless the year already
+has a submission. Removing a year takes an untouched draft with it, so an added
+year can be undone; a draft whose year holds entered data, and any submission
+that is in review, final or superseded, keeps the year.
 
 An instance whose inventory years were never declared (`skipped is None`) is
 taken at its first add or remove to have declared its whole span. That is what
@@ -31,9 +35,10 @@ from kausal_common.datasets.models import DataPoint, DataPointComment, Dataset, 
 from datasets.change_snapshots import data_point_snapshot
 from datasets.materialization import refresh_dataset_materialization
 from datasets.year_slots import ensure_empty_year
-from frameworks.models import DataEvidenceKind, Submission
+from frameworks.models import DataEvidenceKind, Submission, SubmissionStatus
 from frameworks.models.evidence import DataPointEvidence
-from nodes.change_ops import record_change
+from frameworks.submissions import create_submission
+from nodes.change_ops import current_operation_or_none, record_change
 
 if TYPE_CHECKING:
     from django.db.models import QuerySet
@@ -142,6 +147,9 @@ def add_inventory_year(ic: InstanceConfig, year: int) -> AddedYear:
 
     after = InventoryYears(before.years | {year})
     _save(ic, action='inventory.year.add', year=year, before=before, after=after, created_cells=created_cells)
+    if ic.has_framework_config() and not Submission.objects.filter(instance_config=ic, period_start=year).exists():
+        operation = current_operation_or_none()
+        create_submission(ic, period_start=year, user=operation.user if operation is not None else None)
     return AddedYear(year=year, inventory_years=after, created_cells=created_cells)
 
 
@@ -185,10 +193,11 @@ def remove_inventory_year(ic: InstanceConfig, year: int, *, force: bool) -> Remo
         raise InventoryYearError(f'{year} is not an inventory year of this instance.')
     if len(before.years) == 1:
         raise InventoryYearError(f'{year} is the only inventory year.')
-    submission = Submission.objects.filter(instance_config=ic, period_start=year).first()
-    if submission is not None:
+    submissions = list(Submission.objects.filter(instance_config=ic, period_start=year))
+    kept = next((submission for submission in submissions if submission.status != SubmissionStatus.DRAFT), None)
+    if kept is not None:
         raise InventoryYearError(
-            f'{year} has a submission ({submission.get_status_display().lower()}); a year with a submission cannot be removed.'
+            f'{year} has a submission ({kept.get_status_display().lower()}); a year with a submission cannot be removed.'
         )
 
     datasets = list(Dataset.objects.filter(pk__in=_year_points(ic, year).values('dataset_id')).select_related('schema'))
@@ -198,8 +207,14 @@ def remove_inventory_year(ic: InstanceConfig, year: int, *, force: bool) -> Remo
         raise InventoryYearError(f'{year} holds imported data that cannot be removed here: {names}.')
 
     contents = year_contents(ic, year)
+    if submissions and not contents.is_empty:
+        raise InventoryYearError(
+            f'{year} has a draft submission and entered data; discard the submission before removing the year.'
+        )
     if not contents.is_empty and not force:
         return contents
+    # Only an untouched draft is left: it was opened with the year and goes with it.
+    Submission.objects.filter(pk__in=[submission.pk for submission in submissions]).delete()
 
     deleted_cells = 0
     for candidate in datasets:
@@ -223,5 +238,6 @@ def remove_inventory_year(ic: InstanceConfig, year: int, *, force: bool) -> Remo
         after=after,
         deleted_cells=deleted_cells,
         forced=not contents.is_empty,
+        discarded_draft_submission=bool(submissions),
     )
     return RemovedYear(year=year, inventory_years=after, deleted_cells=deleted_cells)
