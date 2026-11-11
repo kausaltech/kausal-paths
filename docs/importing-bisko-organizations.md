@@ -216,16 +216,31 @@ admins may use them within their scope.
 
 After setup, BKG import, population import and template publication, seed complete
 synthetic inventories for all six Ammerland municipalities and all sixteen
-Teltow-Fläming municipalities:
+Teltow-Fläming municipalities, plus Osnabrück, Bendorf and Rathenow:
 
 ```bash
-python manage.py seed_bisko_aggregation_demo
-python manage.py seed_bisko_aggregation_demo --apply
+python manage.py seed_bisko_demo
+python manage.py seed_bisko_demo --apply
 ```
 
 The first command rehearses the complete operation and rolls back every database
-write. The second creates 44 final inventory submissions: 2022 and 2023 for each
-municipality. No input files or test accounts are required.
+write. The second creates 50 final inventory submissions: 2022 and 2023 for each
+municipality. No dashboard Parquet, carrier prior or local reference instance is needed.
+With explicit `--district` or `--municipality` options, only those selected targets are seeded.
+The original regional district-editor and municipality-editor accounts also receive
+editor grants on their state's earlier demo city. Existing accounts and passwords are
+preserved; missing accounts can be created with `provision_bisko_test_accounts`
+before or after seeding.
+
+Rathenow has no eligible provider energy grid. For a municipality without one, the
+demo generator uses a population-scaled per-capita grid of eligible municipalities
+in its district, falling back to its state if necessary. These synthetic demo
+values do not change the production provider defaults.
+
+Existing dashboard demos with the recorded synthetic source are adopted in place:
+their estimates and instance UUIDs are retained, their calendar is set to the
+requested years, and those years are finalised. Other existing unmarked instances
+are refused.
 
 With `BISKO_TEST_ACCOUNT_PASSWORD` set, create test accounts for both districts:
 
@@ -244,7 +259,7 @@ changed or suspended grants require explicit resolution. The command supplies it
 own German language context, so it can run directly from the command line.
 
 All demo implementations and tests live under `src/frameworks/bisko/demo/`.
-The three management-command files are entry points; remove those along with
+The demo management-command files are entry points; remove those along with
 the demo package when retiring the tools.
 
 The published template's pinned provider defaults supply 2023 stationary energy,
@@ -265,8 +280,8 @@ When the published template gains new submission figures, refresh the existing
 demo submissions without regenerating their inputs:
 
 ```bash
-python manage.py seed_bisko_aggregation_demo --refresh-submissions
-python manage.py seed_bisko_aggregation_demo --refresh-submissions --apply
+python manage.py seed_bisko_demo --refresh-submissions
+python manage.py seed_bisko_demo --refresh-submissions --apply
 ```
 
 This uses each demo's current inputs and settings, advances its draft to the

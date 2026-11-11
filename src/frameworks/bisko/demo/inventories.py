@@ -8,6 +8,10 @@ if TYPE_CHECKING:
     from nodes.models import InstanceConfig
 
 
+DEMO_MUNICIPALITIES = ('034040000000', '071370203203', '120630252252')
+LEGACY_SOURCE_NAME = 'Synthetic BISKO demo cells from Klimaschutz-Planer dashboards'
+
+
 DEMO_GRADES = {
     'electricity': 'A',
     'heating_electricity': 'A',

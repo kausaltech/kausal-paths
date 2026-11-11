@@ -16,7 +16,9 @@ from datasets.materialization import refresh_dataset_materialization
 from frameworks import submissions
 from frameworks.bisko.activation import activate_bisko_municipality
 from frameworks.bisko.default_sources import ENERGY_DATASET
-from frameworks.bisko.demo.inventories import configure_demo_definition, demo_grade
+from frameworks.bisko.demo.energy import seed_regional_energy
+from frameworks.bisko.demo.inventories import DEMO_GRADES, LEGACY_SOURCE_NAME, configure_demo_definition, demo_grade
+from frameworks.evidence import set_evidence
 from frameworks.models import DataEvidenceKind, DataPointEvidence, DataQualityLevel, FrameworkConfig, SubmissionStatus
 from nodes.instance_serialization import InstanceSnapshot
 from nodes.template_graph import upgrade_template_instance
@@ -87,6 +89,29 @@ def district_municipalities(framework: Framework, ars: str) -> list[Organization
     if not municipalities:
         raise ValueError(f'{ars} contains no municipalities.')
     return municipalities
+
+
+def municipality_by_ars(framework: Framework, ars: str) -> Organization:
+    try:
+        organization = (
+            OrganizationIdentifier.objects
+            .select_related('organization__classification')
+            .get(
+                namespace__identifier='ars',
+                identifier=ars,
+            )
+            .organization
+        )
+    except OrganizationIdentifier.DoesNotExist as error:
+        raise ValueError(f'Unknown municipal ARS {ars}; import the BKG tree first.') from error
+    roots = framework.organization_roots.values_list('organization__path', flat=True)
+    if (
+        organization.classification is None
+        or organization.classification.identifier != 'de_municipality'
+        or not any(organization.path.startswith(path) for path in roots)
+    ):
+        raise ValueError(f'{ars} is not a municipality inside BISKO coverage.')
+    return organization
 
 
 def inventory_fingerprint(instance: InstanceConfig) -> str:
@@ -197,6 +222,8 @@ def _refresh_submissions(instance: InstanceConfig, recipe: DemoRecipe) -> bool:
 
 def _energy(instance: InstanceConfig, recipe: DemoRecipe, ags: str) -> Dataset:
     dataset = Dataset.objects.for_instance_config(instance).get(identifier=ENERGY_DATASET)
+    if not dataset.data_points.filter(value__isnull=False).exists():
+        seed_regional_energy(instance, dataset, ags, BASE_YEAR)
     points = list(
         dataset.data_points
         .filter(date__year=BASE_YEAR, value__isnull=False)
@@ -247,6 +274,79 @@ def _energy(instance: InstanceConfig, recipe: DemoRecipe, ags: str) -> Dataset:
     return dataset
 
 
+def _finalise_years(instance: InstanceConfig, years: list[int]) -> None:
+    for year in years:
+        submission = instance.submissions.filter(
+            period_start=year,
+            status__in=(SubmissionStatus.DRAFT, SubmissionStatus.IN_REVIEW),
+        ).first()
+        if submission is None:
+            submission = submissions.create_submission(instance, period_start=year, user=None)
+        if submission.status == SubmissionStatus.DRAFT:
+            submission = submissions.request_review(submission, user=None, note='Synthetic BISKO demo')
+        submissions.finalise(submission, user=None)
+
+
+@transaction.atomic
+def _adopt_dashboard_demo(instance: InstanceConfig, recipe: DemoRecipe) -> bool:
+    """Keep the earlier demos' entered estimates and UUIDs; retire only their obsolete loader."""
+    energy = Dataset.objects.for_instance_config(instance).get(identifier=ENERGY_DATASET)
+    if not energy.source_references.filter(data_source__name=LEGACY_SOURCE_NAME).exists():
+        raise ValueError(f'{instance.identifier}: existing instance was not created by a demo seeder.')
+    if instance.is_locked or instance.template_revision_id is None:
+        raise ValueError(f'{instance.identifier}: legacy demo must be unlocked and follow a published template.')
+    if instance.submissions.exclude(status=SubmissionStatus.SUPERSEDED).exclude(period_start__in=recipe.years).exists():
+        raise ValueError(f'{instance.identifier}: submissions exist outside the requested demo years.')
+    points = list(
+        energy.data_points
+        .filter(
+            metric__name='Value',
+            date__in=[date(year, 1, 1) for year in recipe.years],
+            value__isnull=False,
+        )
+        .select_related('evidence')
+        .prefetch_related('dimension_categories__dimension')
+    )
+    levels = {
+        level.identifier: level
+        for level in DataQualityLevel.objects.filter(
+            scheme__framework=instance.framework_config.framework,
+            scheme__identifier='quality',
+            scheme__version='1',
+        )
+    }
+    keys = set()
+    for point in points:
+        if not hasattr(point, 'evidence') or point.evidence.kind != DataEvidenceKind.ESTIMATED:
+            raise ValueError(f'{instance.identifier}: legacy demo contains manually supplied values.')
+        categories = {category.dimension.name: category.identifier for category in point.dimension_categories.all()}
+        sector, carrier = categories.get('Sektoren'), categories.get('Energieträger')
+        if sector is None or carrier is None:
+            raise ValueError(f'{instance.identifier}: legacy demo cell lacks sector/carrier coordinates.')
+        keys.add((point.date.year, sector, carrier))
+        set_evidence(point, quality_level=levels[demo_grade(sector, carrier)], user=None)
+    expected = {
+        (year, sector, carrier)
+        for year in recipe.years
+        for sector in ('private_households', 'commerce_trade_services', 'industry', 'municipal_facilities')
+        for carrier in DEMO_GRADES
+    }
+    if keys != expected or len(points) != len(expected):
+        raise ValueError(f'{instance.identifier}: legacy demo grid is incomplete or duplicated.')
+    with set_i18n_context('de', []):
+        template = instance.framework_config.framework.template_instance
+        assert template is not None
+        assert template.live_revision is not None
+        if instance.template_revision_id != recipe.template_revision:
+            upgrade_template_instance(instance, template.live_revision)
+            instance.refresh_from_db()
+        configure_demo_definition(instance, recipe.years)
+        refresh_dataset_materialization(energy)
+        _finalise_years(instance, recipe.years)
+        _save_record(instance, recipe)
+    return True
+
+
 @transaction.atomic
 def seed_municipality(
     framework: Framework,
@@ -267,6 +367,9 @@ def seed_municipality(
         raise ValueError(f'{municipality.name}: multiple BISKO instances.')
     config = existing.select_related('instance_config').first()
     if config is not None:
+        energy = Dataset.objects.for_instance_config(config.instance_config).filter(identifier=ENERGY_DATASET).first()
+        if energy is not None and DEMO_KEY not in (energy.spec or {}):
+            return _adopt_dashboard_demo(config.instance_config, recipe)
         if refresh_submissions:
             return _refresh_submissions(config.instance_config, recipe)
         return _repeat(config.instance_config, recipe)
@@ -283,9 +386,6 @@ def seed_municipality(
         # Activation opens one submission; discard only that new, empty lifecycle record.
         for submission in instance.submissions.all():
             submissions.discard(submission)
-        for year in years:
-            submission = submissions.create_submission(instance, period_start=year, user=None)
-            submission = submissions.request_review(submission, user=None, note='Synthetic district aggregation demo')
-            submissions.finalise(submission, user=None)
+        _finalise_years(instance, years)
         _save_record(instance, recipe)
     return True

@@ -2,13 +2,13 @@
 
 from datetime import date
 from decimal import Decimal
-from io import StringIO
 from typing import TYPE_CHECKING
 
 from django.contrib.contenttypes.models import ContentType
 from django.core.management import call_command
 from django.core.management.base import CommandError
 
+import polars as pl
 import pytest
 
 from kausal_common.datasets.models import DatasetSourceReference, DataSource
@@ -22,14 +22,9 @@ from kausal_common.datasets.tests.factories import (
     DimensionFactory,
 )
 
-from frameworks.bisko.demo.dashboards import (
-    CARRIERS,
-    DEMO_GRADES,
-    SECTORS,
-    SOURCE_NAME,
-    configure_demo_definition,
-    existing_demo_years,
-)
+from frameworks.bisko.default_sources import SECTORS
+from frameworks.bisko.demo.aggregation import DEMO_KEY, DemoRecipe, _adopt_dashboard_demo, _repeat
+from frameworks.bisko.demo.inventories import DEMO_GRADES, LEGACY_SOURCE_NAME, configure_demo_definition
 from frameworks.models import DataEvidenceKind, DataPointEvidence, DataQualityLevel, DataQualityScheme, FrameworkConfig
 from frameworks.tests.factories import FrameworkFactory
 from nodes.defs.instance_defs import InstanceModelSpec, YearsSpec
@@ -39,6 +34,8 @@ from nodes.tests.factories import InstanceConfigFactory
 from params.param import NumberParameter
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from kausal_common.datasets.models import Dataset
 
     from nodes.models import InstanceConfig
@@ -65,6 +62,7 @@ def demo() -> tuple[InstanceConfig, InstanceConfig, Dataset]:
     for order, (identifier, score) in enumerate((('A', '1'), ('B', '0.5'), ('C', '0.25'), ('D', '0'))):
         DataQualityLevel.objects.create(scheme=scheme, identifier=identifier, name=identifier, order=order, score=Decimal(score))
     revision = publish_template_instance(template)
+    template.refresh_from_db()
     instance = InstanceConfigFactory.create(
         name='Demo city',
         owner='Test owner',
@@ -80,20 +78,23 @@ def demo() -> tuple[InstanceConfig, InstanceConfig, Dataset]:
     DatasetSchemaDimensionFactory.create(schema=schema, dimension=sector)
     DatasetSchemaDimensionFactory.create(schema=schema, dimension=carrier)
     sectors = {identifier: DimensionCategoryFactory.create(dimension=sector, identifier=identifier) for identifier in SECTORS}
-    carriers = {identifier: DimensionCategoryFactory.create(dimension=carrier, identifier=identifier) for identifier in CARRIERS}
+    carriers = {
+        identifier: DimensionCategoryFactory.create(dimension=carrier, identifier=identifier) for identifier in DEMO_GRADES
+    }
     dataset = DatasetFactory.create(scope=instance, schema=schema, identifier='kommune/endenergieverbrauch')
     for year in (2000, 2005):
         for sector_id in SECTORS:
-            for carrier_id in CARRIERS:
+            for carrier_id in DEMO_GRADES:
                 point = DataPointFactory.create(
                     dataset=dataset,
                     metric=metric,
                     date=date(year, 1, 1),
+                    value=100,
                     dimension_categories=[sectors[sector_id], carriers[carrier_id]],
                 )
                 DataPointEvidence.objects.create(data_point=point, kind=DataEvidenceKind.ESTIMATED)
     source = DataSource.objects.create(
-        scope_content_type=ContentType.objects.get_for_model(instance), scope_id=instance.pk, name=SOURCE_NAME
+        scope_content_type=ContentType.objects.get_for_model(instance), scope_id=instance.pk, name=LEGACY_SOURCE_NAME
     )
     DatasetSourceReference.objects.create(dataset=dataset, data_source=source)
     return template, instance, dataset
@@ -105,7 +106,7 @@ def test_configuration_is_sparse_and_preserves_other_local_settings(demo: tuple[
     local.param_values['untouched'] = 7
     instance.ensure_spec().features.show_accumulated_effects = False
     instance.save(update_fields=['spec'])
-    configure_demo_definition(instance, existing_demo_years(dataset))
+    configure_demo_definition(instance, [2000, 2005])
     instance.refresh_from_db()
     spec = instance.ensure_spec()
     assert spec.params == []
@@ -120,47 +121,47 @@ def test_configuration_is_sparse_and_preserves_other_local_settings(demo: tuple[
     assert not DataPointEvidence.objects.filter(data_point__dataset=dataset, quality_level__isnull=False).exists()
 
 
-def test_reconcile_command_defaults_to_rollback(demo: tuple[InstanceConfig, InstanceConfig, Dataset]) -> None:
-    _, instance, _ = demo
-    output = StringIO()
-    call_command('load_bisko_demo', reconcile_existing=True, instance=[instance.identifier], stdout=output)
+def test_existing_dashboard_demo_is_adopted_without_replacing_values(
+    demo: tuple[InstanceConfig, InstanceConfig, Dataset],
+) -> None:
+    template, instance, dataset = demo
+    assert template.live_revision_id is not None
+    recipe = DemoRecipe(seed=42, years=[2000, 2005], district='03404', template_revision=template.live_revision_id)
+    before = list(dataset.data_points.order_by('uuid').values_list('uuid', 'value'))
+    assert _adopt_dashboard_demo(instance, recipe)
     instance.refresh_from_db()
-    assert instance.ensure_spec().scenarios == []
-    assert instance.ensure_spec().years.min_historical == 1990
-    assert 'definition changes rolled back' in output.getvalue()
-    call_command('load_bisko_demo', reconcile_existing=True, instance=[instance.identifier], apply=True, stdout=output)
-    instance.refresh_from_db()
-    assert instance.ensure_spec().years.historical == [2000, 2005]
-    grades = {
-        (categories['Sektoren'], categories['Energieträger']): grade
-        for categories, grade in (
-            (
-                {category.dimension.name: category.identifier for category in evidence.data_point.dimension_categories.all()},
-                evidence.quality_level.identifier if evidence.quality_level else None,
-            )
-            for evidence in DataPointEvidence.objects
-            .filter(data_point__dataset__scope_id=instance.pk)
-            .prefetch_related('data_point__dimension_categories__dimension')
-            .select_related('quality_level')
-        )
-    }
-    assert grades[('private_households', 'electricity')] == 'A'
-    assert grades[('private_households', 'heating_oil')] == 'C'
-    assert grades[('municipal_facilities', 'heating_oil')] == 'A'
-    assert set(grades.values()) == set(DEMO_GRADES.values())
-    assert 'grades changed on 120 cells' in output.getvalue()
-    previous_invalidation = instance.cache_invalidated_at
-    call_command('load_bisko_demo', reconcile_existing=True, instance=[instance.identifier], apply=True, stdout=output)
-    instance.refresh_from_db()
-    assert instance.cache_invalidated_at == previous_invalidation
+    dataset.refresh_from_db()
+    assert list(dataset.data_points.order_by('uuid').values_list('uuid', 'value')) == before
+    assert dataset.spec is not None
+    assert DEMO_KEY in dataset.spec
+    assert instance.submissions.filter(status='final').count() == 2
+    assert not _repeat(instance, recipe)
 
 
-def test_reconciliation_refuses_manually_reported_values(demo: tuple[InstanceConfig, InstanceConfig, Dataset]) -> None:
-    _, instance, dataset = demo
+def test_dashboard_adoption_refuses_manually_entered_values(demo: tuple[InstanceConfig, InstanceConfig, Dataset]) -> None:
+    template, instance, dataset = demo
+    assert template.live_revision_id is not None
+    recipe = DemoRecipe(seed=42, years=[2000, 2005], district='03404', template_revision=template.live_revision_id)
     point = dataset.data_points.first()
     assert point is not None
     DataPointEvidence.objects.filter(data_point=point).update(kind=DataEvidenceKind.OBSERVED)
-    with pytest.raises(CommandError, match='without estimated provenance'):
-        call_command('load_bisko_demo', reconcile_existing=True, instance=[instance.identifier], apply=True)
-    instance.refresh_from_db()
-    assert instance.ensure_spec().scenarios == []
+    with pytest.raises(ValueError, match='manually supplied'):
+        _adopt_dashboard_demo(instance, recipe)
+    assert not instance.submissions.exists()
+
+
+def test_production_energy_prior_can_be_exported_without_the_dashboard_loader(
+    demo: tuple[InstanceConfig, InstanceConfig, Dataset],
+    tmp_path: Path,
+) -> None:
+    _template, instance, dataset = demo
+    output = tmp_path / 'energy-prior.parquet'
+    call_command('export_bisko_energy_prior', instance.identifier, dataset.identifier, year=2000, output=output)
+    frame = pl.read_parquet(output)
+    assert frame.height == 60
+    assert set(frame['year']) == {2000}
+    assert set(frame['unit']) == {'MWh/a'}
+    assert set(frame.columns) == {'sector', 'energy_carrier', 'value_mwh_per_year', 'year', 'unit'}
+    with pytest.raises(CommandError, match='new output file'):
+        call_command('export_bisko_energy_prior', instance.identifier, dataset.identifier, year=2000, output=output)
+    assert dataset.data_points.count() == 120

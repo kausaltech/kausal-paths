@@ -20,6 +20,7 @@ from kausal_common.datasets.tests.factories import (
 )
 
 from frameworks import submissions
+from frameworks.bisko.default_sources import SECTORS
 from frameworks.bisko.demo.aggregation import (
     DEMO_KEY,
     DemoRecipe,
@@ -31,7 +32,7 @@ from frameworks.bisko.demo.aggregation import (
     energy_factor,
     inventory_fingerprint,
 )
-from frameworks.bisko.demo.dashboards import CARRIERS, SECTORS
+from frameworks.bisko.demo.inventories import DEMO_GRADES as CARRIERS
 from frameworks.conversion import share_template_catalogue
 from frameworks.models import DataEvidenceKind, DataQualityLevel, DataQualityScheme, SubmissionStatus
 from frameworks.tests.factories import FrameworkConfigFactory, FrameworkFactory

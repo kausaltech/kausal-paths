@@ -18,11 +18,12 @@ activation fails atomically if the published template or its data pin has not be
 
 ## Prepare sources
 
-Export the same carrier prior used by `load_bisko_demo` from the database containing the Mainz
+Export the carrier prior from the database containing the Mainz
 reference inventory. The reference instance may be inactive; exporting does not change it.
 
 ```sh
-python manage.py load_bisko_demo --export-prior /tmp/mainz-prior.parquet
+python manage.py export_bisko_energy_prior mainz-bisko mainz/final_energy \
+  --year 2018 --output /tmp/mainz-prior.parquet
 python manage.py prepare_bisko_defaults \
   --history /path/to/germany-population-2000-2025.parquet \
   --forecasts /path/to/germany-population-forecasts.parquet \

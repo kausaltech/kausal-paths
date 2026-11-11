@@ -12,6 +12,7 @@ from kausal_common.i18n.pydantic import set_i18n_context
 from kausal_common.people.models import ObjectRole
 
 from frameworks.bisko.activation import ActivationError, activate_bisko_municipality
+from frameworks.bisko.demo.inventories import DEMO_MUNICIPALITIES
 from frameworks.models import Framework, OrganizationAccessGrant
 from frameworks.organization_access import organization_is_in_framework
 from orgs.models import Organization, OrganizationIdentifier
@@ -136,9 +137,40 @@ def _provision_one(framework: Framework, spec: AccountSpec, password: str) -> st
     if not created and (grant.role != spec.role or grant.suspended_at is not None):
         raise CommandError(f'{spec.email} has a changed or suspended grant; resolve it explicitly before rerunning.')
     other_grants = OrganizationAccessGrant.objects.filter(framework=framework, user=user).exclude(pk=grant.pk)
+    if spec.level in ('district-editor', 'municipality-editor'):
+        city_codes = [ars for ars in DEMO_MUNICIPALITIES if ars.startswith(spec.ars[:2])]
+        other_grants = other_grants.exclude(
+            organization__identifiers__namespace__identifier='ars',
+            organization__identifiers__identifier__in=city_codes,
+            role__in=(ObjectRole.EDITOR, ObjectRole.ADMIN),
+            suspended_at__isnull=True,
+        )
     if other_grants.exists():
         raise CommandError(f'{spec.email} has another BISKO grant; resolve it explicitly before rerunning.')
     return f'{status}: {spec.email} | username={user.username} | {spec.role} | {spec.ars} {spec.organization.name}'
+
+
+def grant_demo_city_access(framework: Framework) -> None:
+    """Preserve the original regional demo accounts' access, regardless of provisioning order."""
+    for ars in DEMO_MUNICIPALITIES:
+        identifier = OrganizationIdentifier.objects.filter(namespace__identifier='ars', identifier=ars).first()
+        if identifier is None:
+            continue
+        for level in ('district-editor', 'municipality-editor'):
+            email = f'bisko-{ars[:2]}-{level}.fake@kausal.tech'
+            user = User.objects.filter(email__iexact=email).first()
+            if user is None:
+                continue
+            if not user.is_active:
+                raise CommandError(f'{email} is inactive; reactivate it explicitly.')
+            grant, _ = OrganizationAccessGrant.objects.get_or_create(
+                framework=framework,
+                organization=identifier.organization,
+                user=user,
+                defaults={'role': ObjectRole.EDITOR},
+            )
+            if grant.suspended_at is not None or grant.role not in (ObjectRole.EDITOR, ObjectRole.ADMIN):
+                raise CommandError(f'{email} has a changed or suspended demo-city grant; resolve it explicitly.')
 
 
 class Command(BaseCommand):
@@ -182,6 +214,7 @@ class Command(BaseCommand):
                         f'{"activated" if created else "existing instance"}: {spec.ars} | '
                         f'{config.instance_config.identifier} | framework_config={config.uuid}'
                     )
+                grant_demo_city_access(framework)
         except ActivationError as error:
             raise CommandError(str(error)) from error
         for result in results:
