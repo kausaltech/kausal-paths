@@ -260,3 +260,23 @@ option to select several. `--seed` defaults to 42. A repeat run verifies the rec
 local inputs and final submissions and leaves an unchanged municipality alone.
 Existing instances not created by this seeder, changed recipes and edited local
 inputs are refused. There is no overwrite mode.
+
+When the published template gains new submission figures, refresh the existing
+demo submissions without regenerating their inputs:
+
+```bash
+python manage.py seed_bisko_aggregation_demo --refresh-submissions
+python manage.py seed_bisko_aggregation_demo --refresh-submissions --apply
+```
+
+This uses each demo's current inputs and settings, advances its draft to the
+published template if necessary, and finalises a correction for each year. The
+previous final remains as a superseded submission with its original revision.
+Open submissions must be finished or discarded explicitly first. Changed seeds,
+districts and inventory years are still refused. An unchanged repeat creates no
+additional submissions.
+
+For submissions whose pinned revisions already declare the figures, use
+`materialise_submission_indicators` to backfill missing indicators in place.
+That command deliberately cannot add today's declarations to older revisions
+that did not declare any figures; those demos need the refresh above.

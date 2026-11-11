@@ -21,6 +21,11 @@ class Command(BaseCommand):
         parser.add_argument('--year', action='append', type=int, help='Inventory year; default: 2022 and 2023.')
         parser.add_argument('--seed', type=int, default=42)
         parser.add_argument('--apply', action='store_true', help='Persist inventories; otherwise roll everything back.')
+        parser.add_argument(
+            '--refresh-submissions',
+            action='store_true',
+            help='Reissue existing demo finals from current inputs and the published template; preserve superseded finals.',
+        )
 
     def handle(self, *args: Any, **options: Any) -> None:
         framework = Framework.objects.filter(identifier='bisko').first()
@@ -38,10 +43,17 @@ class Command(BaseCommand):
                 for district, municipalities in targets:
                     self.stdout.write(f'{district}: {len(municipalities)} municipalities; years {years}')
                     for municipality in municipalities:
-                        created = seed_municipality(framework, municipality, district=district, years=years, seed=options['seed'])
+                        created = seed_municipality(
+                            framework,
+                            municipality,
+                            district=district,
+                            years=years,
+                            seed=options['seed'],
+                            refresh_submissions=options['refresh_submissions'],
+                        )
                         count += 1
                         self.stdout.write(
-                            f'{municipality.name}: {"created" if created else "unchanged"}, {len(years)} final inventories'
+                            f'{municipality.name}: {"finalised" if created else "unchanged"}, {len(years)} final inventories'
                         )
                 if not options['apply']:
                     transaction.set_rollback(True)

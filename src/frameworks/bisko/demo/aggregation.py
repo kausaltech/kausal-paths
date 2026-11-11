@@ -18,10 +18,12 @@ from frameworks.bisko.activation import activate_bisko_municipality
 from frameworks.bisko.default_sources import ENERGY_DATASET
 from frameworks.bisko.demo.inventories import configure_demo_definition, demo_grade
 from frameworks.models import DataEvidenceKind, DataPointEvidence, DataQualityLevel, FrameworkConfig, SubmissionStatus
+from nodes.instance_serialization import InstanceSnapshot
+from nodes.template_graph import upgrade_template_instance
 from orgs.models import OrganizationIdentifier
 
 if TYPE_CHECKING:
-    from frameworks.models import Framework
+    from frameworks.models import Framework, Submission
     from nodes.models import InstanceConfig
     from orgs.models import Organization
 
@@ -116,15 +118,81 @@ def _repeat(instance: InstanceConfig, recipe: DemoRecipe) -> bool:
         raise ValueError(f'{instance.identifier}: existing instance was not created by this demo seeder.')
     record = DemoRecord.model_validate(raw)
     if record.recipe != recipe:
-        raise ValueError(f'{instance.identifier}: demo recipe changed; refusing to overwrite existing inventories.')
+        raise ValueError(
+            f'{instance.identifier}: demo recipe changed; refusing to overwrite existing inventories. '
+            'Use --refresh-submissions to adopt the published template without replacing inputs.'
+        )
     if record.fingerprint != inventory_fingerprint(instance):
         raise ValueError(f'{instance.identifier}: local data or model settings changed since demo generation.')
     finals = instance.submissions.filter(status=SubmissionStatus.FINAL)
     if set(finals.values_list('period_start', flat=True)) != set(recipe.years) or finals.count() != len(recipe.years):
         raise ValueError(f'{instance.identifier}: final submissions differ from the demo recipe.')
-    if instance.submissions.exclude(status=SubmissionStatus.FINAL).exists():
+    if instance.submissions.exclude(status__in=(SubmissionStatus.FINAL, SubmissionStatus.SUPERSEDED)).exists():
         raise ValueError(f'{instance.identifier}: additional submissions exist.')
     return False
+
+
+def _save_record(instance: InstanceConfig, recipe: DemoRecipe) -> None:
+    instance.refresh_from_db()
+    record = DemoRecord(recipe=recipe, fingerprint=inventory_fingerprint(instance))
+    energy = Dataset.objects.for_instance_config(instance).get(identifier=ENERGY_DATASET)
+    energy.spec = {**(energy.spec or {}), DEMO_KEY: record.model_dump(mode='json')}
+    energy.save(update_fields=['spec'])
+
+
+def _missing_figures(finals: list[Submission]) -> bool:
+    for submission in finals:
+        revision = submission.instance_revision
+        assert revision is not None
+        structured = ((revision.content or {}).get('model_snapshot') or {}).get('structured') or {}
+        snapshot = InstanceSnapshot.from_serialized_data(structured)
+        figures = submission.indicators
+        if snapshot.spec.submission_indicators is not None and (
+            figures is None or figures.status != 'computed' or figures.provenance.instance_revision != revision.pk
+        ):
+            return True
+    return False
+
+
+@transaction.atomic
+def _refresh_submissions(instance: InstanceConfig, recipe: DemoRecipe) -> bool:
+    """Reissue demo finals against today's template without replacing any municipal inputs."""
+    energy = Dataset.objects.for_instance_config(instance).filter(identifier=ENERGY_DATASET).first()
+    raw = (energy.spec or {}).get(DEMO_KEY) if energy is not None else None
+    if raw is None:
+        raise ValueError(f'{instance.identifier}: existing instance was not created by this demo seeder.')
+    record = DemoRecord.model_validate(raw)
+    if record.recipe.model_copy(update={'template_revision': recipe.template_revision}) != recipe:
+        raise ValueError(f'{instance.identifier}: only the template may change when refreshing submissions.')
+    if instance.is_locked:
+        raise ValueError(f'{instance.identifier}: instance is locked.')
+    if instance.submissions.exclude(status__in=(SubmissionStatus.FINAL, SubmissionStatus.SUPERSEDED)).exists():
+        raise ValueError(f'{instance.identifier}: open submissions exist; finish or discard them explicitly.')
+    finals = list(instance.submissions.filter(status=SubmissionStatus.FINAL).select_related('instance_revision'))
+    if sorted(submission.period_start for submission in finals) != recipe.years:
+        raise ValueError(f'{instance.identifier}: final submissions differ from the demo recipe.')
+    # The normal rerun remains a verification only. Explicit refresh accepts current inputs
+    # and settings, even if edited, and records their new release through corrections.
+    if (
+        record.recipe == recipe
+        and record.fingerprint == inventory_fingerprint(instance)
+        and all(submission.template_revision_id == recipe.template_revision for submission in finals)
+        and not _missing_figures(finals)
+    ):
+        return False
+    with set_i18n_context('de', []):
+        if instance.template_revision_id != recipe.template_revision:
+            template = instance.framework_config.framework.template_instance
+            assert template is not None
+            assert template.live_revision is not None
+            upgrade_template_instance(instance, template.live_revision)
+            instance.refresh_from_db()
+        for year in recipe.years:
+            submission = submissions.create_submission(instance, period_start=year, user=None)
+            submission = submissions.request_review(submission, user=None, note='Refresh synthetic district aggregation demo')
+            submissions.finalise(submission, user=None)
+        _save_record(instance, recipe)
+    return True
 
 
 def _energy(instance: InstanceConfig, recipe: DemoRecipe, ags: str) -> Dataset:
@@ -180,7 +248,15 @@ def _energy(instance: InstanceConfig, recipe: DemoRecipe, ags: str) -> Dataset:
 
 
 @transaction.atomic
-def seed_municipality(framework: Framework, municipality: Organization, *, district: str, years: list[int], seed: int) -> bool:
+def seed_municipality(
+    framework: Framework,
+    municipality: Organization,
+    *,
+    district: str,
+    years: list[int],
+    seed: int,
+    refresh_submissions: bool = False,
+) -> bool:
     """Create and genuinely finalise the municipality's inventories, or verify an unchanged repeat."""
     template = framework.template_instance
     if template is None or template.live_revision_id is None:
@@ -191,6 +267,8 @@ def seed_municipality(framework: Framework, municipality: Organization, *, distr
         raise ValueError(f'{municipality.name}: multiple BISKO instances.')
     config = existing.select_related('instance_config').first()
     if config is not None:
+        if refresh_submissions:
+            return _refresh_submissions(config.instance_config, recipe)
         return _repeat(config.instance_config, recipe)
     with set_i18n_context('de', []):
         config, created = activate_bisko_municipality(framework, municipality)
@@ -200,7 +278,7 @@ def seed_municipality(framework: Framework, municipality: Organization, *, distr
         if instance.is_locked:
             raise ValueError(f'{instance.identifier}: instance is locked.')
         ags = municipality.identifiers.get(namespace__identifier='ags').identifier
-        energy = _energy(instance, recipe, ags)
+        _energy(instance, recipe, ags)
         configure_demo_definition(instance, years)
         # Activation opens one submission; discard only that new, empty lifecycle record.
         for submission in instance.submissions.all():
@@ -209,9 +287,5 @@ def seed_municipality(framework: Framework, municipality: Organization, *, distr
             submission = submissions.create_submission(instance, period_start=year, user=None)
             submission = submissions.request_review(submission, user=None, note='Synthetic district aggregation demo')
             submissions.finalise(submission, user=None)
-        instance.refresh_from_db()
-        record = DemoRecord(recipe=recipe, fingerprint=inventory_fingerprint(instance))
-        energy.refresh_from_db()
-        energy.spec = {**(energy.spec or {}), DEMO_KEY: record.model_dump(mode='json')}
-        energy.save(update_fields=['spec'])
+        _save_record(instance, recipe)
     return True
