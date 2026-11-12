@@ -284,6 +284,21 @@ full rationale. In brief:
   first draft while a model is being built; the numbers belong in a dataset,
   where a city user can see and change them.
 
+#### Where model documentation goes
+Each place has one purpose, and none of them substitutes for another:
+- **Data sources go in the dataset's `sources:` metadata**, so a number's
+  origin travels with it from the producer's CSV through DVC into the
+  database. A first-draft collection spreadsheet is a valid source; no
+  source at all is not.
+- **YAML comments are for modellers.** They explain technical choices: why a
+  node is built this way, why a filter or tag is there, what changed and why.
+- **Node descriptions (`description_*`) are for city users.** They say what
+  the node is about in plain, non-technical terms.
+
+Neither YAML comments nor descriptions carry data sources. Write all three
+plainly and concisely, so they make sense to a reader without the surrounding
+context.
+
 #### Models
 - All models inherit from appropriate base classes (`UUIDIdentifiedModel`, `PathsModel`)
 - Use proper type annotations for fields and relationships
