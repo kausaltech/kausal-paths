@@ -266,6 +266,27 @@ class ValueAction(GenericAction):
         return ppl.to_ppdf(df, meta=meta)
 
 
+def join_port_frames(frames: list[ppl.PathsDataFrame]) -> ppl.PathsDataFrame:
+    """
+    Join the frames of an action's ports, one metric each, into one frame.
+
+    A port lacking another port's dimension holds it empty, so that the join keys
+    are the same on both sides: ports with the same dimensions share rows, and a
+    port's rows never multiply with another's categories. Each edge out of the
+    action drops the dimensions that are empty for its metric.
+    """
+    dimensions = list(dict.fromkeys(dim for df in frames for dim in df.dim_ids))
+    result: ppl.PathsDataFrame | None = None
+    for frame in frames:
+        missing = [dim for dim in dimensions if dim not in frame.dim_ids]
+        df = frame
+        if missing:
+            df = df.with_columns([pl.lit(None, dtype=pl.Categorical).alias(dim) for dim in missing]).add_to_index(missing)
+        result = df if result is None else result.paths.join_over_index(df, how='outer', index_from='union', nulls_equal=True)
+    assert result is not None
+    return result
+
+
 class AdditiveAction(ActionNode):
     explanation = _("""Simple action that produces an additive change to a value.""")
     no_effect_value = 0.0
@@ -294,7 +315,7 @@ class AdditiveAction(ActionNode):
         if is_multi_metric or self.get_parameter_value('allow_null_categories', required=False):
             self.allow_null_categories = True
 
-        result = None
+        frames: list[ppl.PathsDataFrame] = []
         for input_port in self.iter_input_ports(self.input_port):
             output_port = input_port.paired_output
             if output_port is None:
@@ -315,12 +336,11 @@ class AdditiveAction(ActionNode):
                 df = df.with_columns(
                     pl.when(pl.col(m.column_id).is_null()).then(None).otherwise(self.no_effect_value).alias(m.column_id)
                 )
-            df = df.ensure_unit(m.column_id, m.unit)
-            result = df if result is None else result.paths.join_over_index(df, how='outer', index_from='union', nulls_equal=True)
+            frames.append(df.ensure_unit(m.column_id, m.unit))
 
-        if result is None:
+        if not frames:
             raise NodeError(self, 'No paired impact input ports are declared')
-        return result
+        return join_port_frames(frames)
 
 
 class AdditiveAction2(AdditiveAction, SimpleNode):  # FIXME Merge with AdditiveAction

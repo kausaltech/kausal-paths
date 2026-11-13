@@ -100,6 +100,11 @@ if TYPE_CHECKING:
     from frameworks.submission_schema import SubmissionType
     from nodes.actions.action import ActionNode, ImpactOverview
     from nodes.context import Context
+    from nodes.graphql.action_wizard import (  # used in lazy strawberry annotations
+        ActionTargetType,
+        DimensionCategoriesType,
+        EffectSourceCandidates,
+    )
     from nodes.graphql.types.impact import ImpactOverviewType  # used in lazy strawberry annotation
     from nodes.graphql.types.node import ActionNodeType, NodeInterface, NodeType
     from nodes.graphql.types.scenario import ScenarioType  # used in lazy strawberry annotation
@@ -607,12 +612,56 @@ class InstanceEditorFields:
             )
         )
 
+    @sb.field(
+        graphql_type=list[Annotated['ActionTargetType', sb.lazy('nodes.graphql.action_wizard')]],
+        description=(
+            'For every node, whether the action wizard can create an action acting on it: the node must have '
+            'one output port and an additive input, and belong to this instance.'
+        ),
+    )
+    @staticmethod
+    def action_targets(root: 'InstanceEditorFields', info: gql.Info) -> list[Any]:
+        from nodes.graphql.action_wizard import action_targets
+
+        return list(action_targets(info, root._config))
+
+    @sb.field(
+        graphql_type=list[Annotated['DimensionCategoriesType', sb.lazy('nodes.graphql.action_wizard')]],
+        description=(
+            "The categories, per dimension, that an action acting on the given node can change: those the node's "
+            'output actually has.'
+        ),
+    )
+    @staticmethod
+    def action_target_categories(root: 'InstanceEditorFields', info: gql.Info, target_node_id: UUID) -> list[Any]:
+        from nodes.graphql.action_wizard import action_target_categories
+
+        return list(action_target_categories(info, root._config, target_node_id))
+
+    @sb.field(
+        graphql_type=Annotated['EffectSourceCandidates', sb.lazy('nodes.graphql.action_wizard')],
+        description=(
+            'The instance datasets and node output ports that could feed an action acting on the given node: '
+            'those with its dimensions and a compatible unit, and no node downstream of it.'
+        ),
+    )
+    @staticmethod
+    def effect_source_candidates(root: 'InstanceEditorFields', info: gql.Info, target_node_id: UUID) -> Any:
+        from nodes.graphql.action_wizard import effect_source_candidates
+
+        return effect_source_candidates(info, root._config, target_node_id)
+
     @sb.field(graphql_type=DatasetType | None)
     @staticmethod
     def dataset(
         root: 'InstanceEditorFields', info: gql.Info, id: Annotated[sb.ID, sb.argument(description='Dataset pk/uuid/identifier)')]
     ) -> DatasetType | None:
-        """One instance-scoped dataset by id, as the selected source reads it."""
+        """
+        One dataset this instance governs, by id, as the selected source reads it.
+
+        Node-owned datasets are left out of the instance's lists, but found here, so
+        that the dataset editor can open them (decision 10 of the node-owned datasets plan).
+        """
         if not id.strip():
             return None
         ic = root._config
@@ -620,7 +669,7 @@ class InstanceEditorFields:
             Dataset.objects
             .get_queryset()
             .with_schema_editability(Framework)
-            .for_instance_config(ic)
+            .governed_by_instance(ic)
             .viewable_by(info.context.user)
             .select_related('schema', 'created_by', 'last_modified_by')
             .prefetch_related('schema__metrics__validation_rules', 'schema__dimensions__dimension__categories', 'schema__scopes')

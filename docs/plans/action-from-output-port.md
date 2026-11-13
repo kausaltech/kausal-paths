@@ -2,7 +2,12 @@
 
 *Produced by Claude Opus 5.5 on 2026-10-08.*
 *Version 2 produced by Claude Opus 5.5 on 2026-10-09.*
+*Version 3 produced by Claude Opus 5.5 on 2026-11-12.*
 *Responsible: Jouni Tuomisto.*
+
+**Superseded in part by *Rebuilt on main (2026-11-12)* at the end:** the action now acts on a
+node through an ordinary edge into its additive input, not through a hook. The rest of this
+document describes the first build and is kept for its reasoning.
 
 Status: agreed with Juha 2026-10-09, with one change, added in version 2: before any
 dataset is created, the modeller chooses for each effect whether its numbers come from a
@@ -417,3 +422,62 @@ initialize).
 4. `createActionFromPorts`.
 5. UI: clickable output ports, `effectiveShape` on output ports, the wizard, and
    the hand-off to the dataset grid.
+
+## Rebuilt on main (2026-11-12)
+
+The first build (branch `archive/action-wizard-demo-2026-10`) was never merged. It was rebuilt
+on `main` (branch `feat/action-wizard` in both repositories), with four changes.
+
+1. **The wizard starts from a node, not from an output port.** *New action acting on this* is on
+   the node's context menu. It is disabled, with the reason, on a node that cannot take an
+   action: one with several output ports, one with no additive input, an action, or a node the
+   instance inherits from a framework. `InstanceEditor.actionTargets` answers this for every
+   node, so the client does not reimplement the rule (`nodes.action_effects.action_target`).
+2. **The action feeds the node's additive input, through an ordinary edge.** For an
+   `AdditiveNode` or `MultiplicativeNode` that is the multi `additive` port (created from the
+   class declaration if the node has none yet); for a `FormulaNode` it is a new input port, which
+   the formula does not name and therefore adds after evaluating. Either way the action is added
+   as the last step, so the node's own arithmetic does not change. Unlike a hook, an edge acts on
+   every year: the action's own dataset is therefore bound with `backfill` as well as
+   `interpolate` and `extend`, so that the start-year zero covers the history. An existing
+   dataset source is bound without `backfill`, as before.
+3. **The dataset belongs to the action.** It is scoped to the action's `NodeConfig`, has no
+   identifier, and is opened from `InstanceEditor.dataset(id)`, which now also finds node-owned
+   datasets.
+4. **Effects with different dimensions share one action and one dataset.** The dataset has the
+   union of the targets' dimensions and categories; each metric's start-year cells name only
+   its own dimensions and kept categories, and every other cell stays empty. Each binding
+   selects one metric, which drops the rows that are empty for it and with them the dimensions
+   it does not use; each output port of the action keeps its target's dimensions. This needed
+   one runtime fix: `AdditiveAction` joined its ports' frames on the index columns they share,
+   so ports with disjoint dimensions were multiplied together on `Year`. It now gives each frame
+   the other ports' dimensions as empty columns before joining (`join_port_frames`).
+
+**Categories come from the target's output.** The solver narrows a port's categories only
+where a rule fixes them, and the stored category catalogue can hold categories the model no
+longer declares. Offering those wrote cells the runtime rejects ("Unknown categories in
+dimension column"), which broke the action and every node downstream of it. The wizard now
+computes the target from the draft and offers, and by default writes, only the categories its
+output has; a target that fails to compute falls back to the categories its runtime dimension
+declares (`output_categories`, exposed as `InstanceEditor.actionTargetCategories`). An effect
+left with no category in some dimension is refused.
+
+**The target year is created empty.** Beside the start-year zeros, the new dataset gets an
+empty cell in the instance's target year for each metric and kept category, unless the start
+year is already at or past it. With only the zeros, a modeller easily overwrites them with
+the target value, which loses the ramp from zero; an empty column says where the numbers go.
+Empty cells add nothing until filled, because the binding drops null rows.
+
+The mutation is `createActionOnNodes`, with `effects[].targetNodeId`;
+`effectSourceCandidates(targetNodeId:)` lists sources as before. Not carried over from the first
+build: hooks in GraphQL (`addActionHook`, `deleteActionHook`, `InstanceEditor.hooks`), hook
+drawing, `NodeEditor.createPortDataset`, `Node.output_metric_for_port` and the deprecated
+`requirementGroup` field, and `interpolate`, `backfill` and `extend` in the GraphQL
+transformation vocabulary: `main` now deliberately keeps these out of GraphQL and preserves
+them through every rewrite of a binding (`visible_transformations`,
+`preserve_temporal_fill_transformations`), so the wizard writes them server-side only.
+
+**Framework nodes are left out of this version.** A template-derived instance cannot add an
+input to a node it inherits, so the wizard is not offered there. Acting on framework nodes is
+what hooks were built for, and it will need hooks in GraphQL after all; the first build's
+`resolve_hook` and `addActionHook` are the starting point.
