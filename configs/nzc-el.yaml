@@ -1,0 +1,672 @@
+# nzc.yaml with a second emission view next to the original one: electricity
+# allocated to end-use sectors. Both views are kept side by side, each on its own
+# page (home: net_emissions; /emissions-by-end-use: net_emissions_el).
+#
+# The whole NZC model is included from nzc.yaml unchanged. This file adds only a
+# parallel set of sector emission nodes and a total, net_emissions_el, in which
+# there is no electricity sector. Scope 2 electricity emissions are allocated to
+# the sectors that consume the electricity (passenger transport, freight
+# transport, buildings), in proportion to their modelled electricity
+# consumption. The total equals net_emissions every year; only the sector split
+# differs. Nothing upstream is recalculated.
+#
+# The include mechanism merges only nodes, actions, dimensions, datasets and
+# shapes. Everything else below (settings, params, action groups, pages,
+# scenarios, result excels) is copied from nzc.yaml and must be kept in sync
+# with it by hand.
+
+id: nzc-el
+default_language: en
+dataset_repo:
+  url: https://github.com/kausaltech/dvctest.git
+  commit: ed78d2d5522af1da60bb05a56cf90e534724ac7e
+  dvc_remote: kausal-s3
+name: Demonstration BASIC+ Greenhouse Gas Inventory, electricity by sector
+owner: City of Demonstration
+theme_identifier: eu-netzerocities
+target_year: 2030
+model_end_year: 2060
+reference_year: 2018
+minimum_historical_year: 2018
+maximum_historical_year: 2020
+emission_unit: kt/a
+emission_forecast_from: 2021
+emission_dimensions: [scope, ghg, sector]
+features:
+  baseline_visible_in_graphs: true
+  show_significant_digits: 4
+  maximum_fraction_digits: 0
+  hide_scenario_editor: false
+  show_refresh_prompt: true
+  requires_authentication: true
+  show_explanations: true
+  use_datasets_from_db: true
+
+result_excels:
+- base_excel_url: 
+    https://docs.google.com/spreadsheets/d/1qJuinNK-LfwniqNZ8mshEQyai6VOCvMS/export?format=xlsx
+  name: Climate City Contract Tables
+  node_ids:
+  - population
+  - net_emissions
+  - aggregated_cost
+  - discounted_cost
+  - passenger_kilometres_historical # TODO Should this be _observed?
+  - vehicle_kilometres
+  - freight_transport_need
+  - total_building_heat_energy_use
+  - total_electricity_consumption
+  - collected_waste
+  - a11_reduce_all_motorised_transport
+  - a12_modal_switch_from_cars_to_other_modes
+  - transport_efficiency
+  - transport_energy_carrier_shares
+  - freight_transport_energy_carrier_shares
+  - average_truck_utilisation
+  - electrification_year_of_transport
+  - old_building_renovation_rate_observed
+  - new_building_shares
+  - efficient_appliances_rate
+  - building_heating_type_share
+  - heating_fuel_share
+  - heating_fuel_share_local # TODO Result excel G149:H155 if you want to remove heating_fuel_share.
+  - heating_fuel_share_district
+  - electricity_shares
+  - waste_recycling_shares
+  action_ids:
+  - a11_reduce_all_motorised_transport
+  - a12_modal_switch_from_cars_to_other_modes
+  - a13_car_pooling
+  - a141_electrification_of_passenger_cars
+  - a142_electrification_of_buses
+  - a21_optimised_logistics
+  - a22_truck_fleet_electrification
+  - a31_renovation_improvements
+  - a32_new_building_improvements
+  - a33_do_efficient_appliances
+  - a34_decarbonising_heat_generation
+  - a41_replace_fossil_electricity
+  - a51_increase_waste_recycling
+  - a61_reduced_co2_emissions_in_other_sectors
+
+params:
+- id: municipality_name
+  value: example
+- id: discount_rate
+  label_en: Discount rate
+  label_fi: Diskonttokorko
+  value: 3.5
+  min_value: 0
+  max_value: 5
+  unit: '%'
+  is_visible: true
+  is_customizable: false
+- id: show_scenario_impacts
+  label_en: Show scenario impacts instead of node outputs?
+  label_fi: Näytä skenaarioiden vaikutukset solmun tulosten sijaan?
+  value: false
+  is_visible: false
+  is_customizable: true
+- id: statistical_correction
+  label_en: Statistical correction
+  label_fi: Tilastollinen korjaus
+  value: true
+  is_visible: true
+  is_customizable: true
+- id: use_observations
+  value: false
+  is_visible: false
+  is_customizable: false
+- id: measure_data_baseline_year_only
+  value: true
+  is_visible: false
+  is_customizable: false
+
+action_groups:
+- id: transport
+  name_en: 1. Transport
+  name_fi: 1. Liikenne
+  color: '#93c572'
+- id: freight_transport
+  name_en: 2. Freight transport
+  name_fi: 2. Tavaraliikenne
+- id: buildings
+  name_en: 3. Buildings
+  name_fi: 3. Rakennukset
+  color: '#32cd32'
+- id: electricity
+  name_en: 4. Electricity
+  name_fi: Sähkö
+  color: '#29ab87'
+- id: waste
+  name_en: 5. Waste
+  name_fi: 5. Jätteet
+  color: '#50c878'
+- id: scope_3
+  name_en: 6. Scope 3
+  name_fi: 6. Scope 3
+- id: reforestation
+  name_en: 7. Reforestation
+  name_fi: 7. Uudelleenmetsitys
+
+
+include:
+- file: nzc.yaml
+  allow_override: true
+
+pages:
+- id: home
+  name_en: Demonstration BASIC+ Greenhouse Gas Inventory
+  name_fi: BASIC+-päästöinventaariot
+  path: /
+  type: emission
+  outcome_node: net_emissions
+  lead_title: Climate Budgeting Tool
+  lead_paragraph: |
+    Climate budgeting is about including climate emissions systematically
+    in the city's planning and budgeting. In the first phase, the Global Protocol
+    for Community-Scale (GPC) BASIC-level emissions are considered, and actions reducing
+    these emissions are considered. C40 Network's website describes
+    <a href="https://www.c40knowledgehub.org/s/article/Climate-budgets-why-your-city-needs-one?language=en_US">why this work is critically important</a>.
+    Oslo has been a <a href="https://www.klimaoslo.no/collection/oslos-climate-budget-2023/">pioneer city</a> in this area.
+    They have also made a practical <a href="https://www.c40knowledgehub.org/s/article/Manual-for-climate-budgets-as-a-governance-tool?language=en_US">manual for cities</a>
+    to guide through the climate budgeting process.
+
+- id: emissions_by_end_use
+  name_en: Emissions with electricity allocated to sectors
+  name_fi: Päästöt, sähkö kohdistettu sektoreille
+  path: /emissions-by-end-use
+  type: emission
+  outcome_node: net_emissions_el
+  lead_title: Emissions by end-use sector
+  lead_paragraph: |
+    In this view there is no separate electricity sector. The scope 2 emissions
+    of electricity consumed in the city are allocated to the sectors that use
+    the electricity — passenger transport, freight transport and buildings —
+    in proportion to their electricity consumption. The total is the same as
+    in the main emission view.
+
+scenarios:
+- id: baseline
+  name_en: Baseline scenario
+  name_fi: Nykykehitys
+  params:
+  - id: show_scenario_impacts
+    value: false
+  - id: use_observations
+    value: false
+  - id: measure_data_baseline_year_only
+    value: true
+
+- id: default
+  default: true
+  name_en: Decarbonisation scenario
+  name_fi: Hiilineutraali skenaario
+  all_actions_enabled: true
+  params:
+  - id: use_observations
+    value: false
+  - id: measure_data_baseline_year_only
+    value: true
+
+- id: progress_tracking
+  name_en: Progress tracking
+  name_fi: Edistymisen seuranta
+  all_actions_enabled: false
+  is_selectable: true
+  params:
+  - id: use_observations
+    value: true
+  - id: measure_data_baseline_year_only
+    value: false
+  - id: a51_increase_waste_recycling.enabled  # This is needed so that DatasetDifferenceAction works correctly.
+    value: true
+
+nodes:
+
+# ---------- Electricity allocated to end-use sectors ----------
+
+- id: electricity_consumption_by_end_use_sector
+  name_en: Electricity consumption by end-use sector
+  name_fi: Sähkönkulutus käyttösektoreittain
+  description_en: Modelled electricity consumption, before statistical 
+    correction, split by the sector that uses it. Used only to allocate 
+    electricity emissions to sectors; the statistical correction is the same 
+    ratio for every sector, so it does not change the shares.
+  description_fi: Mallinnettu sähkönkulutus ennen tilastollista korjausta 
+    jaettuna sähköä käyttävän sektorin mukaan. Käytetään vain sähköpäästöjen 
+    kohdistamiseen sektoreille; tilastollinen korjaus on sama suhdeluku 
+    kaikille sektoreille, joten se ei muuta osuuksia.
+  type: generic.GenericNode
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_nodes:
+  - id: transport_electricity_consumption
+    from_dimensions:
+    - id: transport_mode
+      flatten: true
+    to_dimensions:
+    - id: sector
+      categories: [transport]
+    - id: energy_carrier
+  - id: freight_transport_electricity_consumption
+    from_dimensions:
+    - id: transport_mode
+      flatten: true
+    to_dimensions:
+    - id: sector
+      categories: [freight_transport]
+    - id: energy_carrier
+  - id: consumer_electricity_use
+    from_dimensions:
+    - id: efficiency_programme
+      flatten: true
+    to_dimensions:
+    - id: sector
+      categories: [buildings]
+    - id: energy_carrier
+  - id: building_heat_electricity_use
+    from_dimensions:
+    - id: fuel_type
+      flatten: true
+    - id: heating_type
+      flatten: true
+    - id: building_energy_class
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+    - id: sector
+      categories: [buildings]
+
+- id: electricity_emissions_by_end_use_sector
+  name_en: Electricity emissions by end-use sector
+  name_fi: Sähkön päästöt käyttösektoreittain
+  description_en: Electricity emissions (scope 2) allocated to sectors in 
+    proportion to their share of electricity consumption. Sums to 
+    <i>Electricity emissions</i>.
+  description_fi: Sähkön päästöt (scope 2) kohdistettuna sektoreille niiden 
+    sähkönkulutusosuuksien suhteessa. Summa on yhtä suuri kuin 
+    <i>Sähköntuotannon päästöt</i>.
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [sector, energy_carrier]
+  output_dimensions: [sector, energy_carrier]
+  input_nodes:
+  - id: electricity_emissions
+    tags: [el_emissions]
+    from_dimensions:
+    - id: sector
+      flatten: true
+    to_dimensions:
+    - id: energy_carrier
+  - id: electricity_consumption_by_end_use_sector
+    tags: [el_consumption]
+  params:
+    formula: el_emissions * el_consumption / sum_dim(el_consumption, sector)
+
+# ---------- Sector nodes with electricity included ----------
+
+- id: transport_emissions_el
+  name_en: Transport emissions incl. electricity
+  name_fi: Liikenteen päästöt sähkö mukaan lukien
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  color: '#E15759'
+  input_dimensions: [ghg, scope]
+  output_dimensions: [ghg, scope]
+  input_nodes:
+  - id: transport_emissions
+    from_dimensions:
+    - id: transport_mode
+      flatten: true
+    - id: energy_carrier
+      categories: [electricity]
+      exclude: true
+      flatten: true
+    to_dimensions:
+    - id: ghg
+    - id: scope
+  - id: electricity_emissions_by_end_use_sector
+    from_dimensions:
+    - id: sector
+      categories: [transport]
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: ghg
+      categories: [co2e]
+    - id: scope
+      categories: [scope2]
+  output_nodes:
+  - id: net_emissions_el
+    to_dimensions:
+    - id: sector
+      categories: [transport]
+    - id: ghg
+    - id: scope
+  visualizations:
+  - kind: group
+    label: Drivers of car emissions
+    children:
+    - kind: node
+      label: Car transport need
+      node_id: passenger_kilometres_observed
+      desired_outcome: decreasing
+      scenarios: [default, progress_tracking]
+      dimensions:
+      - id: transport_mode
+        categories: [cars]
+        flatten: true
+    - kind: node
+      label: Electrification of passenger vehicles
+      node_id: fully_electric_vehicle_share
+      desired_outcome: increasing
+      scenarios: [default, progress_tracking]
+      dimensions:
+      - id: energy_carrier
+        categories: [electricity]
+        flatten: true
+      - id: transport_mode
+        categories: [cars]
+        flatten: true
+  - kind: group
+    label: Drivers of bus emissions
+    children:
+    - kind: node
+      label: Bus transport need
+      node_id: passenger_kilometres_observed
+      desired_outcome: decreasing
+      scenarios: [default, progress_tracking]
+      dimensions:
+      - id: transport_mode
+        categories: [buses]
+        flatten: true
+    - kind: node
+      label: Electrification of buses
+      node_id: fully_electric_bus_share
+      desired_outcome: increasing
+      scenarios: [default, progress_tracking]
+      dimensions:
+      - id: energy_carrier
+        categories: [electricity]
+        flatten: true
+      - id: transport_mode
+        categories: [buses]
+        flatten: true
+  - kind: group
+    label: Electricity used in passenger transport
+    children:
+    - kind: node
+      label: Fossil fuel usage in electricity production
+      node_id: electricity_shares
+      desired_outcome: decreasing
+      scenarios: [default, progress_tracking]
+      dimensions:
+      - id: fuel_type
+        categories: [fossil]
+        flatten: true
+      - id: energy_carrier
+        flatten: true
+
+- id: freight_transport_emissions_el
+  name_en: Freight transport emissions incl. electricity
+  name_fi: Rahtiliikenteen päästöt sähkö mukaan lukien
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  color: '#F28E2B'
+  input_dimensions: [ghg, scope]
+  output_dimensions: [ghg, scope]
+  input_nodes:
+  - id: freight_transport_emissions
+    from_dimensions:
+    - id: transport_mode
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: pollutant
+      categories: [co2]
+      flatten: true
+    to_dimensions:
+    - id: ghg
+      categories: [co2e]
+    - id: scope
+  - id: electricity_emissions_by_end_use_sector
+    from_dimensions:
+    - id: sector
+      categories: [freight_transport]
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: ghg
+      categories: [co2e]
+    - id: scope
+      categories: [scope2]
+  output_nodes:
+  - id: net_emissions_el
+    to_dimensions:
+    - id: sector
+      categories: [transport]  # Same sector as freight in net_emissions.
+    - id: ghg
+    - id: scope
+  visualizations:
+  - kind: group
+    label: Drivers of light truck emissions
+    children:
+    - kind: node
+      label: Light truck freight transport need
+      node_id: freight_transport_need_observed
+      desired_outcome: decreasing
+      scenarios: [default, progress_tracking]
+      dimensions:
+      - id: transport_mode
+        categories: [light_trucks]
+        flatten: true
+    - kind: node
+      label: Electrification of light trucks
+      node_id: fully_electric_light_truck_share
+      desired_outcome: increasing
+      scenarios: [default, progress_tracking]
+      dimensions:
+      - id: energy_carrier
+        flatten: true
+      - id: transport_mode
+        categories: [light_trucks]
+        flatten: true
+  - kind: group
+    label: Drivers of heavy truck emissions
+    children:
+    - kind: node
+      label: Heavy truck freight transport need
+      node_id: freight_transport_need_observed
+      desired_outcome: decreasing
+      scenarios: [default, progress_tracking]
+      dimensions:
+      - id: transport_mode
+        categories: [heavy_trucks]
+        flatten: true
+    - kind: node
+      label: Electrification of heavy trucks
+      node_id: fully_electric_heavy_truck_share
+      desired_outcome: increasing
+      scenarios: [default, progress_tracking]
+      dimensions:
+      - id: energy_carrier
+        flatten: true
+      - id: transport_mode
+        categories: [heavy_trucks]
+        flatten: true
+  - kind: group
+    label: Electricity used in freight transport
+    children:
+    - kind: node
+      label: Fossil fuel usage in electricity production
+      node_id: electricity_shares
+      desired_outcome: decreasing
+      scenarios: [default, progress_tracking]
+      dimensions:
+      - id: fuel_type
+        categories: [fossil]
+        flatten: true
+      - id: energy_carrier
+        flatten: true
+
+- id: building_emissions_el
+  name_en: Building emissions incl. electricity
+  name_fi: Rakennusten päästöt sähkö mukaan lukien
+  type: generic.GenericNode
+  quantity: emissions
+  unit: kt/a
+  color: '#4E79A7'
+  input_dimensions: [ghg, scope]
+  output_dimensions: [ghg, scope]
+  input_nodes:
+  - id: building_emissions
+  - id: electricity_emissions_by_end_use_sector
+    from_dimensions:
+    - id: sector
+      categories: [buildings]
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    to_dimensions:
+    - id: ghg
+      categories: [co2e]
+    - id: scope
+      categories: [scope2]
+  output_nodes:
+  - id: net_emissions_el
+    to_dimensions:
+    - id: sector
+      categories: [buildings]
+    - id: ghg
+    - id: scope
+  visualizations:
+  - kind: group
+    label: Drivers of building emissions
+    children:
+    - kind: node
+      label: Total heating demand
+      node_id: building_heat_energy_use_observed
+      desired_outcome: decreasing
+      scenarios: [default, progress_tracking]
+      dimensions: []
+  - kind: group
+    label: District heating
+    children:
+    - kind: node
+      label: District heating demand
+      node_id: building_heating_type_share
+      desired_outcome: increasing
+      scenarios: [default, progress_tracking]
+      dimensions:
+      - id: heating_type
+        categories: [district_heating]
+        flatten: true
+    - kind: node
+      label: Fossil fuel usage in district heating
+      node_id: heating_fuel_share_district
+      desired_outcome: decreasing
+      scenarios: [default, progress_tracking]
+      dimensions:
+      - id: fuel_type
+        flatten: true
+      - id: energy_carrier
+        categories: [fossil]
+        flatten: true
+      - id: heating_type
+        categories: [district_heating]
+        flatten: true
+  - kind: group
+    label: Local heating
+    children:
+    - kind: node
+      label: Local heating demand
+      node_id: building_heating_type_share
+      desired_outcome: decreasing
+      scenarios: [default, progress_tracking]
+      dimensions:
+      - id: heating_type
+        categories: [local_heating]
+        flatten: true
+    - kind: node
+      label: Fossil fuel usage in local heating
+      node_id: heating_fuel_share_local
+      desired_outcome: decreasing
+      scenarios: [default, progress_tracking]
+      dimensions:
+      - id: fuel_type
+        flatten: true
+      - id: energy_carrier
+        categories: [fossil]
+        flatten: true
+      - id: heating_type
+        categories: [local_heating]
+        flatten: true
+  - kind: group
+    label: Electricity used in buildings
+    children:
+    - kind: node
+      label: Fossil fuel usage in electricity production
+      node_id: electricity_shares
+      desired_outcome: decreasing
+      scenarios: [default, progress_tracking]
+      dimensions:
+      - id: fuel_type
+        categories: [fossil]
+        flatten: true
+      - id: energy_carrier
+        flatten: true
+
+# ---------- Total ----------
+
+- id: net_emissions_el
+  name_en: Net emissions, electricity allocated to sectors
+  name_fi: Kokonaispäästöt, sähkö kohdistettu sektoreille
+  description_en: Same total as <i>Net emissions</i>, but without an 
+    electricity sector. Scope 2 electricity emissions are included in the 
+    sectors that consume the electricity.
+  description_fi: Sama kokonaismäärä kuin <i>Kokonaispäästöissä</i>, mutta 
+    ilman sähkösektoria. Sähkön scope 2 -päästöt sisältyvät sähköä käyttäviin 
+    sektoreihin.
+  is_outcome: true
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: kt/a
+  input_dimensions: [scope, ghg, sector]
+  output_dimensions: [scope, ghg, sector]
+  input_nodes:
+  # Sectors without electricity use are taken as such.
+  - id: waste_emissions
+    from_dimensions:
+    - id: pollutant
+      categories: [co2]
+      flatten: true
+    - id: waste_treatment
+      flatten: true
+    - id: waste_type
+      flatten: true
+    to_dimensions:
+    - id: scope
+      categories: [scope3]
+    - id: ghg
+      categories: [co2e]
+    - id: sector
+      categories: [waste]
+  - id: emissions_from_other_sectors
+    from_dimensions:
+    - id: cost_type
+      flatten: true
+    to_dimensions:
+    - id: scope
+    - id: ghg
+    - id: sector
+      categories: [other]
