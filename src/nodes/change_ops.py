@@ -143,6 +143,22 @@ def current_operation_or_none() -> InstanceChangeOperation | None:
     return _current_op.get()
 
 
+def mark_unpublished_changes(ic: InstanceConfig) -> None:
+    """
+    Record that the draft of a published instance now differs from its live revision.
+
+    The model editor offers Publish only while ``has_unpublished_changes`` is set, so every
+    write to the draft has to set it, not only a sync or a dataset import. An instance that
+    has never been published has no live revision, and its draft is what visitors see, so
+    it is left alone (see docs/trailhead/tools.md, *A sync writes the draft*).
+    """
+    InstanceConfig.objects.filter(pk=ic.pk, live_revision__isnull=False, has_unpublished_changes=False).update(
+        has_unpublished_changes=True
+    )
+    if ic.live_revision_id is not None:
+        ic.has_unpublished_changes = True
+
+
 def announce_draft_change(ic: InstanceConfig) -> None:
     """
     Announce a draft change made by a writer that may be running outside a change operation.
@@ -150,6 +166,7 @@ def announce_draft_change(ic: InstanceConfig) -> None:
     Inside one, nothing is sent: the end of the operation announces the change.
     """
     if _current_op.get() is None:
+        mark_unpublished_changes(ic)
         instance_draft_changed.send(sender=InstanceConfig, instance_config=ic, operation=None)
 
 
@@ -227,6 +244,7 @@ def change_operation(
             yield op
         finally:
             _current_op.reset(token)
+        mark_unpublished_changes(ic)
         instance_draft_changed.send(sender=InstanceConfig, instance_config=ic, operation=op)
         ic.invalidate_cache()
 
