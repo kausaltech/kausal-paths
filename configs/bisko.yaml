@@ -161,9 +161,11 @@ params:
 # district_heating_emissions in modules/bisko/model.yaml, and district_heating_method_in_force for
 # which route each year took. `use_exergetic_district_heating` was removed on 2026-08-20.
 
+# Same label as pruefstadt-bisko, the instance certified as BISKO 1.3. The clearer label that
+# marks the switch as non-compliant is in bisko-base.yaml (2.0).
 - id: weather_correction
-  label_de: Witterungsbereinigung durchführen (nicht BISKO-konform)
-  label_en: Perform weather correction (not BISKO-compliant)
+  label_de: Witterungsbereinigung durchführen?
+  label_en: Perform weather correction?
   value: false
   is_customizable: true
   is_visible: true
