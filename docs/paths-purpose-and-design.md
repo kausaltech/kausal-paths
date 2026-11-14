@@ -14,6 +14,8 @@ Importantly, the purpose is not primarily to convince stakeholders or force them
 
 The platform operationalizes the logic of **Theory of Change**: every model makes explicit the causal chain from action to outcome, together with the assumptions that must hold for change to occur. Unlike conventional Theory of Change diagrams, Kausal Paths encodes these causal chains computationally, making them testable, comparable across scenarios, and sensitive to stakeholder input.
 
+The principles behind using Paths for argumentation, what is fixed in advance and how factual and value disagreements are represented, are in [`argumentation-framework.md`](argumentation-framework.md).
+
 ### Common values
 
 - Less suffering is good, irrespective of whose suffering we can reduce.

@@ -22,6 +22,13 @@ The platform serves two audiences:
 - **Model builders** (currently Kausal staff, soon the coordinators
   themselves via "Trailhead"), who define the computation graphs
 
+When Paths is used to argue for or against actions, a few principles are
+fixed in advance (a global framework, internal consistency, a causal link
+for every effect, facts open to checking), and disagreements become
+hypotheses and value frameworks rather than something to settle by
+consensus. See
+[`docs/argumentation-framework.md`](docs/argumentation-framework.md).
+
 The backend is Django + Wagtail, the computation engine uses Polars,
 and the API is GraphQL (migrating from Graphene to Strawberry).
 
