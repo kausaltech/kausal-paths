@@ -594,7 +594,7 @@ nodes:
     <p>Raw welfare <code>d_ik</code> of each stakeholder group i on each outcome dimension k.
     This is a placeholder <code>ConstantNode</code>; replace with a <code>generic.GenericNode</code>
     that reads the actual welfare dataset (e.g. <code>equalia/welfare_by_stakeholder_cost_type</code>).
-    See <code>data/equalia_welfare_by_stakeholder_cost_type.csv</code> for an example dataset
+    See <code>modules/equalia/datasets/equalia_welfare_by_stakeholder_cost_type.csv</code> in paths-data for an example dataset
     covering seven representative stakeholder groups and five cost-type dimensions.</p>
     <p>The <strong>stakeholder</strong> dimension corresponds to index i (groups) and
     <strong>cost_type</strong> to index k (outcomes). Multi-dimensional welfare is

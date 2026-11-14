@@ -499,7 +499,7 @@ datasets:
 - id: demography/population_lau               # Eurostat GISCO population per municipality
   # Locked, and outside `de/`, because it is neither editable nor German-specific: the same
   # 94,000 municipalities serve every European instance, German or not, exactly as
-  # `weather/heating_degree_days` does. `data/population/` rebuilds it from the Eurostat GISCO
+  # `weather/heating_degree_days` does. paths-data `modules/population/` rebuilds it from the Eurostat GISCO
   # LAU releases once a year.
   #
   # **Municipality level, not NUTS-3.** A NUTS-3 region is the city only where the city is a
@@ -518,7 +518,7 @@ datasets:
   # The `population` node filters it to one row using the instance's `lau_code` parameter. A
   # `lau_code` that is not in the table matches nothing and leaves the node with an empty frame
   # rather than raising, so
-  # `data/population/fetch_gisco_lau_population.py --check-configs` audits every declared code
+  # paths-data `modules/population/scripts/fetch_gisco_lau_population.py --check-configs` audits every declared code
   # against the table -- including that a German `lau_code` and `ags_number` agree.
   is_editable: false
 
@@ -577,7 +577,7 @@ datasets:
   # Note that the Eurostat
   # convention (18 degC reference) and the German Gradtagzahl G20/15 (20 degC) are not
   # interchangeable -- the German factors are measurably flatter -- so a city that supplies its
-  # own VDI 3807 series is not supplying the same quantity. See `data/weather/README.md`.
+  # own VDI 3807 series is not supplying the same quantity. See paths-data `modules/weather/README.md`.
   is_editable: true
   metrics:
   - id: default
@@ -2852,7 +2852,7 @@ nodes:
     # empty_to_zero, not zero_fill: a city whose district heating has gone to zero divides by a
     # zero sector total, and that is NaN rather than null. Semantically the right answer is zero --
     # no district heating, no district heating emissions. duesseldorf-bisko is the live case; its
-    # series collapses to zero from 2020 (see data/TODO.md item 20).
+    # series collapses to zero from 2020 (see paths-data docs/TODO.md item 20).
     value: empty_to_zero(prefer_by_year(plant, prefer_by_year(variant, standard, variant_coverage),
       plant_factor >= 0) * share / sum_dim(share, sector))
 - id: stationary_emissions
@@ -3517,7 +3517,7 @@ nodes:
 # is preserved, the series has no step where FL_Lbus begins in 2022, and where the ÖSPV service
 # mileage equals or exceeds the territorial figure the whole of it is line bus -- which is the
 # right answer for a dense city. The ratio is our construction, not an ifeu number, and it is
-# an approximation of a split ifeu has not published; see data/TODO.md item 14.
+# an approximation of a split ifeu has not published; see paths-data docs/TODO.md item 14.
 #
 # FL_Lbus and FL_SSU start in 2022 in the source, and vehicle_kilometers_ifeu applies
 # extend_all, so the 2022 ratio is what the earlier years get.
@@ -4405,7 +4405,7 @@ nodes:
   # has_district_heating_factor_within_bisko_variants was our own addition and is now a
   # diagnostic only. It was kept in the gate to catch "the template's inconsistent district
   # heating data"; that turned out to be the double count fixed in Part M, and with the
-  # arithmetic clean it fails only because two ifeu tables disagree (data/TODO.md item 33).
+  # arithmetic clean it fails only because two ifeu tables disagree (paths-data docs/TODO.md item 33).
   - id: has_district_heating_by_exergetic_allocation
     tags: [district_heating]
   - id: has_quality_a_data_for_grid_based_energy
@@ -5981,7 +5981,7 @@ nodes:
     # A consumer that multiplies or divides by this node will therefore drop 1990-2010 from its
     # own output, exactly as final_energy_use once dropped 1990-1994 against the degree-day
     # series. That is the intended, visible cost of not inventing the years: the regional table
-    # `demography/population_nuts` does reach back to 2000, and `data/population/README.md`
+    # `demography/population_nuts` does reach back to 2000, and paths-data `modules/population/README.md`
     # sets out why it is not read here anyway.
 - id: road_type_shares_of_mileage
   is_editable: false

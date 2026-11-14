@@ -8,7 +8,8 @@
 # figures to the same tables the city already assembles by hand.
 #
 # TO ADD AN INVENTORY YEAR
-#   1. Append the year's rows to the CSVs in data/sedona/ and re-upload them.
+#   1. Append the year's rows to the CSVs in paths-data models/sedona/inputs/sheets/,
+#      rebuild datasets/sedona_data.csv with scripts/compile_sedona_data.py and re-upload it.
 #   2. Bump `maximum_historical_year` and `emission_forecast_from` by one.
 # `target_year` and `model_end_year` stay at 2030 until the inventory reaches it.
 # There is no forecast method here: 2025-2030 is the last inventory year held flat,

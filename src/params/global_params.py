@@ -351,7 +351,7 @@ class NUTSCode(StringGlobalParameter):
 
     No node reads it. It is declared so that offline data builders have one canonical
     place to look for a city's region instead of a lookup table of their own -- today
-    `data/weather/create_degree_day_factors.py`, which picks the city's column out of
+    paths-data `modules/weather/scripts/create_degree_day_factors.py`, which picks the city's column out of
     the European degree-day table with it.
 
     NUTS-3 rather than NUTS-2 wherever the finer region is the city: for a German
@@ -361,7 +361,7 @@ class NUTSCode(StringGlobalParameter):
     across a Kreis as in the town inside it -- so a region serves for them. Anything
     extensive, a population above all, is a sum over an area and cannot be taken from
     a region that is larger than the city: `LAUCode` is the parameter for that, and
-    `data/population/README.md` sets out the difference.
+    paths-data `modules/population/README.md` sets out the difference.
     """
 
     name = _('NUTS code')
@@ -380,7 +380,7 @@ class LAUCode(StringGlobalParameter):
     and names the same municipality. Declared separately rather than derived, because
     the model filters one column with one parameter and the table is Europe-wide: a
     bare `07315000` is not unique across countries, and a Finnish or Swiss instance has
-    no AGS at all. `data/population/fetch_gisco_lau_population.py --check-configs`
+    no AGS at all. paths-data `modules/population/scripts/fetch_gisco_lau_population.py --check-configs`
     cross-checks the two instead.
     """
 

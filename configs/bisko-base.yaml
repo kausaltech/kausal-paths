@@ -63,7 +63,7 @@ params:
   is_visible: false
 # NUTS-3, not NUTS-2: the template city Duesseldorf is a Kreisfreie Stadt, so DEA11 *is* the city, where DEA1
 # (Duesseldorf, the Regierungsbezirk) covers 5.2 million people.
-# Read by `data/weather/create_degree_day_factors.py`, which picks the city's column out of the
+# Read by paths-data `modules/weather/scripts/create_degree_day_factors.py`, which picks the city's column out of the
 # European degree-day table. No node reads it. Recorded beside the AGS because it is an
 # identifier of the city.
 #

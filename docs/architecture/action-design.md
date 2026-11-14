@@ -236,7 +236,7 @@ does not suppress it, and `get_single_dataset` makes it worse — it calls
 `_extend_values` itself, so prefer `add_datasets` even for a single dataset. Snapshot the branch before converting and diff it after —
 this is exactly the kind of change that does not announce itself.
 
-The disagreement is a known defect awaiting a fix; see `data/TODO.md` item 50.
+The disagreement is a known defect awaiting a fix; see paths-data `docs/TODO.md` item 50.
 
 ## 6. Target the node that makes causal sense
 

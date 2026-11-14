@@ -494,7 +494,7 @@ def build_sources_metadata(
 
     * every source cited by this dataset's 'Source' column. A cell may hold several names
       joined by SOURCE_NAME_SEPARATOR when a value was derived from more than one citation
-      (see data/cork/trace_uuid_sources.py); load_dvc_dataset splits on the same separator
+      (see paths-data models/cork/scripts/trace_uuid_sources.py); load_dvc_dataset splits on the same separator
       to create one DatasetSourceReference each.
     * every dataset-level registry source that applies to this dataset. These are why the
       function can no longer return early when there is no 'Source' column: a dataset whose

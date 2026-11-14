@@ -7,7 +7,7 @@ per-row provenance (`Source`, `Comment`) that survives the round trip into
 
 Until now this was documented only implicitly — the authoritative behaviour lives
 in `upload_new_dataset.py` (`RESERVED_ROW_COLUMNS`, `load_sources_registry`,
-`build_sources_metadata`), and `data/cork/README.md` describes a *different* wide
+`build_sources_metadata`), and paths-data `models/cork/README.md` describes a *different* wide
 format used by the NZP pipeline. This document is the spec for the NZC-style one.
 
 Related: [`manage-datasets-guide.md`](manage-datasets-guide.md) covers the
@@ -113,7 +113,7 @@ and `metric_col`). Two consequences:
   "we need this, here is where to get it".
 
 So giving every metric row of a dimension combination the same `Comment` (as
-`data/cork/make_kpmg_building_heat.py` does) keeps the stored table dense; giving
+paths-data `models/cork/scripts/make_kpmg_building_heat.py` does) keeps the stored table dense; giving
 them different comments costs sparsity but loses nothing.
 
 For **year-specific** comments and sources, use the long format (§"Long format"
@@ -183,7 +183,7 @@ Registry columns:
 | `Datasets` | for a dataset-level source, which datasets it applies to |
 | *anything else* | appended to `Description` as `'<Column>: <value>'` rather than dropped |
 
-Cork's registry is `data/cork/cork_sources.csv`, which carries the extra columns
+Cork's registry is paths-data `models/cork/cork_sources.csv`, which carries the extra columns
 `Attachment`, `Format`, `Licensing`, `Geographic Coverage`, `Update Frequency`,
 `Date Last Updated`, `Updated by` — all folded into the description.
 
@@ -265,7 +265,7 @@ commit.
 
 For flat NZC-style files where every dimension combination lives in one file, use
 `-d plain_csv_wide`, which sets `index_columns` to every column except `Value`,
-`Unit` and `UUID`. See `data/cork/README.md` §"Why plain_csv_wide and not
+`Unit` and `UUID`. See paths-data `models/cork/README.md` §"Why plain_csv_wide and not
 plain_csv" for why including `Value` breaks the round trip.
 
 ## 5. Shipping an empty template
@@ -376,7 +376,7 @@ on the availability binding by mistake.
 - **DB records shadow DVC.** If a `DBDatasetModel` record exists for a dataset
   id, it is loaded instead of the DVC version, so a DVC upload will not be
   visible until the DB record is refreshed or deleted. See
-  `data/cork/README.md` §"Procedure for updating cork-nzc DB datasets".
+  paths-data `models/cork/README.md` §"Procedure for updating cork-nzc DB datasets".
 - **Uploading is not importing.** `upload_new_dataset.py` puts the data in DVC;
   `Source` and `Comment` become `DataSource` links and `DataPointComment` records
   only when `load_dvc_dataset` runs. Until then the provenance is in the dataset

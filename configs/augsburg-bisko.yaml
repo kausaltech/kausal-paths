@@ -83,7 +83,7 @@ params:
   is_visible: false
 # NUTS-3, not NUTS-2: Augsburg is a Kreisfreie Stadt, so DE271 *is* the city. Do not use DE276,
 # the Landkreis Augsburg, which is a different region of comparable size.
-# Read by `data/weather/create_degree_day_factors.py`, which picks the city's column out of the
+# Read by paths-data `modules/weather/scripts/create_degree_day_factors.py`, which picks the city's column out of the
 # European degree-day table. No node reads it. Recorded beside the AGS because it is an
 # identifier of the city.
 #

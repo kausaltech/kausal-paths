@@ -366,7 +366,7 @@ dimensions:
   # KPMG reports agriculture as its own sector; the model carries it inside
   # `other` (cost_type agriculture_afolu). Needed by the KPMG Glidepath
   # reporting view — see docs/building-use-dimension.md and
-  # data/cork/kpmg_reconciliation.md.
+  # paths-data models/cork/docs/kpmg_reconciliation.md.
   - id: agriculture
     label_en: Agriculture
 
@@ -552,7 +552,7 @@ nodes:
     is 1023.7 GWh where KPMG's is 1652.1 GWh, and the model's 353.4 g/kWh factor
     already absorbs that difference. Multiplying model heat energy by the KPMG
     factor in this dataset understates emissions by 38%.
-    See data/cork/kpmg_reconciliation.md 9.1 and
+    See paths-data models/cork/docs/kpmg_reconciliation.md 9.1 and
     docs/building-use-dimension.md 8.4.
   type: simple.AdditiveNode
   quantity: emissions
@@ -751,7 +751,7 @@ nodes:
 # indices overlaid with their own transport and residential analyses — it is not
 # built from an emission-factor trajectory, so there is no KPMG grid EF trend to
 # compare against the model's a41_replace_fossil_electricity. See
-# data/cork/kpmg_error_register.md entry 6.
+# paths-data models/cork/docs/kpmg_error_register.md entry 6.
 #
 # These are reporting views for side-by-side display: is_outcome, and NOT
 # connected to net_emissions. The comparison is deliberately between two
@@ -842,7 +842,7 @@ nodes:
   description: |
     Reproduces the KPMG 2023 BEI treatment of the former Kinsale Road landfill
     (3.381 kt), which is NOT the physically correct treatment. See
-    data/cork/kpmg_error_register.md entries 1 and 3; the multipliers below are
+    paths-data models/cork/docs/kpmg_error_register.md entries 1 and 3; the multipliers below are
     what those entries reverse.
 
     Three methane streams, from cork/local_waste_emissions:
@@ -893,7 +893,7 @@ nodes:
 # Each is a named node reading the published figure from
 # cork/kpmg_inventory_residuals, rather than an adjustment folded into a scaling
 # factor, so the boundary difference stays visible and auditable.
-# See data/cork/kpmg_reconciliation.md §10.
+# See paths-data models/cork/docs/kpmg_reconciliation.md §10.
 #
 # None of these has an activity basis in the inventory, so none can be modelled
 # as activity x emission factor; they are emissions-only by construction and no
@@ -1429,8 +1429,8 @@ nodes:
 
 # -------------- Arup preprocessing: vehicle emission factor cluster --------------
 # Raw data points from the Deliverable 1 Calculation sheet, kept in their own dataset
-# `cork/preprocessing_data_from_arup` (see data/cork/preprocessing_data_from_arup.csv and
-# data/cork/calculation_sheet_inventory.md) rather than folded into the production `cork/*`
+# `cork/preprocessing_data_from_arup` (see paths-data models/cork/datasets/preprocessing_data_from_arup.csv and
+# paths-data models/cork/docs/calculation_sheet_inventory.md) rather than folded into the production `cork/*`
 # datasets. Each calculation step is its own node so the derivation and its sources stay visible.
 # None of these override any existing node -- they feed their result in via `output_nodes` tagged
 # `impute`, which overlays onto the target's own value for exactly the categories this data

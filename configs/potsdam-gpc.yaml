@@ -93,7 +93,7 @@ params:
   is_visible: true
 # NUTS-3, not NUTS-2: Potsdam is a Kreisfreie Stadt, so DE404 *is* the city. Do not use DE40E,
 # Potsdam-Mittelmark, which surrounds it.
-# Read by `data/weather/create_degree_day_factors.py`, which picks the city's column out of the
+# Read by paths-data `modules/weather/scripts/create_degree_day_factors.py`, which picks the city's column out of the
 # European degree-day table. No node reads it.
 - id: nuts_code
   label_en: NUTS-3 code

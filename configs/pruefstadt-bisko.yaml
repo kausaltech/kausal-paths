@@ -78,7 +78,7 @@ params:
   is_visible: false
 # NUTS-3, not NUTS-2: Schwerin is a Kreisfreie Stadt, so DE804 *is* the city. It is the only NUTS-3
 # region in Mecklenburg-Vorpommern that is a single municipality.
-# Read by `data/weather/create_degree_day_factors.py`, which picks the city's column out of the
+# Read by paths-data `modules/weather/scripts/create_degree_day_factors.py`, which picks the city's column out of the
 # European degree-day table. No node reads it. Recorded beside the AGS because it is an
 # identifier of the city.
 #

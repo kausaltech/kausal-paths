@@ -43,7 +43,7 @@ include:
   # the shipped Potsdam placeholder (IDR-1313). Reference: the 1980-2014 mean, 3473 HDD,
   # the same rule the BISKO framework seeds municipalities with, so the values do not change
   # when Bayreuth moves to the framework. Only read when weather correction is switched on,
-  # which BISKO does not permit. Built by kausal-paths data/weather/create_degree_day_factors.py.
+  # which BISKO does not permit. Built by paths-data modules/weather/scripts/create_degree_day_factors.py.
   - from: kommune/witterungsbereinigung
     to: bayreuth/witterungsbereinigung
 
@@ -345,7 +345,7 @@ params:
   is_visible: false
 # NUTS-3, not NUTS-2: Bayreuth is a Kreisfreie Stadt, so DE242 *is* the city. Do not use DE246,
 # the Landkreis Bayreuth, which surrounds it and is larger.
-# Read by `data/weather/create_degree_day_factors.py`, which picks the city's column out of the
+# Read by paths-data `modules/weather/scripts/create_degree_day_factors.py`, which picks the city's column out of the
 # European degree-day table. No node reads it. Recorded beside the AGS because it is an
 # identifier of the city.
 #

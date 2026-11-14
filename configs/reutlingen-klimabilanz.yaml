@@ -76,7 +76,7 @@ params:
   is_customizable: false
   is_visible: false
 # NUTS-3, not NUTS-2: DE141 is the finest region there is here, and it is still not the city.
-# Read by `data/weather/create_degree_day_factors.py`, which picks the city's column out of the
+# Read by paths-data `modules/weather/scripts/create_degree_day_factors.py`, which picks the city's column out of the
 # European degree-day table. No node reads it. Recorded beside the AGS because it is an
 # identifier of the city.
 #
@@ -89,7 +89,7 @@ params:
 # against 118,500 in the town. That is fine for degree days, which are much the same across a
 # Kreis, and it is why this instance is the reason the `population` node reads `lau_code` and
 # not this: a headcount is a sum over an area, so the Kreis figure is not an approximation of
-# the town's but a different number. See data/population/README.md.
+# the town's but a different number. See paths-data modules/population/README.md.
 - id: nuts_code
   label_en: NUTS-3 code
   label_de: NUTS-3-Code

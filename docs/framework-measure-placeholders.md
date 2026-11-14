@@ -187,7 +187,7 @@ Verified behaviour, worth keeping as an acceptance list:
 
 ## 7. Adjacent cleanups
 
-Tracked in `data/TODO.md`:
+Tracked in paths-data `docs/TODO.md`:
 
 - **45** — retire Athens (166 of 291 live `gpc.DatasetNode` entries), then migrate the remaining
   instances off the legacy action classes. Also: the legacy `DatasetNode` branch in this lookup is

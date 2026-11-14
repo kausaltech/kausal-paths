@@ -119,11 +119,11 @@ include:
   # placeholder. Does not change conformity: criterion 5 forbids the correction outright,
   # checked on the `weather_correction` switch (default off), not on these values.
   #
-  # Built by `data/weather/create_degree_day_factors.py --instance mainz-bisko`, which reads
+  # Built by paths-data `modules/weather/scripts/create_degree_day_factors.py --instance mainz-bisko`, which reads
   # the `nuts_code` parameter below (DEB35, the city itself) out of the European degree-day
   # table in `weather/heating_degree_days`. The reference level, 2834 HDD, is the one Mainz's
-  # own Klimaschutzplaner works from and is recorded in `data/weather/city_references.yaml`;
-  # the two series then agree to 2.2 %. See `data/weather/README.md`.
+  # own Klimaschutzplaner works from and is recorded in paths-data `modules/weather/inputs/city_references.yaml`;
+  # the two series then agree to 2.2 %. See paths-data `modules/weather/README.md`.
   - from: kommune/witterungsbereinigung
     to: mainz/witterungsbereinigung
 
@@ -614,14 +614,14 @@ params:
   is_visible: false
 # NUTS-3, not NUTS-2: Mainz is a Kreisfreie Stadt, so DEB35 *is* the city, where DEB3
 # (Rheinhessen-Pfalz) is a region many times its size. Recorded beside the AGS because it
-# is an identifier of the city. Read by `data/weather/create_degree_day_factors.py`, which
+# is an identifier of the city. Read by paths-data `modules/weather/scripts/create_degree_day_factors.py`, which
 # picks the city's column out of the European degree-day table. No node reads it.
 #
 # A city that is not its own Kreis takes the NUTS-3 region containing it, which is sound for
 # degree days and not for anything extensive: the degree days of a Kreis are close to those of
 # the town inside it, but its population is not, because a headcount is a sum over an area
 # rather than a property of the place. `lau_code` below is the municipality itself, and is what
-# the `population` node reads. See data/population/README.md.
+# the `population` node reads. See paths-data modules/population/README.md.
 - id: nuts_code
   label_en: NUTS-3 code
   label_de: NUTS-3-Code

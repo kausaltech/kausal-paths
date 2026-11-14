@@ -8,7 +8,7 @@
 `GenericNode` was built to unify them, and it does — but the model editor draws a node's
 *class* in its GUI, and "GenericNode" tells a modeller nothing about whether the node sums
 or multiplies its inputs. So models should go back to the specific classes wherever the
-specific class can express what the node does (`data/TODO.md` §19).
+specific class can express what the node does (paths-data `docs/TODO.md` §19).
 
 That only works if the specific classes are worth returning to. Today they are not:
 
@@ -204,7 +204,7 @@ dataset cache key, or flipping one would serve a stale frame. *Diff: none, 53 in
 
 **Step 4 — migrate, model by model.** ✅ for **`longmont-dev`**: 64 of its 74 convertible
 nodes now run on the v2 classes, computing byte-identically — 292 comparisons across all
-278 node outputs and action impacts, zero differences. (`data/TODO.md`
+278 node outputs and action impacts, zero differences. (paths-data `docs/TODO.md`
 §19.2 proposed `*bisko` first; `longmont-dev` goes first instead because the bisko models
 are under active edit for a separate project, and a migration diff is only readable
 against a model that is otherwise still.) Capture `test_instance --state-dir` before each
@@ -297,7 +297,7 @@ the conversion. Worth checking for on any node being retyped: a v2 class accepts
 Both `non_additive` tags are the same trap the longmont waste nodes hit — a dataset that is
 the left operand of a multiplication while carrying the node's own unit, so the unit rule
 alone reads it as an addend. `district_heating_fuel_emission_factors` and `final_energy_use`
-are the `1ds+1add+1mul` shape that §19.2 of `data/TODO.md` could not classify from YAML
+are the `1ds+1add+1mul` shape that §19.2 of paths-data `docs/TODO.md` could not classify from YAML
 alone and predicted would need the live graph; it does, and it is a product plus an addend.
 
 `mainz-bisko` carries 22 pre-existing node failures (`Unknown categories in dimension
