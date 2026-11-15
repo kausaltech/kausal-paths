@@ -3,7 +3,7 @@ default_language: de
 supported_languages: [en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 0545d9a375cc8516000505217ef808ae98cf1b56
+  commit: 85c0ce7cb9293a1f16ed0d1e4b61b3fed573146d
   dvc_remote: kausal-s3
 name_de: Treibhausgas-Monitor Mainz (Entwicklung)
 name_en: GHG Monitor Mainz (development)
@@ -48,8 +48,11 @@ features:
 # recursively. Do not run sync_instance_to_db on this instance: it converts it to
 # database-sourced and freezes the include into a snapshot.
 include:
+# allow_override for one action only: `knsv_vegetarische_verpflegung`, which this file replaces
+# by the library action `vegetarian_catering` (see `actions:` below). Any other id clash would
+# also resolve to this file's version silently, so keep this file's own definitions to that one.
 - file: mainz-bisko.yaml
-  allow_override: false
+  allow_override: true
 - file: modules/bisko/model.yaml
   allow_override: true
   dataset_replacements:
@@ -170,6 +173,21 @@ include:
   allow_override: false
 - file: modules/fair_share/value_framework_v0.yaml
   allow_override: false
+# The vegetarian catering library action and its argument (modules/vegetarian_catering/README.md):
+# packages A (vegetarian-only days) and B (vegetarian by default), judged against two value
+# frameworks. It replaces Mainz's own `knsv_vegetarische_verpflegung` here, a trial of the action
+# library on mainz-dev only; mainz-bisko keeps the Mainz action until Lorig has seen this. With
+# package A (the default below) and the KNSV report's 80 % by 2035 it gives the same numbers as
+# the Mainz action. The target path is built by paths-data
+# models/mainz/scripts/create_vegetarian_catering_target.py.
+- file: modules/vegetarian_catering/vegetarian_catering.yaml
+  allow_override: false
+  action_group: verwaltung
+  dataset_replacements:
+  - from: vegetarian_catering/target_share
+    to: mainz/vegetarian_catering_target_share
+  - from: gpc/municipal_balance_activity
+    to: mainz/municipal_balance_activity
 
 #//////  Impact overviews
 
@@ -530,6 +548,34 @@ nodes:
     - year: 2045
       value: 100.0
 
+actions:
+
+# Mainz's own catering action, replaced here by the library action `vegetarian_catering` (see the
+# include). Temporary, mainz-dev only: mainz-bisko keeps the Mainz action until Lorig has seen
+# the library version, and then this override goes. Defined here, it wins over the definition in
+# mainz-bisko.yaml (the include allows overrides). It has no group, so the action list, which hides
+# ungrouped actions, does not show it; it is off in every scenario; and its formula multiplies the
+# shift by zero, so even switched on it cannot count the measure a second time.
+- id: knsv_vegetarische_verpflegung
+  name_de: Vegetarische Verpflegung (Mainzer Fassung, ersetzt)
+  name_en: Vegetarian catering (Mainz version, replaced)
+  description_de: Ersetzt durch die Maßnahme „Vegetarische Verpflegung in Kantinen und bei Veranstaltungen“.
+  description_en: Replaced by the action "Vegetarian catering in canteens and at events".
+  type: formula.FormulaAction
+  quantity: number
+  unit: pcs/a
+  input_dimensions: [ghg_category, municipal_facility_type, emission_source]
+  output_dimensions: [ghg_category, municipal_facility_type, emission_source]
+  input_nodes:
+  - id: vegetarian_catering_meal_shift
+    tags: [shift]
+  params:
+  - id: formula
+    value: 0 * shift
+  output_nodes:
+  - id: municipal_items_purchased
+    hook: true
+
 action_groups:
 
 - id: gebaeude_energie
@@ -576,6 +622,35 @@ action_groups:
 
 #//////  Parameters  ////////////////////////////////////////////////////////////////////////////////////////////////////
 params:
+
+# The two settings of the vegetarian catering library action (modules/vegetarian_catering): which
+# package goes into the balance, and how much of package A's effect package B achieves. The two
+# published estimates are 58 % (field trials) and 9.3 % (scaled to what administrations achieve
+# with nudges). The default package is A, because the KNSV report's measure reaches its target
+# share in full, so the defaults reproduce the Mainz action it replaces. The comparison nodes
+# show both packages regardless.
+- id: vegetarian_catering_keep_meat_dish
+  label_de: 'Vegetarische Verpflegung: Ein Fleischgericht bleibt wählbar (Paket B statt A)'
+  label_en: 'Vegetarian catering: a meat dish stays available (package B instead of A)'
+  value: false
+  is_customizable: true
+  is_visible: true
+- id: vegetarian_catering_default_effect
+  label_de: >-
+    Vegetarische Verpflegung: Wie viel der Wirkung von Paket A erreicht ein vegetarisches
+    Standardangebot (Paket B)? In Feldversuchen gut die Hälfte (58 %), bei breiter Umsetzung
+    durch Verwaltungen eher ein Zehntel (9 %).
+  label_en: >-
+    Vegetarian catering: how much of package A's effect does a vegetarian default (package B)
+    achieve? In field trials somewhat more than half (58 %), when rolled out widely by
+    administrations rather a tenth (9 %).
+  value: 9.3
+  min_value: 0
+  max_value: 100
+  step: 0.1
+  unit: '%'
+  is_customizable: true
+  is_visible: true
 
 # The CO2 price on heating and road fuels from the start of EU ETS2, read by `co2_price_fuels`
 # and `co2_price_fuels_increase`. A parameter rather than an action, because it is an assumption
@@ -1064,8 +1139,12 @@ scenarios:
     value: 0
   # - id: knsv_klimafreundliche_veranstaltungen.selected_number
   #   value: 0
-  - id: knsv_vegetarische_verpflegung.selected_number
-    value: 0
+  # The library action `vegetarian_catering` replaces the Mainz action here (see the include);
+  # the Mainz action is switched off, and inert anyway (see `actions:`).
+  - id: knsv_vegetarische_verpflegung.enabled
+    value: false
+  - id: vegetarian_catering.enabled
+    value: false
 
 # Core scenario 2, "Maßnahmenwirkung Mainz": Business as Usual plus the city's own measures --
 # Masterplan 100 %, the heat plan and the KNSV. Began as "MP100 % + KWP das Gesamtbild", Lorig
@@ -1144,8 +1223,16 @@ scenarios:
     value: 0
   # - id: knsv_klimafreundliche_veranstaltungen.selected_number
   #   value: 0
-  - id: knsv_vegetarische_verpflegung.selected_number
-    value: 0
+  # The library action `vegetarian_catering` replaces the Mainz action here (see the include);
+  # the Mainz action is switched off, and inert anyway (see `actions:`).
+  - id: knsv_vegetarische_verpflegung.enabled
+    value: false
+  - id: vegetarian_catering.enabled
+    value: true
+  - id: vegetarian_catering_keep_meat_dish
+    value: false
+  - id: vegetarian_catering_default_effect
+    value: 9.3
 
 # The scenario the whole Zielpfad block exists for: every measure the balance says is needed,
 # switched on together, without any pair that would count the same quantity twice. It is the
@@ -1229,8 +1316,16 @@ scenarios:
     value: 0
   # - id: knsv_klimafreundliche_veranstaltungen.selected_number
   #   value: 0
-  - id: knsv_vegetarische_verpflegung.selected_number
-    value: 0
+  # The library action `vegetarian_catering` replaces the Mainz action here (see the include);
+  # the Mainz action is switched off, and inert anyway (see `actions:`).
+  - id: knsv_vegetarische_verpflegung.enabled
+    value: false
+  - id: vegetarian_catering.enabled
+    value: true
+  - id: vegetarian_catering_keep_meat_dish
+    value: false
+  - id: vegetarian_catering_default_effect
+    value: 9.3
 
 # # The `zielpfad_2045` package above with the grid on the faster of the two statutory readings -- near
 # # greenhouse-gas neutrality for electricity before 2035 rather than for the whole economy by
