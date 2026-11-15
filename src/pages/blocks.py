@@ -1,12 +1,18 @@
 from __future__ import annotations
 
 from contextlib import nullcontext
+from dataclasses import dataclass
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, cast
 
 import graphene
+from django import forms
 from django.forms import ValidationError
+from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from wagtail import blocks
+from wagtail.admin.telepath import register as register_telepath_adapter
+from wagtail.blocks.struct_block import StructBlockAdapter, StructBlockValidationError
 from wagtail.images.blocks import ImageChooserBlock
 
 from grapple.helpers import register_streamfield_block
@@ -213,6 +219,173 @@ def admin_instance_parameter_choices() -> list[tuple[str, str]]:
     return [(param.global_id, _parameter_choice_label(param)) for param in params]
 
 
+def admin_instance_dimension_choices() -> list[tuple[str, str]]:
+    """Return the dimensions of the instance being edited in the admin, as block choices."""
+    from paths.context import realm_context
+
+    if not realm_context.is_set():
+        return []
+    context = realm_context.get().realm.get_instance().context
+    dims = sorted(context.dimensions.values(), key=lambda dim: str(dim.label).lower())
+    return [(dim.id, f'{dim.label} ({dim.id})') for dim in dims]
+
+
+CATEGORY_CHOICE_SEPARATOR = ':'
+
+
+def admin_instance_category_choices() -> list[tuple[str, list[tuple[str, str]]]]:
+    """
+    Return the categories of the instance being edited in the admin, as block choices grouped by dimension.
+
+    A choice is `<dimension>:<category>`, which is unambiguous because identifiers cannot contain a
+    colon. The admin form shows only the groups and categories of the chosen node (see
+    `ParameterPanelGraphBlock`); the server accepts any, and `clean` checks them against the node.
+    """
+    from paths.context import realm_context
+
+    if not realm_context.is_set():
+        return []
+    context = realm_context.get().realm.get_instance().context
+    dims = sorted(context.dimensions.values(), key=lambda dim: str(dim.label).lower())
+    return [
+        (str(dim.label), [(f'{dim.id}{CATEGORY_CHOICE_SEPARATOR}{cat.id}', str(cat.label)) for cat in dim.categories])
+        for dim in dims
+        if dim.categories
+    ]
+
+
+def _split_category_choices(choices: Iterable[object]) -> list[tuple[str, str]]:
+    pairs: list[tuple[str, str]] = []
+    for choice in choices:
+        # Anything else is a value saved in an older shape of the block; it is ignored, not fatal.
+        if not isinstance(choice, str):
+            continue
+        dim_id, sep, cat_id = choice.partition(CATEGORY_CHOICE_SEPARATOR)
+        if sep and dim_id and cat_id:
+            pairs.append((dim_id, cat_id))
+    return pairs
+
+
+class ParameterPanelGraphFilterType(graphene.ObjectType):
+    """The categories a graph shows of one dimension until the visitor changes the filter."""
+
+    dimension = graphene.String(required=True)
+    categories = graphene.List(graphene.NonNull(graphene.String), required=True)
+
+
+class ParameterPanelGraphType(graphene.ObjectType):
+    """A node graph in a parameter panel, with the defaults the editor chose for it."""
+
+    node_id = graphene.ID(required=True)
+    group_by = graphene.String(description='Dimension to break the graph down by, unless the visitor chooses another.')
+    filters = graphene.List(graphene.NonNull(ParameterPanelGraphFilterType), required=True)
+
+
+@dataclass(frozen=True)
+class ParameterPanelGraphFilterData:
+    dimension: str
+    categories: list[str]
+
+
+@dataclass(frozen=True)
+class ParameterPanelGraphData:
+    node_id: str
+    group_by: str | None
+    filters: list[ParameterPanelGraphFilterData]
+
+
+class ParameterPanelGraphBlock(blocks.StructBlock):
+    """
+    One graph in a parameter panel: a node, and how its graph starts out.
+
+    The break-down dimension and the filters are defaults only. The visitor can change both with the
+    graph's own controls, as on the node page.
+    """
+
+    node = NodeChooserBlock(label=_('Node'))
+    group_by = blocks.ChoiceBlock(
+        # Wagtail evaluates callable choices at render time; the stubs only admit a static list.
+        choices=admin_instance_dimension_choices,  # type: ignore[arg-type]
+        required=False,
+        label=_('Break down by'),
+        help_text=_('Leave empty to use the default dimension of the graph.'),
+    )
+    filters = blocks.MultipleChoiceBlock(
+        choices=admin_instance_category_choices,  # type: ignore[arg-type]
+        required=False,
+        widget=forms.CheckboxSelectMultiple,
+        label=_('Show only these categories'),
+        help_text=_(
+            'The graph starts filtered to the ticked categories; those of different dimensions combine. '
+            'Leave a dimension unticked to show all of it. Visitors can change the filters.'
+        ),
+    )
+
+    class Meta:
+        label = _('Graph')
+
+    def clean(self, value: blocks.StructValue) -> blocks.StructValue:
+        """Refuse a break-down dimension or filter category that the chosen node does not have."""
+        from paths.context import realm_context
+
+        from nodes.models import NodeConfig
+
+        value = super().clean(value)
+        node_config = value.get('node')
+        if not isinstance(node_config, NodeConfig) or not realm_context.is_set():
+            return value
+        context = realm_context.get().realm.get_instance().context
+        node = context.nodes.get(node_config.identifier)
+        if node is None:
+            return value
+        dims = node.output_dimensions
+        errors: list[str] = []
+        group_by = value.get('group_by')
+        if group_by and group_by not in dims:
+            errors.append(str(_('The node has no dimension "%s" to break down by.') % group_by))
+        filters = cast('list[str]', value.get('filters') or [])
+        for dim_id, cat_id in _split_category_choices(filters):
+            dim = dims.get(dim_id)
+            if dim is None:
+                errors.append(str(_('The node has no dimension "%s" to filter by.') % dim_id))
+            elif cat_id not in dim.cat_map:
+                errors.append(
+                    str(_('The dimension "%(dim)s" of the node has no category "%(cat)s".') % {'dim': dim_id, 'cat': cat_id})
+                )
+        if errors:
+            raise StructBlockValidationError(non_block_errors=list(dict.fromkeys(errors)))
+        return value
+
+
+class ParameterPanelGraphBlockAdapter(StructBlockAdapter):
+    """
+    Narrow the graph's choices in the admin form to the chosen node.
+
+    A block's choices are fixed when the form is built, before the editor picks a node, so the
+    narrowing happens in the browser: the script asks `node_graph_options` for the node's dimensions
+    and the categories it has data for, and hides the rest.
+    """
+
+    js_constructor = 'paths.pages.ParameterPanelGraphBlock'
+
+    def js_args(self, block: blocks.Block) -> list[Any]:
+        args = super().js_args(block)
+        meta = args[2]
+        meta['nodeOptionsUrl'] = reverse('pages_node_graph_options')
+        meta['texts'] = {
+            'chooseNode': str(_('Choose a node to see its dimensions and categories.')),
+            'noDimensions': str(_('This node has no dimensions to break down or filter by.')),
+        }
+        return args
+
+    @cached_property
+    def media(self) -> forms.Media:
+        return super().media + forms.Media(js=['pages/js/parameter_panel_graph_block.js'])
+
+
+register_telepath_adapter(ParameterPanelGraphBlockAdapter(), ParameterPanelGraphBlock)
+
+
 @register_streamfield_block
 class ParameterPanelBlock(blocks.StructBlock):
     """
@@ -240,11 +413,22 @@ class ParameterPanelBlock(blocks.StructBlock):
         label=_('Show reset button'),
         help_text=_("Let the visitor return this panel's parameters to their default values."),
     )
+    graphs = blocks.ListBlock(
+        ParameterPanelGraphBlock(),
+        required=False,
+        default=[],
+        label=_('Graphs'),
+        help_text=_(
+            "Graphs shown below the parameters, in this order. They follow the visitor's settings, so they "
+            'change as the parameters do.'
+        ),
+    )
 
     graphql_fields = [
         GraphQLString('title', required=False),
         GraphQLField('parameters', 'params.schema.ParameterInterface', is_list=True, required=True),  # pyright: ignore
         GraphQLBoolean('show_reset', required=True),
+        GraphQLField('node_graphs', ParameterPanelGraphType, is_list=True, required=True),
     ]
 
     class Meta:
@@ -271,6 +455,44 @@ class ParameterPanelBlock(blocks.StructBlock):
             if param is None or not param.is_customizable:
                 continue
             result.append(param)
+        return result
+
+    def node_graphs(self, info: GQLInfo, values: dict[str, Any]) -> list[ParameterPanelGraphData]:
+        """
+        Return the graphs to draw, in the editor's order.
+
+        Only the node identifier and the defaults are returned: the client fetches each graph with its
+        own query, so the page does not wait for the computation, and a parameter change refetches the
+        graphs alone. As for parameters, the served instance may differ from the draft the editor chose
+        from, so a graph whose node it lacks is left out, and so is a filter or break-down dimension
+        the node no longer has.
+        """
+        context = info.context.require_instance().context
+        result: list[ParameterPanelGraphData] = []
+        for graph in values.get('graphs') or []:
+            node_config = graph.get('node')
+            if node_config is None:
+                continue
+            node = context.nodes.get(node_config.identifier)
+            if node is None:
+                continue
+            dims = node.output_dimensions
+            group_by = graph.get('group_by') or None
+            filters: dict[str, list[str]] = {}
+            for dim_id, cat_id in _split_category_choices(graph.get('filters') or []):
+                dim = dims.get(dim_id)
+                if dim is None or cat_id not in dim.cat_map:
+                    continue
+                cats = filters.setdefault(dim_id, [])
+                if cat_id not in cats:
+                    cats.append(cat_id)
+            result.append(
+                ParameterPanelGraphData(
+                    node_id=node.id,
+                    group_by=group_by if group_by in dims else None,
+                    filters=[ParameterPanelGraphFilterData(dimension=d, categories=c) for d, c in filters.items()],
+                )
+            )
         return result
 
 

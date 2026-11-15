@@ -11,6 +11,8 @@ import json
 from typing import TYPE_CHECKING, Any, cast
 from uuid import uuid4
 
+from django.http import Http404
+from django.test import RequestFactory
 from wagtail.models import Locale, Page
 
 import pytest
@@ -20,11 +22,19 @@ from paths.context import RealmContext, realm_context
 from nodes.defs.instance_defs import InstanceModelSpec, YearsSpec
 from nodes.defs.node_defs import NodeSpec, SimpleConfig
 from nodes.defs.port_def import OutputPortDef
+from nodes.dimensions import Dimension
 from nodes.models import NodeConfig, test_instance_registry
 from nodes.scenario import Scenario, ScenarioKind
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory, NodeConfigFactory
 from nodes.units import unit_registry
-from pages.blocks import ParameterPanelBlock, admin_instance_parameter_choices
+from pages.admin_views import node_graph_options
+from pages.blocks import (
+    ParameterPanelBlock,
+    ParameterPanelGraphBlock,
+    admin_instance_category_choices,
+    admin_instance_dimension_choices,
+    admin_instance_parameter_choices,
+)
 from pages.models import InstanceRootPage, OutcomePage
 from params.param import BoolParameter, NumberParameter
 
@@ -43,6 +53,14 @@ query Pages {
                 ... on ParameterPanelBlock {
                     title
                     showReset
+                    nodeGraphs {
+                        nodeId
+                        groupBy
+                        filters {
+                            dimension
+                            categories
+                        }
+                    }
                     parameters {
                         id
                         label
@@ -67,6 +85,14 @@ def panel_config() -> InstanceConfig:
             BoolParameter(local_id='locked', label='Locked', value=False, is_customizable=False),
         ],
         scenarios=[Scenario(id='default', name='Default', kind=ScenarioKind.DEFAULT)],
+        dimensions=[
+            {
+                'id': 'meal',
+                'label': 'Meal',
+                'categories': [{'id': 'meat', 'label': 'Meat'}, {'id': 'vegetables', 'label': 'Vegetables'}],
+            },
+            {'id': 'site', 'label': 'Site', 'categories': [{'id': 'school', 'label': 'School'}]},
+        ],
     )
     ic = InstanceConfigFactory.create(
         identifier=instance.id,
@@ -75,6 +101,8 @@ def panel_config() -> InstanceConfig:
         owner='Test Owner',
         spec=spec,
     )
+    for dim_dict in spec.dimensions:
+        ic.sync_dimension(Dimension.model_validate(dim_dict))
     NodeConfigFactory.create(
         instance=ic,
         identifier='population',
@@ -83,6 +111,17 @@ def panel_config() -> InstanceConfig:
             type_config=SimpleConfig(node_class='nodes.simple.FixedMultiplierNode'),
             output_ports=[OutputPortDef(id=uuid4(), unit=unit_registry.parse_units('cap'), quantity='population', dimensions=[])],
             params=[NumberParameter(local_id='multiplier', label='Multiplier', value=1.0, is_customizable=True)],
+        ),
+    )
+    NodeConfigFactory.create(
+        instance=ic,
+        identifier='meal_emissions',
+        name='Meal emissions',
+        spec=NodeSpec(
+            type_config=SimpleConfig(node_class='nodes.simple.AdditiveNode'),
+            output_ports=[
+                OutputPortDef(id=uuid4(), unit=unit_registry.parse_units('t/a'), quantity='emissions', dimensions=['meal'])
+            ],
         ),
     )
     # Build the runtime from the database rather than the shared test instance.
@@ -122,12 +161,17 @@ def test_choices_are_empty_outside_an_admin_request() -> None:
 def test_the_page_returns_the_chosen_parameters_in_order(client: Client, panel_config: InstanceConfig) -> None:
     from paths.tests.graphql import PathsTestClient
 
+    meals = NodeConfig.objects.get(instance=panel_config, identifier='meal_emissions')
     _outcome_page(
         panel_config,
         {
             'title': 'Your premises',
             'parameter_ids': ['population.multiplier', 'warming_limit', 'population.multiplier'],
             'show_reset': True,
+            'graphs': [
+                {'node': meals.pk, 'group_by': 'meal', 'filters': ['meal:vegetables', 'meal:meat']},
+                {'node': meals.pk, 'group_by': None, 'filters': []},
+            ],
         },
     )
     gql_client = PathsTestClient(client)
@@ -145,18 +189,89 @@ def test_the_page_returns_the_chosen_parameters_in_order(client: Client, panel_c
         ('warming_limit', 'Warming limit'),
     ]
     assert all(p['isCustomizable'] for p in panel['parameters'])
+    # The same node may be graphed twice, with different defaults.
+    assert panel['nodeGraphs'] == [
+        {
+            'nodeId': 'meal_emissions',
+            'groupBy': 'meal',
+            'filters': [{'dimension': 'meal', 'categories': ['vegetables', 'meat']}],
+        },
+        {'nodeId': 'meal_emissions', 'groupBy': None, 'filters': []},
+    ]
 
 
 def test_parameters_the_served_instance_lacks_or_fixes_are_left_out(panel_config: InstanceConfig) -> None:
     # As when the published revision differs from the draft the editor chose from.
-    context = panel_config.get_instance().context
-    info: Any = type('Info', (), {'context': type('Ctx', (), {'require_instance': lambda _: context.instance})()})()
+    info = _info(panel_config)
 
     params = ParameterPanelBlock().parameters(
         info, {'parameter_ids': ['removed', 'locked', 'nonexistent_node.multiplier', 'warming_limit']}
     )
 
     assert [param.global_id for param in params] == ['warming_limit']
+
+
+def _info(panel_config: InstanceConfig) -> Any:
+    context = panel_config.get_instance().context
+    return type('Info', (), {'context': type('Ctx', (), {'require_instance': lambda _: context.instance})()})()
+
+
+def test_graph_defaults_the_served_node_lacks_are_left_out(panel_config: InstanceConfig) -> None:
+    # As when the published revision differs from the draft the editor chose from: a node row the
+    # runtime does not have, and dimensions or categories the node does not have.
+    info = _info(panel_config)
+    meals = NodeConfig.objects.get(instance=panel_config, identifier='meal_emissions')
+    newer = NodeConfigFactory.create(instance=panel_config, identifier='newer', name='Newer')
+
+    graphs = ParameterPanelBlock().node_graphs(
+        info,
+        {
+            'graphs': [
+                {'node': newer, 'group_by': None, 'filters': []},
+                {'node': None, 'group_by': None, 'filters': []},
+                {
+                    'node': meals,
+                    'group_by': 'site',
+                    # A dict is an item of the list the field used to be; it is ignored.
+                    'filters': ['site:school', 'meal:fish', 'meal:meat', 'meal:meat', 'garbled', {'value': 'meal:meat'}],
+                },
+            ]
+        },
+    )
+
+    assert len(graphs) == 1
+    assert graphs[0].node_id == 'meal_emissions'
+    assert graphs[0].group_by is None
+    assert [(f.dimension, f.categories) for f in graphs[0].filters] == [('meal', ['meat'])]
+
+
+def test_a_panel_saved_without_graphs_has_none(panel_config: InstanceConfig) -> None:
+    assert ParameterPanelBlock().node_graphs(_info(panel_config), {'parameter_ids': ['warming_limit']}) == []
+
+
+def test_the_admin_offers_dimensions_and_their_categories(panel_config: InstanceConfig) -> None:
+    with realm_context.activate(RealmContext(realm=panel_config, user=None)):
+        assert admin_instance_dimension_choices() == [('meal', 'Meal (meal)'), ('site', 'Site (site)')]
+        assert admin_instance_category_choices() == [
+            ('Meal', [('meal:meat', 'Meat'), ('meal:vegetables', 'Vegetables')]),
+            ('Site', [('site:school', 'School')]),
+        ]
+
+
+def test_the_admin_form_refuses_dimensions_the_node_lacks(panel_config: InstanceConfig) -> None:
+    from wagtail.blocks import StructBlockValidationError
+
+    meals = NodeConfig.objects.get(instance=panel_config, identifier='meal_emissions')
+    block = ParameterPanelGraphBlock()
+    with realm_context.activate(RealmContext(realm=panel_config, user=None)):
+        block.clean(block.to_python({'node': meals.pk, 'group_by': 'meal', 'filters': ['meal:meat']}))
+
+        for bad in (
+            {'group_by': 'site', 'filters': []},
+            {'group_by': '', 'filters': ['site:school']},
+        ):
+            with pytest.raises(StructBlockValidationError):
+                block.clean(block.to_python({'node': meals.pk, **bad}))
 
 
 def test_the_admin_form_accepts_only_customizable_parameters(panel_config: InstanceConfig) -> None:
@@ -170,3 +285,46 @@ def test_the_admin_form_accepts_only_customizable_parameters(panel_config: Insta
         fixed = block.to_python({'title': '', 'parameter_ids': ['locked'], 'show_reset': True})
         with pytest.raises((StructBlockValidationError, StreamBlockValidationError)):
             block.clean(fixed)
+
+
+def _options(panel_config: InstanceConfig, node_pk: object) -> Any:
+    request = RequestFactory().get('/admin/pages/node-graph-options/', {'node': str(node_pk)})
+    with realm_context.activate(RealmContext(realm=panel_config, user=None)):
+        return node_graph_options(cast('Any', request))
+
+
+def test_the_admin_is_told_the_dimensions_and_categories_of_the_node(panel_config: InstanceConfig) -> None:
+    meals = NodeConfig.objects.get(instance=panel_config, identifier='meal_emissions')
+    population = NodeConfig.objects.get(instance=panel_config, identifier='population')
+
+    response = _options(panel_config, meals.pk)
+    # The node has no input to compute from, so every category of its dimension is offered.
+    assert json.loads(response.content) == {
+        'dimensions': [
+            {
+                'id': 'meal',
+                'label': 'Meal',
+                'categories': [{'id': 'meat', 'label': 'Meat'}, {'id': 'vegetables', 'label': 'Vegetables'}],
+            }
+        ]
+    }
+    assert json.loads(_options(panel_config, population.pk).content) == {'dimensions': []}
+
+
+def test_the_admin_is_told_only_the_categories_the_node_has_data_for(
+    panel_config: InstanceConfig, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from pages import admin_views
+
+    meals = NodeConfig.objects.get(instance=panel_config, identifier='meal_emissions')
+    monkeypatch.setattr(admin_views, '_categories_with_data', lambda _node: {'meal': {'vegetables'}})
+
+    data = json.loads(_options(panel_config, meals.pk).content)
+    assert data['dimensions'][0]['categories'] == [{'id': 'vegetables', 'label': 'Vegetables'}]
+
+
+def test_the_admin_is_not_told_about_other_instances_nodes(panel_config: InstanceConfig) -> None:
+    other = NodeConfigFactory.create()
+    for node_pk in (other.pk, 'abc', ''):
+        with pytest.raises(Http404):
+            _options(panel_config, node_pk)

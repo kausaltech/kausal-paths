@@ -3,11 +3,13 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from django.db.models import Q
+from django.urls import path
 from wagtail import hooks
 from wagtail.snippets.models import register_snippet
 
 from paths.context import realm_context
 
+from pages.admin_views import node_graph_options
 from pages.sitecontent import InstanceSiteContentViewSet
 
 if TYPE_CHECKING:
@@ -35,3 +37,8 @@ def filter_page_chooser_pages(pages: PageQuerySet[Page], request: PathsAdminRequ
 
 
 register_snippet(InstanceSiteContentViewSet)
+
+
+@hooks.register('register_admin_urls')
+def register_node_graph_options_url():
+    return [path('pages/node-graph-options/', node_graph_options, name='pages_node_graph_options')]
