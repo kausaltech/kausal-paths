@@ -26,10 +26,13 @@ pytestmark = pytest.mark.django_db
 
 # The reviewed main revision d5ed3448, with municipal overlap disabled in bisko.
 # Changing the certification model must be deliberate.
+# Re-recorded 2026-11-15 after two changes judged not to affect the certification: comments
+# pointing to setup material that moved from data/ to paths-data (all three files), and bisko's
+# weather-correction label set to the wording of pruefstadt-bisko, the instance certified as 1.3.
 CERTIFICATION_FILES = {
-    'bisko.yaml': '16c01e226dbaf85d9ed8aaa773af0afff609ff7d54369ea18203bc44aed9a657',
-    'pruefstadt-bisko.yaml': '97e0759909c031c02f8afd6589b6e174f565e2303ccc27a3e6f97f23863adbd6',
-    'modules/bisko/model.yaml': '99735d2705ead6ceb007deab27d29b697820e5efc8c7d4282f6f339a318d75e2',
+    'bisko.yaml': '79cbdd845b7b1374ca008325bf7822ea84d549cde13149cc27608f668f22440f',
+    'pruefstadt-bisko.yaml': '94c022d7291104b834c52ff77acf9d62743a3b715c60bfd4ad64499b99e0a431',
+    'modules/bisko/model.yaml': '4074327559ab76f1a1ce9d3fa08f9736380f9f19f686091ba41ab9ebb14426fc',
 }
 
 
