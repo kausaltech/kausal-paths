@@ -3,6 +3,7 @@ from uuid import UUID, uuid3, uuid4
 
 import pytest
 
+from nodes.defs.node_defs import ActionConfig
 from nodes.instance_export_sync import compile_instance_export_from_yaml
 from nodes.instance_loader import InstanceYAMLConfig
 from nodes.instance_parser import InstanceConfigParser, parse_instance_snapshot
@@ -390,6 +391,76 @@ include:
     )
 
     with pytest.raises(TypeError, match='nodes_editable must be a boolean'):
+        InstanceYAMLConfig.load_for_entrypoint(yaml_path)
+
+
+def test_include_action_group_puts_included_actions_in_the_instance_group(tmp_path):
+    (tmp_path / 'module.yaml').write_text(
+        """
+actions:
+- id: ungrouped_action
+  type: simple.AdditiveAction
+  name: Ungrouped action
+  unit: kg/a
+  quantity: mass
+- id: module_grouped_action
+  type: simple.AdditiveAction
+  name: Action the module put in a group of its own
+  unit: kg/a
+  quantity: mass
+  group: module_group
+""".lstrip()
+    )
+    yaml_path = tmp_path / 'test.yaml'
+    yaml_path.write_text(
+        """
+id: test
+default_language: en
+name: Test
+owner: Owner
+target_year: 2030
+reference_year: 2020
+minimum_historical_year: 2010
+action_groups:
+- id: city_group
+  name: City group
+include:
+- file: module.yaml
+  action_group: city_group
+""".lstrip()
+    )
+
+    yaml_config = InstanceYAMLConfig.load_for_entrypoint(yaml_path)
+    assert yaml_config.data is not None
+    # The instance's group replaces whatever the module set, which the module cannot know.
+    assert {a['id']: a['group'] for a in yaml_config.data['actions']} == {
+        'ungrouped_action': 'city_group',
+        'module_grouped_action': 'city_group',
+    }
+
+    snapshot = parse_instance_snapshot(yaml_config.data, instance_uuid=uuid4())
+    groups = set()
+    for node in snapshot.nodes:
+        assert node.spec is not None
+        assert isinstance(node.spec.type_config, ActionConfig)
+        groups.add(node.spec.type_config.group)
+    assert len(groups) == 1
+    assert None not in groups
+
+
+def test_include_action_group_must_be_a_string(tmp_path):
+    (tmp_path / 'module.yaml').write_text('actions: []\n')
+    yaml_path = tmp_path / 'test.yaml'
+    yaml_path.write_text(
+        """
+id: test
+include:
+- file: module.yaml
+  action_group: [city_group]
+""".lstrip()
+    )
+
+    with pytest.raises(TypeError, match='action_group must be a string'):
         InstanceYAMLConfig.load_for_entrypoint(yaml_path)
 
 

@@ -205,6 +205,10 @@ implement a new policy.
   replaces the whole entity, so the copy stops receiving the module's new categories
   and aliases. YAML anchors do not cross files, so a module cannot refer to a
   city's `_palette`, but the city's own anchors work inside the block.
+- A module cannot know a city's action groups, so the city puts the module's actions
+  in one of its own with `action_group: <id>` on the include entry; it replaces any
+  group the module set. Without one, the action list hides an action whenever other
+  actions have groups.
 
 #### Framework System
 - **Framework**: Calculation methodologies (GPC, NZC, etc.)

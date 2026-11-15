@@ -175,6 +175,7 @@ class InstanceYAMLConfig:
         allow_override: bool = False,
         dataset_replacements: list[dict[str, str]] | None = None,
         is_editable: bool | None = None,
+        action_group: str | None = None,
     ) -> None:
         # Create a mapping of old dataset IDs to new ones
         if dataset_replacements is None:
@@ -201,6 +202,7 @@ class InstanceYAMLConfig:
             config_path=config_path,
             allow_override=allow_override,
             is_editable=is_editable,
+            action_group=action_group,
         )
 
     @staticmethod
@@ -250,6 +252,7 @@ class InstanceYAMLConfig:
         config_path: Path | None = None,
         allow_override: bool = False,
         is_editable: bool | None = None,
+        action_group: str | None = None,
     ) -> None:
         by_id = {d['id']: d for d in existing}
         for nc in newconf:
@@ -263,6 +266,8 @@ class InstanceYAMLConfig:
             nc['node_group'] = apply_group
             if is_editable is not None:
                 nc['is_editable'] = is_editable
+            if action_group is not None:
+                nc['group'] = action_group
             if config_path is not None:
                 nc['config_location'] = ConfigLocation(file_path=str(config_path), line=nc.lc.line + 1, column=nc.lc.col)
             existing.append(nc)
@@ -345,6 +350,20 @@ class InstanceYAMLConfig:
         return value
 
     @staticmethod
+    def _get_include_action_group(include: CommentedMap) -> str | None:
+        """
+        Return the including instance's action group for the actions of an include.
+
+        A module cannot know the action groups of the instances that include it, so the
+        instance names the group on the include entry. It replaces any group the module set.
+        """
+        value = include.get('action_group')
+        if 'action_group' in include and not isinstance(value, str):
+            msg = 'Include option action_group must be a string (an action group id)'
+            raise TypeError(msg)
+        return value
+
+    @staticmethod
     def _merge_data_entry(data: dict[str, Any], included: dict[str, Any], dataset_replacements: list[dict[str, str]]) -> None:
         if not (entry := included.get('data_entry')):
             return
@@ -413,6 +432,7 @@ class InstanceYAMLConfig:
             apply_group = iconf.get('node_group', None)
             dataset_replacements = iconf.get('dataset_replacements', [])
             nodes_editable = self._get_include_nodes_editable(iconf)
+            action_group = self._get_include_action_group(iconf)
             ifn = (config_path / Path(iconf['file'])).resolve()
             if not ifn.exists():
                 raise Exception('Include file "%s" not found' % str(ifn))
@@ -454,6 +474,7 @@ class InstanceYAMLConfig:
                 allow_override=allow_override,
                 dataset_replacements=dataset_replacements,
                 is_editable=nodes_editable,
+                action_group=action_group,
             )
 
         self._apply_category_overrides(data.pop('category_overrides', None), dimensions, entrypoint.path)
