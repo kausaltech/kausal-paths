@@ -1,0 +1,699 @@
+# Vegetarian catering -- a library action that carries its own argument.
+#
+# The design is in README.md beside this file; docs/argumentation-framework.md states the
+# principles it demonstrates. Every step is its own node with a one-line formula, and the
+# selection of meal categories happens on the edges, so the chain can be read in the graph:
+#
+#   hot_meals ──► vegetarian_share ──► share_gap ──► conversion_rate ──► meals_moved ──► meal_shift
+#   (city data)   (now)                (to target)   gap / (1 − share)   (per category)   (+ veg, − others)
+#                                                                              │               │
+#                                         saving_full_implementation ◄─────────┘   action ◄────┘
+#                                                    │                    (× 1 for A, × B's effect)
+#                                   emission_reduction (× effectiveness of A and B, under H1 × H2)
+#                                                    │
+#                         share_of_total, value frameworks ──► verdicts
+#
+# The action `vegetarian_catering` acts on the city's `municipal_items_purchased` (a hook,
+# docs/architecture/action-hooks.md) with `meal_shift`: package A in full, or package B at the
+# share of A's effect set by `vegetarian_catering_default_effect`. Nothing else reaches the
+# balance. The chain starts from the city's meal data, not from `municipal_items_purchased`
+# itself, which the action acts on (reading it would be a cycle). So the action does not see
+# a city measure that already shifts meals: such a measure and this action must not be on in
+# the same scenario.
+#
+#   catering_package           vegetarian_days (A) | vegetarian_default (B)
+#   default_effect_hypothesis  H2: field_trials | at_scale  -- how much of A's effect B achieves
+#   meal_factor_set            H1: ifeu_2020 | city_balance -- kg CO2e per hot meal
+#   catering_value_framework   every_tonne_counts | choice_as_limit
+#
+# What the including instance must provide:
+#
+# * `modules/gpc/municipal_balance.yaml`: its dataset `gpc/municipal_balance_activity` (with the
+#   same `dataset_replacements` entry the city gives that module) and the node
+#   `municipal_items_ef`.
+# * `net_emissions`, for the share of the city's total that argument A2 needs, and a scenario
+#   with the id `baseline`.
+# * Its target path, a share of vegetarian hot meals by year starting from its current share,
+#   through `dataset_replacements` of `vegetarian_catering/target_share`.
+# * `vegetarian_catering.enabled: false` in every scenario that sets `all_actions_enabled`,
+#   unless the scenario is meant to include the action.
+# * Values for the global parameters `vegetarian_catering_keep_meat_dish` (bool) and
+#   `vegetarian_catering_default_effect` (%), defined in `params/global_params.py`.
+# * Optionally `action_group: <its group id>` on the include entry, to put the action in one of
+#   its action groups; the action list hides an ungrouped action when other actions have groups.
+#
+# Data: `vegetarian_catering/*`, built by `modules/vegetarian-catering/scripts/
+# create_vegetarian_catering_data.py` in paths-data.
+
+dimensions:
+
+- id: catering_package
+  label_de: Paket
+  label_en: Package
+  categories:
+  - id: vegetarian_days
+    label_de: 'A: rein vegetarische Tage'
+    label_en: 'A: vegetarian-only days'
+  - id: vegetarian_default
+    label_de: 'B: vegetarisch als Standard, Fleisch auf Wunsch'
+    label_en: 'B: vegetarian by default, meat on request'
+
+- id: default_effect_hypothesis
+  label_de: Wirkung des Standardangebots
+  label_en: Effect of the default
+  categories:
+  - id: field_trials
+    label_de: wie in Feldversuchen
+    label_en: as in field trials
+  - id: at_scale
+    label_de: wie bei breiter Umsetzung
+    label_en: as when rolled out widely
+
+- id: meal_factor_set
+  label_de: Emissionsfaktoren der Mahlzeiten
+  label_en: Meal emission factors
+  categories:
+  - id: ifeu_2020
+    label_de: Beispielgerichte des ifeu (2020)
+    label_en: Example dishes by ifeu (2020)
+  - id: city_balance
+    label_de: Faktoren der eigenen Bilanz
+    label_en: Factors of the city's own balance
+
+- id: catering_value_framework
+  label_de: Lesart
+  label_en: Value framework
+  categories:
+  - id: every_tonne_counts
+    label_de: Jede Tonne zählt
+    label_en: Every tonne counts
+  - id: choice_as_limit
+    label_de: Wahlfreiheit als Grenze
+    label_en: Choice as a limit
+
+actions:
+
+- id: vegetarian_catering
+  name_de: Vegetarische Verpflegung in Kantinen und bei Veranstaltungen
+  name_en: Vegetarian catering in canteens and at events
+  description_de: |
+    Die Kantinen und Veranstaltungen der Stadt bieten mehr vegetarische warme Mahlzeiten an,
+    bis ihr Anteil das Ziel der Stadt erreicht. Die Zahl der Mahlzeiten bleibt gleich; es
+    ändert sich, was auf dem Teller liegt.<br/>
+    Es gibt zwei Pakete. <b>A</b> bietet an manchen Tagen kein Fleischgericht an. <b>B</b> macht
+    das vegetarische Gericht zum Standard und lässt ein Fleischgericht auf Wunsch zu. A erreicht
+    das Ziel sicher, nimmt aber eine Wahl weg; B lässt die Wahl und erreicht weniger. Wie viel
+    weniger, ist umstritten: In Feldversuchen erreichte ein vegetarisches Standardangebot gut
+    die Hälfte dessen, was das Weglassen von Fleisch erreicht, bei breiter Umsetzung durch
+    Verwaltungen wirken solche Anstöße erfahrungsgemäß deutlich schwächer.<br/>
+    Ob ein Fleischgericht wählbar bleibt und wie stark ein vegetarisches Standardangebot wirkt,
+    lässt sich in den Einstellungen der Szenarien wählen. Der Vergleich beider Pakete und die
+    Frage, wer welches Paket aus welchen Gründen annehmen kann, stehen auf der Seite „Bewertung
+    der Pakete nach Lesarten“.
+  description_en: |
+    The city's canteens and events offer more vegetarian hot meals, until their share reaches
+    the city's target. The number of meals stays the same; what changes is what is on the
+    plate.<br/>
+    There are two packages. <b>A</b> offers no meat dish on some days. <b>B</b> makes the
+    vegetarian dish the default and allows a meat dish on request. A reaches the target for
+    certain but takes a choice away; B keeps the choice and achieves less. How much less is
+    disputed: in field trials a vegetarian default achieved somewhat more than half of what
+    removing meat achieves, while nudges rolled out by administrations tend to work much more
+    weakly.<br/>
+    Whether a meat dish stays available, and how well a vegetarian default works, can be set
+    in the scenario settings. The comparison of both packages, and who can accept which
+    package for which reasons, are on the page "The packages judged by value framework".
+  type: formula.FormulaAction
+  quantity: number
+  unit: pcs/a
+  input_dimensions: [ghg_category, municipal_facility_type, emission_source]
+  output_dimensions: [ghg_category, municipal_facility_type, emission_source]
+  input_nodes:
+  - id: vegetarian_catering_meal_shift
+    tags: [shift]
+  params:
+  # Package B (a meat dish stays available) achieves the share of package A's shift that
+  # `constant` says; package A achieves all of it.
+  - id: formula
+    value: select_port(condition, constant, 1) * shift
+  - id: condition
+    ref: vegetarian_catering_keep_meat_dish
+  - id: constant
+    ref: vegetarian_catering_default_effect
+  output_nodes:
+  - id: municipal_items_purchased
+    hook: true
+
+nodes:
+
+# ///// From the city's meals to the shift that reaches its target (package A) /////
+
+- id: vegetarian_catering_hot_meals
+  is_editable: false
+  name_de: Warme Mahlzeiten der Stadt
+  name_en: The city's hot meals
+  description_de: |
+    Die warmen Mahlzeiten, die die Stadt in ihren Kantinen und bei Veranstaltungen ausgibt,
+    nach Kostform: mit Fleisch oder Fisch, Mischkost, vegetarisch.
+  description_en: |
+    The hot meals the city serves in its canteens and at events, by type: with meat or fish,
+    mixed, vegetarian.
+  type: generic.GenericNode
+  quantity: number
+  unit: pcs/a
+  input_dimensions: [ghg_category, municipal_facility_type, emission_source]
+  output_dimensions: [ghg_category, municipal_facility_type, emission_source]
+  # The same data and filters as `municipal_items_purchased`, restricted to hot meals.
+  input_datasets:
+  - id: gpc/municipal_balance_activity
+    column: count
+    extend: true
+    filters:
+    - column: energy_carrier
+    - column: vehicle_type
+    - column: scope
+    - dimension: emission_source
+      categories: [meal_hot_meat_or_fish, meal_hot_mixed, meal_hot_vegetarian]
+
+- id: vegetarian_catering_vegetarian_share
+  is_editable: false
+  name_de: Anteil vegetarischer warmer Mahlzeiten
+  name_en: Share of vegetarian hot meals
+  description_de: Wie viele der warmen Mahlzeiten vegetarisch sind.
+  description_en: How many of the hot meals are vegetarian.
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: '%'
+  input_nodes:
+  - id: vegetarian_catering_hot_meals
+    tags: [meals]
+  params:
+  # sum_dim with one argument sums over everything: vegetarian meals over all hot meals.
+  - id: formula
+    value: sum_dim(select_category(meals, emission_source='meal_hot_vegetarian')) / sum_dim(meals)
+
+- id: vegetarian_catering_share_gap
+  is_editable: false
+  name_de: Fehlender Anteil bis zum Ziel
+  name_en: Share still missing to the target
+  description_de: |
+    Um wie viele Prozentpunkte der Anteil vegetarischer warmer Mahlzeiten unter dem Ziel der
+    Stadt für das jeweilige Jahr liegt. Wo er das Ziel schon erreicht, ist der Wert null.
+  description_en: |
+    By how many percentage points the share of vegetarian hot meals lies below the city's target
+    for the year. Where it already meets the target, the value is zero.
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: '%'
+  input_nodes:
+  - id: vegetarian_catering_vegetarian_share
+    tags: [share]
+  input_datasets:
+  - id: vegetarian_catering/target_share
+    tags: [target]
+    column: target_share
+  params:
+  # The target path names a few years; interpolate fills those between, extend the ones after.
+  - id: formula
+    value: max(extend(interpolate(target)) - share, 0)
+
+- id: vegetarian_catering_conversion_rate
+  is_editable: false
+  name_de: Anteil der Fleisch- und Mischkostgerichte, die vegetarisch werden
+  name_en: Share of meat and mixed dishes that become vegetarian
+  description_de: |
+    Damit der Anteil vegetarischer Mahlzeiten das Ziel erreicht, muss dieser Anteil der
+    Gerichte mit Fleisch oder Fisch und der Mischkost vegetarisch werden. Das ist die volle
+    Umsetzung, wie sie Paket A erreicht.
+  description_en: |
+    For the share of vegetarian meals to reach the target, this share of the dishes with meat or
+    fish and of the mixed dishes has to become vegetarian. That is full implementation, as
+    package A achieves it.
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: '%'
+  input_nodes:
+  - id: vegetarian_catering_share_gap
+    tags: [gap]
+  - id: vegetarian_catering_vegetarian_share
+    tags: [share]
+  params:
+  # The missing share of all hot meals, as a share of the meals that are not yet vegetarian.
+  - id: formula
+    value: gap / (1 - share)
+
+- id: vegetarian_catering_meals_moved
+  is_editable: false
+  name_de: Vegetarisch werdende Fleisch- und Mischkostgerichte
+  name_en: Meat and mixed dishes that become vegetarian
+  description_de: |
+    Wie viele Gerichte mit Fleisch oder Fisch und wie viele Mischkostgerichte bei voller
+    Umsetzung (Paket A) durch vegetarische ersetzt werden. Beide Kostformen geben im selben
+    Verhältnis ab.
+  description_en: |
+    How many dishes with meat or fish and how many mixed dishes are replaced by vegetarian ones
+    at full implementation (package A). Both types give up the same share.
+  type: formula.FormulaNode
+  quantity: number
+  unit: pcs/a
+  input_dimensions: [ghg_category, municipal_facility_type, emission_source]
+  output_dimensions: [ghg_category, municipal_facility_type, emission_source]
+  input_nodes:
+  - id: vegetarian_catering_conversion_rate
+    tags: [rate]
+  - id: vegetarian_catering_hot_meals
+    tags: [meat_and_mixed]
+    from_dimensions:
+    - id: emission_source
+      categories: [meal_hot_meat_or_fish, meal_hot_mixed]
+  params:
+  - id: formula
+    value: rate * meat_and_mixed
+
+- id: vegetarian_catering_meal_shift
+  is_editable: false
+  name_de: Verschiebung zwischen den Kostformen
+  name_en: Shift between the types of meal
+  description_de: |
+    Die Veränderung der warmen Mahlzeiten bei voller Umsetzung (Paket A): Was den Gerichten mit
+    Fleisch oder Fisch und der Mischkost abgeht, kommt den vegetarischen hinzu. Die Summe ist
+    null, die Zahl der Mahlzeiten bleibt gleich.
+  description_en: |
+    The change in hot meals at full implementation (package A): what the dishes with meat or
+    fish and the mixed dishes lose, the vegetarian ones gain. The sum is zero; the number of
+    meals stays the same.
+  type: formula.FormulaNode
+  quantity: number
+  unit: pcs/a
+  input_dimensions: [ghg_category, municipal_facility_type, emission_source]
+  output_dimensions: [ghg_category, municipal_facility_type, emission_source]
+  input_nodes:
+  - id: vegetarian_catering_meals_moved
+    tags: [moved]
+  params:
+  # The moved meals, summed into the vegetarian category, minus the same meals where they left.
+  - id: formula
+    value: >-
+      sum_into_cat(moved, emission_source, [meal_hot_meat_or_fish, meal_hot_mixed], meal_hot_vegetarian)
+      - moved
+
+# ///// The comparison: both packages, every factual assumption, side by side /////
+
+- id: vegetarian_catering_meal_emission_factors
+  is_editable: false
+  name_de: Emissionsfaktoren warmer Mahlzeiten nach Quelle
+  name_en: Emission factors of hot meals by source
+  description_de: |
+    Wie viele Treibhausgase eine warme Mahlzeit verursacht, nach Kostform, aus zwei Quellen:
+    den Faktoren, mit denen die Bilanz der Stadt rechnet, und Mittelwerten aus Beispielgerichten
+    einer Studie des ifeu für Deutschland. Die Quellen unterscheiden sich vor allem darin, wie viel
+    eine vegetarische Mahlzeit gegenüber einer mit Fleisch einspart, und davon hängt die Wirkung
+    der Maßnahme ab.
+  description_en: |
+    How much greenhouse gas a hot meal causes, by type of meal, from two sources: the factors
+    the city's balance uses, and means of example dishes from an ifeu study for Germany. The
+    sources differ above all in how much a vegetarian meal saves compared with one with meat,
+    and the action's effect depends on that.
+  type: formula.FormulaNode
+  quantity: emission_factor
+  unit: kg_co2e/pcs
+  input_dimensions: [emission_source, meal_factor_set]
+  output_dimensions: [emission_source, meal_factor_set]
+  input_nodes:
+  - id: municipal_items_ef
+    tags: [city]
+    from_dimensions:
+    - id: emission_source
+      categories: [meal_hot_meat_or_fish, meal_hot_mixed, meal_hot_vegetarian]
+    - id: ghg_category
+      flatten: true
+    - id: scope
+      flatten: true
+    to_dimensions:
+    - id: emission_source
+    - id: meal_factor_set
+      categories: [city_balance]
+  input_datasets:
+  - id: vegetarian_catering/meal_emission_factors
+    tags: [library]
+    column: emission_factor
+  params:
+  # The library factors are dated 2019 (ifeu's reference year) and held constant.
+  - id: formula
+    value: extend(library) + city
+
+- id: vegetarian_catering_saving_full_implementation
+  is_editable: false
+  name_de: Minderung bei voller Umsetzung
+  name_en: Reduction at full implementation
+  description_de: |
+    Um wie viel die Treibhausgase der Verpflegung sinken, wenn das Ziel voll erreicht wird
+    (Paket A): was die ersetzten Gerichte verursacht hätten, abzüglich dessen, was sie als
+    vegetarische Gerichte verursachen. Nach beiden Quellen für die Emissionsfaktoren.
+  description_en: |
+    How much the greenhouse gases of the catering fall if the target is fully reached (package
+    A): what the replaced dishes would have caused, minus what they cause as vegetarian dishes.
+    By both sources of emission factors.
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [meal_factor_set]
+  output_dimensions: [meal_factor_set]
+  input_nodes:
+  - id: vegetarian_catering_meals_moved
+    tags: [moved]
+    from_dimensions:
+    - id: ghg_category
+      flatten: true
+    - id: municipal_facility_type
+      flatten: true
+  - id: vegetarian_catering_meal_emission_factors
+    tags: [factors]
+  params:
+  # What the moved dishes emitted, minus what the same number of vegetarian dishes emits.
+  - id: formula
+    value: >-
+      sum_dim(moved * factors, emission_source)
+      - sum_dim(moved, emission_source) * select_category(factors, emission_source='meal_hot_vegetarian')
+
+- id: vegetarian_catering_emission_reduction
+  is_editable: false
+  name_de: Minderung durch die Pakete
+  name_en: Reduction by the packages
+  description_de: |
+    Um wie viel jedes Paket die Treibhausgase aus der Verpflegung der Stadt senkt, unter jeder
+    Kombination der Annahmen: wie gut ein vegetarisches Standardangebot wirkt, und welche
+    Emissionsfaktoren gelten. Wenn ein Paket unter allen Annahmen etwas mindert, ändert der
+    Streit um die Fakten nichts daran, dass es mindert – wohl aber daran, wie viel.
+  description_en: |
+    How much each package lowers the greenhouse gases of the city's catering, under every
+    combination of the assumptions: how well a vegetarian default works, and which emission
+    factors apply. If a package reduces emissions under every assumption, the dispute about the
+    facts does not change that it reduces them, only by how much.
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [catering_package, default_effect_hypothesis, meal_factor_set]
+  output_dimensions: [catering_package, default_effect_hypothesis, meal_factor_set]
+  input_nodes:
+  - id: vegetarian_catering_saving_full_implementation
+    tags: [full]
+  input_datasets:
+  - id: vegetarian_catering/package_effectiveness
+    tags: [effectiveness]
+    column: effectiveness
+  params:
+  # Effectiveness is the share of package A's effect: 1 for A, the H2 estimates for B.
+  - id: formula
+    value: extend(effectiveness) * full
+
+- id: vegetarian_catering_reduction_share_of_total
+  is_editable: false
+  name_de: Minderung im Verhältnis zu den Emissionen der Stadt
+  name_en: Reduction relative to the city's emissions
+  description_de: |
+    Die Minderung jedes Pakets als Anteil an den gesamten Emissionen der Stadt ohne Maßnahmen.
+    Die Verpflegung der Verwaltung gehört nicht zur Bilanz des Stadtgebiets; der Vergleich zeigt
+    nur die Größenordnung, um die es im Einwand „reine Symbolpolitik“ geht.
+  description_en: |
+    Each package's reduction as a share of the city's total emissions without measures. The
+    administration's catering is not part of the territorial balance; the comparison only shows
+    the order of magnitude the objection "pure symbolism" is about.
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [catering_package, default_effect_hypothesis, meal_factor_set]
+  output_dimensions: [catering_package, default_effect_hypothesis, meal_factor_set]
+  input_nodes:
+  - id: vegetarian_catering_emission_reduction
+    tags: [reduction]
+  - id: net_emissions
+    tags: [emissions]
+  params:
+  - id: formula
+    value: reduction / sum_dim(output_with_scenario(emissions, 'baseline'))
+
+# ///// The value frameworks: which package can whom accept? /////
+
+- id: vegetarian_catering_every_tonne_counts
+  is_editable: false
+  name_de: 'Lesart „Jede Tonne zählt“: mindert das Paket unter allen Annahmen?'
+  name_en: 'Value framework "every tonne counts": does the package reduce under every assumption?'
+  description_de: |
+    Wer meint, dass jede vermiedene Tonne zählt, nimmt ein Paket an, wenn es die Emissionen
+    senkt, und zwar unter jeder Annahme über die strittigen Fakten. 1 heißt angenommen, 0
+    abgelehnt. Die Kette ist lang: vom Paket über die Mahlzeiten zu den Emissionen.
+  description_en: |
+    Whoever holds that every avoided tonne counts accepts a package if it lowers emissions,
+    under every assumption about the disputed facts. 1 means accepted, 0 rejected. The chain is
+    long: from the package through the meals to the emissions.
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [catering_package]
+  output_dimensions: [catering_package]
+  input_nodes:
+  - id: vegetarian_catering_emission_reduction
+    tags: [reduction]
+  params:
+  - id: formula
+    value: min_dim(min_dim(reduction, default_effect_hypothesis), meal_factor_set) > 0
+
+- id: vegetarian_catering_choice_as_limit
+  is_editable: false
+  name_de: 'Lesart „Wahlfreiheit als Grenze“: bleibt ein Fleischgericht wählbar?'
+  name_en: 'Value framework "choice as a limit": does a meat dish stay available?'
+  description_de: |
+    Wer die Wahlfreiheit beim Essen als Grenze sieht, die die Stadt nicht überschreiten darf,
+    nimmt ein Paket nur an, wenn jeden Tag ein Fleischgericht wählbar bleibt. 1 heißt
+    angenommen, 0 abgelehnt. Diese Lesart urteilt über die Maßnahme selbst, nicht über ihre
+    Folgen; ihre Kette hat keine kausalen Schritte.
+  description_en: |
+    Whoever sees the choice of food as a limit the city must not cross accepts a package only if
+    a meat dish stays available every day. 1 means accepted, 0 rejected. This value framework
+    judges the measure itself, not its consequences; its chain has no causal steps.
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [catering_package]
+  output_dimensions: [catering_package]
+  input_datasets:
+  - id: vegetarian_catering/catering_packages
+    tags: [keeps_choice]
+    column: keeps_choice
+  params:
+  - id: formula
+    value: extend(keeps_choice)
+
+- id: vegetarian_catering_verdicts
+  is_editable: false
+  name_de: Bewertung der Pakete nach Lesarten
+  name_en: The packages judged by value framework
+  description_de: |
+    Welche Lesart welches Paket annimmt (1) oder ablehnt (0).<br/>
+    Paket A, rein vegetarische Tage, nimmt nur die Lesart „Jede Tonne zählt“ an: Es ist
+    <b>verhandelbar</b>, und verhandelt wird über die Wahlfreiheit. Paket B, vegetarisch als
+    Standard, nehmen beide Lesarten an: Es ist <b>robust</b>. Die Wahl, die B lässt, wirkt wie
+    ein Ausgleich für die, die ein Fleischverbot ablehnen. Sie kostet Wirkung, und wie viel,
+    ist eine Frage der Fakten (siehe „Minderung durch die Pakete“).
+  description_en: |
+    Which value framework accepts (1) or rejects (0) which package.<br/>
+    Package A, vegetarian-only days, is accepted only by "every tonne counts": it is
+    <b>negotiable</b>, and the negotiation is about choice. Package B, vegetarian by default, is
+    accepted by both: it is <b>robust</b>. The choice B keeps works as compensation for those who
+    reject a ban on meat. It costs effect, and how much is a question of fact (see "Reduction by
+    the packages").
+  type: generic.GenericNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [catering_package, catering_value_framework]
+  output_dimensions: [catering_package, catering_value_framework]
+  input_nodes:
+  - id: vegetarian_catering_every_tonne_counts
+    to_dimensions:
+    - id: catering_package
+    - id: catering_value_framework
+      categories: [every_tonne_counts]
+  - id: vegetarian_catering_choice_as_limit
+    to_dimensions:
+    - id: catering_package
+    - id: catering_value_framework
+      categories: [choice_as_limit]
+
+- id: vegetarian_catering_value_frameworks_accepting
+  is_editable: false
+  name_de: Wie viele Lesarten ein Paket annehmen
+  name_en: How many value frameworks accept a package
+  description_de: |
+    2 heißt robust: Wer eine der beiden Lesarten vertritt, kann das Paket annehmen. 1 heißt
+    verhandelbar, 0 heißt, dass keine der Lesarten es annimmt.
+  description_en: |
+    2 means robust: whoever holds either value framework can accept the package. 1 means
+    negotiable, 0 means that neither value framework accepts it.
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [catering_package]
+  output_dimensions: [catering_package]
+  input_nodes:
+  - id: vegetarian_catering_verdicts
+    tags: [verdicts]
+  params:
+  - id: formula
+    value: sum_dim(verdicts, catering_value_framework)
+
+# ///// Arguments: objections and claims, each attached to the number it is about /////
+#
+# Argument nodes compute nothing (quantity `argument`); the edge only shows what they are about.
+# They will move to output-port links (docs/plans/argument-links-on-output-ports.md).
+
+- id: vegetarian_catering_argument_autonomy
+  is_editable: false
+  name_de: '„Die Stadt hat nicht zu bestimmen, was Menschen essen.“'
+  name_en: '"The city has no business deciding what people eat."'
+  description_de: |
+    Ein Urteil über die Maßnahme selbst, nicht über ihre Folgen: Ihre Kette hat keine kausalen
+    Schritte. Das ist eine gültige Kette, nur eine sehr kurze, und sie zählt als Wert.<br/>
+    Sie muss dieselbe Prüfung bestehen wie jede andere: Sie muss für jeden gelten, der dasselbe
+    tut. Auch der heutige Speiseplan ist eine Entscheidung der Stadt. Wer der Stadt das Recht
+    abspricht, über das Essen zu bestimmen, muss das auch auf den heutigen Speiseplan anwenden.
+    Ernst genommen verlangt das Argument also nicht, nichts zu ändern, sondern die Wahl zu lassen.
+    Paket B tut das.
+  description_en: |
+    A judgement about the measure itself, not its consequences: its chain has no causal steps.
+    It is a valid chain, only a very short one, and it counts as a value.<br/>
+    It has to pass the same test as any other: it must apply to everyone who does the same. The
+    current menu is also the city's decision. Whoever denies the city the right to decide what is
+    eaten must apply that to the current menu too. Taken seriously, the argument does not ask
+    for nothing to change; it asks for the choice to be kept. Package B does that.
+  type: generic.ConstantNode
+  quantity: argument
+  unit: dimensionless
+  params:
+  - id: constant
+    value: 0
+    unit: dimensionless
+  output_nodes:
+  - id: vegetarian_catering_choice_as_limit
+    tags: [ignore_content]
+
+- id: vegetarian_catering_argument_symbolism
+  is_editable: false
+  name_de: '„Das ist reine Symbolpolitik.“'
+  name_en: '"It is pure symbolism."'
+  description_de: |
+    Hinter diesem Satz stehen meist zwei verschiedene Behauptungen, und es lohnt sich zu fragen,
+    welche gemeint ist.<br/>
+    <b>Die Wirkung ist verschwindend klein.</b> Das ist eine Tatsachenbehauptung, und sie trifft
+    zu: Gemessen an den Emissionen der ganzen Stadt mindert die Maßnahme unter jeder Annahme nur
+    einen Bruchteil eines Prozents (siehe „Minderung im Verhältnis zu den Emissionen der Stadt“).
+    <br/>
+    <b>Vorbilder der Stadt bewirken nichts.</b> Das ist eine andere Behauptung, über eine
+    längere Kette: ob Gewohnheiten aus der Kantine nach Hause oder in andere Einrichtungen
+    wandern. Dafür gibt es bisher kaum belastbare Belege, aber auch keine dagegen (siehe das
+    Argument zur Übertragung nach Hause).<br/>
+    Wer die Maßnahme befürwortet, sollte sie also nicht mit den eingesparten Tonnen begründen,
+    sondern mit Werten oder mit der längeren Kette.
+  description_en: |
+    Behind this sentence there are usually two different claims, and it is worth asking which one
+    is meant.<br/>
+    <b>The effect is negligible.</b> That is a factual claim, and it is true: measured against the
+    emissions of the whole city, the measure reduces only a fraction of a per cent under every
+    assumption (see "Reduction relative to the city's emissions").<br/>
+    <b>Examples set by the city achieve nothing.</b> That is a different claim, about a longer
+    chain: whether habits from the canteen travel home or to other institutions. There is little
+    solid evidence for it so far, but none against it either (see the argument on spillover to
+    home).<br/>
+    Whoever supports the measure should therefore not justify it by the tonnes saved, but by
+    values or by the longer chain.
+  type: generic.ConstantNode
+  quantity: argument
+  unit: dimensionless
+  params:
+  - id: constant
+    value: 0
+    unit: dimensionless
+  output_nodes:
+  - id: vegetarian_catering_reduction_share_of_total
+    tags: [ignore_content]
+
+- id: vegetarian_catering_argument_spillover
+  is_editable: false
+  name_de: '„Gewohnheiten aus der Kantine wandern nach Hause.“'
+  name_en: '"Canteen habits carry over to home."'
+  description_de: |
+    Wenn Menschen in der Kantine öfter vegetarisch essen, könnten sie es auch zu Hause tun. Dann
+    wäre die Wirkung ein Vielfaches der hier berechneten. Die Belege sind bisher dünn: eine
+    Befragungsstudie an einem Arbeitsplatz, die solche Übertragung beschreibt, eine
+    Modellrechnung, und eine Übersicht, die für viele Maßnahmen keine dauerhafte Änderung über
+    den Ort der Maßnahme hinaus fand. Das reicht nicht für eine Zahl, deshalb ist die Übertragung
+    hier ein Argument und keine Annahme im Modell. Sie wird eine, sobald eine Studie sie misst.
+  description_en: |
+    If people eat vegetarian more often in the canteen, they might do so at home too. The effect
+    would then be a multiple of the one computed here. The evidence so far is thin: one interview
+    study at a workplace that describes such spillover, one simulation, and a review that found
+    no lasting change beyond the setting of the intervention for many interventions. That is not
+    enough for a number, so spillover is an argument here, not an assumption in the model. It
+    becomes one when a study measures it.
+  type: generic.ConstantNode
+  quantity: argument
+  unit: dimensionless
+  params:
+  - id: constant
+    value: 0
+    unit: dimensionless
+  output_nodes:
+  - id: vegetarian_catering_emission_reduction
+    tags: [ignore_content]
+
+- id: vegetarian_catering_argument_health
+  is_editable: false
+  name_de: '„Weniger Fleisch ist gut für die Gesundheit.“'
+  name_en: '"Eating less meat is good for health."'
+  description_de: |
+    Weniger rotes und verarbeitetes Fleisch ist gut für die Gesundheit; die Deutsche
+    Gesellschaft für Ernährung empfiehlt, deutlich weniger Fleisch zu essen, als in Deutschland
+    üblich ist. Für eine einzelne Mahlzeit in der Kantine lässt sich der Nutzen kaum beziffern,
+    deshalb steht er hier als Argument und nicht als Zahl.
+  description_en: |
+    Less red and processed meat is good for health; the German Nutrition Society recommends
+    eating considerably less meat than is usual in Germany. For a single canteen meal the benefit
+    can hardly be quantified, so it stands here as an argument rather than a number.
+  type: generic.ConstantNode
+  quantity: argument
+  unit: dimensionless
+  params:
+  - id: constant
+    value: 0
+    unit: dimensionless
+  output_nodes:
+  - id: vegetarian_catering_meals_moved
+    tags: [ignore_content]
+
+- id: vegetarian_catering_argument_popularity
+  is_editable: false
+  name_de: '„Die meisten lehnen fleischfreie Tage in der Kantine ab.“'
+  name_en: '"Most people reject meat-free days in canteens."'
+  description_de: |
+    Als 2013 ein fleischfreier Tag in öffentlichen Kantinen vorgeschlagen wurde, lehnte ihn
+    einer Umfrage zufolge eine Mehrheit ab; die genauen Zahlen werden unterschiedlich berichtet.
+    Das betrifft Paket A. Zu einem vegetarischen Standardangebot mit Fleisch auf Wunsch (Paket B)
+    ist keine Umfrage bekannt.<br/>
+    Beliebtheit entscheidet nicht darüber, ob eine Lesart zählt. Sie beschreibt aber, wie viel
+    Widerstand eine Maßnahme erwarten muss, und Widerstand kostet Zeit.
+  description_en: |
+    When a meat-free day in public canteens was proposed in 2013, a majority rejected it
+    according to a poll; the exact figures are reported differently. That concerns package A. No
+    poll on a vegetarian default with meat on request (package B) is known.<br/>
+    Popularity does not decide whether a value framework counts. But it describes how much
+    opposition a measure must expect, and opposition costs time.
+  type: generic.ConstantNode
+  quantity: argument
+  unit: dimensionless
+  params:
+  - id: constant
+    value: 0
+    unit: dimensionless
+  output_nodes:
+  - id: vegetarian_catering_verdicts
+    tags: [ignore_content]

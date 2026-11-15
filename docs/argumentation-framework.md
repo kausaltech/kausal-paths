@@ -151,13 +151,18 @@ political work of using them.
 | Causal models of actions and outcomes | The core of Paths |
 | `hypotheses` dimensions and scenarios for disputed facts | Available; see [`paths-purpose-and-design.md`](paths-purpose-and-design.md) |
 | Argument nodes documenting objections | Available; moving to output ports, see [`plans/argument-links-on-output-ports.md`](plans/argument-links-on-output-ports.md) |
-| Value frameworks with robust / negotiable / rejected verdicts | Implemented for the fair share of the global CO₂ budget, in [`configs/modules/fair_share/`](../configs/modules/fair_share/) |
+| Value frameworks with robust / negotiable / rejected verdicts | Implemented for the fair share of the global CO₂ budget ([`configs/modules/fair_share/`](../configs/modules/fair_share/)) and for vegetarian catering ([`configs/modules/vegetarian_catering/`](../configs/modules/vegetarian_catering/)) |
 | Probabilities over hypotheses, value of information | Not built |
 | Counting how many people hold each value framework | Planned, not built |
 | Comparing verdicts before and after a contribution; a store for contributions | Not built |
 
 ## Where this is developed
 
+* [`configs/modules/vegetarian_catering/`](../configs/modules/vegetarian_catering/): the worked
+  example of this page, and the first action in the action library to carry its own argument.
+  Two packages (vegetarian-only days, and vegetarian by default with meat on request) are judged
+  under factual hypotheses and two value frameworks; the package that keeps the choice is the
+  compensation that turns a negotiable action into a robust one. Its README states the design.
 * [`paths-purpose-and-design.md`](paths-purpose-and-design.md): model philosophy, the
   objection typology (empirical disputes, value conflicts, interests presented as values) and
   the `hypotheses` dimension.

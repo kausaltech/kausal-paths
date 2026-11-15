@@ -505,3 +505,31 @@ class FairShareCooperationThreshold(NumberGlobalParameter):
 
     name = _('Fair share objections: cooperation threshold')
     id = 'fair_share_cooperation_threshold'
+
+
+# The vegetarian catering library action (`configs/modules/vegetarian_catering/`). The comparison
+# nodes show both packages under every assumption; these two choose what goes into the balance.
+
+
+class VegetarianCateringKeepMeatDish(BoolGlobalParameter):
+    """
+    Which package of the vegetarian catering action acts on the balance.
+
+    True is package B, vegetarian by default with a meat dish on request; false is package A,
+    vegetarian-only days, which reaches the city's target share in full.
+    """
+
+    name = _('Vegetarian catering: a meat dish stays available')
+    id = 'vegetarian_catering_keep_meat_dish'
+
+
+class VegetarianCateringDefaultEffect(NumberGlobalParameter):
+    """
+    How much of package A's effect package B achieves, in per cent.
+
+    The two published estimates are about 58 % (field trials of a vegetarian default) and about
+    9 % (the same scaled to what nudges achieve when administrations roll them out).
+    """
+
+    name = _('Vegetarian catering: effect of a vegetarian default')
+    id = 'vegetarian_catering_default_effect'

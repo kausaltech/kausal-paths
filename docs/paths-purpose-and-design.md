@@ -236,7 +236,7 @@ to_dimensions:
 
 **Formula clarity:** Use descriptive tags (e.g. `[baseline]`, `[reduction]`, not `[x]`, `[y]`). Break complex calculations into multiple nodes. Document units in node names when ambiguous.
 
-**Argument nodes:** Connect them to the most directly relevant computational node(s). Use HTML in descriptions for rich documentation. List related nodes, stakeholders, and hypotheses in the description. They can connect to multiple nodes if the objection relates to several. In generic models, use argument nodes proactively to document known empirical disputes and stakeholder concerns from the research literature — this is part of the value generic models provide.
+**Argument nodes:** Name an argument node with the argument itself, usually a short sentence in quotation marks ("Eating less meat is good for health."), not with its topic ("Health"). Connect them to the most directly relevant computational node(s). Use HTML in descriptions for rich documentation. List related nodes, stakeholders, and hypotheses in the description. They can connect to multiple nodes if the objection relates to several. In generic models, use argument nodes proactively to document known empirical disputes and stakeholder concerns from the research literature — this is part of the value generic models provide.
 
 **Naming conventions:** IDs in snake_case; names in sentence case; use single quotes for strings; only quote strings that contain special characters (e.g. `:`, `#`).
 
