@@ -26,7 +26,7 @@ from kausal_common.models.types import PageModelManager
 
 from nodes.blocks import OutcomeBlock
 from nodes.models import InstanceConfig, NodeConfig
-from pages.blocks import DashboardCardBlock, FrameworkLandingBlock
+from pages.blocks import DashboardCardBlock, FrameworkLandingBlock, ParameterPanelBlock
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -324,6 +324,19 @@ class OutcomePage(PathsPage):
     outcome_node_id: int
     lead_title = models.CharField(blank=True, max_length=100, verbose_name=_('Lead title'))
     lead_paragraph = RichTextField(blank=True, verbose_name=_('Lead paragraph'))
+    body = StreamField[StreamValue | None](
+        [
+            ('paragraph', blocks.RichTextBlock(label=_('Paragraph'))),
+            ('parameter_panel', ParameterPanelBlock()),
+        ],
+        blank=True,
+        null=True,
+        verbose_name=_('Body'),
+        help_text=_(
+            'Shown above the outcome graphs. A parameter panel lets visitors change the settings that the graphs '
+            'below are computed with.'
+        ),
+    )
 
     objects: ClassVar[OutcomePageManager] = OutcomePageManager()
     _default_manager: ClassVar[OutcomePageManager]
@@ -333,6 +346,7 @@ class OutcomePage(PathsPage):
         FieldPanel('outcome_node'),
         FieldPanel('lead_title'),
         FieldPanel('lead_paragraph'),
+        FieldPanel('body'),
     ]
 
     graphql_fields = PathsPage.graphql_fields + [
@@ -340,6 +354,7 @@ class OutcomePage(PathsPage):
         GraphQLString('lead_title'),
         GraphQLString('lead_paragraph'),
     ]
+    # `body` is exposed by `pages.schema.OutcomePageType`, which replaces the type grapple would build.
 
     class Meta:
         verbose_name = _('Outcome page')

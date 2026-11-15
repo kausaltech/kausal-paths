@@ -6,6 +6,7 @@ import graphene
 from graphql.error import GraphQLError
 
 from grapple.types.pages import Page as GrapplePageType
+from grapple.types.streamfield import StreamFieldInterface
 
 from paths.graphql_helpers import default_instance, graphql_error_nodes
 
@@ -16,6 +17,8 @@ from .models import OutcomePage, PathsPage
 from .perms import PagePermissionPolicy
 
 if TYPE_CHECKING:
+    from wagtail.blocks import StreamValue
+
     from paths.types import PathsGQLInfo as GQLInfo
 
     from nodes.models import InstanceConfig
@@ -36,12 +39,20 @@ class PathsPageType(GrapplePageType):
 
 
 class OutcomePageType(PathsPageType):
+    # This type replaces the one grapple builds (`monkeypatch_grapple`), so `OutcomePage.graphql_fields`
+    # is not read. Plain model fields are converted by graphene-django, but a StreamField would become
+    # grapple's opaque `GenericStreamFieldInterface` scalar, so `body` is declared here.
     outcome_node = graphene.Field(NodeType, required=True)
+    body = graphene.List(StreamFieldInterface)
 
     @staticmethod
     def resolve_outcome_node(root: OutcomePage, info: GQLInfo) -> Node:
         # The page's own model: a page is served for the instance the operation names.
         return default_instance(info).context.get_node(root.outcome_node.identifier)
+
+    @staticmethod
+    def resolve_body(root: OutcomePage, info: GQLInfo) -> StreamValue | None:
+        return root.body
 
     class Meta:  # pyright: ignore
         model = OutcomePage

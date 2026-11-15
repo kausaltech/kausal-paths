@@ -10,7 +10,7 @@ from wagtail import blocks
 from wagtail.images.blocks import ImageChooserBlock
 
 from grapple.helpers import register_streamfield_block
-from grapple.models import GraphQLField, GraphQLFloat, GraphQLImage, GraphQLInt, GraphQLStreamfield, GraphQLString
+from grapple.models import GraphQLBoolean, GraphQLField, GraphQLFloat, GraphQLImage, GraphQLInt, GraphQLStreamfield, GraphQLString
 from wagtail_color_panel.blocks import NativeColorBlock
 
 from nodes.blocks import NodeChooserBlock
@@ -37,6 +37,7 @@ if TYPE_CHECKING:
     from nodes.node import Node
     from nodes.scenario import Scenario
     from nodes.units import Unit
+    from params.base import Parameter
 
 
 @register_streamfield_block
@@ -185,6 +186,92 @@ def admin_instance_scenario_choices() -> list[tuple[str, str]]:
     return [
         (scenario.id, str(scenario.name)) for scenario in context.scenarios.values() if scenario is not context.custom_scenario
     ]
+
+
+def _parameter_choice_label(param: Parameter[Any, Any]) -> str:
+    label = str(param.label) if param.label is not None else param.local_id
+    if param.node is None:
+        return label
+    return f'{param.node.name}: {label}'
+
+
+def admin_instance_parameter_choices() -> list[tuple[str, str]]:
+    """
+    Return the customizable parameters of the instance being edited in the admin, as block choices.
+
+    Global parameters come first, then node parameters, each sorted by label. A parameter that is
+    not customizable is left out: a visitor could not change it, and `setParameter` refuses it.
+    Outside an admin request there is no instance to ask (see `admin_instance_scenario_choices`).
+    """
+    from paths.context import realm_context
+
+    if not realm_context.is_set():
+        return []
+    context = realm_context.get().realm.get_instance().context
+    params = [param for param in context.get_all_parameters() if param.is_customizable]
+    params.sort(key=lambda param: (param.node is not None, _parameter_choice_label(param).lower()))
+    return [(param.global_id, _parameter_choice_label(param)) for param in params]
+
+
+@register_streamfield_block
+class ParameterPanelBlock(blocks.StructBlock):
+    """
+    A panel of parameters, chosen by the editor, that the visitor can change.
+
+    The panel writes to the visitor's session, as the settings panel does, so a change applies
+    to every page the visitor reads afterwards, and graphs elsewhere on the page follow it. The
+    text shown for each parameter is the parameter's own `description`, so it is written once.
+    """
+
+    title = blocks.CharBlock(required=False, label=_('Title'))
+    parameter_ids = blocks.ListBlock(
+        blocks.ChoiceBlock(
+            # Wagtail evaluates callable choices at render time; the stubs only admit a static list.
+            choices=admin_instance_parameter_choices,  # type: ignore[arg-type]
+            label=_('Parameter'),
+        ),
+        min_num=1,
+        label=_('Parameters'),
+        help_text=_('Only parameters that visitors may change are listed. They are shown in this order.'),
+    )
+    show_reset = blocks.BooleanBlock(
+        required=False,
+        default=True,
+        label=_('Show reset button'),
+        help_text=_("Let the visitor return this panel's parameters to their default values."),
+    )
+
+    graphql_fields = [
+        GraphQLString('title', required=False),
+        GraphQLField('parameters', 'params.schema.ParameterInterface', is_list=True, required=True),  # pyright: ignore
+        GraphQLBoolean('show_reset', required=True),
+    ]
+
+    class Meta:
+        icon = 'cogs'
+        label = _('Parameter panel')
+
+    def parameters(self, info: GQLInfo, values: dict[str, Any]) -> list[Parameter[Any, Any]]:
+        """
+        Return the chosen parameters in the instance the page is served for, in the editor's order.
+
+        Visitors are served the published revision, which may lack a parameter the draft has, or
+        have made it fixed since the page was edited. Such a parameter is left out rather than
+        failing the page; the editor sees the problem when the block is next edited, because the
+        choice is no longer offered.
+        """
+        context = info.context.require_instance().context
+        result: list[Parameter[Any, Any]] = []
+        seen: set[str] = set()
+        for param_id in values.get('parameter_ids') or []:
+            if param_id in seen:
+                continue
+            seen.add(param_id)
+            param = context.get_parameter(param_id, required=False)
+            if param is None or not param.is_customizable:
+                continue
+            result.append(param)
+        return result
 
 
 @register_streamfield_block
