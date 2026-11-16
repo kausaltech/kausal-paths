@@ -14,7 +14,7 @@ import polars as pl
 from common import polars as ppl, qualifiers
 from nodes.calc import convert_to_co2e, extend_last_historical_value_pl
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
-from nodes.defs.node_defs import ActionConfig, FormulaConfig
+from nodes.defs.node_defs import ActionConfig, FormulaConfig, NodeSpec
 from nodes.exceptions import NodeError
 from nodes.units import Quantity, QuantityType, Unit, unit_registry
 from nodes.value_validation import collect_instance_value_violations
@@ -33,6 +33,28 @@ type EvalOutput = PDF | QuantityType | bool
 
 # Tolerance for treating values as logical 0/1 in and()/or() runtime warnings
 LOGICAL_TOLERANCE = 1e-6
+
+
+def _ast_text(node: ast.AST) -> str:
+    """Render a formula fragment back to source text, for error messages."""
+    try:
+        return ast.unparse(node)
+    except Exception:  # a message helper must not mask the real error
+        return type(node).__name__
+
+
+def spec_with_formula(spec: NodeSpec, formula: str) -> NodeSpec:
+    """
+    Return a copy of ``spec`` with ``formula`` as its expression.
+
+    The formula lives only in the type config: ``FormulaConfig.formula``, or
+    ``ActionConfig.formula`` for a formula action. A spec of any other kind has nowhere
+    to hold one, and is refused.
+    """
+    config = spec.type_config
+    if not isinstance(config, FormulaConfig | ActionConfig):
+        raise TypeError(f'A {spec.kind} node has no formula')
+    return spec.model_copy(update={'type_config': config.model_copy(update={'formula': formula})})
 
 
 class EvalVars(NamedTuple):
@@ -83,6 +105,19 @@ class FormulaNode(Node):
             raise NodeError(self, 'FormulaNode requires FormulaConfig')
         return config.formula
 
+    def try_formula(self, formula: str) -> None:
+        """
+        Compute this node with ``formula``, raising whatever the computation raises.
+
+        For checking a candidate before it is saved. The node keeps the candidate
+        afterwards, so call this only on a runtime that is discarded after the check.
+        The node's own cache is bypassed; upstream nodes compute or come from the cache
+        as usual.
+        """
+        self._spec = spec_with_formula(self.spec, formula)
+        self.disable_cache = True
+        self.get_output_pl()
+
     # Use varss instead of vars for variables to avoid shadowing.
     def eval_expression(self, expr: ast.Expression, varss: EvalVars) -> EvalOutput:
         return self.eval_tree(expr.body, varss)
@@ -107,7 +142,14 @@ class FormulaNode(Node):
                 df = df.with_columns(pl.lit(is_forecast).alias(FORECAST_COLUMN))
             assert len(df.metric_cols) == 1
             return df.rename({df.metric_cols[0]: VALUE_COLUMN})
-        return varss.parameters[name.id]
+        if name.id in varss.parameters:
+            return varss.parameters[name.id]
+        available = sorted({*varss.nodes, *varss.datasets, *varss.parameters})
+        raise NodeError(
+            self,
+            'Unknown name "%s" in formula. Names available here: %s'
+            % (name.id, ', '.join(available) if available else 'none (the node has no inputs)'),
+        )
 
     def apply_binom(
         self,
@@ -301,9 +343,11 @@ class FormulaNode(Node):
             ast.Pow: self.apply_pow,
         }
 
+        apply = OPERATIONS.get(type(node.op))
+        if apply is None:
+            raise NodeError(self, 'Operator %s is not supported in formulas' % _ast_text(node))
         left_value = self.eval_tree(node.left, varss)
         right_value = self.eval_tree(node.right, varss)
-        apply = OPERATIONS[type(node.op)]
         return apply(left_value, right_value)
 
     def eval_compare(self, node: ast.Compare, varss: EvalVars) -> EvalOutput:
@@ -322,14 +366,17 @@ class FormulaNode(Node):
         if len(node.comparators) != 1:
             raise NotImplementedError('Multiple comparators are not yet supported')
 
+        apply = OPERATIONS.get(type(node.ops[0]))
+        if apply is None:
+            raise NodeError(self, 'Comparison %s is not supported in formulas' % _ast_text(node))
         left_value = self.eval_tree(node.left, varss)
         right_value = self.eval_tree(node.comparators[0], varss)
-        apply = OPERATIONS[type(node.ops[0])]
         return apply(left_value, right_value)
 
     def eval_call(self, node: ast.Call, varss: EvalVars) -> EvalOutput:
         func_name = node.func
-        assert isinstance(func_name, ast.Name)
+        if not isinstance(func_name, ast.Name):
+            raise NodeError(self, 'Only plain function names can be called in formulas, not %s' % _ast_text(node.func))
         func = func_name.id
 
         # output_with_scenario's node argument must not be evaluated under the active scenario,
@@ -386,7 +433,7 @@ class FormulaNode(Node):
         """Handle custom functions not in PathsExt.OPERATIONS."""
         method_name = self._CUSTOM_FUNC_HANDLERS.get(func)
         if method_name is None:
-            raise NotImplementedError(f'Unknown function: {func}')
+            raise NodeError(self, f'Unknown function "{func}" in formula')
         return getattr(self, method_name)(func, node, varss, df)
 
     def _custom_valid_inputs(self, node: ast.Call, varss: EvalVars) -> PDF:
@@ -864,7 +911,9 @@ class FormulaNode(Node):
             if isinstance(tree, ast_type):
                 return evaluator(tree, varss)
 
-        raise KeyError(tree)
+        if isinstance(tree, ast.UnaryOp):
+            raise NodeError(self, 'Unary operators such as "%s" are not supported in formulas' % _ast_text(tree))
+        raise NodeError(self, 'Expression "%s" is not supported in formulas' % _ast_text(tree))
 
     def _collect_used_node_names(self, tree: ast.AST, varss: EvalVars) -> set[str]:
         """Collect node names that are actually used in the formula AST."""

@@ -2417,6 +2417,7 @@ class NodeConfig(PathsModel[InstanceConfig], EditableInstanceChild, index.Indexe
         related_name='nodes',
         editable=False,
     )
+    instance_id: int
     identifier = IdentifierField(max_length=200)
     is_stale = models.BooleanField(default=False, help_text='Whether the node is stale and should be deleted')
     name = models.CharField(max_length=200, null=True, blank=True)

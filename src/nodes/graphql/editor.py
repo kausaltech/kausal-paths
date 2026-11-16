@@ -5,6 +5,7 @@ Provides queries and mutations for reading and editing DB-sourced
 model instances (NodeConfig, NodeInputPortBinding, ActionGroup, Scenario).
 """
 
+import ast
 import math
 import re
 from dataclasses import dataclass
@@ -66,6 +67,8 @@ from nodes.defs.binding_def import EdgeBindingDef
 from nodes.defs.instance_defs import ActionGroup
 from nodes.defs.node_defs import ActionConfig, FormulaConfig, NodeKind, NodeSpec, PipelineConfig, SimpleConfig, TypeConfig
 from nodes.defs.port_def import InputPortDef, OutputPortDef, pair_input_ports_to_outputs
+from nodes.exceptions import NodeError
+from nodes.formula import FormulaNode, spec_with_formula
 from nodes.graphql.binding_storage import LocalBindingEditor
 from nodes.graphql.bindings import bind_dataset, binding_editor, port_occupants
 from nodes.graphql.constraint_checks import check_binding_change, edge_candidate, require_draft_graph
@@ -1385,6 +1388,60 @@ def _apply_update_node_input(
     _apply_node_data_updates(info, spec, input)
 
 
+def _formula_syntax_error(formula: str) -> str | None:
+    try:
+        ast.parse(formula, '<formula>', mode='eval')
+    except SyntaxError as exc:
+        lines = formula.split('\n')
+        lineno = exc.lineno if exc.lineno and exc.lineno <= len(lines) else len(lines)
+        multiline = len(lines) > 1
+        # A formula that stops short ("a *") is reported at offset 0, which is no column at all.
+        if not exc.offset or exc.offset > len(lines[lineno - 1]):
+            position = f'the end of line {lineno}' if multiline and lineno < len(lines) else 'the end of the formula'
+        else:
+            position = f'line {lineno}, column {exc.offset}' if multiline else f'column {exc.offset}'
+        return f'Syntax error at {position}: {exc.msg}'
+    return None
+
+
+def _describe_compute_failure(exc: BaseException) -> str:
+    """
+    Return the most specific message in an exception chain.
+
+    Node computation wraps the real failure (``NodeComputationError('Error computing
+    node') from e``), so the outermost message alone says nothing a formula author can act
+    on. A ``NodeError`` deeper in the chain already names its node; anything else is
+    prefixed with the outermost message so the user still sees which node failed.
+    """
+    innermost = exc
+    while innermost.__cause__ is not None:
+        innermost = innermost.__cause__
+    message = str(innermost) or type(innermost).__name__
+    if innermost is exc or isinstance(innermost, NodeError):
+        return message
+    return f'{exc}: {message}'
+
+
+def _formula_compute_error(info: gql.Info, ic: InstanceConfig, node_identifier: str, formula: str) -> str | None:
+    """Compute the node with ``formula`` in a fresh draft runtime, discarded afterwards; return the failure, if any."""
+    instance = info.context.require_instance(
+        ic,
+        source=PreferredInstanceSource.DRAFT,
+        tolerate_node_failures=False,
+        refresh=True,
+    )
+    try:
+        node = instance.context.nodes.get(node_identifier)
+        if not isinstance(node, FormulaNode):
+            return f'Node "{node_identifier}" is not a formula node in the draft runtime'
+        node.try_formula(formula)
+    except Exception as exc:  # any failure means the formula does not compute
+        return _describe_compute_failure(exc)
+    finally:
+        info.context.invalidate_runtime_instance(ic, source=PreferredInstanceSource.DRAFT)
+    return None
+
+
 @sb.type
 class NodeEditorMutation:
     instance: sb.Private[InstanceConfig]
@@ -1424,6 +1481,50 @@ class NodeEditorMutation:
             # reflects the committed state.
             nc.refresh_from_db()
             record_change(nc, action='node.update', before=before, after=nc.serializable_data())
+
+        return _resolve_runtime_node(info, nc.instance, nc.pk)
+
+    @gql.mutation(
+        description=(
+            "Replace this formula node's formula. The node is first computed in the draft with the "
+            'new formula; if that fails, nothing is saved and the error says why.'
+        ),
+        graphql_type=AnyNodeType,
+    )
+    @staticmethod
+    def set_formula(
+        info: gql.Info,
+        root: sb.Parent[Me],
+        formula: Annotated[str, sb.argument(description='The formula expression, e.g. "energy * emission_factor".')],
+    ) -> Node:
+        spec = root._current_node_meta(info).spec
+        nc = root.node
+        if not issubclass(node_class_for_spec(spec), FormulaNode):
+            raise GraphQLValidationError(info, f'Node "{nc.identifier}" is not a formula node')
+        resources = info.context.instance_resources
+        assert resources is not None
+        if not NodeMeta.can_edit(
+            resources.node_edit_context(info, root.instance, PreferredInstanceSource.DRAFT),
+            inherited=nc.instance_id != root.instance.pk,
+            node_is_editable=nc.is_editable,
+        ):
+            raise GraphQLValidationError(info, f'The formula of node "{nc.identifier}" is not editable')
+        formula = formula.strip()
+        if not formula:
+            raise GraphQLValidationError(info, 'The formula is empty')
+        problem = _formula_syntax_error(formula)
+        if problem is None:
+            problem = _formula_compute_error(info, root.instance, nc.identifier, formula)
+        if problem is not None:
+            raise GraphQLValidationError(info, problem)
+
+        new_spec = spec_with_formula(spec, formula)
+        with gql_change_operation(info, root.instance, action='node.formula.update'):
+            before = nc.serializable_data()
+            nc.spec = new_spec
+            NodeConfig.objects.filter(pk=nc.pk).update(spec=new_spec)
+            nc.refresh_from_db()
+            record_change(nc, action='node.formula.update', before=before, after=nc.serializable_data())
 
         return _resolve_runtime_node(info, nc.instance, nc.pk)
 
