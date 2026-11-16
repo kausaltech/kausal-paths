@@ -8,6 +8,7 @@ import strawberry as sb
 from django.contrib.contenttypes.models import ContentType
 from graphql.error import GraphQLError
 from wagtail.blocks.stream_block import StreamValue
+from wagtail.fields import StreamField
 from wagtail.rich_text import RichText as WagtailRichText, expand_db_html
 
 import sentry_sdk
@@ -122,7 +123,7 @@ class PipelineConfigType:
     @sb.field(graphql_type=sb.scalars.JSON, description='The steps, in their stored form.')
     @staticmethod
     def operations(root: 'PipelineConfigType') -> list[dict[str, Any]]:
-        model = cast('PipelineConfig', root._original_model)  # type: ignore[attr-defined]
+        model = cast('PipelineConfig', root._original_model)  # type: ignore[attr-defined]  # pyright: ignore[reportAttributeAccessIssue]
         return model.model_dump(mode='json', by_alias=True, exclude_none=True)['operations']
 
 
@@ -585,13 +586,19 @@ class NodeInterface(UserPermissionsMixin):
     def is_action(root: 'Node') -> bool:
         return isinstance(root, ActionNode)
 
-    @sb.field
+    @sb.field(
+        description=(
+            'How the node is computed, generated from its configuration and computation (HTML). '
+            'Null unless the instance shows explanations. Kept apart from the authored description, '
+            'which never contains it.'
+        )
+    )
     @pass_context
     @staticmethod
     def explanation(root: 'Node', context: 'Context') -> str | None:
-        if context.instance.features.show_explanations:
+        if not context.instance.features.show_explanations:
             return None
-        return root.get_explanation()
+        return root.get_explanation() or None
 
     @sb.field(graphql_type=list[VisualizationEntry] | None)
     @staticmethod
@@ -774,20 +781,15 @@ class NodeInterface(UserPermissionsMixin):
                 return markdown.render(desc)
         return None
 
-    @sb.field
-    @pass_context
+    @sb.field(description='The authored long description (HTML). The generated explanation is in `explanation`.')
     @staticmethod
-    def description(root: 'Node', context: 'Context') -> str | None:
+    def description(root: 'Node') -> str | None:
         if root.source_snapshot is not None:
             if root.source_snapshot.description is not None:
                 return expand_db_html(str(root.source_snapshot.description))
-            if context.instance.features.show_explanations:
-                return root.get_explanation()
             return None
         nc = root.db_obj
         if nc is None or not nc.description_i18n:
-            if context.instance.features.show_explanations:
-                return root.get_explanation()
             return None
         return expand_db_html(nc.description_i18n)
 
@@ -799,6 +801,7 @@ class NodeInterface(UserPermissionsMixin):
                 return None
 
             body_field = NodeConfig._meta.get_field('body')
+            assert isinstance(body_field, StreamField)
             return body_field.to_python(root.source_snapshot.body)
         nc = root.db_obj
         if nc is None or not nc.body:
