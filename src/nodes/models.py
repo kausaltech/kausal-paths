@@ -813,7 +813,7 @@ class InstanceConfig(
         # Its port selections protect the nodes and datasets they name, so they go before them.
         self.binding_overrides.all().delete()
         # A queryset delete skips NodeConfig.delete(), so the nodes' datasets go first.
-        NodeConfig.objects.filter(instance=self).delete_related()
+        NodeConfig.objects.get_queryset().filter(instance=self).delete_related()
         self.nodes.all().delete()
 
         # Delete this instance's own dataset graph, but preserve anything shared with another scope.
@@ -1347,7 +1347,7 @@ class InstanceConfig(
             return None
         return self.create_instance_from_revision(rev)
 
-    def create_instance_from_revision(self, rev: Revision) -> Instance | None:
+    def create_instance_from_revision(self, rev: Revision[Any]) -> Instance | None:
         """
         Hydrate an Instance from one of this instance's published revisions, live or not.
 
@@ -2347,7 +2347,7 @@ class EditableInstanceChild(
     upsert rules become relevant (Phase 5+).
     """
 
-    snapshot_model: ClassVar[type[ModelSnapshot]]
+    snapshot_model: ClassVar[type[ModelSnapshot[Any]]]
 
     class Meta:
         abstract = True
@@ -2515,7 +2515,7 @@ class NodeConfig(PathsModel[InstanceConfig], EditableInstanceChild, index.Indexe
 
     objects: ClassVar[NodeConfigManager] = NodeConfigManager()
 
-    snapshot_model: ClassVar[type[ModelSnapshot]] = NodeSnapshot
+    snapshot_model: ClassVar[type[ModelSnapshot[Any]]] = NodeSnapshot
 
     _node: Node | None
     _annotated_port_edge_bindings: list[dict[str, Any]] | None
@@ -2661,7 +2661,7 @@ class NodeConfig(PathsModel[InstanceConfig], EditableInstanceChild, index.Indexe
     @transaction.atomic
     @copy_signature(models.Model.delete)
     def delete(self, **kwargs):
-        type(self).objects.filter(pk=self.pk).delete_related()
+        type(self).objects.get_queryset().filter(pk=self.pk).delete_related()
         return super().delete(**kwargs)
 
     def natural_key(self):
@@ -2747,7 +2747,7 @@ class NodeInputPortBinding(EditableInstanceChild):
     editors write directly and keep positions dense.
     """
 
-    snapshot_model: ClassVar[type[ModelSnapshot]] = InputBindingSnapshot
+    snapshot_model: ClassVar[type[ModelSnapshot[Any]]] = InputBindingSnapshot
 
     instance: FK[InstanceConfig] = models.ForeignKey(
         InstanceConfig,
@@ -3130,7 +3130,9 @@ class InstanceMemberAssignment(models.Model):
     instance_config: FK[InstanceConfig] = models.ForeignKey(
         InstanceConfig, on_delete=models.CASCADE, related_name='member_assignments'
     )
+    instance_config_id: int
     user: FK[User] = models.ForeignKey('users.User', on_delete=models.PROTECT, related_name='instance_memberships')
+    user_id: int
     role = models.CharField(max_length=10, choices=InstanceMemberRole.choices)
     suspended_at = models.DateTimeField(null=True, blank=True)
     retention_until = models.DateField(null=True, blank=True)
@@ -3161,6 +3163,7 @@ class InstanceMemberEvent(models.Model):
     """Append-only audit of membership role and lifecycle changes."""
 
     assignment = models.ForeignKey(InstanceMemberAssignment, on_delete=models.CASCADE, related_name='events')
+    assignment_id: int
     action = models.CharField(max_length=20)
     old_role = models.CharField(max_length=10, choices=InstanceMemberRole.choices, null=True, blank=True)
     new_role = models.CharField(max_length=10, choices=InstanceMemberRole.choices, null=True, blank=True)
