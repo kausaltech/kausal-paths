@@ -481,8 +481,8 @@ confirm nothing went stale.
 
 ## repair_instance_page_slugs
 
-Realigns an instance's **root page slug** with its identifier. Run it after renaming an
-instance — otherwise every subpage of it 404s.
+Realigns an instance's **root page slug** with its identifier, and carries the page
+revisions along with it. Run it after renaming an instance.
 
 ```bash
 python manage.py repair_instance_page_slugs longmont longmont-2021          # plan
@@ -492,42 +492,62 @@ python manage.py repair_instance_page_slugs --all                           # au
 
 Nothing is written without `--apply`.
 
-### Why a rename breaks the subpages
+### Why a rename used to break the subpages
 
-Page routing keys off the *identifier*, not off `InstanceConfig.root_page`.
-`PathsPage.resolve_url_path` strips `^/<instance-id>(-[0-9]+)?/` from the page's
-`url_path`, and `Query.resolve_page` then prepends the translated root page's `url_path`
-to the path it is handed. They agree only while the root slug equals the identifier — and
-nothing keeps them in step, because the slug is set once at page creation
-(`_create_default_pages`) and never revisited.
+Page routing used to key off the *identifier*. `PathsPage.resolve_url_path` stripped
+`^/<instance-id>(-[0-9]+)?/` from the page's `url_path`, and `Query.resolve_page` prepended
+the translated root page's `url_path` to the path it was handed. They agreed only while the
+root slug equalled the identifier — and nothing kept them in step, because the slug was set
+once at page creation (`_create_default_pages`) and never revisited.
 
-The failure is asymmetric, which is what makes it confusing: **the front page keeps
-working** because its path is empty and survives the mismatch, while every child 404s.
-With identifier `longmont` against slug `longmont-dev`, the strip does not match, so
-`resolve_url_path` returns `/longmont-dev/actions` and `resolve_page` looks up
+The failure was asymmetric, which is what made it confusing: **the front page kept
+working** because its path is empty and survives the mismatch, while every child 404ed.
+With identifier `longmont` against slug `longmont-dev`, the strip did not match, so
+`resolve_url_path` returned `/longmont-dev/actions` and `resolve_page` looked up
 `/longmont-dev/longmont-dev/actions/`.
 
-It has bitten twice: `augsburg-bisko` in July 2026 (an admin slug edit) and both Longmont
+It bit twice: `augsburg-bisko` in July 2026 (an admin slug edit) and both Longmont
 instances in September 2026 (a rename).
+
+Both resolvers now derive the prefix from the root page's own `url_path` (`pages/url_paths.py`),
+so a mismatched slug no longer breaks routing. This command is now hygiene rather than a
+fix — with one exception, the revision pass below, which prevents a *different* regression.
 
 ### What it does
 
 - Sets the primary root page's slug to the identifier, and each **translated** root page's
-  to `<identifier>-<n>`. Translations matter: that `(-[0-9]+)?` in the regex is what makes
-  the Spanish site work, and it fails by the same rule. Translations resolve by
-  `translation_key` and locale, never by slug, so renaming them moves no references.
+  to `<identifier>-<n>`. The suffix is no longer a routing requirement, but Wagtail still
+  needs it: `Page._slug_is_available` compares against all siblings regardless of locale,
+  and translated roots are siblings under the Wagtail root, so they cannot share the primary
+  page's slug. Translations resolve by `translation_key` and locale, never by slug, so
+  renaming them moves no references.
 - Moves every page through a **temporary slug first**. Root pages are siblings and Wagtail
   requires the slug to be unique among siblings, so a rename that swaps two identifiers
   cannot be applied in one pass — the retired instance still holds the slug the new one
   needs. This also makes the command idempotent.
 - Rewrites descendants whose `url_path` is already inconsistent with their parent, which is
   what Wagtail leaves behind when rows are orphaned; `Page.save()`'s own cascade only
-  rewrites paths sharing the old prefix.
+  rewrites paths sharing the old prefix. These are worked out **after** the renames, from
+  live rows, because a rename moves the very prefix they are built from.
+- Rewrites `slug` and `url_path` in **every revision** of every page in the repaired trees.
+  `Page.save()` touches live rows only, and the Wagtail edit form populates from the latest
+  revision — so without this, one *Save draft* in the admin puts the old slug back and the
+  instance breaks again with nobody having touched a slug field. On a swap it is worse than
+  a revert: after Longmont's September 2026 rename, `longmont-2021`'s Spanish root still had
+  a revision saying `longmont-1`, by then the live slug of `longmont`'s Spanish root, and
+  publishing it would have put two live siblings on one `url_path`.
+- Scans the translated trees for both of the above, not just the primary-language one.
 - Calls `invalidate_cache()` on each instance, since the GraphQL response cache holds the
   old paths.
 
-Wagtail's redirect handler creates redirects from the old paths as a side effect, so
-existing bookmarks keep working.
+Because of the revision pass, the command has work to do even on an instance whose slugs
+already look right — that is exactly the state a rename done by hand leaves behind. Run it
+with no `--apply` as an audit.
+
+Old paths are **not** redirected. The public site resolves pages only through the GraphQL
+`page(path:)` resolver, which never consults `wagtail.contrib.redirects`, and instance root
+pages are not Wagtail `Site` roots, so the auto-redirect signal handler has no site to
+create redirects for. Links to a pre-rename path stay broken.
 
 ## check_identifiers and rename_dimension_category
 
