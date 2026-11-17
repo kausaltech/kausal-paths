@@ -1,0 +1,209 @@
+# District heating decarbonisation -- action 1 of the heat transition library.
+#
+# The design is in README.md beside this file. The chain, one step per node:
+#
+#   legal path ──► minimum share ──► renewable share ──► fossil share ──► fossil index ──► action
+#   (WPG § 29/31,   (the path the     (from the city's    1 − share        relative to the   acts on
+#    two paths)      instance picks)   share today up                      year of the       district_heating_emissions
+#                                      to the minimum)                     city's share
+#
+# The action scales the emissions of district heating by the fossil part of the network:
+# (1 − share in year t) / (1 − share today), where today is the latest year of the city's own
+# figure, the last year of the share that is not a forecast. It acts on the BISKO
+# module's `district_heating_emissions` (a hook, docs/architecture/action-hooks.md), whichever
+# of BISKO's three routes computed them, and adds `emissions × (index − 1)`. Because the hook
+# reads the node's own value, the action scales whatever district heating the city consumes in
+# that year, including heat that other actions move onto the network.
+#
+# What the including instance must provide:
+#
+# * the BISKO module (`modules/bisko/model.yaml`), whose `district_heating_emissions` the action
+#   acts on;
+# * its network's current renewable share, through `dataset_replacements` of
+#   `heat_transition/district_heating_renewable_share`. Without it the module assumes 0 %, which
+#   overstates the effect for a network that already uses renewable heat;
+# * a value for the global parameter `district_heating_extended_deadlines` (bool), defined in
+#   `params/global_params.py`: false for the statutory path, true for the extended deadlines;
+# * optionally `action_group: <its group id>` on the include entry.
+#
+# Data: `heat_transition/*`, built by `modules/heat-transition/scripts/
+# create_heat_transition_data.py` in paths-data.
+
+dimensions:
+
+- id: district_heating_path
+  label_de: Pfad
+  label_en: Path
+  categories:
+  - id: statutory
+    label_de: Gesetzliche Fristen
+    label_en: Statutory deadlines
+  - id: extended_deadlines
+    label_de: Verlängerte Fristen
+    label_en: Extended deadlines
+
+actions:
+
+- id: district_heating_decarbonisation
+  name_de: Dekarbonisierung der Fernwärme
+  name_en: Decarbonising district heating
+  description_de: |
+    Die Fernwärme wird Schritt für Schritt aus erneuerbaren Energien und unvermeidbarer Abwärme
+    erzeugt statt aus Erdgas, Kohle oder Öl. Alle angeschlossenen Gebäude profitieren davon, ohne
+    dass in ihnen etwas geschehen muss.<br/>
+    Das Wärmeplanungsgesetz schreibt den Weg vor: mindestens 30 % erneuerbare Wärme oder Abwärme
+    ab 2030, 80 % ab 2040 und vollständig klimaneutral ab 2045. Auf Antrag kann die Frist für
+    30 % bis Ende 2034 verlängert werden; das Ziel für 2045 bleibt. Welcher der beiden Pfade gilt,
+    wird in den Szenarioeinstellungen gewählt.<br/>
+    Die Emissionen der Fernwärme sinken im gleichen Verhältnis wie ihr fossiler Anteil. Wie der
+    Betreiber das Ziel erreicht, zum Beispiel mit Geothermie, Großwärmepumpen oder Abwärme, legt
+    sein Transformationsplan fest.
+  description_en: |
+    District heating is generated step by step from renewable energy and unavoidable waste heat
+    instead of natural gas, coal or oil. Every connected building benefits without anything having
+    to change in it.<br/>
+    The Heat Planning Act sets the path: at least 30 % renewable heat or waste heat from 2030, 80 %
+    from 2040, and fully climate-neutral from 2045. On application the 30 % deadline can be
+    extended to the end of 2034; the 2045 goal stays. Which of the two paths applies is chosen in
+    the scenario settings.<br/>
+    District heating emissions fall in the same proportion as its fossil part. How the operator
+    reaches the goal, for example with geothermal energy, large heat pumps or waste heat, is set
+    out in its transformation plan.
+  type: formula.FormulaAction
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [energy_carrier, sector]
+  output_dimensions: [energy_carrier, sector]
+  input_nodes:
+  - id: district_heating_fossil_index
+    tags: [index]
+  params:
+  # `district_heating_emissions` stands for the node's own value, before any action acts on it
+  # (FormulaAction). The index is 1 in the year of the city's share, and a hook never touches the
+  # inventory years in any case (docs/architecture/action-hooks.md, rule 3).
+  - id: formula
+    value: district_heating_emissions * (index - 1)
+  output_nodes:
+  - id: district_heating_emissions
+    hook: true
+
+nodes:
+
+- id: district_heating_legal_renewable_share
+  is_editable: false
+  name_de: Gesetzlicher Mindestanteil erneuerbarer Wärme und Abwärme in Wärmenetzen
+  name_en: Legal minimum share of renewable heat and waste heat in heat networks
+  description_de: |
+    Der Anteil der jährlichen Wärmeerzeugung eines Wärmenetzes, der nach dem
+    Wärmeplanungsgesetz mindestens aus erneuerbaren Energien oder unvermeidbarer Abwärme stammen
+    muss, in den Jahren, ab denen die Vorgaben gelten. Nach den gesetzlichen Fristen sind es 30 %
+    ab 2030, 80 % ab 2040 und 100 % ab 2045. Mit verlängerten Fristen gelten 30 % erst ab 2035; die
+    100 % ab 2045 bleiben.
+  description_en: |
+    The share of a heat network's annual heat generation that, under the Heat Planning Act, must
+    at least come from renewable energy or unavoidable waste heat, in the years from which the
+    requirements apply. Under the statutory deadlines it is 30 % from 2030, 80 % from 2040 and
+    100 % from 2045. With extended deadlines, 30 % applies only from 2035; the 100 % from 2045
+    stays.
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [district_heating_path]
+  output_dimensions: [district_heating_path]
+  input_datasets:
+  - id: heat_transition/district_heating_legal_path
+    tags: [legal]
+    column: renewable_share
+  params:
+  # The milestones only. Interpolating here would give the extended path empty rows for 2030-2034
+  # (the years the statutory path has and it lacks), and the next steps would take those rows as
+  # covered; the straight lines are drawn in `district_heating_renewable_share`.
+  - id: formula
+    value: legal
+
+- id: district_heating_minimum_renewable_share
+  is_editable: false
+  name_de: Mindestanteil erneuerbarer Wärme und Abwärme nach dem gewählten Pfad
+  name_en: Minimum share of renewable heat and waste heat on the chosen path
+  description_de: |
+    Der gesetzliche Mindestanteil nach dem Pfad, der in den Szenarioeinstellungen gewählt ist:
+    gesetzliche oder verlängerte Fristen.
+  description_en: |
+    The legal minimum share on the path chosen in the scenario settings: statutory or extended
+    deadlines.
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: '%'
+  input_nodes:
+  - id: district_heating_legal_renewable_share
+    tags: [legal]
+  params:
+  - id: formula
+    value: select_port(condition, select_category(legal, district_heating_path='extended_deadlines'), select_category(legal, district_heating_path='statutory'))
+  - id: condition
+    ref: district_heating_extended_deadlines
+
+- id: district_heating_renewable_share
+  is_editable: false
+  name_de: Anteil erneuerbarer Wärme und Abwärme in der Fernwärme
+  name_en: Share of renewable heat and waste heat in district heating
+  description_de: |
+    Der Anteil der Fernwärme, der aus erneuerbaren Energien oder unvermeidbarer Abwärme stammt.
+    Er beginnt beim heutigen Anteil des städtischen Netzes und steigt gleichmäßig bis zum
+    gesetzlichen Mindestanteil. Liegt das Netz schon darüber, bleibt es beim heutigen Anteil.
+  description_en: |
+    The share of district heating that comes from renewable energy or unavoidable waste heat. It
+    starts from the city network's share today and rises evenly to the legal minimum. If the
+    network is already above it, the share stays at today's level.
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: '%'
+  input_nodes:
+  - id: district_heating_minimum_renewable_share
+    tags: [minimum]
+  input_datasets:
+  - id: heat_transition/district_heating_renewable_share
+    tags: [current]
+    column: renewable_share
+  params:
+  # The city's share holds the years it covers; the legal milestones the years after; the gap
+  # between them is a straight line. `max` keeps a network that is ahead of the law where it is.
+  - id: formula
+    value: max(backfill(extend(interpolate(prefer_by_year(current, minimum)))), backfill(extend(current)))
+
+- id: district_heating_fossil_share
+  is_editable: false
+  name_de: Fossiler Anteil der Fernwärme
+  name_en: Fossil share of district heating
+  description_de: |
+    Der Anteil der Fernwärme, der noch aus fossilen Brennstoffen erzeugt wird.
+  description_en: |
+    The share of district heating that is still generated from fossil fuels.
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: '%'
+  input_nodes:
+  - id: district_heating_renewable_share
+    tags: [renewable]
+  params:
+  - id: formula
+    value: 1 - renewable
+
+- id: district_heating_fossil_index
+  is_editable: false
+  name_de: Fossiler Anteil der Fernwärme im Verhältnis zu heute
+  name_en: Fossil share of district heating relative to today
+  description_de: |
+    Der fossile Anteil der Fernwärme, geteilt durch seinen heutigen Wert, also den Wert im
+    letzten Jahr, für das die Stadt ihren Anteil angegeben hat. Er gibt an, auf welchen Bruchteil
+    die Emissionen der Fernwärme sinken.
+  description_en: |
+    The fossil share of district heating, divided by its value today, that is, in the latest year
+    for which the city has given its share. It gives the fraction to which district heating
+    emissions fall.
+  type: generic.GenericNode
+  quantity: fraction
+  unit: dimensionless
+  input_nodes:
+  - id: district_heating_fossil_share
+    tags: [ratio_to_last_historical_value]

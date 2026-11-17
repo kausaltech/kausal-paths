@@ -507,6 +507,22 @@ class FairShareCooperationThreshold(NumberGlobalParameter):
     id = 'fair_share_cooperation_threshold'
 
 
+# The heat transition library actions (`configs/modules/heat_transition/`).
+
+
+class DistrictHeatingExtendedDeadlines(BoolGlobalParameter):
+    """
+    Which legal path district heating decarbonisation follows.
+
+    False is the statutory path of the Heat Planning Act: 30 % renewable heat or waste heat from
+    2030, 80 % from 2040, 100 % from 2045. True applies the extensions of § 29(2): 30 % from 2035,
+    then 100 % from 2045.
+    """
+
+    name = _('District heating: extended legal deadlines')
+    id = 'district_heating_extended_deadlines'
+
+
 # The vegetarian catering library action (`configs/modules/vegetarian_catering/`). The comparison
 # nodes show both packages under every assumption; these two choose what goes into the balance.
 
