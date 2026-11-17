@@ -7088,7 +7088,8 @@ scenarios:
   - id: parameter_petrol_price.enabled
     value: true
 
-- id: roadmap
+- id: default
+  default: true
   name: Hiilineutraali Tampere 2030 -tiekartta
   name_en: Carbon-neutral Tampere 2030 roadmap
   params:
@@ -7129,8 +7130,7 @@ scenarios:
   - id: parameter_petrol_price.enabled
     value: true
 
-- id: default
-  default: true
+- id: roadmap_plus
   name: Hiilineutraali Tampere 2030 -tiekartta+
   name_en: Carbon-neutral Tampere 2030 roadmap+
   all_actions_enabled: true
