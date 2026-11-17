@@ -3,7 +3,7 @@ default_language: de
 supported_languages: [en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 12d1ca90394abe1daa989403e224745b92fe2640
+  commit: 920b7635ea7bdece77be26e527464e85470f0b36
   dvc_remote: kausal-s3
 name_de: Schwerin Klima-Monitor-BISKO
 name_en: Schwerin Climate Monitor BISKO
@@ -31,6 +31,16 @@ include:
     to: schwerin/historical_emissions
   - from: kommune/verkehrsleistung_personen
     to: schwerin/passenger_kilometers
+# Heat transition library, action 1 (modules/heat_transition/README.md). The current renewable
+# share of Schwerin's network comes from the municipal heat plan; see paths-data
+# models/schwerin/scripts/create_heat_transition_data.py.
+# Commented out (#HT#) until heat_transition/* and schwerin/district_heating_renewable_share are
+# uploaded and dataset_repo.commit is bumped; then: sed -i '' 's/^#HT#//' configs/schwerin-bisko.yaml
+- file: modules/heat_transition/district_heating_decarbonisation.yaml
+  allow_override: false
+  dataset_replacements:
+  - from: heat_transition/district_heating_renewable_share
+    to: schwerin/district_heating_renewable_share
 
 #//////  Parameters  ////////////////////////////////////////////////////////////////////////////////////////////////////
 params:
@@ -38,6 +48,16 @@ params:
 - id: weather_correction
   label_de: Witterungsbereinigung durchführen?
   label_en: Perform weather correction?
+  value: false
+  is_customizable: true
+  is_visible: true
+# District heating decarbonisation (modules/heat_transition): false follows the statutory
+# deadlines of the Heat Planning Act, true the extensions of WPG § 29(2). Schwerin's network
+# runs largely on gas combined heat and power, which may qualify for an extension; the
+# utility's transformation plan (due 2027) will tell.
+- id: district_heating_extended_deadlines
+  label_de: 'Fernwärme: verlängerte Fristen des Wärmeplanungsgesetzes (30 % erst ab 2035)'
+  label_en: 'District heating: extended deadlines of the Heat Planning Act (30 % only from 2035)'
   value: false
   is_customizable: true
   is_visible: true
