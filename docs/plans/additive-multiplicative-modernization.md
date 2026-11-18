@@ -2,6 +2,7 @@
 
 *Produced by Claude Opus 5.0 on 2026-08-15.*
 *Version 2 produced by Claude Opus 5.0 on 2026-08-16.*
+*Version 3 produced by Claude Opus 5.5 on 2026-11-17.*
 *Responsible: Jouni Tuomisto.*
 
 `AdditiveNode` and `MultiplicativeNode` are the oldest node classes in the codebase.
@@ -304,6 +305,45 @@ alone and predicted would need the live graph; it does, and it is a product plus
 column 'road_type': total`, from `bisko/energy_shares`) that predate this work and are
 unchanged by it. `reutlingen-klimabilanz` has no local `InstanceConfig` and was not tested.
 
+### The BISKO 2.0 template
+
+Converted 2026-11-17 in `configs/modules/bisko-base/`, before any city depends on the
+template, because every change after that costs a template publish and an upgrade of each
+dependent city. The certified 1.3 module (`configs/modules/bisko/model.yaml`) is frozen and was
+not touched.
+
+The August migration converted `GenericNode`s to the v2 classes and left nodes that were
+already on the v1 classes alone. That left twelve v1 `AdditiveNode`s here: ten in `model.yaml`
+(`net_emissions`, `net_emissions_by_energy_carrier`, `total_final_energy_use`,
+`transport_energy`, `road_transport_energy_bisko`, `road_transport_energy_computed_by_road_type`,
+three bus-mileage nodes and `population`), and `population` and `population_own` in
+`population-defaults.yaml`. All twelve are now `AdditiveNode2`. `stationary_emissions`, a
+`GenericNode` with `operations: multiply,add`, is now `MultiplicativeNode2`.
+
+The two population datasets needed `extend: true`, which v1 applied implicitly, and
+`interpolate: false`. The second is a choice, not a migration artefact. GISCO has no 2013 value
+for Schwerin, which the v2 default would have filled, and `configs/bisko-base.yaml` says a year
+missing from the population series should drop out of the per-capita figures rather than be
+divided by a guess.
+
+What stays:
+
+* `weather_correction` and `quality_criteria` stay `GenericNode`s. Both rely on `extend_all`,
+  which reaches back to `minimum_historical_year`; a binding's `backfill` only fills null rows
+  that already exist. `weather_correction` also needs the `do_correction` switch.
+* The 12 `DataAvailabilityNode`s are a subclass of v1 `AdditiveNode` in Python, but they replace
+  `compute()` entirely and take only `allowed_parameters` from it. They are not sums, their
+  class name says what they do, and changing their base would also touch the certified 1.3
+  module. Their base class belongs to step 5.
+
+Verified by comparing every node output, keyed by index, before and after, in both scenarios,
+from YAML: `bisko-base`, 222 of 222 identical (the template's data is mostly empty), and
+`schwerin-bisko` with its include temporarily pointed at the 2.0 module, 232 of 232 identical. That
+second instance is the real test: a city's data run through the 2.0 module, which no instance
+does yet. Six data-quality nodes fail on both sides with `Unknown qualifier 'bisko_quality'`,
+because the quality catalogue is not provisioned on the database used. The change reaches the
+stored template only through `setup_bisko --sync-template`.
+
 ### What is left
 
 - Migrate the remaining models; the classifier runs against any loaded instance.
@@ -317,12 +357,15 @@ unchanged by it. `reutlingen-klimabilanz` has no local `InstanceConfig` and was 
 
 ## 7. Verification
 
+`tools/parse_oracle.py`, named in step 3 above, was retired in `069a0c17` (September 2026):
+the parser is now the only producer of stored specs, so there is no second path to compare
+with.
+
 ```bash
 python -m pytest --reuse-db nodes/tests/test_add_multiply_semantics.py \
                             nodes/tests/test_operands.py \
                             nodes/tests/test_dataset_binding_flags.py
 python -m pytest --reuse-db nodes/ common/
-python tools/parse_oracle.py -i <instance>                       # parse == export
 python manage.py test_instance --state-dir <dir> --store         # before a step
 python manage.py test_instance --state-dir <dir> --compare       # after it
 ```

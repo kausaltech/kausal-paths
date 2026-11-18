@@ -201,7 +201,7 @@ nodes:
     The fossil share of district heating, divided by its value today, that is, in the latest year
     for which the city has given its share. It gives the fraction to which district heating
     emissions fall.
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: fraction
   unit: dimensionless
   input_nodes:

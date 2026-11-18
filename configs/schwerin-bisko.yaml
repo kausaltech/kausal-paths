@@ -34,8 +34,6 @@ include:
 # Heat transition library, action 1 (modules/heat_transition/README.md). The current renewable
 # share of Schwerin's network comes from the municipal heat plan; see paths-data
 # models/schwerin/scripts/create_heat_transition_data.py.
-# Commented out (#HT#) until heat_transition/* and schwerin/district_heating_renewable_share are
-# uploaded and dataset_repo.commit is bumped; then: sed -i '' 's/^#HT#//' configs/schwerin-bisko.yaml
 - file: modules/heat_transition/district_heating_decarbonisation.yaml
   allow_override: false
   dataset_replacements:

@@ -3,10 +3,9 @@
 *Produced by Claude Opus 5.5 on 2026-11-17.*
 *Responsible: Jouni Tuomisto.*
 
-**Status (17 November 2026):** action 1, district heating decarbonisation, is built and verified
-against a scratch copy of the dataset repository. Its datasets are not yet uploaded, and
-`schwerin-bisko`, the first city to take it, has the include commented out until they are
-(`#HT#`). The other actions are proposals. The analysis they come from is paths-data
+**Status (18 November 2026):** action 1, district heating decarbonisation, is built, its datasets
+are uploaded, and `schwerin-bisko` is the first city to include it. The other actions are
+proposals. The analysis they come from is paths-data
 `models/schwerin/docs/heat-plan-actions.md`.
 
 Library actions for the heat transition in German BISKO cities. A city's heat plan (*kommunale

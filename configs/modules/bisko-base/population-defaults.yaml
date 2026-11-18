@@ -41,7 +41,7 @@ nodes:
     Published years are interpolated linearly and the last forecast value is held constant.
     Association forecasts use member shares from their latest common observed year.
     Municipal edits supersede defaults; data-point citations preserve their source and derivation.
-  type: simple.AdditiveNode
+  type: simple.AdditiveNode2
   quantity: population
   unit: cap
   input_nodes:
@@ -52,10 +52,14 @@ nodes:
   is_visible: false
   name_de: Einwohnerzahl der Kommune
   name_en: Municipal population
-  type: simple.AdditiveNode
+  type: simple.AdditiveNode2
   quantity: population
   unit: cap
   input_datasets:
   - id: kommune/bevoelkerung
+    extend: true
+    # No gap filling: a year the population series lacks drops out of the per-capita figures
+    # (see `normalizations` in configs/bisko-base.yaml) rather than being divided by a guess.
+    interpolate: false
     column: population
     binding_owner: instance
