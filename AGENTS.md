@@ -269,6 +269,20 @@ full rationale. In brief:
   `dict[str, Any]` unless that leads to too much repetition or the dict shape
   is defined in a third-party package.
 
+#### Error handling
+- Never silently discard invalid input. When code tolerates invalid data by
+  skipping all or part of it (e.g., dropping an invalid list item while still
+  processing the rest of the list), report it to Sentry so we become aware of
+  the problem. Use a fixed message so the events group into one issue, and
+  pass the offending data as extra context:
+  ```python
+  for item in items:
+      if not is_valid(item):
+          sentry_sdk.capture_message('Skipping invalid item', level='warning', extras={'item': item})
+          continue
+      process(item)
+  ```
+
 #### Ruff & TYPE_CHECKING imports
 - Ruff config lives in `kausal_common/configs/ruff.toml`
 - When a base class or decorator causes ruff's `TC004` rule to incorrectly
