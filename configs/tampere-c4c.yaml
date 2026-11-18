@@ -1637,7 +1637,6 @@ nodes:
       value: ii22
   output_nodes:
   - id: local_train_emissions
-  - id: tram_emissions
 
 - id: onroad_transportation_electricity_factors
   name: On-road transport electricity consumption per kilometer
@@ -1656,6 +1655,24 @@ nodes:
     - column: ghg
     - column: cost_type
     - column: sector
+
+- id: rail_transportation_electricity_factors
+  name: Rautatieliikenteen sähkönkulutuskertoimet
+  name_en: Rail transportation electricity factors
+  type: simple.AdditiveNode
+  quantity: energy_factor
+  unit: kWh/vkm
+  input_dimensions: [vehicle_type, energy_carrier, scope]
+  output_dimensions: [vehicle_type, energy_carrier, scope]
+  input_datasets:
+  - id: tampere/other_transportation
+    column: energy_factor
+    dropna: true
+    forecast_from: 2024
+    filters:
+    - column: sector
+      value: ii22
+    - column: ghg
 
 - id: onroad_transportation_fuel_factors
   name: On-road transport fuel consumption per kilometer
@@ -2346,12 +2363,46 @@ nodes:
     - column: ghg
     - dimension: vehicle_type
       categories: [trams]
-  output_nodes:
-  - id: tram_emissions
+
+- id: tram_electricity_consumption
+  name: Ratikkaliikenteen sähkön kulutus
+  name_en: Tram electricity consumption
+  type: simple.MultiplicativeNode
+  quantity: energy
+  unit: kWh/a
+  input_dimensions: [energy_carrier, vehicle_type, scope]
+  output_dimensions: [energy_carrier, vehicle_type, scope]
+  input_nodes:
+  - id: tram_kilometers
+  - id: rail_transportation_electricity_factors
+
+- id: tram_electricity_consumption_price
+  name: Ratikkaliikenteen sähkön kulutuksen kustannukset
+  name_en: Tram electricity consumption cost
+  type: simple.MultiplicativeNode
+  quantity: currency
+  unit: EUR/a
+  input_dimensions: [energy_carrier, vehicle_type, scope, cost_type]
+  output_dimensions: [energy_carrier, vehicle_type, scope, cost_type]
+  input_nodes:
+  - id: tram_electricity_consumption
     to_dimensions:
     - id: energy_carrier
     - id: vehicle_type
     - id: scope
+  - id: energy_unit_prices
+    to_dimensions:
+    - id: energy_carrier
+    - id: cost_type
+  output_nodes:
+  - id: transportation_price
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: vehicle_type
+      flatten: true
+    - id: scope
+      flatten: true
 
 - id: tram_emissions
   name: Ratikkaliikenteen päästöt
@@ -2361,6 +2412,17 @@ nodes:
   unit: kt_co2e/a
   input_dimensions: [energy_carrier, vehicle_type, ghg, scope]
   output_dimensions: [energy_carrier, vehicle_type, ghg, scope]
+  input_nodes:
+  - id: tram_electricity_consumption
+    to_dimensions:
+    - id: energy_carrier
+    - id: vehicle_type
+    - id: scope
+  - id: other_electricity_emission_factors
+    to_dimensions:
+    - id: energy_carrier
+    - id: ghg
+    - id: scope
   output_nodes:
   - id: transportation_emissions
     from_dimensions:
@@ -3330,6 +3392,12 @@ nodes:
     - id: energy_carrier
     - id: action
     - id: owner
+  - id: rail_electricity_impacts
+    from_dimensions:
+    - id: vehicle_type
+      flatten: true
+    - id: scope
+      flatten: true
   output_nodes:
   - id: energy_cost_reductions
     tags: [make_nonpositive]
@@ -3587,8 +3655,6 @@ nodes:
   input_nodes:
   - id: onroad_emissions_impacts
     tags: [make_nonpositive]
-  - id: rail_emissions_impacts
-    tags: [make_nonpositive]
 
 - id: transport_emissions_increases
   name: Transport emissions increases
@@ -3600,8 +3666,6 @@ nodes:
   output_dimensions: [vehicle_type, energy_carrier, ghg, scope, action]
   input_nodes:
   - id: onroad_emissions_impacts
-    tags: [make_nonnegative]
-  - id: rail_emissions_impacts
     tags: [make_nonnegative]
 
 - id: transport_emissions_cost_reductions
@@ -4006,29 +4070,27 @@ nodes:
 
 # ---------- Rail
 
-- id: rail_emissions_impacts
-  name: Rail emissions impacts
-  name_en: Rail emissions impacts
+- id: rail_electricity_impacts
+  name: Vaikutukset rautatieliikenteen sähkön kulutukseen
+  name_en: Rail electricity impacts
   type: simple.MultiplicativeNode
-  quantity: emissions
-  unit: t_co2e/a
-  input_dimensions: [vehicle_type, energy_carrier, ghg, scope, action]
-  output_dimensions: [vehicle_type, energy_carrier, ghg, scope, action]
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [vehicle_type, energy_carrier, scope, action, owner]
+  output_dimensions: [vehicle_type, energy_carrier, scope, action, owner]
   input_nodes:
   - id: transport_kilometer_impacts
     from_dimensions:
     - id: vehicle_type
-      categories: [local_trains, trams]
-    - id: owner
-      flatten: true
+      categories: [trams]
     to_dimensions:
     - id: vehicle_type
     - id: action
-  - id: rail_transportation_emission_factors
+    - id: owner
+  - id: rail_transportation_electricity_factors
     to_dimensions:
     - id: vehicle_type
     - id: energy_carrier
-    - id: ghg
     - id: scope
 
 # ----- Outcome
