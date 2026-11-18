@@ -523,6 +523,9 @@ dimensions:
   - id: reduce_speedlimits_on_highways
     label: Nopeusrajoitusten alentaminen maanteillä
     label_en: Reduce speed limits on highways
+  - id: reduce_carbon_intensity_of_incinerated_waste
+    label: Polttoon päätyvän jätteen fossiilisen osuuden vähentäminen
+    label_en: Reduce carbon intensity of incinerated waste
 
 # ----- Kelicobe
 
