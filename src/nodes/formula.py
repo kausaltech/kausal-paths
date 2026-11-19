@@ -10,6 +10,7 @@ from uuid import NAMESPACE_URL, uuid5
 from django.utils.translation import gettext_lazy as _
 
 import polars as pl
+from pint.errors import UndefinedUnitError
 
 from common import polars as ppl, qualifiers
 from nodes.calc import convert_to_co2e, extend_last_historical_value_pl
@@ -410,6 +411,7 @@ class FormulaNode(Node):
         'max_dim': '_custom_max_dim',
         'zero_fill': '_custom_zero_fill',
         'from_year': '_custom_from_year',
+        'constant_frame': '_custom_constant_frame',
         'select_category': '_custom_select_category',
         'interpolate': '_custom_temporal',
         'extend': '_custom_temporal',
@@ -589,6 +591,44 @@ class FormulaNode(Node):
         if not isinstance(year_arg, ast.Constant) or not isinstance(year_arg.value, int) or isinstance(year_arg.value, bool):
             raise NodeError(self, 'from_year() needs a literal year as its second argument')
         return df.filter(pl.col(YEAR_COLUMN) >= year_arg.value)
+
+    def _custom_constant_frame(self, _func: str, node: ast.Call, _varss: EvalVars, value: EvalOutput) -> EvalOutput:
+        """
+        Handle ``constant_frame(value[, 'unit'])``: one value in every year of the model.
+
+        The years run from the earlier of the reference year and the minimum historical year to
+        the model end year, so the frame covers every year another input can have. ``value`` is a
+        number, a parameter with a unit, or a boolean parameter (true = 1, false = 0). The optional
+        unit is a quoted string; it labels a bare number and converts a quantity that has a unit.
+        """
+        if len(node.args) not in (1, 2) or node.keywords:
+            raise NodeError(self, "constant_frame(value[, 'unit']) takes one or two arguments")
+        if isinstance(value, bool):
+            quantity = Quantity(float(value), 'dimensionless')
+        elif isinstance(value, Quantity):
+            quantity = value
+        else:
+            raise NodeError(self, 'constant_frame() needs a number or a parameter as its first argument, not a data frame')
+        if len(node.args) == 2:
+            unit_arg = node.args[1]
+            if not isinstance(unit_arg, ast.Constant) or not isinstance(unit_arg.value, str):
+                raise NodeError(self, "constant_frame() needs a quoted unit such as 'kt/a' as its second argument")
+            unit = unit_registry.parse_units(unit_arg.value)
+            if quantity.units == unit_registry.dimensionless and unit.dimensionality != quantity.dimensionality:
+                quantity = Quantity(quantity.m, unit)
+            else:
+                quantity = quantity.to(unit)
+        instance = self.context.instance
+        years = range(min(instance.reference_year, instance.minimum_historical_year), instance.model_end_year + 1)
+        frame = pl.DataFrame(
+            {
+                YEAR_COLUMN: list(years),
+                VALUE_COLUMN: [float(quantity.m)] * len(years),
+                FORECAST_COLUMN: [False] * len(years),
+            },
+            schema={YEAR_COLUMN: pl.Int64, VALUE_COLUMN: pl.Float64, FORECAST_COLUMN: pl.Boolean},
+        )
+        return ppl.to_ppdf(frame, meta=ppl.DataFrameMeta(primary_keys=[YEAR_COLUMN], units={VALUE_COLUMN: quantity.units}))
 
     def _custom_temporal(self, func: str, _node: ast.Call, _varss: EvalVars, df: EvalOutput) -> EvalOutput:
         """Apply a canonical temporal operation, shared with the pipeline executor and binding transformations."""
@@ -904,16 +944,27 @@ class FormulaNode(Node):
             ast.BinOp: self.eval_binop,
             ast.Compare: self.eval_compare,
             ast.Call: self.eval_call,
-            # ast.UnaryOp: self.eval_unaryop,
+            ast.UnaryOp: self.eval_unaryop,
         }
 
         for ast_type, evaluator in EVALUATORS.items():
             if isinstance(tree, ast_type):
                 return evaluator(tree, varss)
 
-        if isinstance(tree, ast.UnaryOp):
-            raise NodeError(self, 'Unary operators such as "%s" are not supported in formulas' % _ast_text(tree))
         raise NodeError(self, 'Expression "%s" is not supported in formulas' % _ast_text(tree))
+
+    def eval_unaryop(self, node: ast.UnaryOp, varss: EvalVars) -> EvalOutput:
+        """Unary minus and plus on a number or a data frame; `-x` keeps x's unit, rows and nulls."""
+        if not isinstance(node.op, ast.USub | ast.UAdd):
+            raise NodeError(self, 'Unary operators such as "%s" are not supported in formulas' % _ast_text(node))
+        operand = self.eval_tree(node.operand, varss)
+        if isinstance(operand, bool):
+            raise NodeError(self, 'Unary "%s" needs a number or a data frame, not a boolean' % _ast_text(node))
+        if isinstance(node.op, ast.UAdd):
+            return operand
+        if isinstance(operand, PDF):
+            return operand.with_columns(-pl.col(VALUE_COLUMN))
+        return -operand
 
     def _collect_used_node_names(self, tree: ast.AST, varss: EvalVars) -> set[str]:
         """Collect node names that are actually used in the formula AST."""
@@ -1257,6 +1308,17 @@ def analyze_formula_units(  # noqa: C901, PLR0915
                 return override_unit
             if func_name in ('sum_dim', 'sum_into_cat', 'mean_dim', 'min_dim', 'max_dim'):
                 return first
+            if func_name == 'constant_frame':
+                if len(node.args) == 2:
+                    unit_arg = node.args[1]
+                    if isinstance(unit_arg, ast.Constant) and isinstance(unit_arg.value, str):
+                        try:
+                            return unit_registry.parse_units(unit_arg.value)
+                        except UndefinedUnitError:
+                            analysis.errors.append(f"Unknown unit '{unit_arg.value}' in constant_frame().")
+                            return first
+                    analysis.errors.append("constant_frame() needs a quoted unit such as 'kt/a' as its second argument.")
+                return first
             if func_name == 'coalesce_df':
                 unit = first
                 for arg in node.args[1:]:
@@ -1387,7 +1449,7 @@ def analyze_formula_dimensions(  # noqa: C901, PLR0915
                     return set(d for d in first if d != dim)
                 analysis.errors.append(f'{func_name} expects a dimension name as second argument.')
                 return first
-            if func_name == 'valid_inputs':
+            if func_name in ('valid_inputs', 'constant_frame'):
                 return set()
             if func_name == 'sum_into_cat':
                 return first

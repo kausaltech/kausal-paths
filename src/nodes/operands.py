@@ -270,7 +270,7 @@ def dataset_metric_column(node: Node, df: PathsDataFrame, metric: str | None) ->
 
 def dataset_operand_frame(node: Node, dataset: Dataset, metric: str | None) -> PathsDataFrame:
     """
-    Reduce a dataset to the shape a node operand has: one ``Value`` column and a forecast flag.
+    Reduce a dataset to the shape a node operand has: one ``Value`` column, its qualifier, and a forecast flag.
 
     Deliberately *not* ``get_cleaned_dataset``: nothing is dropped, back-filled or extended
     here. Whatever shaping the data needs is the dataset binding's business (``interpolate``,
@@ -287,7 +287,9 @@ def dataset_operand_frame(node: Node, dataset: Dataset, metric: str | None) -> P
     else:
         df = df.with_columns(pl.lit(value=False).alias(FORECAST_COLUMN))
         keep.append(FORECAST_COLUMN)
-    return df.select(keep)
+    # `qualified` keeps the metric's qualifier column, which the rename above has already moved
+    # to `Value__qual`; every node class must carry qualifiers the same way.
+    return df.select(df.qualified(keep))
 
 
 def resolve_operands(
