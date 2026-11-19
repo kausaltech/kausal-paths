@@ -1704,13 +1704,14 @@ nodes:
     und nicht der Wert.<br/>
     Der Wert ist ein Faktor ohne Einheit: 1 bedeutet ein durchschnittliches Jahr, unter 1 ein
     wärmeres, über 1 ein kälteres.
-  type: generic.GenericNode
+  type: formula.FormulaNode
   quantity: ratio
   unit: dimensionless
   input_dimensions: [sector]
   output_dimensions: [sector]
   input_datasets:
   - id: kommune/witterungsbereinigung
+    tags: [wc]
     binding_owner: instance
   params:
   # `extend_all` is not cosmetic here, and it is why this node must span the whole frame rather
@@ -1728,11 +1729,12 @@ nodes:
   # `backfill`/`extend` on the binding cannot do this: backfill only fills nulls in rows that
   # already exist, and dataset interpolation spans the dataset's own first-to-last year. Only
   # `extend_all` reaches back to `minimum_historical_year`. Fixed 2026-08-21.
-  - id: operations
-    # The dataset only starts in 1995; without extend_all, final_energy_use's
-    # multiplication against this node drops every earlier year for every stationary sector.
-    value: get_single_dataset,extend_all,do_correction
-  - id: do_correction
+  #
+  # Switched off, every factor becomes 1. `wc * 0 + 1` rather than a bare 1, so that the off
+  # branch keeps the same rows and years as the on branch (and a missing value stays missing).
+  - id: formula
+    value: select_port(condition, extend_all(wc), extend_all(wc) * 0 + 1)
+  - id: condition
     ref: weather_correction
 
 - id: final_energy_use_corrected
@@ -3107,7 +3109,7 @@ nodes:
     Allokation leitet den Faktor daraus ab (BISKO-Möglichkeit 1). Der zweite Weg ist die Erklärung
     einer überwiegenden Erzeugungsvariante nach Tabelle 5 (Möglichkeit 3). Beide bleiben konform,
     ein eingetragener Faktor nicht.
-  type: formula.FormulaNode
+  type: simple.AdditiveNode2
   quantity: emission_factor
   unit: g_co2e/kWh
   input_dimensions: [energy_carrier, per_what_energy]
@@ -3119,7 +3121,8 @@ nodes:
     # to drop. The old binding dropped it here. This only surfaced on the yaml-sourced cities --
     # `bisko` reads a DB copy, which tolerates a filter naming a column it does not have, so the
     # template kept working while every city failed with '"upstream_included" not found'.
-    tags: [national]
+    backfill: true
+    extend: true
   # No `local` port and no `use_national_values` here, unlike the other three factor nodes. This
   # was `select_port(condition, national, local)` over `kommune/emissionsfaktoren_fernwaerme`
   # until 2026-09-06; the datasets block above says why it went. The consequence worth keeping in
@@ -3127,9 +3130,6 @@ nodes:
   # moves the balance through the other three tables while these factors stay put. That is
   # correct -- criterion 6 has its own route for city data -- but it does mean this node is no
   # longer the place to look when the switch appears not to have worked.
-  params:
-  - id: formula
-    value: extend_all(national)
 
 - id: combined_heat_and_power_chp_fraction
   is_editable: false
@@ -3217,7 +3217,7 @@ nodes:
     Verkehrsleistung in Personenkilometern aus den eigenen Verkehrsdaten der Kommune. Dies ist
     eine andere Größe als die Fahrleistung in Fahrzeugkilometern, auf der die Bilanz aufbaut;
     siehe „Fahrleistung aus eigenen Daten“.
-  type: formula.FormulaNode
+  type: simple.AdditiveNode2
   quantity: mileage
   unit: pkm/a
   input_dimensions: [vehicle_type]
@@ -3225,12 +3225,11 @@ nodes:
   input_datasets:
   - id: kommune/verkehrsleistung_personen
     column: Value
-    tags: [mileage]
+    backfill: true
+    extend: true
     filters:
     - column: sector
     binding_owner: instance
-  params:
-    formula: extend_all(mileage)
 
 # BISKO recommends that cities move from the gemeindefeine default mileage to their own
 # regularly updated traffic data (Methodenpapier 5.1.1). For that route to be conformant the
@@ -3487,22 +3486,21 @@ nodes:
     regionalisierte Fahrleistungen, der ÖSPV-Block die Betriebsleistung aus der
     ÖPNV-Statistik, und FL_Lbus übersteigt FL_Bus in etwa einem Viertel aller deutschen
     Gemeinden. Zusammengeführt werden beide in „Linienbusanteil an der Busfahrleistung“.
-  type: formula.FormulaNode
+  type: simple.AdditiveNode2
   quantity: mileage
   unit: Mvkm/a
   input_dimensions: [vehicle_type, road_type]
   output_dimensions: [vehicle_type, road_type]
   input_datasets:
   - id: de/fahrleistung_strassenverkehr
-    tags: [mileage]
     column: mileage
+    extend_history: true
+    extend: true
     filters:
     - column: district
     - column: ags
       ref: ags_number
     - column: municipality
-  params:
-    formula: extend_all(mileage)
 
 # --- Splitting the default bus mileage into Linienbus and Reisebus ---------------------------
 #
@@ -3520,8 +3518,9 @@ nodes:
 # right answer for a dense city. The ratio is our construction, not an ifeu number, and it is
 # an approximation of a split ifeu has not published; see paths-data docs/TODO.md item 14.
 #
-# FL_Lbus and FL_SSU start in 2022 in the source, and vehicle_kilometers_ifeu applies
-# extend_all, so the 2022 ratio is what the earlier years get.
+# FL_Lbus and FL_SSU start in 2022 in the source, and vehicle_kilometers_ifeu carries its
+# first values back to the minimum historical year, so the 2022 ratio is what the earlier
+# years get.
 
 - id: all_bus_mileage
   is_editable: false
@@ -3798,7 +3797,7 @@ nodes:
     eigene Betreiberdaten ersetzen, die importierten Werte sind jedoch nicht editierbar.
 
     '
-  type: formula.FormulaNode
+  type: simple.AdditiveNode2
   quantity: energy
   unit: MWh/a
   input_dimensions: [vehicle_type, energy_carrier]
@@ -3806,15 +3805,14 @@ nodes:
   input_datasets:
   - id:
       de/energieverbrauch_uebriger_verkehr
-    tags: [energy]
     column: energy
+    extend_history: true
+    extend: true
     filters:
     - column: district
     - column: ags
       ref: ags_number
     - column: municipality
-  params:
-    formula: extend_all(energy)
 
 - id: other_transport_energy
   is_editable: false
@@ -4447,14 +4445,14 @@ nodes:
   description_de: |
     Eine BISKO-Bilanz darf nicht witterungsbereinigt werden.<br/>
     Werte: 1 = ja, 0 = nein. Der Wert hat keine Einheit.
-  type: generic.ConstantNode
+  type: formula.FormulaNode
   quantity: probability
   unit: dimensionless
   params:
+  - id: formula
+    value: 1 - constant_frame(condition)
   - id: condition
     ref: weather_correction
-  - id: operations
-    value: constant,complement
 
 - id: has_national_electricity_emission_factors
   is_editable: false
@@ -4466,10 +4464,12 @@ nodes:
   description_de: |
     BISKO-Inventar muss nationale Stromemissionsfaktoren verwenden.<br/>
     Werte: 1 = ja, 0 = nein. Der Wert hat keine Einheit.
-  type: generic.ConstantNode
+  type: formula.FormulaNode
   quantity: probability
   unit: dimensionless
   params:
+  - id: formula
+    value: constant_frame(condition)
   - id: condition
     ref: use_national_values
 
@@ -4710,15 +4710,15 @@ nodes:
   description_en: |
     Values are BISKO data-quality factors between 0 and 1 (A = 1, B = 0.5, C = 0.25, D = 0) and have
     no unit. The data quality of the whole balance is shown in % in <i>Datengüte of the whole balance</i>.
-  type: generic.GenericNode
+  type: simple.AdditiveNode2
   quantity: fraction
   unit: dimensionless
   input_dimensions: [energy_carrier, sector]
   output_dimensions: [energy_carrier, sector]
   input_datasets:
   - id: de/datenguetekriterien
-  params:
-    operations: get_single_dataset,extend_all
+    extend_history: true
+    extend: true
 
 - id: district_heating_energy_use_data_quality
   is_editable: false
@@ -5001,15 +5001,11 @@ nodes:
     Die Werte sind BISKO-Datengütefaktoren zwischen 0 und 1 (A = 1, B = 0,5, C = 0,25, D = 0) und
     haben keine Einheit. Die Datengüte der Gesamtbilanz wird in <i>Datengüte der Gesamtbilanz</i>
     in % ausgewiesen.
-  type: generic.ConstantNode
+  type: formula.FormulaNode
   quantity: fraction
   unit: dimensionless  # A grade is a BISKO factor (A = 1 ... D = 0). Dimensionless, so it stays off the % data-quality outcome pages.
   params:
-  # The unit belongs on the parameter, not only on the node: ConstantNode reads the value with
-  # units=True and takes the frame's unit from the quantity it gets back.
-  - id: constant
-    value: 0.5
-    unit: dimensionless
+    formula: constant_frame(0.5)
 
 - id: road_transport_data_quality_in_force
   is_editable: false
@@ -6126,28 +6122,6 @@ nodes:
     formula: hold_into_forecast(drop_infs(drop_nans(sum_dim(sum_dim(emissions, energy_carrier), per_what_energy) /
       sum_dim(heat, energy_carrier))) * (1 + losses) * (allocation >= 0))
 
-- id: district_heating_emission_factor_standard
-  is_editable: false
-  name_en: Standard district heating emission factor
-  name_de: Standard-Fernwärmeemissionsfaktor
-  type: formula.FormulaNode
-  quantity: emission_factor
-  unit: g_co2e/kWh
-  input_dimensions: []
-  output_dimensions: []
-  input_nodes:
-  - id: emission_factors_for_district_heating_by_generic_fuel
-    tags:
-    - standard
-    from_dimensions:
-    - id: energy_carrier
-      categories:
-      - coal_chp
-      flatten: true
-    - id: per_what_energy
-      flatten: true
-  params:
-    formula: standard
 - id: district_heating_emission_factor
   is_editable: false
   name_en: District heating emission factor in force
@@ -6164,9 +6138,17 @@ nodes:
   - id: district_heating_emission_factor_predominant_variant
     tags:
     - variant
-  - id: district_heating_emission_factor_standard
+  # The BISKO standard factor is the Coal CHP variant of the national table.
+  - id: emission_factors_for_district_heating_by_generic_fuel
     tags:
     - standard
+    from_dimensions:
+    - id: energy_carrier
+      categories:
+      - coal_chp
+      flatten: true
+    - id: per_what_energy
+      flatten: true
   - id: district_heating_predominant_variant_availability
     tags:
     - variant_coverage
