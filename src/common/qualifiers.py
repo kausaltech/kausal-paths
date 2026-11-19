@@ -425,7 +425,14 @@ def remove_subset(
 
 
 def combine_product(out: str, left_qual: str | None, right_qual: str | None, catalog: QualifierCatalog) -> pl.Expr:
-    """Carry a sole assessment; retain the provisional conservative product policy."""
+    """
+    Carry a sole assessment; when both factors are assessed, take the lower score and coverage.
+
+    The minimum rests on intuition only. No outside source defines it and no argument derives
+    it: BISKO grades end-energy data, not emissions, so it has no rule for a product such as
+    energy times an emission factor. It stands until a better-founded rule replaces it; see
+    docs/plans/qualifier-propagation.md.
+    """
     fields = []
     for d in catalog.definitions:
         left, right = _field(left_qual, d), _field(right_qual, d)

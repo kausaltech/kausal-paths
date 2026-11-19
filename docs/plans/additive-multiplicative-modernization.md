@@ -3,6 +3,7 @@
 *Produced by Claude Opus 5.0 on 2026-08-15.*
 *Version 2 produced by Claude Opus 5.0 on 2026-08-16.*
 *Version 3 produced by Claude Opus 5.5 on 2026-11-17.*
+*Version 4 produced by Claude Opus 5.5 on 2026-11-18.*
 *Responsible: Jouni Tuomisto.*
 
 `AdditiveNode` and `MultiplicativeNode` are the oldest node classes in the codebase.
@@ -326,11 +327,28 @@ for Schwerin, which the v2 default would have filled, and `configs/bisko-base.ya
 missing from the population series should drop out of the per-capita figures rather than be
 divided by a guess.
 
+On 2026-11-18 the last plain `GenericNode`s and the `ConstantNode`s went too, all to `FormulaNode`:
+
+* `quality_criteria` is `extend_all(data)`. `extend_all` is a PathsExt operation, and a formula
+  calls those directly. It reaches back to `minimum_historical_year`, which a binding's `backfill`
+  cannot do because it fills only null rows that already exist.
+* `weather_correction` is `select_port(condition, extend_all(wc), extend_all(wc) * 0 + 1)`, with
+  `condition` referring to the `weather_correction` switch. The off branch is what `do_correction`
+  did: every factor 1, over the same rows and years as the on branch.
+* The three `ConstantNode`s use the new formula function `constant_frame(value[, 'unit'])`, which
+  puts one value in every year from the earlier of `reference_year` and
+  `minimum_historical_year` to `model_end_year`. A boolean parameter counts as 1 or 0, so
+  `constant,complement` became `1 - constant_frame(condition)`. All three are kept as nodes
+  because their descriptions document a BISKO rule; where a constant documents nothing, the
+  function goes into the downstream formula and the node goes away. Formulas now also accept
+  unary minus.
+
+Verified by the same keyed comparison, in every scenario and with the weather correction both on
+and off: `bisko-base` 432 of 432 identical, Schwerin through the 2.0 module 452 of 452.
+
 What stays:
 
-* `weather_correction` and `quality_criteria` stay `GenericNode`s. Both rely on `extend_all`,
-  which reaches back to `minimum_historical_year`; a binding's `backfill` only fills null rows
-  that already exist. `weather_correction` also needs the `do_correction` switch.
+* `BiskoChpNode` and `BiskoExergeticAllocationNode`, BISKO-specific subclasses of `GenericNode`.
 * The 12 `DataAvailabilityNode`s are a subclass of v1 `AdditiveNode` in Python, but they replace
   `compute()` entirely and take only `allowed_parameters` from it. They are not sums, their
   class name says what they do, and changing their base would also touch the certified 1.3

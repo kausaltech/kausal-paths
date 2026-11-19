@@ -23,6 +23,7 @@ import pytest
 
 from kausal_common.i18n.pydantic import TranslatedString
 
+from common import qualifiers
 from common.polars import DataFrameMeta, to_ppdf
 from datasets.runtime import Dataset
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
@@ -963,6 +964,39 @@ def test_additive2_marks_itself_incomplete_when_nothing_is_wired_up():
     out = node.compute()
     assert len(out) == 0
     assert node.status is NodeStatus.INCOMPLETE
+
+
+def _reported(df: PathsDataFrame, reported: bool) -> PathsDataFrame:
+    """Give a frame's Value the qualifier a dataset binding attaches: reported or not."""
+    return df.with_columns(qualifiers.make(reported=pl.lit(reported)).alias(qualifiers.qualifier_column(VALUE_COLUMN)))
+
+
+def test_additive2_carries_the_qualifier_of_a_dataset_input():
+    """A dataset's qualifier column survives into the operand, so v2 sums it like any other node does."""
+    ctx = _make_context('add2-qualifier')
+    node = _additive2(ctx, 'sum')
+    _attach(node, 'measured', _reported(_ppdf([(2020, 1.0)]), reported=True))
+    _attach(node, 'estimated', _reported(_ppdf([(2020, 3.0)]), reported=False))
+
+    out = node.compute()
+    status = out[qualifiers.qualifier_column(VALUE_COLUMN)].struct.field(qualifiers.REPORTED).to_list()
+
+    assert _values(out) == {2020: 4.0}
+    assert status == [{qualifiers.ANY: True, qualifiers.ALL: False}]
+
+
+def test_multiplicative2_carries_the_qualifier_of_a_dataset_factor():
+    ctx = _make_context('mul2-qualifier')
+    node = _multiplicative2(ctx, 'energy', unit='kWh')
+    _attach(node, 'power', _reported(_ppdf([(2020, 2.0)], unit='kW'), reported=True))
+    _attach(node, 'hours', _reported(_ppdf([(2020, 3.0)], unit='h'), reported=True))
+
+    out = node.compute()
+
+    assert qualifiers.qualifier_column(VALUE_COLUMN) in out.columns
+    assert out[qualifiers.qualifier_column(VALUE_COLUMN)].struct.field(qualifiers.REPORTED).to_list() == [
+        {qualifiers.ANY: True, qualifiers.ALL: True}
+    ]
 
 
 def test_additive2_inventory_only_marks_the_whole_result_historical():
