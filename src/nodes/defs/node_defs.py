@@ -25,6 +25,7 @@ from .transform_def import (
     DropNullsOp,
     EdgeTransformOp,
     EnsureUnitOp,
+    ExtendHistoryOp,
     ExtendOp,
     FilterColumnOp,
     FilterDimensionOp,
@@ -157,11 +158,13 @@ class InputDatasetDef(I18nBaseModel):
     from ``model_fields_set`` on the way back and the class default silently reinstated the
     op -- so the flag could not be turned off at all on the rebuilt node classes.
 
-    ``backfill`` and ``extend`` need no such state: no node class defaults them on, so
-    "not mentioned" and "off" mean the same thing for them.
+    ``backfill``, ``extend_history`` and ``extend`` need no such state: no node class defaults
+    them on, so "not mentioned" and "off" mean the same thing for them.
     """
     backfill: bool = False
     """Copy each category's first known value backwards over the nulls that precede it."""
+    extend_history: bool = False
+    """Carry each series' first value back to the minimum historical year, creating the years."""
     extend: bool = False
     """Carry the last historical value forward to the model end year."""
     input_dataset: str | None = None
@@ -202,9 +205,11 @@ class InputDatasetDef(I18nBaseModel):
         7. ``tag_operation`` — registered dataframe operations, in tag order
         8. ``filter_temporal``, ``drop_nulls``, ``ensure_unit``
 
-        9. ``interpolate``, ``backfill``, ``extend`` — interior gaps, leading
-           nulls, then the trailing edge, matching the legacy post-processing
-           order.
+        9. ``interpolate``, ``backfill``, ``extend_history``, ``extend`` —
+           interior gaps, leading nulls, the years back to the minimum
+           historical year, then the trailing edge. Together they do what the
+           ``extend_all`` operation does, except that ``extend`` marks the
+           years it creates as forecast.
 
         An explicitly supplied pipeline is already authoritative for the flat
         filtering fields. The three booleans remain accepted as YAML and old
@@ -237,6 +242,7 @@ class InputDatasetDef(I18nBaseModel):
         for enabled, op in (
             (self.interpolate, InterpolateOp()),
             (self.backfill, BackfillOp()),
+            (self.extend_history, ExtendHistoryOp()),
             (self.extend, ExtendOp()),
         ):
             if enabled and op.kind not in kinds:
@@ -263,6 +269,7 @@ def legacy_dataset_spec_to_transformations(data: dict[str, Any]) -> dict[str, An
         'interpolate': data.get('interpolate'),
         'extend': data.get('extend', False),
         'backfill': data.get('backfill', False),
+        'extend_history': data.get('extend_history', False),
         'input_dataset': data.get('input_dataset'),
     })
     return {
@@ -285,7 +292,7 @@ class DatasetPortSpec(I18nBaseModel):
     This is the whole of what the binding does to its data. The YAML-era flat
     fields (``column``, ``filters``, ``forecast_from``, ``dropna``,
     ``min_year``, ``max_year``, ``unit``, ``interpolate``, ``backfill``,
-    ``extend``) are deliberately absent: they said the
+    ``extend_history``, ``extend``) are deliberately absent: they said the
     same things less precisely, and keeping both would leave two sources of
     truth. ``InputDatasetDef`` still has them, because that is where YAML
     enters.
@@ -340,7 +347,7 @@ class DatasetPortSpec(I18nBaseModel):
         kinds = {entry.get('kind') if isinstance(entry, dict) else getattr(entry, 'kind', None) for entry in transformations}
         transformations.extend(
             {'kind': field_name}
-            for field_name in ('interpolate', 'backfill', 'extend')
+            for field_name in ('interpolate', 'backfill', 'extend_history', 'extend')
             if data.pop(field_name, False) and field_name not in kinds
         )
         data['transformations'] = transformations
@@ -391,6 +398,7 @@ class DatasetPortSpec(I18nBaseModel):
             input_dataset=self.input_dataset,
             interpolate='interpolate' in kinds,
             backfill='backfill' in kinds,
+            extend_history='extend_history' in kinds,
             extend='extend' in kinds,
         )
 

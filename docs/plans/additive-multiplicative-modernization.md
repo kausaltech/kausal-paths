@@ -329,15 +329,13 @@ divided by a guess.
 
 On 2026-11-18 the last plain `GenericNode`s and the `ConstantNode`s went too, all to `FormulaNode`:
 
-* `quality_criteria` is `extend_all(data)`. `extend_all` is a PathsExt operation, and a formula
-  calls those directly. It reaches back to `minimum_historical_year`, which a binding's `backfill`
-  cannot do because it fills only null rows that already exist.
+* `quality_criteria` was `extend_all(data)` for a day; it is now an `AdditiveNode2` (below).
 * `weather_correction` is `select_port(condition, extend_all(wc), extend_all(wc) * 0 + 1)`, with
   `condition` referring to the `weather_correction` switch. The off branch is what `do_correction`
   did: every factor 1, over the same rows and years as the on branch.
 * The three `ConstantNode`s use the new formula function `constant_frame(value[, 'unit'])`, which
-  puts one value in every year from the earlier of `reference_year` and
-  `minimum_historical_year` to `model_end_year`. A boolean parameter counts as 1 or 0, so
+  puts one value in every year from `minimum_historical_year` to `model_end_year`, the years
+  `extend_all` covers. A boolean parameter counts as 1 or 0, so
   `constant,complement` became `1 - constant_frame(condition)`. All three are kept as nodes
   because their descriptions document a BISKO rule; where a constant documents nothing, the
   function goes into the downstream formula and the node goes away. Formulas now also accept
@@ -345,6 +343,23 @@ On 2026-11-18 the last plain `GenericNode`s and the `ConstantNode`s went too, al
 
 Verified by the same keyed comparison, in every scenario and with the weather correction both on
 and off: `bisko-base` 432 of 432 identical, Schwerin through the 2.0 module 452 of 452.
+
+On 2026-11-19 five more nodes left `FormulaNode` or went away:
+
+* `district_heating_emission_factor_standard` existed only to filter the national table to its
+  Coal CHP row. The binding in `district_heating_emission_factor` now does that filtering itself.
+* `emission_factors_for_district_heating_by_generic_fuel` and `passenger_kilometers_own` are
+  `AdditiveNode2` with `backfill` and `extend` on their bindings.
+* `vehicle_kilometers_ifeu`, `other_transport_energy_ifeu` and `quality_criteria` are
+  `AdditiveNode2` with `extend_history` and `extend`. `extend_history` is a new binding option.
+  It carries each series' first value back to `minimum_historical_year`, creating the years it
+  needs, as `extend_all` does; `backfill` fills only nulls in years that already exist. With the
+  default `interpolate`, the three binding options do what `extend_all` does.
+
+Two of these conversions needed the qualifier fix of the same day: before it, `AdditiveNode2`
+lost the qualifier of every input dataset (see `qualifier-propagation.md`). Every output is
+identical to the `FormulaNode` version, values, Forecast flags and qualifiers alike: `bisko-base`
+428 of 428, Schwerin through the 2.0 module 448 of 448.
 
 What stays:
 

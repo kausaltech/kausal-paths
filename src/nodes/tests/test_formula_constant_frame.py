@@ -48,8 +48,7 @@ def test_constant_frame_covers_every_model_year():
 
     out = _constant_node(context, 'constant_frame(0.5)').compute()
 
-    first = min(instance.reference_year, instance.minimum_historical_year)
-    assert out[YEAR_COLUMN].to_list() == list(range(first, instance.model_end_year + 1))
+    assert out[YEAR_COLUMN].to_list() == list(range(instance.minimum_historical_year, instance.model_end_year + 1))
     assert set(out[VALUE_COLUMN].to_list()) == {0.5}
     assert not out[FORECAST_COLUMN].any()
     assert out.dim_ids == []

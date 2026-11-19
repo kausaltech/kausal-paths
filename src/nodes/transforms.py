@@ -34,6 +34,7 @@ from nodes.defs.transform_def import (
     BackfillOp,
     DropNullsOp,
     EnsureUnitOp,
+    ExtendHistoryOp,
     ExtendOp,
     FilterColumnOp,
     FilterDimensionOp,
@@ -227,6 +228,8 @@ def apply_operation(  # noqa: C901, PLR0911, PLR0912
             return qualifiers.carry_over(df, interpolate_years(df, env), fill='interpolate')
         case BackfillOp():
             return qualifiers.carry_over(df, backfill_leading_values(df), fill='backfill')
+        case ExtendHistoryOp():
+            return qualifiers.carry_over(df, extend_to_history(df, env), fill='backfill')
         case ExtendOp():
             return qualifiers.carry_over(df, extend_to_end_year(df, env), fill='extend')
         case SelectCategoriesTransformation() | AssignCategoryTransformation() | FlattenTransformation():
@@ -274,6 +277,15 @@ def backfill_leading_values(df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
         expr = pl.col(col).fill_null(strategy='backward')
         exprs.append(expr.over(dims) if dims else expr)
     return df.with_columns(exprs)
+
+
+def extend_to_history(df: ppl.PathsDataFrame, env: PipelineEnv) -> ppl.PathsDataFrame:
+    """Carry each series' first value back to the minimum historical year."""
+    from nodes.calc import extend_to_history_pl
+
+    if FORECAST_COLUMN not in df.columns:
+        df = df.with_columns(pl.lit(value=False).alias(FORECAST_COLUMN))
+    return extend_to_history_pl(df, env.context.instance.minimum_historical_year)
 
 
 def extend_to_end_year(df: ppl.PathsDataFrame, env: PipelineEnv) -> ppl.PathsDataFrame:

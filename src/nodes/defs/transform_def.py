@@ -263,6 +263,24 @@ class BackfillOp(PortTransformOpBase):
     kind: Literal['backfill'] = 'backfill'
 
 
+class ExtendHistoryOp(PortTransformOpBase):
+    """
+    Carry each series' first value back to the instance's minimum historical year.
+
+    The years it creates take the first year's value and Forecast flag, as the ``extend_all``
+    operation does. ``backfill`` only fills nulls in years the frame already has.
+    """
+
+    applies_to = DATASET_ONLY
+
+    kind: Literal['extend_history'] = 'extend_history'
+
+    def cache_hash_data(self, context: Context) -> dict[str, Any]:
+        data = super().cache_hash_data(context)
+        data['minimum_historical_year'] = context.instance.minimum_historical_year
+        return data
+
+
 class ExtendOp(PortTransformOpBase):
     """Carry the last historical value forward to the instance model end year."""
 
@@ -458,6 +476,7 @@ type PortTransformOp = Annotated[
     | EnsureUnitOp
     | InterpolateOp
     | BackfillOp
+    | ExtendHistoryOp
     | ExtendOp
     | SelectMetricOp
     | IndexTemporalOp
@@ -482,6 +501,7 @@ StoredPortTransformOp = (
     | EnsureUnitOp
     | InterpolateOp
     | BackfillOp
+    | ExtendHistoryOp
     | ExtendOp
     | SelectMetricOp
     | IndexTemporalOp
@@ -549,7 +569,7 @@ def resolve_metric_columns(
     return delivered, dropped
 
 
-TEMPORAL_FILL_KINDS = frozenset({'interpolate', 'backfill', 'extend'})
+TEMPORAL_FILL_KINDS = frozenset({'interpolate', 'backfill', 'extend_history', 'extend'})
 """Pipeline kinds hidden temporarily from GraphQL for old model-editor compatibility."""
 
 

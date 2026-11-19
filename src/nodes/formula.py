@@ -596,8 +596,8 @@ class FormulaNode(Node):
         """
         Handle ``constant_frame(value[, 'unit'])``: one value in every year of the model.
 
-        The years run from the earlier of the reference year and the minimum historical year to
-        the model end year, so the frame covers every year another input can have. ``value`` is a
+        The years run from the minimum historical year to the model end year, the same years the
+        ``extend_all`` operation and the ``extend_history`` binding option cover. ``value`` is a
         number, a parameter with a unit, or a boolean parameter (true = 1, false = 0). The optional
         unit is a quoted string; it labels a bare number and converts a quantity that has a unit.
         """
@@ -619,7 +619,9 @@ class FormulaNode(Node):
             else:
                 quantity = quantity.to(unit)
         instance = self.context.instance
-        years = range(min(instance.reference_year, instance.minimum_historical_year), instance.model_end_year + 1)
+        # The years `extend_all` and the `extend_history` binding option cover, so that a constant
+        # lines up with every series it is combined with.
+        years = range(instance.minimum_historical_year, instance.model_end_year + 1)
         frame = pl.DataFrame(
             {
                 YEAR_COLUMN: list(years),

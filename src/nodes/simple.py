@@ -857,9 +857,9 @@ so that a combination missing from the data altogether is reported as missing ra
         # the check. The dataset instances belong to this node alone, so this affects nobody
         # else (and the dataset cache key follows the pipeline, so it stays separate too).
         for ds in self.input_dataset_instances:
-            from nodes.defs.transform_def import without_transformations
+            from nodes.defs.transform_def import TEMPORAL_FILL_KINDS, without_transformations
 
-            ds.transformations = without_transformations(ds.transformations, 'interpolate', 'backfill', 'extend')
+            ds.transformations = without_transformations(ds.transformations, *TEMPORAL_FILL_KINDS)
 
     def compute(self) -> ppl.PathsDataFrame:
         from datasets.runtime import FixedDataset

@@ -27,7 +27,8 @@ from common import qualifiers
 from common.polars import DataFrameMeta, to_ppdf
 from datasets.runtime import Dataset
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
-from nodes.defs.transform_def import BackfillOp, ExtendOp, InterpolateOp, PortTransformOp
+from nodes.defs.node_defs import DatasetPortSpec, InputDatasetDef
+from nodes.defs.transform_def import BackfillOp, ExtendHistoryOp, ExtendOp, InterpolateOp, PortTransformOp
 from nodes.dimensions import Dimension, DimensionCategory
 from nodes.edges import Edge
 from nodes.exceptions import NodeError
@@ -223,12 +224,15 @@ def _attach(
     interpolate: bool = False,
     extend: bool = False,
     backfill: bool = False,
+    extend_history: bool = False,
 ) -> None:
     transformations: list[PortTransformOp] = []
     if interpolate:
         transformations.append(InterpolateOp())
     if backfill:
         transformations.append(BackfillOp())
+    if extend_history:
+        transformations.append(ExtendHistoryOp())
     if extend:
         transformations.append(ExtendOp())
     dataset = _FixedDataset(
@@ -1090,6 +1094,55 @@ def test_backfill_is_per_category():
         (2020, 'y'): 5.0,
         (2021, 'y'): 50.0,
     }
+
+
+def test_extend_history_flag_carries_the_first_value_back_to_the_minimum_historical_year():
+    """
+    The years before the data are created, not only filled, as the ``extend_all`` operation does.
+
+    ``backfill`` cannot do this: it fills nulls in years the frame already has.
+    """
+    ctx = _make_context('add2-extend-history')
+    first = ctx.instance.minimum_historical_year
+    node = _additive2(ctx, 'sum', dims=['sector'])
+    rows = [(first + 2, 'x', 10.0), (first + 3, 'x', 20.0), (first + 3, 'y', 5.0)]
+    _attach(node, 'ds', _ppdf(rows, dim='sector'), extend_history=True)
+
+    out = node.compute()
+
+    assert _values(out, dim='sector') == {
+        (first, 'x'): 10.0,
+        (first + 1, 'x'): 10.0,
+        (first + 2, 'x'): 10.0,
+        (first + 3, 'x'): 20.0,
+        (first, 'y'): 5.0,
+        (first + 1, 'y'): 5.0,
+        (first + 2, 'y'): 5.0,
+        (first + 3, 'y'): 5.0,
+    }
+    assert not out[FORECAST_COLUMN].any()
+
+
+def test_extend_history_carries_the_qualifier_into_the_years_it_creates():
+    ctx = _make_context('add2-extend-history-qualifier')
+    first = ctx.instance.minimum_historical_year
+    node = _additive2(ctx, 'sum')
+    _attach(node, 'ds', _reported(_ppdf([(first + 1, 10.0)]), reported=True), extend_history=True)
+
+    out = node.compute().sort(YEAR_COLUMN)
+
+    assert out[YEAR_COLUMN].to_list() == [first, first + 1]
+    assert out[qualifiers.qualifier_column(VALUE_COLUMN)].null_count() == 0
+
+
+def test_the_extend_history_flag_round_trips_through_a_stored_spec():
+    ds_def = InputDatasetDef(id='ds', column='energy', extend_history=True, extend=True)
+
+    spec = DatasetPortSpec.from_input_dataset(ds_def)
+    kinds = [op.kind for op in spec.transformations]
+
+    assert kinds.index('extend_history') < kinds.index('extend')
+    assert spec.to_input_dataset(id='ds').extend_history
 
 
 # =================================================================================
