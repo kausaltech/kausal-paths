@@ -2,7 +2,7 @@ id: bisko-base
 default_language: de
 # The evolving German framework template. The reviewed certification models remain
 # in bisko.yaml and pruefstadt-bisko.yaml, using the frozen modules/bisko/model.yaml.
-supported_languages: []
+supported_languages: [en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
   commit: 12d1ca90394abe1daa989403e224745b92fe2640

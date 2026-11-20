@@ -619,6 +619,11 @@ datasets:
   - id: electricity_fraction
     validation_rules:
     - {kind: value_range, enforcement: block_edit, min: 0, max: 100}
+    # A fraction typed where a percentage is meant (0.3 for 30 %) passes the range above and
+    # moves almost all emissions to heat. A real CHP plant makes well over 1 % electricity, and 0
+    # is a heat-only year, so anything in between is flagged. block_submission is the mildest
+    # tier: it is shown, and does not stop editing or publishing.
+    - {kind: value_range, enforcement: block_submission, min: 1, allow_zero: true}
   # Supply and return temperature of the heat network. The exergetic allocation weights heat by
   # 1 - 283 K / T_m, T_m their thermodynamic mean, and 283 K (9.85 °C) is BISKO's ambient
   # temperature, so both must be warmer than that. That the supply is not below the return is a
@@ -3211,32 +3216,6 @@ nodes:
 
 #//////  Transport  /////////////////////////////////////////////////////////////////////////////////
 
-- id: passenger_kilometers_own
-  is_editable: false
-  name_en: Passenger kilometers - own data
-  name_de: Personenkilometer aus eigenen Daten
-  description_en: |
-    Verkehrsleistung in passenger-kilometres, from the city's own transport data. Note that
-    this is a different quantity from the Fahrleistung (vehicle-kilometres) the balance is
-    built on; see 'Vehicle kilometers - own data'.
-  description_de: |
-    Verkehrsleistung in Personenkilometern aus den eigenen Verkehrsdaten der Kommune. Dies ist
-    eine andere Größe als die Fahrleistung in Fahrzeugkilometern, auf der die Bilanz aufbaut;
-    siehe „Fahrleistung aus eigenen Daten“.
-  type: simple.AdditiveNode2
-  quantity: mileage
-  unit: pkm/a
-  input_dimensions: [vehicle_type]
-  output_dimensions: [vehicle_type]
-  input_datasets:
-  - id: kommune/verkehrsleistung_personen
-    column: Value
-    backfill: true
-    extend: true
-    filters:
-    - column: sector
-    binding_owner: instance
-
 # BISKO recommends that cities move from the gemeindefeine default mileage to their own
 # regularly updated traffic data (Methodenpapier 5.1.1). For that route to be conformant the
 # city's data has to carry what the protocol asks for: Prüfschritt 2.2 requires the road
@@ -3504,8 +3483,11 @@ nodes:
     extend: true
     filters:
     - column: district
+    # A municipality the table does not cover (a new AGS after a merger, a test instance) gets
+    # an empty input rather than a failure it cannot fix; the node's status says which AGS.
     - column: ags
       ref: ags_number
+      allow_no_match: true
     - column: municipality
 
 # --- Splitting the default bus mileage into Linienbus and Reisebus ---------------------------
@@ -3816,8 +3798,11 @@ nodes:
     extend: true
     filters:
     - column: district
+    # A municipality the table does not cover (a new AGS after a merger, a test instance) gets
+    # an empty input rather than a failure it cannot fix; the node's status says which AGS.
     - column: ags
       ref: ags_number
+      allow_no_match: true
     - column: municipality
 
 - id: other_transport_energy
@@ -5432,8 +5417,11 @@ nodes:
     column: energy
     filters:
     - column: district
+    # A municipality the table does not cover (a new AGS after a merger, a test instance) gets
+    # an empty input rather than a failure it cannot fix; the node's status says which AGS.
     - column: ags
       ref: ags_number
+      allow_no_match: true
     - column: municipality
 
 - id: vehicle_kilometers_own_availability
