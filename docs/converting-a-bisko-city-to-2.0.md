@@ -171,6 +171,18 @@ If the city has been published, its visitors still see the 1.3 revision. Compare
 python manage.py compare_draft_published <city>
 ```
 
+## After the conversion
+
+The city's model now comes from the template. Template changes reach it through
+`setup_bisko --sync-template` and `--publish`, which advances every city on the template; its
+own YAML no longer matters to it. `sync_instance_to_db` refuses it by name, saying what to run
+instead, and `--all` and `--all-db` skip framework members.
+
+Where the template reads a national table by AGS (the IFEU road mileage and the other-transport
+energy), a municipality the table does not cover gets an empty input instead of an error, and the
+nodes concerned show as degraded, naming the AGS. The city cannot fix that itself; its own traffic
+and consumption data replace the defaults.
+
 ## Cities converted before 20 November 2026
 
 Until then, conversion moved a dataset onto the template's schema only if the two were identical

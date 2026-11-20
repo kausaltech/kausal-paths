@@ -5,6 +5,8 @@ from uuid import uuid4
 
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
+from django.core.management import call_command
+from django.core.management.base import CommandError
 from django.db import IntegrityError, transaction
 
 import pytest
@@ -29,6 +31,7 @@ from nodes.instance_serialization import (
     build_instance_snapshot,
 )
 from nodes.models import InputPortBindingSet
+from nodes.spec_sync import InheritedInstanceSyncError, refuse_inherited_instance_sync
 from nodes.template_graph import publish_template_instance, replace_input_port_bindings, upgrade_template_instance
 from nodes.template_settings import InheritedNodeSettings
 from nodes.tests.factories import InstanceConfigFactory, NodeConfigFactory
@@ -1133,3 +1136,22 @@ def test_a_member_is_repaired_onto_the_template_schemas_with_its_overrides(
     assert set(override.references.exclude(metric=None).values_list('metric_id', flat=True)) == {new_metric.pk}
     assert not DatasetSchema.objects.filter(pk=own.pk).exists()
     assert adopt_framework_schemas(dependent_instance) == []
+
+
+def test_a_sync_from_yaml_is_refused_for_an_instance_that_inherits_from_a_template(
+    release: TemplateEdition, dependent_instance: InstanceConfig
+) -> None:
+    """Its model comes from the template's published revision, so the refusal says how to change that."""
+    other = InstanceConfigFactory.create(name='Standalone', config_source='database')
+    template = release.framework.template_instance
+    assert template is not None
+
+    with pytest.raises(CommandError) as excinfo:
+        call_command('sync_instance_to_db', other.identifier, dependent_instance.identifier)
+
+    message = str(excinfo.value)
+    assert f'{dependent_instance.identifier} inherits its model from the template {template.identifier}' in message
+    assert other.identifier not in message.split(' inherits ', maxsplit=1)[0]
+    with pytest.raises(InheritedInstanceSyncError):
+        refuse_inherited_instance_sync(dependent_instance)
+    refuse_inherited_instance_sync(other)

@@ -617,6 +617,10 @@ python manage.py sync_instance_to_db --all-db
 python manage.py sync_instance_to_db espoo --dry-run
 ```
 
+An instance that inherits its model from a framework template (a converted BISKO city) is not
+synced from YAML: by name it is refused with what to run instead (for BISKO,
+`setup_bisko --sync-template` and `--publish`), and `--all` / `--all-db` skip framework members.
+
 After changing spec models (adding/removing fields, changing
 serialization), all DB-sourced instances need re-syncing. The typical
 workflow:
