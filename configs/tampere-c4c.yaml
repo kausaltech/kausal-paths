@@ -3636,6 +3636,8 @@ nodes:
   - id: total_benefits
     tags: [make_nonpositive]
 
+# ----- Mileage
+
 - id: transport_kilometer_impacts
   name: Vaikutukset kilometrisuoritteisiin
   name_en: Kilometer impacts
@@ -4601,6 +4603,29 @@ nodes:
   output_nodes:
   - id: industry_and_machinery_cost_benefit
 
+- id: renewable_hydrogen_and_emethane_plant_cost_benefit
+  name: Uusiutuvan vedyn ja sähkömetaanin tuotantolaitos
+  name_en: Renewable hydrogen and e-methane plant
+  color: '#E8B455'
+  type: formula.FormulaNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [cost_type, owner, action]
+  output_dimensions: [cost_type, owner, action]
+  params:
+    formula: total_costs + total_benefits
+  input_nodes:
+  - id: total_costs
+    from_dimensions:
+    - id: action
+      categories: [renewable_hydrogen_and_emethane_plant]
+  - id: total_benefits
+    from_dimensions:
+    - id: action
+      categories: [renewable_hydrogen_and_emethane_plant]
+  output_nodes:
+  - id: industry_and_machinery_cost_benefit
+
 - id: industry_and_machinery_cost_benefit
   name: Teollisuus ja työkoneet kustannukset ja hyödyt
   name_en: Industry and machinery costs and benefits
@@ -4971,6 +4996,28 @@ nodes:
   output_dimensions: []
 
 - id: emission_free_construction_sites_energy
+  name: Vaikutus (Energiaa)
+  name_en: Impact (Energy)
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  order: 4
+  is_outcome: true
+  input_dimensions: []
+  output_dimensions: []
+
+- id: renewable_hydrogen_and_emethane_plant_emissions
+  name: Vaikutus (Päästöt)
+  name_en: Impact (Emissions)
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t_co2e/a
+  order: 3
+  is_outcome: true
+  input_dimensions: []
+  output_dimensions: []
+
+- id: renewable_hydrogen_and_emethane_plant_energy
   name: Vaikutus (Energiaa)
   name_en: Impact (Energy)
   type: simple.AdditiveNode
@@ -6954,6 +7001,102 @@ actions:
     - id: action
       flatten: true
     - id: owner
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+
+- id: renewable_hydrogen_and_emethane_plant
+  name: Uusiutuvan vedyn ja sähkömetaanin tuotantolaitos
+  name_en: Renewable hydrogen and e-methane plant
+  type: simple.AdditiveAction
+  group: industry_and_machinery
+  input_dimensions: [action, owner, heating, energy_carrier, ghg, scope]
+  output_dimensions: [action, owner, heating, energy_carrier, ghg, scope]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: tampere/stationary_actions
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - dimension: action
+      categories: [renewable_hydrogen_and_emethane_plant]
+    - column: cost_type
+  output_metrics:
+  - id: emissions
+    unit: t_co2e/a
+    quantity: emissions
+  - id: energy
+    unit: GWh/a
+    quantity: energy
+  output_nodes:
+  - id: district_heating_emissions_total
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: owner
+      flatten: true
+  - id: emissions_impacts
+    metrics: [emissions]
+    from_dimensions:
+    - id: owner
+      flatten: true
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+  - id: industrial_electricity_consumption
+    metrics: [energy]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: heating
+      flatten: true
+    - id: ghg
+      flatten: true
+  - id: industrial_electricity_impacts
+    metrics: [energy]
+    from_dimensions:
+    - id: owner
+      flatten: true
+    - id: heating
+      flatten: true
+    - id: ghg
+      flatten: true
+  - id: renewable_hydrogen_and_emethane_plant_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+  - id: renewable_hydrogen_and_emethane_plant_energy
+    metrics: [energy]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: heating
       flatten: true
     - id: energy_carrier
       flatten: true
