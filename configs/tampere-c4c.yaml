@@ -64,6 +64,10 @@ action_groups:
   name: Sähkön kulutus
   name_en: Electricity consumption
   color: '#F4D240'
+- id: industry_and_machinery
+  name: Teollisuus ja työkoneet
+  name_en: Industry and machinery
+  color: '#E8B455'
 - id: parameters
   name: Parametrit
   name_en: Parameters
@@ -3570,61 +3574,54 @@ nodes:
   input_dimensions: [action]
   output_dimensions: [action]
 
-- id: emissions_reductions
-  name: Emissions reductions
-  name_en: Emissions reductions
+- id: industrial_electricity_impacts
+  name: Vaikutukset teollisuuden sähkön kulutukseen
+  name_en: Industrial electricity impacts
   type: simple.AdditiveNode
-  quantity: emissions
-  unit: t_co2e/a
-  input_dimensions: [action]
-  output_dimensions: [action]
-  input_nodes:
-  - id: emissions_impacts
-    tags: [make_nonpositive]
+  quantity: energy
+  unit: GWh/a
+  input_dimensions: [action, energy_carrier, scope]
+  output_dimensions: [action, energy_carrier, scope]
 
-- id: emissions_increases
-  name: Emissions increases
-  name_en: Emissions increases
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t_co2e/a
-  input_dimensions: [action]
-  output_dimensions: [action]
-  input_nodes:
-  - id: emissions_impacts
-    tags: [make_nonnegative]
-
-- id: emissions_cost_reductions
-  name: Emissions cost reductions
-  name_en: Emissions cost reductions
+- id: industrial_electricity_emissions_impacts
+  name: Industrial electricity emissions impacts
+  name_en: Industrial electricity emissions impacts
   type: simple.MultiplicativeNode
-  quantity: currency
-  unit: EUR/a
-  input_dimensions: [cost_type, owner, action]
-  output_dimensions: [cost_type, owner, action]
+  quantity: emissions
+  unit: t_co2e/a
+  input_dimensions: [action, energy_carrier, ghg, scope]
+  output_dimensions: [action, energy_carrier, ghg, scope]
   input_nodes:
-  - id: emissions_reductions
+  - id: industrial_electricity_impacts
     to_dimensions:
     - id: action
-  - id: carbon_unit_price
+    - id: energy_carrier
+    - id: scope
+  - id: industrial_electricity_emission_factors
     to_dimensions:
-    - id: cost_type
-      categories: [carbon_shadow]
-    - id: owner
-      categories: [society]
+    - id: energy_carrier
+    - id: ghg
+    - id: scope
   output_nodes:
-  - id: total_benefits
+  - id: emissions_impacts
+    from_dimensions:
+    - id: energy_carrier
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
 
-- id: emissions_cost_increases
-  name: Emissions cost increases
-  name_en: Emissions cost increases
+- id: emissions_cost_impacts
+  name: Emissions cost impacts
+  name_en: Emissions cost impacts
   type: simple.MultiplicativeNode
   quantity: currency
   unit: EUR/a
-  input_dimensions: [cost_type, owner, action]
-  output_dimensions: [cost_type, owner, action]
+  input_dimensions: [action, cost_type, owner]
+  output_dimensions: [action, cost_type, owner]
   input_nodes:
-  - id: emissions_increases
+  - id: emissions_impacts
     to_dimensions:
     - id: action
   - id: carbon_unit_price
@@ -3635,6 +3632,9 @@ nodes:
       categories: [society]
   output_nodes:
   - id: total_costs
+    tags: [make_nonnegative]
+  - id: total_benefits
+    tags: [make_nonpositive]
 
 # ----- Mileage
 
@@ -4580,6 +4580,67 @@ nodes:
   - id: cost_benefit
 
 
+- id: emission_free_construction_sites_cost_benefit
+  name: Päästöttömät työmaat (Green Deal)
+  name_en: Emission-free construction sites
+  color: '#E8B455'
+  type: formula.FormulaNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [cost_type, owner, action]
+  output_dimensions: [cost_type, owner, action]
+  params:
+    formula: total_costs + total_benefits
+  input_nodes:
+  - id: total_costs
+    from_dimensions:
+    - id: action
+      categories: [emission_free_construction_sites]
+  - id: total_benefits
+    from_dimensions:
+    - id: action
+      categories: [emission_free_construction_sites]
+  output_nodes:
+  - id: industry_and_machinery_cost_benefit
+
+- id: renewable_hydrogen_and_emethane_plant_cost_benefit
+  name: Uusiutuvan vedyn ja sähkömetaanin tuotantolaitos
+  name_en: Renewable hydrogen and e-methane plant
+  color: '#E8B455'
+  type: formula.FormulaNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [cost_type, owner, action]
+  output_dimensions: [cost_type, owner, action]
+  params:
+    formula: total_costs + total_benefits
+  input_nodes:
+  - id: total_costs
+    from_dimensions:
+    - id: action
+      categories: [renewable_hydrogen_and_emethane_plant]
+  - id: total_benefits
+    from_dimensions:
+    - id: action
+      categories: [renewable_hydrogen_and_emethane_plant]
+  output_nodes:
+  - id: industry_and_machinery_cost_benefit
+
+- id: industry_and_machinery_cost_benefit
+  name: Teollisuus ja työkoneet kustannukset ja hyödyt
+  name_en: Industry and machinery costs and benefits
+  short_name: Teollisuus ja työkoneet
+  short_name_en: Industry and machinery
+  color: '#E8B455'
+  type: simple.AdditiveNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [cost_type, owner, action]
+  output_dimensions: [cost_type, owner, action]
+  output_nodes:
+  - id: cost_benefit
+
+
 - id: cost_benefit
   name: Kustannukset ja hyödyt
   name_en: Costs and benefits
@@ -4919,6 +4980,50 @@ nodes:
   quantity: currency
   unit: EUR/a
   order: 5
+  is_outcome: true
+  input_dimensions: []
+  output_dimensions: []
+
+- id: emission_free_construction_sites_emissions
+  name: Vaikutus (Päästöt)
+  name_en: Impact (Emissions)
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t_co2e/a
+  order: 3
+  is_outcome: true
+  input_dimensions: []
+  output_dimensions: []
+
+- id: emission_free_construction_sites_energy
+  name: Vaikutus (Energiaa)
+  name_en: Impact (Energy)
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  order: 4
+  is_outcome: true
+  input_dimensions: []
+  output_dimensions: []
+
+- id: renewable_hydrogen_and_emethane_plant_emissions
+  name: Vaikutus (Päästöt)
+  name_en: Impact (Emissions)
+  type: simple.AdditiveNode
+  quantity: emissions
+  unit: t_co2e/a
+  order: 3
+  is_outcome: true
+  input_dimensions: []
+  output_dimensions: []
+
+- id: renewable_hydrogen_and_emethane_plant_energy
+  name: Vaikutus (Energiaa)
+  name_en: Impact (Energy)
+  type: simple.AdditiveNode
+  quantity: energy
+  unit: GWh/a
+  order: 4
   is_outcome: true
   input_dimensions: []
   output_dimensions: []
@@ -6814,6 +6919,192 @@ actions:
     - id: scope
       flatten: true
 
+# ----- Teollisuus ja Työkoneet
+- id: emission_free_construction_sites
+  name: 'KAUPUNKI: Päästöttömät työmaat (Green Deal)'
+  name_en: 'CITY: Emission-free construction sites'
+  type: simple.AdditiveAction
+  group: industry_and_machinery
+  input_dimensions: [action, owner, energy_carrier, ghg, scope]
+  output_dimensions: [action, owner, energy_carrier, ghg, scope]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: tampere/stationary_actions
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - dimension: action
+      categories: [emission_free_construction_sites]
+    - column: heating
+    - column: cost_type
+  output_metrics:
+  - id: emissions
+    unit: t_co2e/a
+    quantity: emissions
+  - id: energy
+    unit: GWh/a
+    quantity: energy
+  output_nodes:
+  - id: industry_and_machinery_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+  - id: emissions_impacts
+    metrics: [emissions]
+    from_dimensions:
+    - id: owner
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+  - id: industrial_electricity_consumption
+    metrics: [energy]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: ghg
+      flatten: true
+  - id: industrial_electricity_impacts
+    metrics: [energy]
+    from_dimensions:
+    - id: owner
+      flatten: true
+    - id: ghg
+      flatten: true
+  - id: emission_free_construction_sites_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+  - id: emission_free_construction_sites_energy
+    metrics: [energy]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+
+- id: renewable_hydrogen_and_emethane_plant
+  name: Uusiutuvan vedyn ja sähkömetaanin tuotantolaitos
+  name_en: Renewable hydrogen and e-methane plant
+  type: simple.AdditiveAction
+  group: industry_and_machinery
+  input_dimensions: [action, owner, heating, energy_carrier, ghg, scope]
+  output_dimensions: [action, owner, heating, energy_carrier, ghg, scope]
+  params:
+    allow_null_categories: true
+  input_datasets:
+  - id: tampere/stationary_actions
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - dimension: action
+      categories: [renewable_hydrogen_and_emethane_plant]
+    - column: cost_type
+  output_metrics:
+  - id: emissions
+    unit: t_co2e/a
+    quantity: emissions
+  - id: energy
+    unit: GWh/a
+    quantity: energy
+  output_nodes:
+  - id: district_heating_emissions_total
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: owner
+      flatten: true
+  - id: emissions_impacts
+    metrics: [emissions]
+    from_dimensions:
+    - id: owner
+      flatten: true
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+  - id: industrial_electricity_consumption
+    metrics: [energy]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: heating
+      flatten: true
+    - id: ghg
+      flatten: true
+  - id: industrial_electricity_impacts
+    metrics: [energy]
+    from_dimensions:
+    - id: owner
+      flatten: true
+    - id: heating
+      flatten: true
+    - id: ghg
+      flatten: true
+  - id: renewable_hydrogen_and_emethane_plant_emissions
+    metrics: [emissions]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+  - id: renewable_hydrogen_and_emethane_plant_energy
+    metrics: [energy]
+    from_dimensions:
+    - id: action
+      flatten: true
+    - id: owner
+      flatten: true
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: ghg
+      flatten: true
+    - id: scope
+      flatten: true
+
 # ----- Parametrit
 - id: parameter_electricity_emission_factor
   name: Sähkön päästökerroin
@@ -7179,6 +7470,8 @@ scenarios:
   - id: change_streetlights_to_led.enabled
     value: true
   - id: energy_efficiency_of_new_construction.enabled
+    value: true
+  - id: emission_free_construction_sites.enabled
     value: true
   - id: parameter_electricity_emission_factor.enabled
     value: true
