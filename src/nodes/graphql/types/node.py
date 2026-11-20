@@ -332,6 +332,18 @@ class NodeEditorFields:
         _maybe_compute_status(root._node, compute)
         return [NodeErrorType(phase=e.phase, message=e.message) for e in root._node.status_errors]
 
+    @sb.field(graphql_type=list['NodeInterface'])
+    @staticmethod
+    def failure_origins(root: 'NodeEditorFields', compute: bool = False) -> list['Node']:
+        """
+        Upstream nodes whose own failure this node inherits; empty when the problem is the node's own.
+
+        A node that fails, or computes without an input, because an upstream node failed records
+        no error of its own (see `errors`). These are the nodes where the errors are.
+        """
+        _maybe_compute_status(root._node, compute)
+        return list(root._node.failure_origins)
+
     @sb.field(graphql_type=NodeSpecType | None)
     @staticmethod
     def spec(root: 'NodeEditorFields') -> NodeSpecType | None:

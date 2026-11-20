@@ -464,6 +464,12 @@ class Node:
     status_errors: list[NodeStatusError]
     'Structured problems recorded at this node (own errors only, not inherited cascades).'
 
+    failure_origins: list[Node]
+    """
+    Upstream nodes whose own failure this node inherits, in the order met: the root of a cascade
+    that failed this node, or an input a tolerant node computed without. Empty for an own failure.
+    """
+
     tags: set[str]
     'Tags to differentiate between multiple input/output nodes'
 
@@ -725,6 +731,7 @@ class Node:
         self.tags = set()
         self.status = None
         self.status_errors = []
+        self.failure_origins = []
 
         kls = type(self)
         self.logger = context.log.bind(node=self.id, node_class='%s.%s' % (kls.__module__, kls.__qualname__))
@@ -1468,6 +1475,22 @@ class Node:
         if self.status is None or _NODE_STATUS_SEVERITY[status] > _NODE_STATUS_SEVERITY[self.status]:
             self.status = status
 
+    def note_failure_origin(self, error: NodeError) -> None:
+        """Record the node an upstream failure started at, so the editor can name it."""
+        if not error.event_chain:
+            return
+        # A memoized failure is re-raised from the node asked, which may itself only have
+        # inherited it; follow such nodes back to the ones that failed on their own.
+        pending = [error.event_chain[0].node]
+        while pending:
+            origin = pending.pop(0)
+            if origin is self or origin in self.failure_origins:
+                continue
+            if origin.failure_origins and not origin.status_errors:
+                pending.extend(origin.failure_origins)
+            else:
+                self.failure_origins.append(origin)
+
     def get_output(self, target_node: Node | None = None, metric: str | None = None) -> pd.DataFrame:
         df = self.get_output_pl(target_node, metric)
         return df.to_pandas()
@@ -1519,6 +1542,7 @@ class Node:
                         NodeStatus.FAILED,
                         NodeStatusError(phase=NodeErrorPhase.COMPUTATION, message=_failure_message(e)) if own_error else None,
                     )
+                    self.note_failure_origin(e)
                     e.add_node_event(self, event='get_output', target_node=target_node)
                     raise
                 self.mark_status(
@@ -2124,9 +2148,10 @@ class Node:
         for node, mult in zip(nodes, mults, strict=True):
             try:
                 node_df = node.get_output_pl(self, metric=metric)
-            except NodeError:
+            except NodeError as e:
                 if not tolerate_failures:
                     raise
+                self.note_failure_origin(e)
                 skipped += 1
                 continue
             if tolerate_failures and node.status is NodeStatus.INCOMPLETE:

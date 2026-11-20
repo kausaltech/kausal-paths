@@ -546,9 +546,10 @@ afterwards instead, replacing it wherever the tagged node has a value and leavin
         for binding in self.iter_input_bindings(self.additive_port):
             try:
                 value = self.resolve_input_binding(binding)
-            except NodeError:
+            except NodeError as e:
                 if not tolerant or binding.source_kind != 'node':
                     raise
+                self.note_failure_origin(e)
                 skipped += 1
                 continue
             if (

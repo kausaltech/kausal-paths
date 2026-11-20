@@ -334,9 +334,10 @@ def _add_node_operand(node: Node, operands: OperandSet, source: Node, role: Oper
     tolerant = node.context.tolerate_node_failures
     try:
         df = source.get_output_pl(target_node=node)
-    except NodeError:
+    except NodeError as e:
         if not tolerant:
             raise
+        node.note_failure_origin(e)
         operands.unavailable.append(source.id)
         return
     if tolerant and source.status is NodeStatus.INCOMPLETE:
