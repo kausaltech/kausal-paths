@@ -19,8 +19,10 @@ from kausal_common.datasets.tests.factories import (
     DatasetSchemaFactory,
 )
 
-from frameworks.conversion import _adopt_schemas, adopt_framework_schemas
-from frameworks.models import FrameworkConfig
+from frameworks.bisko.quality import link_grades_of_converting_instance
+from frameworks.conversion import _adopt_schemas, _plan_schema_adoption, adopt_framework_schemas
+from frameworks.evidence import get_evidence
+from frameworks.models import DataQualityLevel, DataQualityScheme, FrameworkConfig
 from frameworks.tests.factories import FrameworkFactory
 from nodes.defs.port_def import InputPortDef
 from nodes.instance_serialization import (
@@ -1099,6 +1101,59 @@ def test_conversion_refuses_a_dataset_whose_data_does_not_fit_its_template_schem
 
     with pytest.raises(ValueError, match=r"kommune/kwk: metric 'electricity_fraction' is in dimensionless, the template's in %"):
         _adopt_schemas(dependent_instance, release.framework, {})
+
+
+def _legacy_city_dataset(identifier: str) -> tuple[InstanceConfig, DatasetSchema]:
+    """Create a 1.3 city, outside every framework, whose `quality` metric is a plain column of scores."""
+    city = InstanceConfigFactory.create(name='City on 1.3', config_source='database', owner='Test owner')
+    schema = DatasetSchemaFactory.create()
+    value = DatasetMetricFactory.create(schema=schema, name='Value', unit='kt/a', order=0)
+    quality = DatasetMetricFactory.create(schema=schema, name='quality', unit='', order=1, spec={})
+    dataset = DatasetFactory.create(schema=schema, scope=city, identifier=identifier)
+    DataPointFactory.create(dataset=dataset, metric=value, value=5)
+    DataPointFactory.create(dataset=dataset, metric=quality, value=Decimal('0.5'))
+    return city, schema
+
+
+def _quality_scale(framework: Framework) -> dict[str, DataQualityLevel]:
+    scheme = DataQualityScheme.objects.create(framework=framework, identifier='quality', version='1', name='Quality')
+    return {
+        identifier: DataQualityLevel.objects.create(scheme=scheme, identifier=identifier, name=identifier, order=i, score=score)
+        for i, (identifier, score) in enumerate([('A', Decimal(1)), ('B', Decimal('0.5')), ('C', Decimal('0.25'))])
+    }
+
+
+def test_a_city_outside_the_framework_has_its_quality_scores_graded_before_conversion(release: TemplateEdition) -> None:
+    """Without the grades, its legacy `quality` column means something else than the template's and conversion refuses."""
+    template = release.framework.template_instance
+    assert template is not None
+    levels = _quality_scale(release.framework)
+    shared = _graded_schema(('Value', 'kt/a'), graded='Value')
+    DatasetFactory.create(schema=shared, scope=template, identifier='kommune/emissions')
+    city, schema = _legacy_city_dataset('kommune/emissions')
+    _pairs, problems = _plan_schema_adoption(city, template)
+    assert problems == ["kommune/emissions: metric 'quality' means something else in the template dataset"]
+
+    link_grades_of_converting_instance(city, release.framework)
+
+    pairs, problems = _plan_schema_adoption(city, template)
+    assert problems == []
+    assert [(dataset.identifier, target.pk) for dataset, target in pairs] == [('kommune/emissions', shared.pk)]
+    value_point = schema.metrics.get(name='Value').data_points.get()
+    evidence = get_evidence(value_point)
+    assert evidence is not None
+    assert evidence.quality_level == levels['B']
+
+
+def test_grading_before_conversion_refuses_a_schema_another_instance_uses(release: TemplateEdition) -> None:
+    _quality_scale(release.framework)
+    city, schema = _legacy_city_dataset('kommune/emissions')
+    other = InstanceConfigFactory.create(name='Certified city', config_source='database', owner='Test owner')
+    DatasetFactory.create(schema=schema, scope=other, identifier='kommune/emissions')
+
+    with pytest.raises(ValueError, match='in a schema other instances use too'):
+        link_grades_of_converting_instance(city, release.framework)
+    assert schema.metrics.get(name='quality').spec == {}
 
 
 def test_a_member_is_repaired_onto_the_template_schemas_with_its_overrides(

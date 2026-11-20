@@ -26,7 +26,10 @@ The two certification instances, `bisko` and `pruefstadt-bisko`, stay on 1.3 for
    follows the alias the framework category declares (`geothermatl` → `geothermal`). A category
    that no data point uses and the framework does not have is left behind: a database dimension
    keeps every category it ever had.
-3. Moves each of the city's datasets onto the schema of the template dataset of the same name, and a
+3. Turns the city's numeric `quality` scores into grades of the framework's scale (A–D), attached
+   to the values they grade. That is the form the template's datasets have; a 1.3 city belongs to
+   no framework, so nothing has done it before.
+   Then moves each of the city's datasets onto the schema of the template dataset of the same name, and a
    replacement dataset (`<city>/final_energy`) onto the schema of the input it replaces. From then
    on the template's changes to the schema, such as a new validation rule, reach the city. The
    data has to fit: the same dimensions, and every metric that holds data in the template schema
@@ -135,6 +138,7 @@ What a refusal means:
 | `Category vocabulary differs for <dimension>: <categories> carry data and have no counterpart` | The city has data under a category the framework does not know. | Rename the category to the framework's, or add an alias for it to the template's dimension. |
 | `... would duplicate data already under <category>` | The city has data under both a renamed category and its new name, for the same cells. | Decide which value is right and delete the other data point. |
 | `Input data has not been imported (<node>, <dataset>)` | A city input still reads an empty placeholder. | Import that dataset (step 2). |
+| `<dataset>: quality value <x> has no unique BISKO grade or matching value point` | A score that is not one of the scale's (1, 0.5, 0.25, 0), or a score with no value beside it. | Correct the score in the city's dataset to one of the grades. |
 | `<dataset>: metric '<m>' is in <unit>, the template's in <unit>` (or has no such metric, or other dimensions) | The city's data does not fit the template's schema for that dataset. | Convert or move the data in the city's dataset first; the template's schema is the one a member uses. |
 
 ## Step 4: convert

@@ -41,13 +41,45 @@ def provision_bisko_quality_projections(framework: Framework) -> None:
         schema__metrics__name='quality',
     )
     schema_ids = set(scoped.values_list('schema_id', flat=True)) - {None}
-    levels = list(DataQualityLevel.objects.filter(scheme__framework=framework, scheme__identifier='quality', scheme__version='1'))
+    by_score = _levels_by_score(framework)
+    for schema_id in sorted(schema_ids):
+        _provision_schema(schema_id, by_score)
+
+
+def link_grades_of_converting_instance(instance: InstanceConfig, framework: Framework) -> None:
+    """
+    Turn a 1.3 city's numeric `quality` columns into grades of the framework's scale, before conversion.
+
+    A 1.3 city belongs to no framework, so `provision_bisko_quality_projections` leaves it out, and
+    its `quality` metric is a plain number column. The template's is a projection of per-point
+    grades, so until the city's is one too, conversion takes the two for different metrics and
+    refuses. A schema another instance also uses is refused rather than changed under it.
+    """
+    instance_type = ContentType.objects.get_for_model(InstanceConfig)
+    own = Dataset.objects.filter(scope_content_type=instance_type, scope_id=instance.pk, schema__metrics__name='quality')
+    schema_ids = set(own.values_list('schema_id', flat=True)) - {None}
+    shared = (
+        Dataset.objects
+        .filter(schema_id__in=schema_ids)
+        .exclude(scope_content_type=instance_type, scope_id=instance.pk)
+        .values_list('identifier', flat=True)
+    )
+    if shared:
+        raise ValueError(
+            f'{instance.identifier}: the quality metric of {", ".join(sorted(str(i) for i in shared))} is in a schema '
+            'other instances use too; convert them together or give the city its own schema first.'
+        )
+    by_score = _levels_by_score(framework)
+    for schema_id in sorted(schema_ids):
+        _provision_schema(schema_id, by_score)
+
+
+def _levels_by_score(framework: Framework) -> dict[Decimal, list[DataQualityLevel]]:
+    levels = DataQualityLevel.objects.filter(scheme__framework=framework, scheme__identifier='quality', scheme__version='1')
     by_score: dict[Decimal, list[DataQualityLevel]] = defaultdict(list)
     for level in levels:
         by_score[level.score].append(level)
-
-    for schema_id in sorted(schema_ids):
-        _provision_schema(schema_id, by_score)
+    return by_score
 
 
 def _provision_schema(schema_id: int, by_score: dict[Decimal, list[DataQualityLevel]]) -> None:

@@ -11,6 +11,7 @@ from kausal_common.datasets.models import Dataset
 
 from frameworks.bisko.default_sources import POPULATION_DATASET
 from frameworks.bisko.defaults import has_own_population, seed_population_from_pin
+from frameworks.bisko.quality import link_grades_of_converting_instance
 from frameworks.conversion import convert_to_framework
 from frameworks.identity import ensure_municipal_organization
 from nodes.instance_problems import collect_instance_problems
@@ -124,7 +125,11 @@ def convert_checked_instance(
     and gets the population series at the template's pin, as a template upgrade does: the
     population input a converted model receives is otherwise empty. The series covers only
     some Länder, so a converted city outside them enters its population itself.
+
+    Before the conversion, the city's numeric quality columns become grades of the framework's
+    scale, which is the form the template's datasets have.
     """
+    link_grades_of_converting_instance(instance, framework)
     result = convert_to_framework(instance, framework, revision)
     instance.refresh_from_db()
     organization = ensure_municipal_organization(instance)
