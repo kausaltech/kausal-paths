@@ -4,15 +4,17 @@ import ast
 import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Literal, NamedTuple, TypeVar, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, NamedTuple, TypeVar, cast
 from uuid import NAMESPACE_URL, uuid5
 
 from django.utils.translation import gettext_lazy as _
 
 import polars as pl
+from pint.errors import UndefinedUnitError
 
 from common import polars as ppl, qualifiers
 from nodes.calc import convert_to_co2e, extend_last_historical_value_pl
+from nodes.chp_allocation import bisko_heat_share, chp_heat_share, exergetic_heat_share
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from nodes.defs.node_defs import ActionConfig, FormulaConfig, NodeSpec
 from nodes.exceptions import NodeError
@@ -385,6 +387,8 @@ class FormulaNode(Node):
             return self._custom_valid_inputs(node, varss)
         if func == 'output_with_scenario':
             return self._custom_output_with_scenario(node, varss)
+        if func == 'conforms_to_bisko':
+            return self._custom_conforms_to_bisko(node, varss)
         if func == 'prefer_by_year' and len(node.args) == 3:
             return self._custom_prefer_by_year(func, node, varss, None)
 
@@ -410,6 +414,7 @@ class FormulaNode(Node):
         'max_dim': '_custom_max_dim',
         'zero_fill': '_custom_zero_fill',
         'from_year': '_custom_from_year',
+        'constant_frame': '_custom_constant_frame',
         'select_category': '_custom_select_category',
         'interpolate': '_custom_temporal',
         'extend': '_custom_temporal',
@@ -427,6 +432,17 @@ class FormulaNode(Node):
         'has_source': '_custom_has_source',
         'and': '_custom_and_or',
         'or': '_custom_and_or',
+        'chp_heat_share': '_custom_chp_heat_share',
+        'exergetic_heat_share': '_custom_chp_heat_share',
+        'bisko_heat_share': '_custom_chp_heat_share',
+    }
+
+    # The CHP allocation functions, from the general to the specific, with their arguments; see
+    # `nodes.chp_allocation`.
+    _CHP_HEAT_SHARE_FUNCTIONS: ClassVar[dict[str, tuple[tuple[str, ...], Callable[..., PDF]]]] = {
+        'chp_heat_share': (('electricity_fraction', 'electricity_weight', 'heat_weight'), chp_heat_share),
+        'exergetic_heat_share': (('electricity_fraction', 't_supply', 't_return', 't_ambient'), exergetic_heat_share),
+        'bisko_heat_share': (('electricity_fraction', 't_supply', 't_return'), bisko_heat_share),
     }
 
     def _handle_custom_function(self, func: str, node: ast.Call, varss: EvalVars, df: EvalOutput) -> EvalOutput:
@@ -488,6 +504,80 @@ class FormulaNode(Node):
             raise NodeError(self, 'Second argument to output_with_scenario() must be a quoted scenario id')
 
         return input_node.get_output_pl_for_scenario(scenario_arg.value, target_node=self)
+
+    def _custom_chp_heat_share(self, func: str, node: ast.Call, varss: EvalVars, df: EvalOutput) -> EvalOutput:
+        """
+        Handle the CHP allocation functions: the share of a plant's emissions allocated to its heat.
+
+        ``chp_heat_share(electricity_fraction, electricity_weight, heat_weight)`` is the weighted
+        split that every method is a case of, ``exergetic_heat_share(electricity_fraction, t_supply,
+        t_return, t_ambient)`` weights the products by the work they could do, and
+        ``bisko_heat_share(electricity_fraction, t_supply, t_return)`` is the exergetic split with the
+        ambient temperature BISKO fixes. Every argument is a series, and a row has a share only where
+        all of them have a value; see `nodes.chp_allocation`. A node whose formula calls
+        ``bisko_heat_share`` declares that its allocation conforms to BISKO
+        (`allocation_conforms_to_bisko`).
+        """
+        arg_names, compute = self._CHP_HEAT_SHARE_FUNCTIONS[func]
+        signature = '%s(%s)' % (func, ', '.join(arg_names))
+        if len(node.args) != len(arg_names) or node.keywords:
+            raise NodeError(self, '%s takes %d arguments' % (signature, len(arg_names)))
+        args = [df, *(self.eval_tree(arg, varss) for arg in node.args[1:])]
+        if not all(isinstance(arg, PDF) for arg in args):
+            raise NodeError(self, '%s needs %d series, such as dataset columns, not numbers' % (signature, len(arg_names)))
+        return compute(self, *args)
+
+    def _custom_conforms_to_bisko(self, node: ast.Call, varss: EvalVars) -> PDF:
+        """
+        Handle ``conforms_to_bisko(allocation)``: 1 in every year if that input node's CHP split is BISKO's, else 0.
+
+        The input node answers for itself, through its ``allocation_conforms_to_bisko`` property, so
+        this function knows nothing about how a split is computed. The years run from the minimum
+        historical year to the model end year, and those after the last historical year are forecast.
+        """
+        if len(node.args) != 1 or node.keywords or not isinstance(node.args[0], ast.Name):
+            raise NodeError(self, 'conforms_to_bisko(allocation) takes one input node')
+        allocation = varss.nodes.get(node.args[0].id)
+        if allocation is None:
+            raise NodeError(self, "conforms_to_bisko(): '%s' is not an input node" % node.args[0].id)
+        conforms = getattr(allocation, 'allocation_conforms_to_bisko', None)
+        if conforms is None:
+            raise NodeError(
+                self,
+                "conforms_to_bisko(): input node '%s' does not say whether its allocation conforms to BISKO. "
+                'It must be a CHP allocation node.' % allocation.id,
+            )
+        instance = self.context.instance
+        years = list(range(instance.minimum_historical_year, instance.model_end_year + 1))
+        last_historical = instance.maximum_historical_year or instance.reference_year
+        frame = pl.DataFrame(
+            {
+                YEAR_COLUMN: years,
+                VALUE_COLUMN: [1.0 if conforms else 0.0] * len(years),
+                FORECAST_COLUMN: [year > last_historical for year in years],
+            },
+            schema={YEAR_COLUMN: pl.Int64, VALUE_COLUMN: pl.Float64, FORECAST_COLUMN: pl.Boolean},
+        )
+        return ppl.to_ppdf(
+            frame, meta=ppl.DataFrameMeta(primary_keys=[YEAR_COLUMN], units={VALUE_COLUMN: unit_registry.dimensionless})
+        )
+
+    @property
+    def allocation_conforms_to_bisko(self) -> bool:
+        """
+        Whether this node computes BISKO's CHP split: its formula calls ``bisko_heat_share``.
+
+        The function fixes the method and the ambient temperature, so the formula cannot apply the
+        split another way while calling it. Read by ``conforms_to_bisko`` in a downstream formula.
+        """
+        try:
+            formula = self.formula
+        except NodeError:
+            return False
+        return any(
+            isinstance(call, ast.Call) and isinstance(call.func, ast.Name) and call.func.id == 'bisko_heat_share'
+            for call in ast.walk(ast.parse(formula, '<string>', mode='eval'))
+        )
 
     def _custom_convert_gwp(self, _func: str, _node: ast.Call, _varss: EvalVars, df: EvalOutput) -> EvalOutput:
         assert isinstance(df, PDF)
@@ -589,6 +679,46 @@ class FormulaNode(Node):
         if not isinstance(year_arg, ast.Constant) or not isinstance(year_arg.value, int) or isinstance(year_arg.value, bool):
             raise NodeError(self, 'from_year() needs a literal year as its second argument')
         return df.filter(pl.col(YEAR_COLUMN) >= year_arg.value)
+
+    def _custom_constant_frame(self, _func: str, node: ast.Call, _varss: EvalVars, value: EvalOutput) -> EvalOutput:
+        """
+        Handle ``constant_frame(value[, 'unit'])``: one value in every year of the model.
+
+        The years run from the minimum historical year to the model end year, the same years the
+        ``extend_all`` operation and the ``extend_history`` binding option cover. ``value`` is a
+        number, a parameter with a unit, or a boolean parameter (true = 1, false = 0). The optional
+        unit is a quoted string; it labels a bare number and converts a quantity that has a unit.
+        """
+        if len(node.args) not in (1, 2) or node.keywords:
+            raise NodeError(self, "constant_frame(value[, 'unit']) takes one or two arguments")
+        if isinstance(value, bool):
+            quantity = Quantity(float(value), 'dimensionless')
+        elif isinstance(value, Quantity):
+            quantity = value
+        else:
+            raise NodeError(self, 'constant_frame() needs a number or a parameter as its first argument, not a data frame')
+        if len(node.args) == 2:
+            unit_arg = node.args[1]
+            if not isinstance(unit_arg, ast.Constant) or not isinstance(unit_arg.value, str):
+                raise NodeError(self, "constant_frame() needs a quoted unit such as 'kt/a' as its second argument")
+            unit = unit_registry.parse_units(unit_arg.value)
+            if quantity.units == unit_registry.dimensionless and unit.dimensionality != quantity.dimensionality:
+                quantity = Quantity(quantity.m, unit)
+            else:
+                quantity = quantity.to(unit)
+        instance = self.context.instance
+        # The years `extend_all` and the `extend_history` binding option cover, so that a constant
+        # lines up with every series it is combined with.
+        years = range(instance.minimum_historical_year, instance.model_end_year + 1)
+        frame = pl.DataFrame(
+            {
+                YEAR_COLUMN: list(years),
+                VALUE_COLUMN: [float(quantity.m)] * len(years),
+                FORECAST_COLUMN: [False] * len(years),
+            },
+            schema={YEAR_COLUMN: pl.Int64, VALUE_COLUMN: pl.Float64, FORECAST_COLUMN: pl.Boolean},
+        )
+        return ppl.to_ppdf(frame, meta=ppl.DataFrameMeta(primary_keys=[YEAR_COLUMN], units={VALUE_COLUMN: quantity.units}))
 
     def _custom_temporal(self, func: str, _node: ast.Call, _varss: EvalVars, df: EvalOutput) -> EvalOutput:
         """Apply a canonical temporal operation, shared with the pipeline executor and binding transformations."""
@@ -904,16 +1034,27 @@ class FormulaNode(Node):
             ast.BinOp: self.eval_binop,
             ast.Compare: self.eval_compare,
             ast.Call: self.eval_call,
-            # ast.UnaryOp: self.eval_unaryop,
+            ast.UnaryOp: self.eval_unaryop,
         }
 
         for ast_type, evaluator in EVALUATORS.items():
             if isinstance(tree, ast_type):
                 return evaluator(tree, varss)
 
-        if isinstance(tree, ast.UnaryOp):
-            raise NodeError(self, 'Unary operators such as "%s" are not supported in formulas' % _ast_text(tree))
         raise NodeError(self, 'Expression "%s" is not supported in formulas' % _ast_text(tree))
+
+    def eval_unaryop(self, node: ast.UnaryOp, varss: EvalVars) -> EvalOutput:
+        """Unary minus and plus on a number or a data frame; `-x` keeps x's unit, rows and nulls."""
+        if not isinstance(node.op, ast.USub | ast.UAdd):
+            raise NodeError(self, 'Unary operators such as "%s" are not supported in formulas' % _ast_text(node))
+        operand = self.eval_tree(node.operand, varss)
+        if isinstance(operand, bool):
+            raise NodeError(self, 'Unary "%s" needs a number or a data frame, not a boolean' % _ast_text(node))
+        if isinstance(node.op, ast.UAdd):
+            return operand
+        if isinstance(operand, PDF):
+            return operand.with_columns(-pl.col(VALUE_COLUMN))
+        return -operand
 
     def _collect_used_node_names(self, tree: ast.AST, varss: EvalVars) -> set[str]:
         """Collect node names that are actually used in the formula AST."""
@@ -1257,6 +1398,17 @@ def analyze_formula_units(  # noqa: C901, PLR0915
                 return override_unit
             if func_name in ('sum_dim', 'sum_into_cat', 'mean_dim', 'min_dim', 'max_dim'):
                 return first
+            if func_name == 'constant_frame':
+                if len(node.args) == 2:
+                    unit_arg = node.args[1]
+                    if isinstance(unit_arg, ast.Constant) and isinstance(unit_arg.value, str):
+                        try:
+                            return unit_registry.parse_units(unit_arg.value)
+                        except UndefinedUnitError:
+                            analysis.errors.append(f"Unknown unit '{unit_arg.value}' in constant_frame().")
+                            return first
+                    analysis.errors.append("constant_frame() needs a quoted unit such as 'kt/a' as its second argument.")
+                return first
             if func_name == 'coalesce_df':
                 unit = first
                 for arg in node.args[1:]:
@@ -1285,7 +1437,7 @@ def analyze_formula_units(  # noqa: C901, PLR0915
                 if first is not None and first.dimensionality != dimensionless.dimensionality:
                     analysis.errors.append("Function 'complement' requires dimensionless units.")
                 return dimensionless
-            if func_name in QUALIFIER_FUNCTIONS:
+            if func_name in QUALIFIER_FUNCTIONS or func_name in (*FormulaNode._CHP_HEAT_SHARE_FUNCTIONS, 'conforms_to_bisko'):
                 return dimensionless
             if func_name in _PASSTHROUGH_FUNCTIONS or func_name in passthrough:
                 return first
@@ -1387,8 +1539,10 @@ def analyze_formula_dimensions(  # noqa: C901, PLR0915
                     return set(d for d in first if d != dim)
                 analysis.errors.append(f'{func_name} expects a dimension name as second argument.')
                 return first
-            if func_name == 'valid_inputs':
+            if func_name in ('valid_inputs', 'constant_frame', 'conforms_to_bisko'):
                 return set()
+            if func_name in FormulaNode._CHP_HEAT_SHARE_FUNCTIONS:
+                return first
             if func_name == 'sum_into_cat':
                 return first
             if func_name == 'coalesce_df':

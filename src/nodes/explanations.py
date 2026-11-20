@@ -108,19 +108,34 @@ TAG_DESCRIPTIONS = {
     'and': _('Logical AND: min(a, b). Warns if inputs deviate from 0 or 1 (see node explanation).'),
     'arithmetic_inverse': _('Take the arithmetic inverse of the values (-x).'),
     'base': _('Use this input as the base value to start from.'),
+    'bisko_heat_share': _(
+        'The share of combined heat and power emissions that BISKO allocates to heat: the exergetic split with '
+        'the ambient temperature fixed at 283 K.'
+    ),
     'bring_to_maximum_historical_year': _('Makes all years up to maximum historical year non-forecasts.'),
     'bring_to_reference_year': _('Makes all years after reference year forecast years.'),
+    'chp_heat_share': _(
+        'The share of combined heat and power emissions allocated to heat, from the electricity fraction and '
+        'what a unit of electricity and a unit of heat each count for.'
+    ),
     'city_data': _('Check if city-specific data exists for this framework model.'),
     'coalesce': _('Use the first non-null value among the inputs (priority order).'),
     'complement': _('Take the complement of the unitless values (1-x).'),
     'complement_cumulative_product': _('Take the cumulative product of the dimensionless complement values over time.'),
     'concat_datasets': _('Get and concatenate datasets vertically, only then prepare the output.'),
+    'conforms_to_bisko': _(
+        "1 in every year if the input node's combined heat and power split is the one BISKO prescribes, otherwise 0."
+    ),
     'cumulative': _('Take the cumulative sum over time.'),
     'cumulative_product': _('Take the cumulative product of the dimensionless values over time.'),
     'difference': _('Take the difference over time (i.e. annual changes)'),
     'drop_infs': _('Drop long-format rows with infinite values.'),
     'drop_nans': _('Drop long-format rows with NaN/null values.'),
     'empty_to_zero': _('Convert NaNs and Nulls to zeros in wide format.'),
+    'exergetic_heat_share': _(
+        'The share of combined heat and power emissions allocated to heat by the exergetic (Carnot) method, from '
+        'the electricity fraction, the supply and return temperatures of the network and the ambient temperature.'
+    ),
     'existing': _('This is used as the baseline.'),
     'expectation': _('Take the expected value over the uncertainty dimension.'),
     'extend_all': _('Extend the values to all the remaining missing years.'),
@@ -382,6 +397,17 @@ NODE_CLASS_DESCRIPTIONS: dict[str, NodeInfo] = {
     ),
     'CumulativeAdditiveAction': NodeInfo(_("""Additive action where the effect is cumulative and remains in the future.""")),
     'DataAvailabilityNode': NodeInfo(
+        _(
+            """
+        This node does not use the values of its input dataset but reports whether a value exists
+        in each cell: 1 where the dataset has a value and 0 where it does not. The check is made on
+        the original data, before interpolation or extension fill in the missing years. The output
+        covers the whole model period, and the years and categories that the data does not reach get 0.
+        """
+        )
+    ),
+    # The rebuilt copy of the class the frozen BISKO 1.3 module uses; the same text.
+    'DataAvailabilityNode2': NodeInfo(
         _(
             """
         This node does not use the values of its input dataset but reports whether a value exists

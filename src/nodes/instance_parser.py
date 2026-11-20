@@ -1296,7 +1296,9 @@ class InstanceConfigParser:
                         binding_owner=ds_def.binding_owner,
                         # An authored unit outranks the node's own output metric: on a
                         # formula node the dataset is one term, not the result.
-                        unit=ds_def.unit if ds_def.unit is not None else (metric.unit if metric is not None else None),
+                        unit=ds_def.unit
+                        if ds_def.unit is not None
+                        else (metric.unit if metric is not None and parsed.node_class.dataset_ports_take_output_unit else None),
                         quantity=metric.quantity if metric is not None else None,
                     )
                 )

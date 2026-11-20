@@ -8,11 +8,17 @@ from uuid import uuid4
 import polars as pl
 import pytest
 
-from nodes.constants import YEAR_COLUMN
+from kausal_common.i18n.pydantic import TranslatedString
+
+from common import qualifiers
+
+from nodes.constants import VALUE_COLUMN, YEAR_COLUMN
 from nodes.exceptions import NodeError
 from nodes.instance_loader import InstanceLoader
 from nodes.instance_parser import InstanceParseError, parse_instance_snapshot
 from nodes.instance_serialization import InstanceSnapshot
+from nodes.tests.test_add_multiply_semantics import _FixedOutputNode, _ppdf, _reported
+from nodes.units import unit_registry
 
 pytestmark = pytest.mark.django_db
 
@@ -274,3 +280,31 @@ def test_a_hook_names_its_target_by_uuid() -> None:
 def test_an_unknown_parent_action_is_a_parse_error() -> None:
     with pytest.raises(InstanceParseError, match="refers to unknown node 'nowhere'"):
         parse_instance_snapshot(_config(actions=[_saving(parent='nowhere')]), instance_uuid=uuid4())
+
+
+def test_action_impact_on_a_qualified_target() -> None:
+    """
+    The impact rows get a qualifier too, by the rule for a sum, so all three groups stack.
+
+    A target whose output carries a qualifier column (any node class that combines inputs, since
+    qualifiers propagate) used to fail every action's impact with a polars ShapeError.
+    """
+    ctx = _context(_config(actions=[_saving()]))
+    target = _FixedOutputNode(
+        id='qualified',
+        context=ctx,
+        name=TranslatedString('qualified', default_language='en'),
+        unit=unit_registry.parse_units('kWh/a'),
+        quantity='energy',
+        fixed_df=_reported(_ppdf([(2018, 100.0), (2025, 90.0)], unit='kWh/a'), reported=True),
+    )
+    ctx.add_node(target)
+    with ctx.run():
+        saving = ctx.get_action('saving')
+        saving.enabled_param.set(True)
+        impact = saving.compute_impact(target)
+
+    qual = qualifiers.qualifier_column(VALUE_COLUMN)
+    assert qual in impact.columns
+    assert impact['Impact'].n_unique() == 3
+    assert impact.filter(pl.col('Impact') == 'Impact')[qual].null_count() == 0

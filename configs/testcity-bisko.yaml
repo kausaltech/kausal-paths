@@ -29,15 +29,18 @@ features:
   show_category_warnings: true
 
 include:
-- file: modules/bisko/model.yaml
+# As in bisko-base.yaml: the framework template's population reads the municipality's own
+# series (kommune/bevoelkerung), so a city joining the framework must have the same node.
+- file: modules/bisko-base/population-defaults.yaml
   allow_override: false
+- file: modules/bisko-base/model.yaml
+  # The extension above deliberately replaces only the population node.
+  allow_override: true
   dataset_replacements:
   - from: kommune/endenergieverbrauch
     to: schwerin/final_energy
   - from: kommune/gemeldete_emissionen
     to: schwerin/historical_emissions
-  - from: kommune/verkehrsleistung_personen
-    to: schwerin/passenger_kilometers
 
 #//////  Parameters  ////////////////////////////////////////////////////////////////////////////////////////////////////
 params:
@@ -57,7 +60,7 @@ params:
 - id: ags_number
   label_en: AGS number
   label_de: AGS-Nummer
-  value: '13004000'
+  value: '00000000'
   is_customizable: false
   is_visible: false
 # NUTS-3, not NUTS-2: Schwerin is a Kreisfreie Stadt, so DE804 *is* the city. It is the only NUTS-3
@@ -77,8 +80,8 @@ params:
   is_visible: false
 # The municipality itself, as a Eurostat GISCO LAU code: `<country>_<national LAU code>`, and
 # for Germany the national LAU code is the AGS -- so this is `DE_` plus `ags_number`, naming
-# Schwerin, Landeshauptstadt. Read by the `population` node, which filters the European municipal
-# population table `demography/population_lau` down to this one municipality.
+# Schwerin, Landeshauptstadt. No node reads it since the population extension replaced the GISCO
+# `population` node (see the include above); kept because it identifies the municipality.
 #
 # Declared separately from `ags_number` rather than derived from it, because the model filters on
 # one column with one parameter and the table is Europe-wide: a bare `09761000` is not unique
@@ -105,17 +108,6 @@ params:
 # standard Fernwärme factor -- exactly as the road-transport own-data preference works. See
 # district_heating_emissions in modules/bisko/model.yaml, and district_heating_method_in_force for
 # which route each year took. `use_exergetic_district_heating` was removed on 2026-08-20.
-
-- id: municipal_facilities_included_in_commerce
-  # Hidden and fixed: what the city's data contains is settled once at setup, not by a visitor.
-  # Where KE is shown is the reporting setting report_municipal_facilities_in_commerce.
-  label_en: Is the consumption of municipal facilities included in the commerce,
-    trade and services sector?
-  label_de: Sind die Verbräuche der kommunalen Einrichtungen im Sektor
-    GHD/Sonstiges enthalten?
-  value: false
-  is_visible: false
-  is_customizable: false
 
 # Heat-pump electricity sits inside the metered electricity unless the utility has separated it,
 # so the Leitfaden Datenbeschaffung (Schritt 7) treats the overlap as the normal case and asks for
@@ -156,7 +148,6 @@ result_excels:
   - weather_correction
   - final_energy_use
   - total_final_energy_use          # criterion 2.1: energy by sector incl. transport
-  - municipal_facilities_energy_in_commerce  # criterion 2.1: the KE/GHD double-count correction
   - total_weighted_data_quality     # criterion 7.2: Datengüte of the whole balance
   # - final_municipal_facilities_energy_use_by_type
   # - municipal_fleet_energy
@@ -184,7 +175,6 @@ result_excels:
   - road_transport_activity_source_in_force
   - road_transport_energy_method_in_force
   - other_transport_energy_source_in_force
-  - passenger_kilometers_own        # the pkm/vkm distinction the certifier asked about
   # "Visuelles Ausweisen als Pflichtfeld waere hilfreich" -- raised under 1.2, 1.4 and 1.5.
   # These show which required cell is missing rather than a bare 0.
 pages:

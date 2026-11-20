@@ -11,10 +11,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
 from nodes.models import InstanceConfig, NodeConfig
+from nodes.spec_sync import InheritedInstanceSyncError, refuse_inherited_instance_sync
 
 if TYPE_CHECKING:
     from argparse import ArgumentParser
@@ -32,6 +33,7 @@ class Command(BaseCommand):
         selection = parser.add_mutually_exclusive_group()
         selection.add_argument('--all', action='store_true', help='Sync all non-framework instances')
         selection.add_argument('--all-db', action='store_true', help='Sync all database-sourced, non-framework instances')
+        # A named instance that inherits from a framework template is refused, with what to do instead.
         parser.add_argument('--dry-run', action='store_true', help='Load and export but do not save to DB')
         parser.add_argument('--start-after', type=str, help='Instance identifier to start after')
         parser.add_argument('--skip', dest='skip', metavar='INSTANCE_ID', action='append', help='Instances to skip')
@@ -64,6 +66,7 @@ class Command(BaseCommand):
             instance_ids = instances.values_list('identifier', flat=True)
         else:
             instance_ids = options['instance']
+            self._refuse_inherited(instance_ids)
         start_after = options['start_after']
         for instance_id in instance_ids:
             if start_after:
@@ -79,6 +82,17 @@ class Command(BaseCommand):
             return
 
         self.stdout.write(self.style.SUCCESS('Done. %d instances synced.' % len(instance_ids)))
+
+    def _refuse_inherited(self, instance_ids: list[str]) -> None:
+        """Refuse instances that inherit from a template, before syncing any of the named ones."""
+        refusals = []
+        for ic in InstanceConfig.objects.filter(identifier__in=instance_ids):
+            try:
+                refuse_inherited_instance_sync(ic)
+            except InheritedInstanceSyncError as error:
+                refusals.append(str(error))
+        if refusals:
+            raise CommandError('\n\n'.join(refusals))
 
     def _print_summary(self, instance_id: str) -> None:
         instance_spec = InstanceConfig.objects.get(identifier=instance_id).spec

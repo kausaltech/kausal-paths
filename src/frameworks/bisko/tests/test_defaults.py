@@ -280,3 +280,18 @@ def test_energy_defaults_have_grade_c_and_leave_existing_values_alone() -> None:
     assert seed_energy_defaults(instance, dataset, values, source_revision='second') == 0
     DataPointFactory.create(dataset=dataset, metric=metric, date=date(2024, 1, 1), value=123)
     assert seed_energy_defaults(instance, dataset, values, source_revision='third') == 0
+
+
+@pytest.mark.django_db
+def test_refreshing_population_leaves_a_municipality_the_series_does_not_cover_alone(monkeypatch: pytest.MonkeyPatch) -> None:
+    from frameworks.bisko import defaults
+
+    instance, dataset = population_dataset()
+    series = pl.DataFrame({'ags': ['03001001'], 'Year': [2023], 'population': [100.0], 'Forecast': [False], 'provenance': ['{}']})
+    monkeypatch.setattr(defaults, '_load_sources', lambda _instance, *_ids: ([series], 'pin'))
+    monkeypatch.setattr(defaults, '_municipality_ags', lambda _instance: '13004000')
+
+    assert defaults.seed_population_from_pin(instance) is None
+    assert not dataset.data_points.exists()
+    dataset.refresh_from_db()
+    assert 'provider_defaults' not in (dataset.spec or {})

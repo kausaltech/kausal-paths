@@ -259,8 +259,17 @@ the editor:
   problems recorded *at this* node. Empty for an OK node, and empty for a
   node only affected via a cascade (its status reflects an upstream break,
   but the error itself lives on the upstream node).
+- `failureOrigins(compute: Boolean! = false): [NodeInterface!]!` — for such
+  a node, the upstream nodes whose own failure it inherits: the root of the
+  cascade that failed it, or the inputs a tolerant node computed without.
+  So the editor can say "not computed because X failed" and link to X
+  without walking the graph. Recorded from `NodeError.event_chain[0]`
+  (`Node.note_failure_origin`). A memoized failure is re-raised from the
+  node that was asked, which may itself have only inherited it, so such
+  nodes are followed back to the ones that failed on their own. Empty for
+  a node whose problem is its own.
 
-Both fields take a `compute` argument. With `compute: false` (the
+All three fields take a `compute` argument. With `compute: false` (the
 default) the resolver just reads what's already there — cheap, so the
 editor can fetch statuses for the whole graph in one fast query.
 Init-phase failures (metadata validation, once tier 1 lands) are known

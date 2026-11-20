@@ -189,6 +189,22 @@ def test_downstream_cascade_has_no_own_error(context):
     assert len(boom.status_errors) == 1
 
 
+def test_a_cascade_names_the_node_whose_failure_it_inherits(context):
+    boom = BoomNodeFactory.create(context=context)
+    middle = _sum_of(context, [boom])
+    consumer = _sum_of(context, [middle])
+    with pytest.raises(NodeError):
+        middle.get_output_pl()
+    # The middle node is asked again: its memoized failure is re-raised from it, but it only
+    # inherited that failure, so the consumer is told about the node that failed on its own.
+    with pytest.raises(NodeError):
+        consumer.get_output_pl()
+
+    assert middle.failure_origins == [boom]
+    assert consumer.failure_origins == [boom]
+    assert boom.failure_origins == []
+
+
 # --- non-tolerant (default) keeps failing fast ------------------------------
 
 
@@ -369,6 +385,7 @@ def test_tolerant_additive_skips_failed_input(context):
     expected = good.get_output_pl()
 
     assert summed.status is NodeStatus.DEGRADED
+    assert summed.failure_origins == [boom]
     assert boom.status is NodeStatus.FAILED
     # The partial sum equals the one surviving input.
     assert df['Value'].to_list() == expected['Value'].to_list()

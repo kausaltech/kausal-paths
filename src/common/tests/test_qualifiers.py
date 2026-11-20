@@ -221,12 +221,25 @@ class TestPairing:
         assert qualifiers.qualifier_column('Energy') in df.rename({VALUE_COLUMN: 'Energy'}).columns
         assert QUAL not in df.drop(VALUE_COLUMN).columns
 
-    def test_a_projection_keeps_a_qualifier_only_when_asked(self) -> None:
-        """Frames built to be stacked must come out of a projection with the columns it names."""
+    def test_a_projection_carries_the_qualifier_of_a_metric_it_passes_through(self) -> None:
+        """As `rename` and `drop` do: a hand-written projection must not lose a qualifier."""
         df = _frame([(2020, 'gas', 1.0, 1.0, True)])
         cols = [YEAR_COLUMN, 'energy_carrier', VALUE_COLUMN]
-        assert df.select(cols).columns == cols
+        assert df.select(cols).columns == [*cols, QUAL]
         assert df.select(df.qualified(cols)).columns == [*cols, QUAL]
+        assert df.select(*cols).columns == [*cols, QUAL]
+        assert df.select(YEAR_COLUMN).columns == [YEAR_COLUMN]
+
+    def test_a_renaming_projection_renames_the_qualifier_too(self) -> None:
+        df = _frame([(2020, 'gas', 1.0, 1.0, True)])
+        out = df.select(YEAR_COLUMN, pl.col(VALUE_COLUMN).alias('energy'))
+        assert out.columns == [YEAR_COLUMN, 'energy', qualifiers.qualifier_column('energy')]
+        assert out[qualifiers.qualifier_column('energy')].to_list() == df[QUAL].to_list()
+
+    def test_a_computed_column_gets_no_qualifier(self) -> None:
+        """What an arbitrary expression does to a qualifier is for the operation to decide."""
+        df = _frame([(2020, 'gas', 1.0, 1.0, True)])
+        assert df.select(YEAR_COLUMN, pl.col(VALUE_COLUMN) * 2).columns == [YEAR_COLUMN, VALUE_COLUMN]
 
 
 class TestSums:

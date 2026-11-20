@@ -727,10 +727,31 @@ def _apply_binding_overrides(
         for position, binding in enumerate(override.bindings):
             if (binding.node_id, binding.port_id, binding.position) != (node.uuid, port.id, position):
                 raise ValueError('Override bindings must target their owning port in dense position order')
+        default = sorted((b for b in bindings if (b.node_id, b.port_id) == (node.uuid, port.id)), key=lambda b: b.position)
         bindings = [b for b in bindings if (b.node_id, b.port_id) != (node.uuid, port.id)]
-        bindings.extend(override.bindings)
+        bindings.extend(_with_template_tags(override.bindings, default))
 
     return bindings
+
+
+def _with_template_tags(selected: list[InputBindingSnapshot], default: list[InputBindingSnapshot]) -> list[InputBindingSnapshot]:
+    """
+    Give the bindings an instance selected for a port the tags of the template's bindings on it.
+
+    An instance chooses where a port's input comes from: the source and its transformations.
+    The tags say what the node does with the input, such as the name a formula reads it by, so
+    they belong to the template revision the instance is pinned to. An override stores a copy
+    made when the instance was set up or edited, and that copy goes stale when a later revision
+    retags the port: a formula then fails with an unknown name. Each selected binding takes the
+    tags of the template's binding at the same position, or of its last one when the instance
+    selects more. A port the template leaves unbound keeps the tags of the selection.
+    """
+    if not default:
+        return selected
+    return [
+        binding.model_copy(update={'tags': list(default[min(position, len(default) - 1)].tags)})
+        for position, binding in enumerate(selected)
+    ]
 
 
 def _freeze_template_revision(template: InstanceConfig, user: User | None, reference_data: dict[str, Dataset]) -> Revision:

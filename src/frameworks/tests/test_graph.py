@@ -1,21 +1,39 @@
 from dataclasses import dataclass
+from decimal import Decimal
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
+from django.core.management import call_command
+from django.core.management.base import CommandError
 from django.db import IntegrityError, transaction
 
 import pytest
 
-from kausal_common.datasets.models import DatasetSchemaScope
-from kausal_common.datasets.tests.factories import DatasetFactory, DatasetSchemaFactory
+from kausal_common.datasets.models import DatasetSchema, DatasetSchemaScope
+from kausal_common.datasets.tests.factories import (
+    DataPointFactory,
+    DatasetFactory,
+    DatasetMetricFactory,
+    DatasetSchemaFactory,
+)
 
-from frameworks.models import FrameworkConfig
+from frameworks.bisko.quality import link_grades_of_converting_instance
+from frameworks.conversion import _adopt_schemas, _plan_schema_adoption, adopt_framework_schemas
+from frameworks.evidence import get_evidence
+from frameworks.models import DataQualityLevel, DataQualityScheme, FrameworkConfig
 from frameworks.tests.factories import FrameworkFactory
 from nodes.defs.port_def import InputPortDef
-from nodes.instance_serialization import InputBindingSnapshot, InstanceSnapshot, NodePortSource, build_instance_snapshot
+from nodes.instance_serialization import (
+    DatasetMetricSource,
+    InputBindingSnapshot,
+    InstanceSnapshot,
+    NodePortSource,
+    build_instance_snapshot,
+)
 from nodes.models import InputPortBindingSet
+from nodes.spec_sync import InheritedInstanceSyncError, refuse_inherited_instance_sync
 from nodes.template_graph import publish_template_instance, replace_input_port_bindings, upgrade_template_instance
 from nodes.template_settings import InheritedNodeSettings
 from nodes.tests.factories import InstanceConfigFactory, NodeConfigFactory
@@ -543,6 +561,35 @@ def test_template_publication_preserves_local_publication(
     assert str(build_instance_snapshot(dependent_instance).nodes[0].name) == 'New template edition'
 
 
+@pytest.mark.parametrize('template_binds_port', [True, False])
+def test_override_takes_its_tags_from_the_pinned_template(release: TemplateEdition, template_binds_port: bool) -> None:
+    """
+    An override chooses a port's source; the tags, which formulas read the input by, follow the template.
+
+    A municipality's copy of a binding is made when it is set up, and a later revision may retag
+    the port. The composed binding must then carry the revision's tags, not the stale copy's.
+    """
+    from nodes.instance_serialization import InputBindingOverrideSnapshot
+    from nodes.template_graph import _apply_binding_overrides
+
+    shared = release.snapshot.nodes[0]
+    assert shared.spec is not None
+    port = shared.spec.input_ports[0]
+    source = NodePortSource(node_id=shared.uuid, port_id=shared.spec.output_ports[0].id)
+
+    def binding(tags: list[str]) -> InputBindingSnapshot:
+        return InputBindingSnapshot(uuid=uuid4(), node_id=shared.uuid, port_id=port.id, position=0, source=source, tags=tags)
+
+    template_bindings = [binding(['wc'])] if template_binds_port else []
+    override = InputBindingOverrideSnapshot(node_uuid=shared.uuid, port_uuid=port.id, bindings=[binding(['stale'])])
+
+    composed = _apply_binding_overrides([override], {shared.uuid: shared}, {shared.uuid}, template_bindings)
+
+    assert [b.uuid for b in composed] == [override.bindings[0].uuid]
+    assert composed[0].tags == (['wc'] if template_binds_port else ['stale'])
+    assert override.bindings[0].tags == ['stale']
+
+
 def test_override_retains_metric(release: TemplateEdition, dependent_instance: InstanceConfig) -> None:
     from django.db.models import ProtectedError
 
@@ -910,3 +957,256 @@ def test_local_data_slot_copy_is_kept_even_when_identical(release: TemplateEditi
     upgrade_template_instance(dependent_instance, edition.revision)
     dependent_instance.refresh_from_db()
     assert remove_superseded_datasets(dependent_instance) == []
+
+
+def test_inherited_node_positions_are_kept_in_node_settings(
+    client: Client,
+    release: TemplateEdition,
+    dependent_instance: InstanceConfig,
+) -> None:
+    """An inherited node's NodeConfig is the template's, so its position is one of the instance's settings."""
+    from paths.tests.graphql import PathsTestClient
+
+    from nodes.models import NodeLayout
+
+    client.force_login(UserFactory.create(is_superuser=True))
+    gql_client = PathsTestClient(client)
+    gql_client.set_instance(dependent_instance)
+    local = NodeConfigFactory.create(instance=dependent_instance, identifier='own')
+    shared = release.snapshot.nodes[0]
+    instance_id = str(dependent_instance.pk)
+
+    result = gql_client.query_data(
+        """
+        mutation Layouts($instance: ID!, $input: [UpdateNodeLayoutInput!]!) {
+            instanceEditor(instanceId: $instance) {
+                updateNodeLayouts(input: $input) {
+                    ... on UpdateNodeLayoutsResult { layouts { nodeId x y source createdAt } }
+                }
+            }
+        }
+        """,
+        variables={
+            'instance': instance_id,
+            'input': [
+                {'nodeId': 'shared', 'x': 1.0, 'y': 2.0, 'source': 'AUTO'},
+                {'nodeId': str(local.uuid), 'x': 3.0, 'y': 4.0, 'source': 'USER'},
+            ],
+        },
+    )
+
+    layouts = result['instanceEditor']['updateNodeLayouts']['layouts']
+    assert [(layout['nodeId'], layout['x'], layout['source']) for layout in layouts] == [
+        ('shared', 1.0, 'AUTO'),
+        ('own', 3.0, 'USER'),
+    ]
+    assert layouts[0]['createdAt'] is None
+    dependent_instance.refresh_from_db()
+    [settings] = dependent_instance.node_settings
+    assert settings.node_uuid == shared.uuid
+    assert settings.layout is not None
+    assert (settings.layout.x, settings.layout.y) == (1.0, 2.0)
+    assert NodeLayout.objects.filter(node=local).exists()
+
+    query = 'query Layouts { instance { editor { nodeLayouts { nodeId x y } } } }'
+    data = gql_client.query_data(query)
+    assert sorted((layout['nodeId'], layout['y']) for layout in data['instance']['editor']['nodeLayouts']) == [
+        ('own', 4.0),
+        ('shared', 2.0),
+    ]
+
+    gql_client.query_data(
+        """
+        mutation Clear($instance: ID!) {
+            instanceEditor(instanceId: $instance) { clearNodeLayouts { messages { message } } }
+        }
+        """,
+        variables={'instance': instance_id},
+    )
+    dependent_instance.refresh_from_db()
+    assert dependent_instance.node_settings == []
+    assert not NodeLayout.objects.filter(node=local).exists()
+
+
+def test_a_layout_for_an_unknown_node_is_refused(
+    client: Client,
+    dependent_instance: InstanceConfig,
+) -> None:
+    from paths.tests.graphql import PathsTestClient
+
+    client.force_login(UserFactory.create(is_superuser=True))
+    gql_client = PathsTestClient(client)
+    gql_client.set_instance(dependent_instance)
+
+    errors = gql_client.query_errors(
+        """
+        mutation Layouts($instance: ID!, $input: [UpdateNodeLayoutInput!]!) {
+            instanceEditor(instanceId: $instance) {
+                updateNodeLayouts(input: $input) { ... on UpdateNodeLayoutsResult { layouts { nodeId } } }
+            }
+        }
+        """,
+        variables={'instance': str(dependent_instance.pk), 'input': [{'nodeId': 'nowhere', 'x': 1.0, 'y': 2.0}]},
+    )
+
+    assert 'Node "nowhere" not found' in errors[0]['message']
+    dependent_instance.refresh_from_db()
+    assert dependent_instance.node_settings == []
+
+
+def _graded_schema(*metrics: tuple[str, str], graded: str) -> DatasetSchema:
+    """Create a schema with the (name, unit) metrics in this order, and a grade for metric `graded`."""
+    schema = DatasetSchemaFactory.create()
+    created = {
+        name: DatasetMetricFactory.create(schema=schema, name=name, unit=unit, order=i) for i, (name, unit) in enumerate(metrics)
+    }
+    grade = {'quality_of': str(created[graded].uuid)}
+    DatasetMetricFactory.create(schema=schema, name='quality', unit='', order=len(metrics), spec=grade)
+    return schema
+
+
+def test_conversion_adopts_a_schema_that_differs_only_in_what_the_template_defines(
+    release: TemplateEdition, dependent_instance: InstanceConfig
+) -> None:
+    """Metric order and the grade's own metric UUID differ in every copy; they must not keep a city's schema."""
+    template = release.framework.template_instance
+    assert template is not None
+    shared = _graded_schema(('electricity_fraction', '%'), ('t_supply', '°C'), graded='electricity_fraction')
+    DatasetFactory.create(schema=shared, scope=template, identifier='kommune/kwk')
+    own = _graded_schema(('t_supply', '°C'), ('electricity_fraction', '%'), graded='electricity_fraction')
+    dataset = DatasetFactory.create(schema=own, scope=dependent_instance, identifier='kommune/kwk')
+    point = DataPointFactory.create(dataset=dataset, metric=own.metrics.get(name='electricity_fraction'), value=30)
+
+    identities: dict[str, str] = {}
+    _adopt_schemas(dependent_instance, release.framework, identities)
+
+    dataset.refresh_from_db()
+    point.refresh_from_db()
+    assert dataset.schema_id == shared.pk
+    assert point.metric == shared.metrics.get(name='electricity_fraction')
+    assert identities[str(own.uuid)] == str(shared.uuid)
+
+
+def test_conversion_refuses_a_dataset_whose_data_does_not_fit_its_template_schema(
+    release: TemplateEdition, dependent_instance: InstanceConfig
+) -> None:
+    """Keeping the city's own schema would cut it off from every later template change to it."""
+    template = release.framework.template_instance
+    assert template is not None
+    shared = _graded_schema(('electricity_fraction', '%'), graded='electricity_fraction')
+    DatasetFactory.create(schema=shared, scope=template, identifier='kommune/kwk')
+    own = _graded_schema(('electricity_fraction', 'dimensionless'), graded='electricity_fraction')
+    dataset = DatasetFactory.create(schema=own, scope=dependent_instance, identifier='kommune/kwk')
+    DataPointFactory.create(dataset=dataset, metric=own.metrics.get(name='electricity_fraction'), value=Decimal('0.3'))
+
+    with pytest.raises(ValueError, match=r"kommune/kwk: metric 'electricity_fraction' is in dimensionless, the template's in %"):
+        _adopt_schemas(dependent_instance, release.framework, {})
+
+
+def _legacy_city_dataset(identifier: str) -> tuple[InstanceConfig, DatasetSchema]:
+    """Create a 1.3 city, outside every framework, whose `quality` metric is a plain column of scores."""
+    city = InstanceConfigFactory.create(name='City on 1.3', config_source='database', owner='Test owner')
+    schema = DatasetSchemaFactory.create()
+    value = DatasetMetricFactory.create(schema=schema, name='Value', unit='kt/a', order=0)
+    quality = DatasetMetricFactory.create(schema=schema, name='quality', unit='', order=1, spec={})
+    dataset = DatasetFactory.create(schema=schema, scope=city, identifier=identifier)
+    DataPointFactory.create(dataset=dataset, metric=value, value=5)
+    DataPointFactory.create(dataset=dataset, metric=quality, value=Decimal('0.5'))
+    return city, schema
+
+
+def _quality_scale(framework: Framework) -> dict[str, DataQualityLevel]:
+    scheme = DataQualityScheme.objects.create(framework=framework, identifier='quality', version='1', name='Quality')
+    return {
+        identifier: DataQualityLevel.objects.create(scheme=scheme, identifier=identifier, name=identifier, order=i, score=score)
+        for i, (identifier, score) in enumerate([('A', Decimal(1)), ('B', Decimal('0.5')), ('C', Decimal('0.25'))])
+    }
+
+
+def test_a_city_outside_the_framework_has_its_quality_scores_graded_before_conversion(release: TemplateEdition) -> None:
+    """Without the grades, its legacy `quality` column means something else than the template's and conversion refuses."""
+    template = release.framework.template_instance
+    assert template is not None
+    levels = _quality_scale(release.framework)
+    shared = _graded_schema(('Value', 'kt/a'), graded='Value')
+    DatasetFactory.create(schema=shared, scope=template, identifier='kommune/emissions')
+    city, schema = _legacy_city_dataset('kommune/emissions')
+    _pairs, problems = _plan_schema_adoption(city, template)
+    assert problems == ["kommune/emissions: metric 'quality' means something else in the template dataset"]
+
+    link_grades_of_converting_instance(city, release.framework)
+
+    pairs, problems = _plan_schema_adoption(city, template)
+    assert problems == []
+    assert [(dataset.identifier, target.pk) for dataset, target in pairs] == [('kommune/emissions', shared.pk)]
+    value_point = schema.metrics.get(name='Value').data_points.get()
+    evidence = get_evidence(value_point)
+    assert evidence is not None
+    assert evidence.quality_level == levels['B']
+
+
+def test_grading_before_conversion_refuses_a_schema_another_instance_uses(release: TemplateEdition) -> None:
+    _quality_scale(release.framework)
+    city, schema = _legacy_city_dataset('kommune/emissions')
+    other = InstanceConfigFactory.create(name='Certified city', config_source='database', owner='Test owner')
+    DatasetFactory.create(schema=schema, scope=other, identifier='kommune/emissions')
+
+    with pytest.raises(ValueError, match='in a schema other instances use too'):
+        link_grades_of_converting_instance(city, release.framework)
+    assert schema.metrics.get(name='quality').spec == {}
+
+
+def test_a_member_is_repaired_onto_the_template_schemas_with_its_overrides(
+    release: TemplateEdition, dependent_instance: InstanceConfig
+) -> None:
+    template = release.framework.template_instance
+    assert template is not None
+    shared = _graded_schema(('Value', 'kt/a'), graded='Value')
+    DatasetFactory.create(schema=shared, scope=template, identifier='kommune/emissions')
+    own = _graded_schema(('Value', 'kt/a'), graded='Value')
+    dataset = DatasetFactory.create(schema=own, scope=dependent_instance, identifier='kommune/emissions')
+    old_metric = own.metrics.get(name='Value')
+    DataPointFactory.create(dataset=dataset, metric=old_metric, value=5)
+    node = release.snapshot.nodes[0]
+    assert node.spec is not None
+    port = node.spec.input_ports[0]
+    source = DatasetMetricSource(
+        dataset='kommune/emissions', metric='Value', dataset_uuid=dataset.uuid, metric_uuid=old_metric.uuid
+    )
+    override = InputPortBindingSet.objects.create(
+        instance=dependent_instance,
+        node_uuid=node.uuid,
+        port_uuid=port.id,
+        bindings=[InputBindingSnapshot(node_id=node.uuid, port_id=port.id, source=source)],
+    )
+
+    moved = adopt_framework_schemas(dependent_instance)
+
+    assert moved == ['kommune/emissions']
+    new_metric = shared.metrics.get(name='Value')
+    override.refresh_from_db()
+    [binding] = override.bindings
+    assert isinstance(binding.source, DatasetMetricSource)
+    assert binding.source.metric_uuid == new_metric.uuid
+    assert set(override.references.exclude(metric=None).values_list('metric_id', flat=True)) == {new_metric.pk}
+    assert not DatasetSchema.objects.filter(pk=own.pk).exists()
+    assert adopt_framework_schemas(dependent_instance) == []
+
+
+def test_a_sync_from_yaml_is_refused_for_an_instance_that_inherits_from_a_template(
+    release: TemplateEdition, dependent_instance: InstanceConfig
+) -> None:
+    """Its model comes from the template's published revision, so the refusal says how to change that."""
+    other = InstanceConfigFactory.create(name='Standalone', config_source='database')
+    template = release.framework.template_instance
+    assert template is not None
+
+    with pytest.raises(CommandError) as excinfo:
+        call_command('sync_instance_to_db', other.identifier, dependent_instance.identifier)
+
+    message = str(excinfo.value)
+    assert f'{dependent_instance.identifier} inherits its model from the template {template.identifier}' in message
+    assert other.identifier not in message.split(' inherits ', maxsplit=1)[0]
+    with pytest.raises(InheritedInstanceSyncError):
+        refuse_inherited_instance_sync(dependent_instance)
+    refuse_inherited_instance_sync(other)

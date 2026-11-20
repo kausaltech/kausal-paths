@@ -12,7 +12,7 @@ import polars as pl
 
 from kausal_common.i18n.pydantic import gettext_lazy as _
 
-from common import polars as ppl
+from common import polars as ppl, qualifiers
 from nodes.constants import (
     FORECAST_COLUMN,
     IMPACT_COLUMN,
@@ -91,6 +91,36 @@ def _last_historical_year(node: Node, df: ppl.PathsDataFrame) -> int | None:
     if FORECAST_COLUMN not in df.columns:
         return None
     return df.filter(~pl.col(FORECAST_COLUMN))[YEAR_COLUMN].max()  # type: ignore[return-value]
+
+
+def _with_impact_qualifiers(df: ppl.PathsDataFrame, mcols: list[str]) -> ppl.PathsDataFrame:
+    """
+    Give each impact column the qualifier of a difference, by the rule for a sum as in `subtract_with_dims`.
+
+    Without one, the impact rows lack the qualifier column the scenario rows carry, and
+    `compute_impact` cannot stack them.
+    """
+
+    def present(col: str) -> str | None:
+        return col if col in df.columns else None
+
+    exprs = []
+    for m in mcols:
+        with_qual = present(qualifiers.qualifier_column(m))
+        without_qual = present(qualifiers.qualifier_column('%s:WithoutAction' % m))
+        if with_qual is None and without_qual is None:
+            continue
+        exprs.append(
+            qualifiers.combine_sum(
+                qualifiers.qualifier_column('%s:Impact' % m),
+                m,
+                with_qual,
+                '%s:WithoutAction' % m,
+                without_qual,
+                qualifiers.catalog_for_frames(df),
+            )
+        )
+    return df.with_columns(exprs) if exprs else df
 
 
 class ActionNode(Node):
@@ -338,6 +368,7 @@ class ActionNode(Node):
         df = df.with_columns(impact_cols)
         for col, unit in impact_units.items():
             df = df.set_unit(col, unit)
+        df = _with_impact_qualifiers(df, mcols)
         common_cols = [YEAR_COLUMN, *df.dim_ids, FORECAST_COLUMN]
         edf = df.select([*common_cols, pl.lit(SCENARIO_ACTION_GROUP).alias(IMPACT_COLUMN), *mcols])
         ddf = df.select(

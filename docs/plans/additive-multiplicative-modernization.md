@@ -3,6 +3,8 @@
 *Produced by Claude Opus 5.0 on 2026-08-15.*
 *Version 2 produced by Claude Opus 5.0 on 2026-08-16.*
 *Version 3 produced by Claude Opus 5.5 on 2026-11-17.*
+*Version 4 produced by Claude Opus 5.5 on 2026-11-18.*
+*Version 5 produced by Claude Opus 5.5 on 2026-11-20.*
 *Responsible: Jouni Tuomisto.*
 
 `AdditiveNode` and `MultiplicativeNode` are the oldest node classes in the codebase.
@@ -248,6 +250,9 @@ the graph, which is a modelling change and not something to slip into a retype. 
 is `avoided_emissions_if_included`, which has one factor where a product needs two.
 
 **Step 5 — reclaim the names**, still to do, once no config references the v1 classes.
+Each rebuilt class takes the original name and the original becomes `Legacy…`: `AdditiveNode2` →
+`AdditiveNode` and `AdditiveNode` → `LegacyAdditiveNode`, the same for `MultiplicativeNode2` and
+`DataAvailabilityNode2`. The frozen BISKO 1.3 module keeps the legacy classes.
 Delete `nodes/tests/test_zz_scratch_order.py` then too — the scratch probe the semantics
 test replaced.
 
@@ -326,15 +331,88 @@ for Schwerin, which the v2 default would have filled, and `configs/bisko-base.ya
 missing from the population series should drop out of the per-capita figures rather than be
 divided by a guess.
 
+On 2026-11-18 the last plain `GenericNode`s and the `ConstantNode`s went too, all to `FormulaNode`:
+
+* `quality_criteria` was `extend_all(data)` for a day; it is now an `AdditiveNode2` (below).
+* `weather_correction` is `select_port(condition, extend_all(wc), extend_all(wc) * 0 + 1)`, with
+  `condition` referring to the `weather_correction` switch. The off branch is what `do_correction`
+  did: every factor 1, over the same rows and years as the on branch.
+* The three `ConstantNode`s use the new formula function `constant_frame(value[, 'unit'])`, which
+  puts one value in every year from `minimum_historical_year` to `model_end_year`, the years
+  `extend_all` covers. A boolean parameter counts as 1 or 0, so
+  `constant,complement` became `1 - constant_frame(condition)`. All three are kept as nodes
+  because their descriptions document a BISKO rule; where a constant documents nothing, the
+  function goes into the downstream formula and the node goes away. Formulas now also accept
+  unary minus.
+
+Verified by the same keyed comparison, in every scenario and with the weather correction both on
+and off: `bisko-base` 432 of 432 identical, Schwerin through the 2.0 module 452 of 452.
+
+On 2026-11-19 five more nodes left `FormulaNode` or went away:
+
+* `district_heating_emission_factor_standard` existed only to filter the national table to its
+  Coal CHP row. The binding in `district_heating_emission_factor` now does that filtering itself.
+* `emission_factors_for_district_heating_by_generic_fuel` and `passenger_kilometers_own` are
+  `AdditiveNode2` with `backfill` and `extend` on their bindings.
+* `vehicle_kilometers_ifeu`, `other_transport_energy_ifeu` and `quality_criteria` are
+  `AdditiveNode2` with `extend_history` and `extend`. `extend_history` is a new binding option.
+  It carries each series' first value back to `minimum_historical_year`, creating the years it
+  needs, as `extend_all` does; `backfill` fills only nulls in years that already exist. With the
+  default `interpolate`, the three binding options do what `extend_all` does.
+
+Two of these conversions needed the qualifier fix of the same day: before it, `AdditiveNode2`
+lost the qualifier of every input dataset (see `qualifier-propagation.md`). Every output is
+identical to the `FormulaNode` version, values, Forecast flags and qualifiers alike: `bisko-base`
+428 of 428, Schwerin through the 2.0 module 448 of 448.
+
+Later on 2026-11-19 the last two `GenericNode` subclasses left the template. Both are now
+`FormulaNode`s, using new formula functions. The CHP functions follow the hierarchy of the
+allocation methods (`nodes/chp_allocation.py`): `chp_heat_share` is the weighted split every
+method is a case of, `exergetic_heat_share` weights the products by their Carnot factors, and
+`bisko_heat_share` is the exergetic split with BISKO's 283 K ambient temperature. `ChpNode` and
+`BiskoChpNode` keep their own implementation, because the BISKO 1.3 module uses them and is
+frozen; tests check that each function agrees with the corresponding `ChpNode` method.
+
+* `combined_heat_and_power_chp_fraction` was a `BiskoChpNode`. Its formula is
+  `hold_into_forecast(bisko_heat_share(electricity_fraction, t_supply, t_return))`, which refuses
+  the same inputs `BiskoChpNode` refuses. The node outputs only the
+  heat share. The electricity share, which nothing read, and with it the `energy_carrier`
+  dimension are gone, so the two consumers no longer filter for `district_heating`.
+* `has_district_heating_by_exergetic_allocation` was a `BiskoExergeticAllocationNode`. Its
+  formula is `conforms_to_bisko(allocation)` times "emissions allocated, or no district heating".
+  `conforms_to_bisko` asks the allocation node whether its split is BISKO's, as the class did. A
+  `FormulaNode` answers yes when its formula calls `bisko_heat_share`, so the method is still
+  fixed by construction rather than by a setting.
+
+Verified as before, in every scenario with the weather correction on and off, now also with
+Prüfstadt's plant data and CHP parameters run through the 2.0 module, which takes Möglichkeit 1
+in 2021-2023: `bisko-base` 440, Schwerin 448, Prüfstadt 428 outputs. Values and Forecast flags
+are identical everywhere, apart from the dropped electricity row. The conformity node now carries
+the qualifier of its emissions and consumption inputs, so `is_bisko_compliant` records other
+sources. The certified 1.3 module keeps both classes.
+
 What stays:
 
-* `weather_correction` and `quality_criteria` stay `GenericNode`s. Both rely on `extend_all`,
-  which reaches back to `minimum_historical_year`; a binding's `backfill` only fills null rows
-  that already exist. `weather_correction` also needs the `do_correction` switch.
-* The 12 `DataAvailabilityNode`s are a subclass of v1 `AdditiveNode` in Python, but they replace
-  `compute()` entirely and take only `allowed_parameters` from it. They are not sums, their
-  class name says what they do, and changing their base would also touch the certified 1.3
-  module. Their base class belongs to step 5.
+* `DataAvailabilityNode` itself. It is a subclass of v1 `AdditiveNode` that replaces `compute()`
+  entirely and takes only `allowed_parameters` from it, and the certified 1.3 module uses it, so
+  it does not change.
+
+On 2026-11-20 the template's 12 availability nodes moved to `DataAvailabilityNode2`, a copy of
+the class on `Node` directly: it is no sum, so an additive base gives it nothing it uses and
+several things it would have to undo (the additive port-role inference, the additive edge hint, a
+pipeline lowering that adds). Two things differ from the original:
+
+* Its dataset ports take no unit from the node (`dataset_ports_take_output_unit = False`). The
+  original's ports carry the node's dimensionless unit against MWh/a data, and that was never
+  noticed: a class that overrides `compute()` below the class declaring its shape rules is
+  untrusted by the constraint compiler, which then checks none of its ports. The copy, on `Node`,
+  is trusted and checked.
+* It reports no combinations, rather than failing, when its data is empty because a filter with
+  `allow_no_match` matched nothing. That handling was first added to the original and moved here,
+  so the frozen class is again exactly as certified.
+
+The availability tests run against both classes. Template outputs are identical, and on
+`testcity-bisko` only `other_transport_energy_availability` changes: it computes where it failed.
 
 Verified by comparing every node output, keyed by index, before and after, in both scenarios,
 from YAML: `bisko-base`, 222 of 222 identical (the template's data is mostly empty), and

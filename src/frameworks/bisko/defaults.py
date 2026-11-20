@@ -241,21 +241,33 @@ def _population_values(population: pl.DataFrame, ags: str) -> list[PopulationDef
     ]
 
 
-def seed_population_from_pin(instance: InstanceConfig) -> int:
+def has_own_population(instance: InstanceConfig) -> bool:
+    """Whether the municipality has a population input of its own, which `seed_population_from_pin` fills."""
+    dataset = Dataset.objects.for_instance_config(instance).filter(identifier=POPULATION_DATASET).first()
+    return dataset is not None and dataset.scope_instance.pk == instance.pk
+
+
+def seed_population_from_pin(instance: InstanceConfig) -> int | None:
     """
     Refresh the municipality's own population from the series at its published template's pin.
 
-    Run after an upgrade, which may bring the population input or a newer series. Municipal
-    edits are kept; energy defaults are left to activation and `refresh_bisko_defaults`, since a
-    grid emptied on purpose must not be refilled by moving the template.
+    Run after an upgrade, which may bring the population input or a newer series, and after a
+    conversion, which gives the municipality an empty one. Municipal edits are kept; energy
+    defaults are left to activation and `refresh_bisko_defaults`, since a grid emptied on purpose
+    must not be refilled by moving the template.
+
+    Return None, and change nothing, when the series has no rows for the municipality. It covers
+    the Länder a municipality can be activated in, while a converted city may lie elsewhere; its
+    population is then the city's to enter.
     """
     dataset = Dataset.objects.for_instance_config(instance).filter(identifier=POPULATION_DATASET).first()
     if dataset is None or dataset.scope_instance.pk != instance.pk:
         raise ValueError(f'{instance.identifier} has no population input of its own.')
     (population,), revision = _load_sources(instance, POPULATION_SOURCE)
-    return seed_population_defaults(
-        instance, dataset, _population_values(population, _municipality_ags(instance)), source_revision=revision
-    )
+    values = _population_values(population, _municipality_ags(instance))
+    if not values:
+        return None
+    return seed_population_defaults(instance, dataset, values, source_revision=revision)
 
 
 def seed_activation_defaults(instance: InstanceConfig, local: dict[str, Dataset]) -> None:

@@ -690,6 +690,39 @@ def _upsert_node_configs(
     return node_configs
 
 
+class InheritedInstanceSyncError(ValueError):
+    """A sync from YAML was asked for an instance that inherits its model from a template."""
+
+
+def refuse_inherited_instance_sync(ic: InstanceConfig) -> None:
+    """
+    Refuse to sync an instance whose model comes from a published template, saying what to do instead.
+
+    Such an instance's YAML is not where its model comes from: the template's published revision
+    is, composed with the instance's own settings and data. A sync from YAML would treat it as a
+    standalone model.
+    """
+    revision = ic.template_revision
+    if revision is None:
+        return
+    template = InstanceConfig.objects.filter(pk=revision.object_id).first()
+    template_id = template.identifier if template is not None else revision.object_id
+    framework = ic.framework_config.framework.identifier if ic.has_framework_config() else None
+    if framework == 'bisko':
+        model_steps = (
+            f'python -m tools.setup_bisko --sync-template, then python -m tools.setup_bisko --publish. '
+            f'Publishing moves {ic.identifier} to the new revision.'
+        )
+    else:
+        model_steps = "sync and publish the template with its framework's setup command."
+    raise InheritedInstanceSyncError(
+        f'{ic.identifier} inherits its model from the template {template_id} (revision {revision.pk}), so it is '
+        'not synced from YAML.\n'
+        f'- To change the model: edit {template_id} and its modules, then {model_steps}\n'
+        f'- To change its data: use the data entry, or python manage.py load_dvc_dataset {ic.identifier} <dataset> --force.'
+    )
+
+
 def sync_parsed_instance_to_db(
     instance_id: str,
     yaml_path: str | Path | None = None,
@@ -713,6 +746,10 @@ def sync_parsed_instance_to_db(
     yaml_conf = InstanceYAMLConfig.load_for_entrypoint(yaml_path)
     data = yaml_conf.data
     assert data is not None
+
+    existing = InstanceConfig.objects.filter(identifier=data['id']).first()
+    if existing is not None:
+        refuse_inherited_instance_sync(existing)
 
     with transaction.atomic():
         ic, _created = InstanceConfig.objects.get_or_create(identifier=data['id'])

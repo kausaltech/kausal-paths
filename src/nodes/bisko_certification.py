@@ -33,7 +33,6 @@ FROZEN_MODULE_INSTANCES = CERTIFICATION_INSTANCES | frozenset({
     'mainz-dev',
     'reutlingen-klimabilanz',
     'schwerin-bisko',
-    'testcity-bisko',
 })
 """Entrypoints whose model is the frozen module, and whose YAML `certification_yaml` translates."""
 

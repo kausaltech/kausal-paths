@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import sys
 from typing import TYPE_CHECKING, Any
+from uuid import uuid4
 
 import polars as pl
 import pytest
@@ -10,10 +12,12 @@ from kausal_common.i18n.pydantic import TranslatedString
 from common.polars import DataFrameMeta, to_ppdf
 from datasets.runtime import Dataset
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
-from nodes.defs.transform_def import InterpolateOp
+from nodes.defs.transform_def import FilterColumnOp, InterpolateOp
 from nodes.exceptions import NodeError
+from nodes.instance_parser import parse_instance_snapshot
+from nodes.node import NodeStatus
 from nodes.runtime_input import RuntimeInputBinding
-from nodes.simple import DataAvailabilityNode
+from nodes.simple import DataAvailabilityNode, DataAvailabilityNode2
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory
 from nodes.units import unit_registry
 from params.param import BoolParameter
@@ -23,6 +27,17 @@ if TYPE_CHECKING:
     from nodes.context import Context
 
 pytestmark = pytest.mark.django_db
+
+
+@pytest.fixture(autouse=True, params=[DataAvailabilityNode, DataAvailabilityNode2], ids=['frozen', 'v2'])
+def availability_class(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> type[DataAvailabilityNode2]:
+    """
+    Run every test against both classes: the one the frozen 1.3 module uses, and its rebuilt copy.
+
+    The tests build `DataAvailabilityNode`, so the class is swapped under that name.
+    """
+    monkeypatch.setattr(sys.modules[__name__], 'DataAvailabilityNode', request.param)
+    return request.param
 
 
 class _FixedRawDataset(Dataset):
@@ -538,3 +553,67 @@ def test_an_empty_dataset_without_a_template_still_raises():
 
     with pytest.raises(NodeError):
         node.compute()
+
+
+def test_a_filter_allowed_to_match_nothing_reports_no_combinations_and_says_why(availability_class: type) -> None:
+    """A municipality a national table does not cover: the node computes, and its status names the miss."""
+    if availability_class is not DataAvailabilityNode2:
+        pytest.skip('Only DataAvailabilityNode2 handles allow_no_match; the frozen 1.3 class is left as it was.')
+    context = _make_context('availability-unmatched')
+    df = pl.DataFrame({
+        YEAR_COLUMN: [2011],
+        'ags': ['07315000'],
+        VALUE_COLUMN: [5.0],
+        FORECAST_COLUMN: [False],
+    })
+    meta = DataFrameMeta(units={VALUE_COLUMN: unit_registry.parse_units('kWh')}, primary_keys=[YEAR_COLUMN, 'ags'])
+    ds = _make_dataset(context, to_ppdf(df, meta))
+    ds.transformations = [FilterColumnOp(column='ags', value='00000000', allow_no_match=True)]
+    node = _make_node(context, [ds])
+
+    out = node.get_output_pl()
+
+    assert out.is_empty()
+    node.validate_output(out)
+    assert node.status is NodeStatus.DEGRADED
+    assert [error.message for error in node.status_errors] == [
+        "Dataset 'raw' has no rows for 'ags' = '00000000', so this input is empty and counts as zero."
+    ]
+
+
+def test_the_rebuilt_class_gives_its_dataset_ports_no_unit(availability_class: type) -> None:
+    """
+    It reads whether its data has values, not what they are, so a port takes no unit from the node.
+
+    Otherwise its dimensionless output unit lands on the data port, and the constraint solver
+    refuses MWh/a data there. The frozen class keeps the node's unit, as it always did.
+    """
+    config = {
+        'id': 'availability_ports',
+        'default_language': 'en',
+        'supported_languages': [],
+        'name': 'Availability ports',
+        'owner': 'Owner',
+        'target_year': 2030,
+        'minimum_historical_year': 2010,
+        'maximum_historical_year': 2020,
+        'reference_year': 1990,
+        'nodes': [
+            {
+                'id': 'energy_availability',
+                'type': f'simple.{availability_class.__name__}',
+                'name': 'Energy availability',
+                'unit': 'dimensionless',
+                'quantity': 'fraction',
+                'input_datasets': [{'id': 'energy', 'column': 'Value'}],
+            }
+        ],
+    }
+
+    snapshot = parse_instance_snapshot(config, instance_uuid=uuid4())
+
+    [node] = snapshot.nodes
+    assert node.spec is not None
+    [port] = node.spec.input_ports
+    expected = None if availability_class is DataAvailabilityNode2 else unit_registry.parse_units('dimensionless')
+    assert port.unit == expected

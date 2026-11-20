@@ -173,7 +173,7 @@ def test_set_formula_is_what_the_draft_computes_with(
         ('sourse * 2', 'Unknown name "sourse" in formula. Names available here: extend_last_historical_value, source'),
         ('source *', 'Syntax error at the end of the formula'),
         ('source source', 'Syntax error at column 8'),
-        ('-source', 'Unary operators such as "-source" are not supported'),
+        ('not source', 'Unary operators such as "not source" are not supported'),
         ('source // 2', 'Operator source // 2 is not supported'),
         ('frobnicate(source)', 'Unknown function "frobnicate"'),
         ('', 'The formula is empty'),

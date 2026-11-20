@@ -9,7 +9,7 @@ import ast
 import math
 import re
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Annotated, Any, cast
+from typing import TYPE_CHECKING, Annotated, Any, Literal, cast
 from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 
 import strawberry as sb
@@ -77,7 +77,7 @@ from nodes.graphql.types.graph import DatasetPortType
 from nodes.input_bindings import compact_port_positions, next_port_position
 from nodes.instance_graph import InstanceGraph, NodeEditContext, NodeMeta, node_class_for_spec, node_class_for_type_config
 from nodes.instance_problems import DataEntryDefinitionError
-from nodes.instance_serialization import InputBindingSnapshot, NodePortSource
+from nodes.instance_serialization import InputBindingSnapshot, NodeLayoutSnapshot, NodePortSource
 from nodes.models import (
     InputPortBindingReference,
     InstanceConfig,
@@ -88,6 +88,7 @@ from nodes.models import (
     PreferredInstanceSource,
 )
 from nodes.node import Node
+from nodes.node_layouts import InheritedNodeLayout, clear_inherited_node_layouts, set_inherited_node_layouts
 from nodes.parameter_values import set_scenario_parameter
 from nodes.template_graph import replace_input_port_bindings, upgrade_template_instance
 from nodes.units import unit_registry
@@ -2150,7 +2151,8 @@ class InstanceEditorMutation:
         if any(not math.isfinite(item.x) or not math.isfinite(item.y) for item in input):
             raise GraphQLValidationError(info, 'Node layout coordinates must be finite numbers')
 
-        layouts: list[NodeLayout] = []
+        layouts: list[NodeLayout | InheritedNodeLayout] = []
+        inherited: dict[UUID, NodeLayoutSnapshot] = {}
         ic = root.instance
         with transaction.atomic():
             locked_ic = InstanceConfig.objects.select_for_update().get(pk=ic.pk)
@@ -2158,7 +2160,18 @@ class InstanceEditorMutation:
                 raise PermissionDeniedError(info, 'Model editor access denied')
 
             for item in input:
-                node = InstanceEditorMutation._lookup_node(info, locked_ic, str(item.node_id), for_change=False)
+                raw = str(item.node_id)
+                node = (locked_ic.nodes.filter(uuid=raw) if is_uuid(raw) else locked_ic.nodes.filter(identifier=raw)).first()
+                if node is None:
+                    # An inherited node: its NodeConfig is the template's, and its position is
+                    # one of this instance's node settings.
+                    meta = InstanceEditorMutation._lookup_inherited_node(info, locked_ic, raw)
+                    source = NodeLayoutSource(item.source)
+                    snapshot_source = cast("Literal['auto', 'user']", source.value)
+                    inherited[meta.id] = NodeLayoutSnapshot(x=item.x, y=item.y, source=snapshot_source)
+                    assert meta.identifier is not None
+                    layouts.append(InheritedNodeLayout(node_identifier=meta.identifier, x=item.x, y=item.y, source=source))
+                    continue
                 values = {
                     'x': item.x,
                     'y': item.y,
@@ -2171,8 +2184,19 @@ class InstanceEditorMutation:
                     create_defaults={**values, 'created_by': user},
                 )
                 layouts.append(layout)
+            set_inherited_node_layouts(locked_ic, inherited)
 
         return UpdateNodeLayoutsResult(layouts=cast('list[NodeLayoutType]', layouts))
+
+    @staticmethod
+    def _lookup_inherited_node(info: gql.Info, ic: InstanceConfig, node_id: str) -> NodeMeta:
+        """Resolve a node the instance inherits from its template, by UUID or identifier."""
+        if ic.template_revision_id is not None:
+            graph = require_draft_graph(info, ic)
+            meta = graph.node_by_id.get(UUID(node_id)) if is_uuid(node_id) else graph.node_by_identifier.get(node_id)
+            if meta is not None and meta.template_revision_id is not None and meta.identifier is not None:
+                return meta
+        raise NotFoundError(info, f'Node "{node_id}" not found in instance "{ic.identifier}"')
 
     @gql.mutation(description='Clear shared node-card positions so the editor can compute a fresh automatic layout.')
     @staticmethod
@@ -2183,6 +2207,7 @@ class InstanceEditorMutation:
             if not locked_ic.gql_action_allowed(info, 'change'):
                 raise PermissionDeniedError(info, 'Model editor access denied')
             NodeLayout.objects.filter(node__instance=locked_ic).delete()
+            clear_inherited_node_layouts(locked_ic)
 
     @sb.field(description='Edit a DB-backed dataset that belongs to this instance')
     @staticmethod

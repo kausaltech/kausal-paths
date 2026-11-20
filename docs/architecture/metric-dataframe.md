@@ -208,8 +208,13 @@ but the explicit pairing:
 Commit `735203b7` introduced qualifier columns before the wrapper migration.
 The pairing is currently by name (`<metric>__qual`), with three flat fields:
 `quality` (score), `graded` (assessment coverage), and `supplied` (source
-presence). Rename and drop carry the pairing; projections preserve it only
-when explicitly requested through `PathsDataFrame.qualified()`.
+presence). Rename and drop carry the pairing. Since November 2026 so does a
+projection: `select` keeps the qualifier of every metric it passes through
+unchanged or only renamed, and gives a computed column none. Before that, a
+projection kept a qualifier only when asked through `PathsDataFrame.qualified()`,
+and the input preparation of `AdditiveNode2` and `MultiplicativeNode2` lost every
+dataset's qualifier that way. `src/nodes/tests/test_qualifier_conformance.py`
+checks that each node class carries its inputs' qualifiers.
 
 Bindings attach grades from the evidence-owned `quality_of` projection or a
 declared dataset default. The two ifeu transport datasets declare BISKO B.
@@ -330,6 +335,13 @@ assessment to combine and preserves the sole assessed input. When both
 inputs require assessment, a combination policy is needed: the minimum of
 two coverage fractions is not generally their joint assessed coverage. The
 existing conservative product rule is provisional, not proof of coverage.
+
+The product rule, the minimum of the scores and of the coverages, has no
+authoritative basis. BISKO assesses the aggregated quality of end-energy data,
+not of emissions, and defines no rule for a product such as energy times an
+emission factor. The minimum is not taken from any outside source, nor derived
+by argument; it is an intuitive first choice, used until a better-founded rule
+replaces it.
 
 ### Reported data
 
@@ -568,6 +580,8 @@ Examples:
 - a quality score may reduce with a conservative rule such as `min`
 
 These rules belong to qualifier semantics, not to dimension semantics.
+How the current fixed set of rules becomes one strategy per qualifier kind is
+planned in [`../plans/qualifier-propagation.md`](../plans/qualifier-propagation.md).
 
 
 ## Design Constraints

@@ -2680,6 +2680,10 @@ msgid "%(metric)s = %(value)s is outside the allowed range (%(bounds)s) in %(yea
 msgstr "%(metric)s = %(value)s liegt außerhalb des zulässigen Bereichs (%(bounds)s) in %(year)s%(categories)s"
 
 #, python-format
+msgid "0 or %(bounds)s"
+msgstr "0 oder %(bounds)s"
+
+#, python-format
 msgid "%(metric)s sums to %(sum)s over %(dimension)s (expected %(target)s ± %(tolerance)s) in %(year)s%(categories)s"
 msgstr "%(metric)s ergibt in der Summe über %(dimension)s %(sum)s (erwartet %(target)s ± %(tolerance)s) in %(year)s%(categories)s"
 

@@ -10,6 +10,7 @@ from warnings import deprecated
 
 import polars as pl
 from polars._utils.parse import parse_into_list_of_expressions
+from polars._utils.wrap import wrap_expr
 
 from common.qualifiers import qualified_metric, qualifier_column, qualifier_columns
 from nodes.constants import FORECAST_COLUMN, TIME_INTERVAL, VALUE_COLUMN, YEAR_COLUMN
@@ -240,11 +241,11 @@ class PathsDataFrame(pl.DataFrame):
 
     def qualified(self, cols: Sequence[str]) -> list[str]:
         """
-        Return ``cols`` with the qualifier of every metric among them appended, for a projection that keeps them.
+        Return ``cols`` with the qualifier of every metric among them appended.
 
-        A projection returns exactly the columns it names, so a qualifier survives one only when
-        asked for: a caller building several frames to stack them must get the same columns from
-        each. See `common.qualifiers`.
+        `select` already carries the qualifier of every metric it passes through; this names
+        them explicitly, for a caller that needs the full column list itself. See
+        `common.qualifiers`.
         """
         quals = self.qualifier_cols
         extra = [quals[col] for col in cols if col in quals and quals[col] not in cols]
@@ -256,15 +257,43 @@ class PathsDataFrame(pl.DataFrame):
         units: dict[str, Unit] | None = None,
         **named_exprs: IntoExpr,
     ) -> PathsDataFrame:
-        structify = False
-        pyexprs = parse_into_list_of_expressions(
-            *exprs,
-            **named_exprs,
-            __structify=structify,
-        )
-        df = super().select(*exprs, **named_exprs)
+        pyexprs = parse_into_list_of_expressions(*exprs, **named_exprs)
+        carried = self._carried_qualifiers(pyexprs)
+        if carried:
+            # The parsed expressions, not ``exprs``: polars reads a list among several
+            # positional arguments as a literal rather than as a list of columns.
+            df = super().select(*(wrap_expr(expr) for expr in pyexprs), *carried)
+        else:
+            df = super().select(*exprs, **named_exprs)
         meta = self._pyexprs_to_meta(pyexprs, units or {})
         return PathsDataFrame._from_pydf(df._df, meta=meta, source_df=self)
+
+    def _carried_qualifiers(self, pyexprs: list[PyExpr]) -> list[pl.Expr]:
+        """
+        Return the qualifier columns a projection must carry along with the metrics it passes through.
+
+        A metric selected as it is, or only renamed, keeps its qualifier under the matching name,
+        the way `rename` and `drop` keep the pair together. A computed column gets none: what
+        an arbitrary expression does to a qualifier is for the operation to decide, through
+        `common.qualifiers`. A qualifier the projection already names is left as named.
+        """
+        quals = self.qualifier_cols
+        if not quals:
+            return []
+        single = [expr for expr in pyexprs if not expr.meta_has_multiple_outputs()]
+        outputs = {expr.meta_output_name() for expr in single}
+        carried: list[pl.Expr] = []
+        for expr in single:
+            source = expr.meta_undo_aliases()
+            if not source.meta_is_column():
+                continue
+            qual = quals.get(source.meta_output_name())
+            target = qualifier_column(expr.meta_output_name())
+            if qual is None or target in outputs:
+                continue
+            outputs.add(target)
+            carried.append(pl.col(qual).alias(target))
+        return carried
 
     def select_metrics(self, metric_cols: list[str] | str, rename: list[str] | str | None = None) -> PathsDataFrame:
         if isinstance(metric_cols, str):
@@ -288,12 +317,7 @@ class PathsDataFrame(pl.DataFrame):
         units: dict[str, Unit] | None = None,
         **named_exprs: IntoExpr,
     ) -> PathsDataFrame:
-        structify = False
-        pyexprs = parse_into_list_of_expressions(
-            *exprs,
-            **named_exprs,
-            __structify=structify,
-        )
+        pyexprs = parse_into_list_of_expressions(*exprs, **named_exprs)
         df = super().with_columns(*exprs, **named_exprs)
         meta = self._pyexprs_to_meta(pyexprs, units or {})
         return PathsDataFrame._from_pydf(df._df, meta=meta, source_df=self)

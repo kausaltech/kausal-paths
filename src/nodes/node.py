@@ -27,7 +27,7 @@ from paths.identifiers import validate_identifier
 
 from common import polars as ppl
 from common.utils import hash_unit
-from datasets.runtime import JSONDataset
+from datasets.runtime import Dataset, JSONDataset
 from nodes.constants import (
     DEFAULT_METRIC,
     FORECAST_COLUMN,
@@ -40,13 +40,13 @@ from nodes.constants import (
 )
 from nodes.constraints.port_roles import PortRoleInferenceResult
 from nodes.defs.binding_def import DatasetBindingDef, EdgeBindingDef
-from nodes.defs.transform_def import FlattenTransformation
+from nodes.defs.transform_def import FilterColumnOp, FlattenTransformation
 from nodes.goals import NodeGoals
 from nodes.hooks import apply_hooks
 from nodes.metric import DimensionalMetric
 from nodes.pipeline.compare import compare_node_with_lowered_pipeline
 from nodes.runtime_input import RuntimeInputPort
-from nodes.transforms import PipelineEnv, apply_port_transformations
+from nodes.transforms import PipelineEnv, apply_port_transformations, filter_column_criterion
 from params.base import ParameterWithUnit
 
 from .debug import plot_node_output, print_node_output
@@ -69,7 +69,6 @@ if typing.TYPE_CHECKING:
     from paths.identifiers import MixedCaseIdentifier, NodeIdentifier
 
     from common.cache import CacheResult
-    from datasets.runtime import Dataset
     from nodes.constraints.rules import AnyShapeRule
     from nodes.defs.binding_def import AnyPortBindingDef
     from nodes.defs.node_defs import NodeKind, NodeSpec
@@ -356,6 +355,13 @@ class Node:
     default_unit: ClassVar[str]
     'Default unit for the node class (defined as a class variable)'
 
+    dataset_ports_take_output_unit: ClassVar[bool] = True
+    """Whether a dataset input port declared in YAML without a unit takes the node's output unit.
+
+    Off for a class that reads only whether its inputs have values, not what they are: its ports
+    then have no unit and accept any.
+    """
+
     interpolates_input_datasets_by_default: ClassVar[bool] = False
     """Whether a dataset bound to this class has year gaps filled unless the binding opts out.
 
@@ -464,6 +470,12 @@ class Node:
 
     status_errors: list[NodeStatusError]
     'Structured problems recorded at this node (own errors only, not inherited cascades).'
+
+    failure_origins: list[Node]
+    """
+    Upstream nodes whose own failure this node inherits, in the order met: the root of a cascade
+    that failed this node, or an input a tolerant node computed without. Empty for an own failure.
+    """
 
     tags: set[str]
     'Tags to differentiate between multiple input/output nodes'
@@ -726,6 +738,7 @@ class Node:
         self.tags = set()
         self.status = None
         self.status_errors = []
+        self.failure_origins = []
 
         kls = type(self)
         self.logger = context.log.bind(node=self.id, node_class='%s.%s' % (kls.__module__, kls.__qualname__))
@@ -1080,6 +1093,27 @@ class Node:
             if isinstance(error, NodeError):
                 wrapped.event_chain = [*error.event_chain, *wrapped.event_chain]
             raise wrapped from error
+
+    def _note_unmatched_filters(self) -> None:
+        """
+        Record in the node's status each input that a filter allowed to match nothing left empty.
+
+        The node computes on with the input empty, and the editor shows why it is empty. This
+        runs after the computation rather than where inputs are read, because node classes read
+        their datasets by several routes.
+        """
+        for binding in self.runtime_input_bindings:
+            dataset = binding.source
+            if not isinstance(dataset, Dataset):
+                continue
+            permissive = [op for op in dataset.transformations if isinstance(op, FilterColumnOp) and op.allow_no_match]
+            if not permissive or not dataset.get_copy().is_empty():
+                continue
+            criteria = ' and '.join(f"'{op.column}' = {filter_column_criterion(op, self.context)}" for op in permissive)
+            message = f"Dataset '{dataset.id}' has no rows for {criteria}, so this input is empty and counts as zero."
+            if any(error.message == message for error in self.status_errors):
+                continue
+            self.mark_status(NodeStatus.DEGRADED, NodeStatusError(phase=NodeErrorPhase.COMPUTATION, message=message))
 
     def iter_inputs(self, port: InputPortDeclaration) -> Iterator[ppl.PathsDataFrame]:
         """Yield every value bound to a semantic input role in stable binding order."""
@@ -1448,6 +1482,22 @@ class Node:
         if self.status is None or _NODE_STATUS_SEVERITY[status] > _NODE_STATUS_SEVERITY[self.status]:
             self.status = status
 
+    def note_failure_origin(self, error: NodeError) -> None:
+        """Record the node an upstream failure started at, so the editor can name it."""
+        if not error.event_chain:
+            return
+        # A memoized failure is re-raised from the node asked, which may itself only have
+        # inherited it; follow such nodes back to the ones that failed on their own.
+        pending = [error.event_chain[0].node]
+        while pending:
+            origin = pending.pop(0)
+            if origin is self or origin in self.failure_origins:
+                continue
+            if origin.failure_origins and not origin.status_errors:
+                pending.extend(origin.failure_origins)
+            else:
+                self.failure_origins.append(origin)
+
     def get_output(self, target_node: Node | None = None, metric: str | None = None) -> pd.DataFrame:
         df = self.get_output_pl(target_node, metric)
         return df.to_pandas()
@@ -1499,6 +1549,7 @@ class Node:
                         NodeStatus.FAILED,
                         NodeStatusError(phase=NodeErrorPhase.COMPUTATION, message=_failure_message(e)) if own_error else None,
                     )
+                    self.note_failure_origin(e)
                     e.add_node_event(self, event='get_output', target_node=target_node)
                     raise
                 self.mark_status(
@@ -1565,6 +1616,7 @@ class Node:
         if cache_res is not None and cache_res.is_hit and cache_res.obj is not None:
             return cache_res.obj
         df = self._compute_validated()
+        self._note_unmatched_filters()
         if cache_res is not None and self.status in (None, NodeStatus.OK):
             self.hasher.cache_output(cache_res, df)
         return df
@@ -1589,6 +1641,7 @@ class Node:
                 df = apply_hooks(self, self.get_base_output_pl())
             else:
                 df = self._compute_validated(target_node)
+            self._note_unmatched_filters()
             # mark_status keeps any DEGRADED/INCOMPLETE a tolerant node set during compute().
             self.mark_status(NodeStatus.OK)
             # Cache only clean results: a cross-request cache hit must never read back as OK
@@ -2102,9 +2155,10 @@ class Node:
         for node, mult in zip(nodes, mults, strict=True):
             try:
                 node_df = node.get_output_pl(self, metric=metric)
-            except NodeError:
+            except NodeError as e:
                 if not tolerate_failures:
                     raise
+                self.note_failure_origin(e)
                 skipped += 1
                 continue
             if tolerate_failures and node.status is NodeStatus.INCOMPLETE:
