@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from decimal import Decimal
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
@@ -8,13 +9,25 @@ from django.db import IntegrityError, transaction
 
 import pytest
 
-from kausal_common.datasets.models import DatasetSchemaScope
-from kausal_common.datasets.tests.factories import DatasetFactory, DatasetSchemaFactory
+from kausal_common.datasets.models import DatasetSchema, DatasetSchemaScope
+from kausal_common.datasets.tests.factories import (
+    DataPointFactory,
+    DatasetFactory,
+    DatasetMetricFactory,
+    DatasetSchemaFactory,
+)
 
+from frameworks.conversion import _adopt_schemas, adopt_framework_schemas
 from frameworks.models import FrameworkConfig
 from frameworks.tests.factories import FrameworkFactory
 from nodes.defs.port_def import InputPortDef
-from nodes.instance_serialization import InputBindingSnapshot, InstanceSnapshot, NodePortSource, build_instance_snapshot
+from nodes.instance_serialization import (
+    DatasetMetricSource,
+    InputBindingSnapshot,
+    InstanceSnapshot,
+    NodePortSource,
+    build_instance_snapshot,
+)
 from nodes.models import InputPortBindingSet
 from nodes.template_graph import publish_template_instance, replace_input_port_bindings, upgrade_template_instance
 from nodes.template_settings import InheritedNodeSettings
@@ -1034,3 +1047,89 @@ def test_a_layout_for_an_unknown_node_is_refused(
     assert 'Node "nowhere" not found' in errors[0]['message']
     dependent_instance.refresh_from_db()
     assert dependent_instance.node_settings == []
+
+
+def _graded_schema(*metrics: tuple[str, str], graded: str) -> DatasetSchema:
+    """Create a schema with the (name, unit) metrics in this order, and a grade for metric `graded`."""
+    schema = DatasetSchemaFactory.create()
+    created = {
+        name: DatasetMetricFactory.create(schema=schema, name=name, unit=unit, order=i) for i, (name, unit) in enumerate(metrics)
+    }
+    grade = {'quality_of': str(created[graded].uuid)}
+    DatasetMetricFactory.create(schema=schema, name='quality', unit='', order=len(metrics), spec=grade)
+    return schema
+
+
+def test_conversion_adopts_a_schema_that_differs_only_in_what_the_template_defines(
+    release: TemplateEdition, dependent_instance: InstanceConfig
+) -> None:
+    """Metric order and the grade's own metric UUID differ in every copy; they must not keep a city's schema."""
+    template = release.framework.template_instance
+    assert template is not None
+    shared = _graded_schema(('electricity_fraction', '%'), ('t_supply', '°C'), graded='electricity_fraction')
+    DatasetFactory.create(schema=shared, scope=template, identifier='kommune/kwk')
+    own = _graded_schema(('t_supply', '°C'), ('electricity_fraction', '%'), graded='electricity_fraction')
+    dataset = DatasetFactory.create(schema=own, scope=dependent_instance, identifier='kommune/kwk')
+    point = DataPointFactory.create(dataset=dataset, metric=own.metrics.get(name='electricity_fraction'), value=30)
+
+    identities: dict[str, str] = {}
+    _adopt_schemas(dependent_instance, release.framework, identities)
+
+    dataset.refresh_from_db()
+    point.refresh_from_db()
+    assert dataset.schema_id == shared.pk
+    assert point.metric == shared.metrics.get(name='electricity_fraction')
+    assert identities[str(own.uuid)] == str(shared.uuid)
+
+
+def test_conversion_refuses_a_dataset_whose_data_does_not_fit_its_template_schema(
+    release: TemplateEdition, dependent_instance: InstanceConfig
+) -> None:
+    """Keeping the city's own schema would cut it off from every later template change to it."""
+    template = release.framework.template_instance
+    assert template is not None
+    shared = _graded_schema(('electricity_fraction', '%'), graded='electricity_fraction')
+    DatasetFactory.create(schema=shared, scope=template, identifier='kommune/kwk')
+    own = _graded_schema(('electricity_fraction', 'dimensionless'), graded='electricity_fraction')
+    dataset = DatasetFactory.create(schema=own, scope=dependent_instance, identifier='kommune/kwk')
+    DataPointFactory.create(dataset=dataset, metric=own.metrics.get(name='electricity_fraction'), value=Decimal('0.3'))
+
+    with pytest.raises(ValueError, match=r"kommune/kwk: metric 'electricity_fraction' is in dimensionless, the template's in %"):
+        _adopt_schemas(dependent_instance, release.framework, {})
+
+
+def test_a_member_is_repaired_onto_the_template_schemas_with_its_overrides(
+    release: TemplateEdition, dependent_instance: InstanceConfig
+) -> None:
+    template = release.framework.template_instance
+    assert template is not None
+    shared = _graded_schema(('Value', 'kt/a'), graded='Value')
+    DatasetFactory.create(schema=shared, scope=template, identifier='kommune/emissions')
+    own = _graded_schema(('Value', 'kt/a'), graded='Value')
+    dataset = DatasetFactory.create(schema=own, scope=dependent_instance, identifier='kommune/emissions')
+    old_metric = own.metrics.get(name='Value')
+    DataPointFactory.create(dataset=dataset, metric=old_metric, value=5)
+    node = release.snapshot.nodes[0]
+    assert node.spec is not None
+    port = node.spec.input_ports[0]
+    source = DatasetMetricSource(
+        dataset='kommune/emissions', metric='Value', dataset_uuid=dataset.uuid, metric_uuid=old_metric.uuid
+    )
+    override = InputPortBindingSet.objects.create(
+        instance=dependent_instance,
+        node_uuid=node.uuid,
+        port_uuid=port.id,
+        bindings=[InputBindingSnapshot(node_id=node.uuid, port_id=port.id, source=source)],
+    )
+
+    moved = adopt_framework_schemas(dependent_instance)
+
+    assert moved == ['kommune/emissions']
+    new_metric = shared.metrics.get(name='Value')
+    override.refresh_from_db()
+    [binding] = override.bindings
+    assert isinstance(binding.source, DatasetMetricSource)
+    assert binding.source.metric_uuid == new_metric.uuid
+    assert set(override.references.exclude(metric=None).values_list('metric_id', flat=True)) == {new_metric.pk}
+    assert not DatasetSchema.objects.filter(pk=own.pk).exists()
+    assert adopt_framework_schemas(dependent_instance) == []

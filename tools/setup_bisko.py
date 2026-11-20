@@ -24,6 +24,12 @@ def main() -> None:
     parser.add_argument('--publish', action='store_true', help='Publish the template and advance dependent local drafts.')
     parser.add_argument('--reference-instance', help='Use this historical reference-data edition when publishing.')
     parser.add_argument('--convert', action='append', default=[], help='Convert a DB model to the published template.')
+    parser.add_argument(
+        '--adopt-schemas',
+        action='append',
+        default=[],
+        help="Move a member's datasets onto the template's schemas (repairs an earlier conversion).",
+    )
     parser.add_argument('--dry-run', action='store_true')
     parser.add_argument(
         '--ignore-problems', action='store_true', help='Report instance problems but allow publication and template-pin updates.'
@@ -49,7 +55,7 @@ def main() -> None:
     from nodes.instance_loader import InstanceLoader
     from nodes.models import InstanceConfig
 
-    selected = {args.template, *args.instance, *args.prepare_from, *args.convert}
+    selected = {args.template, *args.instance, *args.prepare_from, *args.convert, *args.adopt_schemas}
     if selected & CERTIFICATION_INSTANCES:
         parser.error('Certification instances cannot be provisioned or converted by this command.')
 
@@ -133,6 +139,7 @@ def _setup_graphs(framework: Framework, args: argparse.Namespace) -> None:
     if args.convert:
         assert revision is not None
         _convert_instances(framework, revision, args)
+    _adopt_schemas(args)
 
     previous_revision_id = revision.pk if revision is not None else None
     revision = reconcile_bisko_default_quality(framework, defaults, check_problems=True, ignore_problems=args.ignore_problems)
@@ -146,6 +153,15 @@ def _setup_graphs(framework: Framework, args: argparse.Namespace) -> None:
             print(f'{dependent.identifier}: upgraded to template revision {revision.pk}')
         action = 'Published' if revision.pk != previous_revision_id else 'Retained'
         print(f'{action} template revision {revision.pk}; dependent draft pins reconciled.')
+
+
+def _adopt_schemas(args: argparse.Namespace) -> None:
+    from frameworks.conversion import adopt_framework_schemas
+    from nodes.models import InstanceConfig
+
+    for identifier in args.adopt_schemas:
+        moved = adopt_framework_schemas(InstanceConfig.objects.get(identifier=identifier))
+        print(f'{identifier}: moved onto template schemas: {", ".join(moved) or "nothing to move"}')
 
 
 def _convert_instances(framework: Framework, revision: Revision, args: argparse.Namespace) -> None:

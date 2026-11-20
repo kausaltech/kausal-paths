@@ -26,15 +26,21 @@ The two certification instances, `bisko` and `pruefstadt-bisko`, stay on 1.3 for
    follows the alias the framework category declares (`geothermatl` → `geothermal`). A category
    that no data point uses and the framework does not have is left behind: a database dimension
    keeps every category it ever had.
-3. Points the city's datasets at the template's shapes. A YAML instance mints shape UUIDs from its
+3. Moves each of the city's datasets onto the schema of the template dataset of the same name, and a
+   replacement dataset (`<city>/final_energy`) onto the schema of the input it replaces. From then
+   on the template's changes to the schema, such as a new validation rule, reach the city. The
+   data has to fit: the same dimensions, and every metric that holds data in the template schema
+   with the same unit. Metric order, rules and labels are the template's to define and do not
+   matter.
+4. Points the city's datasets at the template's shapes. A YAML instance mints shape UUIDs from its
    own identity, so its copies of the template's shapes have other UUIDs.
-4. Pins the city to the published template revision, deletes the copied nodes (pages that
+5. Pins the city to the published template revision, deletes the copied nodes (pages that
    referred to them now refer to the template's), keeps nodes the template does not have as the
    city's own, and keeps the city's bindings to its own datasets.
-5. Deletes the city's copies of datasets the template now supplies (the `de/*` tables).
-6. Assigns the municipality's organization from its AGS and seeds the population series at the
+6. Deletes the city's copies of datasets the template now supplies (the `de/*` tables).
+7. Assigns the municipality's organization from its AGS and seeds the population series at the
    template's pin, as a template upgrade does.
-7. Refuses if the result cannot be published, naming the node and dataset of each problem.
+8. Refuses if the result cannot be published, naming the node and dataset of each problem.
 
 The command is one transaction: a refusal at any step leaves the database as it was.
 `--dry-run` runs everything and rolls it back.
@@ -129,6 +135,7 @@ What a refusal means:
 | `Category vocabulary differs for <dimension>: <categories> carry data and have no counterpart` | The city has data under a category the framework does not know. | Rename the category to the framework's, or add an alias for it to the template's dimension. |
 | `... would duplicate data already under <category>` | The city has data under both a renamed category and its new name, for the same cells. | Decide which value is right and delete the other data point. |
 | `Input data has not been imported (<node>, <dataset>)` | A city input still reads an empty placeholder. | Import that dataset (step 2). |
+| `<dataset>: metric '<m>' is in <unit>, the template's in <unit>` (or has no such metric, or other dimensions) | The city's data does not fit the template's schema for that dataset. | Convert or move the data in the city's dataset first; the template's schema is the one a member uses. |
 
 ## Step 4: convert
 
@@ -163,6 +170,21 @@ If the city has been published, its visitors still see the 1.3 revision. Compare
 ```bash
 python manage.py compare_draft_published <city>
 ```
+
+## Cities converted before 20 November 2026
+
+Until then, conversion moved a dataset onto the template's schema only if the two were identical
+in every detail. A graded dataset never was, because the grade names the metric it grades by an
+identifier unique to each schema, so a converted city kept its own copy of most of its schemas and
+missed the template's later changes to them. Repair such a city in place:
+
+```bash
+python -m tools.setup_bisko --adopt-schemas <city> --dry-run
+python -m tools.setup_bisko --adopt-schemas <city>
+```
+
+It moves the datasets, remaps the bindings that refer to the old metrics, and deletes the old
+schemas once nothing uses them. Model outputs do not change. A second run reports nothing to move.
 
 ## In production
 

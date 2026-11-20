@@ -7,6 +7,7 @@ from uuid import UUID, uuid4, uuid5
 
 from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
+from django.db.models import ProtectedError
 from django.db.models.functions import ExtractYear
 from wagtail.models import Revision
 
@@ -399,57 +400,217 @@ def _data_points_collide(alias: DimensionCategory, twin: DimensionCategory) -> b
     return bool(keys(alias) & keys(twin))
 
 
-def _adopt_schemas(instance: InstanceConfig, framework: Framework, identities: dict[str, str]) -> None:
-    template = framework.template_instance
-    assert template is not None
-    template_datasets = list(Dataset.objects.for_instance_config(template).select_related('schema'))
+def _metric_contract(schema: DatasetSchema) -> dict[str, tuple[str, dict[str, object]]]:
+    """
+    Each metric's unit and meaning, by name.
+
+    ``quality_of`` names the graded metric by UUID, which differs in every schema, so it is
+    compared by the graded metric's name.
+    """
+    metrics = list(schema.metrics.all())
+    names = {str(metric.uuid): metric.name for metric in metrics}
+    contract: dict[str, tuple[str, dict[str, object]]] = {}
+    for metric in metrics:
+        if metric.name is None:
+            continue
+        spec = dict(metric.spec or {})
+        if 'quality_of' in spec:
+            spec['quality_of'] = names.get(str(spec['quality_of']), spec['quality_of'])
+        contract[metric.name] = (metric.unit, spec)
+    return contract
+
+
+def _schema_shape(schema: DatasetSchema) -> tuple[object, ...]:
+    return (
+        schema.time_resolution,
+        frozenset(schema.dimensions.values_list('dimension_id', 'column_name')),
+        _metric_contract(schema),
+    )
+
+
+def _schema_fit_problems(dataset: Dataset, schema: DatasetSchema, target: DatasetSchema) -> list[str]:
+    """
+    Say why the dataset's data would not fit the target schema; empty when it fits.
+
+    The data fits when it has the same dimensions and time resolution, and every metric that
+    holds data points or bindings is in the target with the same unit and meaning. The order of
+    the metrics, their validation rules and labels, and the schema's category combinations do not
+    matter: those are the template's to define, which is the point of adopting its schema.
+    """
+    name = dataset.identifier or str(dataset.uuid)
+    problems: list[str] = []
+    if schema.time_resolution != target.time_resolution:
+        problems.append(f'{name}: time resolution {schema.time_resolution}, the template has {target.time_resolution}')
+    own_dims = set(schema.dimensions.values_list('dimension_id', 'column_name'))
+    target_dims = set(target.dimensions.values_list('dimension_id', 'column_name'))
+    if own_dims != target_dims:
+        problems.append(f"{name}: its dimensions differ from the template dataset's")
+    own, theirs = _metric_contract(schema), _metric_contract(target)
+    used = set(DataPoint.objects.filter(dataset=dataset).values_list('metric__name', flat=True).distinct()) | set(
+        NodeInputPortBinding.objects.filter(dataset=dataset).values_list('metric__name', flat=True).distinct()
+    )
+    if None in used:
+        problems.append(f'{name}: a metric without a name holds data or bindings')
+    for metric in sorted(m for m in used if m is not None):
+        if metric not in theirs:
+            problems.append(f"{name}: metric '{metric}' holds data or bindings, and the template dataset has no such metric")
+        elif own[metric][0] != theirs[metric][0]:
+            problems.append(f"{name}: metric '{metric}' is in {own[metric][0]}, the template's in {theirs[metric][0]}")
+        elif own[metric][1] != theirs[metric][1]:
+            problems.append(f"{name}: metric '{metric}' means something else in the template dataset")
+    return problems
+
+
+def _plan_schema_adoption(
+    instance: InstanceConfig, template: InstanceConfig
+) -> tuple[list[tuple[Dataset, DatasetSchema]], list[str]]:
+    """
+    Pair each of the instance's datasets with the template schema it should use.
+
+    A dataset takes the schema of the template dataset of the same identifier. A dataset the
+    template has no namesake for (a city's replacement for a template input) takes a template
+    schema only when exactly one has its shape. A dataset that keeps a schema of its own would never
+    receive the template's later changes to it, such as a new validation rule, so one whose data
+    does not fit is reported rather than left behind.
+    """
+    template_schemas: list[tuple[str | None, DatasetSchema]] = [
+        (ds.identifier, ds.schema)
+        for ds in Dataset.objects.for_instance_config(template).select_related('schema')
+        if ds.schema is not None
+    ]
+    by_identifier = {identifier: schema for identifier, schema in template_schemas if identifier}
+    shapes = {schema.pk: (schema, _schema_shape(schema)) for _identifier, schema in template_schemas}
+    pairs: list[tuple[Dataset, DatasetSchema]] = []
+    problems: list[str] = []
     for dataset in Dataset.objects.for_instance_config(instance).select_related('schema'):
         schema = dataset.schema
         assert schema is not None
-
-        # Natural dataset names and external references identify the intended schema;
-        # replacement datasets may have different identifiers but identical contracts.
-        def signature(candidate: DatasetSchema) -> tuple[object, ...]:
-            return (
-                candidate.time_resolution,
-                tuple(candidate.dimensions.order_by('order').values_list('dimension_id', 'column_name')),
-                tuple(
-                    (m.name, m.unit, m.spec, list(m.validation_rules.values_list('rule', flat=True)))
-                    for m in candidate.metrics.order_by('order')
-                ),
-                remap_json(candidate.category_domain.model_dump(mode='json'), identities),
-            )
-
-        shape = signature(schema)
-        matches = [ds for ds in template_datasets if ds.schema is not None and signature(ds.schema) == shape]
-        preferred = next((ds for ds in matches if ds.identifier == dataset.identifier), None)
-        if preferred is None and len({ds.schema_id for ds in matches}) == 1:
-            preferred = matches[0]
-        if preferred is None or preferred.schema_id == schema.pk:
+        target = by_identifier.get(dataset.identifier) if dataset.identifier else None
+        if target is None:
+            own_shape = _schema_shape(schema)
+            candidates = [candidate for candidate, shape in shapes.values() if shape == own_shape]
+            if len(candidates) != 1:
+                continue
+            [target] = candidates
+        if target.pk == schema.pk:
             continue
-        target_schema = preferred.schema
-        assert target_schema is not None
-        if (
+        occupied = (
             Dataset.objects
-            .filter(
-                schema=target_schema,
-                scope_content_type_id=dataset.scope_content_type_id,
-                scope_id=dataset.scope_id,
-            )
+            .filter(schema=target, scope_content_type_id=dataset.scope_content_type_id, scope_id=dataset.scope_id)
             .exclude(pk=dataset.pk)
             .exists()
-        ):
-            # Keep the original schema when another dataset in this scope
-            # already occupies the shared one.
+        )
+        if occupied:
+            # A scope holds at most one dataset per schema; the one already there keeps it.
             continue
-        targets = {metric.name: metric for metric in target_schema.metrics.all()}
-        for metric in schema.metrics.all():
-            target = targets[metric.name]
-            identities[str(metric.uuid)] = str(target.uuid)
-            DataPoint.objects.filter(dataset=dataset, metric=metric).update(metric=target)
-            NodeInputPortBinding.objects.filter(instance=instance, dataset=dataset, metric=metric).update(metric=target)
-        identities[str(schema.uuid)] = str(target_schema.uuid)
-        Dataset.objects.filter(pk=dataset.pk).update(schema=target_schema)
+        fit = _schema_fit_problems(dataset, schema, target)
+        if fit:
+            problems.extend(fit)
+            continue
+        pairs.append((dataset, target))
+    return pairs, problems
+
+
+def _move_to_schema(instance: InstanceConfig, dataset: Dataset, target: DatasetSchema, identities: dict[str, str]) -> None:
+    """Point the dataset, its data points and the instance's bindings at the target schema's metrics."""
+    schema = dataset.schema
+    assert schema is not None
+    targets = {metric.name: metric for metric in target.metrics.all()}
+    for metric in schema.metrics.all():
+        replacement = targets.get(metric.name)
+        if replacement is None:
+            # The fit check has made sure nothing refers to it.
+            continue
+        identities[str(metric.uuid)] = str(replacement.uuid)
+        DataPoint.objects.filter(dataset=dataset, metric=metric).update(metric=replacement)
+        NodeInputPortBinding.objects.filter(instance=instance, dataset=dataset, metric=metric).update(metric=replacement)
+    identities[str(schema.uuid)] = str(target.uuid)
+    Dataset.objects.filter(pk=dataset.pk).update(schema=target)
+
+
+def _delete_unused_schema(instance: InstanceConfig, schema: DatasetSchema) -> bool:
+    """Delete a schema no dataset uses any more and no other scope shares; say whether it went."""
+    shared_elsewhere = (
+        DatasetSchemaScope.objects
+        .filter(schema=schema)
+        .exclude(scope_content_type=ContentType.objects.get_for_model(instance), scope_id=instance.pk)
+        .exists()
+    )
+    if schema.datasets.exists() or shared_elsewhere:
+        return False
+    try:
+        with transaction.atomic():
+            schema.delete()
+    except ProtectedError:
+        return False
+    return True
+
+
+def _adopt_schemas(instance: InstanceConfig, framework: Framework, identities: dict[str, str]) -> None:
+    template = framework.template_instance
+    assert template is not None
+    pairs, problems = _plan_schema_adoption(instance, template)
+    if problems:
+        raise ValueError(
+            f'{instance.identifier} cannot be converted to this template revision:\n' + '\n'.join(f'- {e}' for e in problems)
+        )
+    for dataset, target in pairs:
+        _move_to_schema(instance, dataset, target, identities)
+
+
+def _remap_member_references(instance: InstanceConfig, identities: dict[str, str]) -> None:
+    """Point a member's binding overrides and local node specs at the remapped identities."""
+    for override in instance.binding_overrides.all():
+        remapped = [
+            InputBindingSnapshot.model_validate(remap_json(binding.model_dump(mode='json'), identities))
+            for binding in override.bindings
+        ]
+        if remapped != override.bindings:
+            override.bindings = remapped
+            override.save()
+    for node in instance.nodes.all():
+        if node.spec is not None:
+            spec = node.spec.model_dump(mode='json')
+            remapped_spec = remap_json(spec, identities)
+            if remapped_spec != spec:
+                type(node).objects.filter(pk=node.pk).update(spec=remapped_spec)
+
+
+@transaction.atomic
+def adopt_framework_schemas(instance: InstanceConfig) -> list[str]:
+    """
+    Move an existing member's datasets onto the template's schemas; return the identifiers moved.
+
+    The repair for a member converted while conversion still required a schema to match the
+    template's exactly, which kept a city's own copy of most graded datasets. The bindings that
+    refer to the old metrics are remapped, binding overrides included, and the old schemas go once
+    nothing uses them. Refuses, changing nothing, when a dataset's data does not fit its template
+    schema.
+    """
+    if not instance.has_framework_config():
+        raise ValueError(f'{instance.identifier} is not a framework member; convert it instead')
+    template = instance.framework_config.framework.template_instance
+    assert template is not None
+    pairs, problems = _plan_schema_adoption(instance, template)
+    if problems:
+        raise ValueError(
+            f'{instance.identifier}: datasets that do not fit their template schema:\n' + '\n'.join(f'- {e}' for e in problems)
+        )
+    identities: dict[str, str] = {}
+    old_schemas = []
+    for dataset, target in pairs:
+        assert dataset.schema is not None
+        old_schemas.append(dataset.schema)
+        _move_to_schema(instance, dataset, target, identities)
+    if not identities:
+        return []
+    _remap_member_references(instance, identities)
+    for schema in old_schemas:
+        _delete_unused_schema(instance, schema)
+    for dataset, _target in pairs:
+        refresh_dataset_materialization(Dataset.objects.get(pk=dataset.pk), touch=False)
+    instance.invalidate_cache()
+    return [dataset.identifier or str(dataset.uuid) for dataset, _target in pairs]
 
 
 def _node_settings(original: NodeSnapshot, shared: NodeSnapshot) -> InheritedNodeSettings:
