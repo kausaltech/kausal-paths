@@ -227,6 +227,9 @@ python -m tools.setup_bisko --convert example-bisko --dry-run
 python -m tools.setup_bisko --convert example-bisko
 ```
 
+For moving a BISKO 1.3 city to the 2.0 template, follow
+[Converting a BISKO 1.3 city to the 2.0 template](../converting-a-bisko-city-to-2.0.md).
+
 `--convert` replaces copied shared nodes with inheritance. Framework-owned
 bindings always come from the published template; the conversion result counts
 copied bindings discarded for this reason. Instance-owned bindings, settings,

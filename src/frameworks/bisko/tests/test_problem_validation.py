@@ -217,3 +217,24 @@ def test_pin_upgrade_refuses_only_problems_it_introduces(
         upgrade_checked_instance(dependent, second)
     dependent.refresh_from_db()
     assert dependent.template_revision_id == (first.pk if introduced else second.pk)
+
+
+def test_refused_entry_problems_name_their_node_and_dataset(framework: Framework) -> None:
+    from frameworks.bisko.validation import _describe_entry_problems
+    from nodes.data_entry import EntryProblem
+    from nodes.tests.factories import NodeConfigFactory
+
+    template = framework.template_instance
+    assert template is not None
+    node = NodeConfigFactory.create(instance=template, identifier='weather_correction')
+    dataset = DatasetFactory.create(identifier='kommune/witterungsbereinigung')
+    problem = EntryProblem(
+        'external_placeholder', 'Input data has not been imported', node_id=node.uuid, port_id=uuid4(), dataset_id=dataset.uuid
+    )
+    unplaced = EntryProblem('unbound_input', 'Input has no effective binding')
+
+    # The same input reported from two sections reads as one line.
+    assert _describe_entry_problems([problem, problem, unplaced]) == [
+        'Input data has not been imported (weather_correction, kommune/witterungsbereinigung)',
+        'Input has no effective binding',
+    ]

@@ -6,6 +6,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from wagtail.models import Revision
+
     from frameworks.models import Framework
 
 
@@ -85,14 +87,12 @@ def _setup_graphs(framework: Framework, args: argparse.Namespace) -> None:
     from kausal_common.datasets.models import Dataset
 
     from frameworks.bisko.provisioning import prepare_bisko_template, reconcile_bisko_default_quality
-    from frameworks.bisko.validation import check_instance_problems, publish_checked_template, upgrade_checked_instance
+    from frameworks.bisko.validation import publish_checked_template, upgrade_checked_instance
     from frameworks.conversion import (
-        convert_to_framework,
         declare_local_data_slots,
         prepare_template_inputs,
         share_template_catalogue,
     )
-    from frameworks.identity import ensure_municipal_organization
     from nodes.defs.graph import QualityLevelKey
     from nodes.instance_loader import InstanceYAMLConfig
     from nodes.models import InstanceConfig
@@ -130,14 +130,9 @@ def _setup_graphs(framework: Framework, args: argparse.Namespace) -> None:
         print(f'Published template revision {revision.pk}')
     if args.convert and revision is None:
         raise ValueError('Publish the template before converting framework instances')
-    for identifier in args.convert:
+    if args.convert:
         assert revision is not None
-        instance = InstanceConfig.objects.get(identifier=identifier)
-        print(f'{identifier}: {convert_to_framework(instance, framework, revision)}')
-        instance.refresh_from_db()
-        check_instance_problems(instance, ignore_problems=args.ignore_problems)
-        org = ensure_municipal_organization(instance)
-        print(f'{identifier}: organization {org.name if org else "unchanged (no AGS)"}')
+        _convert_instances(framework, revision, args)
 
     previous_revision_id = revision.pk if revision is not None else None
     revision = reconcile_bisko_default_quality(framework, defaults, check_problems=True, ignore_problems=args.ignore_problems)
@@ -151,6 +146,21 @@ def _setup_graphs(framework: Framework, args: argparse.Namespace) -> None:
             print(f'{dependent.identifier}: upgraded to template revision {revision.pk}')
         action = 'Published' if revision.pk != previous_revision_id else 'Retained'
         print(f'{action} template revision {revision.pk}; dependent draft pins reconciled.')
+
+
+def _convert_instances(framework: Framework, revision: Revision, args: argparse.Namespace) -> None:
+    from frameworks.bisko.validation import convert_checked_instance
+    from nodes.models import InstanceConfig
+
+    for identifier in args.convert:
+        instance = InstanceConfig.objects.get(identifier=identifier)
+        conversion = convert_checked_instance(instance, framework, revision, ignore_problems=args.ignore_problems)
+        print(f'{identifier}: {conversion.result}')
+        print(f'{identifier}: organization {conversion.organization or "unchanged (no AGS)"}')
+        if conversion.population_years is None:
+            print(f'{identifier}: no population defaults for this municipality; enter its population in the data entry')
+        else:
+            print(f'{identifier}: population defaults seeded for {conversion.population_years} years')
 
 
 if __name__ == '__main__':

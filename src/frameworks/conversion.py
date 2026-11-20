@@ -23,6 +23,7 @@ from kausal_common.datasets.models import (
 from kausal_common.i18n.pydantic import set_i18n_context
 
 from datasets.materialization import ensure_dataset_materializations, refresh_dataset_materialization
+from datasets.shape_domain import SHAPE_SPEC_KEY
 from datasets.snapshot import DatasetSnapshot
 from datasets.transfer import SourceDimensions, comparable_cells
 from frameworks.models import FrameworkConfig
@@ -44,7 +45,7 @@ if TYPE_CHECKING:
 
     from frameworks.models import Framework
     from nodes.defs.graph import DatasetMeta
-    from nodes.defs.instance_defs import DatasetRepoSpec
+    from nodes.defs.instance_defs import DatasetRepoSpec, InstanceModelSpec
     from nodes.defs.port_def import OutputPortDef
     from nodes.instance_serialization import NodeSnapshot
     from nodes.models import InstanceConfig
@@ -55,7 +56,16 @@ def _port_key(port: InputPortDef | OutputPortDef) -> tuple[str | None, str | Non
 
 
 def _node_identities(base: InstanceSnapshot, local: InstanceSnapshot) -> dict[str, str]:
+    identities, errors = _match_nodes(base, local)
+    if errors:
+        raise ValueError('\n'.join(errors))
+    return identities
+
+
+def _match_nodes(base: InstanceSnapshot, local: InstanceSnapshot) -> tuple[dict[str, str], list[str]]:
+    """Map the instance's copies of template nodes, and their ports, to the template's; report every port that differs."""
     identities: dict[str, str] = {}
+    errors: list[str] = []
     by_name = {node.identifier: node for node in base.nodes}
     for node in local.nodes:
         shared = by_name.get(node.identifier)
@@ -69,14 +79,15 @@ def _node_identities(base: InstanceSnapshot, local: InstanceSnapshot) -> dict[st
             for port in getattr(node.spec, attribute):
                 match = next((candidate for candidate in available if _port_key(candidate) == _port_key(port)), None)
                 if match is None:
-                    raise ValueError(f'{node.identifier} has an undeclared framework port: {_port_key(port)}')
+                    errors.append(f'{node.identifier} has an undeclared framework port: {_port_key(port)}')
+                    continue
                 if attribute == 'output_ports' and port.model_dump(
                     mode='json', exclude={'id', 'label', 'is_editable'}
                 ) != match.model_dump(mode='json', exclude={'id', 'label', 'is_editable'}):
-                    raise ValueError(f'{node.identifier} changes a framework output contract')
+                    errors.append(f'{node.identifier} changes a framework output contract')
                 identities[str(port.id)] = str(match.id)
                 available.remove(match)
-    return identities
+    return identities, errors
 
 
 def normalize_legacy_dataset_ports(instance: InstanceConfig) -> None:
@@ -278,23 +289,34 @@ def share_template_catalogue(framework: Framework) -> None:
         DatasetSchemaScope.objects.get_or_create(schema=dataset.schema, scope_content_type=framework_ct, scope_id=framework.pk)
 
 
-def _adopt_dimensions(instance: InstanceConfig, framework: Framework) -> dict[str, str]:
+type _CategoryPairs = list[tuple[DimensionCategory, DimensionCategory]]
+type _DimensionPlan = list[tuple[DimensionScope, DimensionScope, _CategoryPairs]]
+
+
+def _plan_dimensions(instance: InstanceConfig, framework: Framework) -> tuple[_DimensionPlan, list[str]]:
+    """Pair each of the instance's dimensions with the framework's, without writing; report every one that cannot be."""
     framework_ct = ContentType.objects.get_for_model(framework)
     shared = {
         scope.identifier: scope for scope in DimensionScope.objects.filter(scope_content_type=framework_ct, scope_id=framework.pk)
     }
+    plan: _DimensionPlan = []
+    errors: list[str] = []
+    for local in DimensionScope.objects.for_instance_config(instance).select_related('dimension'):
+        target = shared.get(local.identifier)
+        if target is None or target.dimension.pk == local.dimension.pk:
+            continue
+        pairs, problems = _category_replacements(local, target)
+        plan.append((local, target, pairs))
+        errors.extend(problems)
+    return plan, errors
+
+
+def _adopt_dimensions(instance: InstanceConfig, plan: _DimensionPlan) -> dict[str, str]:
     identities: dict[str, str] = {}
     datasets = Dataset.objects.governed_by_instance(instance)
-    for local in DimensionScope.objects.for_instance_config(instance):
-        target = shared.get(local.identifier)
-        if target is None or target.dimension_id == local.dimension_id:
-            continue
-        cats = {cat.identifier: cat for cat in target.dimension.categories.all()}
-        if not set(local.dimension.categories.values_list('identifier', flat=True)) <= set(cats):
-            raise ValueError(f'Category vocabulary differs for {local.identifier}')
+    for local, target, replacements in plan:
         identities[str(local.dimension.uuid)] = str(target.dimension.uuid)
-        for category in local.dimension.categories.all():
-            replacement = cats[category.identifier]
+        for category, replacement in replacements:
             identities[str(category.uuid)] = str(replacement.uuid)
             DataPointDimensionCategory.objects.filter(data_point__dataset__in=datasets, dimension_category=category).update(
                 dimension_category=replacement,
@@ -308,6 +330,73 @@ def _adopt_dimensions(instance: InstanceConfig, framework: Framework) -> dict[st
             category_domain=remap_json(schema.category_domain.model_dump(mode='json'), identities),
         )
     return identities
+
+
+def _category_replacements(local: DimensionScope, target: DimensionScope) -> tuple[_CategoryPairs, list[str]]:
+    """
+    Pair each category of an instance's dimension with the framework category that replaces it.
+
+    A category matches by identifier, or else by an alias the framework category declares: an
+    instance set up before a category was renamed still has the old identifier, and its data
+    moves to the new one (`geothermatl` became `geothermal`). A category that matches neither and
+    that no data point uses is left behind, because nothing is lost with it: a database dimension
+    keeps every category it ever had, including ones its model no longer declares. One that some
+    data point uses is refused, as is an alias whose data would land on a data point the
+    instance already has under the framework's identifier. Both are returned as problems rather
+    than raised, so that a conversion can report all of them at once.
+    """
+    by_identifier = {cat.identifier: cat for cat in target.dimension.categories.all()}
+    by_alias = {
+        alias: cat
+        for cat in by_identifier.values()
+        for alias in (cat.spec or {}).get('aliases', [])
+        if isinstance(alias, str) and alias not in by_identifier
+    }
+    local_categories = list(local.dimension.categories.all())
+    local_ids = {category.identifier: category for category in local_categories}
+    pairs: _CategoryPairs = []
+    problems: list[str] = []
+    unmatched: list[str] = []
+    for category in local_categories:
+        identifier = category.identifier or str(category.uuid)
+        replacement = by_identifier.get(identifier) or by_alias.get(identifier)
+        if replacement is None:
+            if DataPointDimensionCategory.objects.filter(dimension_category=category).exists():
+                unmatched.append(identifier)
+            continue
+        twin = local_ids.get(replacement.identifier)
+        if twin is not None and twin != category and _data_points_collide(category, twin):
+            problems.append(
+                f'Category vocabulary differs for {local.identifier}: data under {identifier} would '
+                f'duplicate data already under {replacement.identifier}'
+            )
+            continue
+        pairs.append((category, replacement))
+    if unmatched:
+        problems.append(
+            f'Category vocabulary differs for {local.identifier}: {", ".join(sorted(unmatched))} carry data '
+            'and have no counterpart in the framework'
+        )
+    return pairs, problems
+
+
+def _data_points_collide(alias: DimensionCategory, twin: DimensionCategory) -> bool:
+    """Whether a data point under ``alias`` has a twin under ``twin`` with the same dataset, metric, date and other categories."""
+
+    def keys(category: DimensionCategory) -> set[tuple[object, ...]]:
+        points = DataPoint.objects.filter(dimension_categories=category)
+        others: dict[int, set[int]] = defaultdict(set)
+        for point_pk, category_pk in DataPointDimensionCategory.objects.filter(data_point__in=points).values_list(
+            'data_point_id', 'dimension_category_id'
+        ):
+            if category_pk != category.pk:
+                others[point_pk].add(category_pk)
+        return {
+            (dataset, metric, date, frozenset(others[point_pk]))
+            for point_pk, dataset, metric, date in points.values_list('pk', 'dataset_id', 'metric_id', 'date')
+        }
+
+    return bool(keys(alias) & keys(twin))
 
 
 def _adopt_schemas(instance: InstanceConfig, framework: Framework, identities: dict[str, str]) -> None:
@@ -446,6 +535,46 @@ def _superseded_datasets(instance: InstanceConfig, base: InstanceSnapshot) -> li
             continue
         superseded.append((dataset, target))
     return superseded
+
+
+def _shape_identities(local: InstanceModelSpec, base: InstanceModelSpec) -> dict[str, str]:
+    """
+    Map an instance's copies of the template's shapes, and their combinations and groups, to the template's.
+
+    A YAML instance mints shape UUIDs from its own identity, so its copy of a template shape has
+    another UUID than the template's. `local_spec_from_template` drops such copies by identifier;
+    whatever refers to them must follow. A combination matches by its categories, a required
+    group by its identifier or else by the combinations it names.
+    """
+    template = {shape.identifier: shape for shape in base.shapes if shape.identifier}
+    identities: dict[str, str] = {}
+    for shape in local.shapes:
+        target = template.get(shape.identifier) if shape.identifier else None
+        if target is None:
+            continue
+        identities[str(shape.uuid)] = str(target.uuid)
+        combinations = {frozenset(item.categories.items()): item.uuid for item in target.combinations}
+        for combination in shape.combinations:
+            match = combinations.get(frozenset(combination.categories.items()))
+            if match is not None:
+                identities[str(combination.uuid)] = str(match)
+        groups = {group.identifier: group.uuid for group in target.required if group.identifier}
+        by_members = {frozenset(str(ref) for ref in group.combinations): group.uuid for group in target.required}
+        for group in shape.required:
+            members = frozenset(identities.get(str(ref), str(ref)) for ref in group.combinations)
+            match = groups.get(group.identifier) if group.identifier else None
+            match = match or by_members.get(members)
+            if match is not None:
+                identities[str(group.uuid)] = str(match)
+    return identities
+
+
+def _remap_dataset_shapes(instance: InstanceConfig, identities: dict[str, str]) -> None:
+    """Point the instance's datasets at the template's shapes rather than at the copies they replace."""
+    for dataset in Dataset.objects.governed_by_instance(instance):
+        shape = (dataset.spec or {}).get(SHAPE_SPEC_KEY)
+        if shape is not None and str(shape) in identities:
+            Dataset.objects.filter(pk=dataset.pk).update(spec={**dataset.spec, SHAPE_SPEC_KEY: identities[str(shape)]})
 
 
 def _dataset_identities(superseded: list[tuple[Dataset, DatasetMeta]]) -> dict[str, str]:
@@ -655,6 +784,26 @@ def infer_inventory_years(instance: InstanceConfig, snapshot: InstanceSnapshot) 
     return [year for year in range(years.min_historical, years.max_historical + 1) if year not in inventory]
 
 
+def _conversion_preflight(
+    instance: InstanceConfig, framework: Framework, base: InstanceSnapshot, before: InstanceSnapshot
+) -> tuple[dict[str, str], _DimensionPlan]:
+    """
+    Find everything that would stop a conversion before anything is written, and report it together.
+
+    That is a copied node whose ports differ from the template's, and a category with data and no
+    counterpart in the framework. Each needs a change to the instance's model or data first, so
+    reporting them one at a time would cost a dry run for each.
+    """
+    identities, errors = _match_nodes(base, before)
+    plan, dimension_errors = _plan_dimensions(instance, framework)
+    errors.extend(dimension_errors)
+    if errors:
+        raise ValueError(
+            f'{instance.identifier} cannot be converted to this template revision:\n' + '\n'.join(f'- {e}' for e in errors)
+        )
+    return identities, plan
+
+
 def convert_to_framework(instance: InstanceConfig, framework: Framework, revision: Revision) -> dict[str, int | list[int] | None]:
     """Adopt shared identities and remove copied nodes, preserving local bindings and data."""
     if instance.config_source != 'database':
@@ -666,10 +815,10 @@ def convert_to_framework(instance: InstanceConfig, framework: Framework, revisio
     normalize_legacy_dataset_ports(instance)
     with set_i18n_context(instance.primary_language, instance.other_languages):
         before = build_instance_snapshot(instance)
-        identities = _node_identities(base, before)
+        identities, plan = _conversion_preflight(instance, framework, base, before)
         shared = {node.identifier: node for node in base.nodes}
         settings = _conversion_node_settings(before, shared)
-        identities.update(_adopt_dimensions(instance, framework))
+        identities.update(_adopt_dimensions(instance, plan))
         _adopt_schemas(instance, framework, identities)
         superseded = _superseded_datasets(instance, base)
         identities.update(_dataset_identities(superseded))
@@ -678,8 +827,11 @@ def convert_to_framework(instance: InstanceConfig, framework: Framework, revisio
             instance_config=instance,
             organization_name=instance.organization.name,
         )
+        shape_identities = _shape_identities(instance.ensure_spec(), base.spec)
+        identities.update(shape_identities)
         instance.spec = local_spec_from_template(instance.ensure_spec(), base)
         ensure_instance_shapes(instance.spec, base.spec)
+        _remap_dataset_shapes(instance, shape_identities)
         instance.template_revision = revision
         instance.node_settings = migrate_inherited_node_settings(instance.spec, settings, base)
         instance.save(update_fields=['template_revision', 'node_settings', 'spec'])
