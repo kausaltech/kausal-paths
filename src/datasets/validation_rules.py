@@ -21,7 +21,15 @@ an unrelated edit (mirroring ``validate_binding_change``).
 from typing import Annotated, Any, Literal, assert_never
 
 import strawberry as sb
-from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    SerializerFunctionWrapHandler,
+    TypeAdapter,
+    model_serializer,
+    model_validator,
+)
 from strawberry import auto
 
 from kausal_common.strawberry.pydantic import (
@@ -52,13 +60,29 @@ class ValidationRuleGQLInterface(StrawberryPydanticType[_RuleBase]):
 
 @graphql_types
 class ValueRangeRule(_RuleBase):
-    """Every non-null value of the metric must lie within the given bounds."""
+    """
+    Every non-null value of the metric must lie within the given bounds.
+
+    With ``allow_zero``, 0 is accepted too, wherever the bounds are. It is for a quantity that is
+    either absent or at least some size, so that an entry in the wrong unit stands out: a share
+    entered as 0.3 where 30 (%) was meant.
+    """
 
     kind: Literal['value_range'] = 'value_range'
     min: float | None = None
     max: float | None = None
     exclusive_min: bool = False
     exclusive_max: bool = False
+    allow_zero: bool = False
+
+    @model_serializer(mode='wrap')
+    def _omit_allow_zero_when_off(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        # Added after rules were stored and published: leaving it out when off keeps the
+        # content hashes of every existing rule unchanged.
+        data = handler(self)
+        if not self.allow_zero:
+            data.pop('allow_zero', None)
+        return data
 
     @model_validator(mode='after')
     def _require_a_bound(self) -> ValueRangeRule:
@@ -81,6 +105,7 @@ class ValueRangeRule(_RuleBase):
         max: auto
         exclusive_min: auto
         exclusive_max: auto
+        allow_zero: auto
 
     class InputType(StrawberryPydanticType['ValueRangeRule']):
         enforcement: auto
@@ -88,6 +113,7 @@ class ValueRangeRule(_RuleBase):
         max: auto
         exclusive_min: auto
         exclusive_max: auto
+        allow_zero: auto
 
 
 @graphql_types

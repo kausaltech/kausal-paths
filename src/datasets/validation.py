@@ -539,6 +539,8 @@ def _eval_value_range(
     if rule.max is not None:
         conditions.append(pl.col(column) >= rule.max if rule.exclusive_max else pl.col(column) > rule.max)
     out_of_range = conditions[0] if len(conditions) == 1 else conditions[0] | conditions[1]
+    if rule.allow_zero:
+        out_of_range &= pl.col(column) != 0
     offending = df.filter(pl.col(column).is_not_null() & out_of_range).sort([YEAR_COLUMN, *dim_cols])
     bounds = _range_text(rule)
     violations = [
@@ -648,6 +650,13 @@ def _with_overflow(
 
 
 def _range_text(rule: ValueRangeRule) -> str:
+    bounds = _bounds_text(rule)
+    if rule.allow_zero:
+        return _('0 or %(bounds)s') % {'bounds': bounds}
+    return bounds
+
+
+def _bounds_text(rule: ValueRangeRule) -> str:
     if rule.min is not None and rule.max is not None:
         left = '>' if rule.exclusive_min else '≥'
         right = '<' if rule.exclusive_max else '≤'

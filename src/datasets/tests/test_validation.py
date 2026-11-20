@@ -227,6 +227,30 @@ def test_value_range_rule_supports_exclusive_bounds(rig):
     assert [violation.years for violation in violations] == [[2020], [2022]]
 
 
+def test_value_range_rule_may_accept_zero_outside_its_bounds(rig):
+    """A share entered as a fraction where a percentage is meant (0.3 for 30) is flagged; 0 is not."""
+    dataset, metric, cat_a, _ = rig
+    set_rule(metric, {'kind': 'value_range', 'enforcement': 'block_submission', 'min': 1, 'allow_zero': True})
+    add_point(dataset, metric, 2020, 0, cat_a)
+    add_point(dataset, metric, 2021, 0.3, cat_a)
+    add_point(dataset, metric, 2022, 30, cat_a)
+
+    violations = evaluate_dataset_rules(dataset)
+
+    assert [violation.years for violation in violations] == [[2021]]
+    assert '(0 or ≥ 1)' in violations[0].message
+
+
+def test_value_range_rule_stores_allow_zero_only_when_it_is_on():
+    """Leaving the flag out when off keeps the content hash of every rule stored before it."""
+    from common.validation import ValidationRuleEnforcement
+    from datasets.validation_rules import ValueRangeRule
+
+    block_edit = ValidationRuleEnforcement.BLOCK_EDIT
+    assert 'allow_zero' not in ValueRangeRule(enforcement=block_edit, min=0).model_dump()
+    assert ValueRangeRule(enforcement=block_edit, min=1, allow_zero=True).model_dump()['allow_zero'] is True
+
+
 @pytest.mark.parametrize(
     'rule',
     [
