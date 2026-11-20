@@ -939,3 +939,98 @@ def test_local_data_slot_copy_is_kept_even_when_identical(release: TemplateEditi
     upgrade_template_instance(dependent_instance, edition.revision)
     dependent_instance.refresh_from_db()
     assert remove_superseded_datasets(dependent_instance) == []
+
+
+def test_inherited_node_positions_are_kept_in_node_settings(
+    client: Client,
+    release: TemplateEdition,
+    dependent_instance: InstanceConfig,
+) -> None:
+    """An inherited node's NodeConfig is the template's, so its position is one of the instance's settings."""
+    from paths.tests.graphql import PathsTestClient
+
+    from nodes.models import NodeLayout
+
+    client.force_login(UserFactory.create(is_superuser=True))
+    gql_client = PathsTestClient(client)
+    gql_client.set_instance(dependent_instance)
+    local = NodeConfigFactory.create(instance=dependent_instance, identifier='own')
+    shared = release.snapshot.nodes[0]
+    instance_id = str(dependent_instance.pk)
+
+    result = gql_client.query_data(
+        """
+        mutation Layouts($instance: ID!, $input: [UpdateNodeLayoutInput!]!) {
+            instanceEditor(instanceId: $instance) {
+                updateNodeLayouts(input: $input) {
+                    ... on UpdateNodeLayoutsResult { layouts { nodeId x y source createdAt } }
+                }
+            }
+        }
+        """,
+        variables={
+            'instance': instance_id,
+            'input': [
+                {'nodeId': 'shared', 'x': 1.0, 'y': 2.0, 'source': 'AUTO'},
+                {'nodeId': str(local.uuid), 'x': 3.0, 'y': 4.0, 'source': 'USER'},
+            ],
+        },
+    )
+
+    layouts = result['instanceEditor']['updateNodeLayouts']['layouts']
+    assert [(layout['nodeId'], layout['x'], layout['source']) for layout in layouts] == [
+        ('shared', 1.0, 'AUTO'),
+        ('own', 3.0, 'USER'),
+    ]
+    assert layouts[0]['createdAt'] is None
+    dependent_instance.refresh_from_db()
+    [settings] = dependent_instance.node_settings
+    assert settings.node_uuid == shared.uuid
+    assert settings.layout is not None
+    assert (settings.layout.x, settings.layout.y) == (1.0, 2.0)
+    assert NodeLayout.objects.filter(node=local).exists()
+
+    query = 'query Layouts { instance { editor { nodeLayouts { nodeId x y } } } }'
+    data = gql_client.query_data(query)
+    assert sorted((layout['nodeId'], layout['y']) for layout in data['instance']['editor']['nodeLayouts']) == [
+        ('own', 4.0),
+        ('shared', 2.0),
+    ]
+
+    gql_client.query_data(
+        """
+        mutation Clear($instance: ID!) {
+            instanceEditor(instanceId: $instance) { clearNodeLayouts { messages { message } } }
+        }
+        """,
+        variables={'instance': instance_id},
+    )
+    dependent_instance.refresh_from_db()
+    assert dependent_instance.node_settings == []
+    assert not NodeLayout.objects.filter(node=local).exists()
+
+
+def test_a_layout_for_an_unknown_node_is_refused(
+    client: Client,
+    dependent_instance: InstanceConfig,
+) -> None:
+    from paths.tests.graphql import PathsTestClient
+
+    client.force_login(UserFactory.create(is_superuser=True))
+    gql_client = PathsTestClient(client)
+    gql_client.set_instance(dependent_instance)
+
+    errors = gql_client.query_errors(
+        """
+        mutation Layouts($instance: ID!, $input: [UpdateNodeLayoutInput!]!) {
+            instanceEditor(instanceId: $instance) {
+                updateNodeLayouts(input: $input) { ... on UpdateNodeLayoutsResult { layouts { nodeId } } }
+            }
+        }
+        """,
+        variables={'instance': str(dependent_instance.pk), 'input': [{'nodeId': 'nowhere', 'x': 1.0, 'y': 2.0}]},
+    )
+
+    assert 'Node "nowhere" not found' in errors[0]['message']
+    dependent_instance.refresh_from_db()
+    assert dependent_instance.node_settings == []

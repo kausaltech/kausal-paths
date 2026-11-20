@@ -62,6 +62,7 @@ from nodes.models import (
     PreferredInstanceSource,
 )
 from nodes.node import Node
+from nodes.node_layouts import InheritedNodeLayout, inherited_node_layouts
 from nodes.normalization import Normalization
 from nodes.quantities import get_registry as get_quantity_registry
 from nodes.units import Unit
@@ -740,16 +741,20 @@ class InstanceEditorFields:
 
     @sb.field
     @staticmethod
-    def node_layouts(root: 'InstanceEditorFields') -> list[NodeLayoutType]:
-        return cast(
-            'list[NodeLayoutType]',
-            list(
-                NodeLayout.objects
-                .filter(node__instance=root._config)
-                .select_related('node', 'created_by', 'last_modified_by')
-                .order_by('node__identifier')
-            ),
+    def node_layouts(root: 'InstanceEditorFields', info: gql.Info) -> list[NodeLayoutType]:
+        layouts: list[NodeLayout | InheritedNodeLayout] = list(
+            NodeLayout.objects
+            .filter(node__instance=root._config)
+            .select_related('node', 'created_by', 'last_modified_by')
+            .order_by('node__identifier')
         )
+        if any(settings.layout is not None for settings in root._config.node_settings):
+            resources = info.context.instance_resources
+            assert resources is not None
+            config, source = resources.resolve_source(root._config, root._source)
+            graph = info.context.require_instance_graph(config, source=source)
+            layouts.extend(inherited_node_layouts(root._config, graph))
+        return cast('list[NodeLayoutType]', layouts)
 
 
 @sb.type
