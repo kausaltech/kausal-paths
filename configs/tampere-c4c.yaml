@@ -3612,61 +3612,16 @@ nodes:
     - id: scope
       flatten: true
 
-- id: emissions_reductions
-  name: Emissions reductions
-  name_en: Emissions reductions
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t_co2e/a
-  input_dimensions: [action]
-  output_dimensions: [action]
-  input_nodes:
-  - id: emissions_impacts
-    tags: [make_nonpositive]
-
-- id: emissions_increases
-  name: Emissions increases
-  name_en: Emissions increases
-  type: simple.AdditiveNode
-  quantity: emissions
-  unit: t_co2e/a
-  input_dimensions: [action]
-  output_dimensions: [action]
-  input_nodes:
-  - id: emissions_impacts
-    tags: [make_nonnegative]
-
-- id: emissions_cost_reductions
-  name: Emissions cost reductions
-  name_en: Emissions cost reductions
+- id: emissions_cost_impacts
+  name: Emissions cost impacts
+  name_en: Emissions cost impacts
   type: simple.MultiplicativeNode
   quantity: currency
   unit: EUR/a
-  input_dimensions: [cost_type, owner, action]
-  output_dimensions: [cost_type, owner, action]
+  input_dimensions: [action, cost_type, owner]
+  output_dimensions: [action, cost_type, owner]
   input_nodes:
-  - id: emissions_reductions
-    to_dimensions:
-    - id: action
-  - id: carbon_unit_price
-    to_dimensions:
-    - id: cost_type
-      categories: [carbon_shadow]
-    - id: owner
-      categories: [society]
-  output_nodes:
-  - id: total_benefits
-
-- id: emissions_cost_increases
-  name: Emissions cost increases
-  name_en: Emissions cost increases
-  type: simple.MultiplicativeNode
-  quantity: currency
-  unit: EUR/a
-  input_dimensions: [cost_type, owner, action]
-  output_dimensions: [cost_type, owner, action]
-  input_nodes:
-  - id: emissions_increases
+  - id: emissions_impacts
     to_dimensions:
     - id: action
   - id: carbon_unit_price
@@ -3677,8 +3632,9 @@ nodes:
       categories: [society]
   output_nodes:
   - id: total_costs
-
-# ----- Mileage
+    tags: [make_nonnegative]
+  - id: total_benefits
+    tags: [make_nonpositive]
 
 - id: transport_kilometer_impacts
   name: Vaikutukset kilometrisuoritteisiin
