@@ -10,8 +10,9 @@ from kausal_common.i18n.pydantic import TranslatedString
 from common.polars import DataFrameMeta, to_ppdf
 from datasets.runtime import Dataset
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
-from nodes.defs.transform_def import InterpolateOp
+from nodes.defs.transform_def import FilterColumnOp, InterpolateOp
 from nodes.exceptions import NodeError
+from nodes.node import NodeStatus
 from nodes.runtime_input import RuntimeInputBinding
 from nodes.simple import DataAvailabilityNode
 from nodes.tests.factories import InstanceConfigFactory, InstanceFactory
@@ -538,3 +539,27 @@ def test_an_empty_dataset_without_a_template_still_raises():
 
     with pytest.raises(NodeError):
         node.compute()
+
+
+def test_a_filter_allowed_to_match_nothing_reports_no_combinations_and_says_why():
+    """A municipality a national table does not cover: the node computes, and its status names the miss."""
+    context = _make_context('availability-unmatched')
+    df = pl.DataFrame({
+        YEAR_COLUMN: [2011],
+        'ags': ['07315000'],
+        VALUE_COLUMN: [5.0],
+        FORECAST_COLUMN: [False],
+    })
+    meta = DataFrameMeta(units={VALUE_COLUMN: unit_registry.parse_units('kWh')}, primary_keys=[YEAR_COLUMN, 'ags'])
+    ds = _make_dataset(context, to_ppdf(df, meta))
+    ds.transformations = [FilterColumnOp(column='ags', value='00000000', allow_no_match=True)]
+    node = _make_node(context, [ds])
+
+    out = node.get_output_pl()
+
+    assert out.is_empty()
+    node.validate_output(out)
+    assert node.status is NodeStatus.DEGRADED
+    assert [error.message for error in node.status_errors] == [
+        "Dataset 'raw' has no rows for 'ags' = '00000000', so this input is empty and counts as zero."
+    ]

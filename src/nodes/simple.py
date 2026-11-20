@@ -15,7 +15,7 @@ from nodes.constraints.port_roles import PortRoleInferenceResult
 from nodes.constraints.rules import AnyShapeRule, MissingPortRoleError, ProductShapeRule, SameShapeRule
 from nodes.constraints.tags import tag_operation_inverts, tag_operation_is_opaque
 from nodes.defs.port_def import InputPort, InputPortDeclaration, InputPortDef, OutputPortDeclaration
-from nodes.defs.transform_def import TagOperationOp
+from nodes.defs.transform_def import FilterColumnOp, TagOperationOp
 from nodes.units import Quantity
 from params.param import BoolParameter, NumberParameter, StringParameter
 
@@ -880,7 +880,36 @@ so that a combination missing from the data altogether is reported as missing ra
                     "Dataset '%s' is interpolated already when it is built, so the gaps of the original data "
                     'cannot be seen any more. Remove the LinearInterpolation dataset processor.' % ds.id,
                 )
-        return self.check_availability(self.require_input(self.data_port))
+        data = self.require_input(self.data_port)
+        if data.is_empty() and self._template_is_unbound() and self._data_may_match_nothing():
+            # A filter allowed to select nothing did (a municipality a national table does not
+            # cover), and the node's status says so. There are no combinations to report on.
+            return self._no_combinations(data)
+        return self.check_availability(data)
+
+    def _no_combinations(self, data: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        dim_ids = [dim_id for dim_id in data.dim_ids if dim_id in self.output_dimensions]
+        schema: dict[str, Any] = {YEAR_COLUMN: pl.Int64, **dict.fromkeys(dim_ids, pl.Categorical)}
+        units = {}
+        for metric in self.output_metrics.values():
+            schema[metric.column_id] = pl.Float64
+            units[metric.column_id] = metric.unit
+        schema[FORECAST_COLUMN] = pl.Boolean
+        meta = ppl.DataFrameMeta(units=units, primary_keys=[YEAR_COLUMN, *dim_ids])
+        return ppl.to_ppdf(pl.DataFrame(schema=schema), meta=meta)
+
+    def _template_is_unbound(self) -> bool:
+        return not any(binding.port_role == self.template_port.role for binding in self.runtime_input_bindings)
+
+    def _data_may_match_nothing(self) -> bool:
+        from datasets.runtime import Dataset
+
+        return any(
+            isinstance(op, FilterColumnOp) and op.allow_no_match
+            for binding in self.runtime_input_bindings
+            if binding.port_role == self.data_port.role and isinstance(binding.source, Dataset)
+            for op in binding.source.transformations
+        )
 
     def _get_template(self) -> ppl.PathsDataFrame | None:
         template = self.get_input(self.template_port)

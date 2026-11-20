@@ -58,6 +58,7 @@ class ColumnDatasetFilterDef(BaseModel):
     drop_col: bool = True
     exclude: bool = False
     flatten: bool = False
+    allow_no_match: bool = False
 
     @model_validator(mode='after')
     def validate_model(self) -> ColumnDatasetFilterDef:

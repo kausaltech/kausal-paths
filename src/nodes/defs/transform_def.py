@@ -159,6 +159,11 @@ class FilterColumnOp(PortTransformOpBase):
     so a misspelt value is caught only when it runs. Excluding nothing is not, since an earlier
     filter may already have removed those rows.
 
+    ``allow_no_match`` makes selecting no row an empty input instead. It is for a national
+    table keyed by a municipality's own identifier, where a municipality the table does not
+    cover cannot fix the miss itself. The node reading the binding records the miss in its
+    status (``Node._note_unmatched_filters``), so it stays visible.
+
     Legacy: wide DVC datasets use human-readable column labels that never
     became dimensions. Prefer ``filter_dimension`` for anything modelled.
     """
@@ -175,6 +180,17 @@ class FilterColumnOp(PortTransformOpBase):
     drop_col: bool = True
     exclude: bool = False
     flatten: bool = False
+    allow_no_match: bool = False
+
+    @model_serializer(mode='wrap')
+    def _serialize_with_kind(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        data = handler(self)
+        data['kind'] = self.kind
+        # Added after templates were published: leaving it out when off keeps their content
+        # hashes and the cache keys of every other filter unchanged.
+        if not self.allow_no_match:
+            data.pop('allow_no_match', None)
+        return data
 
     def cache_hash_data(self, context: Context) -> dict[str, Any]:
         data = super().cache_hash_data(context)

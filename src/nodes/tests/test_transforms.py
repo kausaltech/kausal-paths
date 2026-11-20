@@ -306,6 +306,27 @@ def test_a_column_filter_that_matches_no_row_names_the_values_there_are():
         _run(_sector_frame(['a']), [FilterColumnOp(column='sector', ref='p')], _env_with_parameters({'p': 'x'}))
 
 
+def test_a_column_filter_allowed_to_match_nothing_leaves_an_empty_input():
+    """A municipality a national table does not cover gets an empty input, not a failure it cannot fix."""
+    op = FilterColumnOp(column='sector', ref='p', allow_no_match=True)
+
+    result = _run(_sector_frame(['a']), [op], _env_with_parameters({'p': 'x'}))
+
+    assert len(result) == 0
+    assert 'sector' not in result.columns
+
+
+def test_a_column_filter_stores_allow_no_match_only_when_it_is_on():
+    """Leaving the flag out when off keeps the content hash of templates published before it."""
+    assert 'allow_no_match' not in FilterColumnOp(column='ags').model_dump()
+
+    stored = FilterColumnOp(column='ags', ref='ags_number', allow_no_match=True).model_dump(mode='json')
+
+    assert stored['allow_no_match'] is True
+    assert stored['kind'] == 'filter_column'
+    assert FilterColumnOp.model_validate(stored).allow_no_match
+
+
 def test_a_column_filter_may_exclude_every_row_or_none():
     result = _run(_sector_frame(['a']), [FilterColumnOp(column='sector', value='a', exclude=True)])
     assert len(result) == 0

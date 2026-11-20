@@ -446,7 +446,7 @@ def _filter_column(df: ppl.PathsDataFrame, op: FilterColumnOp, env: PipelineEnv)
         df = df.filter(~mask)
     elif mask is not None:
         matched = df.filter(mask)
-        if len(matched) == 0 and len(df) > 0:
+        if len(matched) == 0 and len(df) > 0 and not op.allow_no_match:
             # A misspelt value would otherwise leave an empty frame and no trace of why.
             available = ', '.join(sorted(str(value) for value in df[col].unique().to_list()))
             env.fail(f"No rows of column '{col}' match {_filter_column_criterion(op, env)}. Available: {available}")
@@ -484,8 +484,13 @@ def _filter_column_mask(op: FilterColumnOp, env: PipelineEnv) -> pl.Expr | None:
 
 
 def _filter_column_criterion(op: FilterColumnOp, env: PipelineEnv) -> str:
+    return filter_column_criterion(op, env.context)
+
+
+def filter_column_criterion(op: FilterColumnOp, context: Context) -> str:
+    """Say what a column filter selects, with the current value of a referenced parameter."""
     if op.ref:
-        return f"parameter '{op.ref}' ({env.context.get_parameter_value(op.ref, required=True)!r})"
+        return f"parameter '{op.ref}' ({context.get_parameter_value(op.ref, required=True)!r})"
     if op.value:
         return repr(op.value)
     return ', '.join(repr(value) for value in op.values)
