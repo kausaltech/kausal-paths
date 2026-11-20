@@ -4,7 +4,7 @@ import ast
 import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Literal, NamedTuple, TypeVar, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, NamedTuple, TypeVar, cast
 from uuid import NAMESPACE_URL, uuid5
 
 from django.utils.translation import gettext_lazy as _
@@ -14,6 +14,7 @@ from pint.errors import UndefinedUnitError
 
 from common import polars as ppl, qualifiers
 from nodes.calc import convert_to_co2e, extend_last_historical_value_pl
+from nodes.chp_allocation import bisko_heat_share, chp_heat_share, exergetic_heat_share
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from nodes.defs.node_defs import ActionConfig, FormulaConfig, NodeSpec
 from nodes.exceptions import NodeError
@@ -386,6 +387,8 @@ class FormulaNode(Node):
             return self._custom_valid_inputs(node, varss)
         if func == 'output_with_scenario':
             return self._custom_output_with_scenario(node, varss)
+        if func == 'conforms_to_bisko':
+            return self._custom_conforms_to_bisko(node, varss)
         if func == 'prefer_by_year' and len(node.args) == 3:
             return self._custom_prefer_by_year(func, node, varss, None)
 
@@ -429,6 +432,17 @@ class FormulaNode(Node):
         'has_source': '_custom_has_source',
         'and': '_custom_and_or',
         'or': '_custom_and_or',
+        'chp_heat_share': '_custom_chp_heat_share',
+        'exergetic_heat_share': '_custom_chp_heat_share',
+        'bisko_heat_share': '_custom_chp_heat_share',
+    }
+
+    # The CHP allocation functions, from the general to the specific, with their arguments; see
+    # `nodes.chp_allocation`.
+    _CHP_HEAT_SHARE_FUNCTIONS: ClassVar[dict[str, tuple[tuple[str, ...], Callable[..., PDF]]]] = {
+        'chp_heat_share': (('electricity_fraction', 'electricity_weight', 'heat_weight'), chp_heat_share),
+        'exergetic_heat_share': (('electricity_fraction', 't_supply', 't_return', 't_ambient'), exergetic_heat_share),
+        'bisko_heat_share': (('electricity_fraction', 't_supply', 't_return'), bisko_heat_share),
     }
 
     def _handle_custom_function(self, func: str, node: ast.Call, varss: EvalVars, df: EvalOutput) -> EvalOutput:
@@ -490,6 +504,80 @@ class FormulaNode(Node):
             raise NodeError(self, 'Second argument to output_with_scenario() must be a quoted scenario id')
 
         return input_node.get_output_pl_for_scenario(scenario_arg.value, target_node=self)
+
+    def _custom_chp_heat_share(self, func: str, node: ast.Call, varss: EvalVars, df: EvalOutput) -> EvalOutput:
+        """
+        Handle the CHP allocation functions: the share of a plant's emissions allocated to its heat.
+
+        ``chp_heat_share(electricity_fraction, electricity_weight, heat_weight)`` is the weighted
+        split that every method is a case of, ``exergetic_heat_share(electricity_fraction, t_supply,
+        t_return, t_ambient)`` weights the products by the work they could do, and
+        ``bisko_heat_share(electricity_fraction, t_supply, t_return)`` is the exergetic split with the
+        ambient temperature BISKO fixes. Every argument is a series, and a row has a share only where
+        all of them have a value; see `nodes.chp_allocation`. A node whose formula calls
+        ``bisko_heat_share`` declares that its allocation conforms to BISKO
+        (`allocation_conforms_to_bisko`).
+        """
+        arg_names, compute = self._CHP_HEAT_SHARE_FUNCTIONS[func]
+        signature = '%s(%s)' % (func, ', '.join(arg_names))
+        if len(node.args) != len(arg_names) or node.keywords:
+            raise NodeError(self, '%s takes %d arguments' % (signature, len(arg_names)))
+        args = [df, *(self.eval_tree(arg, varss) for arg in node.args[1:])]
+        if not all(isinstance(arg, PDF) for arg in args):
+            raise NodeError(self, '%s needs %d series, such as dataset columns, not numbers' % (signature, len(arg_names)))
+        return compute(self, *args)
+
+    def _custom_conforms_to_bisko(self, node: ast.Call, varss: EvalVars) -> PDF:
+        """
+        Handle ``conforms_to_bisko(allocation)``: 1 in every year if that input node's CHP split is BISKO's, else 0.
+
+        The input node answers for itself, through its ``allocation_conforms_to_bisko`` property, so
+        this function knows nothing about how a split is computed. The years run from the minimum
+        historical year to the model end year, and those after the last historical year are forecast.
+        """
+        if len(node.args) != 1 or node.keywords or not isinstance(node.args[0], ast.Name):
+            raise NodeError(self, 'conforms_to_bisko(allocation) takes one input node')
+        allocation = varss.nodes.get(node.args[0].id)
+        if allocation is None:
+            raise NodeError(self, "conforms_to_bisko(): '%s' is not an input node" % node.args[0].id)
+        conforms = getattr(allocation, 'allocation_conforms_to_bisko', None)
+        if conforms is None:
+            raise NodeError(
+                self,
+                "conforms_to_bisko(): input node '%s' does not say whether its allocation conforms to BISKO. "
+                'It must be a CHP allocation node.' % allocation.id,
+            )
+        instance = self.context.instance
+        years = list(range(instance.minimum_historical_year, instance.model_end_year + 1))
+        last_historical = instance.maximum_historical_year or instance.reference_year
+        frame = pl.DataFrame(
+            {
+                YEAR_COLUMN: years,
+                VALUE_COLUMN: [1.0 if conforms else 0.0] * len(years),
+                FORECAST_COLUMN: [year > last_historical for year in years],
+            },
+            schema={YEAR_COLUMN: pl.Int64, VALUE_COLUMN: pl.Float64, FORECAST_COLUMN: pl.Boolean},
+        )
+        return ppl.to_ppdf(
+            frame, meta=ppl.DataFrameMeta(primary_keys=[YEAR_COLUMN], units={VALUE_COLUMN: unit_registry.dimensionless})
+        )
+
+    @property
+    def allocation_conforms_to_bisko(self) -> bool:
+        """
+        Whether this node computes BISKO's CHP split: its formula calls ``bisko_heat_share``.
+
+        The function fixes the method and the ambient temperature, so the formula cannot apply the
+        split another way while calling it. Read by ``conforms_to_bisko`` in a downstream formula.
+        """
+        try:
+            formula = self.formula
+        except NodeError:
+            return False
+        return any(
+            isinstance(call, ast.Call) and isinstance(call.func, ast.Name) and call.func.id == 'bisko_heat_share'
+            for call in ast.walk(ast.parse(formula, '<string>', mode='eval'))
+        )
 
     def _custom_convert_gwp(self, _func: str, _node: ast.Call, _varss: EvalVars, df: EvalOutput) -> EvalOutput:
         assert isinstance(df, PDF)
@@ -1349,7 +1437,7 @@ def analyze_formula_units(  # noqa: C901, PLR0915
                 if first is not None and first.dimensionality != dimensionless.dimensionality:
                     analysis.errors.append("Function 'complement' requires dimensionless units.")
                 return dimensionless
-            if func_name in QUALIFIER_FUNCTIONS:
+            if func_name in QUALIFIER_FUNCTIONS or func_name in (*FormulaNode._CHP_HEAT_SHARE_FUNCTIONS, 'conforms_to_bisko'):
                 return dimensionless
             if func_name in _PASSTHROUGH_FUNCTIONS or func_name in passthrough:
                 return first
@@ -1451,8 +1539,10 @@ def analyze_formula_dimensions(  # noqa: C901, PLR0915
                     return set(d for d in first if d != dim)
                 analysis.errors.append(f'{func_name} expects a dimension name as second argument.')
                 return first
-            if func_name in ('valid_inputs', 'constant_frame'):
+            if func_name in ('valid_inputs', 'constant_frame', 'conforms_to_bisko'):
                 return set()
+            if func_name in FormulaNode._CHP_HEAT_SHARE_FUNCTIONS:
+                return first
             if func_name == 'sum_into_cat':
                 return first
             if func_name == 'coalesce_df':

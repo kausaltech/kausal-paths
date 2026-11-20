@@ -361,9 +361,34 @@ lost the qualifier of every input dataset (see `qualifier-propagation.md`). Ever
 identical to the `FormulaNode` version, values, Forecast flags and qualifiers alike: `bisko-base`
 428 of 428, Schwerin through the 2.0 module 448 of 448.
 
+Later on 2026-11-19 the last two `GenericNode` subclasses left the template. Both are now
+`FormulaNode`s, using new formula functions. The CHP functions follow the hierarchy of the
+allocation methods (`nodes/chp_allocation.py`): `chp_heat_share` is the weighted split every
+method is a case of, `exergetic_heat_share` weights the products by their Carnot factors, and
+`bisko_heat_share` is the exergetic split with BISKO's 283 K ambient temperature. `ChpNode` and
+`BiskoChpNode` keep their own implementation, because the BISKO 1.3 module uses them and is
+frozen; tests check that each function agrees with the corresponding `ChpNode` method.
+
+* `combined_heat_and_power_chp_fraction` was a `BiskoChpNode`. Its formula is
+  `hold_into_forecast(bisko_heat_share(electricity_fraction, t_supply, t_return))`, which refuses
+  the same inputs `BiskoChpNode` refuses. The node outputs only the
+  heat share. The electricity share, which nothing read, and with it the `energy_carrier`
+  dimension are gone, so the two consumers no longer filter for `district_heating`.
+* `has_district_heating_by_exergetic_allocation` was a `BiskoExergeticAllocationNode`. Its
+  formula is `conforms_to_bisko(allocation)` times "emissions allocated, or no district heating".
+  `conforms_to_bisko` asks the allocation node whether its split is BISKO's, as the class did. A
+  `FormulaNode` answers yes when its formula calls `bisko_heat_share`, so the method is still
+  fixed by construction rather than by a setting.
+
+Verified as before, in every scenario with the weather correction on and off, now also with
+Prüfstadt's plant data and CHP parameters run through the 2.0 module, which takes Möglichkeit 1
+in 2021-2023: `bisko-base` 440, Schwerin 448, Prüfstadt 428 outputs. Values and Forecast flags
+are identical everywhere, apart from the dropped electricity row. The conformity node now carries
+the qualifier of its emissions and consumption inputs, so `is_bisko_compliant` records other
+sources. The certified 1.3 module keeps both classes.
+
 What stays:
 
-* `BiskoChpNode` and `BiskoExergeticAllocationNode`, BISKO-specific subclasses of `GenericNode`.
 * The 12 `DataAvailabilityNode`s are a subclass of v1 `AdditiveNode` in Python, but they replace
   `compute()` entirely and take only `allowed_parameters` from it. They are not sums, their
   class name says what they do, and changing their base would also touch the certified 1.3
