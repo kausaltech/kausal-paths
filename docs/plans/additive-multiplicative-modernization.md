@@ -4,6 +4,7 @@
 *Version 2 produced by Claude Opus 5.0 on 2026-08-16.*
 *Version 3 produced by Claude Opus 5.5 on 2026-11-17.*
 *Version 4 produced by Claude Opus 5.5 on 2026-11-18.*
+*Version 5 produced by Claude Opus 5.5 on 2026-11-20.*
 *Responsible: Jouni Tuomisto.*
 
 `AdditiveNode` and `MultiplicativeNode` are the oldest node classes in the codebase.
@@ -249,6 +250,9 @@ the graph, which is a modelling change and not something to slip into a retype. 
 is `avoided_emissions_if_included`, which has one factor where a product needs two.
 
 **Step 5 — reclaim the names**, still to do, once no config references the v1 classes.
+Each rebuilt class takes the original name and the original becomes `Legacy…`: `AdditiveNode2` →
+`AdditiveNode` and `AdditiveNode` → `LegacyAdditiveNode`, the same for `MultiplicativeNode2` and
+`DataAvailabilityNode2`. The frozen BISKO 1.3 module keeps the legacy classes.
 Delete `nodes/tests/test_zz_scratch_order.py` then too — the scratch probe the semantics
 test replaced.
 
@@ -389,10 +393,26 @@ sources. The certified 1.3 module keeps both classes.
 
 What stays:
 
-* The 12 `DataAvailabilityNode`s are a subclass of v1 `AdditiveNode` in Python, but they replace
-  `compute()` entirely and take only `allowed_parameters` from it. They are not sums, their
-  class name says what they do, and changing their base would also touch the certified 1.3
-  module. Their base class belongs to step 5.
+* `DataAvailabilityNode` itself. It is a subclass of v1 `AdditiveNode` that replaces `compute()`
+  entirely and takes only `allowed_parameters` from it, and the certified 1.3 module uses it, so
+  it does not change.
+
+On 2026-11-20 the template's 12 availability nodes moved to `DataAvailabilityNode2`, a copy of
+the class on `Node` directly: it is no sum, so an additive base gives it nothing it uses and
+several things it would have to undo (the additive port-role inference, the additive edge hint, a
+pipeline lowering that adds). Two things differ from the original:
+
+* Its dataset ports take no unit from the node (`dataset_ports_take_output_unit = False`). The
+  original's ports carry the node's dimensionless unit against MWh/a data, and that was never
+  noticed: a class that overrides `compute()` below the class declaring its shape rules is
+  untrusted by the constraint compiler, which then checks none of its ports. The copy, on `Node`,
+  is trusted and checked.
+* It reports no combinations, rather than failing, when its data is empty because a filter with
+  `allow_no_match` matched nothing. That handling was first added to the original and moved here,
+  so the frozen class is again exactly as certified.
+
+The availability tests run against both classes. Template outputs are identical, and on
+`testcity-bisko` only `other_transport_energy_availability` changes: it computes where it failed.
 
 Verified by comparing every node output, keyed by index, before and after, in both scenarios,
 from YAML: `bisko-base`, 222 of 222 identical (the template's data is mostly empty), and

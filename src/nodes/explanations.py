@@ -406,6 +406,17 @@ NODE_CLASS_DESCRIPTIONS: dict[str, NodeInfo] = {
         """
         )
     ),
+    # The rebuilt copy of the class the frozen BISKO 1.3 module uses; the same text.
+    'DataAvailabilityNode2': NodeInfo(
+        _(
+            """
+        This node does not use the values of its input dataset but reports whether a value exists
+        in each cell: 1 where the dataset has a value and 0 where it does not. The check is made on
+        the original data, before interpolation or extension fill in the missing years. The output
+        covers the whole model period, and the years and categories that the data does not reach get 0.
+        """
+        )
+    ),
     'DatasetDifferenceAction': NodeInfo(
         _(
             """

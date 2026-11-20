@@ -881,6 +881,288 @@ so that a combination missing from the data altogether is reported as missing ra
                     "Dataset '%s' is interpolated already when it is built, so the gaps of the original data "
                     'cannot be seen any more. Remove the LinearInterpolation dataset processor.' % ds.id,
                 )
+        return self.check_availability(self.require_input(self.data_port))
+
+    def _get_template(self) -> ppl.PathsDataFrame | None:
+        template = self.get_input(self.template_port)
+        if template is None:
+            return None
+        return template.paths.cast_index_to_str()
+
+    def _get_required_combinations(self, dim_ids: list[str]) -> pl.DataFrame | None:
+        """Return one row per combination the template requires, or None when there is no template."""
+        template = self._get_template()
+        if template is None:
+            return None
+        if sorted(template.dim_ids) != sorted(dim_ids):
+            raise NodeError(
+                self,
+                'The template requires combinations of (%s), but the data has dimensions (%s). '
+                'They have to be the same dimensions for the requirement to mean anything.'
+                % (', '.join(sorted(template.dim_ids)) or '-', ', '.join(sorted(dim_ids)) or '-'),
+            )
+        if not dim_ids:
+            raise NodeError(
+                self,
+                'A template declares which dimension category combinations must exist, but the data has no dimensions.',
+            )
+        # The template's values and years carry no meaning; the combinations are the whole of it.
+        combinations = pl.DataFrame({dim_id: template[dim_id] for dim_id in dim_ids})
+        return combinations.unique(subset=dim_ids)
+
+    def _all_required_missing(self, template: ppl.PathsDataFrame, metric_cols: list[str]) -> ppl.PathsDataFrame:
+        """
+        Report every required combination as missing, for a dataset that has no rows at all.
+
+        A dataset nobody has started filling in cannot say what it should have contained: rows
+        whose every metric is null are dropped on the way here, and with the last row go the
+        dimension columns. That is exactly the case the template exists for -- "nobody has
+        looked" has to read as missing rather than as an error -- so the combinations come from
+        the template instead, and every one of them is 0.0 in every year.
+        """
+        dim_ids = sorted(template.dim_ids)
+        combinations = pl.DataFrame({dim_id: template[dim_id] for dim_id in dim_ids}).unique(subset=dim_ids)
+        years = pl.DataFrame({
+            YEAR_COLUMN: range(self.context.instance.minimum_historical_year, self.get_end_year() + 1),
+        })
+        grid = years.join(combinations, how='cross')
+        grid = grid.with_columns(
+            [pl.lit(0.0).alias(col) for col in metric_cols]
+            # Dimension columns are Categorical everywhere else, and a Utf8 column here would
+            # move the failure downstream to the first join against a normal node output.
+            + [pl.col(dim_id).cast(pl.Categorical) for dim_id in dim_ids],
+        )
+        meta = ppl.DataFrameMeta(
+            units=dict.fromkeys(metric_cols, self.context.unit_registry.parse_units('dimensionless')),
+            primary_keys=[YEAR_COLUMN, *dim_ids],
+        )
+        return ppl.to_ppdf(grid, meta=meta)
+
+    def _report_on_required_combinations(self, out: ppl.PathsDataFrame, required: pl.DataFrame) -> ppl.PathsDataFrame:
+        """Give every required combination a row in every year, whether or not the data mentions it."""
+        required_col = '_Required'
+        meta = out.get_meta()
+        dim_ids = out.dim_ids
+        flag_cols = out.metric_cols
+        # Join on plain strings, then put the dimension columns back as they were. Category
+        # columns from two different frames are not joinable, and leaving the output as Utf8
+        # where it used to be Categorical would move the same failure downstream instead.
+        dim_dtypes = {dim_id: out.schema[dim_id] for dim_id in dim_ids}
+        out = out.with_columns([pl.col(dim_id).cast(pl.Utf8) for dim_id in dim_ids])
+
+        years = pl.DataFrame({YEAR_COLUMN: out[YEAR_COLUMN].unique()})
+        grid = years.join(required.with_columns(pl.lit(value=True).alias(required_col)), how='cross')
+        # The union: a required combination the data never mentions gets its zeros, and a
+        # combination the data has that nothing requires is still reported rather than dropped.
+        joined = out.join(grid, on=[YEAR_COLUMN, *dim_ids], how='full', coalesce=True)
+        joined = joined.with_columns([pl.col(col).fill_null(0.0) for col in flag_cols])
+
+        if self.get_typed_parameter_value('flag_unexpected', bool, required=False):
+            unexpected = ~pl.col(required_col).fill_null(value=False)
+            joined = joined.with_columns([
+                pl.when(unexpected & (pl.col(col) > 0)).then(pl.lit(-1.0)).otherwise(pl.col(col)).alias(col) for col in flag_cols
+            ])
+
+        joined = joined.drop(required_col).with_columns([pl.col(dim_id).cast(dtype) for dim_id, dtype in dim_dtypes.items()])
+        return ppl.to_ppdf(joined, meta=meta)
+
+    def check_availability(self, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        """Convert the values of the raw dataset into 1.0 (value exists) and 0.0 (no value)."""
+        metric_cols = df.metric_cols
+        if not metric_cols:
+            raise NodeError(self, 'The input dataset has no metric columns whose availability could be tested.')
+        if len(metric_cols) == 1:
+            out_cols = [self.get_default_output_metric().column_id]
+        else:
+            out_cols = list(metric_cols)
+        declared = {metric.column_id: metric.unit for metric in self.output_metrics.values()}
+        units = {col: declared.get(col, self.context.unit_registry.parse_units('dimensionless')) for col in out_cols}
+        with_dimension = {col: str(unit) for col, unit in units.items() if not unit.dimensionless}
+        if with_dimension:
+            raise NodeError(
+                self,
+                'The output columns tell whether a value exists, so their units must be dimensionless: %s.'
+                % ', '.join("'%s' is '%s'" % item for item in with_dimension.items()),
+            )
+
+        template = self._get_template()
+        if df.is_empty() or not df.dim_ids:
+            if template is not None and template.dim_ids:
+                return self._finish_availability(
+                    self._all_required_missing(template, metric_cols),
+                    metric_cols,
+                    out_cols,
+                    units,
+                )
+            if df.is_empty():
+                raise NodeError(
+                    self,
+                    'The dataset has no rows, so there is nothing to report the availability of, and no '
+                    'dataset tagged %r declares what it should have contained. Add a template.' % self.TEMPLATE_TAG,
+                )
+
+        # Missing data is mostly missing *rows*, not null cells, so the years and the
+        # dimension category combinations have to be materialised before they can be
+        # reported as zeros. Projecting wide gives one column per combination that the
+        # dataset actually uses; joining the model timeline onto it then turns every
+        # absent year into nulls, which the presence test below reads as 'no value'.
+        # (Crossing the categories of each dimension separately instead would invent
+        # cells that the dataset never means to have -- the BISKO district heating data
+        # uses different energy carriers for fuel input than for heat output -- and those
+        # would look like missing data forever.)
+        wide = df.drop(FORECAST_COLUMN) if FORECAST_COLUMN in df.columns else df
+        wide = wide.paths.to_wide()
+        years = pl.DataFrame({YEAR_COLUMN: range(self.context.instance.minimum_historical_year, self.get_end_year() + 1)})
+        years_pdf = ppl.to_ppdf(
+            years.with_columns(pl.col(YEAR_COLUMN).cast(df.schema[YEAR_COLUMN])),
+            ppl.DataFrameMeta(units={}, primary_keys=[YEAR_COLUMN]),
+        )
+        wide = years_pdf.paths.join_over_index(wide)
+
+        # A null cell has no value; for float columns NaN counts as no value, too.
+        # (`is_not_nan()` is null for null cells, but the `is_not_null()` term makes the
+        # conjunction false there anyway.)
+        flags: list[pl.Expr] = []
+        for col in wide.metric_cols:
+            has_value = pl.col(col).is_not_null()
+            if wide.schema[col].is_float():
+                has_value = has_value & pl.col(col).is_not_nan()
+            flags.append(has_value.cast(pl.Float64).alias(col))
+        out = wide.with_columns(flags).paths.to_narrow()
+
+        required = self._get_required_combinations(out.dim_ids)
+        if required is not None:
+            out = self._report_on_required_combinations(out, required)
+
+        return self._finish_availability(out, metric_cols, out_cols, units)
+
+    def _finish_availability(
+        self,
+        out: ppl.PathsDataFrame,
+        metric_cols: list[str],
+        out_cols: list[str],
+        units: dict[str, Unit],
+    ) -> ppl.PathsDataFrame:
+        """Mark the forecast years and give the flag columns the node's own metric names."""
+        max_hist_year = self.context.instance.maximum_historical_year
+        is_forecast = pl.lit(value=False) if max_hist_year is None else pl.col(YEAR_COLUMN) > max_hist_year
+        out = out.with_columns(is_forecast.alias(FORECAST_COLUMN)).sort(out.primary_keys)
+
+        for col_id, out_col in zip(metric_cols, out_cols, strict=True):
+            if out_col != col_id:
+                out = out.rename({col_id: out_col})
+            out = out.set_unit(out_col, 'dimensionless', force=True)
+            out = out.ensure_unit(out_col, units[out_col])
+        return out
+
+
+class DataAvailabilityNode2(Node):
+    """
+    ``DataAvailabilityNode`` rebuilt on ``Node``, for the BISKO 2.0 template.
+
+    The original subclasses ``AdditiveNode`` only for its parameter list: it is no sum, and it
+    replaces ``compute()`` entirely, so this one takes nothing from an additive base. The certified
+    BISKO 1.3 module uses the original and is frozen, so that class does not change. When the
+    rebuilt classes take the original names, this becomes ``DataAvailabilityNode`` and that one
+    ``LegacyDataAvailabilityNode`` (``docs/plans/additive-multiplicative-modernization.md``).
+
+    Unlike the original, it reports no combinations, rather than failing, when its data is empty
+    because a filter allowed to match nothing did (``allow_no_match``: a municipality a national
+    table does not cover); the node's status names the miss.
+
+    Report where the input dataset has a value, as 1.0 (value present) and 0.0 (no value).
+
+    The test is made on the dataset as it arrives from its source, before interpolation or
+    extension can fill in the missing years, so the output describes what the data actually
+    covers rather than what the pipeline is able to fabricate. Interpolation configured on
+    the bindings (``interpolate: true`` or ``input_dataset_processors: [LinearInterpolation]``)
+    is therefore switched off for this node's datasets.
+
+    The output covers the whole model year range (``minimum_historical_year`` ..
+    ``model_end_year``) for every dimension category combination that occurs in the dataset;
+    cells outside the data's own span are 0.0. The combinations are the ones the data uses,
+    not the cross product of each dimension's categories, so that a dataset whose categories
+    are ragged (a category of one dimension going together with only some categories of
+    another) is not reported as permanently incomplete. Each metric column of the dataset becomes a
+    0/1 column of its own. When the dataset has a single metric column, it is renamed to the
+    node's own metric column, so the usual ``unit: dimensionless`` node definition is enough;
+    a multi-metric dataset needs matching ``output_metrics`` on the node.
+
+    Taking the combinations from the data means that a combination nobody supplied is not
+    reported as missing — it is simply absent from the output, and a downstream flag computed
+    over it silently loses a term. Where the set of combinations is prescribed rather than
+    discovered, declare it in a second dataset tagged ``template``: its dimension columns list
+    the combinations that must exist, and they become the combinations reported on. A required
+    combination the data never mentions then reads 0.0 for every year instead of vanishing.
+    Keeping that dataset in DVC is the point of it — a user who edits the data being checked
+    cannot edit the requirement. The template's own values and years are ignored; one year's
+    worth of rows is enough, because a requirement of this kind is structural rather than
+    temporal, and it is checked in every year of the model range.
+
+    With ``flag_unexpected``, a combination that carries a value the template does not ask for
+    reads -1.0 instead of 1.0. It is off by default because these outputs are meant to be
+    combined arithmetically downstream (``prod_dim`` over a conformity flag, say), and a
+    negative term would corrupt that rather than register as a complaint.
+    """
+
+    explanation = _("""This is a Data Availability Node. Instead of using the values of its input dataset, it
+reports whether a value exists in each cell: 1.0 where the dataset has a value and 0.0 where it does not.
+The check is made on the original data, before interpolation or extension fill in the missing years.
+The output covers the whole model period; the years and categories that the dataset does not reach are 0.0.
+When a template dataset declares which category combinations have to exist, those are the ones reported on,
+so that a combination missing from the data altogether is reported as missing rather than passed over.""")
+
+    allowed_parameters: ClassVar[list[Parameter[Any]]] = [
+        BoolParameter(
+            local_id='flag_unexpected',
+            label=_('Report values that the template does not require as -1'),
+        ),
+    ]
+
+    TEMPLATE_TAG = 'template'
+
+    # It reads where its datasets have values, not what they are, so its ports accept any unit.
+    # (The original never had its port units checked: it overrides compute() below the class that
+    # declares its shape rules, which makes the constraint solver skip it.)
+    dataset_ports_take_output_unit = False
+
+    data_port = InputPort.one('data', label=_('Dataset to check'))
+    template_port = InputPort.optional('template', label=_('Required category combinations'))
+    output_port = OutputPortDeclaration(role='output', identifier='default', label=_('Output'))
+    input_port_declarations: ClassVar[tuple[InputPortDeclaration, ...]] = (data_port, template_port)
+    output_port_declarations = (output_port,)
+    legacy_input_port_roles_by_tag = {TEMPLATE_TAG: 'template'}
+    legacy_untagged_dataset_input_role = 'data'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # The node reports what the source data covers, so gap-filling must not run before
+        # the check. The dataset instances belong to this node alone, so this affects nobody
+        # else (and the dataset cache key follows the pipeline, so it stays separate too).
+        for ds in self.input_dataset_instances:
+            from nodes.defs.transform_def import TEMPORAL_FILL_KINDS, without_transformations
+
+            ds.transformations = without_transformations(ds.transformations, *TEMPORAL_FILL_KINDS)
+
+    def compute(self) -> ppl.PathsDataFrame:
+        from datasets.runtime import FixedDataset
+
+        if self.input_nodes:
+            raise NodeError(
+                self,
+                'DataAvailabilityNode only inspects its input dataset; it has %d input nodes. Combine '
+                'availability flags in a downstream node instead (e.g. with the min/max edge tags).' % len(self.input_nodes),
+            )
+        # Source inspection, not value access: a dataset that interpolates as it is built
+        # has already lost the gaps this node exists to report, whichever port it fills.
+        for binding in self.runtime_input_bindings:
+            ds = binding.source
+            if isinstance(ds, FixedDataset) and ds.use_interpolation:
+                raise NodeError(
+                    self,
+                    "Dataset '%s' is interpolated already when it is built, so the gaps of the original data "
+                    'cannot be seen any more. Remove the LinearInterpolation dataset processor.' % ds.id,
+                )
         data = self.require_input(self.data_port)
         if data.is_empty() and self._template_is_unbound() and self._data_may_match_nothing():
             # A filter allowed to select nothing did (a municipality a national table does not

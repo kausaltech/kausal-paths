@@ -355,6 +355,13 @@ class Node:
     default_unit: ClassVar[str]
     'Default unit for the node class (defined as a class variable)'
 
+    dataset_ports_take_output_unit: ClassVar[bool] = True
+    """Whether a dataset input port declared in YAML without a unit takes the node's output unit.
+
+    Off for a class that reads only whether its inputs have values, not what they are: its ports
+    then have no unit and accept any.
+    """
+
     interpolates_input_datasets_by_default: ClassVar[bool] = False
     """Whether a dataset bound to this class has year gaps filled unless the binding opts out.
 
