@@ -188,6 +188,11 @@ For instances with `template_revision`, use
 - each entry supplies `sourceNodeId` and `sourcePortId`, or `datasetId` and
   `metricId`, plus optional transformations;
 - `bindings: []` disconnects; `bindings: null` restores the default;
+- tags are not part of the selection. They say what the node does with an input, such as
+  the name a formula reads it by, so composition gives each selected binding the tags of the
+  pinned template's binding at the same position (`_with_template_tags`). A stored override
+  whose tags predate a retagging revision therefore cannot break the node. A port the template
+  leaves unbound keeps the selection's tags;
 - new structural conflicts return `ConstraintViolations` without saving.
 
 The per-edge and per-dataset binding mutations remain available for local nodes,

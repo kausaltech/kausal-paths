@@ -543,6 +543,35 @@ def test_template_publication_preserves_local_publication(
     assert str(build_instance_snapshot(dependent_instance).nodes[0].name) == 'New template edition'
 
 
+@pytest.mark.parametrize('template_binds_port', [True, False])
+def test_override_takes_its_tags_from_the_pinned_template(release: TemplateEdition, template_binds_port: bool) -> None:
+    """
+    An override chooses a port's source; the tags, which formulas read the input by, follow the template.
+
+    A municipality's copy of a binding is made when it is set up, and a later revision may retag
+    the port. The composed binding must then carry the revision's tags, not the stale copy's.
+    """
+    from nodes.instance_serialization import InputBindingOverrideSnapshot
+    from nodes.template_graph import _apply_binding_overrides
+
+    shared = release.snapshot.nodes[0]
+    assert shared.spec is not None
+    port = shared.spec.input_ports[0]
+    source = NodePortSource(node_id=shared.uuid, port_id=shared.spec.output_ports[0].id)
+
+    def binding(tags: list[str]) -> InputBindingSnapshot:
+        return InputBindingSnapshot(uuid=uuid4(), node_id=shared.uuid, port_id=port.id, position=0, source=source, tags=tags)
+
+    template_bindings = [binding(['wc'])] if template_binds_port else []
+    override = InputBindingOverrideSnapshot(node_uuid=shared.uuid, port_uuid=port.id, bindings=[binding(['stale'])])
+
+    composed = _apply_binding_overrides([override], {shared.uuid: shared}, {shared.uuid}, template_bindings)
+
+    assert [b.uuid for b in composed] == [override.bindings[0].uuid]
+    assert composed[0].tags == (['wc'] if template_binds_port else ['stale'])
+    assert override.bindings[0].tags == ['stale']
+
+
 def test_override_retains_metric(release: TemplateEdition, dependent_instance: InstanceConfig) -> None:
     from django.db.models import ProtectedError
 
