@@ -2574,7 +2574,7 @@ nodes:
     Damit wird in <code>district_heating_emissions</code> die BISKO-Möglichkeit 3 ausgewählt. Ein
     Jahr ohne Erklärung fällt auf den Standardfaktor zurück.<br/>
     Werte: 1 = ein Wert ist eingetragen, 0 = kein Wert. Der Wert hat keine Einheit.
-  type: simple.DataAvailabilityNode
+  type: simple.DataAvailabilityNode2
   quantity: fraction
   unit: dimensionless
   input_dimensions: [energy_carrier]
@@ -2609,7 +2609,7 @@ nodes:
     außerdem von den KWK-Anlagenparametern ab; das Ergebnis zeigt <i>Angewandte BISKO-Möglichkeit
     für Fernwärme</i>.<br/>
     Werte: 1 = ein Wert ist eingetragen, 0 = kein Wert. Der Wert hat keine Einheit.
-  type: simple.DataAvailabilityNode
+  type: simple.DataAvailabilityNode2
   quantity: fraction
   unit: dimensionless
   input_dimensions: [energy_carrier, per_what_energy]
@@ -3354,7 +3354,7 @@ nodes:
     Jede Zelle ist 0 oder 1. Wo die Grafik Zellen zusammenzählt, etwa über die Kraftstoffe einer
     Fahrzeugklasse, ist die angezeigte Zahl die Anzahl der eingetragenen Zellen und kein Code.<br/>
     Werte: 1 = ein Wert ist eingetragen, 0 = kein Wert. Der Wert hat keine Einheit.
-  type: simple.DataAvailabilityNode
+  type: simple.DataAvailabilityNode2
   quantity: fraction
   unit: dimensionless
   input_dimensions: [vehicle_type, energy_carrier]
@@ -5132,7 +5132,7 @@ nodes:
     Güte und Wert sind zwei getrennte Angaben, und jede muss gemacht werden. Dieser Knoten weist
     die Güten aus, die Werte weist „Datenverfügbarkeit des Endenergieverbrauchs" aus.<br/>
     Werte: 1 = ein Wert ist eingetragen, 0 = kein Wert. Der Wert hat keine Einheit.
-  type: simple.DataAvailabilityNode
+  type: simple.DataAvailabilityNode2
   quantity: fraction
   unit: dimensionless
   input_dimensions: [sector, energy_carrier]
@@ -5213,7 +5213,7 @@ nodes:
     Für welche Zellen des Datensatzes kommune/fahrleistung_strassenverkehr eine Datengüte
     eingetragen ist (1) und für welche nicht (0).<br/>
     Werte: 1 = ein Wert ist eingetragen, 0 = kein Wert. Der Wert hat keine Einheit.
-  type: simple.DataAvailabilityNode
+  type: simple.DataAvailabilityNode2
   quantity: fraction
   unit: dimensionless
   input_dimensions: [vehicle_type, road_type]
@@ -5237,7 +5237,7 @@ nodes:
     Für welche Zellen des Datensatzes kommune/energieverbrauch_strassenverkehr eine Datengüte
     eingetragen ist (1) und für welche nicht (0).<br/>
     Werte: 1 = ein Wert ist eingetragen, 0 = kein Wert. Der Wert hat keine Einheit.
-  type: simple.DataAvailabilityNode
+  type: simple.DataAvailabilityNode2
   quantity: fraction
   unit: dimensionless
   input_dimensions: [vehicle_type, energy_carrier]
@@ -5264,7 +5264,7 @@ nodes:
     Für welche Zellen des Datensatzes kommune/energieverbrauch_uebriger_verkehr eine Datengüte
     eingetragen ist (1) und für welche nicht (0).<br/>
     Werte: 1 = ein Wert ist eingetragen, 0 = kein Wert. Der Wert hat keine Einheit.
-  type: simple.DataAvailabilityNode
+  type: simple.DataAvailabilityNode2
   quantity: fraction
   unit: dimensionless
   input_dimensions: [vehicle_type, energy_carrier]
@@ -5334,7 +5334,7 @@ nodes:
     Datensatz, bevor fehlende Jahre durch Interpolation ergänzt werden, sodass sichtbar wird, was
     die Kommune wirklich geliefert hat. So finden Sie die noch zu füllenden Zellen.<br/>
     Werte: 1 = ein Wert ist eingetragen, 0 = kein Wert. Der Wert hat keine Einheit.
-  type: simple.DataAvailabilityNode
+  type: simple.DataAvailabilityNode2
   quantity: fraction
   unit: dimensionless
   input_dimensions: [sector, energy_carrier]
@@ -5383,7 +5383,7 @@ nodes:
     de/pflichtkategorien_uebriger_verkehr und nicht aus den Daten, damit ein nicht eingetragener
     Verkehrsträger als 0 erscheint und nicht aus der Prüfung fällt.<br/>
     Werte: 1 = ein Wert ist eingetragen, 0 = kein Wert. Der Wert hat keine Einheit.
-  type: simple.DataAvailabilityNode
+  type: simple.DataAvailabilityNode2
   quantity: fraction
   unit: dimensionless
   input_dimensions: [vehicle_type, energy_carrier]
@@ -5407,7 +5407,7 @@ nodes:
     Default-Verbrauchsdaten für Schienen-, Binnenschiff- und gewerblichen Flugverkehr einen Wert
     enthalten.<br/>
     Werte: 1 = ein Wert ist eingetragen, 0 = kein Wert. Der Wert hat keine Einheit.
-  type: simple.DataAvailabilityNode
+  type: simple.DataAvailabilityNode2
   quantity: fraction
   unit: dimensionless
   input_dimensions: [vehicle_type, energy_carrier]
@@ -5448,7 +5448,7 @@ nodes:
     Straßen-/Stadt-/U-Bahnen – und die Aufteilung der ersten vier nach Straßenkategorie. Das sind 4
     × 3 + 3 = 15 Kombinationen.<br/>
     Werte: 1 = ein Wert ist eingetragen, 0 = kein Wert. Der Wert hat keine Einheit.
-  type: simple.DataAvailabilityNode
+  type: simple.DataAvailabilityNode2
   quantity: fraction
   unit: dimensionless
   input_dimensions: [vehicle_type, road_type]
@@ -5854,7 +5854,7 @@ nodes:
     before the missing years are filled in by interpolation. Use this node to find the gaps that
     still need to be filled.<br/>
     Values: 1 = a value has been entered, 0 = no value. The value has no unit.
-  type: simple.DataAvailabilityNode
+  type: simple.DataAvailabilityNode2
   quantity: fraction
   unit: dimensionless
   input_dimensions: [energy_carrier, per_what_energy]
