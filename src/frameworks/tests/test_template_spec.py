@@ -21,11 +21,13 @@ from kausal_common.i18n.pydantic import TranslatedString
 
 from paths.tests.graphql import PathsTestClient
 
+from datasets.shape_domain import SHAPE_SPEC_KEY
 from frameworks.models import FrameworkConfig
 from frameworks.tests.factories import FrameworkFactory
 from nodes.defs.instance_defs import InstanceModelSpec, InstanceResultExcelSpec, YearsSpec
 from nodes.defs.node_defs import FormulaConfig, SimpleConfig
 from nodes.defs.port_def import InputPortDef
+from nodes.defs.shape_defs import ShapeSpec
 from nodes.instance_import import InstanceImportError, import_instance_export
 from nodes.instance_loader import InstanceLoader
 from nodes.instance_serialization import (
@@ -39,7 +41,7 @@ from nodes.instance_serialization import (
     import_instance_copy,
 )
 from nodes.legacy_specs import local_spec_from_template, migrate_inherited_node_settings
-from nodes.models import InputPortBindingSet, NodeInputPortBinding
+from nodes.models import DatasetMaterialization, InputPortBindingSet, NodeInputPortBinding
 from nodes.parameter_values import set_scenario_parameter
 from nodes.scenario import Scenario, ScenarioKind
 from nodes.template_graph import (
@@ -55,7 +57,11 @@ from params.param import BoolParameter, NumberParameter, StringParameter
 from users.tests.factories import UserFactory
 
 if TYPE_CHECKING:
+    from uuid import UUID
+
     from django.test import Client
+
+    from kausal_common.datasets.models import DatasetMetric
 
     from nodes.models import InstanceConfig
     from users.models import User
@@ -746,6 +752,132 @@ def test_upgrade_gives_a_new_placeholder_input_the_instances_own_empty_copy(
     source = {binding.port_id: binding.source for binding in build_instance_snapshot(municipality).bindings}[port.id]
     assert isinstance(source, DatasetMetricSource)
     assert source.dataset_uuid == own.uuid
+
+
+def test_upgrade_copies_a_new_placeholder_whose_shape_only_the_new_revision_declares(
+    municipal: tuple[InstanceConfig, InstanceConfig, User],
+) -> None:
+    """The copy is materialized at once, which resolves its shape in the instance as it is stored."""
+    template, municipality, _ = municipal
+    upgrade_template_instance(municipality, publish_template_instance(template))
+    shape = ShapeSpec(uuid=uuid4(), identifier='kommune/new_shape', dimensions=['sector'])
+    spec = template.ensure_spec()
+    spec.shapes = [*spec.shapes, shape]
+    template.spec = spec
+    template.save(update_fields=['spec'])
+    node = template.nodes.get_queryset().with_spec().get()
+    assert node.spec is not None
+    unit = node.spec.output_ports[0].unit
+    schema = DatasetSchemaFactory.create()
+    metric = DatasetMetricFactory.create(schema=schema, name='share', unit=str(unit))
+    placeholder = DatasetFactory.create(
+        schema=schema,
+        scope_content_type=ContentType.objects.get_for_model(type(template)),
+        scope_id=template.pk,
+        identifier='kommune/new_input',
+        is_external_placeholder=True,
+        spec={SHAPE_SPEC_KEY: str(shape.uuid)},
+    )
+    port = InputPortDef(id=uuid4(), unit=unit, binding_owner='instance')
+    node.spec.input_ports = [*node.spec.input_ports, port]
+    node.save(update_fields=['spec'])
+    NodeInputPortBinding.objects.create(instance=template, node=node, port_id=port.id, dataset=placeholder, metric=metric)
+    template.invalidate_cache()
+
+    upgrade_template_instance(municipality, publish_template_instance(template))
+
+    own = Dataset.objects.for_instance_config(municipality).get(identifier='kommune/new_input')
+    assert own.spec[SHAPE_SPEC_KEY] == str(shape.uuid)
+    assert DatasetMaterialization.objects.filter(dataset=own).exists()
+
+
+def _rebind_to_new_placeholder(
+    template: InstanceConfig, municipality: InstanceConfig, own_identifier: str
+) -> tuple[UUID, Dataset]:
+    """
+    Bind an instance-owned port to a placeholder, give the municipality an override reading its dataset `own_identifier`.
+
+    Then the template reads a different placeholder on that port. Returns the port id and the new placeholder.
+    """
+    node = template.nodes.get_queryset().with_spec().get()
+    assert node.spec is not None
+    unit = node.spec.output_ports[0].unit
+    port = InputPortDef(id=uuid4(), unit=unit, binding_owner='instance')
+    node.spec.input_ports = [*node.spec.input_ports, port]
+    node.save(update_fields=['spec'])
+
+    def placeholder(identifier: str) -> tuple[Dataset, DatasetMetric]:
+        schema = DatasetSchemaFactory.create()
+        metric = DatasetMetricFactory.create(schema=schema, name='Value', unit=str(unit))
+        dataset = DatasetFactory.create(
+            schema=schema,
+            scope_content_type=ContentType.objects.get_for_model(type(template)),
+            scope_id=template.pk,
+            identifier=identifier,
+            is_external_placeholder=True,
+        )
+        return dataset, metric
+
+    old, old_metric = placeholder('kommune/old_input')
+    binding = NodeInputPortBinding.objects.create(instance=template, node=node, port_id=port.id, dataset=old, metric=old_metric)
+    template.invalidate_cache()
+    upgrade_template_instance(municipality, publish_template_instance(template))
+    if own_identifier == old.identifier:
+        # The upgrade gave the municipality its own copy; that is what conversion binds, too.
+        own = Dataset.objects.for_instance_config(municipality).get(identifier=own_identifier)
+        own_metric = old_metric
+    else:
+        own_schema = DatasetSchemaFactory.create()
+        own_metric = DatasetMetricFactory.create(schema=own_schema, name='Value', unit=str(unit))
+        own = DatasetFactory.create(
+            schema=own_schema,
+            scope_content_type=ContentType.objects.get_for_model(type(municipality)),
+            scope_id=municipality.pk,
+            identifier=own_identifier,
+        )
+    InputPortBindingSet.objects.filter(instance=municipality, port_uuid=port.id).delete()
+    source = DatasetMetricSource(dataset=own_identifier, metric='Value', dataset_uuid=own.uuid, metric_uuid=own_metric.uuid)
+    InputPortBindingSet.objects.create(
+        instance=municipality,
+        node_uuid=node.uuid,
+        port_uuid=port.id,
+        bindings=[InputBindingSnapshot(node_id=node.uuid, port_id=port.id, source=source)],
+    )
+
+    # The next revision reads another dataset on the same port.
+    new, new_metric = placeholder('kommune/new_input')
+    binding.dataset, binding.metric = new, new_metric
+    binding.save(update_fields=['dataset', 'metric'])
+    template.invalidate_cache()
+    upgrade_template_instance(municipality, publish_template_instance(template))
+    municipality.refresh_from_db()
+    return port.id, new
+
+
+def test_upgrade_moves_an_override_of_the_instances_copy_to_the_new_template_dataset(
+    municipal: tuple[InstanceConfig, InstanceConfig, User],
+) -> None:
+    """The override only followed the template, so it follows it to the dataset the port reads now."""
+    template, municipality, _ = municipal
+    port_id, _new = _rebind_to_new_placeholder(template, municipality, 'kommune/old_input')
+
+    own_new = Dataset.objects.for_instance_config(municipality).get(identifier='kommune/new_input')
+    source = {binding.port_id: binding.source for binding in build_instance_snapshot(municipality).bindings}[port_id]
+    assert isinstance(source, DatasetMetricSource)
+    assert source.dataset_uuid == own_new.uuid
+
+
+def test_upgrade_keeps_an_override_that_reads_a_replacement_dataset(
+    municipal: tuple[InstanceConfig, InstanceConfig, User],
+) -> None:
+    """A city's own replacement is its choice; a mismatch with the new revision is for it to repair."""
+    template, municipality, _ = municipal
+    port_id, _new = _rebind_to_new_placeholder(template, municipality, 'city/own_input')
+
+    override = InputPortBindingSet.objects.get(instance=municipality, port_uuid=port_id)
+    [binding] = override.bindings
+    assert isinstance(binding.source, DatasetMetricSource)
+    assert binding.source.dataset == 'city/own_input'
 
 
 def test_upgrade_points_new_instance_owned_ports_at_the_instances_own_copy(

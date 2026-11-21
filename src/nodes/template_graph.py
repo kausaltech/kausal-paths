@@ -355,7 +355,7 @@ def publish_template_instance(
 
 
 @transaction.atomic
-def upgrade_template_instance(instance: InstanceConfig, revision: Revision, *, user: User | None = None) -> None:  # noqa: C901
+def upgrade_template_instance(instance: InstanceConfig, revision: Revision, *, user: User | None = None) -> None:
     """Advance a draft independently; obsolete settings are pruned, other conflicts await repair."""
     if user is not None and not instance.permission_policy().user_has_perm(user, 'change', instance):
         raise ValidationError('You do not have permission to upgrade this instance')
@@ -386,16 +386,7 @@ def upgrade_template_instance(instance: InstanceConfig, revision: Revision, *, u
         settings.parameter_values = {key: value for key, value in settings.parameter_values.items() if key in valid}
         settings.parameter_sources = {key: value for key, value in settings.parameter_sources.items() if key in valid}
     local_nodes = build_local_nodes(instance)
-    instance.binding_overrides.exclude(node_uuid__in=[*nodes, *(node.uuid for node in local_nodes)]).delete()
-    for binding in instance.binding_overrides.all():
-        node = nodes.get(binding.node_uuid)
-        if node is not None and node.spec is not None:
-            port = next((port for port in node.spec.input_ports if port.id == binding.port_uuid), None)
-            if port is None or port.binding_owner != 'instance':
-                binding.delete()
-    _copy_template_placeholders(instance, candidate)
-    _bind_inputs_to_own_datasets(instance, candidate)
-    follow_template_dataset_shapes(instance, candidate)
+    _prune_binding_overrides(instance, previous, candidate, local_nodes)
     spec = instance.ensure_spec()
     old_params = parameters_by_id(previous.spec, previous.nodes)
     new_params = parameters_by_id(candidate.spec, candidate.nodes)
@@ -414,8 +405,65 @@ def upgrade_template_instance(instance: InstanceConfig, revision: Revision, *, u
     ensure_instance_shapes(spec, candidate.spec)
     instance.spec = spec
     instance.save(update_fields=['template_revision', 'node_settings', 'spec'])
+    # After the save: a new placeholder copy is materialized at once, and materializing resolves
+    # its shape in the instance as stored, which must already follow the new revision and hold its
+    # records of the revision's extension-point shapes.
+    _copy_template_placeholders(instance, candidate)
+    _bind_inputs_to_own_datasets(instance, candidate)
+    follow_template_dataset_shapes(instance, candidate)
     announce_draft_change(instance)
     instance.invalidate_cache()
+
+
+def _prune_binding_overrides(
+    instance: InstanceConfig, previous: InstanceSnapshot, candidate: InstanceSnapshot, local_nodes: list[NodeSnapshot]
+) -> None:
+    """Drop the overrides the new revision leaves no place for, and those that only followed a retired template dataset."""
+    nodes = {node.uuid: node for node in candidate.nodes}
+    instance.binding_overrides.exclude(node_uuid__in=[*nodes, *(node.uuid for node in local_nodes)]).delete()
+    previous_datasets, candidate_datasets = _port_datasets(previous), _port_datasets(candidate)
+    for binding in instance.binding_overrides.all():
+        node = nodes.get(binding.node_uuid)
+        if node is None or node.spec is None:
+            continue
+        port = next((port for port in node.spec.input_ports if port.id == binding.port_uuid), None)
+        if (
+            port is None
+            or port.binding_owner != 'instance'
+            or _follows_a_retired_template_dataset(binding, previous_datasets, candidate_datasets)
+        ):
+            binding.delete()
+
+
+def _port_datasets(snapshot: InstanceSnapshot) -> dict[tuple[UUID, UUID], frozenset[str]]:
+    """Return the identifiers of the datasets each input port of a snapshot reads."""
+    datasets: dict[tuple[UUID, UUID], set[str]] = {}
+    for binding in snapshot.bindings:
+        source = binding.dataset_source
+        if source is not None:
+            datasets.setdefault((binding.node_id, binding.port_id), set()).add(source.dataset)
+    return {port: frozenset(identifiers) for port, identifiers in datasets.items()}
+
+
+def _follows_a_retired_template_dataset(
+    override: InputPortBindingSet,
+    previous: dict[tuple[UUID, UUID], frozenset[str]],
+    candidate: dict[tuple[UUID, UUID], frozenset[str]],
+) -> bool:
+    """
+    Whether an override only read the instance's copies of datasets the template has stopped reading on that port.
+
+    Such an override is no choice of the instance's: it pointed the port at its own copy of the
+    template's dataset, and the new revision reads another one there. Dropping it lets the upgrade
+    give the instance its own copy of the new dataset. An override reading anything else, such as a
+    city's replacement dataset, is kept, and a mismatch it causes is reported as a problem.
+    """
+    port = (override.node_uuid, override.port_uuid)
+    old, new = previous.get(port), candidate.get(port)
+    if not old or not new or old == new:
+        return False
+    read = {source.dataset for binding in override.bindings if (source := binding.dataset_source) is not None}
+    return bool(read) and read <= old
 
 
 def follow_template_dataset_shapes(
