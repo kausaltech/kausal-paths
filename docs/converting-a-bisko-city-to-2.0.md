@@ -53,7 +53,9 @@ The command is one transaction: a refusal at any step leaves the database as it 
 - **Take a copy of the database**, e.g. `pg_dump -Fc`. A conversion cannot be undone by command.
 - **The template is published and current.** `python manage.py compare_draft_published bisko-base`
   should report everything identical. If not, publish it first
-  (`python -m tools.setup_bisko --sync-template`, then `--publish`).
+  (`python -m tools.setup_bisko --sync-template`, then `--publish`). If the sync moved the template's
+  dataset pin, run `python manage.py import_organization_population` before `--publish` (see
+  [*Publishing after a pin change*](#publishing-after-a-pin-change)).
 - **The city is database-sourced.** `InstanceConfig.config_source` is `database`.
 - **Record the city's outputs**, to compare with afterwards:
 
@@ -188,6 +190,22 @@ The city's model now comes from the template. Template changes reach it through
 `setup_bisko --sync-template` and `--publish`, which advances every city on the template; its
 own YAML no longer matters to it. `sync_instance_to_db` refuses it by name, saying what to run
 instead, and `--all` and `--all-db` skip framework members.
+
+### Publishing after a pin change
+
+The framework keeps the municipal population series (`OrganizationPopulation`) stamped with the
+dataset commit it was read from, and `--publish` refuses while that commit differs from the
+template's pin: *Population reference values differ from the template dataset pin.* So whenever the
+`dataset_repo` commit in `configs/bisko-base.yaml` changes, the order is:
+
+```bash
+python -m tools.setup_bisko --sync-template
+python manage.py import_organization_population --dry-run   # count, years and revision
+python manage.py import_organization_population
+python -m tools.setup_bisko --publish
+```
+
+The same applies on every server the pin reaches.
 
 Where the template reads a national table by AGS (the IFEU road mileage and the other-transport
 energy), a municipality the table does not cover gets an empty input instead of an error, and the

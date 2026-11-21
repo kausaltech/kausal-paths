@@ -1334,7 +1334,9 @@ Tests use the exact assessed year and settings of the recorded review fixture.
 - `--instance IDENTIFIER`: attach a database-backed instance without conversion;
 - `--prepare-from IDENTIFIER`: reconcile template input declarations and category
   vocabulary against explicit migration examples;
-- `--publish`: publish the template and atomically advance existing dependents;
+- `--publish`: publish the template and atomically advance existing dependents. It refuses while
+  the framework's population series was read at another dataset commit than the template's pin;
+  after a pin change, run `python manage.py import_organization_population` first;
 - `--convert IDENTIFIER`: replace copied shared nodes with inheritance;
 - `--reference-instance IDENTIFIER`: use a historical national reference-data
   edition for publication; requires `--publish`;
