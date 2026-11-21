@@ -16,8 +16,9 @@ divided between them. The methods form a hierarchy, and the code follows it:
 3. **BISKO's split** (`bisko_heat_share`). BISKO criterion 6 prescribes the exergetic split with
    the ambient temperature fixed at 283 K.
 
-Each function works row by row over inputs with the same index, so a plant or network dimension
-needs no change here. They back the formula functions of the same names (`nodes.formula`).
+Each function works row by row, so a plant or network dimension needs no change here. An input
+may have fewer dimensions than another: the temperatures of a network apply to every plant in it.
+They back the formula functions of the same names (`nodes.formula`).
 
 `nodes.generic.ChpNode` and `BiskoChpNode` have their own implementation of the same methods. The
 BISKO 1.3 module uses them and is frozen, so they are deliberately left as they are.
@@ -58,27 +59,34 @@ def _join_inputs(node: Node, function: str, inputs: Mapping[str, tuple[PathsData
     only where every input has a value: nothing is interpolated, because whether a year has a
     split decides which route the emissions take downstream. A row is forecast if any of its
     inputs is.
+
+    An input may have fewer dimensions than another, as long as they are part of its index: the
+    network temperatures apply to every plant of the network, so a split per plant takes them per
+    network. The result has the index of the input with the most dimensions.
     """
     names = list(inputs)
-    keys = inputs[names[0]][0].primary_keys
-    parts: list[PathsDataFrame] = []
+    widest = max(names, key=lambda name: len(inputs[name][0].primary_keys))
+    keys = inputs[widest][0].primary_keys
+    parts: dict[str, PathsDataFrame] = {}
     for name, (frame, unit) in inputs.items():
         if VALUE_COLUMN not in frame.columns or len(frame.metric_cols) != 1:
             raise NodeError(node, '%s(): %s must have exactly one value column.' % (function, name))
-        if set(frame.primary_keys) != set(keys):
+        if not set(frame.primary_keys) <= set(keys):
             raise NodeError(
                 node,
-                '%s(): every input must have the same index; %s has %s, %s has %s.'
-                % (function, name, ', '.join(frame.primary_keys), names[0], ', '.join(keys)),
+                "%s(): every input's index must be part of the widest one; %s has %s, %s has %s."
+                % (function, name, ', '.join(frame.primary_keys), widest, ', '.join(keys)),
             )
         converted = frame.ensure_unit(VALUE_COLUMN, unit)
         forecast = pl.col(FORECAST_COLUMN) if FORECAST_COLUMN in converted.columns else pl.lit(value=False)
-        part = converted.select([*keys, pl.col(VALUE_COLUMN).alias(name), forecast.alias(f'{name}__forecast')])
-        parts.append(part.filter(pl.col(name).is_not_null()))
+        own_keys = [key for key in keys if key in frame.primary_keys]
+        part = converted.select([*own_keys, pl.col(VALUE_COLUMN).alias(name), forecast.alias(f'{name}__forecast')])
+        parts[name] = part.filter(pl.col(name).is_not_null())
 
-    df = parts[0]
-    for part in parts[1:]:
-        df = df.paths.join_over_index(part, how='inner')
+    df = parts[widest]
+    for name in names:
+        if name != widest:
+            df = df.paths.join_over_index(parts[name], how='inner')
     forecast_cols = [f'{name}__forecast' for name in names]
     df = df.with_columns(pl.any_horizontal(forecast_cols).alias(FORECAST_COLUMN)).drop(forecast_cols)
 

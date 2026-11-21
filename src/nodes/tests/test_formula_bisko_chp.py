@@ -10,12 +10,15 @@ tests check that each function agrees with the method of ``ChpNode`` it correspo
 
 from typing import TYPE_CHECKING
 
+import polars as pl
 import pytest
 
 from kausal_common.i18n.pydantic import TranslatedString
 
+from common.polars import DataFrameMeta, to_ppdf
 from nodes.constants import FORECAST_COLUMN, VALUE_COLUMN, YEAR_COLUMN
 from nodes.defs.node_defs import FormulaConfig, NodeSpec
+from nodes.dimensions import Dimension, DimensionCategory
 from nodes.exceptions import NodeError
 from nodes.formula import FormulaNode, analyze_formula_dimensions, analyze_formula_units
 from nodes.generic import BiskoChpNode, ChpNode
@@ -32,8 +35,7 @@ from nodes.tests.test_chp import (
 from nodes.units import unit_registry
 
 if TYPE_CHECKING:
-    import polars as pl
-
+    from common.polars import PathsDataFrame
     from nodes.context import Context
 
 pytestmark = pytest.mark.django_db
@@ -191,6 +193,106 @@ def test_a_year_without_every_input_has_no_share():
     out = _heat_share_node(context, supply=supply, formula='bisko_heat_share(electricity_fraction, t_supply, t_return)')
 
     assert out.compute()[YEAR_COLUMN].to_list() == [2016, 2018]
+
+
+def _indexed_frame(index: dict[str, list[str]], values: list[float], unit: str, year: int = 2018) -> PathsDataFrame:
+    """Return one year of a frame indexed by the given dimension columns."""
+    df = pl.DataFrame({
+        YEAR_COLUMN: [year] * len(values),
+        **index,
+        VALUE_COLUMN: values,
+        FORECAST_COLUMN: [False] * len(values),
+    }).with_columns([pl.col(column).cast(pl.Categorical) for column in index])
+    meta = DataFrameMeta(units={VALUE_COLUMN: unit_registry.parse_units(unit)}, primary_keys=[YEAR_COLUMN, *index])
+    return to_ppdf(df, meta)
+
+
+def _declare_dimensions(context: Context, index: dict[str, list[str]]) -> None:
+    for dimension_id, categories in index.items():
+        known = context.dimensions.get(dimension_id)
+        ids = sorted({*categories, *((category.id for category in known.categories) if known else ())})
+        context.dimensions[dimension_id] = Dimension(
+            id=dimension_id,
+            label=TranslatedString(dimension_id, default_language='en'),
+            categories=[DimensionCategory(id=i, label=TranslatedString(i, default_language='en')) for i in ids],
+        )
+
+
+def _bisko_split_of(context: Context, inputs: dict[str, tuple[dict[str, list[str]], list[float], str]]) -> FormulaNode:
+    """Return a node computing ``bisko_heat_share`` from inputs given as (index, values, unit)."""
+    for index, _values, _unit in inputs.values():
+        _declare_dimensions(context, index)
+    widest = max((index for index, _values, _unit in inputs.values()), key=len)
+    node = FormulaNode(
+        id='heat_share',
+        context=context,
+        name=TranslatedString('heat_share', default_language='en'),
+        unit=unit_registry.parse_units('%'),
+        quantity='fraction',
+        output_dimension_ids=list(widest),
+        input_dimension_ids=sorted({dim for index, _values, _unit in inputs.values() for dim in index}),
+    )
+    node._spec = NodeSpec(type_config=FormulaConfig(formula='bisko_heat_share(electricity_fraction, t_supply, t_return)'))
+    for tag, (index, values, unit) in inputs.items():
+        source = _FixedOutputNode(
+            id=tag,
+            context=context,
+            name=TranslatedString(tag, default_language='en'),
+            unit=unit_registry.parse_units(unit),
+            quantity='fraction',
+            output_dimension_ids=list(index),
+            fixed_df=_indexed_frame(index, values, unit),
+        )
+        _connect(source, node, tag)
+    return node
+
+
+def test_a_network_temperature_applies_to_every_plant_of_its_network():
+    """A split per plant takes its network's temperatures; a plant in a network without them has no share."""
+    context = _make_context('bisko-heat-share-plants')
+    plants = {'network': ['n1', 'n1', 'n2', 'n3'], 'plant': ['p1', 'p2', 'p3', 'p4']}
+    networks = {'network': ['n1', 'n2']}
+    node = _bisko_split_of(
+        context,
+        {
+            'electricity_fraction': (plants, [40.0, 0.0, 30.0, 20.0], '%'),
+            't_supply': (networks, [110.0, 90.0], 'degC'),
+            't_return': (networks, [60.0, 50.0], 'degC'),
+        },
+    )
+
+    out = node.compute().ensure_unit(VALUE_COLUMN, 'dimensionless')
+
+    shares = {(row['network'], row['plant']): row[VALUE_COLUMN] for row in out.iter_rows(named=True)}
+    assert set(shares) == {('n1', 'p1'), ('n1', 'p2'), ('n2', 'p3')}
+    assert shares[('n1', 'p2')] == pytest.approx(1.0)
+    single = (
+        _heat_share_node(
+            context,
+            fraction=_Series([40.0], [2018], unit='%'),
+            supply=_Series([110.0], [2018], unit='degC'),
+            ret=_Series([60.0], [2018], unit='degC'),
+            formula='bisko_heat_share(electricity_fraction, t_supply, t_return)',
+        )
+        .compute()
+        .ensure_unit(VALUE_COLUMN, 'dimensionless')
+    )
+    assert shares[('n1', 'p1')] == pytest.approx(single[VALUE_COLUMN][0], rel=1e-12)
+
+
+def test_an_input_with_a_dimension_the_widest_lacks_is_refused():
+    context = _make_context('bisko-heat-share-mismatch')
+    node = _bisko_split_of(
+        context,
+        {
+            'electricity_fraction': ({'network': ['n1'], 'plant': ['p1']}, [40.0], '%'),
+            't_supply': ({'sector': ['s1']}, [110.0], 'degC'),
+            't_return': ({'network': ['n1']}, [60.0], 'degC'),
+        },
+    )
+
+    with pytest.raises(NodeError, match='index must be part of the widest one'):
+        node.compute()
 
 
 def test_blank_inputs_give_no_share_rather_than_an_error():

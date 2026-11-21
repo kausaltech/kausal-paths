@@ -152,6 +152,13 @@ organization and the population. `local_nodes` counts the nodes the city keeps a
 the template does not have them. Check that each is one the city means to keep: a node 2.0 retired
 stays in the city's model until the city's YAML stops declaring it and the city is synced.
 
+District heating plant data does not carry over. Since 21 November 2026 the template reads it per
+plant and heat network, from `kommune/fernwaerme_anlagen` and `kommune/fernwaerme_netze`, and no
+longer reads `kommune/fernwaerme_energieeinsatz` or `kommune/kwk_anlagenparameter`. A city that
+had entered plant data or CHP parameters (or replaced those datasets, as Mainz did) enters them again
+in the new tables: one plant in network 1 reproduces the 1.3 result, with the net electricity
+E = f / (1 − f) × Q for electricity fraction f and heat output Q.
+
 The population series at the template's pin covers only some Länder (in November 2026 those with
 AGS prefixes 03, 07 and 12). Elsewhere the command says so, and the city's population is entered
 in the data entry. Until then, the per-capita figures are empty.
