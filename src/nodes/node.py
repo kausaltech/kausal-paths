@@ -43,6 +43,7 @@ from nodes.defs.binding_def import DatasetBindingDef, EdgeBindingDef
 from nodes.defs.transform_def import FilterColumnOp, FlattenTransformation
 from nodes.goals import NodeGoals
 from nodes.hooks import apply_hooks
+from nodes.kept_categories import KEEP_CATEGORIES_TAG, describe_dropped, dropped_rows
 from nodes.metric import DimensionalMetric
 from nodes.pipeline.compare import compare_node_with_lowered_pipeline
 from nodes.runtime_input import RuntimeInputPort
@@ -1594,7 +1595,45 @@ class Node:
             df = ppl.from_pandas(df)
 
         self.validate_output(df)
+        self._check_kept_categories(df)
         return df
+
+    def _kept_inputs(self) -> list[tuple[str, ppl.PathsDataFrame]]:
+        """
+        Return each input tagged ``keep_categories`` as this node received it, with the name of its source.
+
+        Graph bindings carry the tags of node edges and dataset bindings alike. A node built from
+        edges alone (tests, legacy load paths) has none, so its edges are read instead.
+        """
+        if self.runtime_input_bindings:
+            return [
+                (binding.source_id or str(binding.id), self.resolve_input_binding(binding))
+                for binding in self.runtime_input_bindings
+                if binding.definition is not None and KEEP_CATEGORIES_TAG in binding.definition.tags
+            ]
+        return [
+            (edge.input_node.id, edge.input_node.get_output_pl(target_node=self))
+            for edge in self.edges
+            if edge.output_node is self and KEEP_CATEGORIES_TAG in edge.tags
+        ]
+
+    def _check_kept_categories(self, df: ppl.PathsDataFrame) -> None:
+        """
+        Fail if the result drops rows of an input tagged ``keep_categories``.
+
+        A product keeps only the rows its operands share, so an activity without a factor would
+        vanish from the result with no error. See `nodes.kept_categories`.
+        """
+        for source, kept in self._kept_inputs():
+            rows = dropped_rows(kept, df)
+            if rows.height:
+                raise NodeError(
+                    self,
+                    "The result drops values of input '%s', which is tagged %s: %s. "
+                    'A factor or other operand is probably missing for them.'
+                    % (source, KEEP_CATEGORIES_TAG, describe_dropped(rows)),
+                    event='compute',
+                )
 
     def referenced_global_parameters(self) -> list[str]:
         """Return global parameters this node's configuration refers to, beyond the class's `global_parameters`."""

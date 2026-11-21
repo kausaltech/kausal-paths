@@ -731,6 +731,10 @@ msgid "Input node values are not added but operated despite matching units."
 msgstr "Die Werte der Eingangsknoten werden nicht addiert, sondern trotz übereinstimmender Einheiten bearbeitet."
 
 #: nodes/explanations.py
+msgid "Every value of this input must appear in the result; a value a factor is missing for is an error."
+msgstr "Jeder Wert dieses Eingangs muss im Ergebnis erscheinen; ein Wert, für den ein Faktor fehlt, ist ein Fehler."
+
+#: nodes/explanations.py
 msgid "Extend the observed data only based on the observed data points."
 msgstr "Erweitere die beobachteten Daten nur auf der Grundlage der beobachteten Datenpunkte."
 

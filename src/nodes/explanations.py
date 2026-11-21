@@ -162,6 +162,7 @@ TAG_DESCRIPTIONS = {
     'max': _('Element-wise maximum of two values; max(a, b). For 0/1 inputs this is logical OR.'),
     'min': _('Element-wise minimum of two values; min(a, b). For 0/1 inputs this is logical AND.'),
     'non_additive': _('Input node values are not added but operated despite matching units.'),
+    'keep_categories': _('Every value of this input must appear in the result; a value a factor is missing for is an error.'),
     'partial_factor': _(
         'The factor covers only some of the categories of the node; the rest are left unchanged rather than dropped.'
     ),
