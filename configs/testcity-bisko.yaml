@@ -4,7 +4,7 @@ default_language: en
 supported_languages: [de]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 12d1ca90394abe1daa989403e224745b92fe2640
+  commit: ebf59d62d34cf56251d21e2dc3fd376abb453ebc
   dvc_remote: kausal-s3
 name_de: Prüfstadt Treibhausgasmonitor
 name_en: Testcity Greenhouse Gas Monitor

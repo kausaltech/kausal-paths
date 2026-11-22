@@ -1,6 +1,7 @@
 # Converting a BISKO 1.3 city to the 2.0 template
 
 *Produced by Claude Opus 5.5 on 2026-11-19.*
+*Version 2 produced by Claude Opus 5.5 on 2026-11-22.*
 *Responsible: Jouni Tuomisto.*
 
 A BISKO city on version 1.3 holds its own copy of the frozen module
@@ -83,6 +84,11 @@ include:
 
 Then, in the same file:
 
+- set `dataset_repo.commit` to the one in `configs/bisko-base.yaml`. The template's model reads
+  datasets that an older pin may not have, and the sync then fails with
+  `No dataset object for <dataset> on node <uuid>`: it creates a placeholder for each dataset by
+  reading it at the city's pin, and skips one it cannot read. The `kommune/fernwaerme_*` tables
+  of November 2026 are such datasets;
 - remove the parameters 2.0 does not have, such as `municipal_facilities_included_in_commerce`;
 - remove `result_excels` entries naming nodes 2.0 does not have, such as
   `municipal_facilities_energy_in_commerce`;
