@@ -472,6 +472,10 @@ def _plan_schema_adoption(
     schema only when exactly one has its shape. A dataset that keeps a schema of its own would never
     receive the template's later changes to it, such as a new validation rule, so one whose data
     does not fit is reported rather than left behind.
+
+    A scope holds at most one dataset per schema. A dataset of the same identifier claims its
+    template schema first; one that matches a schema only by shape takes it only if nothing in the
+    scope has it or has claimed it.
     """
     template_schemas: list[tuple[str | None, DatasetSchema]] = [
         (ds.identifier, ds.schema)
@@ -482,7 +486,12 @@ def _plan_schema_adoption(
     shapes = {schema.pk: (schema, _schema_shape(schema)) for _identifier, schema in template_schemas}
     pairs: list[tuple[Dataset, DatasetSchema]] = []
     problems: list[str] = []
-    for dataset in Dataset.objects.for_instance_config(instance).select_related('schema'):
+    claimed: set[int] = set()
+    datasets = sorted(
+        Dataset.objects.for_instance_config(instance).select_related('schema'),
+        key=lambda ds: ds.identifier not in by_identifier,
+    )
+    for dataset in datasets:
         schema = dataset.schema
         assert schema is not None
         target = by_identifier.get(dataset.identifier) if dataset.identifier else None
@@ -494,19 +503,20 @@ def _plan_schema_adoption(
             [target] = candidates
         if target.pk == schema.pk:
             continue
-        occupied = (
+        occupied = target.pk in claimed or (
             Dataset.objects
             .filter(schema=target, scope_content_type_id=dataset.scope_content_type_id, scope_id=dataset.scope_id)
             .exclude(pk=dataset.pk)
             .exists()
         )
         if occupied:
-            # A scope holds at most one dataset per schema; the one already there keeps it.
+            # The dataset already there, or the one that claimed the schema first, keeps it.
             continue
         fit = _schema_fit_problems(dataset, schema, target)
         if fit:
             problems.extend(fit)
             continue
+        claimed.add(target.pk)
         pairs.append((dataset, target))
     return pairs, problems
 

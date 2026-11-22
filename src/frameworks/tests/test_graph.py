@@ -297,6 +297,27 @@ def test_schema_adoption_retains_local_schema_when_shared_schema_is_occupied(
     assert alternative.schema_id == local_schema.pk
 
 
+def test_schema_adoption_gives_a_shared_schema_to_the_namesake_only(
+    release: TemplateEdition, dependent_instance: InstanceConfig
+) -> None:
+    """A dataset matching a template schema only by shape does not take the one its namesake moves to."""
+    template = release.framework.template_instance
+    assert template is not None
+    shared_schema = DatasetSchemaFactory.create()
+    DatasetFactory.create(schema=shared_schema, scope=template, identifier='shared')
+    # Created first, so that without the namesake rule it would be the first to claim the schema.
+    lookalike_schema = DatasetSchemaFactory.create()
+    lookalike = DatasetFactory.create(schema=lookalike_schema, scope=dependent_instance, identifier='lookalike')
+    namesake = DatasetFactory.create(schema=DatasetSchemaFactory.create(), scope=dependent_instance, identifier='shared')
+
+    _adopt_schemas(dependent_instance, release.framework, {})
+
+    namesake.refresh_from_db()
+    lookalike.refresh_from_db()
+    assert namesake.schema_id == shared_schema.pk
+    assert lookalike.schema_id == lookalike_schema.pk
+
+
 def test_publication_retains_framework_data_revision(
     release: TemplateEdition,
     dependent_instance: InstanceConfig,
