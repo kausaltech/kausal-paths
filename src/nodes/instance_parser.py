@@ -1671,6 +1671,7 @@ class InstanceConfigParser:
             allow_nulls=config.get('allow_nulls', False),
             node_group=config.get('node_group'),
             is_outcome=config.get('is_outcome', False),
+            show_inputs_as_sectors=config.get('show_inputs_as_sectors', False),
             minimum_year=config.get('minimum_year'),
             extra=self._parse_node_extra(parsed),
         )

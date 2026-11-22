@@ -546,6 +546,9 @@ class NodeSpec(I18nBaseModel):
 
     # Node behaviour flags
     is_outcome: bool = False
+    # Show the graph broken down by input node, as a "Sectors" dimension. AdditiveNode always
+    # does this; AdditiveNode2 only when this is set (nodes/metric_gen.py).
+    show_inputs_as_sectors: bool = False
     # TODO: Replace with a pipeline operation that clips years.
     minimum_year: int | None = None
 

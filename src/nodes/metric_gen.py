@@ -23,7 +23,7 @@ from .constants import (
     YEAR_COLUMN,
 )
 from .exceptions import NodeError
-from .simple import AdditiveNode, RelativeNode
+from .simple import AdditiveNode, AdditiveNode2, RelativeNode
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -176,9 +176,11 @@ def _compute_values(
     # Use inputs nodes as categories for the dimension "Sectors" in some cases.
     input_nodes: list[Node] | None
     input_nodes = [input_node for input_node in node.input_nodes if include_as_input(input_node)]
+    # AdditiveNode shows the input nodes implicitly; AdditiveNode2 only when the node asks for it.
+    opted_in = isinstance(node, AdditiveNode2) and node.has_spec and node.spec.show_inputs_as_sectors
     if (
         not include_input_nodes
-        or not isinstance(node, AdditiveNode)
+        or not (isinstance(node, AdditiveNode) or opted_in)
         or len(input_nodes) <= 1
         or node.input_dataset_instances
         or isinstance(node, RelativeNode)
