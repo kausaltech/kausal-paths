@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from importlib.util import find_spec
 from typing import TYPE_CHECKING
 
 from django.db.models import Q
@@ -22,6 +23,12 @@ if TYPE_CHECKING:
     from django.http.request import HttpRequest
 
     from paths.types import PathsAdminRequest
+
+# The dataset schema viewset registers its snippet URLs on import, and those must exist
+# before the admin URLconf is built. It builds on the extension's dataset editor, so it
+# is only available with kausal_paths_extensions installed.
+if find_spec('kausal_paths_extensions') is not None:
+    from admin_site import dataset_admin  # noqa: F401  # pyright: ignore[reportUnusedImport]
 
 
 def global_admin_css():
