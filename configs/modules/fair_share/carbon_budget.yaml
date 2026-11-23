@@ -21,6 +21,8 @@
 #
 # What the including instance must provide (see README.md, "Including the module"):
 #
+# * `modules/carbon_budget/carbon_budget.yaml`, included too: the global budget node
+#   `global_co2_budget` and its parameters (`carbon_budget_estimate` among them).
 # * Global parameters `country_code`, `fair_share_temperature_limit`, `fair_share_likelihood`,
 #   `fair_share_grandfathering_weight` and `fair_share_responsibility_start_year`. An include
 #   does not carry `params:`, so they are declared in the instance.
@@ -30,7 +32,7 @@
 # * `fair_share_key_population` -- the city's share of the national population, %, taken in one
 #   base year and held, so that no scenario can move the city's own obligation.
 #
-# Data: `fair_share/*`, built by `modules/fair-share/scripts/create_fair_share_budget.py` in
+# Data: `fair_share/*` (the global budget is `carbon_budget/*`, read through `global_co2_budget`), built by `modules/fair-share/scripts/create_fair_share_budget.py` in
 # paths-data.
 
 nodes:
@@ -50,9 +52,10 @@ nodes:
     Grenze eine Menge CO₂, die die Welt noch ausstoßen darf. Wie groß sie ist, hängt von zwei
     Werturteilen ab, die in den Einstellungen gewählt werden: der <i>Erwärmungsgrenze</i> und
     der <i>Wahrscheinlichkeit</i>, mit der sie eingehalten werden soll.<br/>
-    Die Werte stammen aus dem 6. Sachstandsbericht des Weltklimarats (IPCC AR6, Tabelle
-    SPM.2), gezählt ab dem 1. Januar 2020. Neuere Schätzungen liegen deutlich darunter; das
-    Modell rechnet also eher großzügig.
+    Gezählt wird ab dem 1. Januar 2020. Welche veröffentlichte Schätzung gilt, legt das Modell
+    fest; Standard ist der 6. Sachstandsbericht des Weltklimarats (IPCC AR6, Tabelle SPM.2).
+    Neuere Schätzungen liegen deutlich darunter; mit ihm rechnet das Modell also eher
+    großzügig.
   description_en: |
     <b>Premise 1: there is a limit.</b> Dangerous warming is a serious harm, and the limit of
     the Paris Agreement marks where it begins. Germany ratified the agreement, and in 2021 its
@@ -61,26 +64,20 @@ nodes:
     of CO₂ the world may still emit. How large it is depends on two value judgements, chosen
     in the settings: the <i>warming limit</i> and the <i>likelihood</i> with which it is to be
     kept.<br/>
-    The values are from the IPCC's Sixth Assessment Report (AR6, Table SPM.2), counted from
-    1 January 2020. More recent estimates are markedly lower, so the model errs on the
-    generous side.
+    It is counted from 1 January 2020. Which published estimate applies is set by the model;
+    the default is the IPCC's Sixth Assessment Report (AR6, Table SPM.2). More recent estimates
+    are markedly lower, so with it the model errs on the generous side.
   type: formula.FormulaNode
   quantity: mass
   unit: Gt_co2e
-  input_datasets:
-  - id: fair_share/global_co2_budget
+  input_nodes:
+  - id: global_co2_budget
     tags: [budget]
-    column: budget
-    filters:
-    - column: temperature_limit
-      ref: fair_share_temperature_limit
-    - column: likelihood
-      ref: fair_share_likelihood
   params:
+  # The budget itself is the shared node of `modules/carbon_budget/carbon_budget.yaml`; this node
+  # keeps its id because published pages refer to it, and carries premise 1.
   - id: formula
     value: budget
-  - id: extend_last_historical_value
-    value: true
 
 # ///// P3: the equal claim, and how far the status quo is allowed to count /////
 

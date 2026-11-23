@@ -3,7 +3,7 @@ default_language: de
 supported_languages: [en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 85c0ce7cb9293a1f16ed0d1e4b61b3fed573146d
+  commit: 661d44ec0365e366a9598357afb9f039636e9f0a
   dvc_remote: kausal-s3
 name_de: Treibhausgas-Monitor Mainz (Entwicklung)
 name_en: GHG Monitor Mainz (development)
@@ -154,6 +154,9 @@ include:
 # global parameters (see `params:`), and the module's README states the argument. The module
 # sums `net_emissions` itself and takes `fair_share_key_population` from the PV layer below, so
 # both layers divide the country's effort by the same rule. Nothing in it reaches the balance.
+# The remaining global CO2 budget, shared with other modules that need it (fossil endgame).
+- file: modules/carbon_budget/carbon_budget.yaml
+  allow_override: false
 - file: modules/fair_share/carbon_budget.yaml
   allow_override: false
 # The objections the fair-share argument has to meet (modules/fair_share/objections.md): "too
@@ -807,6 +810,14 @@ params:
   label_en: Country (ISO 3166-1 alpha-2 code)
   label_de: Land (ISO-3166-1-Alpha-2-Code)
   value: DE
+  is_customizable: false
+  is_visible: false
+# Which published estimate of the global budget is used. AR6 is the one Mainz's pages and the
+# value frameworks were built on; `forster_2026` is the newer, markedly smaller one.
+- id: carbon_budget_estimate
+  label_en: Estimate of the remaining CO₂ budget (ar6 or forster_2026)
+  label_de: Schätzung des verbleibenden CO₂-Budgets (ar6 oder forster_2026)
+  value: ar6
   is_customizable: false
   is_visible: false
 - id: fair_share_temperature_limit

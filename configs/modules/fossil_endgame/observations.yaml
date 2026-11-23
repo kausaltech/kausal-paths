@@ -1,0 +1,221 @@
+# Fossil endgame: the observations the argument rests on.
+#
+# This file holds facts only: fossil CO2 by source for the world and for every country, population,
+# CO2 per person, and the scale of carbon capture, removal and storage against fossil CO2. It holds
+# no value judgement. The value frameworks W1-W6, the endgame years and the tests of the argument
+# go in separate files once the argument (paths-data modules/fossil-endgame/docs/argument.md)
+# has been reviewed. The global CO2 budget is to come from a shared budget module (decision D2).
+#
+#   world_fossil_co2 ─┬─► world_fossil_co2_total ─┬─► capture_share_of_fossil_co2
+#                     │                           └─► storage_years_at_current_use
+#   capture_operating ┘ (and the COP31 target, removal, storage capacity)
+#
+#   national_fossil_co2 ─► national_fossil_co2_per_capita ◄─ national_population
+#
+# What the including instance must provide: the dimensions in `dimensions.yaml` (include it too).
+# Nothing else; no node here reads anything from a city.
+#
+# Data: `fossil_endgame/*`, built by `modules/fossil-endgame/scripts/create_global_data.py` in
+# paths-data from Our World in Data (Global Carbon Budget 2025) and the archived sources named
+# in each data point's `Source`.
+
+datasets:
+- id: fossil_endgame/world_fossil_co2
+  is_editable: false
+- id: fossil_endgame/national_fossil_co2
+  is_editable: false
+- id: fossil_endgame/capture_and_removal
+  is_editable: false
+
+nodes:
+
+# ///// The world /////
+
+- id: fossil_endgame_world_fossil_co2
+  is_editable: false
+  name_en: World CO₂ from fossil fuels and industry
+  description_en: |
+    Carbon dioxide from burning coal, oil and gas, from flaring gas, from making cement and from
+    other industry, worldwide, each year since 1850. It is about nine tenths of all CO₂ people
+    emit; the rest comes from clearing forests and other changes in land use.
+  type: generic.GenericNode
+  quantity: emissions
+  unit: Mt_co2e/a
+  input_dimensions: [co2_source]
+  output_dimensions: [co2_source]
+  input_datasets:
+  - id: fossil_endgame/world_fossil_co2
+    column: emissions
+
+- id: fossil_endgame_world_land_use_co2
+  is_editable: false
+  name_en: World CO₂ from land-use change
+  description_en: |
+    Carbon dioxide released by clearing forests and other changes in land use, worldwide, net of
+    the regrowth that follows. It counts against the same budget as fossil CO₂.
+  type: generic.GenericNode
+  quantity: emissions
+  unit: Mt_co2e/a
+  input_datasets:
+  - id: fossil_endgame/world_fossil_co2
+    column: land_use_change_emissions
+
+- id: fossil_endgame_world_fossil_co2_total
+  is_editable: false
+  name_en: World CO₂ from fossil fuels and industry, total
+  description_en: |
+    The previous node summed over its sources.
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: Mt_co2e/a
+  input_nodes:
+  - id: fossil_endgame_world_fossil_co2
+    tags: [fossil]
+  params:
+  - id: formula
+    value: sum_dim(fossil, co2_source)
+
+# ///// Countries /////
+
+- id: fossil_endgame_national_fossil_co2
+  is_editable: false
+  name_en: CO₂ from fossil fuels and industry, by country
+  description_en: |
+    Each country's carbon dioxide from fossil fuels and industry, counted where it is emitted, by
+    source, each year since 1990.
+  type: generic.GenericNode
+  quantity: emissions
+  unit: Mt_co2e/a
+  input_dimensions: [nation, co2_source]
+  output_dimensions: [nation, co2_source]
+  input_datasets:
+  - id: fossil_endgame/national_fossil_co2
+    column: emissions
+
+- id: fossil_endgame_national_population
+  is_editable: false
+  name_en: Population, by country
+  description_en: |
+    Each country's population, each year since 1990.
+  type: generic.GenericNode
+  quantity: population
+  unit: cap
+  input_dimensions: [nation]
+  output_dimensions: [nation]
+  input_datasets:
+  - id: fossil_endgame/national_fossil_co2
+    column: population
+
+- id: fossil_endgame_national_fossil_co2_per_capita
+  is_editable: false
+  name_en: CO₂ from fossil fuels and industry per person, by country
+  description_en: |
+    Each country's fossil CO₂ divided by its population. Comparing countries this way is the
+    starting point of any argument about who has used how much of the shared atmosphere.
+  type: formula.FormulaNode
+  quantity: emission_factor
+  unit: t_co2e/cap/a
+  input_dimensions: [nation]
+  output_dimensions: [nation]
+  input_nodes:
+  - id: fossil_endgame_national_fossil_co2
+    tags: [fossil]
+  - id: fossil_endgame_national_population
+    tags: [population]
+  params:
+  - id: formula
+    value: sum_dim(fossil, co2_source) / population
+
+# ///// Capture, removal and storage /////
+
+- id: fossil_endgame_capture_operating
+  is_editable: false
+  name_en: Carbon capture in operation
+  description_en: |
+    How much CO₂ the world's operating capture plants can capture each year.
+  type: generic.GenericNode
+  quantity: emissions
+  unit: Mt_co2e/a
+  input_datasets:
+  - id: fossil_endgame/capture_and_removal
+    column: capture_operating
+
+- id: fossil_endgame_capture_target_cop31
+  is_editable: false
+  name_en: Carbon capture the COP31 drafts aimed at for 2035
+  description_en: |
+    The draft texts of COP31 called for at least 0.5 billion tonnes of CO₂ captured each year by
+    2035, and work towards 1.3 to 2.5 billion tonnes. This is the upper end, the most the
+    proponents of capture themselves proposed.
+  type: generic.GenericNode
+  quantity: emissions
+  unit: Mt_co2e/a
+  input_datasets:
+  - id: fossil_endgame/capture_and_removal
+    column: capture_target_high
+
+- id: fossil_endgame_removal
+  is_editable: false
+  name_en: Carbon dioxide removal today
+  description_en: |
+    How much CO₂ is taken out of the air each year on purpose. Almost all of it is done by
+    planting and managing forests; new methods remove a few thousandths of it.
+  type: generic.GenericNode
+  quantity: emissions
+  unit: Mt_co2e/a
+  input_datasets:
+  - id: fossil_endgame/capture_and_removal
+    column: removal
+
+- id: fossil_endgame_geological_storage_capacity
+  is_editable: false
+  name_en: Geological storage capacity for CO₂
+  description_en: |
+    How much captured CO₂ could be stored underground, as assessed by the IPCC: on the order of a
+    thousand billion tonnes. It is an order of magnitude, not a precise figure.
+  type: generic.GenericNode
+  quantity: emissions
+  unit: Gt_co2e
+  input_datasets:
+  - id: fossil_endgame/capture_and_removal
+    column: geological_storage_capacity
+
+- id: fossil_endgame_capture_share_of_fossil_co2
+  is_editable: false
+  name_en: Share of fossil CO₂ that operating capture could take
+  description_en: |
+    Operating capture capacity divided by the world's CO₂ from fossil fuels and industry in the
+    latest year with data.
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: '%'
+  input_nodes:
+  - id: fossil_endgame_capture_operating
+    tags: [capture]
+  - id: fossil_endgame_world_fossil_co2_total
+    tags: [fossil]
+  params:
+  # The two series have different years: capture is known for 2025-2026 and fossil CO2 to 2024.
+  # extend() carries each to the end of the model, so the ratio is the latest against the latest.
+  - id: formula
+    value: extend(capture) / extend(fossil)
+
+- id: fossil_endgame_storage_years_at_current_use
+  is_editable: false
+  name_en: Years until storage is full if all fossil CO₂ were captured
+  description_en: |
+    If the world went on using fossil fuels at its current rate and captured every tonne of the
+    CO₂, this is how many years it would take to fill the assessed geological storage. Capture
+    is never complete in practice, so the real figure would be longer only if less were captured,
+    and then the rest would reach the air.
+  type: formula.FormulaNode
+  quantity: duration
+  unit: a
+  input_nodes:
+  - id: fossil_endgame_geological_storage_capacity
+    tags: [storage]
+  - id: fossil_endgame_world_fossil_co2_total
+    tags: [fossil]
+  params:
+  - id: formula
+    value: extend(storage) / extend(fossil)

@@ -1,0 +1,422 @@
+# Fossil endgame: when does unabated fossil fuel use end, and what does each position at COP31
+# imply when it is applied to every country?
+#
+# The argument is in paths-data modules/fossil-endgame/docs/argument.md. This file computes it:
+#
+#   global_co2_budget (shared module) ─► remaining_budget ─► years_to_net_zero ─► net_zero_year
+#   world_co2_total ─► world_co2_since_2020 ─┘                    └─► world_co2_straight_line_path
+#
+#   W2 (capture):   capture_scale_up_needed, cop31_capture_target_share,
+#                   storage_years_at_current_use (observations.yaml)
+#   W3 (equity):    national_equal_share, national_overuse_since_1990, national_fair_share,
+#                   national_years_to_net_zero, fair_share_adding_up, fair_share_overdraft
+#   W5 (sovereignty): developed_reserves, reserves_to_remaining_budget
+#
+# W1 is the global result itself; W4 and W6 have no computed test here (argument.md §5).
+#
+# The path to net zero is a straight-line decline from the last year with data, the convention
+# of Forster et al. 2026 (Table S10): it reaches zero after twice the remaining budget divided by
+# current emissions. Other shapes (a constant rate of decline, an IPCC pathway) move the year a
+# little and are not modelled; argument.md §4 says why the conclusion does not depend on them.
+#
+# Land use: the budget covers all CO2, so the global path uses fossil plus land-use CO2. The
+# national tests share out only the fossil part of the remaining budget, in proportion to the
+# fossil share of world CO2 in the latest year, as if both declined along the same line.
+# International aviation and shipping (about 3 % of fossil CO2) belong to no country; the
+# national shares are taken of the sum over countries, so that they add up to exactly 100 %.
+#
+# What the including instance must provide: `dimensions.yaml` and `observations.yaml` of this
+# module, `modules/carbon_budget/carbon_budget.yaml` and its three global parameters.
+
+datasets:
+- id: fossil_endgame/fossil_reserves
+  is_editable: false
+
+nodes:
+
+# ///// How long the budget lasts /////
+
+- id: fossil_endgame_world_co2_total
+  is_editable: false
+  name_en: World CO₂ emissions from all human sources
+  description_en: |
+    Carbon dioxide from fossil fuels, industry and changes in land use together. The remaining
+    budget covers all of it, so this is what draws it down.
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: Mt_co2e/a
+  input_nodes:
+  - id: fossil_endgame_world_fossil_co2_total
+    tags: [fossil]
+  - id: fossil_endgame_world_land_use_co2
+    tags: [land_use]
+  params:
+  - id: formula
+    value: fossil + land_use
+
+- id: fossil_endgame_world_co2_since_2020
+  is_editable: false
+  name_en: World CO₂ emitted since the start of 2020
+  description_en: |
+    All the CO₂ the world has emitted since 1 January 2020, the date from which the budget is
+    counted.
+  type: formula.FormulaNode
+  quantity: mass
+  unit: Gt_co2e
+  input_nodes:
+  - id: fossil_endgame_world_co2_total
+    tags: [emissions]
+  params:
+  # The observation nodes are held flat into the forecast; only the measured years are summed.
+  - id: formula
+    value: cumulative(from_year(inventory_only(emissions), 2020))
+
+- id: fossil_endgame_remaining_budget
+  is_editable: false
+  name_en: Remaining global CO₂ budget
+  description_en: |
+    What is left of the global CO₂ budget at the end of each year: the budget from 2020 less
+    what has been emitted since. After the last year with data the value stays where it was,
+    because what happens next is the question the model asks.
+  type: formula.FormulaNode
+  quantity: mass
+  unit: Gt_co2e
+  input_nodes:
+  - id: global_co2_budget
+    tags: [budget]
+  - id: fossil_endgame_world_co2_since_2020
+    tags: [used]
+  params:
+  # Up to the last year with data the remaining budget is a measured quantity, not a forecast.
+  - id: formula
+    value: bring_to_maximum_historical_year(budget - extend(used))
+
+- id: fossil_endgame_years_to_net_zero
+  is_editable: false
+  name_en: Years left to reach net zero
+  description_en: |
+    If world CO₂ emissions fell in a straight line from the level of a given year to zero, using
+    up exactly the remaining budget, this is how many years the fall would take. It is twice
+    the remaining budget divided by that year's emissions.<br/>
+    Each year at today's level shortens the time left by more than a year, because the budget
+    shrinks while emissions stay high.
+  type: formula.FormulaNode
+  quantity: duration
+  unit: a
+  input_nodes:
+  - id: fossil_endgame_remaining_budget
+    tags: [remaining]
+  - id: fossil_endgame_world_co2_total
+    tags: [emissions]
+  params:
+  # Historical years answer "if the decline had started after this year". From the last year
+  # with data on, the value is held: the decline that starts now.
+  - id: formula
+    value: extend(2 * make_nonnegative(inventory_only(remaining)) / from_year(inventory_only(emissions), 2020))
+
+- id: fossil_endgame_net_zero_year
+  is_editable: false
+  name_en: The year world CO₂ emissions must reach net zero
+  description_en: |
+    The last year of a straight-line decline that keeps within the remaining budget. Under the
+    chosen warming limit, likelihood and estimate, unabated fossil fuel use ends worldwide by this
+    year at the latest: land use, cement and the CO₂ that capture misses draw on the same budget.
+  type: formula.FormulaNode
+  quantity: number
+  unit: dimensionless
+  input_nodes:
+  - id: fossil_endgame_years_to_net_zero
+    tags: [years]
+  params:
+  # Each measured year plus the years left after it; from the last year with data on, held.
+  - id: formula
+    value: extend(year(inventory_only(years)) + inventory_only(years) / constant_frame(1, 'a'))
+
+- id: fossil_endgame_world_co2_straight_line_path
+  is_editable: false
+  name_en: World CO₂ emissions on a straight line to net zero
+  description_en: |
+    World CO₂ emissions up to the last year with data, and from then on a straight-line fall to
+    zero that uses exactly the remaining budget. It is one way to keep within the limit, chosen
+    because it is simple; a faster early fall would leave more time at the end.
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: Mt_co2e/a
+  input_nodes:
+  - id: fossil_endgame_world_co2_total
+    tags: [emissions]
+  - id: fossil_endgame_years_to_net_zero
+    tags: [years]
+  params:
+  # The measured years, then the line. The years after the last year with data are the forecast
+  # year less the last measured year, which `extend` holds into the forecast.
+  - id: formula
+    value: >-
+      inventory_only(emissions) + make_nonnegative(forecast_only(extend(inventory_only(emissions)))
+      * (1 - (year(forecast_only(years)) - extend(year(inventory_only(emissions))))
+      * constant_frame(1, 'a') / forecast_only(years)))
+
+# ///// W2: emissions, not sources /////
+
+- id: fossil_endgame_capture_scale_up_needed
+  is_editable: false
+  name_en: How many times capture would have to grow to cover fossil CO₂
+  description_en: |
+    World CO₂ from fossil fuels and industry divided by the capture capacity operating today.
+    For fossil fuels to go on being burned at today's rate with all their CO₂ captured, capture
+    would have to grow this many times over.
+  type: formula.FormulaNode
+  quantity: ratio
+  unit: dimensionless
+  input_nodes:
+  - id: fossil_endgame_world_fossil_co2_total
+    tags: [fossil]
+  - id: fossil_endgame_capture_operating
+    tags: [capture]
+  params:
+  - id: formula
+    value: extend(fossil) / extend(capture)
+
+- id: fossil_endgame_cop31_capture_target_share
+  is_editable: false
+  name_en: Share of fossil CO₂ the COP31 capture target would cover
+  description_en: |
+    The most capture the COP31 drafts aimed at for 2035, 2.5 billion tonnes a year, divided by
+    today's CO₂ from fossil fuels and industry. It is the proponents' own number.
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: '%'
+  input_nodes:
+  - id: fossil_endgame_capture_target_cop31
+    tags: [target]
+  - id: fossil_endgame_world_fossil_co2_total
+    tags: [fossil]
+  params:
+  - id: formula
+    value: extend(target) / extend(fossil)
+
+# ///// W3: equitable access to the remaining budget /////
+
+- id: fossil_endgame_fossil_share_of_world_co2
+  is_editable: false
+  name_en: Fossil share of world CO₂
+  description_en: |
+    The part of world CO₂ that comes from fossil fuels and industry; the rest is land use. The
+    countries' shares below are shares of this part of the remaining budget.
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: '%'
+  input_nodes:
+  - id: fossil_endgame_world_fossil_co2_total
+    tags: [fossil]
+  - id: fossil_endgame_world_co2_total
+    tags: [total]
+  params:
+  - id: formula
+    value: fossil / total
+
+- id: fossil_endgame_national_fossil_co2_total
+  is_editable: false
+  name_en: CO₂ from fossil fuels and industry, by country, total
+  description_en: |
+    Each country's CO₂ from fossil fuels and industry, all sources together.
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: Mt_co2e/a
+  output_dimensions: [nation]
+  input_nodes:
+  - id: fossil_endgame_national_fossil_co2
+    tags: [fossil]
+  params:
+  - id: formula
+    value: sum_dim(fossil, co2_source)
+
+- id: fossil_endgame_national_population_share
+  is_editable: false
+  name_en: Each country's share of world population
+  description_en: |
+    Each country's population divided by the population of all countries together.
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: '%'
+  output_dimensions: [nation]
+  input_nodes:
+  - id: fossil_endgame_national_population
+    tags: [population]
+  params:
+  - id: formula
+    value: population / sum_dim(population, nation)
+
+- id: fossil_endgame_national_equal_share
+  is_editable: false
+  name_en: Each country's equal share of the remaining fossil budget
+  description_en: |
+    The fossil part of the remaining budget divided by population: every person alive has the
+    same claim, and the past is not counted.
+  type: formula.FormulaNode
+  quantity: mass
+  unit: Mt_co2e
+  output_dimensions: [nation]
+  input_nodes:
+  - id: fossil_endgame_remaining_budget
+    tags: [remaining]
+  - id: fossil_endgame_fossil_share_of_world_co2
+    tags: [fossil_share]
+  - id: fossil_endgame_national_population_share
+    tags: [share]
+  params:
+  - id: formula
+    value: extend(remaining * fossil_share * share)
+
+- id: fossil_endgame_national_overuse_since_1990
+  is_editable: false
+  name_en: Each country's use beyond its equal share since 1990
+  description_en: |
+    How much more fossil CO₂ each country has emitted since 1990 than an equal share per person
+    of what all countries emitted each year. A negative value means the country has used less
+    than its share. 1990 is the year of the first IPCC report, since when the harm has been
+    known.
+  type: formula.FormulaNode
+  quantity: mass
+  unit: Mt_co2e
+  output_dimensions: [nation]
+  input_nodes:
+  - id: fossil_endgame_national_fossil_co2_total
+    tags: [emissions]
+  - id: fossil_endgame_national_population_share
+    tags: [share]
+  params:
+  - id: formula
+    value: extend(cumulative(from_year(inventory_only(emissions - share * sum_dim(emissions, nation)), 1990)))
+
+- id: fossil_endgame_national_overuse_per_person_since_1990
+  is_editable: false
+  name_en: Each country's use beyond its equal share since 1990, per person today
+  description_en: |
+    The previous node divided by the country's population in the latest year with data. It makes
+    large and small countries comparable.
+  type: formula.FormulaNode
+  quantity: emission_factor
+  unit: t_co2e/cap
+  output_dimensions: [nation]
+  input_nodes:
+  - id: fossil_endgame_national_overuse_since_1990
+    tags: [overuse]
+  - id: fossil_endgame_national_population
+    tags: [population]
+  params:
+  - id: formula
+    value: overuse / extend(population)
+
+- id: fossil_endgame_national_fair_share
+  is_editable: false
+  name_en: Each country's fair share of the remaining fossil budget, net of use since 1990
+  description_en: |
+    The equal share less what the country has used beyond its share since 1990. This is the
+    position India stated at COP31, "equitable access to the remaining carbon budget", applied
+    to every country alike. A negative value means the country's share is already spent.
+  type: formula.FormulaNode
+  quantity: mass
+  unit: Mt_co2e
+  output_dimensions: [nation]
+  input_nodes:
+  - id: fossil_endgame_national_equal_share
+    tags: [equal]
+  - id: fossil_endgame_national_overuse_since_1990
+    tags: [overuse]
+  params:
+  - id: formula
+    value: equal - overuse
+
+- id: fossil_endgame_national_years_to_net_zero
+  is_editable: false
+  name_en: Years each country has left to reach net zero under a fair share
+  description_en: |
+    If each country's fossil CO₂ fell in a straight line from today's level, using exactly its
+    fair share, this is how many years the fall would take. Zero means the share is already
+    spent: the country would have to stop now and still owes the overdraft.
+  type: formula.FormulaNode
+  quantity: duration
+  unit: a
+  output_dimensions: [nation]
+  input_nodes:
+  - id: fossil_endgame_national_fair_share
+    tags: [share]
+  - id: fossil_endgame_national_fossil_co2_total
+    tags: [emissions]
+  params:
+  - id: formula
+    value: drop_infs(2 * make_nonnegative(share) / extend(emissions))
+
+- id: fossil_endgame_fair_share_adding_up
+  is_editable: false
+  name_en: Do the fair shares add up to the budget?
+  description_en: |
+    The sum of the countries' fair shares that are not yet spent, as a share of the remaining
+    fossil budget. Over 100 % means the shares add up to more than the world may emit: the
+    countries that have overdrawn cannot hand back what they used, so the others' shares only
+    fit if the overdrawn ones remove CO₂ or pay for cuts elsewhere.
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: '%'
+  input_nodes:
+  - id: fossil_endgame_national_fair_share
+    tags: [share]
+  - id: fossil_endgame_national_equal_share
+    tags: [equal]
+  params:
+  - id: formula
+    value: sum_dim(make_nonnegative(share), nation) / sum_dim(equal, nation)
+
+- id: fossil_endgame_fair_share_overdraft
+  is_editable: false
+  name_en: CO₂ owed by the countries that have spent their fair share
+  description_en: |
+    The sum of the negative fair shares: CO₂ that countries have emitted since 1990 beyond what
+    an equal share would have allowed them, and beyond what is left. Under equitable access it
+    is a debt, to be settled by removing CO₂ or by paying for cuts elsewhere.
+  type: formula.FormulaNode
+  quantity: mass
+  unit: Gt_co2e
+  input_nodes:
+  - id: fossil_endgame_national_fair_share
+    tags: [share]
+  params:
+  - id: formula
+    value: sum_dim(minus(make_nonpositive(share)), nation)
+
+# ///// W5: every state may extract its own resources /////
+
+- id: fossil_endgame_developed_reserves
+  is_editable: false
+  name_en: CO₂ in the fossil reserves already developed
+  description_en: |
+    The CO₂ that burning the coal, oil and gas in fields and mines already producing or under
+    construction would release. Reserves not yet developed are not included.
+  type: generic.GenericNode
+  quantity: emissions
+  unit: Gt_co2e
+  input_dimensions: [co2_source]
+  output_dimensions: [co2_source]
+  input_datasets:
+  - id: fossil_endgame/fossil_reserves
+    column: developed_reserves
+
+- id: fossil_endgame_reserves_to_remaining_budget
+  is_editable: false
+  name_en: Developed reserves as a multiple of the remaining budget
+  description_en: |
+    The CO₂ in the reserves already developed divided by the remaining budget. Above 1, a rule
+    that lets every state burn what it has already developed breaks the limit before any new
+    field is opened.
+  type: formula.FormulaNode
+  quantity: ratio
+  unit: dimensionless
+  input_nodes:
+  - id: fossil_endgame_developed_reserves
+    tags: [reserves]
+  - id: fossil_endgame_remaining_budget
+    tags: [remaining]
+  params:
+  - id: formula
+    value: extend(sum_dim(reserves, co2_source)) / remaining

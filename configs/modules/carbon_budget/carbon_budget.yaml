@@ -1,0 +1,64 @@
+# The remaining global CO2 budget, shared by the modules that need it.
+#
+# One node, so that an instance including several of those modules (fair_share, fossil_endgame)
+# shows one budget with one number. The budget is chosen by three settings: the warming limit,
+# the likelihood of keeping to it, and the published estimate. The first two are value
+# judgements and keep fair-share's parameter ids (`fair_share_temperature_limit`,
+# `fair_share_likelihood`), because published instances store scenario settings under them.
+# The third, `carbon_budget_estimate`, is a judgement about the science.
+#
+# Every estimate is stated from 1 January 2020, so the node always means the same thing; a
+# module that needs what is left today subtracts what has been emitted since 2020.
+#
+# What the including instance must provide: the global parameters `fair_share_temperature_limit`
+# (1.5-2.0, step 0.1), `fair_share_likelihood` (50-83, step 1) and `carbon_budget_estimate`
+# (`ar6` or `forster_2026`). An include does not carry `params:`.
+#
+# Data: `carbon_budget/remaining_co2_budget`, built by
+# `modules/carbon-budget/scripts/create_carbon_budget.py` in paths-data.
+
+datasets:
+- id: carbon_budget/remaining_co2_budget
+  is_editable: false
+
+nodes:
+
+- id: global_co2_budget
+  is_editable: false
+  name_de: Verbleibendes globales CO₂-Budget ab 2020
+  name_en: Remaining global CO₂ budget from 2020
+  description_de: |
+    Wie viel CO₂ die Welt ab dem 1. Januar 2020 insgesamt noch ausstoßen darf, wenn die
+    Erwärmung mit der gewählten Wahrscheinlichkeit unter der gewählten Grenze bleiben soll.
+    Weil die Erwärmung mit der insgesamt ausgestoßenen Menge wächst, gehört zu jeder Grenze
+    eine solche Menge.<br/>
+    Zur Wahl stehen zwei Schätzungen: der 6. Sachstandsbericht des Weltklimarats (IPCC, 2021)
+    und die jährliche Aktualisierung von Forster und Kollegen (2026). Die neuere ist deutlich
+    kleiner, vor allem weil sie die Wirkung der sinkenden Luftverschmutzung neu bewertet, die
+    bisher einen Teil der Erwärmung verdeckt hat.
+  description_en: |
+    How much CO₂ the world may still emit in total from 1 January 2020, if warming is to stay
+    below the chosen limit with the chosen likelihood. Because warming grows with the total
+    amount emitted, every limit has such an amount.<br/>
+    Two estimates can be chosen: the IPCC's Sixth Assessment Report (2021) and the yearly update
+    by Forster and colleagues (2026). The newer one is markedly smaller, mainly because it
+    reassesses the effect of falling air pollution, which has been masking part of the warming.
+  type: formula.FormulaNode
+  quantity: mass
+  unit: Gt_co2e
+  input_datasets:
+  - id: carbon_budget/remaining_co2_budget
+    tags: [budget]
+    column: budget
+    filters:
+    - column: estimate
+      ref: carbon_budget_estimate
+    - column: temperature_limit
+      ref: fair_share_temperature_limit
+    - column: likelihood
+      ref: fair_share_likelihood
+  params:
+  - id: formula
+    value: budget
+  - id: extend_last_historical_value
+    value: true

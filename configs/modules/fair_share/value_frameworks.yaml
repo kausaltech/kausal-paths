@@ -30,12 +30,14 @@
 # Each value framework is one node, whose dataset filters and `constant` state its choices, so
 # that the value framework can be read off the node itself. The arithmetic is that of
 # `fair_share_national_budget_share`, `fair_share_national_overuse` and
-# `fair_share_national_budget` in one formula. Compatible means within the budget up to the
+# `fair_share_national_budget` in one formula. The global budget is always the IPCC AR6 estimate
+# (`estimate: ar6` in each filter), whatever `carbon_budget_estimate` says, because the value
+# frameworks were chosen and published against it. Compatible means within the budget up to the
 # model's end year; emissions after it are not counted.
 #
 # Needs `carbon_budget.yaml` (its population and emission shares, and the city's cumulative
-# emissions) and the instance's `country_code` and `fair_share_key_population`. Reads only the
-# datasets `carbon_budget.yaml` already reads.
+# emissions) and the instance's `country_code` and `fair_share_key_population`. Reads only
+# datasets that `carbon_budget.yaml` and `modules/carbon_budget/carbon_budget.yaml` already read.
 
 dimensions:
 
@@ -94,10 +96,12 @@ nodes:
   - id: fair_share_national_emission_share
     tags: [emissions]
   input_datasets:
-  - id: fair_share/global_co2_budget
+  - id: carbon_budget/remaining_co2_budget
     tags: [global_budget]
     column: budget
     filters:
+    - column: estimate
+      value: ar6
     - column: temperature_limit
       value: '1.5'
     - column: likelihood
@@ -144,10 +148,12 @@ nodes:
   unit: Mt_co2e
   input_nodes: *value_framework_inputs
   input_datasets:
-  - id: fair_share/global_co2_budget
+  - id: carbon_budget/remaining_co2_budget
     tags: [global_budget]
     column: budget
     filters:
+    - column: estimate
+      value: ar6
     - column: temperature_limit
       value: '1.5'
     - column: likelihood
@@ -196,10 +202,12 @@ nodes:
   unit: Mt_co2e
   input_nodes: *value_framework_inputs
   input_datasets:
-  - id: fair_share/global_co2_budget
+  - id: carbon_budget/remaining_co2_budget
     tags: [global_budget]
     column: budget
     filters:
+    - column: estimate
+      value: ar6
     - column: temperature_limit
       value: '1.7'
     - column: likelihood
@@ -246,10 +254,12 @@ nodes:
   unit: Mt_co2e
   input_nodes: *value_framework_inputs
   input_datasets:
-  - id: fair_share/global_co2_budget
+  - id: carbon_budget/remaining_co2_budget
     tags: [global_budget]
     column: budget
     filters:
+    - column: estimate
+      value: ar6
     - column: temperature_limit
       value: '1.7'
     - column: likelihood
@@ -296,10 +306,12 @@ nodes:
   unit: Mt_co2e
   input_nodes: *value_framework_inputs
   input_datasets:
-  - id: fair_share/global_co2_budget
+  - id: carbon_budget/remaining_co2_budget
     tags: [global_budget]
     column: budget
     filters:
+    - column: estimate
+      value: ar6
     - column: temperature_limit
       value: '1.7'
     - column: likelihood
@@ -345,10 +357,12 @@ nodes:
   unit: Mt_co2e
   input_nodes: *value_framework_inputs
   input_datasets:
-  - id: fair_share/global_co2_budget
+  - id: carbon_budget/remaining_co2_budget
     tags: [global_budget]
     column: budget
     filters:
+    - column: estimate
+      value: ar6
     - column: temperature_limit
       value: '2.0'
     - column: likelihood
@@ -393,10 +407,12 @@ nodes:
   unit: Mt_co2e
   input_nodes: *value_framework_inputs
   input_datasets:
-  - id: fair_share/global_co2_budget
+  - id: carbon_budget/remaining_co2_budget
     tags: [global_budget]
     column: budget
     filters:
+    - column: estimate
+      value: ar6
     - column: temperature_limit
       value: '2.0'
     - column: likelihood
@@ -443,10 +459,12 @@ nodes:
   unit: Mt_co2e
   input_nodes: *value_framework_inputs
   input_datasets:
-  - id: fair_share/global_co2_budget
+  - id: carbon_budget/remaining_co2_budget
     tags: [global_budget]
     column: budget
     filters:
+    - column: estimate
+      value: ar6
     - column: temperature_limit
       value: '2.0'
     - column: likelihood

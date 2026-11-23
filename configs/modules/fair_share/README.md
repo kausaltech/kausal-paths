@@ -4,6 +4,7 @@
 *Version 2 produced by Claude Opus 5.5 on 2026-10-07.*
 *Version 3 produced by Claude Opus 5.5 on 2026-10-19.*
 *Version 4 produced by Claude Opus 5.5 on 2026-10-29.*
+*Version 5 produced by Claude Opus 5.5 on 2026-11-23.*
 *Responsible: Jouni Tuomisto.*
 
 A module that asks whether a city stays within its fair share of what the world may still
@@ -23,7 +24,7 @@ parameter.
 
 | # | Premise | What is disputed → parameter | Node |
 |---|---|---|---|
-| 1 | **Limit.** Dangerous warming is a serious harm; the Paris limit marks where it begins. | Warming limit (1.5–2.0 °C) and likelihood of keeping to it (50–83 %), which together give the global remaining budget (IPCC AR6, Table SPM.2) | `fair_share_global_budget` |
+| 1 | **Limit.** Dangerous warming is a serious harm; the Paris limit marks where it begins. | Warming limit (1.5–2.0 °C) and likelihood of keeping to it (50–83 %), which together give the global remaining budget (IPCC AR6, Table SPM.2, unless the instance chooses another estimate) | `fair_share_global_budget` |
 | 2 | **Cumulative.** The climate responds to the total emitted, so the budget binds, not a target year. | — (physics; also the reasoning of the German Federal Constitutional Court, 2021) | `fair_share_city_cumulative_emissions` |
 | 3 | **Equal claim.** The atmosphere is a commons; no person has a stronger claim than another. | Weight of current emissions in the allocation (grandfathering), 0–100 % | `fair_share_national_budget_share` |
 | 4 | **Responsibility.** Whoever has used more than their share has less left. | Start year of historical responsibility, 1850–2020 | `fair_share_national_overuse` |
@@ -130,6 +131,8 @@ paths-data (`modules/values/docs/value-frameworks.md` §8,
 
 ```yaml
 include:
+- file: modules/carbon_budget/carbon_budget.yaml
+  allow_override: false
 - file: modules/fair_share/carbon_budget.yaml
   allow_override: false
 ```
@@ -137,6 +140,7 @@ include:
 An include carries nodes, not parameters, so the instance must also provide:
 
 1. **Global parameters** `country_code` (ISO 3166-1 alpha-2, e.g. `DE`),
+   `carbon_budget_estimate` (`ar6` or `forster_2026`),
    `fair_share_temperature_limit` (`unit: K`, 1.5–2.0, step 0.1), `fair_share_likelihood` (%, 50–83,
    step 1), `fair_share_grandfathering_weight` (%, 0–100) and
    `fair_share_responsibility_start_year` (1850–2020, step 10). Numbers between the steps
@@ -151,10 +155,19 @@ An include carries nodes, not parameters, so the instance must also provide:
 3. **`fair_share_key_population`** — the city's share of the national population, %, from
    one base year and held, so no scenario moves the city's own obligation.
 
-The data is `fair_share/global_co2_budget`, `fair_share/national_co2_key` and
+The global budget comes from the shared module `modules/carbon_budget/carbon_budget.yaml`,
+which the instance includes as well. `fair_share_global_budget` reads its node
+`global_co2_budget` and keeps its own id, because published pages refer to it. The shared
+module adds one more global parameter, `carbon_budget_estimate`: `ar6` (the values this module
+has always used) or `forster_2026`. The value frameworks in `value_frameworks.yaml` always
+read `ar6`. The data is `carbon_budget/remaining_co2_budget`, built by
+`modules/carbon-budget/scripts/create_carbon_budget.py` in paths-data.
+
+The national data is `fair_share/national_co2_key` and
 `fair_share/national_co2_responsibility` in the dataset repository, built by
 `modules/fair-share/scripts/create_fair_share_budget.py` in paths-data. The national
-datasets carry Germany only; another country needs its rows added there first.
+datasets carry Germany only; another country needs its rows added there first. That script
+still writes the old `fair_share/global_co2_budget`, which no node reads any more.
 
 `fair_share_met` is the duty node that `moral_argumentation/value_weights.yaml` expects, so an
 instance that includes both can weigh fairness against other values.
@@ -168,7 +181,8 @@ instance that includes both can weigh fairness against other values.
 * **Interpolated budgets.** IPCC tabulates 1.5, 1.7 and 2.0 °C at 17/33/50/67/83 %. The rows
   between are linear interpolations and say so in their comment.
 * **AR6 is generous.** Later estimates of the remaining budget are markedly lower, so every
-  reading here errs in the city's favour.
+  reading here errs in the city's favour, unless the instance sets `carbon_budget_estimate`
+  to `forster_2026`.
 * **Capability (premise 5) does not change the budget.** It argues that an overshoot must be
   compensated rather than excused; pricing that compensation is a further value judgement the
   module leaves out.

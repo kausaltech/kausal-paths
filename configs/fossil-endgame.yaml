@@ -1,0 +1,81 @@
+id: fossil-endgame # defines which instance is updated
+# Fossil endgame, the stand-alone global model (fi region, decided 23 Nov 2026). It asks whether
+# any rule that every country could apply lets unabated fossil fuel use go on indefinitely, and
+# what one would have to value or believe for that. The argument is in paths-data
+# modules/fossil-endgame/docs/argument.md; the plan, sources and decisions are beside it.
+#
+# DRAFT. The observations, the shared global CO2 budget (`modules/carbon_budget/`) and the
+# computed tests of the argument (`modules/fossil_endgame/global.yaml`) are here; the argument
+# nodes for the positions and the pages are still to come. A city includes the same module
+# files instead of this instance, plus a city part still to be written.
+default_language: en
+supported_languages: []
+dataset_repo:
+  url: https://github.com/kausaltech/dvctest.git
+  commit: 661d44ec0365e366a9598357afb9f039636e9f0a
+  dvc_remote: kausal-s3
+name_en: Fossil endgame
+owner: Kausal Ltd
+theme_identifier: default
+target_year: 2050
+model_end_year: 2100
+reference_year: 1990
+minimum_historical_year: 1850
+maximum_historical_year: 2024
+emission_unit: Mt_co2e/a
+features:
+  baseline_visible_in_graphs: true
+  # The national dataset has about 46 000 points and nobody edits it; it is read from DVC.
+  use_datasets_from_db: false
+  show_explanations: true
+
+include:
+- file: modules/fossil_endgame/dimensions.yaml
+  allow_override: false
+- file: modules/fossil_endgame/observations.yaml
+  allow_override: false
+- file: modules/carbon_budget/carbon_budget.yaml
+  allow_override: false
+- file: modules/fossil_endgame/global.yaml
+  allow_override: false
+
+# The settings that choose the budget. The parameter ids are fair-share's, so that a city
+# including both modules has one warming limit; the defaults are fair-share's too (1.7 °C at
+# 67 %), with the newer budget estimate, because this model asks about the years ahead.
+params:
+- id: carbon_budget_estimate
+  label_en: >-
+    Estimate of the remaining CO₂ budget: forster_2026 (Forster et al. 2026, the latest) or ar6
+    (IPCC 2021, markedly larger).
+  value: forster_2026
+  is_customizable: false
+  is_visible: true
+- id: fair_share_temperature_limit
+  label_en: >-
+    Warming limit: to how many degrees above pre-industrial should warming be limited? The Paris
+    Agreement requires "well below 2 °C" and efforts towards 1.5 °C. The lower the limit, the
+    smaller the CO₂ budget the world has left, and the sooner fossil fuel use has to end.
+  value: 1.7
+  min_value: 1.5
+  max_value: 2.0
+  step: 0.1
+  unit: K
+  is_customizable: true
+  is_visible: true
+- id: fair_share_likelihood
+  label_en: >-
+    Certainty: how likely should it be that warming stays within the limit? The more certain,
+    the smaller the budget.
+  value: 67
+  min_value: 50
+  max_value: 83
+  step: 1
+  unit: '%'
+  is_customizable: true
+  is_visible: true
+
+scenarios:
+
+- id: default
+  default: true
+  name_en: Observations

@@ -415,6 +415,20 @@ class CountryCode(StringGlobalParameter):
     id = 'country_code'
 
 
+class CarbonBudgetEstimate(StringGlobalParameter):
+    """
+    Which published estimate of the remaining global CO2 budget the model uses.
+
+    Read by `configs/modules/carbon_budget/carbon_budget.yaml`, which filters the dataset
+    `carbon_budget/remaining_co2_budget` by it: `ar6` (IPCC AR6, 2021) or `forster_2026`
+    (Forster et al. 2026). Both are stated from 1 January 2020. Choosing between them is a
+    judgement about the science, not a value judgement, so it is a setting of the instance.
+    """
+
+    name = _('Estimate of the remaining CO2 budget')
+    id = 'carbon_budget_estimate'
+
+
 # The premises of the fair-share argument (`configs/modules/fair_share/`). Each is a value
 # judgement on which reasonable people differ, so each is a setting rather than a constant, and
 # a reader who rejects the default can see what follows from their own reading.
