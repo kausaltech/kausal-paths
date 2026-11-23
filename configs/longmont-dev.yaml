@@ -18,7 +18,7 @@ default_language: en
 supported_languages: [es-US]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 8963394f6bc0de09d57d648ef251b28f7a4b7227
+  commit: d2aa78542d9e0be9f2be18b21efaf3eb4dbdfb07
   dvc_remote: kausal-s3
 name: Longmont Greenhouse Gas Inventory (development)
 name_es-US: Inventario de Gases de Efecto Invernadero de Longmont (desarrollo)
@@ -804,9 +804,33 @@ dimensions:
     label: Other
     label_es-US: Otros
 
+# The two value sets of the city's scenarios. An action's dataset holds both, and the
+# global parameter action_value_set picks one: the scenarios are alternatives, not layers.
+- id: action_scenario
+  label: Action values
+  label_es-US: Valores de las acciones
+  categories:
+  - id: target_based
+    label: Target based
+    label_es-US: Basado en metas
+  - id: action_based
+    label: Action based
+    label_es-US: Basado en acciones
+
 params:
 - id: municipality_name
   value: longmont
+# Which value set the actions read: select_category(values, action_scenario=action_value_set).
+# Each scenario sets it; an action that is switched off contributes nothing in either set.
+# Hidden until the public UI is known to render a dimension_category parameter.
+- id: action_value_set
+  label: Action values
+  label_es-US: Valores de las acciones
+  type: dimension_category
+  dimension: action_scenario
+  value: target_based
+  is_visible: false
+  is_customizable: false
 - id: weather_correction
   label: Included Avoided emissions
   label_es-US: Emisiones evitadas incluidas
@@ -3587,7 +3611,7 @@ nodes:
   quantity: energy_factor
   unit: MPG
   input_datasets:
-  - id: longmont/energy_vehicle_and_waste_actions
+  - id: longmont/transportation_trends
     forecast_from: 2025
     column: mpg_trend
   output_nodes:
@@ -3611,7 +3635,7 @@ nodes:
   quantity: mileage
   unit: VMT/vehicle/a
   input_datasets:
-  - id: longmont/energy_vehicle_and_waste_actions
+  - id: longmont/transportation_trends
     forecast_from: 2025
     column: vmt_per_vehicle_trend
   output_nodes:
@@ -3628,7 +3652,7 @@ nodes:
   quantity: energy_factor
   unit: kWh/VMT
   input_datasets:
-  - id: longmont/energy_vehicle_and_waste_actions
+  - id: longmont/transportation_trends
     forecast_from: 2025
     column: electric_vehicle_efficiency_trend
 
@@ -3799,7 +3823,9 @@ actions:
     E-7 del Plan de Sustentabilidad </a></li> <li>Con ingresos calificados: <a href="https://indicators.longmontcolorado.gov/sustainability/actions/E-2">Estrategia
     E-2 del Plan de Sustentabilidad</a></li> y <a href="https://indicators.longmontcolorado.gov/sustainability/actions/BI-2">Estrategia
     BI-2</a></ul></p>'
-  type: simple.GenericAction
+  # The dataset carries a value set per action_scenario; the scenario's action_value_set picks
+  # one. interpolate + extend fill the years as GenericAction's operations did.
+  type: formula.FormulaAction
   quantity: fraction
   unit: '%'
   group: buildings
@@ -3807,8 +3833,12 @@ actions:
   - id: longmont/energy_vehicle_and_waste_actions
     forecast_from: 2025
     column: efficiency_works_program
+    interpolate: true
+    extend: true
+    tags: [values]
   params:
-    operations: get_single_dataset,extend_to_history
+  - id: formula
+    value: select_category(values, action_scenario=action_value_set)
   output_nodes:
   - id: building_electricity_use
     tags: [ewp]
@@ -3900,7 +3930,9 @@ actions:
     de la implementación:</p><ul><li><a href="https://indicators.longmontcolorado.gov/indicators/1674">Indicador
     de energía renovable</a></li><li><a href="https://www.longmontcolorado.gov/departments/departments-e-m/longmont-power-communications/electric-service/renewable-energy">Energía
     renovable de Longmont</a></li></ul>'
-  type: simple.AdditiveAction
+  # The dataset carries a value set per action_scenario; the scenario's action_value_set picks
+  # one.
+  type: formula.FormulaAction
   quantity: emission_factor
   unit: t/MWh
   group: electric_grid
@@ -3908,6 +3940,10 @@ actions:
   - id: longmont/energy_vehicle_and_waste_actions
     forecast_from: 2025
     column: longmont_power_renewables
+    tags: [values]
+  params:
+  - id: formula
+    value: select_category(values, action_scenario=action_value_set)
   output_nodes:
   - id: electricity_emission_factor
     to_dimensions:
@@ -3941,7 +3977,9 @@ actions:
     href="https://indicators.longmontcolorado.gov/indicators/1674">Indicador de energía
     renovable</a></li><li><a href="https://www.longmontcolorado.gov/departments/departments-e-m/longmont-power-communications/electric-service/renewable-energy">Energía
     renovable de Longmont</a></li></ul>'
-  type: simple.GenericAction
+  # The dataset carries a value set per action_scenario; the scenario's action_value_set picks
+  # one. interpolate + extend fill the years as GenericAction's operations did.
+  type: formula.FormulaAction
   quantity: emission_factor
   unit: t/MWh
   group: electric_grid
@@ -3949,6 +3987,12 @@ actions:
   - id: longmont/energy_vehicle_and_waste_actions
     column: longmont_power_renewables_additional
     forecast_from: 2025
+    interpolate: true
+    extend: true
+    tags: [values]
+  params:
+  - id: formula
+    value: select_category(values, action_scenario=action_value_set)
   output_nodes:
   - id: electricity_emission_factor
     to_dimensions:
@@ -3994,7 +4038,9 @@ actions:
     red eléctrica mediante la gestión de la red, como la optimización distribuida
     del voltaje.</p> <p>Seguimiento de la implementación: <ul><li><a href="https://indicators.longmontcolorado.gov/carr/actions/RE.5">Informe
     de Recomendaciones de Acción Climática RE.5</a></li></ul></p>'
-  type: simple.GenericAction
+  # The dataset carries a value set per action_scenario; the scenario's action_value_set picks
+  # one. interpolate + extend fill the years as GenericAction's operations did.
+  type: formula.FormulaAction
   quantity: fraction
   unit: '%'
   group: electric_grid
@@ -4002,6 +4048,12 @@ actions:
   - id: longmont/energy_vehicle_and_waste_actions
     column: reduce_transmission_distribution_losses
     forecast_from: 2025
+    interpolate: true
+    extend: true
+    tags: [values]
+  params:
+  - id: formula
+    value: select_category(values, action_scenario=action_value_set)
   output_nodes:
   - id: electricity_use
     tags: [reduce_losses]
@@ -4021,7 +4073,10 @@ actions:
     no tiene sitios activos de petróleo y gas.</p> <p>Seguimiento de la implementación:
     <ul><li><a href="https://indicators.longmontcolorado.gov/sustainability/topic-area/aq-air-quality">Estrategias
     de calidad del aire del Plan de Sustentabilidad</a></li></ul></p>'
-  type: simple.GenericAction
+  # The dataset carries a value set per action_scenario; the scenario's action_value_set picks
+  # one. interpolate + extend fill the years as GenericAction's operations did.
+  # constant (1 t_co2e/t) only converts the unit; R3 moves the unit into the dataset.
+  type: formula.FormulaAction
   quantity: emissions
   unit: t_co2e/a
   group: oil_and_gas
@@ -4029,11 +4084,17 @@ actions:
   - id: longmont/energy_vehicle_and_waste_actions
     forecast_from: 2025
     column: leak_detection
+    interpolate: true
+    extend: true
+    tags: [values]
   params:
-  - id: multiplier
+  - id: formula
+    value: select_category(values, action_scenario=action_value_set) * constant
+  - id: constant
     value: 1
     unit: t_co2e/t
     is_visible: false
+    is_customizable: false
   output_nodes:
   - id: leakage_from_oil_and_gas_wells_emissions
     to_dimensions:
@@ -4052,7 +4113,9 @@ actions:
     de Desperdicio Cero de 2022</a>.</p> <p>Seguimiento de la implementación: <ul><li><a
     href="https://indicators.longmontcolorado.gov/sustainability/topic-area/waste">Plan
     de Sustentabilidad, estrategias sobre desechos</a></li></ul></p>'
-  type: simple.AdditiveAction
+  # The dataset carries a value set per action_scenario; the scenario's action_value_set picks
+  # one.
+  type: formula.FormulaAction
   quantity: fraction
   unit: '%'
   group: solid_waste
@@ -4060,6 +4123,10 @@ actions:
   - id: longmont/energy_vehicle_and_waste_actions
     forecast_from: 2025
     column: increase_waste_diversion
+    tags: [values]
+  params:
+  - id: formula
+    value: select_category(values, action_scenario=action_value_set)
   output_nodes:
   - diversion_rate
 
@@ -4079,7 +4146,9 @@ actions:
     GoEV de 2021.</a></p><p>Seguimiento de la implementación:</p><ul><li><a href="https://indicators.longmontcolorado.gov/sustainability/actions/T-4">Estrategia
     T-4 del Plan de Sustentabilidad</a></li><li><a href="https://indicators.longmontcolorado.gov/indicators/1771">Indicador
     de vehículos eléctricos</a></li></ul><p><b>Unidad:</b> v = número de vehículos</p>'
-  type: simple.AdditiveAction
+  # The dataset carries a value set per action_scenario; the scenario's action_value_set picks
+  # one.
+  type: formula.FormulaAction
   quantity: number
   unit: vehicle
   group: transportation
@@ -4087,6 +4156,10 @@ actions:
   - id: longmont/energy_vehicle_and_waste_actions
     forecast_from: 2025
     column: vehicle_incentives
+    tags: [values]
+  params:
+  - id: formula
+    value: select_category(values, action_scenario=action_value_set)
   output_nodes:
   - registered_electric_vehicles
 
@@ -4111,7 +4184,9 @@ actions:
     T-5</a> y <a href="https://indicators.longmontcolorado.gov/sustainability/actions/T-7">Estrategia
     T-7</a></li> <li><a href="https://indicators.longmontcolorado.gov/envision/guiding-principle/gp2-a-complete-balanced-and-connected-transportation-system">Envision
     Longmont, principio rector: un sistema de transporte completo, equilibrado y conectado</a></li></ul></p>'
-  type: simple.GenericAction
+  # The dataset carries a value set per action_scenario; the scenario's action_value_set picks
+  # one. interpolate + extend fill the years as GenericAction's operations did.
+  type: formula.FormulaAction
   quantity: number
   unit: trip/inhabitant/a
   group: transportation
@@ -4119,6 +4194,12 @@ actions:
   - id: longmont/energy_vehicle_and_waste_actions
     column: increase_access_of_public_transit
     forecast_from: 2025
+    interpolate: true
+    extend: true
+    tags: [values]
+  params:
+  - id: formula
+    value: select_category(values, action_scenario=action_value_set)
 
 - id: multimodal_transportation_system
   name: Develop multimodal transportation system / bicycle and pedestrian 
@@ -4139,7 +4220,9 @@ actions:
     de ruta para un transporte equitativo y libre de carbono</a></li> <li><a href="https://indicators.longmontcolorado.gov/envision/guiding-principle/gp2-a-complete-balanced-and-connected-transportation-system">Principio
     rector de Envision Longmont: un sistema de transporte completo, equilibrado y
     conectado</a></li></ul></p>'
-  type: simple.GenericAction
+  # The dataset carries a value set per action_scenario; the scenario's action_value_set
+  # picks one. interpolate + extend reproduce GenericAction's extend_all.
+  type: formula.FormulaAction
   quantity: fraction
   unit: '%'
   group: transportation
@@ -4147,8 +4230,12 @@ actions:
   - id: longmont/energy_vehicle_and_waste_actions
     column: multimodal_transportation_system
     forecast_from: 2025
+    interpolate: true
+    extend: true
+    tags: [values]
   params:
-    operations: get_single_dataset,extend_all
+  - id: formula
+    value: select_category(values, action_scenario=action_value_set)
 
 # - id: last_mile_connections
 #   name: Improve last mile connections
@@ -4195,6 +4282,18 @@ scenarios:
   name: Climate Action Initiatives
   name_es-US: Iniciativas de acción climática
   all_actions_enabled: true
+  params:
+  - id: action_value_set
+    value: target_based
+
+# Every action on, with the values the city expects from its current programmes.
+- id: action_based
+  name: Action Based Scenario
+  name_es-US: Escenario basado en acciones
+  all_actions_enabled: true
+  params:
+  - id: action_value_set
+    value: action_based
 
 # This was an exploration of how previous actions should work in historical years. Not needed now.
 # - id: historical_actions
