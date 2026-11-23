@@ -23,7 +23,6 @@ from kausal_common.strawberry.extensions import LoggingTracingExtension
 from kausal_common.strawberry.schema import Schema as UnifiedSchema
 
 from paths import gql
-from paths.context import realm_context
 from paths.graphql_helpers import graphql_error_nodes
 from paths.graphql_types import UnitType
 from paths.schema_context import PathsGraphQLContext
@@ -134,13 +133,19 @@ class CommonQuery:
     @sb.field(graphql_type=list[OrganizationNode])
     @staticmethod
     def instance_organizations(
+        info: gql.Info,
         instance: sb.ID | None = None,
         with_ancestors: bool = False,
     ) -> list[Organization]:
         if not instance:
-            instance_obj = realm_context.get().realm
+            instance_obj = info.context.instance_config
+            if instance_obj is None:
+                raise GraphQLError(_('No instance given and none selected for the request'), graphql_error_nodes(info))
         else:
-            instance_obj = InstanceConfig.objects.get(identifier=instance)
+            try:
+                instance_obj = InstanceConfig.objects.get(identifier=instance)
+            except InstanceConfig.DoesNotExist:
+                raise GraphQLError(_('Instance not found'), graphql_error_nodes(info)) from None
         return list(Organization.objects.qs.available_for_instance(instance_obj))
 
 
