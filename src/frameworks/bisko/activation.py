@@ -1,6 +1,6 @@
 """Activate a German municipality as one BISKO framework instance."""
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypeGuard
 from uuid import uuid4
 
 from django.core.exceptions import ValidationError
@@ -31,6 +31,13 @@ if TYPE_CHECKING:
 
 class ActivationError(ValueError):
     pass
+
+
+MUNICIPALITY_CLASSES = ('de_municipality', 'de_district_free_city')
+
+
+def is_valid_municipality_ags(ags: str | None) -> TypeGuard[str]:
+    return ags is not None and len(ags) == 8 and ags.isdigit()
 
 
 def _municipal_spec(snapshot: InstanceSnapshot, framework: Framework, ags: str, nuts3: str) -> InstanceModelSpec:
@@ -153,13 +160,13 @@ def _municipality_ags(framework: Framework, organization: Organization) -> str:
     if framework.identifier != 'bisko':
         raise ActivationError('Only BISKO municipalities can be activated here.')
     classification = organization.classification
-    if classification is None or classification.identifier not in ('de_municipality', 'de_district_free_city'):
+    if classification is None or classification.identifier not in MUNICIPALITY_CLASSES:
         raise ActivationError('Only municipalities and district-free cities can be activated.')
     if not organization_is_in_framework(framework, organization):
         raise ActivationError('Organization is outside BISKO coverage.')
     identifiers = dict(organization.identifiers.values_list('namespace__identifier', 'identifier'))
     ags = identifiers.get('ags')
-    if ags is None or len(ags) != 8 or not ags.isdigit():
+    if not is_valid_municipality_ags(ags):
         raise ActivationError('Municipality has no valid eight-digit AGS.')
     return ags
 

@@ -687,10 +687,38 @@ def test_activate_framework_organization_is_scoped_and_repeatable(tmp_path: Path
     publish_bisko_template(framework)
     municipality = OrganizationIdentifier.objects.get(namespace__identifier='ars', identifier='030010000001').organization
     state = OrganizationIdentifier.objects.get(namespace__identifier='ars', identifier='03').organization
+    district = OrganizationIdentifier.objects.get(namespace__identifier='ars', identifier='03001').organization
     user = UserFactory.create()
     OrganizationAccessGrant.objects.create(framework=framework, organization=state, user=user, role=ObjectRole.EDITOR)
-    client.force_login(user)
     gql = PathsTestClient(client)
+    aggregation = """
+        query ($district: ID!) {
+          framework(identifier: "bisko") {
+            organization(id: $district) {
+              aggregation(year: 2023) {
+                members { organization { id instanceIdentifier } canActivate }
+              }
+            }
+          }
+        }
+    """
+
+    def activation_state() -> tuple[bool, str | None]:
+        data = gql.query_data(aggregation, variables={'district': str(district.uuid)})
+        row = next(
+            row
+            for row in data['framework']['organization']['aggregation']['members']
+            if row['organization']['id'] == str(municipality.uuid)
+        )
+        return row['canActivate'], row['organization']['instanceIdentifier']
+
+    viewer = UserFactory.create()
+    OrganizationAccessGrant.objects.create(framework=framework, organization=state, user=viewer, role=ObjectRole.VIEWER)
+    client.force_login(viewer)
+    assert activation_state() == (False, None)
+    client.force_login(user)
+    assert activation_state() == (True, None)
+
     mutation = """
         mutation ($organization: ID!) {
           activateFrameworkOrganization(frameworkId: "bisko", organizationId: $organization) {
@@ -704,6 +732,7 @@ def test_activate_framework_organization_is_scoped_and_repeatable(tmp_path: Path
     first = gql.query_data(mutation, variables=variables)['activateFrameworkOrganization']
     assert first['created'] is True
     assert first['instanceIdentifier'] == 'bisko-03001001'
+    assert activation_state() == (False, first['instanceIdentifier'])
     second = gql.query_data(mutation, variables=variables)['activateFrameworkOrganization']
     assert second['created'] is False
     assert second['frameworkConfigId'] == first['frameworkConfigId']
@@ -776,6 +805,7 @@ def test_activate_framework_organization_is_scoped_and_repeatable(tmp_path: Path
     assert {(grant['userEmail'], grant['role']) for grant in account_data['inheritedOrganizationGrants']} == {
         (user.email, 'EDITOR'),
         (admin.email, 'ADMIN'),
+        (viewer.email, 'VIEWER'),
     }
     gql.set_instance(None)
 

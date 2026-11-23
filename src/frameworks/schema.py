@@ -43,6 +43,7 @@ from .aggregation import (
     ExclusionReason,
     aggregate,
 )
+from .bisko.activation import MUNICIPALITY_CLASSES, is_valid_municipality_ags
 from .indicator_schema import ComposedIndicatorType
 from .models import (
     Framework,
@@ -296,6 +297,7 @@ class AggregationEntryType:
         description='The territory this reporting unit stands for, when that territory holds nothing but the unit.'
     )
     is_reporting_unit: bool
+    can_activate: bool = sb.field(description='The viewer may activate this BISKO municipality and it has no model instance.')
     exclusion_reason: AggregationExclusionReasonEnum | None = sb.field(  # type: ignore[valid-type]
         description='Why a reporting unit does not count as finalised. Null when it does, and for territories.'
     )
@@ -353,7 +355,7 @@ class OrganizationAggregationType:
     members_restricted: bool = sb.field(description='Only the members on the way to what the viewer holds are listed.')
 
 
-def _aggregation_type(framework: Framework, result: Aggregation) -> OrganizationAggregationType:
+def _aggregation_type(framework: Framework, result: Aggregation, user: User) -> OrganizationAggregationType:
     entries = [result.own, *result.members]
     organizations = {entry.organization.pk: entry.organization for entry in entries}
     organizations.update({entry.collapsed_from.pk: entry.collapsed_from for entry in entries if entry.collapsed_from})
@@ -363,12 +365,30 @@ def _aggregation_type(framework: Framework, result: Aggregation) -> Organization
             organizations.values(), _organization_types(framework, list(organizations.values())), strict=True
         )
     }
+    activation_candidates = [
+        pk
+        for pk, organization in types.items()
+        if framework.identifier == 'bisko'
+        and organization.instance_identifier is None
+        and organization.classification_identifier in MUNICIPALITY_CLASSES
+        and is_valid_municipality_ags(organization.ags)
+    ]
+    activatable = (
+        set(
+            accessible_organizations(framework, user, action='change')
+            .filter(pk__in=activation_candidates, instances__isnull=True)
+            .values_list('pk', flat=True)
+        )
+        if activation_candidates
+        else set()
+    )
 
     def entry_type(entry: AggregationEntry) -> AggregationEntryType:
         return AggregationEntryType(
             organization=types[entry.organization.pk],
             collapsed_from=types[entry.collapsed_from.pk] if entry.collapsed_from else None,
             is_reporting_unit=entry.is_reporting_unit,
+            can_activate=entry.organization.pk in activatable,
             exclusion_reason=entry.exclusion_reason,
             open_status=entry.open_status,
             latest_year=entry.latest_year,
@@ -472,7 +492,7 @@ class FrameworkOrganizationType:
         except (AggregationError, PermissionDenied) as error:
             message = error.messages[0] if isinstance(error, ValidationError) else str(error)
             raise GraphQLError(message) from error
-        return _aggregation_type(framework, result)
+        return _aggregation_type(framework, result, user)
 
 
 @register_strawberry_type
