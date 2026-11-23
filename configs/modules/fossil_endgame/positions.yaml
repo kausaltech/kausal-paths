@@ -1,0 +1,242 @@
+# Fossil endgame: the positions, as argument nodes.
+#
+# One node per position W1-W6 of paths-data modules/fossil-endgame/docs/argument.md §6, plus the
+# conclusion of §1-2. Each points at the computed node that tests it. Argument nodes compute
+# nothing (constant 0) and are tagged ignore_content, so they change no number.
+#
+# The name of each node is the position itself, as a short sentence, in the words of its
+# holders where they have them. Parties are named only from primary sources (decision D5,
+# 23 Nov 2026): the Earth Negotiations Bulletin (ENB), UNFCCC texts and submissions, and a
+# party's own statement. Press reports are not used for attribution.
+#
+# Descriptions refer to the computed nodes by name rather than quoting their numbers, because
+# the numbers change with the warming limit, likelihood and budget estimate the reader chooses.
+#
+# What the including instance must provide: global.yaml and observations.yaml of this module.
+
+nodes:
+
+- id: fossil_endgame_argument_any_limit_ends_fossil_use
+  is_editable: false
+  name_en: '"Any temperature limit ends unabated fossil fuel use."'
+  description_en: |
+    Warming stops only when the world's CO₂ emissions reach net zero, whatever the limit. So the
+    question is never whether unabated fossil fuel use ends, only when. The limit and how sure
+    one wants to be of keeping to it set the year.<br/>
+    Of the positions taken at COP31 in Antalya, none rejects this as a rule applied to every
+    country alike. What remains in dispute is a fact (can capture and storage take the CO₂ of
+    fossil fuels at scale?), the order of exit (who goes first?) and payment (who bears the
+    cost?). A position that rejects the endpoint itself works only as a rule for one country,
+    not for all.<br/>
+    Put the other way round: no set of values makes "no phase-out" a rule for everyone while any
+    temperature limit is accepted. Only a set of facts could, namely capture and storage on the
+    scale of today's fossil fuel use, indefinitely, and no one claims those facts.
+  type: generic.ConstantNode
+  quantity: argument
+  unit: dimensionless
+  params:
+  - id: constant
+    value: 0
+    unit: dimensionless
+  output_nodes:
+  - id: fossil_endgame_net_zero_year
+    tags: [ignore_content]
+
+# W1. Sources: ENB 12/907 (PSIDS), 12/909 (EIG, AOSIS), 12/911 (Switzerland); decision
+# 1/CMA.5 para 28(d).
+- id: fossil_endgame_argument_w1_transition_away
+  is_editable: false
+  name_en: '"The world must transition away from fossil fuels."'
+  description_en: |
+    <b>Who said it.</b> At COP31 the Pacific Small Island Developing States called transitioning
+    away from fossil fuels a priority; the Alliance of Small Island States and the Environmental
+    Integrity Group wanted the final decision to include it; Switzerland urged every country to
+    publish a national roadmap for it, as it had done itself.<br/>
+    <b>The values behind it.</b> Everyone has an equal claim to the atmosphere. Whoever causes a
+    problem pays to fix it. Harm counts wherever and whenever it falls. Against catastrophe one
+    takes precautions, and losses that cannot be undone weigh more.<br/>
+    <b>As a rule for every country.</b> Unabated fossil fuel use ends worldwide, and the order
+    of exit follows the way the remaining budget is shared. This is coherent by construction;
+    what can be checked is whether a proposed timetable fits the budget. The formula agreed in
+    Dubai in 2023, transitioning away from fossil fuels "so as to achieve net zero by 2050",
+    matches a limit of about 1.7 °C (see "The year world CO₂ emissions must reach net zero").
+  type: generic.ConstantNode
+  quantity: argument
+  unit: dimensionless
+  params:
+  - id: constant
+    value: 0
+    unit: dimensionless
+  output_nodes:
+  - id: fossil_endgame_net_zero_year
+    tags: [ignore_content]
+
+# W2. Sources: ENB 12/906 and 12/907 (Arab Group), 12/907 (Saudi Arabia), 12/908 (Arab Group and
+# Russian Federation; United Arab Emirates on capture). The House of Saud quote that argument.md
+# carried earlier is dropped under D5. The capture target is in the draft cover decisions of
+# 16 and 19 Nov.
+- id: fossil_endgame_argument_w2_emissions_not_sources
+  is_editable: false
+  name_en: '"Cut emissions, not fuels: no specific sources or sectors should be targeted."'
+  description_en: |
+    <b>Who said it.</b> The Arab Group said it would not accept "any top-down global targets or
+    targets addressing specific sectors or energy sources", and with the Russian Federation
+    rejected the draft text for language targeting specific energy sources. Saudi Arabia said
+    "no specific sources or sectors should be targeted". The United Arab Emirates wanted carbon
+    capture named explicitly.<br/>
+    <b>The values behind it.</b> A country chooses its own means. A policy should achieve what it
+    claims without waste. A country's interests and sovereignty matter.<br/>
+    <b>As a rule for every country.</b> Each country cuts its emissions by whatever means it
+    chooses, and any fuel may be burned if its CO₂ is captured and stored. This rule is coherent:
+    it accepts net zero and leaves the means open, as a global framework should. But it turns on
+    a fact, whether capture and storage can take the CO₂ of fossil fuels at scale. Capture in
+    operation today takes a fraction of a per cent of it, and even the capture target in the
+    COP31 drafts a few per cent. Geological storage is
+    finite even if capture were complete (see the three nodes this argument points to).<br/>
+    So in practice this position is a phase-out of unabated fossil fuels with room for capture
+    where emissions are hard to avoid, which is how the IPCC pathways use capture. It reaches the
+    same endpoint as the transition away; the objection is to naming the fuels.
+  type: generic.ConstantNode
+  quantity: argument
+  unit: dimensionless
+  params:
+  - id: constant
+    value: 0
+    unit: dimensionless
+  output_nodes:
+  - id: fossil_endgame_capture_scale_up_needed
+    tags: [ignore_content]
+  - id: fossil_endgame_cop31_capture_target_share
+    tags: [ignore_content]
+  - id: fossil_endgame_storage_years_at_current_use
+    tags: [ignore_content]
+
+# W3. Sources: India's national statement of 18 Nov as carried by All India Radio (NewsOnAir,
+# the public broadcaster); ENB 12/906 (AILAC on historical responsibility); draft cover decision
+# v1 para 16. The text of the statement itself, from the Indian government, is still to be
+# archived (log.md).
+- id: fossil_endgame_argument_w3_equitable_access
+  is_editable: false
+  name_en: '"Equitable access to the remaining carbon budget is non-negotiable."'
+  description_en: |
+    <b>Who said it.</b> India, in its national statement on 18 November: "Equitable access to the
+    remaining, depleted, carbon budget is non-negotiable." The Independent Alliance of Latin
+    America and the Caribbean asked for the decision to reflect the historical responsibility of
+    developed countries. The first draft of the cover decision recorded that developed
+    countries' past emissions amount to "about four fifths" of the budget for 1.5 °C.<br/>
+    <b>The values behind it.</b> Everyone has an equal claim to the atmosphere. Where someone is
+    born should not decide their chances. Whoever causes a problem pays to fix it. Nobody should
+    lack food, water, shelter or safety.<br/>
+    <b>As a rule for every country.</b> The remaining budget is shared by population, less what
+    each country has used beyond its equal share in the past. This is coherent, and the strongest
+    equity argument made at Antalya. It does not argue against the endgame; it argues about its
+    order, and asks a faster exit of those who emitted early and much.<br/>
+    Applied to every country, the shares do not add up: the countries that have already spent
+    their share cannot un-emit what they overdrew. The rule therefore holds only if they settle
+    that debt, by removing CO₂ or by paying (see "Do the fair shares add up to the budget?" and
+    "CO₂ owed by the countries that have spent their fair share").
+  type: generic.ConstantNode
+  quantity: argument
+  unit: dimensionless
+  params:
+  - id: constant
+    value: 0
+    unit: dimensionless
+  output_nodes:
+  - id: fossil_endgame_national_fair_share
+    tags: [ignore_content]
+  - id: fossil_endgame_fair_share_adding_up
+    tags: [ignore_content]
+  - id: fossil_endgame_fair_share_overdraft
+    tags: [ignore_content]
+
+# W4. Sources: LMDC and Arab Group joint submission on Article 9.1 finance; Yasuní-ITT from the
+# CBD digest and the Primicias report of the 2023 referendum result; IMF Article IV report.
+- id: fossil_endgame_argument_w4_compensation
+  is_editable: false
+  name_en: '"Whoever leaves fossil fuels in the ground for everyone''s sake should be compensated."'
+  description_en: |
+    <b>Who said it.</b> No party at COP31 in these words. The idea is behind the disputes over
+    finance: the Like-Minded Developing Countries and the Arab Group, in a joint submission, call
+    developed countries' finance under the Paris Agreement "a mandatory obligation".<br/>
+    <b>The values behind it.</b> People should keep what they have earned. Whoever causes a
+    problem pays to fix it. Where someone is born should not decide their chances.<br/>
+    <b>As a rule for every country.</b> Whoever leaves a resource unused for the common good is
+    compensated, by those who caused the problem or those who can pay. This is coherent: it
+    accepts the endpoint and asks who bears the cost. Its weak point is that the payers have to
+    exist. Ecuador asked the world to pay half the forgone revenue for leaving the oil of
+    the Yasuní park in the ground; by 2013 less than a third of a per cent of the sum had been
+    paid in, and the plan was dropped. In 2023 Ecuador's voters chose to leave the oil in the
+    ground anyway.<br/>
+    The size of the claim can be large: oil provided about three fifths of Saudi Arabia's
+    government revenue in 2023.
+  type: generic.ConstantNode
+  quantity: argument
+  unit: dimensionless
+  params:
+  - id: constant
+    value: 0
+    unit: dimensionless
+  output_nodes:
+  - id: fossil_endgame_developed_reserves
+    tags: [ignore_content]
+
+# W5 and W6 were stated by no party at COP31; they are kept for completeness (decided by Jouni,
+# 23 Nov 2026). W5 sources: UNGA resolution 1803 (1962); Trout et al. 2022.
+- id: fossil_endgame_argument_w5_sovereignty
+  is_editable: false
+  name_en: '"Every state may produce and sell its own fossil resources."'
+  description_en: |
+    <b>Who said it.</b> No party at COP31 in these words. It is the strongest form of a
+    producer's claim, resting on the permanent sovereignty of states over their natural
+    resources (UN General Assembly, 1962). It is included because people hold it without
+    spelling it out.<br/>
+    <b>The values behind it.</b> A country's interests and sovereignty matter. Tested ways of
+    life deserve respect. The state should not run one's life.<br/>
+    <b>As a rule for every country.</b> Every state produces and sells its reserves. This fails
+    the test that a rule must work when everyone follows it: burning only the reserves already
+    developed would emit several times the budget for 1.5 °C and well over the budget for 1.7 °C
+    (see "Developed reserves as a multiple of the remaining budget").<br/>
+    This does not make sovereignty illegitimate. Sovereignty settles how a country cuts its
+    emissions, not how much the world may emit. The resource is the country's; the atmosphere it
+    is burned into is no one's territory.
+  type: generic.ConstantNode
+  quantity: argument
+  unit: dimensionless
+  params:
+  - id: constant
+    value: 0
+    unit: dimensionless
+  output_nodes:
+  - id: fossil_endgame_reserves_to_remaining_budget
+    tags: [ignore_content]
+
+# W6. Sources: Barrage & Nordhaus 2024 (DICE-2023); Paris Agreement Art. 2.1(a).
+- id: fossil_endgame_argument_w6_development_first
+  is_editable: false
+  name_en: '"Today''s prosperity comes first; the warming limit follows from costs and benefits."'
+  description_en: |
+    <b>Who said it.</b> No party at COP31. It is the hardest case for the conclusion, included so
+    that the result is not true by definition.<br/>
+    <b>The values behind it.</b> Prosperity and economic growth. Progress through human
+    ingenuity. Accepting what is beyond human control. And a strong preference for the present
+    over the future.<br/>
+    <b>As a rule for every country.</b> The warming limit is set by weighing damages against
+    costs, with the future weighted lightly, for everyone. This is coherent if it really applies
+    to all, and it is the only position here that can put the end beyond this century: the
+    best-known cost-benefit model finds an optimum of about 2.6 °C by 2100, with emissions not yet
+    at net zero.<br/>
+    It still has an endgame, though a later one, because warming stops at any level only at net
+    zero. Only a view that never lets warming stop escapes the endgame, and that view gives harm
+    to future people no weight at all. And it cannot be held together with the Paris Agreement's
+    "well below 2 °C", which every party that objected at Antalya has ratified.
+  type: generic.ConstantNode
+  quantity: argument
+  unit: dimensionless
+  params:
+  - id: constant
+    value: 0
+    unit: dimensionless
+  output_nodes:
+  - id: fossil_endgame_years_to_net_zero
+    tags: [ignore_content]

@@ -134,6 +134,9 @@ nodes:
 
 - id: fossil_endgame_world_co2_straight_line_path
   is_editable: false
+  # The outcome node, so that the stand-alone instance's home page shows the endgame itself. A
+  # city that includes this file gets it as a second outcome node beside its own net_emissions.
+  is_outcome: true
   name_en: World CO₂ emissions on a straight line to net zero
   description_en: |
     World CO₂ emissions up to the last year with data, and from then on a straight-line fall to

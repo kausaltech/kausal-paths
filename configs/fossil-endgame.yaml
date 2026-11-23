@@ -4,10 +4,10 @@ id: fossil-endgame # defines which instance is updated
 # what one would have to value or believe for that. The argument is in paths-data
 # modules/fossil-endgame/docs/argument.md; the plan, sources and decisions are beside it.
 #
-# DRAFT. The observations, the shared global CO2 budget (`modules/carbon_budget/`) and the
-# computed tests of the argument (`modules/fossil_endgame/global.yaml`) are here; the argument
-# nodes for the positions and the pages are still to come. A city includes the same module
-# files instead of this instance, plus a city part still to be written.
+# DRAFT. The observations, the shared global CO2 budget (`modules/carbon_budget/`), the
+# computed tests of the argument (`modules/fossil_endgame/global.yaml`) and the positions as
+# argument nodes (`positions.yaml`) are here; the pages are still to come. A city includes the
+# same module files instead of this instance, plus a city part still to be written.
 default_language: en
 supported_languages: []
 dataset_repo:
@@ -37,6 +37,8 @@ include:
 - file: modules/carbon_budget/carbon_budget.yaml
   allow_override: false
 - file: modules/fossil_endgame/global.yaml
+  allow_override: false
+- file: modules/fossil_endgame/positions.yaml
   allow_override: false
 
 # The settings that choose the budget. The parameter ids are fair-share's, so that a city
@@ -73,6 +75,15 @@ params:
   unit: '%'
   is_customizable: true
   is_visible: true
+
+# The home page only. The other pages and the texts are database content, written by paths-data
+# modules/fossil-endgame/scripts/create_pages.py.
+pages:
+- id: home
+  name_en: Fossil endgame
+  path: /
+  type: emission
+  outcome_node: fossil_endgame_world_co2_straight_line_path
 
 scenarios:
 
