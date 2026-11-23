@@ -541,16 +541,16 @@ class InstanceYAMLConfig:
         except ValueError:
             relative_fn = entrypoint
 
-        with start_span(name='load-from-cache: %s' % relative_fn, op='function') as span:
+        with start_span(name='load-from-cache: %s' % relative_fn, attributes={'sentry.op': 'function'}) as span:
             yaml_conf = cls.load_from_cache(entrypoint)
-            span.set_data('cache_hit', yaml_conf is not None)
+            span.set_attribute('cache_hit', yaml_conf is not None)
 
         if yaml_conf is not None:
             return yaml_conf
 
         logger.info('Cached instance not found or stale for %s, loading from YAML' % relative_fn)
         yaml_conf = cls.from_entrypoint(entrypoint)
-        with start_span(name='load-from-yaml: %s' % relative_fn, op='function'):
+        with start_span(name='load-from-yaml: %s' % relative_fn, attributes={'sentry.op': 'function'}):
             yaml_conf.load()
         yaml_conf.meta.mtime_hash = yaml_conf.meta.calculate_mtime_hash()
         try:
@@ -1981,7 +1981,7 @@ class InstanceLoader:
         )
 
         target_year = years.target
-        with start_span(name='create-context', op='function'):
+        with start_span(name='create-context', attributes={'sentry.op': 'function'}):
             self.context = Context(
                 instance=self.instance,
                 dataset_repo_spec=spec.dataset_repo.model_copy(deep=True) if spec.dataset_repo is not None else None,

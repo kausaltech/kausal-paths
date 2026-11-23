@@ -1434,7 +1434,9 @@ class InstanceConfig(
         if self.has_framework_config():
             fwc = self.framework_config
             instance = fwc.create_model_instance(self)
-            with sentry_sdk.start_span(name='update-instance-from-configs: %s' % self.identifier, op='function'):
+            with sentry_sdk.start_span(
+                name='update-instance-from-configs: %s' % self.identifier, attributes={'sentry.op': 'function'}
+            ):
                 self.update_instance_from_configs(instance, node_refs=node_refs)
         else:
             config_fn = self.get_yaml_config_entrypoint()
@@ -1447,7 +1449,9 @@ class InstanceConfig(
                 instance_config=self,
             )
             instance = loader.instance
-            with sentry_sdk.start_span(name='update-instance-from-configs: %s' % self.identifier, op='function'):
+            with sentry_sdk.start_span(
+                name='update-instance-from-configs: %s' % self.identifier, attributes={'sentry.op': 'function'}
+            ):
                 # We only need to do this on the plain old YAML path
                 self.update_instance_from_configs(instance, node_refs=node_refs)
 
@@ -1467,7 +1471,9 @@ class InstanceConfig(
             )
         )
 
-        with sentry_sdk.start_span(name='create-instance-from-config: %s' % self.identifier, op='function'):
+        with sentry_sdk.start_span(
+            name='create-instance-from-config: %s' % self.identifier, attributes={'sentry.op': 'function'}
+        ):
             instance = self._create_from_config(
                 node_refs=node_refs,
                 source=source,

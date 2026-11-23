@@ -107,7 +107,7 @@ dependencies = [
   "rich",
   "ruamel-yaml",
   "s3cmd",
-  "sentry-sdk[django,opentelemetry]",
+  "sentry-sdk",
   "social-auth-app-django",
   "starlette>=0.51",
   "strawberry-graphql",
@@ -351,7 +351,7 @@ django_settings_module = "paths.settings"
 
 [tool.pytest]
 DJANGO_SETTINGS_MODULE = "paths.settings"
-norecursedirs = ["node_modules", "data", ".git", "venv", "Attic", "private"]
+norecursedirs = ["node_modules", "data", ".git", "venv", "Attic", "private", "scratchpad"]
 filterwarnings = [
   "ignore::DeprecationWarning:graphene",
   "ignore:.*iscoroutinefunction:DeprecationWarning",
