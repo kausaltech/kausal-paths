@@ -107,7 +107,7 @@ dependencies = [
   "rich",
   "ruamel-yaml",
   "s3cmd",
-  "sentry-sdk[django,opentelemetry]",
+  "sentry-sdk",
   "social-auth-app-django",
   "starlette>=0.51",
   "strawberry-graphql",

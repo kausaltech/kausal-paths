@@ -30,7 +30,7 @@ from dotenv import load_dotenv
 from rich import print
 from rich.console import Console
 from rich.table import Table
-from sentry_sdk import start_span, start_transaction
+from sentry_sdk import start_span
 
 from kausal_common.debugging.perf import PerfCounter
 
@@ -168,17 +168,17 @@ if args.dry_run:
 install_node_error_handler()
 
 stack = ExitStack()
-root_span = stack.enter_context(start_transaction(name='load-nodes', op='function'))
+stack.enter_context(start_span(name='load-nodes', attributes={'sentry.op': 'function'}, parent_span=None))
 
 if args.instance:
-    with start_span(name='django-init', op='init') as span:
-        span.set_data('instance_id', args.instance)
+    with start_span(name='django-init', attributes={'sentry.op': 'init'}) as span:
+        span.set_attribute('instance_id', args.instance)
         instance_obj = get_ic(args.instance, required=True)
         instance = instance_obj.get_instance()
         context = instance.context
 else:
-    with start_span(name='yaml-init', op='init') as span:
-        span.set_data('config_id', args.config)
+    with start_span(name='yaml-init', attributes={'sentry.op': 'init'}) as span:
+        span.set_attribute('config_id', args.config)
         yaml_path = Path(args.config).resolve()
         loader = InstanceLoader.from_yaml(yaml_path)
         context = loader.context
@@ -238,7 +238,7 @@ if not args.quiet:
     print_db_datasets()
 
 if args.pull_datasets:
-    with start_span(name='pull-datasets', op='init') as span:
+    with start_span(name='pull-datasets', attributes={'sentry.op': 'init'}) as span:
         context.pull_datasets()
 
 if args.validate:
@@ -485,8 +485,6 @@ if args.scenario:
 if args.list_params:
     context.print_all_parameters()
 
-# with root_span.start_child(name='load-dvc-datasets', op='function'):
-#    context.load_all_dvc_datasets()
 
 for node_id in args.debug_nodes or []:
     node = context.get_node(node_id)
@@ -614,14 +612,18 @@ def generate_result_excel():
 
 
 if args.generate_result_excel:
-    with start_span(name='generate-result-excel', op='function'):
+    with start_span(name='generate-result-excel', attributes={'sentry.op': 'function'}):
         generate_result_excel()
 
 for node_id in args.node or []:
-    with start_span(name='print-node-output: %s' % node_id, op='function'):
-        with start_span(name='get-node', op='function'):
+    with start_span(name='print-node-output: %s' % node_id, attributes={'sentry.op': 'function'}):
+        with start_span(name='get-node', attributes={'sentry.op': 'function'}):
             node = context.get_node(node_id)
-        with start_span(name='run-node', op='function'), context.run(), start_span(name='print-output', op='function'):
+        with (
+            start_span(name='run-node', attributes={'sentry.op': 'function'}),
+            context.run(),
+            start_span(name='print-output', attributes={'sentry.op': 'function'}),
+        ):
             node.print_output(filters=all_filters or None)
             # node.plot_output(filters=all_filters or None)
 

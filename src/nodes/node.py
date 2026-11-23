@@ -17,7 +17,6 @@ import pandas as pd
 import pint_pandas
 from polars.datatypes.group import INTEGER_DTYPES, NUMERIC_DTYPES
 from rich import print as pprint
-from sentry_sdk.consts import SPANSTATUS
 
 from kausal_common.deployment import env_bool
 from kausal_common.i18n.pydantic import get_modeltrans_attrs_from_str
@@ -63,7 +62,7 @@ if typing.TYPE_CHECKING:
 
     import loguru
     from rich.repr import RichReprResult
-    from sentry_sdk.tracing import Span
+    from sentry_sdk.traces import Span
 
     from kausal_common.i18n.pydantic import I18nString, I18nStringInstance, TranslatedString
 
@@ -1516,7 +1515,7 @@ class Node:
                 df = df.paths.get_operation(tag)(df, self.context)
         return df
 
-    def get_output_pl(  # noqa: C901, PLR0912
+    def get_output_pl(
         self,
         target_node: Node | None = None,
         metric: str | None = None,
@@ -1561,17 +1560,14 @@ class Node:
 
             if span is not None:
                 if cache_res is None or not cache_res.is_hit:
-                    span.set_data('cache', 'miss')
+                    span.set_attribute('cache', 'miss')
                 else:
-                    span.set_data('cache', cache_res.kind.name)
+                    span.set_attribute('cache', cache_res.kind.name)
             if node_run is not None and cache_res is not None:
                 node_run.mark_cache(cache_res)
 
             if target_node is not None:
                 df = self._process_edge_output(df, target_node)
-
-            if span is not None:
-                span.set_status(SPANSTATUS.OK)
 
         if self.context.compare_pipeline_compatibility:
             self.check_pipeline_compatibility(df, target_node=target_node, metric=metric)

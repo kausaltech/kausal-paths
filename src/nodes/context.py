@@ -49,7 +49,7 @@ if TYPE_CHECKING:
     import networkx  # noqa: ICN001
     import polars as pl
     from rich.repr import RichReprResult
-    from sentry_sdk.tracing import Span
+    from sentry_sdk.traces import Span
 
     from kausal_common.perf.perf_context import PerfAttrs, PerfRunContext, PerfSpanEntry
 
@@ -327,10 +327,13 @@ class Context:
     @contextmanager
     def start_span(self, name: str, op: str | None = None, attributes: PerfAttrs | None = None) -> Generator[Span]:
         hide_from_traceback()
-        with start_span(name=name, op=op) as span:
-            if attributes is not None:
-                for key, val in attributes.items():
-                    span.set_data(key, val)
+        span_attrs: dict[str, str | int | float | bool] = {}
+        if op is not None:
+            span_attrs['sentry.op'] = op
+        if attributes is not None:
+            # Span attributes must be primitives; an unset value is left out rather than sent as null.
+            span_attrs.update({key: val for key, val in attributes.items() if val is not None})
+        with start_span(name=name, attributes=span_attrs) as span:
             yield span
 
     @contextmanager
@@ -988,7 +991,7 @@ class Context:
                 self.perf_run = stack.enter_context(self.perf_context)
                 yield
                 if sampled:
-                    span.set_data('model.perf', self.perf_run.operation_breakdown())
+                    span.set_attribute('model.perf', orjson.dumps(self.perf_run.operation_breakdown()).decode())
         finally:
             self.perf_run = None
             self.perf_context.aggregate_only = previous_aggregate_only
