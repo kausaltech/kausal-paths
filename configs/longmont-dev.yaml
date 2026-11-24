@@ -18,7 +18,7 @@ default_language: en
 supported_languages: [es-US]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: d2aa78542d9e0be9f2be18b21efaf3eb4dbdfb07
+  commit: 637784b2b283ddc5a9bc0ee3485e6dabc573e5a8
   dvc_remote: kausal-s3
 name: Longmont Greenhouse Gas Inventory (development)
 name_es-US: Inventario de Gases de Efecto Invernadero de Longmont (desarrollo)
@@ -822,6 +822,9 @@ params:
   value: longmont
 # Which value set the actions read: select_category(values, action_scenario=action_value_set).
 # Each scenario sets it; an action that is switched off contributes nothing in either set.
+# The building actions and energy_use_intensity_improvement read it with a port filter
+# (column: action_scenario, ref: action_value_set) instead, which keeps their node classes:
+# two of them are multi-metric AdditiveActions.
 # Hidden until the public UI is known to render a dimension_category parameter.
 - id: action_value_set
   label: Action values
@@ -3522,6 +3525,9 @@ nodes:
   input_datasets:
   - id: longmont/energy_use_intensity_improvement
     forecast_from: 2025
+    filters:
+    - column: action_scenario
+      ref: action_value_set
   params:
     operations: get_single_dataset,extend_to_history
 
@@ -3690,6 +3696,8 @@ actions:
     tags: [extend_all]
     forecast_from: 2025
     filters:
+    - column: action_scenario
+      ref: action_value_set
     - column: develop_beyond_building_code_new_compliance
     - column: benchmark_energy_use_electricity
     - column: benchmark_energy_use_natural_gas
@@ -3741,6 +3749,9 @@ actions:
   input_datasets:
   - id: longmont/building_actions
     column: develop_beyond_building_code_new_compliance
+    filters:
+    - column: action_scenario
+      ref: action_value_set
   params:
     operations: get_single_dataset
   output_nodes:
@@ -3784,6 +3795,8 @@ actions:
     tags: [extend_all]
     forecast_from: 2025
     filters:
+    - column: action_scenario
+      ref: action_value_set
     - column: updated_building_code_renovation_rate
     - column: updated_building_code_new_compliance
     - column: develop_beyond_building_code_new_compliance
@@ -3866,6 +3879,9 @@ actions:
   - id: longmont/building_actions
     forecast_from: 2025
     column: replace_natural_gas_residential
+    filters:
+    - column: action_scenario
+      ref: action_value_set
   output_nodes:
   - id: natural_gas_removed_by_replace_natural_gas_residential
   params:
@@ -3892,6 +3908,9 @@ actions:
   - id: longmont/building_actions
     forecast_from: 2025
     column: replace_natural_gas_commercial
+    filters:
+    - column: action_scenario
+      ref: action_value_set
   output_nodes:
   - id: natural_gas_removed_by_replace_natural_gas_commercial
   params:
