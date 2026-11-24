@@ -5782,7 +5782,7 @@ actions:
       flatten: true
 
 - id: reduce_speedlimits_on_highways
-  name: Nopeusrajoitusten alentaminen maanteillä
+  name: 'VALTIO: Nopeusrajoitusten alentaminen maanteillä'
   name_en: Reduce speed limits on highways
   type: simple.AdditiveAction
   group: transportation
@@ -7010,7 +7010,7 @@ actions:
       flatten: true
 
 - id: renewable_hydrogen_and_emethane_plant
-  name: Uusiutuvan vedyn ja sähkömetaanin tuotantolaitos
+  name: 'YKSITYINEN: Uusiutuvan vedyn ja sähkömetaanin tuotantolaitos'
   name_en: Renewable hydrogen and e-methane plant
   type: simple.AdditiveAction
   group: industry_and_machinery
@@ -7473,6 +7473,8 @@ scenarios:
     value: true
   - id: emission_free_construction_sites.enabled
     value: true
+  - id: renewable_hydrogen_and_emethane_plant.enabled
+    value: true
   - id: parameter_electricity_emission_factor.enabled
     value: true
   - id: parameter_discount_rate.enabled
@@ -7492,3 +7494,6 @@ scenarios:
   name: Hiilineutraali Tampere 2030 -tiekartta+
   name_en: Carbon-neutral Tampere 2030 roadmap+
   all_actions_enabled: true
+  params:
+  - id: reduce_speedlimits_on_highways.enabled
+    value: false
