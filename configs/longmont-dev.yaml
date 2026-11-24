@@ -18,7 +18,7 @@ default_language: en
 supported_languages: [es-US]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: a7da2176d50ce626e21fd834cd11bc9aa901861c
+  commit: 7116f08d610407dcff2d1511807a6356397ea3b1
   dvc_remote: kausal-s3
 name: Longmont Greenhouse Gas Inventory (development)
 name_es-US: Inventario de Gases de Efecto Invernadero de Longmont (desarrollo)
@@ -627,9 +627,9 @@ dimensions:
     label: Home
     label_es-US: Inicio
 
-- id: source
-  label: Source
-  label_es-US: Fuente
+- id: emission_factor_source
+  label: Emission factor source
+  label_es-US: Fuente del factor de emisión
   categories:
   - id: iclei
     label: ICLEI
@@ -1901,19 +1901,19 @@ nodes:
   input_datasets:
   - id: longmont/fugitive_parameters
     tags: [energy_factor, cleaned]
-    column: Natural gas energy factor
+    column: natural_gas_energy_factor
     unit: Btu/ft**3
   - id: longmont/fugitive_parameters
     tags: [density, cleaned]
-    column: Natural gas density
+    column: natural_gas_density
     unit: kg/m**3
   - id: longmont/fugitive_parameters
     tags: [leakage, cleaned]
-    column: Natural gas leakage
+    column: natural_gas_leakage
     unit: '%'
-  - id: longmont/fugitive_parameters
+  - id: longmont/natural_gas_composition
     tags: [fraction, cleaned]
-    column: Fraction in natural gas
+    column: fraction_in_natural_gas
     unit: '%'
   params:
     formula: use / complement(leakage) / energy_factor * density * leakage * 
@@ -2242,8 +2242,8 @@ nodes:
   input_dimensions: [vehicle_type, energy_carrier]
   output_dimensions: [vehicle_type, energy_carrier]
   input_datasets:
-  - id: longmont/transportation_energy_factors
-    column: Natural gas use
+  - id: longmont/vehicle_natural_gas_use
+    column: natural_gas_use
   params:
     operations: get_single_dataset,extend_all
 
@@ -2285,8 +2285,8 @@ nodes:
   input_dimensions: [vehicle_type, energy_carrier]
   output_dimensions: [vehicle_type, energy_carrier]
   input_datasets:
-  - id: longmont/transportation_energy_factors
-    column: Electricity use
+  - id: longmont/vehicle_electricity_use
+    column: electricity_use
   input_nodes:
   - id: electric_vehicle_efficiency_trend
     tags: [add_to_existing_dims]
@@ -2352,7 +2352,7 @@ nodes:
     # GenericNode back-filled this series' leading nulls silently; keep it, said out loud.
     backfill: true
     extend: true  # GenericNode extended its dataset; keep that explicit
-    column: Miles per gallon
+    column: miles_per_gallon
 
 - id: phev_fuel_shares
   name: PHEV fuel shares
@@ -2398,7 +2398,7 @@ nodes:
   input_dimensions: [vehicle_type, energy_carrier, ghg]
   output_dimensions: [vehicle_type, energy_carrier, ghg]
   input_datasets:
-  - id: longmont/transportation_emission_factors
+  - id: longmont/vehicle_ch4_and_n2o_emission_factors
     column: emission_factor
     backfill: true
     extend: true
@@ -2636,15 +2636,10 @@ nodes:
   quantity: fraction
   unit: '%'
   input_datasets:
-  - id: longmont/total_railway_ghg_emissions_boulder_county
+  - id: longmont/proportion_of_rail_lines_in_longmont
     extend: true  # GenericNode extended its dataset; keep that explicit
     forecast_from: 2025
     column: proportion_of_rail_lines_in_longmont
-    filters:
-    # `ghg` belongs to this dataset's other metric (railway_emissions), not to this one, so
-    # after selecting the column above it is present but empty. AdditiveNode2 does not drop
-    # empty dimensions the way GenericNode did, so say it here.
-    - column: ghg
 
 - id: railway_emissions
   name: Railway emissions
@@ -2684,12 +2679,6 @@ nodes:
     backfill: true
     extend: true  # GenericNode extended its dataset; keep that explicit
     column: total_fuel_used
-    # Dimensions of this dataset's other metrics, empty for the column selected above.
-    # AdditiveNode2/MultiplicativeNode2 do not drop empty dimensions the way GenericNode
-    # did, so the binding says which ones do not apply.
-    filters:
-    - column: ghg
-    - column: source
 
 - id: aviation_fuel_emission_factors
   name: Aviation fuel emission factors
@@ -2697,18 +2686,12 @@ nodes:
   type: simple.AdditiveNode2
   quantity: emission_factor
   unit: g/gal
-  input_dimensions: [energy_carrier, ghg, source]
-  output_dimensions: [energy_carrier, ghg, source]
+  input_dimensions: [energy_carrier, ghg, emission_factor_source]
+  output_dimensions: [energy_carrier, ghg, emission_factor_source]
   input_datasets:
-  - id: longmont/aviation_data
+  - id: longmont/aviation_fuel_emission_factors
     extend: true  # GenericNode extended its dataset; keep that explicit
     column: fuel_emission_factors
-    # Dimensions of this dataset's other metrics, empty for the column selected above.
-    # AdditiveNode2/MultiplicativeNode2 do not drop empty dimensions the way GenericNode
-    # did, so the binding says which ones do not apply.
-    filters:
-    - column: airport
-    - column: scope
 
 - id: aviation_fuel_emission_factors_co2e
   name: Aviation fuel emission factors (CO2e)
@@ -2716,8 +2699,8 @@ nodes:
   type: simple.MultiplicativeNode2
   quantity: emission_factor
   unit: g_co2e/gal
-  input_dimensions: [energy_carrier, ghg, source]
-  output_dimensions: [energy_carrier, ghg, source]
+  input_dimensions: [energy_carrier, ghg, emission_factor_source]
+  output_dimensions: [energy_carrier, ghg, emission_factor_source]
   input_nodes:
   - id: aviation_fuel_emission_factors
   - id: global_warming_potential_100a
@@ -2738,7 +2721,7 @@ nodes:
     - id: scope
   - id: aviation_fuel_emission_factors_co2e
     from_dimensions:
-    - id: source
+    - id: emission_factor_source
       flatten: true
     to_dimensions:
     - id: energy_carrier
@@ -2767,11 +2750,6 @@ nodes:
   - id: longmont/waste_emission_factors
     extend: true  # GenericNode extended its dataset; keep that explicit
     column: waste_emission_factor
-    # Dimensions of this dataset's other metrics, empty for the column selected above.
-    # AdditiveNode2/MultiplicativeNode2 do not drop empty dimensions the way GenericNode
-    # did, so the binding says which ones do not apply.
-    filters:
-    - column: scope
 
 - id: waste_emission_factors_co2e
   name: Waste emission factors (CO2e)
@@ -2794,15 +2772,9 @@ nodes:
   quantity: fraction
   unit: '%'
   input_datasets:
-  - id: longmont/waste_data
+  - id: longmont/waste_parameters
     extend: true  # GenericNode extended its dataset; keep that explicit
     column: gas_collection_rate
-    # Dimensions of this dataset's other metrics, empty for the column selected above.
-    # AdditiveNode2/MultiplicativeNode2 do not drop empty dimensions the way GenericNode
-    # did, so the binding says which ones do not apply.
-    filters:
-    - column: scope
-    - column: waste
 
 - id: waste_landfilled
   name: Waste landfilled
@@ -2813,7 +2785,7 @@ nodes:
   input_dimensions: [scope, waste]
   output_dimensions: [scope, waste]
   input_datasets:
-  - id: longmont/waste_data
+  - id: longmont/waste_landfilled
     column: waste_landfilled
     # A factor, not an addend: its unit matches the node's, so the unit rule alone would
     # read it as something to add. Extended because GenericNode used to extend it.
@@ -2830,15 +2802,9 @@ nodes:
   quantity: fraction
   unit: '%'
   input_datasets:
-  - id: longmont/waste_data
+  - id: longmont/waste_parameters
     extend: true  # GenericNode extended its dataset; keep that explicit
-    column: Diversion rate
-    # Dimensions of this dataset's other metrics, empty for the column selected above.
-    # AdditiveNode2/MultiplicativeNode2 do not drop empty dimensions the way GenericNode
-    # did, so the binding says which ones do not apply.
-    filters:
-    - column: scope
-    - column: waste
+    column: diversion_rate
 
 - id: msw_characterization
   name: MSW characterization
@@ -2900,15 +2866,9 @@ nodes:
   input_dimensions: [ghg]
   output_dimensions: [ghg]
   input_datasets:
-  - id: longmont/waste_emission_factors
+  - id: longmont/composting_emission_factors
     extend: true  # GenericNode extended its dataset; keep that explicit
     column: composting_emission_factor
-    # Dimensions of this dataset's other metrics, empty for the column selected above.
-    # AdditiveNode2/MultiplicativeNode2 do not drop empty dimensions the way GenericNode
-    # did, so the binding says which ones do not apply.
-    filters:
-    - column: scope
-    - column: waste
 
 - id: composted_waste_emission_factor_co2e
   name: Composted waste emission factor (CO2e)
@@ -2939,11 +2899,6 @@ nodes:
     # read it as something to add. Extended because GenericNode used to extend it.
     tags: [non_additive]
     extend: true
-    # Dimensions of this dataset's other metrics, empty for the column selected above.
-    # AdditiveNode2/MultiplicativeNode2 do not drop empty dimensions the way GenericNode
-    # did, so the binding says which ones do not apply.
-    filters:
-    - column: waste
   input_nodes:
   - id: population
     tags: [ratio_to_max_hist_year]
@@ -2976,14 +2931,9 @@ nodes:
   input_dimensions: [scope, ghg]
   output_dimensions: [scope, ghg]
   input_datasets:
-  - id: longmont/waste_emission_factors
+  - id: longmont/informational_composting_emission_factor
     extend: true  # GenericNode extended its dataset; keep that explicit
     column: informational_composting_emission_factor
-    # Dimensions of this dataset's other metrics, empty for the column selected above.
-    # AdditiveNode2/MultiplicativeNode2 do not drop empty dimensions the way GenericNode
-    # did, so the binding says which ones do not apply.
-    filters:
-    - column: waste
 
 - id: informational_composting_emission_factor_co2e
   name: Informational composting emission factor (CO2e)
@@ -3036,11 +2986,6 @@ nodes:
     # read it as something to add. Extended because GenericNode used to extend it.
     tags: [non_additive]
     extend: true
-    # Dimensions of this dataset's other metrics, empty for the column selected above.
-    # AdditiveNode2/MultiplicativeNode2 do not drop empty dimensions the way GenericNode
-    # did, so the binding says which ones do not apply.
-    filters:
-    - column: waste
   input_nodes:
   - id: population
     tags: [ratio_to_max_hist_year]
@@ -3054,7 +2999,7 @@ nodes:
   input_dimensions: [waste]
   output_dimensions: [waste]
   input_datasets:
-  - id: longmont/waste_characterization
+  - id: longmont/recycling_characterization
     extend: true  # GenericNode extended its dataset; keep that explicit
     column: recycling_characterization
 
@@ -3067,14 +3012,9 @@ nodes:
   input_dimensions: [waste, ghg]
   output_dimensions: [waste, ghg]
   input_datasets:
-  - id: longmont/waste_emission_factors
+  - id: longmont/landfill_gas_and_recycling_emission_factors
     extend: true  # GenericNode extended its dataset; keep that explicit
     column: recycling_instead_of_virgin
-    # Dimensions of this dataset's other metrics, empty for the column selected above.
-    # AdditiveNode2/MultiplicativeNode2 do not drop empty dimensions the way GenericNode
-    # did, so the binding says which ones do not apply.
-    filters:
-    - column: scope
 
 - id: landfill_gas_collection
   name: Landfill gas collection factor
@@ -3085,14 +3025,9 @@ nodes:
   input_dimensions: [waste, ghg]
   output_dimensions: [waste, ghg]
   input_datasets:
-  - id: longmont/waste_emission_factors
+  - id: longmont/landfill_gas_and_recycling_emission_factors
     extend: true  # GenericNode extended its dataset; keep that explicit
     column: landfill_gas_collection
-    # Dimensions of this dataset's other metrics, empty for the column selected above.
-    # AdditiveNode2/MultiplicativeNode2 do not drop empty dimensions the way GenericNode
-    # did, so the binding says which ones do not apply.
-    filters:
-    - column: scope
 
 - id: recycling_emission_factor
   name: Recycling emission factor
@@ -3181,11 +3116,6 @@ nodes:
   - id: longmont/ippu
     extend: true  # GenericNode extended its dataset; keep that explicit
     column: commercial_square_footage_air_conditioned
-    # Dimensions of this dataset's other metrics, empty for the column selected above.
-    # AdditiveNode2/MultiplicativeNode2 do not drop empty dimensions the way GenericNode
-    # did, so the binding says which ones do not apply.
-    filters:
-    - column: ghg
 
 - id: square_feet_per_ton_of_cooling
   name: Square feet per ton of cooling
@@ -3197,11 +3127,6 @@ nodes:
   - id: longmont/ippu
     extend: true  # GenericNode extended its dataset; keep that explicit
     column: square_feet_per_ton_of_cooling
-    # Dimensions of this dataset's other metrics, empty for the column selected above.
-    # AdditiveNode2/MultiplicativeNode2 do not drop empty dimensions the way GenericNode
-    # did, so the binding says which ones do not apply.
-    filters:
-    - column: ghg
 
 - id: amount_of_refrigerant
   name: Amount of refrigerant
@@ -3212,7 +3137,7 @@ nodes:
   input_dimensions: [ghg]
   output_dimensions: [ghg]
   input_datasets:
-  - id: longmont/ippu
+  - id: longmont/amount_of_refrigerant
     extend: true  # GenericNode extended its dataset; keep that explicit
     column: amount_of_refrigerant
 
@@ -3226,11 +3151,6 @@ nodes:
   - id: longmont/ippu
     extend: true  # GenericNode extended its dataset; keep that explicit
     column: estimated_refrigerant_loss
-    # Dimensions of this dataset's other metrics, empty for the column selected above.
-    # AdditiveNode2/MultiplicativeNode2 do not drop empty dimensions the way GenericNode
-    # did, so the binding says which ones do not apply.
-    filters:
-    - column: ghg
 
 - id: refrigerant_emissions
   name: Refrigerant emissions
