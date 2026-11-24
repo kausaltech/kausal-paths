@@ -18,7 +18,7 @@ default_language: en
 supported_languages: [es-US]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 637784b2b283ddc5a9bc0ee3485e6dabc573e5a8
+  commit: a7da2176d50ce626e21fd834cd11bc9aa901861c
   dvc_remote: kausal-s3
 name: Longmont Greenhouse Gas Inventory (development)
 name_es-US: Inventario de Gases de Efecto Invernadero de Longmont (desarrollo)
@@ -998,7 +998,7 @@ nodes:
   input_datasets:
   - id: longmont/avoided_emissions
     extend: true  # GenericNode extended its dataset; keep that explicit
-    column: Green production
+    column: green_production
 
 - id: green_electricity_emission_reduction
   name: Green electricity emission reduction
