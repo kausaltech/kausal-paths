@@ -884,6 +884,18 @@ def _position_action_group(
     return _normalize_action_group_order(ordered)
 
 
+def _active_request_language(default_language: str) -> str:
+    """
+    Return the language a translated write goes into, as an ISO code.
+
+    The active locale is read from the i18n ContextVar — the request-locale
+    contract established by ``ActivateInstanceContextExtension`` — with
+    Django's ``get_language()`` as the fallback for callers outside a
+    GraphQL request.
+    """
+    return convert_language_code(get_default_language() or get_language() or default_language, 'iso')
+
+
 def _merged_i18n_string(current: I18nString | None, value: str, default_language: str) -> TranslatedString:
     """
     Write ``value`` into the active request locale's slot of ``current``.
@@ -891,14 +903,10 @@ def _merged_i18n_string(current: I18nString | None, value: str, default_language
     GraphQL inputs carry one string per translated field, so a write can only
     mean "set the active locale's translation"; the other languages' values
     are preserved. A ``current`` that predates translation (a plain string) is
-    kept as the default language's value.
-
-    The active locale is read from the i18n ContextVar — the request-locale
-    contract established by ``ActivateInstanceContextExtension`` — with
-    Django's ``get_language()`` as the fallback for callers outside a
-    GraphQL request.
+    kept as the default language's value. The active locale comes from
+    ``_active_request_language``.
     """
-    active_language = convert_language_code(get_default_language() or get_language() or default_language, 'iso')
+    active_language = _active_request_language(default_language)
     if isinstance(current, TranslatedString):
         return current.with_translation(active_language, value)
     translations: dict[str, str] = {}
@@ -1268,27 +1276,53 @@ def _parse_params(info: gql.Info, raw: Any, type_config: Any, kind: NodeKind) ->
     return params
 
 
-def _apply_node_db_field_updates(input: UpdateNodeInput, updates: dict[str, object]) -> None:
+def _node_text_updates(input: UpdateNodeInput) -> dict[str, str | None]:
+    """Collect the translatable node texts this input sets, keyed by model field."""
+    texts: dict[str, str | None] = {}
     if is_maybe_set(input.name):
-        updates['name'] = input.name.value
+        texts['name'] = input.name.value
     if is_maybe_set(input.short_name):
-        updates['short_name'] = input.short_name.value
+        texts['short_name'] = input.short_name.value
+    if is_maybe_set(input.short_description):
+        texts['short_description'] = input.short_description.value
+    if is_maybe_set(input.description):
+        texts['description'] = input.description.value
+        # Compatibility for clients written while description was also copied
+        # into NodeSpec.description. An explicit shortDescription wins.
+        if not is_maybe_set(input.short_description):
+            texts['short_description'] = input.description.value
+    return texts
+
+
+def _apply_node_db_field_updates(nc: NodeConfig, input: UpdateNodeInput, updates: dict[str, object]) -> None:
     if is_maybe_set(input.color):
         updates['color'] = input.color.value
     if is_maybe_set(input.order):
         updates['order'] = input.order.value
     if is_maybe_set(input.is_visible):
         updates['is_visible'] = input.is_visible.value
-    if is_maybe_set(input.short_description):
-        updates['short_description'] = input.short_description.value
-    if is_maybe_set(input.description):
-        updates['description'] = input.description.value
-        # Compatibility for clients written while description was also copied
-        # into NodeSpec.description. An explicit shortDescription wins.
-        if not is_maybe_set(input.short_description):
-            updates['short_description'] = input.description.value
-    if is_maybe_set(input.i18n):
-        updates['i18n'] = input.i18n.value or {}
+
+    current_i18n = input.i18n.value if is_maybe_set(input.i18n) else nc.i18n
+    i18n = dict(cast('dict[str, str]', current_i18n or {}))
+    texts = _node_text_updates(input)
+    primary_language = convert_language_code(nc.instance.primary_language, 'iso')
+    language = _active_request_language(primary_language)
+    if language == primary_language:
+        # The primary language lives in the plain columns.
+        updates.update(texts)
+    elif texts:
+        # Any other language is a modeltrans translation; the @locale directive has
+        # already refused languages the instance does not support. An empty value
+        # removes the translation, so the field falls back to the primary language.
+        suffix = convert_language_code(language, 'modeltrans')
+        for field, value in texts.items():
+            key = f'{field}_{suffix}'
+            if value:
+                i18n[key] = value
+            else:
+                i18n.pop(key, None)
+    if is_maybe_set(input.i18n) or (texts and language != primary_language):
+        updates['i18n'] = i18n
 
 
 def _apply_node_spec_field_updates(spec: NodeSpec, input: UpdateNodeInput) -> None:
@@ -1382,7 +1416,7 @@ def _apply_update_node_input(
     input: UpdateNodeInput,
     updates: dict[str, object],
 ) -> None:
-    _apply_node_db_field_updates(input, updates)
+    _apply_node_db_field_updates(nc, input, updates)
     _apply_node_spec_field_updates(spec, input)
     _apply_node_type_update(info, spec, input)
     _apply_node_port_updates(info, nc, spec, input)

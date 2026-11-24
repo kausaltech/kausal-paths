@@ -30,7 +30,7 @@ if TYPE_CHECKING:
     from nodes.actions.action import ActionNode
     from nodes.context import Context
     from nodes.instance_graph import InstanceGraph
-    from nodes.models import InstanceConfig
+    from nodes.models import InstanceConfig, NodeConfig
 
 
 # This way GraphQL LSPs recognize the query strings as GraphQL
@@ -3466,6 +3466,95 @@ def test_paired_input_label_edit_preserves_other_translations(
     assert spec.output_ports[0].model_dump()['label'] == {'en': 'Cost', 'da': 'Omkostning'}
     assert spec.output_ports[0].unit == output.unit
     assert spec.output_ports[0].quantity == output.quantity
+
+
+UPDATE_NODE_TEXTS_LOCALIZED = gql("""
+mutation UpdateNodeTextsLocalized($instanceId: ID!, $nodeId: ID!, $input: UpdateNodeInput!, $_locale: String!)
+@locale(lang: $_locale) {
+    instanceEditor(instanceId: $instanceId) {
+        nodeEditor(nodeId: $nodeId) {
+            update(input: $input) {
+                ... on NodeInterface { identifier name shortDescription description }
+                ... on OperationInfo { messages { kind message } }
+            }
+        }
+    }
+}
+""")
+
+
+def _localized_text_node(db_instance_config: InstanceConfig) -> NodeConfig:
+    from nodes.models import InstanceConfig as InstanceConfigModel, NodeConfig
+
+    InstanceConfigModel.objects.filter(pk=db_instance_config.pk).update(primary_language='en', other_languages=['da'])
+    db_instance_config.refresh_from_db()
+    nc = NodeConfigFactory.create(instance=db_instance_config, identifier='localized_texts', spec=_make_node_spec())
+    NodeConfig.objects.filter(pk=nc.pk).update(
+        name='Heating', description='<p>Heat</p>', short_description='<p>Short</p>', i18n={'name_da': 'Old'}
+    )
+    return NodeConfig.objects.get(pk=nc.pk)
+
+
+def _update_node_texts(
+    gql_client: PathsTestClient, db_instance_config: InstanceConfig, nc: NodeConfig, locale: str, input: dict[str, str]
+) -> dict[str, Any]:
+    return gql_client.query_data(
+        UPDATE_NODE_TEXTS_LOCALIZED,
+        variables={'instanceId': str(db_instance_config.pk), 'nodeId': str(nc.uuid), '_locale': locale, 'input': input},
+    )
+
+
+def test_update_node_texts_in_other_language_writes_translation(
+    gql_client: PathsTestClient, db_instance_config: InstanceConfig
+) -> None:
+    nc = _localized_text_node(db_instance_config)
+    data = _update_node_texts(gql_client, db_instance_config, nc, 'da', {'name': 'Opvarmning', 'description': '<p>Varme</p>'})
+    assert data['instanceEditor']['nodeEditor']['update']['name'] == 'Opvarmning'
+
+    nc.refresh_from_db()
+    assert (nc.name, nc.description, nc.short_description) == ('Heating', '<p>Heat</p>', '<p>Short</p>')
+    # The description compatibility copy goes into the same language as the description.
+    assert nc.i18n == {'name_da': 'Opvarmning', 'description_da': '<p>Varme</p>', 'short_description_da': '<p>Varme</p>'}
+
+
+def test_update_node_texts_in_primary_language_writes_columns(
+    gql_client: PathsTestClient, db_instance_config: InstanceConfig
+) -> None:
+    nc = _localized_text_node(db_instance_config)
+    _update_node_texts(gql_client, db_instance_config, nc, 'en', {'name': 'Space heating'})
+
+    nc.refresh_from_db()
+    assert nc.name == 'Space heating'
+    assert nc.i18n == {'name_da': 'Old'}
+
+
+def test_update_node_texts_empty_translation_falls_back(gql_client: PathsTestClient, db_instance_config: InstanceConfig) -> None:
+    nc = _localized_text_node(db_instance_config)
+    _update_node_texts(gql_client, db_instance_config, nc, 'da', {'name': ''})
+
+    nc.refresh_from_db()
+    assert nc.name == 'Heating'
+    assert nc.i18n == {}
+
+
+def test_update_node_texts_in_unsupported_language_is_refused(
+    gql_client: PathsTestClient, db_instance_config: InstanceConfig
+) -> None:
+    nc = _localized_text_node(db_instance_config)
+    gql_client.query_errors(
+        UPDATE_NODE_TEXTS_LOCALIZED,
+        variables={
+            'instanceId': str(db_instance_config.pk),
+            'nodeId': str(nc.uuid),
+            '_locale': 'fi',
+            'input': {'name': 'Lämmitys'},
+        },
+        assert_error_message='unsupported language',
+    )
+
+    nc.refresh_from_db()
+    assert nc.name == 'Heating'
+    assert nc.i18n == {'name_da': 'Old'}
 
 
 def test_update_input_port_changes_only_named_fields(gql_client: PathsTestClient, db_instance_config: InstanceConfig):
