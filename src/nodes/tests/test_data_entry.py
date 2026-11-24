@@ -32,6 +32,7 @@ from nodes.instance_problems import data_entry_definition_problems
 from nodes.instance_serialization import export_instance, import_instance_copy
 from nodes.models import InstanceConfig
 from nodes.node import Node
+from nodes.shapes import resolve_shapes
 from nodes.tests.factories import InstanceConfigFactory, NodeConfigFactory
 from nodes.units import unit_registry
 
@@ -180,6 +181,37 @@ def test_bisko_base_yaml_sections_have_stable_shared_ids() -> None:
             spec = nodes[table.node_id].spec
             assert spec is not None
             assert any(port.id == table.port_id and port.binding_owner == 'instance' for port in spec.input_ports)
+
+
+def test_bisko_base_optional_inputs_declare_entry_rows() -> None:
+    config = InstanceYAMLConfig.load_for_entrypoint(Path('configs/bisko-base.yaml'))
+    assert config.data is not None
+    snapshot = parse_instance_snapshot(config.data, instance_uuid=uuid4())
+    shapes = resolve_shapes(snapshot.spec.shapes)
+    datasets = {dataset.identifier: dataset for dataset in snapshot.all_datasets()}
+    examples = {
+        'kommune/emissionsfaktoren_endenergie': [{'energy_carrier': 'electricity'}],
+        'kommune/emissionsfaktoren_erzeugung': [{'energy_carrier': 'photovoltaic', 'per_what_energy': 'electricity_output'}],
+        'kommune/emissionsfaktoren_ohne_brennstoffinput': [{'energy_carrier': 'geothermal', 'per_what_energy': 'heat_output'}],
+        'kommune/gemeldete_emissionen': [
+            {'sector': 'private_households', 'energy_carrier': 'electricity'},
+            {'sector': 'transport', 'energy_carrier': 'diesel'},
+        ],
+        'kommune/fernwaerme_netze': [{'district_heating_network': f'network_{i}'} for i in range(1, 6)],
+        'kommune/witterungsbereinigung': [{'sector': 'municipal_facilities'}],
+    }
+    for identifier, coordinates in examples.items():
+        shape_id = datasets[identifier].shape_id
+        assert shape_id is not None
+        shape = shapes[shape_id]
+        assert all(tuple(sorted(row.items())) in shape.combination_keys() for row in coordinates)
+        assert not shape.closed
+        assert not shape.required
+
+    end_energy_shape_id = datasets['kommune/emissionsfaktoren_endenergie'].shape_id
+    assert end_energy_shape_id is not None
+    end_energy = shapes[end_energy_shape_id]
+    assert all(combination.categories['energy_carrier'] != 'district_heating' for combination in end_energy.combinations)
 
 
 def test_excluded_filter_and_assignment_translate_backwards(graph: InstanceGraph) -> None:

@@ -197,8 +197,11 @@ class SectionType:
     def tables(self, dataset_id: UUID | None = None) -> list[TableType]:
         by_dataset: dict[tuple[UUID | None, UUID], list[EntrySelection]] = {}
         for item in self._section.selections:
-            if item.dataset_id in self._query.datasets and (dataset_id is None or item.dataset_id == dataset_id):
-                by_dataset.setdefault((item.table_id, item.dataset_id), []).append(item)
+            if item.dataset_id not in self._query.datasets or (dataset_id is not None and item.dataset_id != dataset_id):
+                continue
+            if self.kind == 'unplaced' and not self._query.has_unplaced_rows(item):
+                continue
+            by_dataset.setdefault((item.table_id, item.dataset_id), []).append(item)
         result = []
         for (entry_id, id), selections in by_dataset.items():
             metrics: dict[UUID, list[FragmentType]] = {}

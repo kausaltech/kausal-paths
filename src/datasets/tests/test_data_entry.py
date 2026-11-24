@@ -7,7 +7,7 @@ from django.test.utils import CaptureQueriesContext
 
 import pytest
 
-from kausal_common.datasets.category_domain import DatasetCategoryDomain
+from kausal_common.datasets.category_domain import DatasetCategoryCombination, DatasetCategoryDomain
 from kausal_common.datasets.models import DataPoint, DatasetMetricValidationRule, DimensionScope
 from kausal_common.datasets.tests.factories import (
     DataPointFactory,
@@ -27,6 +27,7 @@ from datasets.materialization import materialize_dataset
 from datasets.validation import InstanceDatasetValidationError
 from frameworks.models import DataPointEvidence, DataQualityLevel, DataQualityScheme
 from frameworks.tests.factories import FrameworkConfigFactory, FrameworkFactory
+from nodes.data_entry import EntrySelection, rectangle
 from nodes.defs.binding_def import DatasetBindingDef, NodePortRef
 from nodes.defs.data_entry import (
     DataEntryDatasetSpec,
@@ -154,6 +155,32 @@ def test_permission_denial_removes_points_and_counts() -> None:
     assert not query.datasets
     assert query.points(query.graph.data_entry.sections[0].selections, [2023]) == []
     assert query.findings(None, [2023]) == []
+
+
+def test_unplaced_rows_keep_declared_cells_and_values() -> None:
+    query = make_query()
+    dataset = next(iter(query.datasets.values()))
+    dimension = DimensionFactory.create(name='Sector')
+    DimensionScope.objects.create(
+        dimension=dimension, scope_content_type=dataset.scope_content_type, scope_id=dataset.scope_id, identifier='sector'
+    )
+    DatasetSchemaDimensionFactory.create(schema=dataset.schema, dimension=dimension)
+    declared, observed, blank = [DimensionCategoryFactory.create(dimension=dimension) for _ in range(3)]
+    for point in dataset.data_points.all():
+        point.dimension_categories.set([observed])
+    domain = DatasetCategoryDomain(
+        combinations=[DatasetCategoryCombination(id=uuid4(), identifier='declared', categories={dimension.uuid: declared.uuid})]
+    )
+    data = query.graph.model_dump()
+    data['datasets'][0]['category_domain'] = domain
+    with set_i18n_context('en', []):
+        query = DataEntryQuery(InstanceGraph.model_validate(data), query.user)
+    meta = query.graph.datasets[0]
+    selections = [
+        EntrySelection(meta.id, meta.metrics[0].id, (rectangle({dimension.uuid: frozenset([category.uuid])}),), 'unplaced')
+        for category in (declared, observed, blank)
+    ]
+    assert [query.has_unplaced_rows(selection) for selection in selections] == [True, True, False]
 
 
 def test_required_value_contract_counts_an_entirely_empty_inventory_year() -> None:
