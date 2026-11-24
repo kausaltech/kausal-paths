@@ -10,9 +10,11 @@ import polars as pl
 import pytest
 
 from kausal_common.datasets.models import DataPoint, DataPointComment, Dataset, DatasetMetric
+from kausal_common.i18n.pydantic import TranslatedString
 
 from common import polars as ppl
 from datasets.management.commands.load_dvc_dataset import Command, build_dataset_plan, count_incoming_cells
+from nodes.dimensions import Dimension, DimensionCategory
 from nodes.models import NodeConfig, NodeInputPortBinding
 from nodes.tests.factories import InstanceConfigFactory, NodeConfigFactory
 from users.tests.factories import UserFactory
@@ -22,12 +24,15 @@ pytestmark = pytest.mark.django_db
 DS_ID = 'test/refresh'
 
 
-def make_context(df: pl.DataFrame, units: dict[str, str], commit: str | None = None) -> Any:
+def make_context(
+    df: pl.DataFrame, units: dict[str, str], commit: str | None = None, dimensions: list[Dimension] | None = None
+) -> Any:
     """Build a stand-in for the runtime Context, carrying just what sync_dataset reads."""
+    dims = dimensions or []
     dvc_dataset = SimpleNamespace(
         df=df,
         units=units,
-        index_columns=['Year'],
+        index_columns=['Year', *(d.id for d in dims)],
         metadata={'name': {'en': 'Refreshable dataset'}, 'metrics': [{'column_id': col} for col in units]},
     )
     repo_spec = SimpleNamespace(url='https://example.com/dvc.git', commit=commit, dvc_remote=None) if commit else None
@@ -35,7 +40,7 @@ def make_context(df: pl.DataFrame, units: dict[str, str], commit: str | None = N
         'Any',
         SimpleNamespace(
             dataset_repo_spec=repo_spec,
-            dimensions={},
+            dimensions={d.id: d for d in dims},
             instance=SimpleNamespace(default_language='en'),
             load_dvc_dataset=lambda _dataset_id: dvc_dataset,
         ),
@@ -363,3 +368,61 @@ def test_two_values_for_one_cell_are_refused():
     df = pl.DataFrame({'Year': [2020, 2020], 'value': [1.0, 2.0], 'comment': ['one', 'two']})
     with pytest.raises(ValueError, match='two values'):
         Command().sync_dataset(ic, make_context(df, {'value': 'kt'}), DS_ID)
+
+
+def _ghg() -> Dimension:
+    return Dimension(
+        id='ghg',
+        label=TranslatedString('Greenhouse gas', default_language='en'),
+        categories=[DimensionCategory(id='co2', label=TranslatedString('CO2', default_language='en'))],
+    )
+
+
+def test_force_reimport_unlinks_a_dimension_the_data_no_longer_has():
+    """
+    A dimension that leaves the DVC data leaves the schema too, as a dropped metric does.
+
+    Splitting a dataset leaves the original with fewer dimensions. The refresh used to keep
+    the schema's link to the dimension the data no longer has, so every frame read from the
+    row carried that dimension as a column of nulls: a port had to be told to drop it, and a
+    frame with no other dimension failed in its wide projection ("not enough values to
+    unpack") as soon as the port interpolated.
+    """
+    ic = InstanceConfigFactory.create(name='refresh-dropped-dim', config_source='database')
+    with_dim = pl.DataFrame({'Year': [2020, 2021], 'ghg': ['co2', 'co2'], 'value': [1.0, 2.0]})
+    Command().sync_dataset(ic, make_context(with_dim, {'value': 'kt'}, commit='aaa111', dimensions=[_ghg()]), DS_ID)
+    dataset = Dataset.objects.get(identifier=DS_ID)
+    assert dataset.schema is not None
+    assert dataset.schema.dimensions.count() == 1
+
+    without = make_context(pl.DataFrame({'Year': [2020, 2021], 'value': [1.0, 2.0]}), {'value': 'kt'}, commit='bbb222')
+    plan = build_dataset_plan(
+        ds_id=DS_ID,
+        dataset=dataset,
+        incoming_metric_cols=['value'],
+        incoming_data_points=2,
+        incoming_commit='bbb222',
+        incoming_dim_cols=[],
+    )
+    assert plan.dropped_dimensions == ['ghg'], 'the plan must say the dimension goes'
+
+    Command().sync_dataset(ic, without, DS_ID, force=True)
+
+    assert dataset.schema.dimensions.count() == 0, 'the stale dimension must be unlinked'
+    points = list(DataPoint.objects.filter(dataset=dataset))
+    assert len(points) == 2
+    assert all(not dp.dimension_categories.exists() for dp in points), 'no point may keep a category of the dropped dimension'
+
+
+def test_a_plan_without_incoming_dimensions_reports_none_dropped():
+    """Callers that do not pass the incoming dimensions (dataset_status) get no dimension diff."""
+    ic = InstanceConfigFactory.create(name='refresh-dim-unknown', config_source='database')
+    with_dim = pl.DataFrame({'Year': [2020], 'ghg': ['co2'], 'value': [1.0]})
+    Command().sync_dataset(ic, make_context(with_dim, {'value': 'kt'}, dimensions=[_ghg()]), DS_ID)
+    dataset = Dataset.objects.get(identifier=DS_ID)
+
+    plan = build_dataset_plan(
+        ds_id=DS_ID, dataset=dataset, incoming_metric_cols=['value'], incoming_data_points=1, incoming_commit=None
+    )
+
+    assert plan.dropped_dimensions == []

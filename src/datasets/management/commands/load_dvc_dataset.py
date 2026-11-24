@@ -198,6 +198,15 @@ class DatasetPlan:
     dropped_metrics: list[tuple[str, int]] = field(default_factory=list)
     """(metric name, number of dataset ports binding it) for columns no longer in the DVC data."""
 
+    dropped_dimensions: list[str] = field(default_factory=list)
+    """
+    Dimension columns of the schema that the DVC data no longer has.
+
+    Left linked, such a dimension arrives in every frame as a column of nulls, which a node then
+    has to be told to drop, and which breaks the wide projection of a frame with no other
+    dimension. Known only when the caller passes the incoming dimension columns.
+    """
+
     current_dataset_sources: list[str] = field(default_factory=list)
     """Names of the DataSources currently attached to the dataset row itself."""
 
@@ -250,13 +259,15 @@ def build_dataset_plan(
     incoming_commit: str | None,
     incoming_dataset_sources: list[str] | None = None,
     incoming_valued_cells: int | None = None,
+    incoming_dim_cols: list[str] | None = None,
 ) -> DatasetPlan:
     """
     Diff the DB state of one dataset against the DVC data about to be imported.
 
     ``incoming_valued_cells`` defaults to ``incoming_data_points``, i.e. to data with no
     empty cells; pass both (``count_incoming_cells`` returns the pair) to have the plan
-    recognise a template.
+    recognise a template. ``incoming_dim_cols``, when given, has the plan list the schema's
+    dimensions that the incoming data no longer has.
     """
     from nodes.models import NodeInputPortBinding
 
@@ -301,7 +312,29 @@ def build_dataset_plan(
         for name, metric in existing.items()
         if name not in incoming
     )
+    if incoming_dim_cols is not None:
+        incoming_dims = set(incoming_dim_cols)
+        plan.dropped_dimensions = sorted(
+            column for column in schema_dimension_columns(dataset, schema) if column not in incoming_dims
+        )
     return plan
+
+
+def schema_dimension_columns(dataset: Dataset, schema: DatasetSchema) -> dict[str, DatasetSchemaDimension]:
+    """Map each dimension of ``schema`` to the data column it reads, as ``dataset``'s scope names it."""
+    identifiers = dict(
+        DimensionScope.objects.filter(
+            scope_content_type=dataset.scope_content_type,
+            scope_id=dataset.scope_id,
+            dimension__in=schema.dimensions.values('dimension'),
+        ).values_list('dimension_id', 'identifier')
+    )
+    columns: dict[str, DatasetSchemaDimension] = {}
+    for schema_dim in schema.dimensions.all():
+        column = schema_dim.column_name or identifiers.get(schema_dim.dimension_id)
+        if column:
+            columns[column] = schema_dim
+    return columns
 
 
 def print_dataset_source_plan(plan: DatasetPlan) -> None:
@@ -319,6 +352,19 @@ def print_dataset_source_plan(plan: DatasetPlan) -> None:
         print(f'  source [green]add[/green]   {name} [dim](dataset-level)[/dim]')
     for name in sorted(current - incoming):
         print(f'  source [yellow]drop[/yellow]  {name} [dim](dataset-level)[/dim]')
+
+
+def print_dataset_structure_plan(plan: DatasetPlan) -> None:
+    """Render the metric and dimension lines of one dataset's plan."""
+    if plan.kept_metrics:
+        print(f'  metrics kept {", ".join(plan.kept_metrics)}')
+    if plan.added_metrics:
+        print(f'  metrics [green]add[/green]  {", ".join(plan.added_metrics)}')
+    for name, port_count in plan.dropped_metrics:
+        suffix = f' [red](bound by {port_count} dataset port(s))[/red]' if port_count else ''
+        print(f'  metrics [yellow]drop[/yellow] {name}{suffix}')
+    for column in plan.dropped_dimensions:
+        print(f'  dimension [yellow]drop[/yellow] {column}')
 
 
 def print_dataset_plan(plan: DatasetPlan) -> None:
@@ -344,13 +390,7 @@ def print_dataset_plan(plan: DatasetPlan) -> None:
             f'  [red]WARNING[/red]      the incoming data is a template: every cell is empty, so this import would '
             f'blank the {plan.current_valued_points} value(s) stored here'
         )
-    if plan.kept_metrics:
-        print(f'  metrics kept {", ".join(plan.kept_metrics)}')
-    if plan.added_metrics:
-        print(f'  metrics [green]add[/green]  {", ".join(plan.added_metrics)}')
-    for name, port_count in plan.dropped_metrics:
-        suffix = f' [red](bound by {port_count} dataset port(s))[/red]' if port_count else ''
-        print(f'  metrics [yellow]drop[/yellow] {name}{suffix}')
+    print_dataset_structure_plan(plan)
     print_dataset_source_plan(plan)
     for problem in plan.blockers:
         print(f'  [red]blocker[/red]      {problem}')
@@ -489,6 +529,7 @@ class Command(BaseCommand):
             incoming_valued_cells=incoming_valued,
             incoming_commit=(make_external_dataset_ref(ctx, ds_id) or {}).get('commit'),
             incoming_dataset_sources=dataset_level_source_names(dvc_metadata.get('sources')),
+            incoming_dim_cols=list(df_metadata.dim_ids),
         )
         print_dataset_plan(plan)
         if plan_only:
@@ -651,6 +692,17 @@ class Command(BaseCommand):
                 continue
             DatasetMetric.objects.filter(schema=schema, name=name).delete()
             print(f"Deleted stale metric '{name}' (no longer in the DVC data)")
+
+        # A dimension the data no longer has goes the same way. Its category links on the old
+        # points cannot match an incoming cell, so `sync_data_points` replaces those points.
+        if plan.dropped_dimensions:
+            if plan.schema_shared_with > 1:
+                print(f'Keeping stale dimensions {plan.dropped_dimensions}: the schema is shared with other datasets')
+            else:
+                columns = schema_dimension_columns(dataset, schema)
+                for column in plan.dropped_dimensions:
+                    columns[column].delete()
+                    print(f"Unlinked stale dimension '{column}' (no longer in the DVC data)")
 
         # Restamp provenance, so the row records the commit its data actually came from.
         dataset.external_ref = make_external_dataset_ref(ctx, ds_id)
