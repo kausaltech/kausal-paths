@@ -531,6 +531,17 @@ dimensions:
     label: Polttoon päätyvän jätteen fossiilisen osuuden vähentäminen
     label_en: Reduce carbon intensity of incinerated waste
 
+- id: scenario
+  label: Skenaario
+  label_en: Scenario
+  categories:
+  - id: roadmap
+    label: Tiekartta
+    label_en: Roadmap
+  - id: roadmap_plus
+    label: Tiekartta+
+    label_en: Roadmap+
+
 # ----- Kelicobe
 
 - id: owner_kelicobe
@@ -5279,12 +5290,12 @@ actions:
 - id: improving_the_service_level_of_public_transport
   name: 'KAUPUNKI: Joukkoliikenteen palvelutason nosto'
   name_en: 'CITY: Improving the service level of public transport'
-  type: simple.AdditiveAction
+  type: simple.GenericAction
   group: transportation
   unit: Mvkm/a
   quantity: mileage
-  input_dimensions: [action, owner, vehicle_type]
-  output_dimensions: [action, owner, vehicle_type]
+  input_dimensions: [action, owner, scenario, vehicle_type]
+  output_dimensions: [action, owner, scenario, vehicle_type]
   input_datasets:
   - id: tampere/transportation_actions
     column: mileage
@@ -5296,6 +5307,20 @@ actions:
     - column: cost_type
     - column: scope
     - column: energy_carrier
+  params:
+  - id: operations
+    value: get_single_dataset, select_variant
+    is_customizable: false
+    is_visible: false
+  - id: categories
+    value: scenario:roadmap_plus
+    is_customizable: false
+    is_visible: false
+  - id: do_correction
+    value: false
+    is_customizable: true
+    label: Kunnianhimoisemmat vaikutukset
+    label_en: More ambitious impacts
   output_nodes:
   - id: car_kilometers
     from_dimensions:
@@ -5303,9 +5328,14 @@ actions:
       flatten: true
     - id: owner
       flatten: true
+    - id: scenario
+      flatten: true
     to_dimensions:
     - id: vehicle_type
   - id: transport_kilometer_impacts
+    from_dimensions:
+    - id: scenario
+      flatten: true
 
 - id: promoting_walking_and_cycling
   name: 'KAUPUNKI: Pyöräilyn edistäminen'
@@ -5323,6 +5353,7 @@ actions:
     - column: sector
     - dimension: action
       categories: [promoting_walking_and_cycling]
+    - column: scenario
     - column: scope
     - column: energy_carrier
   output_metrics:
@@ -5427,12 +5458,12 @@ actions:
 - id: parking_policy_to_support_sustainable_mobility
   name: 'KAUPUNKI: Kestävää liikkumista tukeva pysäköintipolitiikka'
   name_en: 'CITY: Parking policy to support sustainable mobility'
-  type: simple.AdditiveAction
+  type: simple.GenericAction
   group: transportation
   unit: Mvkm/a
   quantity: mileage
-  input_dimensions: [action, owner, vehicle_type]
-  output_dimensions: [action, owner, vehicle_type]
+  input_dimensions: [action, owner, scenario, vehicle_type]
+  output_dimensions: [action, owner, scenario, vehicle_type]
   input_datasets:
   - id: tampere/transportation_actions
     column: mileage
@@ -5444,6 +5475,20 @@ actions:
     - column: cost_type
     - column: scope
     - column: energy_carrier
+  params:
+  - id: operations
+    value: get_single_dataset, select_variant
+    is_customizable: false
+    is_visible: false
+  - id: categories
+    value: scenario:roadmap_plus
+    is_customizable: false
+    is_visible: false
+  - id: do_correction
+    value: false
+    is_customizable: true
+    label: Kunnianhimoisemmat vaikutukset
+    label_en: More ambitious impacts
   output_nodes:
   - id: car_kilometers
     from_dimensions:
@@ -5451,9 +5496,14 @@ actions:
       flatten: true
     - id: owner
       flatten: true
+    - id: scenario
+      flatten: true
     to_dimensions:
     - id: vehicle_type
   - id: transport_kilometer_impacts
+    from_dimensions:
+    - id: scenario
+      flatten: true
 
 - id: plusbus_investments
   name: 'KAUPUNKI: Plusbussi-investoinnit'
@@ -5471,6 +5521,7 @@ actions:
     - column: sector
     - dimension: action
       categories: [plusbus_investments]
+    - column: scenario
   output_metrics:
   - id: mileage
     unit: Mvkm/a
@@ -5632,6 +5683,7 @@ actions:
     - column: sector
     - dimension: action
       categories: [tramline_3_construction]
+    - column: scenario
     - column: energy_carrier
   output_metrics:
   - id: mileage
@@ -5798,6 +5850,7 @@ actions:
     - column: sector
     - dimension: action
       categories: [reduce_speedlimits_on_highways]
+    - column: scenario
     - column: owner
     - column: vehicle_type
     - column: cost_type
@@ -7497,3 +7550,7 @@ scenarios:
   params:
   - id: reduce_speedlimits_on_highways.enabled
     value: false
+  - id: improving_the_service_level_of_public_transport.do_correction
+    value: true
+  - id: parking_policy_to_support_sustainable_mobility.do_correction
+    value: true
