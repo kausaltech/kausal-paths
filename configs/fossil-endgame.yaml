@@ -4,10 +4,11 @@ id: fossil-endgame # defines which instance is updated
 # what one would have to value or believe for that. The argument is in paths-data
 # modules/fossil-endgame/docs/argument.md; the plan, sources and decisions are beside it.
 #
-# DRAFT. The observations, the shared global CO2 budget (`modules/carbon_budget/`), the
-# computed tests of the argument (`modules/fossil_endgame/global.yaml`) and the positions as
-# argument nodes (`positions.yaml`) are here; the pages are still to come. A city includes the
-# same module files instead of this instance, plus a city part still to be written.
+# The observations, the shared global CO2 budget (`modules/carbon_budget/`), the computed tests
+# of the argument (`modules/fossil_endgame/global.yaml`) and the positions as argument nodes
+# (`positions.yaml`). The pages other than home are database content, written by paths-data
+# modules/fossil-endgame/scripts/create_pages.py. A city includes the same module files instead
+# of this instance, plus a city part still to be written.
 default_language: en
 supported_languages: []
 dataset_repo:
