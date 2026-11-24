@@ -136,6 +136,19 @@ class DataEntryQuery:
             and dataset.permission_policy().user_has_perm(self.user, 'change', dataset)
         )
 
+    def has_unplaced_rows(self, selection: EntrySelection) -> bool:
+        """Keep declared rows and entered values in a slice left over from the authored tabs."""
+        edition = self.editions.require(selection.dataset_id)
+        combinations = edition.meta.category_domain.combinations
+        if not combinations or edition.unavailable is not None:
+            return True
+        if any(matches(selection, selection.metric_id, tuple(combo.categories.items())) for combo in combinations):
+            return True
+        return any(
+            point.value is not None and matches(selection, point.metric, tuple(point.categories.items()))
+            for point in edition.snapshot.points
+        )
+
     def load(self, dataset_ids: Iterable[UUID]) -> None:
         wanted = set(dataset_ids) & self.datasets.keys() - self._data.keys()
         if not wanted:

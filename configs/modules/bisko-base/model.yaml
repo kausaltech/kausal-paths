@@ -130,7 +130,7 @@ shapes:
   dimensions: [sector, energy_carrier]
   # The carriers of Methodenpapier Tabelle 3, with Heizstrom and Nahwärme kept apart from Strom
   # and Fernwärme as the municipal tables record them, and Biogas from Tabelle 4.
-  combinations:
+  combinations: &stationary_sector_carriers
   - {id: private_households_electricity, categories: {sector: private_households, energy_carrier: electricity}}
   - {id: private_households_heating_electricity, categories: {sector: private_households, energy_carrier: heating_electricity}}
   - {id: private_households_natural_gas, categories: {sector: private_households, energy_carrier: natural_gas}}
@@ -516,6 +516,128 @@ shapes:
   - {id: network_5_industry, categories: {district_heating_network: network_5, sector: industry}}
   - {id: network_5_municipal_facilities, categories: {district_heating_network: network_5, sector: municipal_facilities}}
 
+- id: reported_emissions
+  name_de: Gemeldete Emissionen
+  name_en: Reported emissions
+  dimensions: [sector, energy_carrier]
+  inherits: [reported_transport_emissions]
+  # Use the stationary sector and carrier pairs without the end-energy reporting requirements.
+  # Keep the shape open for inventories published with a different breakdown.
+  combinations: *stationary_sector_carriers
+
+- id: reported_transport_emissions
+  name_de: Gemeldete Verkehrsemissionen
+  name_en: Reported transport emissions
+  dimensions: [sector, energy_carrier]
+  combinations:
+  - {id: transport_electricity, categories: {sector: transport, energy_carrier: electricity}}
+  - {id: transport_petrol, categories: {sector: transport, energy_carrier: petrol}}
+  - {id: transport_bio_petrol, categories: {sector: transport, energy_carrier: bio_petrol}}
+  - {id: transport_diesel, categories: {sector: transport, energy_carrier: diesel}}
+  - {id: transport_biodiesel, categories: {sector: transport, energy_carrier: biodiesel}}
+  - {id: transport_kerosene, categories: {sector: transport, energy_carrier: kerosene}}
+  - {id: transport_lpg, categories: {sector: transport, energy_carrier: lpg}}
+  - {id: transport_cng_fossil, categories: {sector: transport, energy_carrier: cng_fossil}}
+  - {id: transport_biogas, categories: {sector: transport, energy_carrier: biogas}}
+
+- id: weather_correction
+  name_de: Witterungsbereinigung nach Sektor
+  name_en: Weather correction by sector
+  dimensions: [sector]
+  # Match the sectors of the default series, including its neutral factors for industry and transport.
+  combinations:
+  - {id: private_households, categories: {sector: private_households}}
+  - {id: commerce_trade_services, categories: {sector: commerce_trade_services}}
+  - {id: industry, categories: {sector: industry}}
+  - {id: municipal_facilities, categories: {sector: municipal_facilities}}
+  - {id: transport, categories: {sector: transport}}
+
+- id: district_heating_network_parameters
+  name_de: Wärmenetzparameter
+  name_en: Heat network parameters
+  dimensions: [district_heating_network]
+  combinations:
+  - {id: network_1, categories: {district_heating_network: network_1}}
+  - {id: network_2, categories: {district_heating_network: network_2}}
+  - {id: network_3, categories: {district_heating_network: network_3}}
+  - {id: network_4, categories: {district_heating_network: network_4}}
+  - {id: network_5, categories: {district_heating_network: network_5}}
+
+# Optional local overrides follow the coordinates of the national factor tables.
+# The shapes stay open so existing local categories can still be entered.
+- id: local_end_energy_emission_factors
+  name_de: Lokale Emissionsfaktoren der Endenergie
+  name_en: Local end-energy emission factors
+  dimensions: [energy_carrier]
+  # District heating has its own calculation and data-entry section.
+  combinations:
+  - {id: electricity, categories: {energy_carrier: electricity}}
+  - {id: heating_electricity, categories: {energy_carrier: heating_electricity}}
+  - {id: natural_gas, categories: {energy_carrier: natural_gas}}
+  - {id: heating_oil, categories: {energy_carrier: heating_oil}}
+  - {id: propane, categories: {energy_carrier: propane}}
+  - {id: hard_coal, categories: {energy_carrier: hard_coal}}
+  - {id: brown_coal, categories: {energy_carrier: brown_coal}}
+  - {id: local_heating, categories: {energy_carrier: local_heating}}
+  - {id: biomass, categories: {energy_carrier: biomass}}
+  - {id: biogas, categories: {energy_carrier: biogas}}
+  - {id: solar_thermal, categories: {energy_carrier: solar_thermal}}
+  - {id: environmental_heat, categories: {energy_carrier: environmental_heat}}
+  - {id: other_renewable_energy_carriers, categories: {energy_carrier: other_renewable_energy_carriers}}
+  - {id: other_conventional_energy_carriers, categories: {energy_carrier: other_conventional_energy_carriers}}
+  - {id: conventional_waste_heat_gt_90, categories: {energy_carrier: conventional_waste_heat_gt_90}}
+  - {id: conventional_waste_heat_lt_90, categories: {energy_carrier: conventional_waste_heat_lt_90}}
+  - {id: renewable_waste_heat_gt_90, categories: {energy_carrier: renewable_waste_heat_gt_90}}
+  - {id: renewable_waste_heat_lt_90, categories: {energy_carrier: renewable_waste_heat_lt_90}}
+
+- id: local_generation_emission_factors
+  name_de: Lokale Emissionsfaktoren der Energieerzeugung
+  name_en: Local generation emission factors
+  dimensions: [energy_carrier, per_what_energy]
+  combinations:
+  - {id: biogas_fuel_input, categories: {energy_carrier: biogas, per_what_energy: fuel_input}}
+  - {id: biomass_fuel_input, categories: {energy_carrier: biomass, per_what_energy: fuel_input}}
+  - {id: brown_coal_fuel_input, categories: {energy_carrier: brown_coal, per_what_energy: fuel_input}}
+  - {id: conventional_waste_heat_gt_90_fuel_input, categories: {energy_carrier: conventional_waste_heat_gt_90, per_what_energy: fuel_input}}
+  - {id: conventional_waste_heat_lt_90_fuel_input, categories: {energy_carrier: conventional_waste_heat_lt_90, per_what_energy: fuel_input}}
+  - {id: electricity_fuel_input, categories: {energy_carrier: electricity, per_what_energy: fuel_input}}
+  - {id: environmental_heat_fuel_input, categories: {energy_carrier: environmental_heat, per_what_energy: fuel_input}}
+  - {id: hard_coal_fuel_input, categories: {energy_carrier: hard_coal, per_what_energy: fuel_input}}
+  - {id: heating_oil_fuel_input, categories: {energy_carrier: heating_oil, per_what_energy: fuel_input}}
+  - {id: natural_gas_fuel_input, categories: {energy_carrier: natural_gas, per_what_energy: fuel_input}}
+  - {id: other_conventional_energy_carriers_fuel_input, categories: {energy_carrier: other_conventional_energy_carriers, per_what_energy: fuel_input}}
+  - {id: other_renewable_energy_carriers_fuel_input, categories: {energy_carrier: other_renewable_energy_carriers, per_what_energy: fuel_input}}
+  - {id: propane_fuel_input, categories: {energy_carrier: propane, per_what_energy: fuel_input}}
+  - {id: renewable_waste_heat_gt_90_fuel_input, categories: {energy_carrier: renewable_waste_heat_gt_90, per_what_energy: fuel_input}}
+  - {id: renewable_waste_heat_lt_90_fuel_input, categories: {energy_carrier: renewable_waste_heat_lt_90, per_what_energy: fuel_input}}
+  - {id: sewage_sludge_fuel_input, categories: {energy_carrier: sewage_sludge, per_what_energy: fuel_input}}
+  - {id: solar_thermal_fuel_input, categories: {energy_carrier: solar_thermal, per_what_energy: fuel_input}}
+  - {id: waste_fuel_input, categories: {energy_carrier: waste, per_what_energy: fuel_input}}
+  - {id: biogas_electricity_output, categories: {energy_carrier: biogas, per_what_energy: electricity_output}}
+  - {id: biomass_electricity_output, categories: {energy_carrier: biomass, per_what_energy: electricity_output}}
+  - {id: hydropower_electricity_output, categories: {energy_carrier: hydropower, per_what_energy: electricity_output}}
+  - {id: photovoltaic_electricity_output, categories: {energy_carrier: photovoltaic, per_what_energy: electricity_output}}
+  - {id: sewage_landfill_mine_gas_electricity_output, categories: {energy_carrier: sewage_landfill_mine_gas, per_what_energy: electricity_output}}
+  - {id: wind_electricity_output, categories: {energy_carrier: wind, per_what_energy: electricity_output}}
+
+- id: local_emission_factors_without_fuel_input
+  name_de: Lokale Emissionsfaktoren ohne Brennstoffeinsatzdaten
+  name_en: Local emission factors without fuel input data
+  dimensions: [energy_carrier, per_what_energy]
+  combinations:
+  - {id: biogas_electricity_output, categories: {energy_carrier: biogas, per_what_energy: electricity_output}}
+  - {id: geothermal_electricity_output, categories: {energy_carrier: geothermal, per_what_energy: electricity_output}}
+  - {id: liquid_biomass_electricity_output, categories: {energy_carrier: liquid_biomass, per_what_energy: electricity_output}}
+  - {id: other_conventional_energy_carriers_electricity_output, categories: {energy_carrier: other_conventional_energy_carriers, per_what_energy: electricity_output}}
+  - {id: other_renewable_energy_carriers_electricity_output, categories: {energy_carrier: other_renewable_energy_carriers, per_what_energy: electricity_output}}
+  - {id: solid_biomass_electricity_output, categories: {energy_carrier: solid_biomass, per_what_energy: electricity_output}}
+  - {id: biogas_heat_output, categories: {energy_carrier: biogas, per_what_energy: heat_output}}
+  - {id: geothermal_heat_output, categories: {energy_carrier: geothermal, per_what_energy: heat_output}}
+  - {id: liquid_biomass_heat_output, categories: {energy_carrier: liquid_biomass, per_what_energy: heat_output}}
+  - {id: other_conventional_energy_carriers_heat_output, categories: {energy_carrier: other_conventional_energy_carriers, per_what_energy: heat_output}}
+  - {id: other_renewable_energy_carriers_heat_output, categories: {energy_carrier: other_renewable_energy_carriers, per_what_energy: heat_output}}
+  - {id: solid_biomass_heat_output, categories: {energy_carrier: solid_biomass, per_what_energy: heat_output}}
+
 datasets:
 
 # --- BISKO reference data: methodology constants, immutable to every user ------------------
@@ -639,6 +761,7 @@ datasets:
   # interchangeable -- the German factors are measurably flatter -- so a city that supplies its
   # own VDI 3807 series is not supplying the same quantity. See paths-data `modules/weather/README.md`.
   is_editable: true
+  shape: weather_correction
   metrics:
   - id: default
     validation_rules:
@@ -657,6 +780,7 @@ datasets:
     - {kind: value_range, enforcement: block_edit, min: 0, max: 1}
 - id: kommune/fernwaerme_netze                     # supply and return temperature and losses per heat network
   is_editable: true
+  shape: district_heating_network_parameters
   metrics:
   # Entered in °C and %, the units a utility uses; the formulas convert. A value_range is checked
   # against the stored number in the metric's own unit, so the bounds are in °C and %.
@@ -710,6 +834,7 @@ datasets:
     - {kind: value_range, enforcement: block_edit, min: 0, max: 1}
 - id: kommune/gemeldete_emissionen               # the city's own reported inventory
   is_editable: true
+  shape: reported_emissions
   metrics:
   - id: Value
     validation_rules:
@@ -831,18 +956,21 @@ datasets:
 # route the certifier asks for, so nothing was taken away.
 - id: kommune/emissionsfaktoren_endenergie
   is_editable: true
+  shape: local_end_energy_emission_factors
   metrics:
   - id: Value
     validation_rules:
     - {kind: value_range, enforcement: block_edit, min: 0}
 - id: kommune/emissionsfaktoren_erzeugung
   is_editable: true
+  shape: local_generation_emission_factors
   metrics:
   - id: Value
     validation_rules:
     - {kind: value_range, enforcement: block_edit, min: 0}
 - id: kommune/emissionsfaktoren_ohne_brennstoffinput
   is_editable: true
+  shape: local_emission_factors_without_fuel_input
   metrics:
   - id: Value
     validation_rules:
@@ -3062,7 +3190,7 @@ nodes:
     filters:
     - column: upstream_included
     tags: [national]
-  - id: kommune/emissionsfaktoren_erzeugung  # seeded from the national table; replace with city-specific values IF NEEDED
+  - id: kommune/emissionsfaktoren_erzeugung
     binding_owner: instance
     tags: [local]
   params:
