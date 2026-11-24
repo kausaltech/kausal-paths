@@ -309,7 +309,15 @@ resolver in `translation.override('en')` to keep error messages English,
 which silently redirected every locale-sensitive write to English. It now
 forces English only while rendering `OperationInfo` messages.
 
-`NodeConfig.name` / `short_name` / `description` updates in `updateNode`
-still write the plain columns directly; clients manage translations through
-the raw `i18n` JSON passthrough field. Migrating those writes to the
-locale-aware pattern is an open follow-up.
+`updateNode` follows the same contract for `NodeConfig.name`, `short_name`,
+`short_description` and `description`, but cannot use the `<field>_i18n`
+attribute. `NodeConfig`'s default language is the instance's
+`primary_language`, not `settings.LANGUAGE_CODE`, and the write goes through
+`queryset.update()` to avoid the `ClusterableModel` save trap above. So
+`_apply_node_db_field_updates` compares the request locale with
+`primary_language` itself. In the primary language it writes the plain columns,
+and in any other language it writes `<field>_<lang>` into `i18n`. An empty value
+removes that key, so the field falls back to the primary language. The raw `i18n`
+JSON input field still replaces the whole dict, and a translated write merges
+into that dict when both are given. The model editor's language tabs write
+through this path.
