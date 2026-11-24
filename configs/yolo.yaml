@@ -3,7 +3,7 @@ default_language: en
 supported_languages: []
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: d2e9e605439d626873253351398fe2855a4db5fa
+  commit: f12bfd52ad3b4045773a5786c95bdba4e6388861
   dvc_remote: kausal-s3
 name: Yolo County Greenhouse Gas Emissions
 owner: Yolo County
@@ -24,7 +24,7 @@ impact_overviews:
   effect_node: net_emissions
   indicator_unit: t_co2e
   invert_effect: true
-  label: Cumulative Emissions Reductions
+  label: Cumulative Emissions Reduction
 
 - graph_type: wedge_diagram
   effect_node: net_emissions
@@ -407,7 +407,7 @@ nodes:
   output_dimensions: [energy_provider, ghg, scope, energy_carrier]
   input_datasets:
   - id: yolo/energy_emission_factors
-    column: emission_factor
+    column: emission_factor_electricity
     forecast_from: 2023
     filters:
     - dimension: energy_carrier
@@ -423,7 +423,7 @@ nodes:
   output_dimensions: [energy_provider, ghg, scope, energy_carrier]
   input_datasets:
   - id: yolo/energy_emission_factors
-    column: emission_factor
+    column: emission_factor_natural_gas
     forecast_from: 2023
     filters:
     - dimension: energy_carrier
