@@ -237,6 +237,45 @@ def test_db_dataset_reuses_deserialized_dataframe_within_context(monkeypatch: py
     assert second_df is not first_df
 
 
+def test_db_dataset_refilters_when_a_filter_parameter_changes(monkeypatch: pytest.MonkeyPatch) -> None:
+    """
+    A database dataset filtered by a parameter must not keep the frame of the parameter's first value.
+
+    It once did: a scenario that switched the parameter (one value set per scenario) got the
+    values of whichever scenario was computed first.
+    """
+    from common.qualifiers import BUILTIN_QUALIFIERS
+
+    values = {'value_set': 'target'}
+    context = cast('Context', SimpleNamespace(db_dataset_dfs={}, qualifiers=BUILTIN_QUALIFIERS))
+    context.get_parameter = _hash_context(parameter_values=values).get_parameter  # type: ignore[method-assign]
+    raw_df = ppl.to_ppdf(pl.DataFrame({'Year': [2020, 2020], 'set': ['target', 'action'], 'Value': [1.0, 2.0]}))
+    filter_calls = 0
+
+    def filter_and_process(_self: DBDataset, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+        nonlocal filter_calls
+        filter_calls += 1
+        return df.filter(pl.col('set') == values['value_set'])
+
+    monkeypatch.setattr(DBDataset, 'deserialize_df', classmethod(lambda _cls, _ds, **_kw: raw_df))
+    monkeypatch.setattr(DBDataset, '_filter_and_process_df', filter_and_process)
+    dataset = DBDataset(
+        id='dataset',
+        context=context,
+        db_dataset_obj=cast('DBDatasetModel', SimpleNamespace(pk=1)),
+        transformations=[FilterColumnOp(column='set', ref='value_set')],
+    )
+
+    assert dataset.load_internal()['Value'].to_list() == [1.0]
+    assert dataset.load_internal()['Value'].to_list() == [1.0]
+    assert filter_calls == 1
+
+    values['value_set'] = 'action'
+
+    assert dataset.load_internal()['Value'].to_list() == [2.0]
+    assert filter_calls == 2
+
+
 def _frame_with(columns: dict[str, list], primary_keys: list[str], units: dict[str, str]) -> ppl.PathsDataFrame:
     from nodes.units import unit_registry
 

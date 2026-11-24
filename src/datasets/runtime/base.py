@@ -99,6 +99,8 @@ class Dataset(ABC):
     qualifier_source: QualifierSource | None = None
     """Where the selected values get their qualifiers; None for a dataset that says nothing about them."""
     df: ppl.PathsDataFrame | None = field(init=False, repr=False, default=None)
+    df_parameters: tuple[object, ...] | None = field(init=False, repr=False, default=None)
+    """The hashes of the parameters `df` was filtered with; see `memoized_df`."""
     hash: bytes | None = field(init=False, repr=False, default=None)
 
     def __rich_repr__(self) -> RichReprResult:
@@ -181,6 +183,27 @@ class Dataset(ABC):
     def referenced_parameters(self) -> list[str]:
         """Ids of the parameters this binding's transformations read."""
         return [param_id for op in self.transformations for param_id in op.referenced_parameters()]
+
+    def _parameter_state(self) -> tuple[object, ...]:
+        return tuple(
+            self.context.get_parameter(param_id, required=True).calculate_hash() for param_id in self.referenced_parameters()
+        )
+
+    def memoized_df(self) -> ppl.PathsDataFrame | None:
+        """
+        Return the frame `memoize_df` kept, unless a parameter it was filtered with has changed since.
+
+        A transformation that reads a parameter (a `filter_column` with `ref`) makes the processed
+        frame depend on the parameter's current value. Keeping the first frame regardless served the
+        rows of the first value, e.g. one scenario's values in every scenario.
+        """
+        if self.df is None or self.df_parameters != self._parameter_state():
+            return None
+        return self.df
+
+    def memoize_df(self, df: ppl.PathsDataFrame) -> None:
+        self.df = df
+        self.df_parameters = self._parameter_state()
 
     def get_cache_key(self) -> str:
         ds_hash = self.calculate_hash().hex()

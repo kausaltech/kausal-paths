@@ -68,8 +68,8 @@ class SerializedDBDataset(DatasetWithFilters):
 
     @override
     def load_internal(self) -> ppl.PathsDataFrame:
-        if self.df is not None:
-            return self.df
+        if (memoized := self.memoized_df()) is not None:
+            return memoized
         assert self.payload_ref is not None
         assert self.payload_store is not None
         df = self.payload_store.get_dataframe(self.payload_ref).copy()
@@ -79,7 +79,7 @@ class SerializedDBDataset(DatasetWithFilters):
         df = attach_evidence_qualifiers(df, grades, self.context.qualifiers, portable=True)
         df = self._filter_and_process_df(df)
         df = self.after_transformations(df)
-        self.df = df
+        self.memoize_df(df)
         return df
 
     def hash_data(self) -> dict[str, Any]:
@@ -134,8 +134,8 @@ class DBDataset(DatasetWithFilters):
 
     @override
     def load_internal(self) -> ppl.PathsDataFrame:
-        if self.df is not None:
-            return self.df
+        if (memoized := self.memoized_df()) is not None:
+            return memoized
 
         ds_obj = self.db_dataset_obj
         if ds_obj is None:
@@ -151,7 +151,7 @@ class DBDataset(DatasetWithFilters):
         df = attach_evidence_qualifiers(df, grades, self.context.qualifiers)
         df = self._filter_and_process_df(df)
         df = self.after_transformations(df)
-        self.df = df
+        self.memoize_df(df)
         return df
 
     def hash_data(self) -> dict[str, Any]:
