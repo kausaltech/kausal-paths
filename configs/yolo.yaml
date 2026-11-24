@@ -2008,7 +2008,7 @@ actions:
     forecast_from: 2023
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
-  - id: building_natural_gas_usage
+  - id: baseline_new_building_natural_gas_usage
 
 # ----- On-Road Transportation
 - id: dt3
