@@ -732,8 +732,14 @@ def prepare_for_dvc(df: pl.DataFrame, units: dict[str, str]) -> pl.DataFrame:
 
 
 def convert_names_to_cats(df: pl.DataFrame, context: Context) -> pl.DataFrame:
-    """Convert dimension columns (those in context.dimensions) from names to category IDs. Data columns are left unchanged."""
-    cols = [col for col in df.columns if col.lower() in context.dimensions]
+    """
+    Convert dimension columns (those in context.dimensions) from names to category IDs.
+
+    Data columns are left unchanged, and so are the provenance columns (`RESERVED_ROW_COLUMNS`),
+    even when the instance has a dimension of the same name: a `Source` column holds source
+    names, never categories of a `source` dimension.
+    """
+    cols = [col for col in df.columns if col.lower() in context.dimensions and col.lower() not in RESERVED_ROW_COLUMNS]
     if not cols:
         return df
     print(f'Converting names to categories for columns: {cols}')
