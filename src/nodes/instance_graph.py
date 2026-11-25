@@ -737,6 +737,81 @@ def _require_owned_datasets_bound_by_owner(snapshot: InstanceSnapshot) -> None:
             )
 
 
+def complete_binding_dataset_catalog(
+    snapshot: InstanceSnapshot,
+    catalog: list[DatasetMeta],
+    *,
+    fallback: tuple[DatasetMeta, ...] = (),
+) -> list[DatasetMeta]:
+    """
+    Give every dataset binding of a parsed snapshot a dataset and a metric to resolve to.
+
+    A YAML snapshot names its datasets and metrics by identifier only. Its catalog is empty, or
+    holds just the entries of a `datasets:` block, which carry no metrics. A dataset no entry
+    covers is taken from `fallback` (the persisted mirror, where the caller has one), and
+    otherwise invented as an external placeholder. A metric the dataset lacks is invented with
+    the unit of the port that reads it. Invented UUIDs are deterministic and never written to
+    the database. Returns a new list; `catalog` is not modified.
+    """
+    catalog = list(catalog)
+    datasets_by_id = {dataset.id: dataset for dataset in catalog}
+    datasets_by_identifier = {dataset.identifier: dataset for dataset in catalog if dataset.identifier is not None}
+    fallback_by_id = {dataset.id: dataset for dataset in fallback}
+    fallback_by_identifier = {dataset.identifier: dataset for dataset in fallback if dataset.identifier is not None}
+    specs_by_node = {node.uuid: node.spec for node in snapshot.nodes if node.spec is not None}
+
+    def remember(dataset: DatasetMeta) -> None:
+        datasets_by_id[dataset.id] = dataset
+        if dataset.identifier is not None:
+            datasets_by_identifier[dataset.identifier] = dataset
+
+    for binding in snapshot.dataset_bindings:
+        source = binding.dataset_source
+        assert source is not None
+        dataset = datasets_by_id.get(source.dataset_uuid) if source.dataset_uuid is not None else None
+        if dataset is None:
+            dataset = datasets_by_identifier.get(source.dataset)
+        if dataset is None:
+            dataset = fallback_by_id.get(source.dataset_uuid) if source.dataset_uuid is not None else None
+            if dataset is None:
+                dataset = fallback_by_identifier.get(source.dataset)
+            if dataset is None:
+                dataset_uuid = source.dataset_uuid or uuid5(
+                    NAMESPACE_URL,
+                    f'kausal-paths:runtime-dataset:{snapshot.metadata.uuid}:{source.dataset}',
+                )
+                dataset = DatasetMeta(
+                    id=dataset_uuid,
+                    identifier=source.dataset,
+                    schema_id=uuid5(NAMESPACE_URL, f'kausal-paths:runtime-dataset-schema:{dataset_uuid}'),
+                    is_external_placeholder=True,
+                )
+            catalog.append(dataset)
+            remember(dataset)
+
+        metric = dataset.metric_by_id.get(source.metric_uuid) if source.metric_uuid is not None else None
+        if metric is None:
+            metric = next((item for item in dataset.metrics if item.identifier == source.metric), None)
+        if metric is not None:
+            continue
+        metric_uuid = source.metric_uuid or uuid5(
+            NAMESPACE_URL,
+            f'kausal-paths:runtime-dataset-metric:{dataset.id}:{source.metric}',
+        )
+        unit = specs_by_node[binding.node_id].input_port_by_id[binding.port_id].unit
+        updated = dataset.model_copy(
+            update={
+                'metrics': (
+                    *dataset.metrics,
+                    DatasetMetricMeta(id=metric_uuid, identifier=source.metric, unit=str(unit) if unit is not None else ''),
+                )
+            }
+        )
+        catalog[catalog.index(dataset)] = updated
+        remember(updated)
+    return catalog
+
+
 def build_instance_graph(
     snapshot: InstanceSnapshot,
     *,

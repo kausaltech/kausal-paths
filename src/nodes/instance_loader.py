@@ -49,7 +49,7 @@ from nodes.explanation_inputs import explained_nodes_from_graph
 from nodes.explanations import build_node_explanation_system
 from nodes.generic import GenericNode
 from nodes.hooks import ActionHook
-from nodes.instance_graph import build_instance_graph
+from nodes.instance_graph import build_instance_graph, complete_binding_dataset_catalog
 from nodes.instance_parser import parse_instance_snapshot
 from nodes.instance_serialization import _dimension_catalog_for, build_instance_snapshot, group_dataset_bindings
 from nodes.models import InstanceConfig
@@ -2007,60 +2007,7 @@ class InstanceLoader:
             if not catalog and self.instance_config is not None and not is_yaml:
                 catalog.extend(build_instance_snapshot(self.instance_config).all_datasets())
 
-            specs_by_node = {node.uuid: node.spec for node in snapshot.nodes if node.spec is not None}
-            datasets_by_id = {dataset.id: dataset for dataset in catalog}
-            datasets_by_identifier = {dataset.identifier: dataset for dataset in catalog if dataset.identifier is not None}
-            for binding in snapshot.dataset_bindings:
-                b_source = binding.dataset_source
-                assert b_source is not None
-                dataset = datasets_by_id.get(b_source.dataset_uuid) if b_source.dataset_uuid is not None else None
-                if dataset is None:
-                    dataset = datasets_by_identifier.get(b_source.dataset)
-
-                if dataset is None:
-                    dataset_uuid = b_source.dataset_uuid or uuid5(
-                        NAMESPACE_URL,
-                        f'kausal-paths:runtime-dataset:{snapshot.metadata.uuid}:{b_source.dataset}',
-                    )
-                    dataset = DatasetMeta(
-                        id=dataset_uuid,
-                        identifier=b_source.dataset,
-                        schema_id=uuid5(NAMESPACE_URL, f'kausal-paths:runtime-dataset-schema:{dataset_uuid}'),
-                        is_external_placeholder=True,
-                    )
-                    catalog.append(dataset)
-                    datasets_by_id[dataset.id] = dataset
-                    datasets_by_identifier[b_source.dataset] = dataset
-
-                metric = dataset.metric_by_id.get(b_source.metric_uuid) if b_source.metric_uuid is not None else None
-                if metric is None:
-                    metric = next((item for item in dataset.metrics if item.identifier == b_source.metric), None)
-                if metric is not None:
-                    continue
-
-                metric_uuid = b_source.metric_uuid or uuid5(
-                    NAMESPACE_URL,
-                    f'kausal-paths:runtime-dataset-metric:{dataset.id}:{b_source.metric}',
-                )
-                spec = specs_by_node[binding.node_id]
-                unit = spec.input_port_by_id[binding.port_id].unit
-                updated_dataset = dataset.model_copy(
-                    update={
-                        'metrics': (
-                            *dataset.metrics,
-                            DatasetMetricMeta(
-                                id=metric_uuid,
-                                identifier=b_source.metric,
-                                unit=str(unit) if unit is not None else '',
-                            ),
-                        )
-                    }
-                )
-                catalog[catalog.index(dataset)] = updated_dataset
-                datasets_by_id[updated_dataset.id] = updated_dataset
-                if updated_dataset.identifier is not None:
-                    datasets_by_identifier[updated_dataset.identifier] = updated_dataset
-
+            catalog = complete_binding_dataset_catalog(snapshot, catalog)
             graph_snapshot = snapshot.model_copy(update={'datasets': catalog})
 
         if not graph_snapshot.dimensions and graph_snapshot.spec.dimensions:

@@ -8,7 +8,12 @@ from django.core.cache import cache
 
 from kausal_common.i18n.pydantic import set_i18n_context
 
-from nodes.instance_graph import INSTANCE_GRAPH_FORMAT_VERSION, InstanceGraph, build_instance_graph
+from nodes.instance_graph import (
+    INSTANCE_GRAPH_FORMAT_VERSION,
+    InstanceGraph,
+    build_instance_graph,
+    complete_binding_dataset_catalog,
+)
 from nodes.instance_serialization import (
     SNAPSHOT_SCHEMA_VERSION,
     InstanceSnapshot,
@@ -154,11 +159,24 @@ def _build_graph(
 
     # Old published snapshots and YAML carry identifier references. Resolve
     # those once at this compatibility boundary against the persisted mirror.
+    # The mirror need not hold every dataset (a YAML instance reads most of
+    # them straight from DVC), and a YAML `datasets:` block yields entries with
+    # no metrics, so complete the catalog as the loader does.
+    # A declared entry the mirror has no row for is a DVC source, so shape
+    # validation must treat it as external rather than look it up in the DB.
     catalog_snapshot = build_instance_snapshot(config)
+    mirror_datasets = tuple(catalog_snapshot.all_datasets())
+    mirror_ids = {dataset.id for dataset in mirror_datasets}
+    declared = [
+        dataset if dataset.id in mirror_ids else dataset.model_copy(update={'is_external_placeholder': True})
+        for dataset in snapshot.all_datasets()
+    ]
+    catalog = complete_binding_dataset_catalog(snapshot, declared or list(mirror_datasets), fallback=mirror_datasets)
+    # Datasets a node owns stay on the node; the instance catalog takes the rest.
+    node_owned = {dataset.id for node in snapshot.nodes for dataset in node.datasets}
     return build_instance_graph(
-        snapshot,
+        snapshot.model_copy(update={'datasets': [dataset for dataset in catalog if dataset.id not in node_owned]}),
         legacy_dimensions=tuple(catalog_snapshot.dimensions),
-        legacy_datasets=tuple(catalog_snapshot.all_datasets()),
     )
 
 

@@ -18,12 +18,14 @@ from paths.context import PathsObjectCache
 
 from frameworks.tests.factories import FrameworkFactory
 from nodes.defs.binding_def import DatasetBindingDef, EdgeBindingDef, NodePortRef
+from nodes.defs.graph import DatasetMeta
 from nodes.defs.instance_defs import InstanceMetadata, InstanceModelSpec
 from nodes.defs.node_defs import NodeSpec
 from nodes.defs.port_def import InputPort, InputPortDeclaration, InputPortDef, OutputPortDef
 from nodes.instance_graph import InstanceGraph, NodeMeta, build_instance_graph
 from nodes.instance_graph_cache import (
     LoadedInstanceSnapshot,
+    ResolvedInstanceSource,
     _build_graph,
     _dump_graph,
     _load_graph,
@@ -31,6 +33,7 @@ from nodes.instance_graph_cache import (
     resolve_instance_source,
 )
 from nodes.instance_serialization import (
+    DatasetMetricSource,
     InputBindingSnapshot,
     InstanceSnapshot,
     NodePortSource,
@@ -396,6 +399,43 @@ def test_legacy_template_role_is_filled_without_modifying_frozen_metadata() -> N
     source = resolve_instance_source(template, PreferredInstanceSource.PUBLISHED)
     graph = _build_graph(template, source, LoadedInstanceSnapshot(legacy, legacy.schema_version))
     assert graph.is_template
+
+
+def test_yaml_graph_completes_datasets_the_mirror_does_not_hold() -> None:
+    """A YAML `datasets:` entry has no metrics, and the mirror holds no row for a DVC-only dataset."""
+    config = _database_config()
+    node_id, port_id = uuid4(), uuid4()
+    unit = unit_registry.parse_units('t/a')
+    declared = DatasetMeta(id=uuid4(), identifier='module/declared', schema_id=uuid4(), is_editable=False)
+    snapshot = InstanceSnapshot(
+        metadata=InstanceMetadata(uuid=uuid4(), identifier='test', name='Test'),
+        spec=InstanceModelSpec(),
+        datasets=[declared],
+        nodes=[NodeSnapshot(uuid=node_id, identifier='reader', spec=NodeSpec(input_ports=[InputPortDef(id=port_id, unit=unit)]))],
+        bindings=[
+            InputBindingSnapshot(
+                node_id=node_id, port_id=port_id, source=DatasetMetricSource(dataset='module/declared', metric='emissions')
+            ),
+            InputBindingSnapshot(
+                node_id=node_id,
+                port_id=port_id,
+                position=1,
+                source=DatasetMetricSource(dataset='module/undeclared', metric='Value'),
+            ),
+        ],
+    )
+    source = ResolvedInstanceSource(instance_uuid=str(config.uuid), kind='yaml', version='test')
+
+    graph = _build_graph(config, source, LoadedInstanceSnapshot(snapshot, snapshot.schema_version))
+
+    datasets = {dataset.identifier: dataset for dataset in graph.datasets}
+    assert datasets.keys() == {'module/declared', 'module/undeclared'}
+    assert datasets['module/declared'].id == declared.id
+    assert all(dataset.is_external_placeholder for dataset in datasets.values())
+    assert [metric.identifier for metric in datasets['module/declared'].metrics] == ['emissions']
+    assert datasets['module/declared'].metrics[0].unit == str(unit)
+    bindings = [binding for binding in graph.bindings if isinstance(binding, DatasetBindingDef)]
+    assert {binding.external_metric_id for binding in bindings} == {'emissions', 'Value'}
 
 
 def test_graph_cache_key_changes_when_instance_becomes_template() -> None:
