@@ -160,13 +160,13 @@ class SCurveAction(GenericAction):
             if len(filtered_df) == 0:
                 continue
 
-            x2 = filtered_param.filter(pl.col('parameter') == 'max_year').select(VALUE_COLUMN).item()
+            x2 = filtered_param.filter(pl.col('parameter') == 'max_year').get_column(VALUE_COLUMN).item()
             filtered_param = filtered_param.ensure_unit(VALUE_COLUMN, df.get_unit(VALUE_COLUMN))
-            a = filtered_param.filter(pl.col('parameter') == 'max_impact').select(VALUE_COLUMN).item()
+            a = filtered_param.filter(pl.col('parameter') == 'max_impact').get_column(VALUE_COLUMN).item()
 
             dfnow = filtered_df.filter(~pl.col(FORECAST_COLUMN))
             x1 = float(dfnow.select(YEAR_COLUMN).max().item())
-            y1 = float(filtered_df.filter(pl.col(YEAR_COLUMN) == int(x1)).select(VALUE_COLUMN).item())
+            y1 = float(filtered_df.filter(pl.col(YEAR_COLUMN) == int(x1)).get_column(VALUE_COLUMN).item())
             a = float(a)
             x2 = float(x2)
 

@@ -208,7 +208,7 @@ class StockReplacementAction(DatasetAction):
             subc = subcat.split(':')
             fdf = fdf.filter(pl.col(subc[0]) == subc[1])
 
-        return fdf.select(VALUE_COLUMN).item()
+        return fdf.get_column(VALUE_COLUMN).item()
 
     # ---------------------------------------------------------------------------------------------
     def sync_dimensions(self, df, refdf):
@@ -279,7 +279,7 @@ class StockReplacementAction(DatasetAction):
         stock = {}
         for cat in catlist:
             key = '%s > %s' % (cat, cat)
-            stock[key] = [basew.filter(pl.col(YEAR_COLUMN) == yearlist[0]).select('Value_Base@%s' % cat).item()]
+            stock[key] = [basew.filter(pl.col(YEAR_COLUMN) == yearlist[0]).get_column('Value_Base@%s' % cat).item()]
 
         # For each year... ------------------------------------------------------------------------
         for i in range(len(yearlist)):
@@ -289,10 +289,10 @@ class StockReplacementAction(DatasetAction):
             for cat in catlist:
                 # ...for each (multi)category, find and apply the baseline delta, then the new
                 # delta. This calculates the non-action change in stock.
-                base_delta = basew.filter(pl.col(YEAR_COLUMN) == yearlist[i]).select('Value_Diff@%s' % cat).item()
+                base_delta = basew.filter(pl.col(YEAR_COLUMN) == yearlist[i]).get_column('Value_Diff@%s' % cat).item()
                 stock = self.stock_delta(stock, cat, base_delta, 'base', '.')
 
-                new_delta = basew.filter(pl.col(YEAR_COLUMN) == yearlist[i]).select('Value_New@%s' % cat).item()
+                new_delta = basew.filter(pl.col(YEAR_COLUMN) == yearlist[i]).get_column('Value_New@%s' % cat).item()
                 stock = self.stock_delta(stock, cat, new_delta, 'new', '.')
 
                 stats[cat] = [0.0]
@@ -318,8 +318,8 @@ class StockReplacementAction(DatasetAction):
 
             # -------------------------------------------------------------------------------------
             # ...find the annual investment and replacement cost.
-            iinvestment = p['investment'].filter(pl.col(YEAR_COLUMN) == yearlist[i]).select(VALUE_COLUMN).item()
-            irepcost = p['replacement_unit_cost'].filter(pl.col(YEAR_COLUMN) == yearlist[i]).select(VALUE_COLUMN).item()
+            iinvestment = p['investment'].filter(pl.col(YEAR_COLUMN) == yearlist[i]).get_column(VALUE_COLUMN).item()
+            irepcost = p['replacement_unit_cost'].filter(pl.col(YEAR_COLUMN) == yearlist[i]).get_column(VALUE_COLUMN).item()
 
             # ...find the number of replacements needed to reach the target, and the number of
             # replacements funded. Use the minimum of these two numbers. If target is overshot, do
@@ -482,12 +482,12 @@ class SCurveAction(DatasetAction):  # TODO Remove after nzc.yaml is using the ne
 
             if len(filtered_df) == 0:
                 continue
-            x2 = filtered_param.filter(pl.col('parameter') == 'max_year').select(VALUE_COLUMN).item()
+            x2 = filtered_param.filter(pl.col('parameter') == 'max_year').get_column(VALUE_COLUMN).item()
             filtered_param = filtered_param.ensure_unit(VALUE_COLUMN, df.get_unit(VALUE_COLUMN))
-            a = filtered_param.filter(pl.col('parameter') == 'max_impact').select(VALUE_COLUMN).item()
+            a = filtered_param.filter(pl.col('parameter') == 'max_impact').get_column(VALUE_COLUMN).item()
             dfnow = filtered_df.filter(~pl.col(FORECAST_COLUMN))
             x1 = dfnow.select(YEAR_COLUMN).max().item()
-            y1 = filtered_df.filter(pl.col(YEAR_COLUMN) == x1).select(VALUE_COLUMN).item()
+            y1 = filtered_df.filter(pl.col(YEAR_COLUMN) == x1).get_column(VALUE_COLUMN).item()
             if y1 < a:
                 y1 = min(max(y1 / a, 0.02), 0.98) * a
                 y2 = 0.98 * a
