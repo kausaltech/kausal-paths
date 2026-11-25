@@ -459,7 +459,6 @@ nodes:
   input_datasets:
   - id: yolo/buildings
     column: energy
-    min_year: 2023
     forecast_from: 2023
     filters:
     - dimension: building_status
@@ -503,7 +502,7 @@ nodes:
   output_dimensions: [energy_provider, subsector, building_type, building_status, energy_carrier]
   input_nodes:
   - id: baseline_new_building_electricity_usage
-    tags: [activity]
+    tags: [activity, drop_zeros]
     from_dimensions:
     - id: subsector
       categories: [residential]
@@ -517,7 +516,7 @@ nodes:
   output_dimensions: [energy_provider, subsector, building_type, building_status, energy_carrier]
   input_nodes:
   - id: baseline_new_building_electricity_usage
-    tags: [activity]
+    tags: [activity, drop_zeros]
     from_dimensions:
     - id: subsector
       categories: [commercial]
@@ -1988,7 +1987,6 @@ actions:
   input_datasets:
   - id: yolo/adjusted_bau
     column: energy
-    min_year: 2023
     forecast_from: 2023
   input_dataset_processors: [LinearInterpolation]
   output_nodes:
