@@ -177,6 +177,8 @@ dimensions:
     label: California Solar Initiative (CSI)
   - id: pace
     label: Property Assessed Clean Energy (PACE)
+  - id: participation
+    label: Participation Rate
 
 - id: energy_provider
   label: Energy Provider
@@ -2420,5 +2422,5 @@ scenarios:
 
 - id: default
   default: true
-  name: Climate Action and Adaptation Plan
+  name: Decarbonization Scenario
   all_actions_enabled: true
