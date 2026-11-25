@@ -2426,7 +2426,11 @@ class InstanceEditorMutation:
     @staticmethod
     def _modeltrans_value(obj: Any, field_name: str, primary_language: str) -> str | dict[str, str]:
         ts = get_translated_string_from_modeltrans(obj, field_name, primary_language)
-        if len(ts.i18n) == 1:
+        if not ts.i18n:
+            return ''
+        # A single value collapses to a plain string only when it is the primary language's;
+        # otherwise the language it was written in would be lost.
+        if ts.i18n.keys() == {convert_language_code(primary_language, 'iso')}:
             return str(ts)
         return dict(ts.i18n)
 

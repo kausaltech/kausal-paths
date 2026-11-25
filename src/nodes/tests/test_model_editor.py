@@ -3528,6 +3528,21 @@ def test_update_node_texts_in_primary_language_writes_columns(
     assert nc.i18n == {'name_da': 'Old'}
 
 
+def test_description_written_only_in_other_language_resolves_in_primary_language(
+    gql_client: PathsTestClient, db_instance_config: InstanceConfig
+) -> None:
+    """An empty primary-language description beside a translation used to resolve to None and fail the request."""
+    from nodes.models import NodeConfig
+
+    nc = _localized_text_node(db_instance_config)
+    NodeConfig.objects.filter(pk=nc.pk).update(description='', short_description='')
+    _update_node_texts(gql_client, db_instance_config, nc, 'da', {'description': '<p>Varme</p>'})
+
+    data = _update_node_texts(gql_client, db_instance_config, nc, 'en', {'name': 'Heating'})
+
+    assert data['instanceEditor']['nodeEditor']['update']['description'] == '<p>Varme</p>'
+
+
 def test_update_node_texts_empty_translation_falls_back(gql_client: PathsTestClient, db_instance_config: InstanceConfig) -> None:
     nc = _localized_text_node(db_instance_config)
     _update_node_texts(gql_client, db_instance_config, nc, 'da', {'name': ''})
