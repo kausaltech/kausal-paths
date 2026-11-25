@@ -3,7 +3,7 @@ default_language: en
 supported_languages: []
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: df93476aa0a358105ab344d698e1a4e46db57bda
+  commit: 255cf3d428786e0bbc53bda32212c80284609f7d
   dvc_remote: kausal-s3
 name: Yolo County Greenhouse Gas Emissions
 owner: Yolo County
