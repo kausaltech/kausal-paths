@@ -4492,6 +4492,29 @@ nodes:
   output_nodes:
   - id: building_heating_cost_benefit
 
+- id: reduce_carbon_intensity_of_incinerated_waste_cost_benefit
+  name: Polttoon päätyvän jätteen fossiilisen osuuden vähentäminen
+  name_en: Reduce carbon intensity of incinerated waste
+  color: '#AD3963'
+  type: formula.FormulaNode
+  quantity: currency
+  unit: MEUR/a
+  input_dimensions: [cost_type, owner, action]
+  output_dimensions: [cost_type, owner, action]
+  params:
+    formula: total_costs + total_benefits
+  input_nodes:
+  - id: total_costs
+    from_dimensions:
+    - id: action
+      categories: [reduce_carbon_intensity_of_incinerated_waste]
+  - id: total_benefits
+    from_dimensions:
+    - id: action
+      categories: [reduce_carbon_intensity_of_incinerated_waste]
+  output_nodes:
+  - id: building_heating_cost_benefit
+
 - id: building_heating_cost_benefit
   name: Rakennuksen lämmitys kustannukset ja hyödyt
   name_en: Building heating costs and benefits
@@ -6540,6 +6563,41 @@ actions:
       flatten: true
     - id: energy_carrier
       categories: [electricity]
+      flatten: true
+    - id: scope
+      flatten: true
+
+- id: reduce_carbon_intensity_of_incinerated_waste
+  name: Polttoon päätyvän jätteen fossiilisen osuuden vähentäminen
+  name_en: Reduce carbon intensity of incinerated waste
+  type: simple.AdditiveAction
+  group: building_heating
+  unit: t_co2e/a
+  quantity: emissions
+  input_dimensions: [action, heating, energy_carrier, ghg, scope]
+  output_dimensions: [action, heating, energy_carrier, ghg, scope]
+  input_datasets:
+  - id: tampere/stationary_actions
+    column: emissions
+    forecast_from: 2024
+    filters:
+    - column: sector
+    - dimension: action
+      categories: [reduce_carbon_intensity_of_incinerated_waste]
+    - column: owner
+    - column: cost_type
+  output_nodes:
+  - id: district_heating_emissions_total
+    from_dimensions:
+    - id: action
+      flatten: true
+  - id: emissions_impacts
+    from_dimensions:
+    - id: heating
+      flatten: true
+    - id: energy_carrier
+      flatten: true
+    - id: ghg
       flatten: true
     - id: scope
       flatten: true
