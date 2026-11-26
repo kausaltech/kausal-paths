@@ -169,7 +169,9 @@ def test_a_municipal_editor_sets_a_goal_on_an_outcome_its_framework_owns(ic: Ins
     assert template_heat.spec.goals.root == []
     # It is part of the municipality's snapshot, so it survives publishing and restoring.
     context = InstanceLoader(snapshot=build_instance_snapshot(municipality)).context
-    assert [entry.reference_year for entry in context.get_node('heat').goals.root] == [2020]
+    goals = context.get_node('heat').goals
+    assert goals is not None
+    assert [entry.reference_year for entry in goals.root] == [2020]
 
     # A measure moves the path, not the goal: the gap is the difference between the two.
     effect = {'target': {'outputPort': {'nodeId': str(heat.uuid)}}, 'values': [{'year': 2030, 'value': -30}]}
@@ -191,7 +193,9 @@ def test_the_demo_target_is_set_once_and_never_over_a_target_someone_entered(
     assert targets.seed_demo_target(municipality) == f'{municipality.identifier}: demo target on heat against 2018'
 
     context = InstanceLoader(snapshot=build_instance_snapshot(municipality)).context
-    (goal,) = context.get_node('heat').goals.root
+    goals = context.get_node('heat').goals
+    assert goals is not None
+    (goal,) = goals.root
     # The model of the test ends in 2035, so the later points of the demo path are left out.
     assert (goal.reference_year, [(value.year, value.value) for value in goal.values]) == (2018, [(2030, -0.42)])
     municipality.refresh_from_db()
