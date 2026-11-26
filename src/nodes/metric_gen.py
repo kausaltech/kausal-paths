@@ -396,12 +396,30 @@ def _indexed_output_data(dims: list[MetricDimension], df: ppl.PathsDataFrame, *,
     )
 
 
+def _historical_rows(node: Node, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+    """Leave out forecast values and the years after the instance's last historical year."""
+    if FORECAST_COLUMN in df.columns:
+        df = df.filter(~pl.col(FORECAST_COLUMN))
+    last_historical = node.context.instance.maximum_historical_year
+    if last_historical is not None:
+        df = df.filter(pl.col(YEAR_COLUMN) <= last_historical)
+    return df
+
+
 def from_node_output_metric(
-    node: Node, m: NodeMetric, scenarios: Sequence[Scenario], include_input_nodes: bool = True, port: OutputPortDef | None = None
+    node: Node,
+    m: NodeMetric,
+    scenarios: Sequence[Scenario],
+    include_input_nodes: bool = True,
+    port: OutputPortDef | None = None,
+    *,
+    historical_only: bool = False,
 ) -> DimensionalMetric:
     dims: list[MetricDimension] = []
     with node.context.start_span('Compute metric values', op=MODEL_CALC_OP):
         df, dims = _compute_values(node, scenarios, include_input_nodes=include_input_nodes, port=port, metric=m)
+    if historical_only:
+        df = _historical_rows(node, df)
 
     if UNCERTAINTY_COLUMN in df.columns and not df.filter(pl.col(UNCERTAINTY_COLUMN) == 'median').is_empty():
         df = df.filter(pl.col(UNCERTAINTY_COLUMN) == 'median')
@@ -469,6 +487,8 @@ def metric_from_node(
     metric: NodeMetric | None = None,
     include_input_nodes: bool = True,
     extra_scenarios: Sequence[Scenario] = (),
+    *,
+    historical_only: bool = False,
 ) -> DimensionalMetric | None:
     from nodes.actions.linear import ReduceAction
 
@@ -498,7 +518,9 @@ def metric_from_node(
                 extra_scenarios=[s.id for s in extra_scenarios],
             ),
         )
-        return from_node_output_metric(node, m, extra_scenarios, include_input_nodes=include_input_nodes)
+        return from_node_output_metric(
+            node, m, extra_scenarios, include_input_nodes=include_input_nodes, historical_only=historical_only
+        )
 
 
 def metric_from_visualization(node: Node, visualization: VisualizationNodeOutput) -> DimensionalMetric | None:

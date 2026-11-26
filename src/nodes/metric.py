@@ -518,11 +518,19 @@ class DimensionalMetric(BaseModel):
         metric: NodeMetric | None = None,
         include_input_nodes: bool = True,
         extra_scenarios: Sequence[Scenario] = (),
+        *,
+        historical_only: bool = False,
     ) -> DimensionalMetric | None:
         from .metric_gen import metric_from_node
 
         with sentry_sdk.start_span(name='Metric from node %s' % node.id, attributes={'sentry.op': 'model.metric'}):
-            return metric_from_node(node, metric, include_input_nodes=include_input_nodes, extra_scenarios=extra_scenarios)
+            return metric_from_node(
+                node,
+                metric,
+                include_input_nodes=include_input_nodes,
+                extra_scenarios=extra_scenarios,
+                historical_only=historical_only,
+            )
 
     @classmethod
     def from_visualization(cls, node: Node, visualization: VisualizationNodeOutput) -> DimensionalMetric | None:

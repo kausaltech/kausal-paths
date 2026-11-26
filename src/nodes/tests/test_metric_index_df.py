@@ -108,6 +108,33 @@ def test_metric_of_a_node_with_several_output_metrics() -> None:
     assert energy.forecast_from == 2021
 
 
+def test_a_historical_metric_leaves_out_the_forecast_and_the_years_after_the_last_historical_year() -> None:
+    instance = InstanceFactory.create(id='historical_metric', name='Historical metric', maximum_historical_year=2020)
+    InstanceConfigFactory.create(identifier=instance.id, instance=instance, name='Historical metric')
+    context = instance.context
+    node = _TwoMetricNode(
+        id='two_metrics',
+        context=context,
+        name=TranslatedString('Two metrics', default_language='en'),
+        output_metrics={
+            'energy': NodeMetric(id='energy', column_id='energy', quantity='energy', unit=unit_registry.parse_units('kWh/a')),
+        },
+    )
+    context.add_node(node)
+    with context.run():
+        whole = DimensionalMetric.from_node(node)
+        historical = DimensionalMetric.from_node(node, historical_only=True)
+        # A value the data calls historical is still left out when the instance has no balance for its year.
+        instance.maximum_historical_year = 2019
+        before_the_data = DimensionalMetric.from_node(node, historical_only=True)
+    assert whole is not None
+    assert historical is not None
+    assert before_the_data is not None
+    assert (whole.years, whole.values, whole.forecast_from) == ([2020, 2021], [1.0, 2.0], 2021)
+    assert (historical.years, historical.values, historical.forecast_from) == ([2020], [1.0], None)
+    assert before_the_data.years == []
+
+
 def test_qualifiers_follow_values_through_dense_index_and_round_trip() -> None:
     frame = ppl.to_ppdf(
         pl.DataFrame({

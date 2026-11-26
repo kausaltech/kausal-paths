@@ -748,6 +748,15 @@ class NodeInterface(UserPermissionsMixin):
         root: 'Node',
         with_scenarios: list[str] | None = None,
         include_scenario_kinds: list[ScenarioKind] | None = None,
+        historical_only: Annotated[
+            bool,
+            sb.argument(
+                description=(
+                    "Leave out forecast values and the years after the instance's last historical year, "
+                    'so that the metric holds the balance and not the scenario path.'
+                )
+            ),
+        ] = False,
     ) -> 'DimensionalMetric | None':
         context = root.context
         extra_scenarios: list[Scenario] = []
@@ -765,7 +774,7 @@ class NodeInterface(UserPermissionsMixin):
             extra_scenarios.append(context.active_scenario)
 
         try:
-            ret = DimensionalMetric.from_node(root, extra_scenarios=extra_scenarios)
+            ret = DimensionalMetric.from_node(root, extra_scenarios=extra_scenarios, historical_only=historical_only)
         except Exception as e:
             # The field answers null rather than an error, so the client never sees
             # this; without the capture it reaches Sentry only as a breadcrumb.
