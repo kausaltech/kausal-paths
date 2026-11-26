@@ -5,7 +5,7 @@ default_language: de
 supported_languages: [en]
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: ebf59d62d34cf56251d21e2dc3fd376abb453ebc
+  commit: 96c2175f53ce444a85b22d354c92d2b48c41d722
   dvc_remote: kausal-s3
 name: BISKO-Basismodell
 owner: Kausal Ltd

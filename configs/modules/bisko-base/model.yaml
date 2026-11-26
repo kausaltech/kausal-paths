@@ -662,6 +662,10 @@ datasets:
   is_editable: false
 - id: de/datenguetekriterien                  # Datenguete thresholds for criterion 1.3
   is_editable: false
+# The projected emission factor of German electricity generation, for the shared scenario action
+# `bundesstrommix_wird_sauberer`. Not a BISKO factor: it never enters a balance.
+- id: de/emissionsfaktor_stromerzeugung_projektion   # UBA projection of the electricity factor, 2026-2050
+  is_editable: false
 
 # --- Provider defaults: immutable source snapshots a city may supersede, not edit ----------
 # A city supersedes these by supplying its own data for a given year: the own-data route wins
@@ -6392,3 +6396,94 @@ nodes:
     # drop_nans: a year without district heating consumption has no factor.
     value: drop_infs(drop_nans(emissions / consumption))
 
+
+#//////  Actions  //////////////////////////////////////////////////////////////////////////////////
+actions:
+
+# The one action every municipality inherits. It is national: no municipality decides it, and
+# none can edit it or its data.
+#
+# The dataset is a path of levels in the projection's own boundary (no upstream chains), which
+# is clearly below BISKO's Bundesstrommix (260 g/kWh for 2026, against BISKO's 420 for 2024). So
+# the path is used only as a
+# ratio: `ratio_to_max_hist_year` divides it by its value in the municipality's last balance
+# year, and the hook multiplies the BISKO factor with the change (`hook_mode: relative`). The
+# same dataset therefore serves municipalities whose balances end in different years, and when
+# one adds a balance year the path rebases to it.
+#
+# The projection starts in 2026. `extend_history` carries its first value back, so a
+# municipality whose last balance year is earlier gets no change before 2026. `forecast_from`
+# says where the forecast begins, which also keeps the future values from being cut at the last
+# balance year (`hold_inputs_after_maximum_historical_year`).
+#
+# `constant_frame(condition)`: the action acts only while the national factors are in force. A
+# local mix is local generation plus a remainder from the grid; the national cleanup would
+# change only the remainder, and the local part changes through the municipality's own plants.
+#
+# Three hooks because three carriers carry the Bundesstrommix in `end_energy_emission_factors`:
+# electricity, heating electricity (the same factor) and environmental heat (the mix divided
+# by the heat pumps' annual performance factor). A hook assigns one category, so each has its own.
+- id: bundesstrommix_wird_sauberer
+  name_de: Bundesstrommix wird sauberer
+  name_en: The national electricity mix gets cleaner
+  description_de: |
+    Der Strom aus dem deutschen Netz wird sauberer, weil Kohle- und Gaskraftwerke durch Wind- und
+    Solarstrom ersetzt werden. Das ist keine Maßnahme der Kommune, sondern eine Annahme über die
+    Stromerzeugung in ganz Deutschland. Sie wirkt auf alles, was in der Kommune mit Strom betrieben
+    wird: Geräte und Beleuchtung, Wärmepumpen und Elektrofahrzeuge.<br/>
+    Der Pfad stammt aus den Treibhausgas-Projektionen 2026 des Umweltbundesamtes
+    (Mit-Maßnahmen-Szenario). Er beschreibt, was die bereits beschlossenen Maßnahmen des Bundes
+    voraussichtlich bewirken, und führt nicht bis zur Klimaneutralität: Der Emissionsfaktor sinkt
+    bis 2030 auf knapp die Hälfte und bis 2045 auf etwa ein Sechstel des Wertes von 2026.<br/>
+    Die Kommune kann diese Annahme nicht ändern. Sie gilt nur, solange die Bilanz mit dem
+    Bundesstrommix gerechnet wird. Im Szenario „Business as Usual“ ist sie nicht enthalten: Dort
+    bleibt der Strommix so, wie er im letzten Bilanzjahr war.
+  description_en: |
+    Electricity from the German grid gets cleaner as coal and gas plants are replaced by wind and
+    solar power. This is not a measure of the municipality but an assumption about electricity
+    generation in all of Germany. It affects everything in the municipality that runs on
+    electricity: appliances and lighting, heat pumps and electric vehicles.<br/>
+    The path comes from the German Environment Agency's greenhouse gas projections 2026 (the
+    scenario with existing measures). It describes what the federal measures already adopted are
+    expected to deliver, and it does not reach climate neutrality: the emission factor falls to
+    just under half of its 2026 value by 2030 and to about a sixth by 2045.<br/>
+    The municipality cannot change this assumption. It applies only while the balance is computed
+    with the national electricity mix. The "Business as Usual" scenario does not include it: there
+    the electricity mix stays as it was in the last balance year.
+  type: formula.FormulaAction
+  quantity: fraction
+  unit: dimensionless
+  decision_level: nation
+  input_datasets:
+  - id: de/emissionsfaktor_stromerzeugung_projektion
+    tags: [path]
+    # The path is one term of the formula, not its result: without a unit of its own the port
+    # would take the action's, which has none.
+    unit: g_co2e/kWh
+    forecast_from: 2026
+    extend_history: true
+    extend: true
+  params:
+  - id: formula
+    value: (ratio_to_max_hist_year(path) - 1) * constant_frame(condition)
+  - id: condition
+    ref: use_national_values
+  output_nodes:
+  - id: end_energy_emission_factors
+    hook: true
+    hook_mode: relative
+    to_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+  - id: end_energy_emission_factors
+    hook: true
+    hook_mode: relative
+    to_dimensions:
+    - id: energy_carrier
+      categories: [heating_electricity]
+  - id: end_energy_emission_factors
+    hook: true
+    hook_mode: relative
+    to_dimensions:
+    - id: energy_carrier
+      categories: [environmental_heat]
