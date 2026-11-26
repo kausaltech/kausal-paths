@@ -2,7 +2,8 @@
 
 import hashlib
 import json
-from typing import TYPE_CHECKING
+from copy import deepcopy
+from typing import TYPE_CHECKING, Any
 
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
@@ -68,11 +69,15 @@ if TYPE_CHECKING:
 
 def snapshot_content_hash(snapshot: InstanceSnapshot) -> str:
     """Portable edition identity: structure and dataset content, independent of database revision IDs."""
-    data = snapshot.model_dump(mode='json')
+    return _hash_snapshot_data(snapshot.model_dump(mode='json'))
+
+
+def _hash_snapshot_data(data: dict[str, Any]) -> str:
+    """Hash a disposable serialized snapshot after removing database-local details."""
     data.pop('snapshot_kind', None)
-    for pin in data['dataset_revisions']:
+    for pin in data.get('dataset_revisions', []):
         pin.pop('revision_id', None)
-    for binding in data['bindings']:
+    for binding in data.get('bindings', []):
         binding['source'].pop('dataset_revision', None)
     content = json.dumps(data, sort_keys=True, separators=(',', ':')).encode()
     return hashlib.sha256(content).hexdigest()
@@ -138,14 +143,20 @@ def compose_template_snapshot(
 def resolve_template_snapshot(local: InstanceSnapshot, *, template: InstanceSnapshot | None = None) -> InstanceSnapshot:
     """Pure composition of local authoring state and one immutable template snapshot."""
     base = template or local._template
+    stored_data = None
     if base is None:
         revision = Revision.objects.get(pk=local.template_revision_id)
         if revision.content_type.pk != ContentType.objects.get_for_model(InstanceConfig).pk:
             raise ValueError('Template revision must belong to an instance')
-        base = InstanceSnapshot.from_serialized_data(revision.content['model_snapshot']['structured'], compose=False)
+        stored_data = revision.content['model_snapshot']['structured']
+        base = InstanceSnapshot.from_serialized_data(stored_data, compose=False)
     if base.template_revision_id is not None or base.metadata.uuid == local.metadata.uuid:
         raise ValueError('Nested or self template inheritance is not supported')
-    if local.template_content_hash != snapshot_content_hash(base):
+    # A newer reader can fill in defaults that were absent when the
+    # municipality recorded its pin. Also verify against the stored edition.
+    if local.template_content_hash != snapshot_content_hash(base) and (
+        stored_data is None or local.template_content_hash != _hash_snapshot_data(deepcopy(stored_data))
+    ):
         raise ValueError('Pinned template content does not match the authoring snapshot')
     assert local.template_revision_id is not None
     nodes = _released_nodes(base, local.template_revision_id)

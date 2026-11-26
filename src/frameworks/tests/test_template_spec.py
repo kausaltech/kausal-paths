@@ -1,5 +1,6 @@
 """Pinned declaration inheritance, sparse municipal values, and independent upgrades."""
 
+import hashlib
 import json
 from datetime import date
 from importlib import import_module
@@ -121,6 +122,43 @@ def test_reports_are_inherited_from_pin_and_publication_is_frozen(municipal: tup
     old.refresh_from_db()
     assert old.content == old_content
     assert municipality.live_revision_id == old.pk
+
+
+def test_published_municipality_loads_template_from_before_a_node_default_was_added(
+    municipal: tuple[InstanceConfig, InstanceConfig, User],
+) -> None:
+    _, municipality, _ = municipal
+    municipality.publish_instance()
+    municipality.refresh_from_db()
+    published = municipality.live_revision
+    template_revision = municipality.template_revision
+    assert published is not None
+    assert template_revision is not None
+    template_data = template_revision.content['model_snapshot']['structured']
+    assert template_data['nodes'][0]['spec'].pop('show_inputs_as_sectors') is False
+    template_revision.save(update_fields=['content'])
+
+    # This template has no dataset pins or input bindings. Simulate the hash
+    # recorded when the node field did not exist.
+    assert not template_data['dataset_revisions']
+    assert not template_data['bindings']
+    content = dict(template_data)
+    content.pop('snapshot_kind')
+    legacy_hash = hashlib.sha256(json.dumps(content, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+    published.content['model_snapshot']['structured']['template_content_hash'] = legacy_hash
+    published.save(update_fields=['content'])
+
+    instance = municipality.create_instance_from_revision(published)
+    assert instance is not None
+    try:
+        assert instance.context.get_node('outcome') is not None
+    finally:
+        instance.clean()
+
+    template_data['nodes'][0]['identifier'] = 'changed'
+    template_revision.save(update_fields=['content'])
+    with pytest.raises(ValueError, match='Pinned template content does not match'):
+        municipality.create_instance_from_revision(published)
 
 
 def test_municipal_defaults_carry_into_weather_scenario(municipal: tuple[InstanceConfig, InstanceConfig, User]) -> None:
