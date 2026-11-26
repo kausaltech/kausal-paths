@@ -132,6 +132,36 @@ GraphQL, under `instance { editor }` and `instanceEditor`:
   shapes do not fit: the same dimensions, and a unit the target's can take, or
   no unit for a relative hook.
 
+### Creating an action
+
+`instanceEditor.createAction` creates an action from its effects in one step, or
+nothing. Each effect names:
+
+- **its target**, which also says how it connects. `outputPort` is a hook on that
+  port. `additiveInputOf` is an ordinary edge into a node's additive input, in
+  every year, as `createActionOnNodes` makes it; that mutation remains until the
+  model editor has moved to `createAction`.
+- **its mode.** `ABSOLUTE` is an amount in the target's unit, `RELATIVE` a share
+  (only with `outputPort`).
+- **its source.** By default a dataset the action owns, optionally narrowed to
+  some of the target's categories; or an existing instance dataset or node.
+- **its values**, for a new dataset: a target value for one year or a whole
+  series. Giving a target value and giving a series are the same thing; only
+  the cells differ.
+
+The action is an `AdditiveAction` with one output port per effect, in the
+target's unit and dimensions, or without a unit for a share. Its dataset gets a
+zero in the start year (by default the last historical year) and the values
+given. The binding interpolates between them and holds the last one; with a
+hook it does not fill backwards, since a hook never touches history. The
+dataset declares `forecast_from`, the year after the start year, so its future
+values survive `hold_inputs_after_maximum_historical_year`.
+
+Later changes to the numbers are ordinary edits of that dataset
+(`editor.dataset(id)`). Deleting the action deletes its hook, its input
+selections and its dataset. That is not recoverable, except by reverting the
+whole draft to the published revision.
+
 ### Where an action may act
 
 An instance's own nodes take hooks freely. A node it inherits from a framework

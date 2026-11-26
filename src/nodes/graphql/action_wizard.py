@@ -22,9 +22,10 @@ behind. See docs/plans/action-from-output-port.md.
 """
 
 import contextlib
+import itertools
 import re
 from collections import defaultdict
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from typing import TYPE_CHECKING, Annotated, Any
 from uuid import UUID, uuid4
 
@@ -53,7 +54,7 @@ from nodes.action_effects import (
 )
 from nodes.change_ops import gql_change_operation
 from nodes.constants import VALUE_COLUMN
-from nodes.defs.node_defs import InputDatasetDef, NodeKind
+from nodes.defs.node_defs import ActionHookMode, InputDatasetDef, NodeKind
 from nodes.exceptions import NodeError
 from nodes.graphql.bindings import bind_dataset_metric
 from nodes.graphql.constraint_checks import require_draft_graph
@@ -385,10 +386,32 @@ def effect_source_candidates(info: gql.Info, ic: InstanceConfig, target_node_id:
 # --- The mutation -----------------------------------------------------------
 
 
+@dataclass(frozen=True)
+class ActionIdentity:
+    """What a new action is called and where its own data starts, whichever mutation creates it."""
+
+    name: str
+    identifier: str | None = None
+    group: UUID | None = None
+    start_year: int | None = None
+    description: str | None = None
+
+
+@dataclass(frozen=True)
+class EffectValue:
+    """One cell of a new effect's data: a value in a year, at one category of each of the effect's dimensions."""
+
+    year: int
+    categories: dict[UUID, UUID]
+    value: float
+
+
 @dataclass
 class _Effect:
     target: ActionTarget
+    """The node and output port acted on; for an effect through an edge, also where the edge lands."""
     shape: ValueShape
+    """The shape of the action's output for this effect."""
     label: str
     output_port: UUID
     kind: str
@@ -398,6 +421,10 @@ class _Effect:
     metric: DatasetMetric | None = None
     source_node: NodeMeta | None = None
     source_port: UUID | None = None
+    hook_mode: ActionHookMode | None = None
+    """Set when the effect acts through a hook; None when it feeds the target's additive input through an edge."""
+    values: list[EffectValue] = field(default_factory=list)
+    """Cells to write into a new dataset beside the start-year zeros."""
 
 
 class _Refused(Exception):  # noqa: N818
@@ -418,7 +445,7 @@ def _source_port(info: gql.Info, graph: InstanceGraph, ref: OutputPortRefInput) 
     return node, node.spec.output_ports[0].id
 
 
-def _identifier(info: gql.Info, ic: InstanceConfig, graph: InstanceGraph, input: CreateActionOnNodesInput) -> str:
+def _identifier(info: gql.Info, ic: InstanceConfig, graph: InstanceGraph, input: ActionIdentity) -> str:
     taken = {node.identifier for node in graph.nodes} | set(ic.nodes.values_list('identifier', flat=True))
     if input.identifier:
         identifier = validate_identifier(str(input.identifier))
@@ -544,7 +571,7 @@ def _ordered(graph: InstanceGraph, dimension_ids: set[UUID] | frozenset[UUID]) -
 
 
 def _create_action(
-    info: gql.Info, ic: InstanceConfig, graph: InstanceGraph, input: CreateActionOnNodesInput, effects: list[_Effect]
+    info: gql.Info, ic: InstanceConfig, graph: InstanceGraph, input: ActionIdentity, effects: list[_Effect]
 ) -> NodeConfig:
     from nodes.graphql.editor import ActionConfigInput, CreateNodeInput, NodeConfigInput, OutputPortInput, create_node_config
 
@@ -571,6 +598,7 @@ def _create_action(
         CreateNodeInput(  # type: ignore[call-arg]
             identifier=sb.ID(_identifier(info, ic, graph, input)),
             name=input.name,
+            description=input.description,
             kind=NodeKind.ACTION,
             output_ports=output_ports,
             input_dimensions=[graph.dimension_by_id[d].identifier for d in _ordered(graph, all_dimensions)],
@@ -585,8 +613,36 @@ def _paired_input_ports(nc: NodeConfig) -> dict[UUID, UUID]:
     return {port.paired_output_port_id: port.id for port in nc.spec.input_ports if port.paired_output_port_id is not None}
 
 
+def _write_cells(dataset: Dataset, metric: DatasetMetric, effect: _Effect, start_year: int, target_year: int | None) -> None:
+    """
+    Write an effect's cells: a zero in the start year for each kept combination, then the values given.
+
+    A given value replaces the zero of its cell. Where none is given, the target year's cells are
+    left empty, to show where the numbers go: the zeros are the baseline, and the change is what
+    is entered for the target year. Empty cells do not count until filled, since the binding
+    drops null rows.
+    """
+    assert effect.categories is not None
+    given = {(cell.year, tuple(sorted(cell.categories.items()))) for cell in effect.values}
+    dimensions = list(effect.categories)
+    for combination in itertools.product(*(effect.categories[dimension] for dimension in dimensions)):
+        cell = dict(zip(dimensions, combination, strict=True))
+        if (start_year, tuple(sorted(cell.items()))) not in given:
+            write_year(dataset, metric, start_year, {dimension: [category] for dimension, category in cell.items()}, value=0.0)
+    for value in effect.values:
+        write_year(
+            dataset,
+            metric,
+            value.year,
+            {dimension: [category] for dimension, category in value.categories.items()},
+            value=value.value,
+        )
+    if not effect.values and target_year is not None and target_year > start_year:
+        write_year(dataset, metric, target_year, effect.categories, value=None)
+
+
 def _create_dataset(
-    info: gql.Info, ic: InstanceConfig, nc: NodeConfig, input: CreateActionOnNodesInput, effects: list[_Effect]
+    info: gql.Info, ic: InstanceConfig, nc: NodeConfig, input: ActionIdentity, effects: list[_Effect]
 ) -> tuple[Dataset | None, dict[UUID, DatasetMetric]]:
     """Create the action's own dataset for its new-dataset effects: one metric each, start-year zeros, empty target-year cells."""
     members = [effect for effect in effects if effect.kind == 'new_dataset']
@@ -617,14 +673,12 @@ def _create_dataset(
             user=user,
         )
         for effect in members:
-            assert effect.categories is not None
-            metric = owned.metrics[paired[effect.output_port]]
-            write_year(owned.dataset, metric, start_year, effect.categories, value=0.0)
-            # The target year's cells are left empty, to show the modeller where the numbers go:
-            # the zeros are the baseline, and the change is what they enter for the target year.
-            # Empty cells do not count until filled, since the binding drops null rows.
-            if target_year is not None and target_year > start_year:
-                write_year(owned.dataset, metric, target_year, effect.categories, value=None)
+            _write_cells(owned.dataset, owned.metrics[paired[effect.output_port]], effect, start_year, target_year)
+        # The data describes the future on purpose. Saying where its forecast begins also keeps its
+        # values where the instance holds its inputs at the last historical year
+        # (`hold_inputs_after_maximum_historical_year`).
+        owned.dataset.spec = {**(owned.dataset.spec or {}), 'forecast_from': start_year + 1}
+        owned.dataset.save(update_fields=['spec'])
     except OwnedDatasetError as exc:
         raise GraphQLValidationError(info, str(exc)) from exc
     refresh_dataset_materialization(owned.dataset, user=user)
@@ -666,12 +720,13 @@ def _feed_effects(
             # Actions rarely have a number for every year: fill between the years given, hold the
             # last one to the model end, and hold the first one back to the start of the model, so
             # the effect neither vanishes after its target year nor leaves the history without rows.
-            # The action's own dataset starts from a zero, so its history is zero.
+            # The action's own dataset starts from a zero, so its history is zero. A hook never
+            # touches the history, so an effect through one needs no rows there.
             transformations = InputDatasetDef(
                 id='placeholder',
                 column=metric_column_id(metric),
                 interpolate=True,
-                backfill=effect.kind == 'new_dataset',
+                backfill=effect.kind == 'new_dataset' and effect.hook_mode is None,
                 extend=True,
             ).to_transformations()
             result = bind_dataset_metric(
@@ -694,6 +749,8 @@ def _connect_targets(info: gql.Info, ic: InstanceConfig, nc: NodeConfig, effects
     from nodes.graphql.editor import CreateEdgeInput, NodePortRefInput, create_edge_binding
 
     for effect in effects:
+        if effect.hook_mode is not None:
+            continue
         new_port: InputPortDef | None = effect.target.plan_new_port(effect.shape, effect.label)
         to_port = effect.target.input_port if new_port is None else None
         result = create_edge_binding(
@@ -722,14 +779,20 @@ def create_action_on_nodes(
     graph = require_draft_graph(info, ic)
     solve = info.context.require_constraint_solve(ic, source=PreferredInstanceSource.DRAFT)
     effects = _resolve_effects(info, ic, graph, solve, input)
+    identity = ActionIdentity(
+        name=input.name,
+        identifier=str(input.identifier) if input.identifier else None,
+        group=input.group,
+        start_year=input.start_year,
+    )
 
     try:
         with transaction.atomic(), gql_change_operation(info, ic, action='action.create_on_nodes'):
-            nc = _create_action(info, ic, graph, input, effects)
+            nc = _create_action(info, ic, graph, identity, effects)
             nc = NodeConfig.objects.with_spec().get(pk=nc.pk)
             # Each step below reads the draft graph, which must now contain the new action.
             ic.invalidate_cache()
-            dataset, metrics = _create_dataset(info, ic, nc, input, effects)
+            dataset, metrics = _create_dataset(info, ic, nc, identity, effects)
             ic.invalidate_cache()
             _feed_effects(info, ic, nc, effects, dataset, metrics)
             ic.invalidate_cache()

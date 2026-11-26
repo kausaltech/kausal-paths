@@ -80,6 +80,7 @@ from nodes.instance_problems import DataEntryDefinitionError
 from nodes.instance_serialization import InputBindingSnapshot, NodeLayoutSnapshot, NodePortSource
 from nodes.models import (
     InputPortBindingReference,
+    InputPortBindingSet,
     InstanceConfig,
     NodeConfig,
     NodeInputPortBinding,
@@ -118,6 +119,7 @@ if TYPE_CHECKING:
     from nodes.graphql.action_hooks import ActionHookInput
     from nodes.graphql.action_wizard import CreateActionOnNodesInput, CreateActionOnNodesResult
     from nodes.graphql.bindings import BindDatasetInput, PortBindingEditorMutation
+    from nodes.graphql.create_action import CreateActionInput, CreateActionResult
     from nodes.graphql.template_bindings import InputPortBindingInput
     from users.models import User
 
@@ -1598,6 +1600,12 @@ class NodeEditorMutation:
                 after=None,
             )
 
+            # In an instance that inherits a template, the sources selected for this node's own
+            # ports are stored apart from it, and hold protected references to the node and its
+            # datasets so that neither vanishes from under a selection. Deleting the node is the
+            # one case where the selection goes too; one on another node that reads this node is
+            # left alone, and still refuses the deletion.
+            InputPortBindingSet.objects.filter(instance=root.instance, node_uuid=nc.uuid).delete()
             nc.delete()
 
     @gql.mutation(
@@ -2179,6 +2187,24 @@ class InstanceEditorMutation:
         from nodes.graphql.action_wizard import create_action_on_nodes
 
         return create_action_on_nodes(info, root.instance, input)
+
+    @gql.mutation(
+        description=(
+            'Create an action from its effects. Each effect lands on an output port of a node, through a hook, or '
+            "in a node's additive input, through an edge, and takes its numbers from the action's own dataset, an "
+            'existing instance dataset or another node. All of it is created in one step, or nothing is.'
+        ),
+        graphql_type=Annotated['CreateActionResult', sb.lazy('nodes.graphql.create_action')] | ConstraintViolationsType,
+    )
+    @staticmethod
+    def create_action(
+        info: gql.Info,
+        root: sb.Parent[Me],
+        input: Annotated['CreateActionInput', sb.lazy('nodes.graphql.create_action')],
+    ) -> Any:
+        from nodes.graphql.create_action import create_action
+
+        return create_action(info, root.instance, input)
 
     @gql.mutation(description='Create a new node in the model', graphql_type=AnyNodeType)
     @staticmethod
