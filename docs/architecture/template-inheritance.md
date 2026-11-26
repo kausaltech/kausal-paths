@@ -73,6 +73,27 @@ source links without duplicating shared node definitions. Legacy value selection
 are migrated into sparse municipal default-scenario overrides. Parameter ownership
 is independent of visitor customization.
 
+### An instance's own goal
+
+A goal is part of a node's definition (`NodeSpec.goals`), which an instance does not own for
+an inherited node. Its goal for such a node is therefore one of these settings, and composition
+lays it over whatever the template gives. A template need not give any: a BISKO municipality
+has no target until someone sets one.
+
+`instanceEditor.setInstanceGoal(nodeId, input)` and `clearInstanceGoal(nodeId)` write it, for
+an outcome node with one output (`nodes.instance_goals`). On a node the instance owns, the same
+mutations write the node's own definition. The values are either amounts in the node's unit,
+or changes relative to the node's value in a reference year (`NodeGoalsEntry.reference_year`:
+-0.65 is a reduction of 65 %). The reference year must be an inventory year of the instance,
+so that the goal refers to a figure this model computed. Only what was entered is stored. A
+relative goal becomes amounts when it is read, and follows a correction of the reference
+year's balance.
+
+The goal path runs in a straight line from the last inventory year's value through the years
+given. `goals { values { year goal actual } }` on the instance returns it beside the node's
+path, year by year, so the gap is their difference; `referenceYear` and `enteredValues` return
+what was entered.
+
 ## Instance declarations and parameter defaults
 
 A municipal `InstanceModelSpec` contains local declarations and local years.

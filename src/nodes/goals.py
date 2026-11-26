@@ -40,6 +40,12 @@ class NodeGoalsDimension(BaseModel):
 
 class NodeGoalsEntry(I18nBaseModel):
     values: list[GoalValue]
+    reference_year: int | None = None
+    """
+    If set, the values are changes relative to the node's own value in this year: -0.65 is a
+    reduction of 65 %. The year has to be one the node has a historical value for, so the goal
+    is stated against a figure the same model computed.
+    """
     label: I18nStringInstance | None = None
     normalized_by: str | None = None
     dimensions: dict[str, NodeGoalsDimension] = Field(default_factory=dict)
@@ -123,6 +129,22 @@ class NodeGoalsEntry(I18nBaseModel):
             unit = m.unit
         return goal_norm, unit
 
+    def _own_value(self, year: int) -> float | None:
+        """
+        Return the node's value in `year` over the categories the goal covers, before any normalization.
+
+        None if the node has no row for the year.
+        """
+        import polars as pl
+
+        node = self.get_node()
+        df = self.filter_df(node.get_output_pl()).filter(pl.col(YEAR_COLUMN) == year)
+        if not len(df):
+            return None
+        m = node.get_default_output_metric()
+        df = df.paths.sum_over_dims().ensure_unit(m.column_id, m.unit)
+        return float(df[m.column_id].sum())
+
     def _get_values_df(self) -> ppl.PathsDataFrame:
         import polars as pl
 
@@ -133,6 +155,11 @@ class NodeGoalsEntry(I18nBaseModel):
         goal_norm, unit = self.get_normalization_info()
         m = node.get_default_output_metric()
         values = list(self.values)
+        if self.reference_year is not None:
+            reference = self._own_value(self.reference_year)
+            if reference is None:
+                raise NodeError(node, 'The goal refers to %d, a year the node has no value for' % self.reference_year)
+            values = [GoalValue(year=x.year, value=reference * (1 + x.value)) for x in values]
         if self.auto_start:
             last_hist_year: int | None = context.instance.maximum_historical_year
             if last_hist_year is not None and (not values or values[0].year > last_hist_year):

@@ -155,6 +155,12 @@ class InstanceGoalDimension:
         return root.categories[0]
 
 
+@sb.type(description='One year of a goal as it was entered.')
+class InstanceEnteredGoalValue:
+    year: int
+    value: float
+
+
 @sb.type
 class InstanceGoalEntry:
     id: sb.ID
@@ -166,6 +172,19 @@ class InstanceGoalEntry:
     default: bool
 
     _goal: sb.Private[NodeGoalsEntry]
+
+    @sb.field(
+        description=(
+            "If set, the goal was entered as changes relative to the node's value in this year; "
+            '`enteredValues` then holds shares, -0.65 for a reduction of 65 %.'
+        )
+    )
+    def reference_year(self) -> int | None:
+        return self._goal.reference_year
+
+    @sb.field(description='The years and values as they were entered, before any conversion or interpolation.')
+    def entered_values(self) -> list[InstanceEnteredGoalValue]:
+        return [InstanceEnteredGoalValue(year=value.year, value=value.value) for value in self._goal.values]
 
     @sb.field
     def values(self) -> list[InstanceYearlyGoalType]:

@@ -15,6 +15,7 @@ from frameworks.bisko.demo.aggregation import (
     seed_municipality,
 )
 from frameworks.bisko.demo.inventories import DEMO_MUNICIPALITIES
+from frameworks.bisko.demo.targets import seed_demo_targets
 from frameworks.models import Framework
 
 if TYPE_CHECKING:
@@ -71,6 +72,9 @@ class Command(BaseCommand):
                             f'{municipality.name}: {"finalised" if created else "unchanged"}, {len(years)} final inventories'
                         )
                 grant_demo_city_access(framework)
+                # Only the named demo cities: a real municipality has no target until someone sets one.
+                for line in seed_demo_targets(framework):
+                    self.stdout.write(line)
                 if not options['apply']:
                     transaction.set_rollback(True)
         except (ValueError, ValidationError) as error:

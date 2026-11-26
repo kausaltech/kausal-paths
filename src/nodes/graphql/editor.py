@@ -75,6 +75,7 @@ from nodes.graphql.constraint_checks import check_binding_change, edge_candidate
 from nodes.graphql.inputs import get_input_port, get_output_port, is_maybe_set
 from nodes.graphql.types.graph import DatasetPortType
 from nodes.input_bindings import compact_port_positions, next_port_position
+from nodes.instance_goals import GoalPoint, InstanceGoalError, build_goal, clear_node_goal, set_node_goal
 from nodes.instance_graph import InstanceGraph, NodeEditContext, NodeMeta, node_class_for_spec, node_class_for_type_config
 from nodes.instance_problems import DataEntryDefinitionError
 from nodes.instance_serialization import InputBindingSnapshot, NodeLayoutSnapshot, NodePortSource
@@ -611,6 +612,39 @@ class UpdateNodeInput:
     tags: Maybe[list[str]]
     i18n: Maybe[sb.scalars.JSON]
     config: Maybe[NodeConfigInput]
+
+
+@sb.input(description='One year of a goal.')
+class GoalValueInput:
+    year: int
+    value: float = sb.field(
+        description=(
+            "An amount in the node's unit; or, with a reference year, the change relative to that year's value: "
+            '-0.65 is a reduction of 65 %.'
+        )
+    )
+
+
+@sb.input(description="An instance's goal for an outcome node.")
+class InstanceGoalInput:
+    values: list[GoalValueInput] = sb.field(description='One or more years after the last inventory year.')
+    reference_year: int | None = sb.field(
+        default=None,
+        description=(
+            "If given, the values are changes relative to the node's value in this year, which has to be an "
+            'inventory year of the instance. Omitted: the values are amounts.'
+        ),
+    )
+    label: str | None = None
+
+
+def _goal_node_uuid(info: gql.Info, graph: InstanceGraph, node_id: sb.ID) -> UUID:
+    """Resolve a node of the draft, the instance's own or inherited, from its uuid or identifier."""
+    raw = str(node_id)
+    node = graph.node_by_id.get(UUID(raw)) if is_uuid(raw) else next((n for n in graph.nodes if n.identifier == raw), None)
+    if node is None:
+        raise NotFoundError(info, f'Node "{node_id}" not found')
+    return node.id
 
 
 @sb.input
@@ -2984,6 +3018,50 @@ class InstanceEditorMutation:
             )
             ic.refresh_from_db(fields=['spec'])
             record_change(ic, action='instance.parameter.set', before=before, after=ic.ensure_spec().model_dump(mode='json'))
+        return _resolve_model_instance(info, ic, refresh=True)
+
+    @gql.mutation(
+        description=(
+            "Set this instance's goal for an outcome node, replacing the one it had: either amounts in the "
+            "node's unit, or changes relative to the node's value in an inventory year (`referenceYear`). The "
+            "goal path runs in a straight line from the last inventory year's value through the years given."
+        )
+    )
+    @staticmethod
+    def set_instance_goal(info: gql.Info, root: sb.Parent[Me], node_id: sb.ID, input: InstanceGoalInput) -> InstanceType:
+        ic = root.instance
+        graph = require_draft_graph(info, ic)
+        node_uuid = _goal_node_uuid(info, graph, node_id)
+        try:
+            goal = build_goal(
+                ic,
+                graph,
+                [GoalPoint(year=value.year, value=value.value) for value in input.values],
+                reference_year=input.reference_year,
+                label=input.label,
+            )
+            with gql_change_operation(info, ic, action='node.goal.set'):
+                set_node_goal(ic, graph, node_uuid, goal)
+        except InstanceGoalError as exc:
+            raise GraphQLValidationError(info, str(exc)) from exc
+        return _resolve_model_instance(info, ic, refresh=True)
+
+    @gql.mutation(
+        description=(
+            "Remove this instance's goal for a node. A node inherited from a framework goes back to the goals "
+            'its template gives it, if any.'
+        )
+    )
+    @staticmethod
+    def clear_instance_goal(info: gql.Info, root: sb.Parent[Me], node_id: sb.ID) -> InstanceType:
+        ic = root.instance
+        graph = require_draft_graph(info, ic)
+        node_uuid = _goal_node_uuid(info, graph, node_id)
+        try:
+            with gql_change_operation(info, ic, action='node.goal.clear'):
+                clear_node_goal(ic, graph, node_uuid)
+        except InstanceGoalError as exc:
+            raise GraphQLValidationError(info, str(exc)) from exc
         return _resolve_model_instance(info, ic, refresh=True)
 
     @gql.mutation(

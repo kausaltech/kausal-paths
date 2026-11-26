@@ -98,7 +98,7 @@ def make_instance() -> InstanceConfig:
 
 def make_municipality(template: InstanceConfig) -> InstanceConfig:
     """Make `template` a framework template with one node open to actions and one closed; return a municipality inheriting it."""
-    _heat(template, action_hooks=True)
+    _heat(template, action_hooks=True, is_outcome=True)
     _demand(template)
     framework = FrameworkFactory.create(template_instance=template)
     revision = publish_template_instance(template)
@@ -123,7 +123,7 @@ def client(client, ic: InstanceConfig) -> PathsTestClient:
     return tc
 
 
-def _heat(ic: InstanceConfig, *, action_hooks: bool = False) -> NodeConfig:
+def _heat(ic: InstanceConfig, *, action_hooks: bool = False, is_outcome: bool = False) -> NodeConfig:
     """Create an additive node without dimensions: 100 MWh/a in every year."""
     dataset = _dataset(ic, 'test/heat', 'MWh/a', _history([()], 100.0), ())
     spec = NodeSpec(
@@ -133,6 +133,7 @@ def _heat(ic: InstanceConfig, *, action_hooks: bool = False) -> NodeConfig:
         ],
         output_ports=[_port('heat', 'MWh/a', 'energy', [])],
         action_hooks=action_hooks,
+        is_outcome=is_outcome,
     )
     nc = NodeConfigFactory.create(instance=ic, identifier='heat', name='Heat', spec=spec)
     _bind(ic, nc, 'heat_in', dataset)
