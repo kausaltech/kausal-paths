@@ -42,6 +42,7 @@ from .aggregation import (
     Coverage,
     ExclusionReason,
     aggregate,
+    balance_years,
 )
 from .bisko.activation import MUNICIPALITY_CLASSES, is_valid_municipality_ags
 from .indicator_schema import ComposedIndicatorType
@@ -456,6 +457,23 @@ class FrameworkOrganizationType:
         ]
         organizations = list(Organization.objects.filter(path__in=prefixes).select_related('classification').order_by('path'))
         return _organization_types(framework, organizations)
+
+    @sb.field(
+        description=(
+            'Years with a visible inventory submission or visible finalised coverage beneath this organization, newest first.'
+        )
+    )
+    def balance_years(self, info: gql.Info) -> list[int]:
+        user = info.context.get_user()
+        if not isinstance(user, User):
+            raise GraphQLError('Authentication required')
+        framework = Framework.objects.get(pk=self.framework_pk)
+        organization = Organization.objects.get(path=self.path)
+        try:
+            return balance_years(framework, organization, scope=viewer_scope(framework, user))
+        except (AggregationError, PermissionDenied) as error:
+            message = error.messages[0] if isinstance(error, ValidationError) else str(error)
+            raise GraphQLError(message) from error
 
     @sb.field(
         description=(

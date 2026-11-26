@@ -18,7 +18,7 @@ from enum import Enum
 from typing import TYPE_CHECKING
 
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.db.models import Max, Prefetch, Q
+from django.db.models import DateField, Exists, F, Func, Max, OuterRef, Prefetch, Q, QuerySet, Value
 
 from frameworks.composition import Composition, compose
 from frameworks.models import (
@@ -121,10 +121,22 @@ def existed_in(year: int, prefix: str = '') -> Q:
     31 December still belongs to that year and its successor, founded on
     1 January, does not.
     """
-    reference = date(year, 12, 31)
+    return _existed_on(date(year, 12, 31), prefix)
+
+
+def _existed_on(reference: date | F, prefix: str = '') -> Q:
     founded = Q(**{f'{prefix}founding_date__isnull': True}) | Q(**{f'{prefix}founding_date__lte': reference})
     not_dissolved = Q(**{f'{prefix}dissolution_date__isnull': True}) | Q(**{f'{prefix}dissolution_date__gte': reference})
     return founded & not_dissolved
+
+
+def _subtree_submissions(framework: Framework, organization: Organization, kind: SubmissionKind) -> QuerySet[Submission]:
+    return Submission.objects.filter(
+        instance_config__organization__path__startswith=organization.path,
+        instance_config__framework_config__framework=framework,
+        kind=kind,
+        status__in=(*OPEN_STATUSES, SubmissionStatus.FINAL),
+    )
 
 
 @dataclass
@@ -184,15 +196,8 @@ def _load_subtree(framework: Framework, organization: Organization, *, kind: Sub
     finals: dict[int, int] = {}
     open_statuses: dict[int, SubmissionStatus] = {}
     submissions = (
-        Submission.objects
-        .filter(
-            in_subtree,
-            instance_config__framework_config__framework=framework,
-            kind=kind,
-            period_start=year,
-            period_end=year,
-            status__in=(*OPEN_STATUSES, SubmissionStatus.FINAL),
-        )
+        _subtree_submissions(framework, organization, kind)
+        .filter(period_start=year, period_end=year)
         .order_by('finalised_at')
         .values_list('pk', 'instance_config__organization_id', 'status')
     )
@@ -275,6 +280,58 @@ def _restrict(entry: AggregationEntry, *, minimum_units: int) -> AggregationEntr
     )
 
 
+def _aggregation_access(
+    framework: Framework, organization: Organization, scope: ViewerScope
+) -> tuple[FrameworkOrganizationRoot, bool]:
+    if not framework.reporting.units.classes:
+        raise AggregationError(f'Framework {framework.identifier} declares no reporting units')
+    roots = (
+        FrameworkOrganizationRoot.objects
+        .filter(framework=framework)
+        .select_related('organization')
+        .order_by('organization__path')
+    )
+    covering_root = next((root for root in roots if organization.path.startswith(root.organization.path)), None)
+    if covering_root is None:
+        raise PermissionDenied('The organization is outside the framework')
+    full = scope.covers(organization.path)
+    if not full and not scope.is_above(organization.path):
+        raise PermissionDenied('The organization is outside what the viewer may read')
+    return covering_root, full
+
+
+def balance_years(framework: Framework, organization: Organization, *, scope: ViewerScope) -> list[int]:
+    """List years with a visible inventory submission or visible finalised coverage."""
+    _, full = _aggregation_access(framework, organization, scope)
+    submissions = _subtree_submissions(framework, organization, SubmissionKind.INVENTORY)
+    if not full:
+        prefix = 'instance_config__organization__'
+        visible = Q(pk__in=[])
+        for path in scope.paths:
+            if path.startswith(organization.path):
+                visible |= Q(instance_config__organization__path__startswith=path)
+
+        # Use the coverage threshold for this year, even if only one unit
+        # finalised. Open submissions outside the viewer's scope stay hidden.
+        year_end = Func('period_start', Value(12), Value(31), function='MAKE_DATE', output_field=DateField())
+        minimum_units = framework.reporting.min_units_for_ancestor_total
+        units = (
+            Organization.objects
+            .filter(framework.reporting_unit_q(), _existed_on(OuterRef('year_end')), path__startswith=organization.path)
+            .order_by()
+            .values('pk')
+            .distinct()
+        )
+        finalised_coverage = (
+            Q(status=SubmissionStatus.FINAL)
+            & framework.reporting_unit_q(prefix)
+            & _existed_on(F('year_end'), prefix)
+            & Q(Exists(units[minimum_units - 1 : minimum_units]))
+        )
+        submissions = submissions.alias(year_end=year_end).filter(visible | finalised_coverage)
+    return list(submissions.order_by('-period_start').values_list('period_start', flat=True).distinct())
+
+
 def aggregate(
     framework: Framework,
     organization: Organization,
@@ -292,20 +349,7 @@ def aggregate(
     only holds something inside it gets its totals and the members on the way to
     what they hold; anyone else is refused.
     """
-    if not framework.reporting.units.classes:
-        raise AggregationError(f'Framework {framework.identifier} declares no reporting units')
-    root = (
-        FrameworkOrganizationRoot.objects
-        .filter(framework=framework)
-        .select_related('organization')
-        .order_by('organization__path')
-    )
-    covering_root = next((r for r in root if organization.path.startswith(r.organization.path)), None)
-    if covering_root is None:
-        raise PermissionDenied('The organization is outside the framework')
-    full = scope.covers(organization.path)
-    if not full and not scope.is_above(organization.path):
-        raise PermissionDenied('The organization is outside what the viewer may read')
+    covering_root, full = _aggregation_access(framework, organization, scope)
 
     subtree = _load_subtree(framework, organization, kind=kind, year=year)
     children = list(

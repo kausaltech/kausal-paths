@@ -351,6 +351,60 @@ AGGREGATION_QUERY = """
 """
 
 
+def test_graphql_balance_years_follow_aggregation_visibility(tree: Tree, client: Client) -> None:
+    _submit(tree.instances['h'], SubmissionStatus.IN_REVIEW, year=2025)
+    _submit(tree.instances['f'], SubmissionStatus.DRAFT, year=2024)
+    _submit(tree.instances['f'], SubmissionStatus.FINAL, year=2021)
+    _submit(tree.instances['north'], SubmissionStatus.FINAL, year=2026)
+    superseded = _submit(tree.instances['f'], SubmissionStatus.FINAL, year=2027)
+    Submission.objects.filter(pk=superseded.pk).update(status=SubmissionStatus.SUPERSEDED)
+    # In 2021 only f existed, so a restricted viewer cannot see the state's
+    # finalised count for that year. A district's own balance does not count
+    # towards finalised coverage in 2026.
+    Organization.objects.filter(pk__in=[tree.orgs[name].pk for name in 'abcdegh']).update(founding_date=date(2022, 1, 1))
+
+    query = """
+        query ($framework: ID!, $id: ID!) {
+          framework(identifier: $framework) {
+            organization(id: $id) {
+              balanceYears
+              ancestors { name balanceYears }
+            }
+          }
+        }
+    """
+    viewer = UserFactory.create()
+    grant = OrganizationAccessGrant.objects.create(
+        framework=tree.framework, organization=tree.orgs['g'], user=viewer, role=ObjectRole.VIEWER
+    )
+    client.force_login(viewer)
+    gql = PathsTestClient(client)
+    variables = {'framework': tree.framework.identifier, 'id': str(tree.orgs['g'].uuid)}
+    organization = gql.query_data(query, variables=variables)['framework']['organization']
+    assert organization == {
+        'balanceYears': [],
+        'ancestors': [
+            {'name': 'state', 'balanceYears': [2023, 2022]},
+            {'name': 'south', 'balanceYears': []},
+        ],
+    }
+
+    grant.organization = tree.orgs['south']
+    grant.save(update_fields=['organization'])
+    variables['id'] = str(tree.orgs['south'].uuid)
+    organization = gql.query_data(query, variables=variables)['framework']['organization']
+    assert organization == {
+        'balanceYears': [2024, 2023, 2021],
+        'ancestors': [{'name': 'state', 'balanceYears': [2024, 2023, 2022, 2021]}],
+    }
+
+    grant.organization = tree.orgs['state']
+    grant.save(update_fields=['organization'])
+    variables['id'] = str(tree.orgs['state'].uuid)
+    organization = gql.query_data(query, variables=variables)['framework']['organization']
+    assert organization['balanceYears'] == [2026, 2025, 2024, 2023, 2022, 2021]
+
+
 def test_graphql_gives_a_unit_account_its_ancestors(tree: Tree, client: Client) -> None:
     client.force_login(tree.member('a'))
     gql = PathsTestClient(client)
