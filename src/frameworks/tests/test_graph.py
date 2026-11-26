@@ -905,7 +905,21 @@ def test_local_action_acts_on_an_inherited_node(release: TemplateEdition, depend
             output_ports=[OutputPortDef(id=uuid4(), unit=unit_registry.parse_units('kt/a'), quantity='emissions', dimensions=[])],
         ),
     )
-    context = InstanceLoader(snapshot=build_instance_snapshot(dependent_instance)).context
+    # The template has to open the node to actions first (`NodeSpec.action_hooks`).
+    snapshot = build_instance_snapshot(dependent_instance)
+    assert snapshot.composition_errors == ['Action measure: the framework does not let actions act on shared']
+    assert InstanceLoader(snapshot=snapshot).context.get_node('shared').hooks == []
+    shared_config = template.nodes.get(identifier='shared')
+    assert shared_config.spec is not None
+    shared_config.spec.action_hooks = True
+    shared_config.save(update_fields=['spec'])
+    template.invalidate_cache()
+    upgrade_template_instance(dependent_instance, publish_edition(release.framework).revision)
+    dependent_instance.refresh_from_db()
+
+    snapshot = build_instance_snapshot(dependent_instance)
+    assert snapshot.composition_errors == []
+    context = InstanceLoader(snapshot=snapshot).context
     shared, measure = context.get_node('shared'), context.get_action('measure')
     assert [hook.action for hook in shared.hooks] == [measure]
     assert measure.is_connected_to(shared)

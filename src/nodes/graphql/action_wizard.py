@@ -210,7 +210,7 @@ class DimensionCategoriesType:
 
 
 def output_categories(
-    info: gql.Info, ic: InstanceConfig, graph: InstanceGraph, target: ActionTarget, shape: ValueShape
+    info: gql.Info, ic: InstanceConfig, graph: InstanceGraph, target: NodeMeta, shape: ValueShape
 ) -> dict[UUID, frozenset[UUID]]:
     """
     Return, per dimension of the target's output, the categories an action on it can have.
@@ -230,7 +230,7 @@ def output_categories(
     categories = dict(shape.categories)
     if not shape.dimensions:
         return categories
-    identifier = target.node.identifier or ''
+    identifier = target.identifier or ''
     instance = info.context.require_instance(ic, source=PreferredInstanceSource.DRAFT)
     node = instance.context.nodes.get(identifier)
     if node is None:
@@ -260,7 +260,7 @@ def action_target_categories(info: gql.Info, ic: InstanceConfig, target_node_id:
     solve = info.context.require_constraint_solve(ic, source=PreferredInstanceSource.DRAFT)
     target = _target(info, ic, graph, target_node_id)
     shape = output_port_shape(graph, solve, target.node, target.output_port)
-    categories = output_categories(info, ic, graph, target, shape)
+    categories = output_categories(info, ic, graph, target.node, shape)
     order = {category.id: index for dimension in graph.dimensions for index, category in enumerate(dimension.categories)}
     return [
         DimensionCategoriesType(dimension_id=dimension_id, category_ids=sorted(ids, key=order.__getitem__))
@@ -513,7 +513,7 @@ def _resolve_effects(
     for entry in input.effects:
         target = _target(info, ic, graph, entry.target_node_id)
         shape = output_port_shape(graph, solve, target.node, target.output_port)
-        shape = replace(shape, categories=output_categories(info, ic, graph, target, shape))
+        shape = replace(shape, categories=output_categories(info, ic, graph, target.node, shape))
         if shape.dimensions is None or shape.unit is None:
             raise GraphQLValidationError(
                 info, f'The shape of {target.node.identifier} is not known, so no action can be built on it'

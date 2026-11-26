@@ -572,6 +572,14 @@ class NodeSpec(I18nBaseModel):
     show_inputs_as_sectors: bool = False
     # TODO: Replace with a pipeline operation that clips years.
     minimum_year: int | None = None
+    action_hooks: bool = False
+    """
+    Whether an instance inheriting this node may let its own actions act on it (see `ActionHookDef`).
+
+    A framework template has hundreds of nodes, and an action makes sense on few of them: not on
+    an emission aggregate, a data-quality figure or a node that only reports. The template opts
+    the others in. An instance's own nodes need no permission.
+    """
 
     # Legacy fields — see NodeSpecExtra docstring
     extra: NodeSpecExtra = NodeSpecExtra()

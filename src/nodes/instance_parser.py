@@ -1679,6 +1679,7 @@ class InstanceConfigParser:
             is_outcome=config.get('is_outcome', False),
             show_inputs_as_sectors=config.get('show_inputs_as_sectors', False),
             minimum_year=config.get('minimum_year'),
+            action_hooks=config.get('action_hooks', False),
             extra=self._parse_node_extra(parsed),
         )
         return NodeSnapshot(

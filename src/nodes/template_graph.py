@@ -23,6 +23,7 @@ from datasets.year_slots import ensure_empty_year
 from frameworks.models import Framework
 from nodes.change_ops import announce_draft_change
 from nodes.constraints.validation import InstanceConstraintError, solve_instance_constraints
+from nodes.defs.node_defs import ActionConfig
 from nodes.instance_graph import NodeEditContext, NodeMeta, build_instance_graph
 from nodes.instance_graph_cache import resolve_instance_source
 from nodes.instance_serialization import (
@@ -158,6 +159,7 @@ def resolve_template_snapshot(local: InstanceSnapshot, *, template: InstanceSnap
     bindings = _apply_binding_overrides(local.binding_overrides, by_id, shared_ids, [*base.bindings, *local.bindings])
     errors: list[str] = []
     bindings = _valid_binding_subset(by_id, bindings, errors)
+    _drop_invalid_hooks(nodes, by_id, shared_ids, errors)
     datasets = {item.id: item for item in [*base.all_datasets(), *local.all_datasets()]}
     used = {binding.source.dataset_uuid for binding in bindings if isinstance(binding.source, DatasetMetricSource)}
     if used - datasets.keys():
@@ -682,6 +684,34 @@ def _require_editable_port(snapshot: InstanceSnapshot, node_uuid: UUID, port_uui
         binding_owner=port.binding_owner,
     ):
         raise ValidationError('Template controls bindings of this port')
+
+
+def _drop_invalid_hooks(
+    nodes: list[NodeSnapshot], by_id: dict[UUID, NodeSnapshot], shared_ids: set[UUID], errors: list[str]
+) -> None:
+    """
+    Drop the hooks of local actions that the effective graph cannot hold, recording each as an error.
+
+    A template release can remove a node an action acts on, one of its output ports, or the
+    permission to act on it (`NodeSpec.action_hooks`). As with a stale binding, the draft stays
+    inspectable: the action remains, without that effect, and the authoring rows keep the hook.
+    """
+    for node in nodes:
+        if node.uuid in shared_ids or node.spec is None or not isinstance(node.spec.type_config, ActionConfig):
+            continue
+        kept = []
+        for hook in node.spec.type_config.hooks:
+            target = by_id.get(hook.node)
+            if target is None or target.spec is None:
+                errors.append(f'Action {node.identifier}: acts on a node outside the effective graph ({hook.node})')
+            elif hook.port is not None and hook.port not in target.spec.output_port_by_id:
+                errors.append(f'Action {node.identifier}: acts on an output port {target.identifier} no longer has')
+            elif target.uuid in shared_ids and not target.spec.action_hooks:
+                errors.append(f'Action {node.identifier}: the framework does not let actions act on {target.identifier}')
+            else:
+                kept.append(hook)
+        if len(kept) != len(node.spec.type_config.hooks):
+            node.spec.type_config.hooks = kept
 
 
 def _valid_binding_subset(

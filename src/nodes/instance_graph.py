@@ -675,6 +675,14 @@ class InstanceGraph(FrozenGraphModel):
             and binding.from_ref.node_uuid in self.node_by_id
             and binding.port_ref.node_uuid in self.node_by_id
         )
+        # An action acting on a node is upstream of it, as at runtime (`Context.node_graph`).
+        graph.add_edges_from(
+            (node.id, hook.node)
+            for node in self.nodes
+            if isinstance(node.spec.type_config, ActionConfig)
+            for hook in node.spec.type_config.hooks
+            if hook.node in self.node_by_id
+        )
         return graph
 
     @cached_property

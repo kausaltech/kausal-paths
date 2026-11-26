@@ -115,6 +115,7 @@ if TYPE_CHECKING:
     from datasets.graphql.editor import CreateDatasetMetricInput
     from datasets.graphql.types import DataSourceType
     from nodes.defs.transform_def import PortTransformOp
+    from nodes.graphql.action_hooks import ActionHookInput
     from nodes.graphql.action_wizard import CreateActionOnNodesInput, CreateActionOnNodesResult
     from nodes.graphql.bindings import BindDatasetInput, PortBindingEditorMutation
     from nodes.graphql.template_bindings import InputPortBindingInput
@@ -1350,7 +1351,12 @@ def _apply_node_type_update(
 
     if is_maybe_set(input.config):
         kind = _kind_from_config(info, input.config.value) if not is_maybe_set(input.kind) else input.kind.value
-        spec.type_config = _type_config_for_kind(info, kind, input.config.value).to_pydantic()
+        type_config = _type_config_for_kind(info, kind, input.config.value).to_pydantic()
+        # `ActionConfigInput` does not carry hooks; they are edited with `addActionHook`
+        # and `deleteActionHook`, so a config update keeps them.
+        if isinstance(type_config, ActionConfig) and isinstance(spec.type_config, ActionConfig):
+            type_config.hooks = list(spec.type_config.hooks)
+        spec.type_config = type_config
 
 
 def _apply_node_port_updates(info: gql.Info, nc: NodeConfig, spec: NodeSpec, input: UpdateNodeInput) -> None:
@@ -1593,6 +1599,32 @@ class NodeEditorMutation:
             )
 
             nc.delete()
+
+    @gql.mutation(
+        description=(
+            "Let this action act on another node's output port (a hook). The node computes as before, and the "
+            "action's output is added to its output in the years after the last historical year."
+        ),
+        graphql_type=AnyNodeType,
+    )
+    @staticmethod
+    def add_action_hook(
+        info: gql.Info, root: sb.Parent[Me], input: Annotated['ActionHookInput', sb.lazy('nodes.graphql.action_hooks')]
+    ) -> Node:
+        from nodes.graphql.action_hooks import add_action_hook
+
+        add_action_hook(info, root.instance, root.node, input)
+        return _resolve_runtime_node(info, root.instance, root.node.pk)
+
+    @gql.mutation(description='Stop this action acting on a node it acts on.', graphql_type=AnyNodeType)
+    @staticmethod
+    def delete_action_hook(
+        info: gql.Info, root: sb.Parent[Me], input: Annotated['ActionHookInput', sb.lazy('nodes.graphql.action_hooks')]
+    ) -> Node:
+        from nodes.graphql.action_hooks import delete_action_hook
+
+        delete_action_hook(info, root.instance, root.node, input)
+        return _resolve_runtime_node(info, root.instance, root.node.pk)
 
     @gql.mutation(description='Append a new input port to this node', graphql_type=InputPortType)
     @staticmethod

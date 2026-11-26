@@ -1,6 +1,12 @@
 """
 The rules for an action's effects on other nodes.
 
+An effect reaches its target in one of two ways. Through a *hook* the action's
+output port is added to one of the target's output ports, in the years after
+the last historical year (`nodes.hooks`); the target needs no input for it, so
+this is how an instance acts on a node it inherits from a framework. Through an
+ordinary *edge* the action feeds the target's additive input, in every year.
+
 The action wizard builds an `AdditiveAction` whose effects land on existing
 nodes. Each effect is an ordinary edge from one of the action's output ports
 into the target's *additive* input: the multi `additive` port of an additive
@@ -19,7 +25,7 @@ from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 from nodes.constraints.values import PortValue
-from nodes.defs.node_defs import ActionConfig, FormulaConfig
+from nodes.defs.node_defs import ActionConfig, ActionHookDef, ActionHookMode, FormulaConfig
 from nodes.defs.port_def import InputPortDef
 from nodes.formula import FormulaNode
 from nodes.instance_graph import node_class_for_spec
@@ -184,3 +190,103 @@ def creates_cycle(graph: InstanceGraph, edges: Iterable[tuple[UUID, UUID]]) -> b
     candidate = graph.nx_graph.copy()
     candidate.add_edges_from(edges)
     return not nx.is_directed_acyclic_graph(candidate)
+
+
+# --- Hooks ------------------------------------------------------------------
+
+
+def hook_target_problem(node: NodeMeta, *, is_local: bool) -> str | None:
+    """
+    Say why an action cannot act on `node` through a hook, or return None if it can.
+
+    `is_local` says whether the instance owns the node. A node it inherits from
+    a framework takes hooks only where the framework says so (`NodeSpec.action_hooks`).
+    """
+    name = node.identifier or str(node.id)
+    if isinstance(node.spec.type_config, ActionConfig):
+        return f'{name} is an action'
+    if not node.spec.output_ports:
+        return f'{name} has no output port'
+    if not is_local and not node.spec.action_hooks:
+        return f'{name} belongs to the framework, which does not let actions act on it'
+    return None
+
+
+def _sole_output_port(node: NodeMeta, role: str) -> UUID:
+    ports = node.spec.output_ports
+    if len(ports) != 1:
+        name = node.identifier or str(node.id)
+        raise EffectError(f'{name} has {len(ports)} output ports; name the {role} port')
+    return ports[0].id
+
+
+def resolve_hook(
+    graph: InstanceGraph,
+    *,
+    action: NodeMeta,
+    target: NodeMeta,
+    target_port: UUID | None,
+    from_port: UUID | None,
+    mode: ActionHookMode = ActionHookMode.ABSOLUTE,
+    is_local_target: bool,
+) -> ActionHookDef:
+    """
+    Build the definition of a new hook of `action` on `target`, with both ports explicit.
+
+    Refuses a hook that cannot hold structurally: from a node that is not an
+    action, on the action itself, on a node that takes no hooks, on a port that
+    does not exist, the same hook twice, or one that closes a cycle. Whether the
+    shapes fit is a separate check (`hook_shape_problem`), since it needs a
+    constraint solve.
+    """
+    type_config = action.spec.type_config
+    if not isinstance(type_config, ActionConfig):
+        raise EffectError('Only actions can act on other nodes')
+    if target.id == action.id:
+        raise EffectError('An action cannot act on itself')
+    problem = hook_target_problem(target, is_local=is_local_target)
+    if problem is not None:
+        raise EffectError(problem)
+    name = target.identifier or str(target.id)
+    target_port = target_port or _sole_output_port(target, 'target')
+    if target_port not in target.spec.output_port_by_id:
+        raise EffectError(f'{name} has no output port {target_port}')
+    from_port = from_port or _sole_output_port(action, "action's")
+    if from_port not in action.spec.output_port_by_id:
+        raise EffectError(f'The action has no output port {from_port}')
+    for hook in type_config.hooks:
+        if hook.node == target.id and hook.port in (None, target_port) and hook.from_port in (None, from_port):
+            raise EffectError(f'The action already acts on this port of {name}')
+    if creates_cycle(graph, [(action.id, target.id)]):
+        raise EffectError(f'{name} is upstream of the action, so acting on it would form a loop')
+    return ActionHookDef(node=target.id, port=target_port, from_port=from_port, mode=mode)
+
+
+def hook_source_problem(source: ValueShape, target: ValueShape, mode: ActionHookMode) -> str | None:
+    """
+    Say why a value of shape `source` cannot act on `target` in the given mode, or return None if it can.
+
+    An absolute effect is an amount the target's unit can take. A relative one is
+    a share, so it has no unit; its dimensions and categories are held to the same rule.
+    """
+    if mode == ActionHookMode.ABSOLUTE:
+        return incompatibility(source, target)
+    if source.unit is None:
+        return 'its unit is not known'
+    if not source.unit.dimensionless:
+        return f'a relative effect is a share without a unit, not {source.unit:~P}'
+    return incompatibility(ValueShape(source.dimensions, target.unit, source.quantity, source.categories), target)
+
+
+def hook_shape_problem(
+    graph: InstanceGraph, result: ConstraintSolveResult, *, action: NodeMeta, target: NodeMeta, hook: ActionHookDef
+) -> str | None:
+    """Say why the action's port cannot act on the target's port, or return None if it can."""
+    assert hook.port is not None
+    assert hook.from_port is not None
+    target_shape = output_port_shape(graph, result, target, hook.port)
+    source_shape = output_port_shape(graph, result, action, hook.from_port)
+    problem = hook_source_problem(source_shape, target_shape, hook.mode)
+    if problem is None:
+        return None
+    return f'The action cannot act on {target.identifier}: {problem}'

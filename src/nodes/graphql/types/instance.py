@@ -101,6 +101,7 @@ if TYPE_CHECKING:
     from frameworks.submission_schema import SubmissionType
     from nodes.actions.action import ActionNode, ImpactOverview
     from nodes.context import Context
+    from nodes.graphql.action_hooks import ActionHookEdgeType, ActionHookTargetType  # used in lazy annotations
     from nodes.graphql.action_wizard import (  # used in lazy strawberry annotations
         ActionTargetType,
         DimensionCategoriesType,
@@ -612,6 +613,29 @@ class InstanceEditorFields:
                 ),
             )
         )
+
+    @sb.field(
+        graphql_type=list[Annotated['ActionHookEdgeType', sb.lazy('nodes.graphql.action_hooks')]],
+        description="Every action acting on a node's output port (hooks), with both ports resolved.",
+    )
+    @staticmethod
+    def hooks(root: 'InstanceEditorFields', info: gql.Info) -> list[Any]:
+        from nodes.graphql.action_hooks import action_hooks
+
+        return list(action_hooks(info.context.require_instance_graph(root._config, source=root._source)))
+
+    @sb.field(
+        graphql_type=list[Annotated['ActionHookTargetType', sb.lazy('nodes.graphql.action_hooks')]],
+        description=(
+            "The output ports an action of this instance may act on through a hook: the instance's own nodes, "
+            'and the nodes it inherits that the framework has opened to actions.'
+        ),
+    )
+    @staticmethod
+    def action_hook_targets(root: 'InstanceEditorFields', info: gql.Info) -> list[Any]:
+        from nodes.graphql.action_hooks import action_hook_targets
+
+        return list(action_hook_targets(info, root._config))
 
     @sb.field(
         graphql_type=list[Annotated['ActionTargetType', sb.lazy('nodes.graphql.action_wizard')]],

@@ -2003,6 +2003,9 @@ nodes:
 
 - id: final_energy_use_corrected
   is_editable: false
+  # A municipality's own actions may act on this node (a hook, future years only): it is where
+  # stationary final energy by sector and carrier enters the emissions.
+  action_hooks: true
   name_de: Endenergieverbrauch der stationären Sektoren, bereinigt
   name_en: Final energy use of the stationary sectors, corrected
   description_en: |
@@ -3080,6 +3083,9 @@ nodes:
 
 - id: end_energy_emission_factors
   is_editable: false
+  # Open to actions: a cleaner electricity mix or another change of a carrier's factor acts here,
+  # and reaches the stationary and the transport emissions alike.
+  action_hooks: true
   name_de: Endenergie Emissionsfaktoren (inkl. Bundesstrommix)
   name_en: End energy emission factors (incl. Bundesstrommix)
   description_en: |
@@ -4064,6 +4070,9 @@ nodes:
 
 - id: transport_energy
   is_editable: false
+  # Open to a municipality's own actions: where transport final energy by mode and carrier enters
+  # the emissions.
+  action_hooks: true
   name_de: Endenergieverbrauch Verkehr
   name_en: Transport final energy use
   description_en: |

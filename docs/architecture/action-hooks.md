@@ -117,14 +117,47 @@ implementation. Where the `zielpfad_*` scenarios
 enable two multiplier paths on the same cell, they compound today; as hooks
 they add, and the overlap becomes visible.
 
+## In the instance editor
+
+GraphQL, under `instance { editor }` and `instanceEditor`:
+
+- `editor.hooks` lists every hook with both ports resolved and its `mode`; an
+  action's spec carries the same in `typeConfig.hooks`.
+- `editor.actionHookTargets` lists the output ports an action of this instance
+  may act on, each with its quantity, unit and, on request, its dimensions and
+  the categories its output actually has (asking for those computes the node).
+- `nodeEditor.addActionHook` and `deleteActionHook` add and remove a hook of an
+  action. A hook is refused from a node that is not an action, on itself, on a
+  port that does not exist, twice, where it would close a cycle, or where the
+  shapes do not fit: the same dimensions, and a unit the target's can take, or
+  no unit for a relative hook.
+
+### Where an action may act
+
+An instance's own nodes take hooks freely. A node it inherits from a framework
+takes them only where the template says so, with `action_hooks: true` on the
+node (`NodeSpec.action_hooks`). A template has hundreds of nodes and an action
+makes sense on few: not on an emission aggregate, a data-quality figure, a
+presence check or anything that only reports. In `bisko-base` the open nodes
+are `final_energy_use_corrected`, `transport_energy` and
+`end_energy_emission_factors`.
+
+A node an action acts on must reach into the forecast. Where the target has no
+value in a year, an absolute contribution becomes the whole value there, and a
+relative one adds nothing.
+
+The marker belongs to the template, so a release can close a node, remove it or
+remove one of its ports. A hook that no longer holds is then a composition
+error, as a stale binding is (`template_graph._drop_invalid_hooks`): the draft
+still loads, the action remains without that effect, the municipality cannot
+publish until it is resolved, and `deleteActionHook` removes the stored hook.
+
 ## Not built yet
 
-- **GraphQL and model-editor support.** Hooks are not exposed in the API, and
-  the editor cannot create them (the planned gesture: drag from an action's
-  output port onto another node's output port).
-- **Framework restrictions.** The template should be able to mark nodes where
-  an action makes no sense (`action_hooks: false`: emission aggregates,
-  data-quality and presence nodes). Shift-type outputs such as
+- **Drawing hooks in the model editor.** The canvas does not show them (the
+  planned gesture: drag from an action's output port onto another node's output
+  port).
+- **Sum-to-zero outputs.** Shift-type outputs such as
   `transport_energy_shares` could declare that contributions must sum to zero
   across a dimension.
 - **Historical impact.** The measured history already contains a realised
