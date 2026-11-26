@@ -91,6 +91,17 @@ def _years(ic: InstanceConfig) -> tuple[int | None, int | None, list[int] | None
     return years.min_historical, years.max_historical, years.skipped
 
 
+def test_a_future_year_is_refused_even_within_the_model_horizon(
+    gql_client: PathsTestClient, db_instance_config: InstanceConfig
+) -> None:
+    # The model end year is the horizon of the scenario path, not the last year that can have data.
+    db_instance_config.update_years(model_end=2100, target=2100)
+    result = _add(gql_client, db_instance_config, datetime.datetime.now(tz=datetime.UTC).year + 1)
+    assert result['__typename'] == 'OperationInfo'
+    assert 'is in the future' in result['messages'][0]['message']
+    assert _years(db_instance_config) == (2010, 2022, None)
+
+
 class TestYearsSpec:
     def test_historical_is_undeclared_until_skipped_is_set(self) -> None:
         assert YearsSpec(min_historical=2010, max_historical=2012).historical is None

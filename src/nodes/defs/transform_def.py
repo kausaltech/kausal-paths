@@ -245,6 +245,15 @@ class SetForecastFromOp(PortTransformOpBase):
 
     kind: Literal['set_forecast_from'] = 'set_forecast_from'
     year: int
+    hold_last_value: bool = False
+    """
+    Leave out the values from ``year`` onwards, so that an extension holds the last earlier value.
+
+    A series with no earlier value keeps its first year only, as history: a
+    reference table published for one recent year still reaches the model, and
+    is as flat.
+    Set by the instance feature ``hold_inputs_after_maximum_historical_year``.
+    """
 
 
 class EnsureUnitOp(PortTransformOpBase):
@@ -602,7 +611,9 @@ def preserve_temporal_fill_transformations(
     return [*replacements, *(op for op in previous if op.kind in TEMPORAL_FILL_KINDS)]
 
 
-def with_forecast_from(transformations: Sequence[PortTransformOp], year: int) -> list[PortTransformOp]:
+def with_forecast_from(
+    transformations: Sequence[PortTransformOp], year: int, *, hold_last_value: bool = False
+) -> list[PortTransformOp]:
     """
     Insert forecast synthesis into a pipeline that has none.
 
@@ -618,7 +629,7 @@ def with_forecast_from(transformations: Sequence[PortTransformOp], year: int) ->
     for index, op in enumerate(ops):
         if op.kind in anchors:
             insert_at = index + 1
-    ops.insert(insert_at, SetForecastFromOp(year=year))
+    ops.insert(insert_at, SetForecastFromOp(year=year, hold_last_value=hold_last_value))
     return ops
 
 

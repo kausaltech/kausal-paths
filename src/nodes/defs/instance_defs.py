@@ -183,6 +183,19 @@ class InstanceFeatures(BaseModel):
     rely on every dataset year being historical unless told otherwise.
     """
 
+    hold_inputs_after_maximum_historical_year: bool = False
+    """
+    Whether dataset values after the instance's `maximum_historical_year` are left out of the model.
+
+    Each input then ends at the last historical year, and whatever extends it
+    holds that year's value. A national table that already has a later year does
+    not move the path before the instance has a balance for that year. Implies
+    `forecast_after_maximum_historical_year` and applies to the same bindings:
+    a binding or dataset that says where its forecast begins describes the
+    future on purpose (a population projection, the path of an action), and
+    keeps its values.
+    """
+
     show_explanations: bool = False
     """Whether to show node explanation in the slot for description (under the graph)."""
 

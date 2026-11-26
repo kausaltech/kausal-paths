@@ -16,6 +16,7 @@ from datasets.schema_labels import default_language, set_schema_name
 from datasets.validation import dump_violations, evaluate_dataset_rules
 from datasets.year_slots import ensure_empty_year
 from frameworks.bisko.activation import municipality_nuts3
+from frameworks.bisko.horizon import extend_horizon
 from frameworks.bisko.plausibility import provision_bisko_plausibility_ranges
 from frameworks.bisko.quality import provision_bisko_quality_projections
 from frameworks.bisko.weather import (
@@ -221,6 +222,12 @@ def _reconcile_bisko_weather_defaults(framework: Framework) -> None:
         seed_weather_defaults(instance, dataset, frame, nuts3=municipality_nuts3(organization), source_revision=revision)
 
 
+def _reconcile_bisko_horizon(framework: Framework) -> None:
+    """Carry a later horizon in the template over to the municipalities, whose years are local to them."""
+    for change in extend_horizon(framework):
+        print(change)
+
+
 def _reconcile_bisko_empty_cells(framework: Framework) -> None:
     template = framework.template_instance
     assert template is not None
@@ -411,6 +418,7 @@ def setup_bisko(*, template_identifier: str = 'bisko-base', instance_identifiers
     _reconcile_bisko_nuts_codes(framework)
     _reconcile_bisko_categories(framework)
     _reconcile_bisko_dataset_names(framework)
+    _reconcile_bisko_horizon(framework)
     _reconcile_bisko_weather_defaults(framework)
     _reconcile_bisko_empty_cells(framework)
 

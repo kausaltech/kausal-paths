@@ -325,18 +325,30 @@ class DatasetWithFilters(Dataset, ABC):
         year after the instance's last historical year: the model's history
         ends there, whatever the data says. A ``Forecast`` column the data
         carries itself still wins over all of them (see ``set_forecast_from``).
+
+        With ``hold_inputs_after_maximum_historical_year`` the instance's year
+        also ends the data: values after the last historical year are left out,
+        so that an extension holds that year's value (``hold_last_value`` on
+        the forecast operation). A binding or dataset with a year of its own
+        keeps its values.
         """
         if kwargs['forecast_from'] is not None:
             return
-        year = dataset_default
         instance = context.instance
+        features = instance.features
         last_historical = instance.maximum_historical_year
-        if year is None and instance.features.forecast_after_maximum_historical_year and last_historical is not None:
+        if dataset_default is not None:
+            year = dataset_default
+            hold = False
+        elif last_historical is not None and (
+            features.forecast_after_maximum_historical_year or features.hold_inputs_after_maximum_historical_year
+        ):
             year = last_historical + 1
-        if year is None:
+            hold = features.hold_inputs_after_maximum_historical_year
+        else:
             return
         kwargs['forecast_from'] = year
-        kwargs['transformations'] = with_forecast_from(kwargs['transformations'], year)
+        kwargs['transformations'] = with_forecast_from(kwargs['transformations'], year, hold_last_value=hold)
 
     def __rich_repr__(self) -> RichReprResult:
         yield from super().__rich_repr__()

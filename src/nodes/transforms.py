@@ -585,14 +585,20 @@ def _set_forecast_from(df: ppl.PathsDataFrame, op: SetForecastFromOp) -> ppl.Pat
     Mark values from the given year onwards as forecast.
 
     A frame that already states its forecast status keeps it: the dataset knows
-    better than the binding does.
+    better than the binding does. With ``hold_last_value`` the values from that
+    year onwards are left out. A series with nothing earlier keeps its first
+    year, as history: it is the one value the series has, and an extension
+    back over the historical years copies its forecast status along.
     """
     if FORECAST_COLUMN in df.columns:
         return df
     meta = df.get_meta()
-    df = df.with_columns(
-        pl.when(pl.col(YEAR_COLUMN) >= op.year).then(pl.lit(value=True)).otherwise(pl.lit(value=False)).alias(FORECAST_COLUMN),
-    )
+    is_forecast = pl.col(YEAR_COLUMN) >= op.year
+    if op.hold_last_value:
+        first_year = pl.col(YEAR_COLUMN).min().over(df.dim_ids) if df.dim_ids else pl.col(YEAR_COLUMN).min()
+        df = df.filter(~is_forecast | (pl.col(YEAR_COLUMN) == first_year))
+        is_forecast = pl.lit(value=False)
+    df = df.with_columns(is_forecast.alias(FORECAST_COLUMN))
     return ppl.to_ppdf(df, meta=meta)
 
 

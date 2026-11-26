@@ -29,6 +29,26 @@ historical. It enters the pipeline as a `set_forecast_from` operation
 (`DatasetWithFilters.apply_forecast_defaults`), so dataset hashes and the
 prepared store follow it.
 
+### Holding inputs after the last historical year
+
+With the instance feature `hold_inputs_after_maximum_historical_year`, the
+instance's year (rule 3) also ends the data: values after the last historical
+year are left out, so whatever extends the input holds that year's value. It
+implies `forecast_after_maximum_historical_year`. The BISKO template uses it to
+keep the business-as-usual path flat. Without it, a national factor table that
+already had a 2024 value stepped a municipality's path between its last balance
+year, 2023, and 2024.
+
+- **Exempt:** a binding or dataset with a forecast year of its own (rules 1
+  and 2). It describes the future on purpose and keeps its values. Examples are
+  the population projection and the path of an action.
+- **A series with nothing at or before the last historical year** keeps its
+  first year only, marked historical. A reference table published for one
+  recent year is extended back over the history, and that extension copies the
+  first year's forecast status.
+- **Implementation:** `hold_last_value` on the `set_forecast_from` operation.
+  No stored binding carries it; `apply_forecast_defaults` sets it at load.
+
 ## Choice parameters
 
 - `ChoiceParameter` (`type: choice`) holds the id of one of its `choices`.

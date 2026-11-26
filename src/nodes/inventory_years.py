@@ -29,6 +29,7 @@ from typing import TYPE_CHECKING
 
 from django.core.exceptions import ValidationError
 from django.db.models import Q
+from django.utils import timezone
 
 from kausal_common.datasets.models import DataPoint, DataPointComment, Dataset, DatasetSourceReference
 
@@ -130,6 +131,10 @@ def add_inventory_year(ic: InstanceConfig, year: int) -> AddedYear:
     model_end = ic.ensure_spec().years.model_end
     if model_end is not None and year > model_end:
         raise InventoryYearError(f'{year} exceeds the model end year {model_end}.')
+    # The model end year is the horizon of the scenario path, far beyond any year that has data.
+    current_year = timezone.now().year
+    if year > current_year:
+        raise InventoryYearError(f'{year} is in the future; an inventory year has measured data.')
     if year in before.years:
         raise InventoryYearError(f'{year} is already an inventory year.')
 

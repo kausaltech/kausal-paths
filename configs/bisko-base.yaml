@@ -10,8 +10,11 @@ dataset_repo:
 name: BISKO-Basismodell
 owner: Kausal Ltd
 theme_identifier: default
-target_year: 2025
-model_end_year: 2025
+# The scenario view runs to 2045, the year of the national climate-neutrality target. A
+# municipality's own years are local to it: a change here reaches new municipalities only, and
+# `setup_bisko` moves the existing ones on its next run.
+target_year: 2045
+model_end_year: 2045
 reference_year: 1990
 minimum_historical_year: 1990
 maximum_historical_year: 2023
@@ -26,6 +29,10 @@ features:
   use_datasets_from_db: true
   show_explanations: true
   show_category_warnings: true
+  # Business as usual is flat: every input ends at the municipality's last balance year and is
+  # held from there, so a national table that already has a later year does not move the path.
+  # The population projection keeps its values, because its dataset says where its forecast begins.
+  hold_inputs_after_maximum_historical_year: true
 
 # Per-capita figures over editable municipal population, with GISCO LAU as the fallback
 # until a local series is supplied. Years the population series lacks drop out of a
