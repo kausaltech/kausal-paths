@@ -30,6 +30,7 @@ import polars as pl
 
 from nodes.constants import FORECAST_COLUMN, YEAR_COLUMN
 from nodes.exceptions import NodeError
+from nodes.units import unit_registry
 
 if TYPE_CHECKING:
     from common import polars as ppl
@@ -67,8 +68,8 @@ def last_historical_year(node: Node, df: ppl.PathsDataFrame) -> int | None:
     return df.filter(~pl.col(FORECAST_COLUMN))[YEAR_COLUMN].max()  # type: ignore[return-value]
 
 
-def hook_contribution(hook: ActionHook, after_year: int | None) -> ppl.PathsDataFrame:
-    """Shape the action's output as a contribution: one metric in the target's unit and dimensions, future years only."""
+def _in_target_dimensions(hook: ActionHook) -> ppl.PathsDataFrame:
+    """Return the action's acting metric under the target's column name and in the target's dimensions."""
     action, target = hook.action, hook.target
     df = action.get_output_pl()
     col = hook.action_metric.column_id
@@ -83,10 +84,39 @@ def hook_contribution(hook: ActionHook, after_year: int | None) -> ppl.PathsData
             'Dimensions (%s) do not match the output of %s it acts on (%s)'
             % (', '.join(df.dim_ids), target.id, ', '.join(target.output_dimensions)),
         )
-    target_unit = hook.target_metric.unit
-    if not df.get_unit(target_col).is_compatible_with(target_unit):
-        raise NodeError(action, 'Unit %s cannot act on %s in %s' % (df.get_unit(target_col), target.id, target_unit))
-    df = df.ensure_unit(target_col, target_unit)
+    return df
+
+
+def _share_of_base(hook: ActionHook, share: ppl.PathsDataFrame, base: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+    """Turn a share of the target's un-hooked value `base` into an amount in the target's unit."""
+    action, target = hook.action, hook.target
+    col = hook.target_metric.column_id
+    if not share.get_unit(col).dimensionless:
+        raise NodeError(action, 'A relative effect on %s is a share without a unit, not %s' % (target.id, share.get_unit(col)))
+    share = share.ensure_unit(col, unit_registry.dimensionless)
+    right = '%s_right' % col
+    # Where the target has no value there is nothing to take a share of.
+    joined = share.paths.join_over_index(base.select_metrics(col), how='inner', index_from='left')
+    amount = joined.with_columns((pl.col(col) * pl.col(right)).alias(col)).drop(right)
+    return amount.set_unit(col, hook.target_metric.unit, force=True)
+
+
+def hook_contribution(hook: ActionHook, after_year: int | None, base: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
+    """
+    Shape the action's output as a contribution: one metric in the target's unit and dimensions, future years only.
+
+    `base` is the target's un-hooked output, which a relative hook takes its share of.
+    """
+    action, target = hook.action, hook.target
+    df = _in_target_dimensions(hook)
+    target_col = hook.target_metric.column_id
+    if hook.definition.is_relative:
+        df = _share_of_base(hook, df, base)
+    else:
+        target_unit = hook.target_metric.unit
+        if not df.get_unit(target_col).is_compatible_with(target_unit):
+            raise NodeError(action, 'Unit %s cannot act on %s in %s' % (df.get_unit(target_col), target.id, target_unit))
+        df = df.ensure_unit(target_col, target_unit)
     if after_year is None:
         return df
     return df.filter(pl.col(YEAR_COLUMN) > after_year)
@@ -95,10 +125,11 @@ def hook_contribution(hook: ActionHook, after_year: int | None) -> ppl.PathsData
 def apply_hooks(node: Node, df: ppl.PathsDataFrame) -> ppl.PathsDataFrame:
     """Add the contributions of the (enabled) actions acting on `node` to its un-hooked output `df`."""
     after_year = last_historical_year(node, df)
+    base = df
     for hook in node.hooks:
         if not hook.action.is_enabled():
             continue
-        contribution = hook_contribution(hook, after_year)
+        contribution = hook_contribution(hook, after_year, base)
         if not len(contribution):
             continue
         col = hook.target_metric.column_id

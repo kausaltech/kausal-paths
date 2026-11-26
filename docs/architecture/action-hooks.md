@@ -37,13 +37,24 @@ after `compute()`, see `nodes/hooks.py`. The rules:
    target's last non-forecast year when that is unset). An action's historical
    values are the realised part of the measure. They are kept, not treated as
    an error, for the historical-impact view below.
-4. **Relative effects are explicit in the action.** An action may read the
+4. **A relative effect is a share of the un-hooked value.** A hook with
+   `mode: relative` (`hook_mode: relative` in YAML) takes the action's output
+   as a dimensionless share, −0.3 for −30 %, and multiplies it with the
+   target's un-hooked value where the hook is applied. The action can then be
+   any class; an `AdditiveAction` reading a path of shares from its own
+   dataset is the usual one. An action may also do the conversion itself. It
+   can read the
    un-hooked value of a node it acts on (`Node.get_base_output_pl()`) and turn
    a relative effect into the amount it adds. `formula.FormulaAction` does this
    by name: in its formula, the identifier of the node it acts on stands for
    that node's un-hooked value, e.g.
-   `district_heating_emissions_predominant_variant * (factor - 1)`. Because of
-   rule 2, two −20 % changes remove 40 % of the un-hooked value, not 36 %.
+   `district_heating_emissions_predominant_variant * (factor - 1)`. Either
+   way, because of rule 2, two −20 % changes remove 40 % of the un-hooked
+   value, not 36 %.
+
+A relative effect needs a hook. An action wired in through an ordinary edge
+would have to read the output of the node it feeds, which is a cycle unless the
+node is split in two.
 
 A hook is part of the action's spec (`ActionConfig.hooks`, see `ActionHookDef`),
 never a binding on the target: the target's `input_nodes`, input ports and

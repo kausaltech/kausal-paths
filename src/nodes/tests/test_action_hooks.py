@@ -11,7 +11,6 @@ import pytest
 from kausal_common.i18n.pydantic import TranslatedString
 
 from common import qualifiers
-
 from nodes.constants import VALUE_COLUMN, YEAR_COLUMN
 from nodes.exceptions import NodeError
 from nodes.instance_loader import InstanceLoader
@@ -308,3 +307,54 @@ def test_action_impact_on_a_qualified_target() -> None:
     assert qual in impact.columns
     assert impact['Impact'].n_unique() == 3
     assert impact.filter(pl.col('Impact') == 'Impact')[qual].null_count() == 0
+
+
+def _share(**extra: Any) -> dict[str, Any]:
+    """Return an action whose output is a share of what it acts on."""
+    return _saving(**{
+        'unit': 'dimensionless',
+        'quantity': 'fraction',
+        'historical_values': [[2018, -0.5], [2020, -0.5]],
+        'forecast_values': [[2025, -0.1]],
+        'output_nodes': [{'id': 'demand', 'hook': True, 'hook_mode': 'relative'}],
+        **extra,
+    })
+
+
+def test_a_relative_hook_adds_a_share_of_the_un_hooked_value_in_forecast_years_only() -> None:
+    ctx = _context(_config(actions=[_share()]))
+    with ctx.run():
+        ctx.get_action('saving').enabled_param.set(True)
+        total = ctx.get_node('total').get_output_pl()
+        assert _values(total) == {2018: 100, 2019: 100, 2020: 100, 2025: 90}
+        assert str(total.get_unit(VALUE_COLUMN)) == 'kWh/a'
+
+
+def test_relative_and_absolute_hooks_on_one_node_add_up_without_compounding() -> None:
+    actions = [_share(), _share(id='other', forecast_values=[[2025, -0.2]]), _saving(id='absolute', forecast_values=[[2025, -5]])]
+    ctx = _context(_config(actions=actions))
+    with ctx.run():
+        for action_id in ('saving', 'other', 'absolute'):
+            ctx.get_action(action_id).enabled_param.set(True)
+        # 100 - 10 % - 20 % - 5: both shares are of the same un-hooked 100.
+        assert _values(ctx.get_node('demand').get_output_pl())[2025] == pytest.approx(65)
+
+
+def test_a_relative_hook_refuses_an_amount() -> None:
+    ctx = _context(_config(actions=[_saving(output_nodes=[{'id': 'demand', 'hook': True, 'hook_mode': 'relative'}])]))
+    with ctx.run():
+        ctx.get_action('saving').enabled_param.set(True)
+        with pytest.raises(NodeError, match='share without a unit'):
+            ctx.get_node('demand').get_output_pl()
+
+
+def test_the_hook_mode_survives_the_snapshot_round_trip_and_rejects_unknown_values() -> None:
+    snapshot = parse_instance_snapshot(_config(actions=[_share()]), instance_uuid=uuid4())
+    restored = InstanceSnapshot.model_validate_json(snapshot.model_dump_json())
+    ctx = InstanceLoader(snapshot=restored).context
+    with ctx.run():
+        ctx.get_action('saving').enabled_param.set(True)
+        assert _values(ctx.get_node('demand').get_output_pl())[2025] == 90
+    bad = _saving(output_nodes=[{'id': 'demand', 'hook': True, 'hook_mode': 'multiply'}])
+    with pytest.raises(InstanceParseError, match='hook_mode'):
+        parse_instance_snapshot(_config(actions=[bad]), instance_uuid=uuid4())

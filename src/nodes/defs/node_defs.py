@@ -440,6 +440,15 @@ class PipelineConfig(PipelineSpec):
     kind: Literal[NodeKind.PIPELINE] = NodeKind.PIPELINE
 
 
+class ActionHookMode(StrEnum):
+    """What the action's output is, for the node it acts on."""
+
+    ABSOLUTE = 'absolute'
+    """An amount in the target's unit, added as it is."""
+    RELATIVE = 'relative'
+    """A dimensionless share of the target's un-hooked value: -0.3 removes 30 % of it."""
+
+
 class ActionHookDef(BaseModel):
     """
     An action's contribution added to another node's output.
@@ -464,6 +473,18 @@ class ActionHookDef(BaseModel):
     """The action's output port; may be omitted when the action has a single output."""
     transformations: list[EdgeTransformOp] = Field(default_factory=list)
     """Dimension operations applied to the action's output, as on an ordinary edge."""
+    mode: ActionHookMode = ActionHookMode.ABSOLUTE
+    """
+    Whether the action gives an amount or a share of the target's un-hooked value.
+
+    A share is turned into an amount where the hook is applied, against the same
+    un-hooked value every hook on the port sees, so relative effects add up like
+    absolute ones: two shares of -0.2 remove 40 %, not 36 %.
+    """
+
+    @property
+    def is_relative(self) -> bool:
+        return self.mode == ActionHookMode.RELATIVE
 
 
 class ActionConfig(BaseModel):

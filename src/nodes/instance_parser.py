@@ -60,6 +60,7 @@ from nodes.defs.instance_defs import (
 from nodes.defs.node_defs import (
     ActionConfig,
     ActionHookDef,
+    ActionHookMode,
     DatasetPortSpec,
     FormulaConfig,
     InputDatasetDef,
@@ -220,8 +221,8 @@ class _ParsedNode:
     output_ports: list[OutputPortDef] = field(default_factory=list)
     dataset_defs: list[InputDatasetDef] = field(default_factory=list)
     has_fixed_dataset: bool = False
-    # Actions only: (edge, target metric) for each `output_nodes` entry marked `hook`.
-    hook_edges: list[tuple[_ParsedEdge, str | None]] = field(default_factory=list)
+    # Actions only: (edge, target metric, mode) for each `output_nodes` entry marked `hook`.
+    hook_edges: list[tuple[_ParsedEdge, str | None, ActionHookMode]] = field(default_factory=list)
 
 
 @dataclass
@@ -1172,15 +1173,19 @@ class InstanceConfigParser:
         if not node.is_action:
             raise InstanceParseError(f'Node {node.identifier}: only actions can act on another node (hook)')
         to_metric = ec.get('to_metric')
-        ec = {key: value for key, value in ec.items() if key not in ('hook', 'to_metric')}
+        try:
+            mode = ActionHookMode(ec.get('hook_mode', ActionHookMode.ABSOLUTE))
+        except ValueError as exc:
+            raise InstanceParseError(f'Node {node.identifier}: hook_mode is absolute or relative') from exc
+        ec = {key: value for key, value in ec.items() if key not in ('hook', 'hook_mode', 'to_metric')}
         if ec.get('tags'):
             raise InstanceParseError(f'Node {node.identifier}: a hook adds its output and takes no tags')
         edge = self._make_edge(ec, node, is_output=True)
-        node.hook_edges.append((edge, to_metric))
+        node.hook_edges.append((edge, to_metric, mode))
 
     def _resolve_hooks(self, parsed: _ParsedNode) -> list[ActionHookDef]:
         hooks: list[ActionHookDef] = []
-        for edge, to_metric in parsed.hook_edges:
+        for edge, to_metric, mode in parsed.hook_edges:
             target = self.nodes[edge.to_node]
             port = None
             if to_metric is not None:
@@ -1202,6 +1207,7 @@ class InstanceConfigParser:
                     port=port,
                     from_port=from_port,
                     transformations=self._edge_to_transforms(edge),
+                    mode=mode,
                 )
             )
         return hooks
