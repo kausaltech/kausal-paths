@@ -358,3 +358,38 @@ def test_the_hook_mode_survives_the_snapshot_round_trip_and_rejects_unknown_valu
     bad = _saving(output_nodes=[{'id': 'demand', 'hook': True, 'hook_mode': 'multiply'}])
     with pytest.raises(InstanceParseError, match='hook_mode'):
         parse_instance_snapshot(_config(actions=[bad]), instance_uuid=uuid4())
+
+
+def test_a_path_of_levels_acts_as_its_ratio_to_the_last_historical_year() -> None:
+    """
+    A published projection is a path of levels, and what it means for a node is its relative change.
+
+    The share is taken against the path's own value in the instance's last historical year, so
+    the same path serves instances whose history ends in different years.
+    """
+    path = {
+        'id': 'path',
+        'type': 'simple.AdditiveNode',
+        'name': 'Projected factor',
+        'unit': 'g/kWh',
+        'quantity': 'emission_factor',
+        'historical_values': [[2018, 400], [2019, 350], [2020, 300]],
+        'forecast_values': [[2025, 150]],
+    }
+    action = {
+        'id': 'cleaner',
+        'type': 'formula.FormulaAction',
+        'name': 'Cleaner mix',
+        'unit': 'dimensionless',
+        'quantity': 'fraction',
+        'input_nodes': ['path'],
+        'params': [{'id': 'formula', 'value': 'ratio_to_max_hist_year(path) - 1'}],
+        'output_nodes': [{'id': 'demand', 'hook': True, 'hook_mode': 'relative'}],
+    }
+    config = _config(actions=[action])
+    config['nodes'].append(path)
+    ctx = _context(config)
+    with ctx.run():
+        ctx.get_action('cleaner').enabled_param.set(True)
+        # 150 / 300 of the un-hooked 100; the path's own history leaves the node's alone.
+        assert _values(ctx.get_node('demand').get_output_pl()) == {2018: 100, 2019: 100, 2020: 100, 2025: 50}
