@@ -1,0 +1,1309 @@
+# Composite traffic: the decision analysis of Tuomisto & Tainio (2005), BMC Public Health 5:123.
+#
+# Composite traffic pools car trips with the same origin, destination and time into 8- and
+# 4-seat vehicles with a driver. The original Analytica model aggregated one working day of
+# Helsinki metropolitan area traffic (2000) at 13 composite fractions and 7 coverage levels and
+# valued the result in euros (2005). This module is Rounds 2 and 3 of the plan in paths-data
+# modules/composite-traffic/docs/plan.md: the replication with the original values, and the same
+# model with the values of 2025.
+#
+# The trip aggregation is not rerun: its results are datasets (trips, vehicle-km, waiting
+# times, parking places, fleet, rush-hour flow). The decision analysis is rebuilt node by node,
+# following the Analytica code (paths-data modules/composite-traffic/inputs/ana_model.md); the
+# Analytica node names are given in the comments. Questionable formulas are replicated as
+# written and said so.
+#
+# Uncertainty: the original is a Monte Carlo model. Here every input sits at the value that
+# makes the model give its mean (paths-data scripts/reference_decision_analysis.py, mean_case()),
+# so every result is the Monte Carlo mean. The 90 % intervals stay in the Python reference.
+#
+# Assumption cases, chosen by composite_traffic_assumption_case: `paper_2005`, the article's
+# values at 2005 prices, and `current_2025`, the values of 2025 at 2025 prices with one electric
+# 8-seat vehicle (the 4-seat travel types get the 8-seat values) and the traffic scaled to 2023
+# (paths-data docs/current_values.md). Energy is in kWh, so fuel and electricity share one unit.
+#
+#   trip aggregation ─► trips, vehicle-km, fleet, parking places, waiting, rush-hour flow
+#                                │
+#        cost elements ─► costs by element (EUR/d) ─► costs by stakeholder ─► societal cost
+#                                                                        └─► passenger cost per trip
+#   Table 1: accidents, emissions, PM deaths, driver salaries, vehicle costs, time cost,
+#            passenger cost per trip.  Figure 5: societal cost, subsidies, both by coverage.
+#
+# What the including instance must provide: the dimensions in `dimensions.yaml`, and the global
+# parameters `composite_traffic_coverage_level` (a coverage_level category) and
+# `composite_traffic_assumption_case` (an assumption_case category). An include does not carry
+# `params:`.
+#
+# Data: `composite_traffic/*`, built by paths-data modules/composite-traffic/scripts/create_datasets.py.
+#
+# Units: the model counts a year as 365 days and Paths as 365.25, so the capital costs and the
+# PM deaths per year differ from the original by 0.07 %.
+
+datasets:
+- id: composite_traffic/trips
+  is_editable: false
+- id: composite_traffic/vehicle_km
+  is_editable: false
+- id: composite_traffic/waiting_times
+  is_editable: false
+- id: composite_traffic/parking_places
+  is_editable: false
+- id: composite_traffic/composite_fleet
+  is_editable: false
+- id: composite_traffic/rush_hour_traffic
+  is_editable: false
+- id: composite_traffic/subsidy_per_trip
+  is_editable: false
+- id: composite_traffic/vehicle_costs
+- id: composite_traffic/parking_prices
+- id: composite_traffic/unit_costs
+- id: composite_traffic/accidents
+- id: composite_traffic/cost_allocation
+
+nodes:
+
+# ///// The trip aggregation results /////
+
+# The aggregation was run on the traffic of 2000. A case with other traffic scales trips,
+# vehicle-km, parking places, fleet and rush-hour flow by this factor, which assumes the pooling is
+# as efficient as at the 2000 volume; waiting times stay. Rush-hour congestion is computed
+# relative to the 0 % case, so the scale cancels there.
+- id: composite_traffic_traffic_volume
+  name_en: Car traffic relative to 2000
+  description_en: |
+    How much car travel there is compared with the year 2000, whose trips the composite traffic
+    calculation pooled. The trips, kilometres, vehicles and parking places are scaled by it.
+  type: generic.GenericNode
+  quantity: fraction
+  unit: dimensionless
+  input_datasets:
+  - id: composite_traffic/unit_costs
+    column: traffic_volume
+    filters:
+    - column: assumption_case
+      ref: composite_traffic_assumption_case
+
+- id: composite_traffic_trips
+  name_en: Trips
+  description_en: |
+    Car and composite trips in the Helsinki metropolitan area on a working day, by zone of
+    destination, trip length and period of the day. At each composite fraction, that share of
+    the car trips is made by composite traffic instead.
+  type: generic.GenericNode
+  quantity: number
+  unit: trip/d
+  input_dimensions: [composite_fraction, travel_mode, city_zone, trip_length, day_period]
+  output_dimensions: [composite_fraction, travel_mode, city_zone, trip_length, day_period]
+  input_datasets:
+  - id: composite_traffic/trips
+    column: trips
+    filters:
+    - column: coverage_level
+      ref: composite_traffic_coverage_level
+  input_nodes:
+  - id: composite_traffic_traffic_volume
+    tags: [non_additive]
+
+- id: composite_traffic_vehicle_km
+  name_en: Vehicle-kilometres
+  description_en: |
+    Kilometres driven by cars and composite vehicles in a day, by how the trips were made.
+  type: generic.GenericNode
+  quantity: vehicle_mileage
+  unit: vkm/d
+  input_dimensions: [composite_fraction, travel_type, vehicle_class, travel_mode, trip_length, day_period]
+  output_dimensions: [composite_fraction, travel_type, vehicle_class, travel_mode, trip_length, day_period]
+  input_datasets:
+  - id: composite_traffic/vehicle_km
+    column: vehicle_km
+    filters:
+    - column: coverage_level
+      ref: composite_traffic_coverage_level
+  input_nodes:
+  - id: composite_traffic_traffic_volume
+    tags: [non_additive]
+
+- id: composite_traffic_waiting_time
+  name_en: Waiting time for a composite vehicle
+  description_en: |
+    How long a passenger waits for a composite vehicle beyond the time asked for, on average.
+  type: generic.GenericNode
+  quantity: duration
+  unit: min/trip
+  input_dimensions: [composite_fraction, travel_type, trip_length, day_period]
+  output_dimensions: [composite_fraction, travel_type, trip_length, day_period]
+  input_datasets:
+  - id: composite_traffic/waiting_times
+    column: waiting_time
+    filters:
+    - column: coverage_level
+      ref: composite_traffic_coverage_level
+
+- id: composite_traffic_parking_places
+  name_en: Parking places needed
+  description_en: |
+    Parking places that cars and composite vehicles need during the day, by zone.
+  type: generic.GenericNode
+  quantity: number
+  unit: pcs
+  input_dimensions: [composite_fraction, travel_mode, city_zone]
+  output_dimensions: [composite_fraction, travel_mode, city_zone]
+  input_datasets:
+  - id: composite_traffic/parking_places
+    column: parking_places
+    filters:
+    - column: coverage_level
+      ref: composite_traffic_coverage_level
+  input_nodes:
+  - id: composite_traffic_traffic_volume
+    tags: [non_additive]
+
+- id: composite_traffic_fleet
+  name_en: Composite vehicles needed
+  description_en: |
+    The 8- and 4-seat vehicles that composite traffic needs for the daytime traffic.
+  type: generic.GenericNode
+  quantity: number
+  unit: vehicle
+  input_dimensions: [composite_fraction, vehicle_class]
+  output_dimensions: [composite_fraction, vehicle_class]
+  input_datasets:
+  - id: composite_traffic/composite_fleet
+    column: vehicles
+    filters:
+    - column: coverage_level
+      ref: composite_traffic_coverage_level
+  input_nodes:
+  - id: composite_traffic_traffic_volume
+    tags: [non_additive]
+
+- id: composite_traffic_rush_hour_traffic
+  name_en: Rush-hour traffic on the busiest roads
+  description_en: |
+    Vehicles per hour on the 30 busiest road links between 8 and 9 in the morning.
+  type: generic.GenericNode
+  quantity: traffic_volume
+  unit: vehicle/h
+  input_dimensions: [composite_fraction, travel_type]
+  output_dimensions: [composite_fraction, travel_type]
+  input_datasets:
+  - id: composite_traffic/rush_hour_traffic
+    column: link_intensity
+    filters:
+    - column: coverage_level
+      ref: composite_traffic_coverage_level
+  input_nodes:
+  - id: composite_traffic_traffic_volume
+    tags: [non_additive]
+
+# ///// Traffic /////
+
+- id: composite_traffic_trips_by_mode
+  name_en: Trips by travel mode
+  description_en: |
+    Trips summed over the zones of destination.
+  type: formula.FormulaNode
+  quantity: number
+  unit: trip/d
+  input_dimensions: [composite_fraction, travel_mode, trip_length, day_period]
+  output_dimensions: [composite_fraction, travel_mode, trip_length, day_period]
+  input_nodes:
+  - id: composite_traffic_trips
+    tags: [trips]
+    to_dimensions: [{id: composite_fraction}, {id: travel_mode}, {id: city_zone}, {id: trip_length}, {id: day_period}]
+  params:
+  - id: formula
+    value: sum_dim(trips, city_zone)
+
+- id: composite_traffic_period_share
+  name_en: Share of a day's trips in each period
+  description_en: |
+    How a day's trips of each mode and length divide over the day, evening and night. The daily
+    costs (vehicles, parking land) are spread over the periods in these shares.
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [composite_fraction, travel_mode, trip_length, day_period]
+  output_dimensions: [composite_fraction, travel_mode, trip_length, day_period]
+  input_nodes:
+  - id: composite_traffic_trips_by_mode
+    tags: [trips]
+  params:
+  - id: formula
+    # No composite trips at 0 %, and no car trips at 100 %: 0/0, taken as 0 as in the model.
+    value: empty_to_zero(trips / sum_dim(trips, day_period))
+
+- id: composite_traffic_vehicle_km_by_class
+  name_en: Vehicle-kilometres by vehicle
+  type: formula.FormulaNode
+  quantity: vehicle_mileage
+  unit: vkm/d
+  input_dimensions: [composite_fraction, vehicle_class, travel_mode, trip_length, day_period]
+  output_dimensions: [composite_fraction, vehicle_class, travel_mode, trip_length, day_period]
+  input_nodes:
+  - id: composite_traffic_vehicle_km
+    tags: [vkm]
+    to_dimensions:
+    - id: composite_fraction
+    - id: travel_type
+    - id: vehicle_class
+    - id: travel_mode
+    - id: trip_length
+    - id: day_period
+  params:
+  - id: formula
+    value: sum_dim(vkm, travel_type)
+
+- id: composite_traffic_vehicle_km_by_mode
+  name_en: Vehicle-kilometres by travel mode
+  type: formula.FormulaNode
+  quantity: vehicle_mileage
+  unit: vkm/d
+  input_dimensions: [composite_fraction, travel_mode, trip_length, day_period]
+  output_dimensions: [composite_fraction, travel_mode, trip_length, day_period]
+  input_nodes:
+  - id: composite_traffic_vehicle_km_by_class
+    tags: [vkm]
+  params:
+  - id: formula
+    value: sum_dim(vkm, vehicle_class)
+
+- id: composite_traffic_vehicle_km_total
+  name_en: Vehicle-kilometres in total
+  type: formula.FormulaNode
+  quantity: vehicle_mileage
+  unit: Mvkm/d
+  input_dimensions: [composite_fraction]
+  output_dimensions: [composite_fraction]
+  input_nodes:
+  - id: composite_traffic_vehicle_km_by_mode
+    tags: [vkm]
+  params:
+  - id: formula
+    value: sum_dim(sum_dim(sum_dim(vkm, travel_mode), trip_length), day_period)
+
+- id: composite_traffic_vehicle_km_reduction
+  name_en: Reduction in vehicle-kilometres
+  description_en: |
+    How much less is driven than without composite traffic. Accidents fall with it.
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [composite_fraction]
+  output_dimensions: [composite_fraction]
+  input_nodes:
+  - id: composite_traffic_vehicle_km_total
+    tags: [vkm]
+  params:
+  - id: formula
+    value: 1 - vkm / select_category(vkm, composite_fraction='pct_0')
+
+# ///// Emissions and health /////
+
+- id: composite_traffic_pm_emissions
+  name_en: Fine particle emissions by vehicle
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: kg/d
+  input_dimensions: [composite_fraction, vehicle_class, travel_mode, trip_length, day_period]
+  output_dimensions: [composite_fraction, vehicle_class, travel_mode, trip_length, day_period]
+  input_nodes:
+  - id: composite_traffic_vehicle_km_by_class
+    tags: [vkm]
+  input_datasets:
+  - id: composite_traffic/vehicle_costs
+    column: pm_emission_factor
+    tags: [factor]
+    filters:
+    - column: assumption_case
+      ref: composite_traffic_assumption_case
+  params:
+  - id: formula
+    value: vkm * factor
+
+- id: composite_traffic_co2_emissions
+  name_en: CO₂ emissions by vehicle
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: t/d
+  input_dimensions: [composite_fraction, vehicle_class, travel_mode, trip_length, day_period]
+  output_dimensions: [composite_fraction, vehicle_class, travel_mode, trip_length, day_period]
+  input_nodes:
+  - id: composite_traffic_vehicle_km_by_class
+    tags: [vkm]
+  input_datasets:
+  - id: composite_traffic/vehicle_costs
+    column: co2_emission_factor
+    tags: [factor]
+    filters:
+    - column: assumption_case
+      ref: composite_traffic_assumption_case
+  params:
+  - id: formula
+    value: vkm * factor
+
+- id: composite_traffic_pm_emissions_total
+  name_en: Fine particle emissions
+  description_en: |
+    Primary fine particles (PM2.5) from the exhaust of cars and composite vehicles.
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: kg/d
+  input_dimensions: [composite_fraction]
+  output_dimensions: [composite_fraction]
+  input_nodes:
+  - id: composite_traffic_pm_emissions
+    tags: [pm]
+  params:
+  - id: formula
+    value: sum_dim(sum_dim(sum_dim(sum_dim(pm, vehicle_class), travel_mode), trip_length), day_period)
+
+- id: composite_traffic_co2_emissions_total
+  name_en: CO₂ emissions
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: t/d
+  input_dimensions: [composite_fraction]
+  output_dimensions: [composite_fraction]
+  input_nodes:
+  - id: composite_traffic_co2_emissions
+    tags: [co2]
+  params:
+  - id: formula
+    value: sum_dim(sum_dim(sum_dim(sum_dim(co2, vehicle_class), travel_mode), trip_length), day_period)
+
+- id: composite_traffic_pm_deaths
+  name_en: Deaths due to fine particles
+  description_en: |
+    Deaths caused by the fine particle emissions of the traffic, from a risk assessment of
+    Helsinki traffic emissions.
+  type: formula.FormulaNode
+  quantity: incidence
+  unit: case/a
+  input_dimensions: [composite_fraction]
+  output_dimensions: [composite_fraction]
+  input_nodes:
+  - id: composite_traffic_pm_emissions_total
+    tags: [pm]
+  input_datasets:
+  - id: composite_traffic/unit_costs
+    column: pm_lethality
+    tags: [lethality]
+    filters:
+    - column: assumption_case
+      ref: composite_traffic_assumption_case
+  params:
+  - id: formula
+    value: pm * lethality
+
+# ///// Accidents (Acc_costs) /////
+
+- id: composite_traffic_accident_factor
+  name_en: Change in accident risk
+  description_en: |
+    Accidents fall with the vehicle-kilometres driven, but less than in proportion: by half as
+    much, on average.
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [composite_fraction]
+  output_dimensions: [composite_fraction]
+  input_nodes:
+  - id: composite_traffic_vehicle_km_reduction
+    tags: [reduction]
+  input_datasets:
+  - id: composite_traffic/unit_costs
+    column: accident_elasticity
+    tags: [elasticity]
+    filters:
+    - column: assumption_case
+      ref: composite_traffic_assumption_case
+  params:
+  - id: formula
+    value: 1 - reduction * elasticity
+
+- id: composite_traffic_accidents
+  name_en: Injuries and deaths in traffic accidents
+  description_en: |
+    Half of the road traffic accidents are attributed to car traffic, and that half changes with
+    the vehicle-kilometres driven.
+  type: formula.FormulaNode
+  quantity: incidence
+  unit: case/a
+  input_dimensions: [composite_fraction, accident_type]
+  output_dimensions: [composite_fraction, accident_type]
+  input_nodes:
+  - id: composite_traffic_accident_factor
+    tags: [factor]
+  input_datasets:
+  - id: composite_traffic/accidents
+    column: accidents
+    tags: [accidents]
+    filters:
+    - column: assumption_case
+      ref: composite_traffic_assumption_case
+  - id: composite_traffic/unit_costs
+    column: car_share_of_accidents
+    tags: [car_share]
+    filters:
+    - column: assumption_case
+      ref: composite_traffic_assumption_case
+  params:
+  - id: formula
+    value: accidents * car_share * factor
+
+- id: composite_traffic_accident_cost
+  name_en: Accident costs
+  description_en: |
+    The societal cost of the accidents attributed to car traffic, divided between the modes by
+    the kilometres they drive.
+  type: formula.FormulaNode
+  quantity: currency
+  unit: EUR/d
+  input_dimensions: [composite_fraction, travel_mode, trip_length, day_period]
+  output_dimensions: [composite_fraction, travel_mode, trip_length, day_period]
+  input_nodes:
+  - id: composite_traffic_accident_factor
+    tags: [factor]
+  - id: composite_traffic_vehicle_km_by_mode
+    tags: [vkm]
+  - id: composite_traffic_vehicle_km_total
+    tags: [vkm_total]
+  input_datasets:
+  - id: composite_traffic/unit_costs
+    column: accident_cost
+    tags: [cost]
+    filters:
+    - column: assumption_case
+      ref: composite_traffic_assumption_case
+  - id: composite_traffic/unit_costs
+    column: car_share_of_accidents
+    tags: [car_share]
+    filters:
+    - column: assumption_case
+      ref: composite_traffic_assumption_case
+  params:
+  - id: formula
+    value: cost * car_share * factor * vkm / vkm_total
+
+# ///// Vehicles (Vehicle_cost, Cars_needed) /////
+
+- id: composite_traffic_capital_cost_per_vehicle
+  name_en: Capital cost of a vehicle per day
+  description_en: |
+    The price of a new vehicle spread over its lifetime.
+  type: formula.FormulaNode
+  quantity: unit_price
+  unit: EUR/vehicle/d
+  input_dimensions: [vehicle_class]
+  output_dimensions: [vehicle_class]
+  input_datasets:
+  - id: composite_traffic/vehicle_costs
+    column: vehicle_price
+    tags: [price]
+    filters:
+    - column: assumption_case
+      ref: composite_traffic_assumption_case
+  - id: composite_traffic/vehicle_costs
+    column: vehicle_lifetime
+    tags: [lifetime]
+    filters:
+    - column: assumption_case
+      ref: composite_traffic_assumption_case
+  params:
+  - id: formula
+    value: price / lifetime
+
+- id: composite_traffic_cars_needed
+  name_en: Cars needed
+  description_en: |
+    The cars that the daytime car trips need, when each car makes a number of trips a day.
+  type: formula.FormulaNode
+  quantity: number
+  unit: vehicle
+  input_dimensions: [composite_fraction, trip_length]
+  output_dimensions: [composite_fraction, trip_length]
+  input_nodes:
+  - id: composite_traffic_trips_by_mode
+    tags: [trips]
+  input_datasets:
+  - id: composite_traffic/unit_costs
+    column: trips_per_car
+    tags: [trips_per_car]
+    filters:
+    - column: assumption_case
+      ref: composite_traffic_assumption_case
+  params:
+  - id: formula
+    value: select_category(select_category(trips, travel_mode='car'), day_period='day') / trips_per_car
+
+- id: composite_traffic_composite_trip_length_share
+  name_en: Share of daytime composite trips by length
+  description_en: |
+    The composite fleet's capital cost is divided between short and long trips in these shares.
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [composite_fraction, trip_length]
+  output_dimensions: [composite_fraction, trip_length]
+  input_nodes:
+  - id: composite_traffic_trips_by_mode
+    tags: [trips]
+  params:
+  - id: formula
+    # 0/0 at 0 %, where there are no composite trips; taken as 0 as in the model.
+    value: >-
+      empty_to_zero(select_category(select_category(trips, travel_mode='composite'), day_period='day')
+      / sum_dim(select_category(select_category(trips, travel_mode='composite'), day_period='day'), trip_length))
+
+- id: composite_traffic_composite_capital_cost
+  name_en: Capital cost of the composite fleet
+  type: formula.FormulaNode
+  quantity: currency
+  unit: EUR/d
+  input_dimensions: [composite_fraction, trip_length]
+  output_dimensions: [composite_fraction, trip_length]
+  input_nodes:
+  - id: composite_traffic_fleet
+    tags: [fleet]
+  - id: composite_traffic_capital_cost_per_vehicle
+    tags: [cost]
+  - id: composite_traffic_composite_trip_length_share
+    tags: [share]
+  params:
+  - id: formula
+    value: sum_dim(fleet * cost, vehicle_class) * share
+  output_nodes:
+  - id: composite_traffic_daily_capital_cost
+    to_dimensions:
+    - id: composite_fraction
+    - id: trip_length
+    - id: travel_mode
+      categories: [composite]
+
+- id: composite_traffic_car_capital_cost
+  name_en: Capital cost of the cars
+  type: formula.FormulaNode
+  quantity: currency
+  unit: EUR/d
+  input_dimensions: [composite_fraction, trip_length]
+  output_dimensions: [composite_fraction, trip_length]
+  input_nodes:
+  - id: composite_traffic_cars_needed
+    tags: [cars]
+  - id: composite_traffic_capital_cost_per_vehicle
+    tags: [cost]
+  params:
+  - id: formula
+    value: cars * select_category(cost, vehicle_class='car')
+  output_nodes:
+  - id: composite_traffic_daily_capital_cost
+    to_dimensions:
+    - id: composite_fraction
+    - id: trip_length
+    - id: travel_mode
+      categories: [car]
+
+- id: composite_traffic_daily_capital_cost
+  name_en: Capital cost of the vehicles
+  type: generic.GenericNode
+  quantity: currency
+  unit: EUR/d
+  input_dimensions: [composite_fraction, trip_length, travel_mode]
+  output_dimensions: [composite_fraction, trip_length, travel_mode]
+
+- id: composite_traffic_vehicle_cost
+  name_en: Vehicle costs by period of the day
+  description_en: |
+    The daily capital cost of the vehicles, spread over the day's trips.
+  type: formula.FormulaNode
+  quantity: currency
+  unit: EUR/d
+  input_dimensions: [composite_fraction, travel_mode, trip_length, day_period]
+  output_dimensions: [composite_fraction, travel_mode, trip_length, day_period]
+  input_nodes:
+  - id: composite_traffic_daily_capital_cost
+    tags: [cost]
+  - id: composite_traffic_period_share
+    tags: [share]
+  params:
+  - id: formula
+    value: cost * share
+
+# ///// Driver, energy and maintenance /////
+
+- id: composite_traffic_driver_cost_per_vkm
+  name_en: Driver cost per vehicle-kilometre
+  description_en: |
+    A driver's salary and social costs per hour, divided by the average speed of traffic.
+  type: formula.FormulaNode
+  quantity: mileage_unit_price
+  unit: EUR/vkm
+  input_datasets:
+  - id: composite_traffic/unit_costs
+    column: driver_cost
+    tags: [salary]
+    filters:
+    - column: assumption_case
+      ref: composite_traffic_assumption_case
+  - id: composite_traffic/unit_costs
+    column: traffic_speed
+    tags: [speed]
+    filters:
+    - column: assumption_case
+      ref: composite_traffic_assumption_case
+  params:
+  - id: formula
+    value: salary / speed
+
+- id: composite_traffic_driver_cost
+  name_en: Driver costs
+  description_en: |
+    The salaries of composite drivers. For a car, the same rate times the value the driver puts
+    on driving; see the cost allocation.
+  type: formula.FormulaNode
+  quantity: currency
+  unit: EUR/d
+  input_dimensions: [composite_fraction, travel_mode, trip_length, day_period]
+  output_dimensions: [composite_fraction, travel_mode, trip_length, day_period]
+  input_nodes:
+  - id: composite_traffic_vehicle_km_by_mode
+    tags: [vkm]
+  - id: composite_traffic_driver_cost_per_vkm
+    tags: [cost_per_vkm]
+  params:
+  - id: formula
+    value: vkm * cost_per_vkm
+
+- id: composite_traffic_driving_cost_per_vkm
+  name_en: Energy and maintenance per vehicle-kilometre
+  type: formula.FormulaNode
+  quantity: mileage_unit_price
+  unit: EUR/vkm
+  input_dimensions: [vehicle_class]
+  output_dimensions: [vehicle_class]
+  input_datasets:
+  - id: composite_traffic/vehicle_costs
+    column: energy_price
+    tags: [energy_price]
+    filters:
+    - column: assumption_case
+      ref: composite_traffic_assumption_case
+  - id: composite_traffic/vehicle_costs
+    column: energy_consumption
+    tags: [consumption]
+    filters:
+    - column: assumption_case
+      ref: composite_traffic_assumption_case
+  - id: composite_traffic/vehicle_costs
+    column: maintenance_cost
+    tags: [maintenance]
+    filters:
+    - column: assumption_case
+      ref: composite_traffic_assumption_case
+  params:
+  - id: formula
+    value: energy_price * consumption + maintenance
+
+- id: composite_traffic_driving_cost
+  name_en: Energy and maintenance costs
+  type: formula.FormulaNode
+  quantity: currency
+  unit: EUR/d
+  input_dimensions: [composite_fraction, travel_mode, trip_length, day_period]
+  output_dimensions: [composite_fraction, travel_mode, trip_length, day_period]
+  input_nodes:
+  - id: composite_traffic_vehicle_km_by_class
+    tags: [vkm]
+  - id: composite_traffic_driving_cost_per_vkm
+    tags: [cost_per_vkm]
+  params:
+  - id: formula
+    value: sum_dim(vkm * cost_per_vkm, vehicle_class)
+
+# ///// Parking /////
+
+- id: composite_traffic_parking_fees
+  name_en: Parking fees
+  description_en: |
+    Every daytime car trip is assumed to need 30 minutes of paid parking at its destination.
+    Parking is free in the evening and at night, and composite vehicles pay none.
+  type: formula.FormulaNode
+  quantity: currency
+  unit: EUR/d
+  input_dimensions: [composite_fraction, trip_length, day_period]
+  output_dimensions: [composite_fraction, trip_length, day_period]
+  input_nodes:
+  - id: composite_traffic_trips
+    tags: [trips]
+  input_datasets:
+  - id: composite_traffic/parking_prices
+    column: parking_price
+    tags: [price]
+    filters:
+    - column: assumption_case
+      ref: composite_traffic_assumption_case
+  params:
+  - id: formula
+    value: sum_dim(select_category(trips, travel_mode='car') * price, city_zone)
+
+- id: composite_traffic_zone_trip_length_share
+  name_en: Share of daytime trips by length, in each zone
+  description_en: |
+    The cost of the parking land in each zone is divided between short and long trips in these
+    shares.
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [composite_fraction, travel_mode, city_zone, trip_length]
+  output_dimensions: [composite_fraction, travel_mode, city_zone, trip_length]
+  input_nodes:
+  - id: composite_traffic_trips
+    tags: [trips]
+  params:
+  - id: formula
+    # 0/0 where a mode has no trips; taken as 0 as in the model.
+    value: >-
+      empty_to_zero(select_category(trips, day_period='day')
+      / sum_dim(select_category(trips, day_period='day'), trip_length))
+
+- id: composite_traffic_daily_parking_land_cost
+  name_en: Cost of parking land
+  description_en: |
+    The land and upkeep of the parking places the day's traffic needs.
+  type: formula.FormulaNode
+  quantity: currency
+  unit: EUR/d
+  input_dimensions: [composite_fraction, travel_mode, trip_length]
+  output_dimensions: [composite_fraction, travel_mode, trip_length]
+  input_nodes:
+  - id: composite_traffic_parking_places
+    tags: [places]
+  - id: composite_traffic_zone_trip_length_share
+    tags: [share]
+  input_datasets:
+  - id: composite_traffic/unit_costs
+    column: parking_place_cost
+    tags: [cost]
+    filters:
+    - column: assumption_case
+      ref: composite_traffic_assumption_case
+  params:
+  - id: formula
+    value: sum_dim(places * share, city_zone) * cost
+
+- id: composite_traffic_parking_land_cost
+  name_en: Parking land costs by period of the day
+  description_en: |
+    The daily cost of parking land, spread over the day's trips.
+  type: formula.FormulaNode
+  quantity: currency
+  unit: EUR/d
+  input_dimensions: [composite_fraction, travel_mode, trip_length, day_period]
+  output_dimensions: [composite_fraction, travel_mode, trip_length, day_period]
+  input_nodes:
+  - id: composite_traffic_daily_parking_land_cost
+    tags: [cost]
+  - id: composite_traffic_period_share
+    tags: [share]
+  params:
+  - id: formula
+    value: cost * share
+
+# ///// Emission costs /////
+
+- id: composite_traffic_pm_unit_cost
+  name_en: Cost of fine particle emissions per kilogram
+  description_en: |
+    The deaths a kilogram of fine particles causes, valued at the value of a statistical life.
+  type: formula.FormulaNode
+  quantity: unit_price
+  unit: EUR/kg
+  input_datasets:
+  - id: composite_traffic/unit_costs
+    column: pm_lethality
+    tags: [lethality]
+    filters:
+    - column: assumption_case
+      ref: composite_traffic_assumption_case
+  - id: composite_traffic/unit_costs
+    column: value_of_statistical_life
+    tags: [vsl]
+    filters:
+    - column: assumption_case
+      ref: composite_traffic_assumption_case
+  params:
+  - id: formula
+    value: lethality * vsl
+
+- id: composite_traffic_emission_cost
+  name_en: Emission costs
+  description_en: |
+    Fine particle emissions valued by the deaths they cause, and CO₂ emissions at the price of
+    emission allowances.
+  type: formula.FormulaNode
+  quantity: currency
+  unit: EUR/d
+  input_dimensions: [composite_fraction, travel_mode, trip_length, day_period]
+  output_dimensions: [composite_fraction, travel_mode, trip_length, day_period]
+  input_nodes:
+  - id: composite_traffic_pm_emissions
+    tags: [pm]
+  - id: composite_traffic_co2_emissions
+    tags: [co2]
+  - id: composite_traffic_pm_unit_cost
+    tags: [pm_cost]
+  input_datasets:
+  - id: composite_traffic/unit_costs
+    column: co2_price
+    tags: [co2_price]
+    filters:
+    - column: assumption_case
+      ref: composite_traffic_assumption_case
+  params:
+  - id: formula
+    value: sum_dim(pm, vehicle_class) * pm_cost + sum_dim(co2, vehicle_class) * co2_price
+
+# ///// Time (Time_cost, Rush_delay) /////
+
+- id: composite_traffic_rush_hour_flow_reduction
+  name_en: Reduction in rush-hour traffic
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: '%'
+  input_dimensions: [composite_fraction]
+  output_dimensions: [composite_fraction]
+  input_nodes:
+  - id: composite_traffic_rush_hour_traffic
+    tags: [flow]
+  params:
+  - id: formula
+    value: 1 - sum_dim(flow, travel_type) / select_category(sum_dim(flow, travel_type), composite_fraction='pct_0')
+
+- id: composite_traffic_congestion_factor
+  name_en: Remaining congestion
+  description_en: |
+    The share of today's congestion delay that remains. The delay falls in proportion to the
+    rush-hour traffic, and is gone when the traffic has fallen by 30 %.
+  type: formula.FormulaNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [composite_fraction]
+  output_dimensions: [composite_fraction]
+  input_nodes:
+  - id: composite_traffic_rush_hour_flow_reduction
+    tags: [reduction]
+  input_datasets:
+  - id: composite_traffic/unit_costs
+    column: congestion_free_reduction
+    tags: [free]
+    filters:
+    - column: assumption_case
+      ref: composite_traffic_assumption_case
+  params:
+  - id: formula
+    value: 1 - min(reduction / free, 1)
+
+- id: composite_traffic_waiting_cost
+  name_en: Cost of waiting for a composite vehicle
+  type: formula.FormulaNode
+  quantity: currency
+  unit: EUR/d
+  input_dimensions: [composite_fraction, trip_length, day_period]
+  output_dimensions: [composite_fraction, trip_length, day_period]
+  input_nodes:
+  - id: composite_traffic_waiting_time
+    tags: [waiting]
+  - id: composite_traffic_trips_by_mode
+    tags: [trips]
+  input_datasets:
+  - id: composite_traffic/unit_costs
+    column: time_value
+    tags: [time_value]
+    filters:
+    - column: assumption_case
+      ref: composite_traffic_assumption_case
+  params:
+  - id: formula
+    # As written in Time_cost: the waiting time of direct 8-seat trips applies to every
+    # composite trip.
+    value: select_category(waiting, travel_type='seat8_direct') * select_category(trips, travel_mode='composite') * time_value
+
+- id: composite_traffic_delay_cost
+  name_en: Cost of congestion delay
+  description_en: |
+    Time lost in daytime congestion by car and composite passengers alike.
+  type: formula.FormulaNode
+  quantity: currency
+  unit: EUR/d
+  input_dimensions: [composite_fraction, travel_mode, trip_length]
+  output_dimensions: [composite_fraction, travel_mode, trip_length]
+  input_nodes:
+  - id: composite_traffic_trips_by_mode
+    tags: [trips]
+  - id: composite_traffic_congestion_factor
+    tags: [congestion]
+  input_datasets:
+  - id: composite_traffic/unit_costs
+    column: rush_hour_delay
+    tags: [delay]
+    filters:
+    - column: assumption_case
+      ref: composite_traffic_assumption_case
+  - id: composite_traffic/unit_costs
+    column: time_value
+    tags: [time_value]
+    filters:
+    - column: assumption_case
+      ref: composite_traffic_assumption_case
+  params:
+  - id: formula
+    value: select_category(trips, day_period='day') * delay * time_value * congestion
+
+# ///// Ticket /////
+
+- id: composite_traffic_ticket_income
+  name_en: Ticket income of the operator
+  description_en: |
+    What composite passengers pay the operator above the direct costs.
+  type: formula.FormulaNode
+  quantity: currency
+  unit: EUR/d
+  input_dimensions: [composite_fraction, trip_length, day_period]
+  output_dimensions: [composite_fraction, trip_length, day_period]
+  input_nodes:
+  - id: composite_traffic_trips_by_mode
+    tags: [trips]
+  input_datasets:
+  - id: composite_traffic/unit_costs
+    column: ticket_price
+    tags: [price]
+    filters:
+    - column: assumption_case
+      ref: composite_traffic_assumption_case
+  params:
+  - id: formula
+    value: select_category(trips, travel_mode='composite') * price
+
+# ///// All costs, and who bears them /////
+
+- id: composite_traffic_costs
+  name_en: Costs of the traffic by element
+  description_en: |
+    Every cost of a day's car and composite traffic, before deciding who bears it.
+  type: generic.GenericNode
+  quantity: currency
+  unit: EUR/d
+  input_dimensions: [composite_fraction, travel_mode, trip_length, day_period, cost_element]
+  output_dimensions: [composite_fraction, travel_mode, trip_length, day_period, cost_element]
+  input_nodes:
+  - id: composite_traffic_vehicle_cost
+    to_dimensions:
+    - id: composite_fraction
+    - id: travel_mode
+    - id: trip_length
+    - id: day_period
+    - id: cost_element
+      categories: [vehicle]
+  - id: composite_traffic_driver_cost
+    to_dimensions:
+    - id: composite_fraction
+    - id: travel_mode
+    - id: trip_length
+    - id: day_period
+    - id: cost_element
+      categories: [driver]
+  - id: composite_traffic_driving_cost
+    to_dimensions:
+    - id: composite_fraction
+    - id: travel_mode
+    - id: trip_length
+    - id: day_period
+    - id: cost_element
+      categories: [driving]
+  - id: composite_traffic_parking_fees
+    to_dimensions:
+    - id: composite_fraction
+    - id: travel_mode
+      categories: [car]
+    - id: trip_length
+    - id: day_period
+    - id: cost_element
+      categories: [parking]
+  - id: composite_traffic_parking_land_cost
+    to_dimensions:
+    - id: composite_fraction
+    - id: travel_mode
+    - id: trip_length
+    - id: day_period
+    - id: cost_element
+      categories: [parking_land]
+  - id: composite_traffic_emission_cost
+    to_dimensions:
+    - id: composite_fraction
+    - id: travel_mode
+    - id: trip_length
+    - id: day_period
+    - id: cost_element
+      categories: [emissions]
+  - id: composite_traffic_waiting_cost
+    to_dimensions:
+    - id: composite_fraction
+    - id: travel_mode
+      categories: [composite]
+    - id: trip_length
+    - id: day_period
+    - id: cost_element
+      categories: [time]
+  - id: composite_traffic_delay_cost
+    to_dimensions:
+    - id: composite_fraction
+    - id: travel_mode
+    - id: trip_length
+    - id: day_period
+      categories: [day]
+    - id: cost_element
+      categories: [time]
+  - id: composite_traffic_accident_cost
+    to_dimensions:
+    - id: composite_fraction
+    - id: travel_mode
+    - id: trip_length
+    - id: day_period
+    - id: cost_element
+      categories: [accidents]
+  - id: composite_traffic_ticket_income
+    to_dimensions:
+    - id: composite_fraction
+    - id: travel_mode
+      categories: [composite]
+    - id: trip_length
+    - id: day_period
+    - id: cost_element
+      categories: [ticket]
+
+- id: composite_traffic_stakeholder_costs
+  name_en: Costs to passengers and to society
+  description_en: |
+    Which costs count for whom. Society bears the emissions and accidents, the passenger does
+    not; the ticket is a transfer from the composite passenger to the operator. A car's costs
+    are shared by the people in it, except their time. A car passenger counts only part of the
+    car's capital cost, since the car is often owned anyway, and may value driving itself.
+  type: formula.FormulaNode
+  quantity: currency
+  unit: EUR/d
+  input_dimensions: [composite_fraction, travel_mode, trip_length, day_period, stakeholder]
+  output_dimensions: [composite_fraction, travel_mode, trip_length, day_period, stakeholder]
+  input_nodes:
+  - id: composite_traffic_costs
+    tags: [costs]
+  input_datasets:
+  - id: composite_traffic/cost_allocation
+    column: cost_strength
+    tags: [strength]
+    filters:
+    - column: assumption_case
+      ref: composite_traffic_assumption_case
+  - id: composite_traffic/cost_allocation
+    column: cost_sharing
+    tags: [sharing]
+    filters:
+    - column: assumption_case
+      ref: composite_traffic_assumption_case
+  params:
+  - id: formula
+    value: sum_dim(costs * strength * sharing, cost_element)
+
+- id: composite_traffic_societal_cost
+  name_en: Societal cost of the traffic
+  type: formula.FormulaNode
+  quantity: currency
+  unit: kEUR/d
+  input_dimensions: [composite_fraction, day_period]
+  output_dimensions: [composite_fraction, day_period]
+  input_nodes:
+  - id: composite_traffic_stakeholder_costs
+    tags: [costs]
+  params:
+  - id: formula
+    value: sum_dim(sum_dim(select_category(costs, stakeholder='society'), travel_mode), trip_length)
+
+- id: composite_traffic_societal_cost_change
+  name_en: Change in the societal cost, without subsidies
+  description_en: |
+    The societal cost of the traffic compared with no composite traffic (the article's
+    Figure 5A). Negative is a saving.
+  type: formula.FormulaNode
+  is_outcome: true  # the home page shows it
+  quantity: currency
+  unit: kEUR/d
+  input_dimensions: [composite_fraction, day_period]
+  output_dimensions: [composite_fraction, day_period]
+  input_nodes:
+  - id: composite_traffic_societal_cost
+    tags: [cost]
+  params:
+  - id: formula
+    # cost - cost at 0 %. Written as a product because an addition needs equal dimensions,
+    # and the cost at 0 % has lost the composite_fraction dimension; the cost is never zero.
+    value: cost * (1 - select_category(cost, composite_fraction='pct_0') / cost)
+
+# ///// Subsidies (Subvention) /////
+
+- id: composite_traffic_subsidy_per_trip
+  name_en: Subsidy needed per composite trip
+  description_en: |
+    To reach a composite fraction, composite traffic must be cheaper than the car for that share
+    of car passengers. The subsidy is the cost difference of the last passenger won over. It
+    comes from the variation between passengers, computed outside Paths.
+  type: generic.GenericNode
+  quantity: unit_price
+  unit: EUR/trip
+  input_dimensions: [composite_fraction, trip_length, day_period]
+  output_dimensions: [composite_fraction, trip_length, day_period]
+  input_datasets:
+  - id: composite_traffic/subsidy_per_trip
+    column: subsidy_per_trip
+    filters:
+    - column: coverage_level
+      ref: composite_traffic_coverage_level
+    - column: assumption_case
+      ref: composite_traffic_assumption_case
+
+- id: composite_traffic_subsidies
+  name_en: Subsidies needed
+  description_en: |
+    The subsidy paid on every composite trip to reach the composite fraction (the article's
+    Figure 5B). A negative subsidy is a profit the operator could take.
+  type: formula.FormulaNode
+  quantity: currency
+  unit: kEUR/d
+  input_dimensions: [composite_fraction, day_period]
+  output_dimensions: [composite_fraction, day_period]
+  input_nodes:
+  - id: composite_traffic_subsidy_per_trip
+    tags: [subsidy]
+  - id: composite_traffic_trips_by_mode
+    tags: [trips]
+  params:
+  - id: formula
+    value: sum_dim(subsidy * select_category(trips, travel_mode='composite'), trip_length)
+
+- id: composite_traffic_daytime_cost_change_with_subsidies
+  name_en: Change in the daytime societal cost, with subsidies
+  description_en: |
+    The daytime societal cost including the subsidies, compared with no composite traffic (the
+    article's Figure 5C, for the area chosen). In the whole area at 100 %, no car trips are left
+    to win over, so the subsidy has no meaning there; the article leaves that point out.
+  type: formula.FormulaNode
+  quantity: currency
+  unit: kEUR/d
+  input_dimensions: [composite_fraction]
+  output_dimensions: [composite_fraction]
+  input_nodes:
+  - id: composite_traffic_societal_cost
+    tags: [cost]
+  - id: composite_traffic_subsidies
+    tags: [subsidies]
+  params:
+  - id: formula
+    # (cost + subsidies) at day, minus the same at 0 %; a product for the reason given in
+    # composite_traffic_societal_cost_change.
+    value: >-
+      select_category(cost + subsidies, day_period='day')
+      * (1 - select_category(select_category(cost + subsidies, day_period='day'), composite_fraction='pct_0')
+      / select_category(cost + subsidies, day_period='day'))
+
+# ///// The rest of the article's Table 1 /////
+
+- id: composite_traffic_driver_salaries
+  name_en: Driver salaries
+  type: formula.FormulaNode
+  quantity: currency
+  unit: kEUR/d
+  input_dimensions: [composite_fraction]
+  output_dimensions: [composite_fraction]
+  input_nodes:
+  - id: composite_traffic_driver_cost
+    tags: [cost]
+  params:
+  - id: formula
+    value: sum_dim(sum_dim(select_category(cost, travel_mode='composite'), trip_length), day_period)
+
+- id: composite_traffic_vehicle_and_operating_costs
+  name_en: Vehicle capital and operating costs
+  description_en: |
+    The capital cost of cars and composite vehicles, and their energy and maintenance.
+  type: formula.FormulaNode
+  quantity: currency
+  unit: kEUR/d
+  input_dimensions: [composite_fraction]
+  output_dimensions: [composite_fraction]
+  input_nodes:
+  - id: composite_traffic_daily_capital_cost
+    tags: [capital]
+  - id: composite_traffic_driving_cost
+    tags: [driving]
+  params:
+  - id: formula
+    value: >-
+      sum_dim(sum_dim(capital, travel_mode), trip_length)
+      + sum_dim(sum_dim(sum_dim(driving, travel_mode), trip_length), day_period)
+
+- id: composite_traffic_time_cost
+  name_en: Time costs
+  description_en: |
+    The cost of waiting for composite vehicles and of delay in congestion.
+  type: formula.FormulaNode
+  quantity: currency
+  unit: kEUR/d
+  input_dimensions: [composite_fraction]
+  output_dimensions: [composite_fraction]
+  input_nodes:
+  - id: composite_traffic_costs
+    tags: [costs]
+  params:
+  - id: formula
+    value: sum_dim(sum_dim(sum_dim(select_category(costs, cost_element='time'), travel_mode), trip_length), day_period)
+
+- id: composite_traffic_passenger_daytime_cost_per_trip
+  name_en: Daytime cost of a trip to the passenger, by length
+  type: formula.FormulaNode
+  quantity: unit_price
+  unit: EUR/trip
+  input_dimensions: [composite_fraction, travel_mode, trip_length]
+  output_dimensions: [composite_fraction, travel_mode, trip_length]
+  input_nodes:
+  - id: composite_traffic_stakeholder_costs
+    tags: [costs]
+  - id: composite_traffic_trips_by_mode
+    tags: [trips]
+  params:
+  - id: formula
+    # Undefined where a mode has no trips (composite at 0 %, car at 100 %): those rows are
+    # dropped rather than shown as zero, as the article's Table 1 prints '-'.
+    value: >-
+      drop_nans(select_category(select_category(costs, stakeholder='passenger'), day_period='day')
+      / select_category(trips, day_period='day'))
+
+- id: composite_traffic_passenger_cost_per_trip
+  name_en: Average cost of a trip to the passenger
+  description_en: |
+    What a daytime trip costs the passenger on average, by car and by composite traffic, the
+    trip lengths weighted by the day's trips. Undefined where a mode has no trips.
+  type: formula.FormulaNode
+  quantity: unit_price
+  unit: EUR/trip
+  input_dimensions: [composite_fraction, travel_mode]
+  output_dimensions: [composite_fraction, travel_mode]
+  input_nodes:
+  - id: composite_traffic_passenger_daytime_cost_per_trip
+    tags: [cost]
+  - id: composite_traffic_trips_by_mode
+    tags: [trips]
+  params:
+  - id: formula
+    # As in the model (Choose_period): the daytime cost per trip, weighted by the share of each
+    # length in all of the day's trips.
+    value: >-
+      sum_dim(cost * sum_dim(trips, day_period) / sum_dim(sum_dim(trips, day_period), trip_length), trip_length)

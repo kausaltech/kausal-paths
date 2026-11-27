@@ -1,0 +1,87 @@
+id: composite-traffic # defines which instance is updated
+# Composite traffic, the stand-alone instance: the decision analysis of Tuomisto & Tainio (2005),
+# "An economic way of reducing health, environmental, and other pressures of urban traffic",
+# BMC Public Health 5:123, for one working day in the Helsinki metropolitan area. Rounds 2 and 3
+# of the plan in paths-data modules/composite-traffic/docs/plan.md: the article's Table 1 and
+# Figure 5 replicated with the original 2005 values (`paper_2005`), and the same with the values
+# of 2025 (`current_2025`), chosen by the parameter composite_traffic_assumption_case. The years
+# ahead come in Round 4.
+#
+# The model is `modules/composite_traffic/`. It has one year, 2005, the only year either case
+# has: the traffic is of 2000 (scaled to 2023 in `current_2025`), and the prices are those of the
+# case.
+default_language: en
+supported_languages: []
+dataset_repo:
+  url: https://github.com/kausaltech/dvctest.git
+  # Set to the dvctest commit of the Round 3 upload (energy columns, current_2025). The Round 2
+  # upload, paper_2005 only, is 883713a7c287550d77bbce8e0f65c9dbe8e90b29; it lacks the columns
+  # this model now reads.
+  commit: 85c67a0a88af035f55e4cd9e7b5d5517115a0e93
+  dvc_remote: kausal-s3
+name_en: Composite traffic
+owner: Kausal Ltd
+theme_identifier: default
+target_year: 2005
+model_end_year: 2005
+reference_year: 2005
+minimum_historical_year: 2005
+maximum_historical_year: 2005
+emission_unit: t/d
+features:
+  baseline_visible_in_graphs: true
+  show_explanations: true
+
+include:
+- file: modules/composite_traffic/dimensions.yaml
+  allow_override: false
+- file: modules/composite_traffic/model.yaml
+  allow_override: false
+
+params:
+- id: composite_traffic_coverage_level
+  label_en: Area covered by composite traffic
+  type: dimension_category
+  dimension: coverage_level
+  value: level_7
+  is_customizable: false
+  is_visible: false
+- id: composite_traffic_assumption_case
+  label_en: Input values
+  type: dimension_category
+  dimension: assumption_case
+  value: paper_2005
+  is_customizable: false
+  is_visible: false
+
+pages:
+- id: home
+  name_en: Composite traffic
+  path: /
+  type: emission
+  outcome_node: composite_traffic_societal_cost_change
+
+scenarios:
+- id: default
+  default: true
+  name_en: Article 2005, whole metropolitan area
+
+- id: city_of_helsinki
+  name_en: Article 2005, city of Helsinki only
+  params:
+  - id: composite_traffic_coverage_level
+    value: level_4
+
+- id: current_values
+  name_en: Values of 2025, whole metropolitan area
+  params:
+  - id: composite_traffic_assumption_case
+    value: current_2025
+
+- id: current_values_helsinki
+  name_en: Values of 2025, city of Helsinki only
+  params:
+  - id: composite_traffic_assumption_case
+    value: current_2025
+  - id: composite_traffic_coverage_level
+    value: level_4

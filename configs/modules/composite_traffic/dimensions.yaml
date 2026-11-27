@@ -1,0 +1,171 @@
+# Dimensions of the composite traffic module (Tuomisto & Tainio 2005, BMC Public Health 5:123).
+#
+# The trip aggregation was run for 13 composite fractions at 7 coverage levels; both are
+# dimensions of the precomputed results. The coverage level is selected by a global parameter
+# (`composite_traffic_coverage_level`); the composite fraction stays a dimension, so every node
+# shows the whole curve of the article's Figure 5.
+#
+# The ids are those of the datasets in paths-data modules/composite-traffic
+# (`scripts/create_datasets.py`).
+
+dimensions:
+- id: composite_fraction
+  label_en: Composite fraction
+  help_text_en: Share of the car trips made by composite traffic instead.
+  categories:
+  - id: pct_0
+    label_en: 0 %
+  - id: pct_2
+    label_en: 2 %
+  - id: pct_5
+    label_en: 5 %
+  - id: pct_10
+    label_en: 10 %
+  - id: pct_25
+    label_en: 25 %
+  - id: pct_40
+    label_en: 40 %
+  - id: pct_45
+    label_en: 45 %
+  - id: pct_50
+    label_en: 50 %
+  - id: pct_55
+    label_en: 55 %
+  - id: pct_65
+    label_en: 65 %
+  - id: pct_75
+    label_en: 75 %
+  - id: pct_90
+    label_en: 90 %
+  - id: pct_100
+    label_en: 100 %
+
+# The covered regions are cumulative: each level adds regions to the previous one.
+- id: coverage_level
+  label_en: Area covered
+  categories:
+  - id: level_1
+    label_en: Kanta-Helsinki
+  - id: level_2
+    label_en: Kanta-Helsinki and Vanha-Helsinki
+  - id: level_3
+    label_en: Inner Helsinki (also Länsi-Helsinki)
+  - id: level_4
+    label_en: City of Helsinki
+  - id: level_5
+    label_en: Helsinki, southern and central Espoo
+  - id: level_6
+    label_en: Helsinki, central Espoo and Vantaa
+  - id: level_7
+    label_en: Whole metropolitan area
+
+- id: travel_mode
+  label_en: Travel mode
+  categories:
+  - id: composite
+    label_en: Composite traffic
+  - id: car
+    label_en: Car
+
+- id: travel_type
+  label_en: Travel type
+  help_text_en: How a trip was made in the trip aggregation.
+  categories:
+  - id: seat8_direct
+    label_en: 8-seat vehicle, direct
+  - id: seat8_transfer
+    label_en: 8-seat vehicle, with a transfer
+  - id: seat4_direct
+    label_en: 4-seat vehicle, direct
+  - id: seat4_transfer
+    label_en: 4-seat vehicle, with a transfer
+  - id: seat4_not_full
+    label_en: 4-seat vehicle, not full
+  - id: car
+    label_en: Car
+
+- id: vehicle_class
+  label_en: Vehicle
+  categories:
+  - id: seat8
+    label_en: 8-seat vehicle
+  - id: seat4
+    label_en: 4-seat vehicle
+  - id: car
+    label_en: Car
+
+- id: city_zone
+  label_en: Zone of destination
+  categories:
+  - id: downtown
+    label_en: Downtown
+  - id: centre
+    label_en: Centre
+  - id: suburb
+    label_en: Suburbs
+
+- id: trip_length
+  label_en: Trip length
+  categories:
+  - id: under_5_km
+    label_en: Under 5 km
+  - id: over_5_km
+    label_en: 5 km or more
+
+- id: day_period
+  label_en: Period of the day
+  categories:
+  - id: day
+    label_en: Day
+  - id: evening
+    label_en: Evening
+  - id: night
+    label_en: Night
+
+- id: cost_element
+  label_en: Cost element
+  categories:
+  - id: vehicle
+    label_en: Vehicle
+  - id: driver
+    label_en: Driver
+  - id: driving
+    label_en: Fuel and maintenance
+  - id: parking
+    label_en: Parking fees
+  - id: parking_land
+    label_en: Parking land
+  - id: emissions
+    label_en: Emissions
+  - id: time
+    label_en: Time
+  - id: accidents
+    label_en: Accidents
+  - id: ticket
+    label_en: Ticket
+
+- id: stakeholder
+  label_en: Who bears the cost
+  categories:
+  - id: passenger
+    label_en: Passenger
+  - id: society
+    label_en: Society
+
+- id: accident_type
+  label_en: Outcome of accident
+  categories:
+  - id: injury
+    label_en: Injured
+  - id: death
+    label_en: Killed
+
+# Which set of input values the model uses. paper_2005 is the article's distributions at their
+# means; current values come in Round 3 of the plan as further categories.
+- id: assumption_case
+  label_en: Input values
+  categories:
+  - id: paper_2005
+    label_en: Article 2005, mean values
+  - id: current_2025
+    label_en: Values of 2025, mean values
