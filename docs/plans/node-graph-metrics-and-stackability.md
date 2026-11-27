@@ -1,13 +1,31 @@
-# Node graph: metric tabs and stackability
+# Node graph: multiple metrics and stackability
 
 *Produced by Claude Opus 5.5 on 2026-11-15.*
+*Version 2 produced by Claude Opus 5.5 on 2026-11-27.*
 *Responsible: Jouni Tuomisto.*
 
-A plan for a new version of the node graph that (1) lets the visitor choose between a
-node's output metrics, and (2) decides, dimension by dimension, whether the values may be
-summed. It is built as a **copy** of the current components and is first used from
-`ParameterPanelBlock`. The node detail page, `OutcomeNodeContent`, the model editor and
-Watch keep the current components until the copy has been tried on real models.
+A plan for a new version of the node graph that (1) shows a node's several output
+metrics, either as tabs or side by side, and (2) decides, dimension by dimension, whether
+the values may be summed. It is built as a **copy** of the current components and is
+first used from `ParameterPanelBlock`. The node detail page, `OutcomeNodeContent`, the
+model editor and Watch keep the current components until the copy has been tried on real
+models.
+
+**Version 2 (2026-11-27)** records a design discussion. In short:
+
+- Tabs are no longer the only layout for a multi-metric node; graphs side by side are
+  tried too, and the choice is made after seeing both (§4).
+- Dimensions come in three kinds (common, node, scenario), and scenario is not a common
+  dimension. The dimension-level veto (`stackable: false` on a dimension) is therefore
+  kept as a **planned possibility, not built**, until a case appears that cannot be
+  handled without it. Overlapping categories ("young people", "women") are a data
+  problem, to be fixed with exhaustive categories in explicit dimensions (§2.2).
+- The quantity-kind and metric layers stand, but must be built on the quantity registry
+  in `configs/quantities/` and `src/nodes/quantities.py` (§2.6).
+- Weighted sums stay in the plan as a concept. The two current use cases are handled by
+  model nodes and need no new feature (§2.7).
+- The visitor gets no stackability or reduction controls. They choose what they choose
+  today: the dimension to break down by and the categories to filter (§3.1).
 
 Related documents:
 [`embeddable-graph-blocks.md`](embeddable-graph-blocks.md) (the `NodeChartSpec` this
@@ -40,7 +58,7 @@ What already exists:
 
 ### 1.2 Stackability is one flag per metric, and the chart ignores it when summing
 
-- Backend: `stackable = m.quantity in STACKABLE_QUANTITIES` (`metric_gen.py:418`), plus a
+- Backend: `stackable = m.quantity in STACKABLE_QUANTITIES` (`metric_gen.py:420`), plus a
   special case making `mix` non-stackable on action nodes. The quantity registry
   (`configs/quantities/quantity_kinds.yaml`) has its own `is_stackable`, exposed in GraphQL
   and unused by the UI. In it `mix` and `grouped_mix` are stackable and `fraction` is not.
@@ -53,14 +71,26 @@ What already exists:
   visitor's filters happen to leave exactly one category in every other dimension.
 - The older `Metric.from_node` (`metric.py:106`) refuses (returns `None`) in the same
   situation instead of summing; the dimensional path has no such guard.
-- Two dimension kinds already avoid the problem by being filtered away before slicing:
-  the scenario pseudo-dimension (`DimensionKind.SCENARIO`, filtered per scenario in
-  `parse.ts`) and the uncertainty dimension (filtered to `median` in
-  `from_node_output_metric`). They are the two cases the general rule below has to cover
-  without special code.
+- Two dimensions already avoid the problem by being filtered away before slicing: the
+  scenario dimension (filtered per scenario in `parse.ts`) and the uncertainty dimension
+  (filtered to `median` in `from_node_output_metric`).
 - `DimensionSumRule` (`src/datasets/validation_rules.py:94`) checks that a dataset sums to
   a target over **one** dimension within each remaining group. It is the closest prior art
   for the share invariant in §2.4.
+
+### 1.3 Three kinds of dimension
+
+`MetricDimension.kind` (`DimensionKind`, `src/nodes/metric.py:239`) is one of:
+
+| Kind | Where it comes from | Example |
+|---|---|---|
+| `common` | An instance dimension, declared in the model | `energy_carrier`, `vehicle_type` |
+| `node` | Made by a node for its own output | The implicit *Sector* dimension of `AdditiveNode`, one category per input node |
+| `scenario` | Made by the query when it asks for outputs in several scenarios | Baseline vs. active scenario |
+
+A scenario dimension is therefore not a model dimension at all, and the chart can treat
+it by its kind: its categories are alternative worlds and are never summed. That removes
+the main case the dimension veto in version 1 was meant for.
 
 
 ## 2. The stackability model
@@ -71,16 +101,16 @@ What already exists:
   gives a meaningful value of the same metric. On a chart that means the categories of D
   can be drawn as stacked bars or areas, and a total line is meaningful.
 - Stackability is a property of the **pair** (metric, dimension), not of either alone.
-  The metric's quantity gives a default, the dimension can rule it out, and the metric can
-  state the exceptions.
+  The metric's quantity gives a default and the metric states the exceptions.
 
-### 2.2 Three layers
+### 2.2 Layers
 
-| Layer | Field | Effect |
-|---|---|---|
-| Dimension | `stackable: bool = true` | `false` is an absolute veto. Used where categories are alternative worlds or overlap: scenario, uncertainty iteration, overlapping stakeholder groups (young people, women). No metric can make such a dimension stackable. |
-| Quantity kind | `aggregation: sum \| share \| none` | Default for every metric of that quantity. `sum`: stackable over every stackable dimension (emissions, energy, mileage, cost). `none`: stackable over none (emission factor, unit price, per capita). `share`: stackable over a declared set, within which the values sum to 1 (fraction, mix, grouped mix). |
-| Metric (output port) | `stackable_dimensions: list[str] \| None` | Overrides the quantity default in **either direction**, within the dimension veto. Required for a `share` metric with more than one dimension. |
+| Layer | Field | Status | Effect |
+|---|---|---|---|
+| Dimension kind | `DimensionKind` | Exists | `scenario` is never stackable. `common` and `node` dimensions follow the layers below. |
+| Quantity kind | `aggregation: sum \| share \| none` | To build | Default for every metric of that quantity. `sum`: stackable over every dimension (emissions, energy, mileage, cost). `none`: stackable over none (emission factor, unit price, per capita). `share`: stackable over a declared set, within which the values sum to 1 (fraction, mix, grouped mix). |
+| Metric (output port) | `stackable_dimensions: list[str] \| None` | To build | Overrides the quantity default in **either direction**. Required for a `share` metric with more than one dimension. |
+| Dimension | `stackable: bool = true` | **Planned, not built** | An absolute veto that no metric could override. Kept in reserve until a case appears that the other layers cannot handle (see below). |
 
 The metric override has to work in both directions because the quantity alone is wrong in
 both directions:
@@ -90,31 +120,47 @@ both directions:
 - Per-capita emissions by sector: the denominator is shared, so they add up to the total
   per-capita value.
 - Emissions by a vehicle-type dimension that has an "all vehicles" category alongside the
-  parts is not stackable over it, although emissions are `sum`. (That is a data problem
-  rather than something to model, but the override lets a graph be right meanwhile.)
+  parts is not stackable over it, although emissions are `sum`. That is a data problem to
+  fix in the dataset; the override only lets a graph be right meanwhile.
+
+**Why the dimension veto is deferred.** Version 1 proposed it for three cases. Scenario is
+covered by its kind (§1.3). The uncertainty dimension is filtered to `median` in the
+backend today and can stay so. The third case, overlapping stakeholder groups such as
+"young people" and "women" as categories of one dimension, is a data problem: the
+categories should be exhaustive and mutually exclusive, in explicit dimensions
+(`age: young` × `gender: female`, …), and then they stack. A flag that makes such a
+dimension safe to display would also make it easier to keep. So the veto is built only
+when a case turns up that is genuinely non-additive *and* cannot be restructured; the
+field name stays reserved, and nothing below should prevent adding it.
 
 Resolution, done once in the backend and sent to the client per dimension:
 
 ```python
 def is_stackable(metric, dim) -> bool:
-    if not dim.stackable:                       # dimension veto
+    if dim.kind == DimensionKind.SCENARIO:
         return False
-    if metric.stackable_dimensions is not None: # metric says so explicitly
+    # (planned) if not dim.stackable: return False
+    if metric.stackable_dimensions is not None:  # metric says so explicitly
         return dim.id in metric.stackable_dimensions
     return quantity(metric).aggregation == 'sum'
     # 'share' without a declaration: see 2.5
 ```
+
+A `node` dimension such as *Sector* follows the metric like any other: the sectors of an
+`AdditiveNode` are its inputs, which the node itself sums, so they are stackable whenever
+the metric is `sum`.
 
 ### 2.3 Examples
 
 | Metric (quantity) | Dimensions | Stackable over | Not stackable over |
 |---|---|---|---|
 | emissions (sum) | vehicle_type, energy_carrier | both | — |
+| emissions (sum) | sector (node kind) | sector | — |
 | emission_factor (none) | vehicle_type | — | vehicle_type |
 | emission_factor (none), declared `[ghg]` | ghg, vehicle_type | ghg | vehicle_type |
 | fuel_fraction (share), case A: declared `[energy_carrier, production_year]` | energy_carrier, production_year, vehicle_type | energy_carrier, production_year | vehicle_type |
 | fuel_fraction (share), case B: declared `[energy_carrier]` | energy_carrier, production_year, vehicle_type | energy_carrier | production_year, vehicle_type |
-| any | scenario | — | scenario (dimension veto) |
+| any | scenario (scenario kind) | — | scenario |
 
 ### 2.4 Share metrics
 
@@ -141,7 +187,7 @@ Case A and case B differ only in where the 1 is, and that is exactly what
 
 Most mixes have a single dimension, and for them S is obviously that dimension. So:
 
-- One stackable dimension: S defaults to it, no declaration needed.
+- One dimension: S defaults to it, no declaration needed.
 - More than one: report a model problem ("share metric does not declare which dimensions
   sum to 100 %") and fall back to **S = ∅**: lines, no stacking. A wrong stack is worse
   than an unstacked chart, because it looks right.
@@ -149,6 +195,59 @@ Most mixes have a single dimension, and for them S is obviously that dimension. 
 The data can tell which case it is. A check (§5.3) finds the smallest S for which the
 invariant holds and proposes the declaration, so the modeller confirms rather than works
 it out.
+
+### 2.6 Building on the quantity registry
+
+Quantity kinds now live in `configs/quantities/quantity_kinds.yaml`, loaded by
+`src/nodes/quantities.py` into `QuantityKind` objects with boolean classes
+(`is_stackable`, `is_activity`, `is_factor`, `is_unit_price`, `is_scalar_identity`) and,
+for factors, a `numerator`. The product algebra (`derive_product_quantity`) already uses
+these classes. `aggregation` belongs in the same place, as one more field on
+`QuantityKind`, and not in a separate table.
+
+Things to settle when it is built:
+
+- **Default from the existing classes.** `aggregation` can default to `sum` for
+  `is_stackable` kinds and `none` for `is_factor` and `is_unit_price` kinds, so that only
+  the share kinds and the exceptions need an explicit value. `mix`, `grouped_mix` and
+  `fraction` become `share`; at present `mix` and `grouped_mix` are `is_stackable` and
+  `fraction` is not, which is exactly the inconsistency `share` resolves.
+- **Kinds that fit no class.** `ratio`, `probability`, `rate`, `per_capita`,
+  `concentration`, `temperature`, `quality_of_data` and others carry none of the flags.
+  They default to `none`; each should be reviewed once, because the default decides how
+  every metric of that kind is drawn.
+- **Two lists of stackable quantities.** `STACKABLE_QUANTITIES` in `nodes/constants.py`
+  is a hand-written set beside the registry's `is_stackable`. On 2026-11-27 they disagreed
+  only on `value_weight`, which the registry wrongly called stackable; that was corrected
+  the same day, and the two now agree. The computation
+  (`generic.py` split operations, `Metric.from_node`, `debug.py`) uses the constant; the
+  chart should use the registry. Deriving the constant from the registry is a small,
+  separate clean-up that this plan would benefit from but does not require.
+- **The node's quantity vs the metric's quantity.** The resolution reads the metric's
+  quantity, which for a multi-metric node can differ between metrics (an action with a
+  `currency` metric and an `emissions` metric). Check that every output metric carries its
+  own quantity, including DB-sourced output ports.
+
+### 2.7 Weighted sums
+
+Aggregating a non-stackable quantity over a dimension often means a weighted mean: the
+values weighted by an extensive quantity over the same categories, then summed. It is
+logically part of the aggregation question, so the concept stays in the plan, but the two
+use cases known today are both handled inside the model, with no new feature:
+
+- **BISKO data quality.** `weighted_data_quality_by_sector` and
+  `weighted_data_quality_by_energy_carrier` (`configs/modules/bisko-base/model.yaml`) sum
+  the energy use over one dimension and weight the quality grades carried as qualifiers
+  with it (`qualifier(sum_dim(energy, energy_carrier), bisko_quality.score)`).
+- **Average emission factor.** A new node takes energy use and emission factors split by
+  the dimension to be aggregated, and computes the weighted sum: emissions summed, divided
+  by energy summed, as a `FormulaNode`.
+
+Both make the weighted result an ordinary node, visible in the graph, with its own
+description, and computed once rather than by every chart. That is the preferred way while
+it works. The chart-side `weighted_mean` (§3.4) is built only when a use case appears that
+the model-side way cannot serve well, most likely one where the visitor's filters change
+the set being averaged and a node per filter state is not practical.
 
 
 ## 3. What the chart does with each dimension
@@ -160,6 +259,13 @@ Each dimension of the metric is, in one view, either:
 - **broken down by** (the "break down by" control),
 - **filtered** to one or more categories, or
 - **free** (neither).
+
+**What the visitor controls.** Exactly what they control today: which dimension is broken
+down by, and which categories are filtered. Stackability, the reduction policy and the
+chart type that follows from them are decided by the model and the page editor, never by
+the visitor; the chart has no control for them. The visitor's choices change what the
+policies are applied *to* (a filter can leave one category, so nothing needs reducing),
+not the policies themselves.
 
 | Role | Stackable | Non-stackable |
 |---|---|---|
@@ -174,14 +280,13 @@ must be lines.
 
 ### 3.2 Reduction policies for non-stackable dimensions
 
-There is no single right answer (your points 6–8), so the policy is a setting, to be
-tried on real nodes:
+There is no single right answer, so the policy is a setting, to be tried on real nodes:
 
 | Policy | Behaviour | Shown to the visitor as |
 |---|---|---|
 | `first` | Filtered automatically to the dimension's default category (first, or one the modeller names) | A filter chip that is visibly set, e.g. "Vehicle type: cars", so it is not a silent choice |
 | `mean` | Equal-weight mean over the categories (or the selected ones) that have values | "Average over vehicle types (unweighted)" |
-| `weighted_mean` | Mean weighted by another node's output (§3.4) | "Average over vehicle types, weighted by mileage" |
+| `weighted_mean` | Mean weighted by another node's output (§3.4); deferred, see §2.7 | "Average over vehicle types, weighted by mileage" |
 | `require_choice` | Empty graph with a prompt to choose a category | "Choose a vehicle type to see this graph" |
 
 The policy can be set at three levels, the most specific winning:
@@ -189,9 +294,10 @@ The policy can be set at three levels, the most specific winning:
 1. **Quantity default**, as a starting point: `mean` for the G dimensions of `share`
    metrics, `first` for `none` metrics (an unweighted mean of emission factors is more
    misleading than a mean of mixes, which at least still sums to 100 %).
-2. **Metric**: `reduction: {vehicle_type: weighted_mean}` on the output metric.
-3. **Block**: an override on the `ParameterPanelBlock` graph, so the same node can be
-   shown with different policies side by side while you compare them.
+2. **Metric**: `reduction: {vehicle_type: first}` on the output metric.
+3. **Block**: an override on the `ParameterPanelBlock` graph, set by the page editor, so
+   the same node can be shown with different policies side by side while they are
+   compared. It is not shown to the visitor as a control (§3.1).
 
 ### 3.3 Order of operations
 
@@ -207,10 +313,11 @@ data both orders agree.
 The mean is taken per year over the groups with at least one value, so a vehicle type
 with no data at all does not pull the mean towards zero.
 
-### 3.4 Weighted mean (later phase)
+### 3.4 Weighted mean in the chart (deferred)
 
-A weight is an extensive node output whose dimensions are a subset of G, e.g. vehicle
-mileage by vehicle type. The metric declares it:
+Built only if a use case calls for it (§2.7). The design, for when it does: a weight is an
+extensive node output whose dimensions are a subset of G, e.g. vehicle mileage by vehicle
+type. The metric declares it:
 
 ```yaml
 output_metrics:
@@ -238,12 +345,27 @@ the backend instead would need one request per filter state.
   "unweighted mean over vehicle types").
 - **Goals** are already matched to a category choice; a goal on a non-stackable dimension
   continues to require that category to be filtered.
-- **Scenario and uncertainty** dimensions become ordinary dimensions with
-  `stackable: false` and policy `first` (active scenario; `median`). Their current special
-  handling can stay in the old component; the copy should not need it.
+- **Scenario dimension**: never stackable, by its kind (§1.3). Its categories are drawn
+  as separate lines or separate series, as today.
+- **Uncertainty dimension**: stays filtered to `median` in the backend, as today. If the
+  chart later shows uncertainty bands, that is a display of its own, not stacking.
 
 
-## 4. Multi-metric tabs
+## 4. Multi-metric nodes
+
+The typical multi-metric node is an action with two metrics (for example its effect on
+emissions and its cost), but there are others, such as a node with an activity and a
+factor, or a node whose metrics are the same quantity under different accounting.
+
+Two layouts are built and compared on real nodes before either becomes the default:
+
+| Layout | Strengths | Weaknesses |
+|---|---|---|
+| **Tabs** | Compact; one graph at a time, full width; scales to many metrics | The second metric is hidden, so a visitor may never see the cost of an action |
+| **Side by side** | Both metrics visible at once, which suits an action's effect and cost; the comparison is the point | Half the width each; on a phone they stack vertically; awkward beyond two or three metrics |
+
+No decision now. The block chooses the layout (§5.4), so both can be shown on the same
+page and judged.
 
 ### 4.1 Backend
 
@@ -260,15 +382,33 @@ the backend instead would need one request per filter state.
 - A multi-metric node with no default and no argument should return `null` without
   sending an exception to Sentry; it is an expected state, not an error.
 
+The side-by-side layout fetches every metric at once. The metrics of one node come from
+one computation of that node, so the extra cost is in serialisation, not in computing;
+the query can ask for them with aliases on `metricDim(metric: …)`.
+
 ### 4.2 Frontend
 
-- Tabs above the graph only when the node has more than one output metric. The first tab
-  is the `isDefault` metric, or the first one.
+Common to both layouts:
+
+- The slice configuration (break-down dimension, filters) is kept per metric: metrics can
+  have different dimensions, so one configuration cannot be shared.
+- Each metric has its own unit, stackability per dimension and goals.
+- Label: the port label, falling back to the quantity label.
+- A node with one metric looks exactly as today in either layout.
+
+Tabs:
+
+- Tabs above the graph. The first tab is the `isDefault` metric, or the first one.
 - Each tab fetches its metric when first opened, not all metrics up front.
-- The slice configuration is kept per tab: metrics can have different dimensions, so one
-  configuration cannot be shared. Switching back restores the previous one.
-- Each tab has its own unit, stackability per dimension and goals.
-- Tab label: the port label, falling back to the quantity label.
+- Switching back to a tab restores its slice configuration.
+
+Side by side:
+
+- One graph per metric, in a row that wraps to a column at narrow widths.
+- Each graph has its own controls. A shared control for a dimension present in all the
+  metrics (e.g. filtering both graphs to one sector) is worth trying, but is not needed
+  for the first version.
+- Same y-axis scales are **not** shared: the metrics have different units.
 
 
 ## 5. Changes by repository
@@ -277,13 +417,13 @@ the backend instead would need one request per filter state.
 
 | Where | Change |
 |---|---|
-| `nodes/dimensions.py` `Dimension` | `stackable: bool = True`. In YAML and in `spec.dimensions` for DB-sourced instances. |
-| `configs/quantities/quantity_kinds.yaml`, `nodes/quantities.py` | `aggregation: sum \| share \| none`, defaulting from `is_stackable`. `fraction`, `mix`, `grouped_mix` → `share`. `is_stackable` and `STACKABLE_QUANTITIES` stay as they are: the computation (split operations, action checks) uses them, and changing them is out of scope. |
-| `NodeMetric`, `OutputPortDef` | `stackable_dimensions: list[str] \| None`, `reduction: dict[str, ReductionPolicy] \| None`, later `weights`. YAML: on `output_metrics` entries and, for single-metric nodes, at node level. |
-| `metric.py` `MetricDimension` and GraphQL type | `stackable: bool` (resolved per §2.2), `reduction: ReductionPolicy`, `defaultCategory`. |
-| `DimensionalMetric` and GraphQL type | `aggregation`, `weights` (later). Keep `stackable` with its current meaning for the old components. |
+| `configs/quantities/quantity_kinds.yaml`, `nodes/quantities.py` | `aggregation: sum \| share \| none` on `QuantityKind`, defaulting from the existing classes (§2.6). `fraction`, `mix`, `grouped_mix` → `share`. `is_stackable` and `STACKABLE_QUANTITIES` stay as they are: the computation (split operations, action checks) uses them, and changing them is out of scope. |
+| `NodeMetric`, `OutputPortDef` | `stackable_dimensions: list[str] \| None`, `reduction: dict[str, ReductionPolicy] \| None`. YAML: on `output_metrics` entries and, for single-metric nodes, at node level. `weights` only if §3.4 is built. |
+| `metric.py` `MetricDimension` and GraphQL type | `stackable: bool` (resolved per §2.2, using `kind`), `reduction: ReductionPolicy`, `defaultCategory`. |
+| `DimensionalMetric` and GraphQL type | `aggregation`. Keep `stackable` with its current meaning for the old components. |
 | `nodes/graphql/types/node.py` | `outputMetrics`; `metric` argument on `metricDim`. |
-| `pages/blocks.py` `ParameterPanelBlock` | Optional `graphs` list (§5.4). |
+| `pages/blocks.py` `ParameterPanelBlock` | `metric` and `layout` on the `graphs` entries (§5.4). |
+| `nodes/dimensions.py` `Dimension` | **Not now.** `stackable: bool = True` only if the veto is ever needed (§2.2). |
 
 ### 5.2 kausal_common (shared with Watch)
 
@@ -299,20 +439,18 @@ to `kausal_common` when promoted.
 New files only, so neither the node page nor Watch changes:
 
 - `components/paths/NodeMetricChart.tsx`: copy of `DimensionalNodeVisualisation.tsx`,
-  with tabs and the role logic.
+  with both multi-metric layouts and the role logic.
 - `components/paths/NodeMetricChartGraph.tsx`: copy of `NodeGraph.tsx`, with the chart type
   taken from the dimension being broken down by.
 - `utils/paths/metric/aggregation.ts`: the filter → sum → reduce → break down pipeline
   (§3.3). `sliceBy` and `flatten` stay untouched.
-- `ParsedMetric` gains optional fields (`dim.stackable`, `dim.reduction`, `weights`);
-  existing code ignores them.
+- `ParsedMetric` gains optional fields (`dim.stackable`, `dim.reduction`); existing code
+  ignores them.
 
 ### 5.3 Validation
 
-- Spec time: `stackable_dimensions` and `reduction` keys must be output dimensions;
-  `stackable_dimensions` may not include a dimension with `stackable: false`; a multi-
-  dimension `share` metric without `stackable_dimensions` is a problem (§2.5); `weights`
-  must name a node whose dimensions are a subset of G.
+- Spec time: `stackable_dimensions` and `reduction` keys must be output dimensions; a
+  multi-dimension `share` metric without `stackable_dimensions` is a problem (§2.5).
 - Compute time: the share invariant (§2.4), reported as a model problem so that
   `test_instance` records it. Generalise `DimensionSumRule` to a list of dimensions and
   reuse its check rather than writing a second one.
@@ -320,59 +458,79 @@ New files only, so neither the node page nor Watch changes:
   finds the smallest S satisfying the invariant and prints the `stackable_dimensions` line
   to add. That turns 796 existing `fraction`/`mix` declarations in `configs/` into a
   review, not a manual audit.
+- Not a validation, but a data-quality report worth having: dimensions whose categories
+  look overlapping (an "all"/"total" category beside parts, or a sum over the categories
+  that exceeds a sibling total). These are the cases §2.2 says to fix in the data.
 
 ### 5.4 ParameterPanelBlock graphs
 
 ```
 graphs: list of
   node                 NodeChooserBlock
-  metric               optional; required when the node has several metrics
+  metric               optional; one metric only. Absent on a multi-metric node: all metrics
+  layout               tabs | side_by_side; used when several metrics are shown
   group_by             optional dimension id
   reduction_override   optional {dimension: policy}, for trying policies out
 ```
 
-The first three fields are named as in `NodeChartSpec`
+`node`, `metric` and `group_by` are named as in `NodeChartSpec`
 ([`embeddable-graph-blocks.md`](embeddable-graph-blocks.md) §5.3), so the block can later
-move onto that spec without a data migration; `reduction_override` should be added to
-`NodeChartSpec` too. After the panel changes a parameter, the graphs refetch their metric.
+move onto that spec without a data migration; `layout` and `reduction_override` should be
+added to `NodeChartSpec` too. After the panel changes a parameter, the graphs refetch
+their metrics.
 
 
 ## 6. Phases
 
-1. **Metric tabs** (independent of stackability). Backend `outputMetrics` and the `metric`
-   argument, unique metric ids, goals per metric. Frontend copies with tabs only. The
-   `graphs` field on `ParameterPanelBlock`. Tests: GraphQL test for a multi-metric node
-   (each metric, unknown id, no argument); a component test for tab switching keeping
-   per-tab slice state.
-2. **Stackability in the backend.** Dimension flag, quantity `aggregation`, metric
-   `stackable_dimensions` and `reduction`, resolved flags in the payload, spec-time
-   validation, the share check and `check_share_metrics`. Tests: the table in §2.3 as unit
-   tests of the resolution; the invariant check on case A and case B data, including a
-   case that fails it.
+1. **Multi-metric nodes** (independent of stackability). Backend `outputMetrics` and the
+   `metric` argument, unique metric ids, goals per metric. Frontend copies with both
+   layouts. `metric` and `layout` on `ParameterPanelBlock` graphs. Tests: GraphQL test for
+   a multi-metric node (each metric, unknown id, no argument); component tests for tab
+   switching keeping per-tab slice state, and for the side-by-side layout keeping
+   independent slice state per graph.
+2. **Stackability in the backend.** Quantity `aggregation` on the registry, metric
+   `stackable_dimensions` and `reduction`, resolved flags in the payload (using dimension
+   kind), spec-time validation, the share check and `check_share_metrics`. Tests: the
+   table in §2.3 as unit tests of the resolution; the invariant check on case A and case B
+   data, including a case that fails it.
 3. **Aggregation in the copy.** Roles, sum-then-reduce, policies `first`, `mean` and
    `require_choice`, the block-level override, labels saying what was reduced. Tests in
    `aggregation.ts` with case A and case B fixtures: each policy, filters on S and on G,
    missing cells (§3.3), and that the stacked total is 100 % where it should be.
-4. **Weighted mean.** `weights` declaration, payload, client-side normalisation.
-5. **Trial and promotion.** Put the copy on real nodes through `ParameterPanelBlock`,
-   compare policies, choose the defaults per quantity class. Then switch the node page to
-   the new component, and later Watch, and delete the old components once nothing uses
-   them.
+4. **Trial and promotion.** Put the copy on real nodes through `ParameterPanelBlock`,
+   compare the two multi-metric layouts and the reduction policies, choose the defaults
+   per quantity class. Then switch the node page to the new component, and later Watch,
+   and delete the old components once nothing uses them.
 
-Each phase leaves production unchanged until phase 5.
+Deferred, each built only when a case needs it:
+
+- **Dimension veto** (`Dimension.stackable`, §2.2).
+- **Chart-side weighted mean** (§3.4), when the model-side way (§2.7) does not serve.
+
+Each phase leaves production unchanged until phase 4.
 
 
 ## 7. Open questions
 
+- **Multi-metric layout.** Tabs, side by side, or chosen per block (§4). Settled in
+  phase 4 by looking at both on real action nodes.
 - **Default policies.** §3.2 proposes `mean` for share metrics and `first` for `none`
-  metrics; phase 5 is meant to settle this on real nodes.
+  metrics; phase 4 is meant to settle this on real nodes.
 - **`grouped_mix`.** It is in the quantity registry and nothing else in `src/` or
   `configs/` uses it. Its name suggests exactly case B, a mix normalised within groups. If
   so, it becomes redundant once `stackable_dimensions` exists.
-- **Overlapping categories inside a partition dimension** (an "all" category beside its
-  parts): model it with the override, or treat it as a data error to fix in the dataset?
-- **Visitor control.** Should the visitor be able to switch the reduction policy (e.g.
-  "average" vs "choose one"), or is it the modeller's choice only?
-- **Computation.** The same per-dimension stackability could later replace the
+- **When the dimension veto is needed.** What would a genuinely non-additive dimension
+  look like that cannot be restructured into exhaustive categories? None is known.
+- **Weighted aggregation use cases.** Beyond the two in §2.7, are there cases where a
+  weighted mean must follow the visitor's filters?
+- **Computation.** The same per-metric stackability could later replace the
   quantity-only checks in `generic.py` split operations. Out of scope here, but the field
   names should not prevent it.
+
+Resolved in version 2:
+
+- Overlapping categories inside a dimension (an "all" category beside its parts, or
+  overlapping groups) are a data error to fix in the dataset, not something to model
+  (§2.2).
+- Visitor control: the visitor cannot change stackability or the reduction policy. They
+  choose the break-down dimension and the filtered categories, as now (§3.1).
