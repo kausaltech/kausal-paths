@@ -274,15 +274,6 @@ length:
   qudt: quantitykind:Length
   is_stackable: true
 
-value_weight:
-  label:
-    en: Value weight
-    fi: Arvopaino
-    de: Wertgewicht
-    sv: Värdevikt
-  icon: "⚓"
-  is_stackable: true
-
 # ---------------------------------------------------------------------------
 # Factors
 # ---------------------------------------------------------------------------
@@ -482,6 +473,14 @@ per_capita:
     de: Pro Kopf
     sv: Per capita
   icon: "👤"
+
+value_weight:
+  label:
+    en: Value weight
+    fi: Arvopaino
+    de: Wertgewicht
+    sv: Värdevikt
+  icon: "⚓"
 
 # ---------------------------------------------------------------------------
 # Health and exposure
