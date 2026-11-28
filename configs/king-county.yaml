@@ -23,7 +23,7 @@ id: king-county
 default_language: en
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: 5bb0b60529c6bd536d119fcc917d946850a31eb3
+  commit: 5d2315db6655655412d3e92b0932ffb52b0aa116
   dvc_remote: kausal-s3
 name: King County Greenhouse Gas Inventory
 owner: King County
