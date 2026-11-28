@@ -24,8 +24,8 @@ actions:
   name_en: Introduce composite traffic
   description_en: |
     A central system pools the trips of car passengers going the same way at the same time into
-    eight-seat vehicles with a driver, ordered by phone. It starts where trips are densest and
-    expands. How far and how fast is chosen in the scenario settings.
+    eight-seat vehicles, ordered by phone. It starts where trips are densest and expands. How far
+    and how fast is chosen in the scenario settings.
   type: formula.FormulaAction
   quantity: fraction
   unit: dimensionless

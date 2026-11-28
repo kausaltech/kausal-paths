@@ -11,7 +11,7 @@ default_language: en
 supported_languages: []
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: b56444ba87a657129a12c86de97d4012231cbac8
+  commit: 24fa41ed48c83abbde35113e49fbeb5e4ebafdad
   dvc_remote: kausal-s3
 name_en: Composite traffic, the article of 2005
 owner: Kausal Ltd

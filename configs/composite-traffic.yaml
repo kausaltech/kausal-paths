@@ -2,17 +2,18 @@ id: composite-traffic # defines which instance is updated
 # Composite traffic in the Helsinki metropolitan area, 2025-2050: the decision analysis of
 # Tuomisto & Tainio (2005), "An economic way of reducing health, environmental, and other
 # pressures of urban traffic", BMC Public Health 5:123, with the values of 2025 and their trends
-# (population, the electrification of the car fleet). Round 4 of paths-data
+# (population, the electrification of the car fleet, driverless vehicles). Round 4 of paths-data
 # modules/composite-traffic/docs/plan.md. The replication of the article is the instance
 # composite-traffic-2005, on the same module.
 #
-# The quantities are per working day of each year. The action introduces composite traffic
-# along the rollout path a scenario chooses; the baseline has none.
+# The quantities are per working day of each year. One action introduces composite traffic
+# along the rollout path a scenario chooses, the other makes the composite vehicles driverless;
+# the baseline has neither.
 default_language: en
 supported_languages: []
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: b56444ba87a657129a12c86de97d4012231cbac8
+  commit: 24fa41ed48c83abbde35113e49fbeb5e4ebafdad
   dvc_remote: kausal-s3
 name_en: Composite traffic
 owner: Kausal Ltd
@@ -33,6 +34,8 @@ include:
 - file: modules/composite_traffic/model.yaml
   allow_override: false
 - file: modules/composite_traffic/rollout.yaml
+  allow_override: false
+- file: modules/composite_traffic/automation.yaml
   allow_override: false
 
 params:
@@ -65,11 +68,18 @@ scenarios:
 - id: default
   default: true
   all_actions_enabled: true
-  name_en: Composite traffic from the centre to the whole area
+  name_en: Composite traffic from the centre to the whole area, driverless by 2040
+
+- id: with_drivers
+  all_actions_enabled: true
+  name_en: Composite traffic from the centre to the whole area, with drivers
+  params:
+  - id: composite_traffic_driverless_vehicles.enabled
+    value: false
 
 - id: helsinki_only
   all_actions_enabled: true
-  name_en: Composite traffic in the city of Helsinki only
+  name_en: Composite traffic in the city of Helsinki only, driverless by 2040
   params:
   - id: composite_traffic_rollout_path
     value: helsinki_only

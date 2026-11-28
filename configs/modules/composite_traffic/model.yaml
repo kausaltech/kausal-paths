@@ -32,7 +32,8 @@
 # Every case of the trip aggregation is computed: the coverage level and the composite fraction
 # are dimensions throughout. Two further files pick from them: `replication.yaml`, the article's
 # figures for the area a parameter chooses (instance composite-traffic-2005), and `rollout.yaml`,
-# the years 2025-2050 along a rollout path (instance composite-traffic).
+# the years 2025-2050 along a rollout path (instance composite-traffic). `automation.yaml` adds
+# driverless composite vehicles to the latter, as cost changes beside this file's nodes.
 #
 # What the including instance must provide: the dimensions in `dimensions.yaml`, and the global
 # parameter `composite_traffic_assumption_case` (an assumption_case category); `replication.yaml`
