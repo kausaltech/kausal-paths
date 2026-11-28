@@ -11,7 +11,7 @@ import pytest
 from kausal_common.i18n.pydantic import TranslatedString
 
 from common import qualifiers
-
+from nodes.calc import compute_scenario_impact
 from nodes.constants import VALUE_COLUMN, YEAR_COLUMN
 from nodes.exceptions import NodeError
 from nodes.instance_loader import InstanceLoader
@@ -303,6 +303,37 @@ def test_action_impact_on_a_qualified_target() -> None:
         saving = ctx.get_action('saving')
         saving.enabled_param.set(True)
         impact = saving.compute_impact(target)
+
+    qual = qualifiers.qualifier_column(VALUE_COLUMN)
+    assert qual in impact.columns
+    assert impact['Impact'].n_unique() == 3
+    assert impact.filter(pl.col('Impact') == 'Impact')[qual].null_count() == 0
+
+
+def test_scenario_impact_on_a_qualified_target() -> None:
+    """
+    Scenario impact rows get a qualifier too, as an action's do (`test_action_impact_on_a_qualified_target`).
+
+    `compute_scenario_impact` stacks the same three groups of rows and failed with the same polars
+    ShapeError on any target carrying a qualifier column.
+    """
+    config = _config(actions=[_saving()])
+    config['scenarios'] = [
+        {'id': 'default', 'name': 'Default', 'default': True, 'all_actions_enabled': True},
+        {'id': 'baseline', 'name': 'Baseline'},
+    ]
+    ctx = _context(config)
+    target = _FixedOutputNode(
+        id='qualified',
+        context=ctx,
+        name=TranslatedString('qualified', default_language='en'),
+        unit=unit_registry.parse_units('kWh/a'),
+        quantity='energy',
+        fixed_df=_reported(_ppdf([(2018, 100.0), (2025, 90.0)], unit='kWh/a'), reported=True),
+    )
+    ctx.add_node(target)
+    with ctx.run():
+        impact = compute_scenario_impact(target, 'baseline')
 
     qual = qualifiers.qualifier_column(VALUE_COLUMN)
     assert qual in impact.columns

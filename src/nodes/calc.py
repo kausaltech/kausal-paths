@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, cast
 
 import polars as pl
 
-from common import polars as ppl
+from common import polars as ppl, qualifiers
 from nodes.constants import (
     FORECAST_COLUMN,
     IMPACT_COLUMN,
@@ -180,6 +180,39 @@ def convert_to_co2e(df: ppl.PathsDataFrame, dim_id: str) -> ppl.PathsDataFrame:
     return df
 
 
+def with_impact_qualifiers(df: ppl.PathsDataFrame, mcols: list[str], other_col_pattern: str) -> ppl.PathsDataFrame:
+    """
+    Give each ``<metric>:Impact`` column the qualifier of a difference, by the rule for a sum as in `subtract_with_dims`.
+
+    The impact is ``<metric>`` minus the column named by ``other_col_pattern % metric``
+    (``'%s:WithoutAction'`` for an action, ``'%s:Reference'`` for a scenario). Without a
+    qualifier of its own, the impact rows lack the qualifier column the other two blocks
+    carry when the target has qualifiers, and the three blocks cannot be stacked.
+    """
+
+    def present(col: str) -> str | None:
+        return col if col in df.columns else None
+
+    exprs = []
+    for m in mcols:
+        other = other_col_pattern % m
+        own_qual = present(qualifiers.qualifier_column(m))
+        other_qual = present(qualifiers.qualifier_column(other))
+        if own_qual is None and other_qual is None:
+            continue
+        exprs.append(
+            qualifiers.combine_sum(
+                qualifiers.qualifier_column('%s:Impact' % m),
+                m,
+                own_qual,
+                other,
+                other_qual,
+                qualifiers.catalog_for_frames(df),
+            )
+        )
+    return df.with_columns(exprs) if exprs else df
+
+
 def compute_scenario_impact(  # Gets inspiration from ActionNode.compute_impact
     target_node: Node,
     reference_scenario_id: str = 'baseline',
@@ -229,6 +262,7 @@ def compute_scenario_impact(  # Gets inspiration from ActionNode.compute_impact
     df = df.with_columns(impact_cols)
     for col, unit in impact_units.items():
         df = df.set_unit(col, unit)
+    df = with_impact_qualifiers(df, mcols, '%s:Reference')
     common_cols = [YEAR_COLUMN, *df.dim_ids, FORECAST_COLUMN]
     # Long format (concat blocks) instead of pivot: IMPACT_COLUMN is a dimension, same
     # metric column names in every block, so downstream can filter e.g. IMPACT_GROUP and
