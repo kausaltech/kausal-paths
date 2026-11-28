@@ -1,0 +1,163 @@
+# Driverless composite vehicles (Round 4, stage 4b, of paths-data
+# modules/composite-traffic/docs/plan.md), for the instance composite-traffic. Include it after
+# model.yaml and rollout.yaml.
+#
+# The action sets the share of composite vehicle-km driven with no driver on board, by year. A
+# driverless vehicle-hour still costs some staff time (remote operation, field service), a share
+# of a driver's (remote_operation_share), and the vehicle costs more (automation_premium). Only
+# the composite vehicles change; the cars stay as they are.
+#
+# The two cost changes are nodes of their own, added to the costs by element, so model.yaml's
+# driver and vehicle costs stay those of vehicles with a driver.
+#
+# The subsidy per trip comes from the Monte Carlo in paths-data, which has no automation. The
+# change in costs falls on every composite passenger alike (composite costs are not shared and
+# count in full for the passenger), so the marginal passenger's cost difference, which is the
+# subsidy, moves by the change per composite trip. The reference script checks this with a
+# Monte Carlo of the driverless case (paths-data docs/log.md).
+
+datasets:
+- id: composite_traffic/automation
+  is_editable: false
+
+actions:
+
+- id: composite_traffic_driverless_vehicles
+  name_en: Driverless composite vehicles
+  description_en: |
+    The composite vehicles drive themselves. Staff watch over them remotely and serve them in
+    the field, but there is no driver on board. The vehicles cost more to buy.
+  type: formula.FormulaAction
+  quantity: fraction
+  unit: dimensionless
+  input_datasets:
+  - id: composite_traffic/automation
+    column: driverless_share
+    tags: [share]
+  params:
+  - id: formula
+    value: share
+  output_nodes:
+  - id: composite_traffic_driverless_share
+
+nodes:
+
+- id: composite_traffic_driverless_share
+  name_en: Share of composite traffic without a driver
+  description_en: |
+    The share of the kilometres of composite vehicles driven with no driver on board.
+  type: generic.GenericNode
+  quantity: fraction
+  unit: dimensionless
+
+- id: composite_traffic_driver_cost_change_from_automation
+  name_en: Driver costs saved by driverless vehicles
+  description_en: |
+    The drivers' salaries no longer paid, less the staff who watch over and serve the
+    driverless vehicles.
+  type: formula.FormulaNode
+  quantity: currency
+  unit: EUR/d
+  input_dimensions: [coverage_level, composite_fraction, trip_length, day_period]
+  output_dimensions: [coverage_level, composite_fraction, trip_length, day_period]
+  input_nodes:
+  - id: composite_traffic_driver_cost
+    tags: [cost]
+  - id: composite_traffic_driverless_share
+    tags: [share]
+  input_datasets:
+  - id: composite_traffic/unit_costs
+    column: remote_operation_share
+    tags: [remote]
+    filters:
+    - column: assumption_case
+      ref: composite_traffic_assumption_case
+  params:
+  - id: formula
+    value: share * (remote - 1) * select_category(cost, travel_mode='composite')
+  output_nodes:
+  - id: composite_traffic_costs
+    to_dimensions:
+    - id: coverage_level
+    - id: composite_fraction
+    - id: travel_mode
+      categories: [composite]
+    - id: trip_length
+    - id: day_period
+    - id: cost_element
+      categories: [driver]
+
+- id: composite_traffic_vehicle_cost_change_from_automation
+  name_en: Extra vehicle costs of driverless vehicles
+  description_en: |
+    The sensors and computers that let a vehicle drive itself, spread over its lifetime.
+  type: formula.FormulaNode
+  quantity: currency
+  unit: EUR/d
+  input_dimensions: [coverage_level, composite_fraction, trip_length, day_period]
+  output_dimensions: [coverage_level, composite_fraction, trip_length, day_period]
+  input_nodes:
+  - id: composite_traffic_fleet
+    tags: [fleet]
+  - id: composite_traffic_driverless_share
+    tags: [share]
+  - id: composite_traffic_composite_trip_length_share
+    tags: [length_share]
+  - id: composite_traffic_period_share
+    tags: [period_share]
+  input_datasets:
+  - id: composite_traffic/vehicle_costs
+    column: automation_premium
+    tags: [premium]
+    filters:
+    - column: assumption_case
+      ref: composite_traffic_assumption_case
+  - id: composite_traffic/vehicle_costs
+    column: vehicle_lifetime
+    tags: [lifetime]
+    filters:
+    - column: assumption_case
+      ref: composite_traffic_assumption_case
+  params:
+  - id: formula
+    # As composite_traffic_composite_capital_cost and composite_traffic_vehicle_cost do for the
+    # vehicle price: by trip length in the shares of daytime composite trips, then over the
+    # periods of the day in the shares of the trips.
+    value: >-
+      share * sum_dim(fleet * premium / lifetime, vehicle_class) * length_share
+      * select_category(period_share, travel_mode='composite')
+  output_nodes:
+  - id: composite_traffic_costs
+    to_dimensions:
+    - id: coverage_level
+    - id: composite_fraction
+    - id: travel_mode
+      categories: [composite]
+    - id: trip_length
+    - id: day_period
+    - id: cost_element
+      categories: [vehicle]
+
+- id: composite_traffic_subsidy_change_from_automation
+  name_en: Change in the subsidy per trip from driverless vehicles
+  description_en: |
+    Driverless vehicles make a composite trip cheaper for every passenger alike, so the subsidy
+    needed to win over the same share of car passengers falls by as much.
+  type: formula.FormulaNode
+  quantity: unit_price
+  unit: EUR/trip
+  input_dimensions: [coverage_level, composite_fraction, trip_length, day_period]
+  output_dimensions: [coverage_level, composite_fraction, trip_length, day_period]
+  input_nodes:
+  - id: composite_traffic_driver_cost_change_from_automation
+    tags: [driver]
+  - id: composite_traffic_vehicle_cost_change_from_automation
+    tags: [vehicle]
+  - id: composite_traffic_trips_by_mode
+    tags: [trips]
+  params:
+  - id: formula
+    # No composite trips at 0 %: 0/0, taken as 0.
+    value: empty_to_zero((driver + vehicle) / select_category(trips, travel_mode='composite'))
+  output_nodes:
+  - id: composite_traffic_subsidy_per_trip

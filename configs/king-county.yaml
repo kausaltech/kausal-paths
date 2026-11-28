@@ -23,7 +23,7 @@ id: king-county
 default_language: en
 dataset_repo:
   url: https://github.com/kausaltech/dvctest.git
-  commit: ea8c95c0832b1add40e7bad386fe23c96b62b60f
+  commit: 5bb0b60529c6bd536d119fcc917d946850a31eb3
   dvc_remote: kausal-s3
 name: King County Greenhouse Gas Inventory
 owner: King County
@@ -1578,7 +1578,7 @@ nodes:
 # --- Solid waste and wastewater --------------------------------------------
 # One tonnage, four factor applications. The inventory charges the same tonnes
 # landfill methane (or compost fugitive), transport, and stored carbon as a
-# negative, so `waste_disposal` feeds four emission nodes rather than one. Only all
+# negative, so the tonnage feeds four emission nodes rather than one. Only all
 # four together give the published 421,306 t of gross waste emissions and -319,916 t
 # of disposal sequestration for 2023; a disposal-only chain overstates the gross by
 # a factor of three.
@@ -1587,10 +1587,18 @@ nodes:
 # it residential/commercial for 2022 and 2023 only, so a sector-resolved series
 # would cover two of eight inventory years and overlap the unsplit one as soon as
 # the latter is carried forward.
-- id: waste_disposal
-  name: Waste disposal
-  description: Short tons landfilled and composted, by material. The same 
-    tonnage carries the disposal, transport and stored-carbon factors.
+#
+# The SCAP waste actions add to `waste_disposal`, and stored carbon is read from
+# `waste_disposal_before_actions`, so the tonnes an action moves change disposal,
+# fugitive and transport emissions but not stored carbon. That matches the
+# published wedges, which leave stored carbon out (finding F28 in the King County
+# README). Counting it, as the inventory does for the tonnes it reports, would
+# make Organics remove 18 kt more at 2030 and salvaged lumber add 2.4 kt a year.
+- id: waste_disposal_before_actions
+  name: Waste disposal before waste actions
+  description: Short tons landfilled and composted, by material, as the trend 
+    would have them without the county's waste actions. Stored carbon is 
+    counted on this tonnage.
   type: generic.GenericNode
   quantity: mass
   unit: short_ton/a
@@ -1605,6 +1613,19 @@ nodes:
   - id: service_population
     tags: [ratio_to_max_hist_year]
     to_dimensions: []
+
+- id: waste_disposal
+  name: Waste disposal
+  description: Short tons landfilled and composted, by material, including the
+    tonnes the county's waste actions move out of landfill. This tonnage 
+    carries the disposal, compost and transport factors.
+  type: generic.GenericNode
+  quantity: mass
+  unit: short_ton/a
+  input_dimensions: [material_type, waste_treatment]
+  output_dimensions: [material_type, waste_treatment]
+  input_nodes:
+  - id: waste_disposal_before_actions
 
 - id: waste_disposal_emission_factor
   name: Landfill disposal emission factor
@@ -1748,7 +1769,7 @@ nodes:
   input_dimensions: [material_type, waste_treatment]
   output_dimensions: [material_type, waste_treatment]
   input_nodes:
-  - id: waste_disposal
+  - id: waste_disposal_before_actions
   - id: waste_sequestration_emission_factor
     tags: [non_additive]
   output_nodes:
@@ -2010,36 +2031,41 @@ nodes:
 # ---------------------------------------------------------------------------
 # Actions: the 25 SCAP policy wedges
 #
-# Each wedge is a published annual reduction series for 2024-2050, subtracted from
-# the sector it acts on (multiplier -1; the extractor writes an explicit zero at
-# 2023 so every action has a defined baseline in the year the forecast branches).
+# Nineteen of the wedges are mechanisms: each acts on the node where the policy takes
+# effect -- an emission factor, energy or fuel use, fuel economy, vehicle-miles, the
+# electric share of new vehicles, tonnes moved from landfill to compost, or, where the
+# inventory has emissions only (refrigerants, off-road equipment, marine and rail,
+# industrial process), the emissions themselves. They are read from the workbook's
+# calculation sheets ('Built Env', 'Transp', 'Other') as what each policy does to that
+# quantity, so they interact as the policies would: the Energy Code saves less once
+# CETA has cleaned the grid, and the Climate Commitment Act's lower gas factor applies
+# to what the building policies leave. Datasets 'king-county/wedge_remaining_shares',
+# 'king-county/on_road_wedge_mechanisms', 'king-county/building_wedge_mechanisms',
+# 'king-county/waste_wedge_mechanisms' and
+# 'king-county/other_transportation_wedge_mechanisms'; extractor sections 12b-12d.
 #
-# These are reduction curves, not mechanisms. Toggling "WA Zero Emission Vehicle
-# Standards" subtracts a fixed series; it does not shift the fleet's fuel mix, and
-# the wedges do not interact -- switching two on subtracts both in full even where
-# they act on the same emissions. That is the deliberate first step agreed for this
-# model, not the endpoint: it reproduces the county's published numbers exactly and
-# makes the whole policy set visible, and the wedges that deserve real mechanisms can
-# then be rebuilt from the 'Built Env' and 'Transp' calculation sheets.
-#
-# Rebuilt as mechanisms so far: CETA, and the on-road set -- CAFE, the Clean Fuel
-# Standard, ZEV, CCA and Vision 2050 Scenario 1. Each acts on the node where the
-# policy takes effect: a grid or fuel emission factor, fuel economy, vehicle-miles,
-# or the electric share of new vehicles (datasets 'king-county/wedge_remaining_shares'
-# and 'king-county/on_road_wedge_mechanisms'; see section 12b of the extractor).
+# Six stay reduction curves, subtracted from their sector (multiplier -1): wastewater
+# methane, which the workbook states as a fixed tonnage, and five wedges that are
+# switched off in the saved workbook and zero (finding F6) -- Vision 2050 Scenarios 2
+# and 3, funded retrofits, the zero-emission appliance standard and residential point
+# of sale.
 #
 # Where the model and the published wedges part, and why:
-#   * Buildings: while the efficiency wedges remain curves, they subtract electricity
-#     savings at the no-action grid factor although CETA has already cleaned the grid,
-#     so the default scenario over-counts by 0.38 Mt at 2030 and 0.69 Mt at 2050.
-#     The workbook applies the Energy Code, the Clean Buildings Act and BEPS before
-#     CETA. Resolved when those wedges act on consumption.
+#   * Buildings: the model's plan-scenario building emissions are within 0.2% of the
+#     workbook's all-policies total. A wedge alone differs from its published value
+#     where the workbook applies it after others: CETA counts the Energy Code's
+#     savings as already made, the Climate Commitment Act acts on gas the building
+#     policies have already cut, and BEPS moves gas to electricity kWh for kWh (F26),
+#     which saves little until CETA has cleaned the grid.
 #   * On-road vehicles: each mechanism removes 2-6% less than its published wedge,
 #     because the model's no-action freight emissions are lower (finding F17), and
 #     Vision 2050 removes 0.1 Mt less from 2036, because the workbook's Vision 2050
 #     section drops transit bus emissions to zero from that year (F22). Net, the
 #     default scenario's transport emissions sit 0.12 Mt above what subtracting the
 #     published wedges gave at 2030, and 0.47 Mt above at 2050.
+#   * Waste: none. The tonnes moved change disposal, compost and transport emissions
+#     but not stored carbon, as in the published wedges (F28; see
+#     `waste_disposal_before_actions`).
 #
 # The reductions are NOT summed with the 'SCAP measure reductions' dataset, which
 # re-cuts the same abatement by measure rather than by policy and disagrees with it
@@ -2085,21 +2111,31 @@ actions:
   - id: transit_electricity_emission_factor
     tags: [non_additive]
 
+# The building policies act on energy use, per consumer sector and carrier
+# ('king-county/building_wedge_mechanisms', extractor section 12c). The workbook applies
+# them in sequence, each to what the one before left; each action is the ratio of the
+# two, so with all of them on the product is the workbook's after-policy use, and each
+# alone acts on whatever use the model has. One ratio per sector scales every utility's
+# electricity (the extractor asserts the workbook applies one), and the gas ratio also
+# scales the T&D therms, which the workbook takes from the same consumption. Every action
+# carries all four carriers, at 1.0 where it has no effect, so no join drops a category.
 - id: wa_energy_code
   name: WA Energy Code
+  description: Washington's energy code for new buildings cuts the energy use of 
+    new construction by 70% by 2031, which the model applies to the growth in 
+    electricity, natural gas, fuel oil and propane use after 2023. The code also 
+    bans natural gas for space and water heating in new commercial buildings, so 
+    part of the commercial gas use moves to electricity.
   type: simple.GenericAction
-  quantity: emissions
-  unit: Mt_co2e/a
+  quantity: fraction
+  unit: dimensionless
+  no_effect_value: 1.0
   group: state_federal
-  params:
-  - id: multiplier
-    value: -1
-    unit: dimensionless
-    is customizable: false
-    is_visible: false
+  input_dimensions: [consumer_sector, energy_carrier]
+  output_dimensions: [consumer_sector, energy_carrier]
   input_datasets:
-  - id: king-county/wedge_emission_reductions
-    column: emission_reduction
+  - id: king-county/building_wedge_mechanisms
+    column: relative_energy_use
     filters:
     - dimension: action
       categories: [wa_energy_code]
@@ -2108,23 +2144,47 @@ actions:
       flatten: true
     forecast_from: 2024
   input_dataset_processors: [LinearInterpolation]
-  output_nodes: [built_environment_emissions]
+  output_nodes: &building_energy_use
+  - id: electricity_consumption
+    tags: [non_additive]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+      flatten: true
+  - id: natural_gas_consumption
+    tags: [non_additive]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [natural_gas]
+      flatten: true
+  - id: natural_gas_td_losses
+    tags: [non_additive]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [natural_gas]
+      flatten: true
+  - id: other_fuel_consumption
+    tags: [non_additive]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [fuel_oil, propane]
 
 - id: wa_clean_buildings_act
   name: WA Clean Buildings Act
+  description: Washington's Clean Buildings Act sets energy use targets for 
+    existing commercial buildings over 20,000 square feet. The model lowers the 
+    electricity, natural gas and fuel oil use of commercial buildings as they 
+    reach the targets.
   type: simple.GenericAction
-  quantity: emissions
-  unit: Mt_co2e/a
+  quantity: fraction
+  unit: dimensionless
+  no_effect_value: 1.0
   group: state_federal_local
-  params:
-  - id: multiplier
-    value: -1
-    unit: dimensionless
-    is customizable: false
-    is_visible: false
+  input_dimensions: [consumer_sector, energy_carrier]
+  output_dimensions: [consumer_sector, energy_carrier]
   input_datasets:
-  - id: king-county/wedge_emission_reductions
-    column: emission_reduction
+  - id: king-county/building_wedge_mechanisms
+    column: relative_energy_use
     filters:
     - dimension: action
       categories: [wa_clean_buildings_act]
@@ -2133,23 +2193,26 @@ actions:
       flatten: true
     forecast_from: 2024
   input_dataset_processors: [LinearInterpolation]
-  output_nodes: [built_environment_emissions]
+  output_nodes: *building_energy_use
 
+# The workbook replaces the removed gas with the same energy as electricity, kWh for
+# kWh, with no heat pump efficiency (finding F26).
 - id: seattle_benchmark_performance_standards
   name: Seattle Benchmark Performance Standards
+  description: Seattle's Building Emissions Performance Standard sets falling 
+    emission limits for commercial buildings. The model moves the natural gas 
+    use of commercial buildings to electricity as the limits tighten, so it 
+    lowers emissions most once the electricity grid is clean.
   type: simple.GenericAction
-  quantity: emissions
-  unit: Mt_co2e/a
+  quantity: fraction
+  unit: dimensionless
+  no_effect_value: 1.0
   group: state_federal_local
-  params:
-  - id: multiplier
-    value: -1
-    unit: dimensionless
-    is customizable: false
-    is_visible: false
+  input_dimensions: [consumer_sector, energy_carrier]
+  output_dimensions: [consumer_sector, energy_carrier]
   input_datasets:
-  - id: king-county/wedge_emission_reductions
-    column: emission_reduction
+  - id: king-county/building_wedge_mechanisms
+    column: relative_energy_use
     filters:
     - dimension: action
       categories: [seattle_benchmark_performance_standards]
@@ -2158,23 +2221,24 @@ actions:
       flatten: true
     forecast_from: 2024
   input_dataset_processors: [LinearInterpolation]
-  output_nodes: [built_environment_emissions]
+  output_nodes: *building_energy_use
 
+# The workbook lowers the gas combustion factor ('Built Env' rows 7256 and 7263);
+# leakage from transmission and distribution keeps its factor.
 - id: wa_climate_commitment_act_built_environment
   name: WA Climate Commitment Act - Built Environment
+  description: Washington's Climate Commitment Act caps the emissions of fuel 
+    suppliers, natural gas utilities included. The model lowers the emission 
+    factor of the natural gas burned in buildings by 24% by 2030, and keeps it 
+    there.
   type: simple.GenericAction
-  quantity: emissions
-  unit: Mt_co2e/a
+  quantity: fraction
+  unit: dimensionless
+  no_effect_value: 1.0
   group: state_federal_local
-  params:
-  - id: multiplier
-    value: -1
-    unit: dimensionless
-    is customizable: false
-    is_visible: false
   input_datasets:
-  - id: king-county/wedge_emission_reductions
-    column: emission_reduction
+  - id: king-county/wedge_remaining_shares
+    column: remaining_share
     filters:
     - dimension: action
       categories: [wa_climate_commitment_act_built_environment]
@@ -2183,8 +2247,13 @@ actions:
       flatten: true
     forecast_from: 2024
   input_dataset_processors: [LinearInterpolation]
-  output_nodes: [built_environment_emissions]
+  output_nodes:
+  - id: natural_gas_emission_factor
+    tags: [non_additive]
 
+# Switched off in the county's plan, so a zero curve here. With its switch On it is a
+# mechanism in the study instance king-county-switched-off-wedges.yaml, which
+# replaces this action.
 - id: funded_existing_building_retrofits
   name: Funded existing building retrofits
   description: >
@@ -2390,21 +2459,22 @@ actions:
   - id: on_road_vehicle_mileage
     tags: [non_additive]
 
+# Off-road equipment has emissions only, so the fuel factor share the workbook applies
+# to its gasoline, diesel, LPG and CNG ('Transp' rows 1663-1666 over 1639-1642) scales
+# the emissions. Aviation, marine and rail fuels are not covered by it in the workbook.
 - id: wa_clean_fuel_standards_other_transportation
   name: WA Clean Fuel Standards - Other Transportation
+  description: Washington's Clean Fuel Standard lowers the carbon intensity of 
+    fuels. For off-road equipment such as construction and lawn and garden 
+    machinery, the model lowers emissions by 3.5% by 2030 and 10% from 2034.
   type: simple.GenericAction
-  quantity: emissions
-  unit: Mt_co2e/a
+  quantity: fraction
+  unit: dimensionless
+  no_effect_value: 1.0
   group: state_federal_local
-  params:
-  - id: multiplier
-    value: -1
-    unit: dimensionless
-    is customizable: false
-    is_visible: false
   input_datasets:
-  - id: king-county/wedge_emission_reductions
-    column: emission_reduction
+  - id: king-county/wedge_remaining_shares
+    column: remaining_share
     filters:
     - dimension: action
       categories: [wa_clean_fuel_standards_other_transportation]
@@ -2413,23 +2483,26 @@ actions:
       flatten: true
     forecast_from: 2024
   input_dataset_processors: [LinearInterpolation]
-  output_nodes: [transportation_emissions]
+  output_nodes:
+  - id: off_road_equipment_emissions
+    tags: [non_additive]
 
+# As for on-road vehicles, the share is the ratio of the factor after both to the
+# factor after the Clean Fuel Standard alone ('Transp' rows 1677-1680 over 1663-1666).
 - id: wa_climate_commitment_act_other_transportation
   name: WA Climate Commitment Act - Other Transportation
+  description: Washington's Climate Commitment Act caps emissions from fuel 
+    suppliers. For off-road equipment, the model lowers emissions a further 
+    step beyond the Clean Fuel Standard, so that with both they are 23.5% lower
+    by 2030 and 30% lower by 2040.
   type: simple.GenericAction
-  quantity: emissions
-  unit: Mt_co2e/a
+  quantity: fraction
+  unit: dimensionless
+  no_effect_value: 1.0
   group: state_federal_local
-  params:
-  - id: multiplier
-    value: -1
-    unit: dimensionless
-    is customizable: false
-    is_visible: false
   input_datasets:
-  - id: king-county/wedge_emission_reductions
-    column: emission_reduction
+  - id: king-county/wedge_remaining_shares
+    column: remaining_share
     filters:
     - dimension: action
       categories: [wa_climate_commitment_act_other_transportation]
@@ -2438,26 +2511,25 @@ actions:
       flatten: true
     forecast_from: 2024
   input_dataset_processors: [LinearInterpolation]
-  output_nodes: [transportation_emissions]
+  output_nodes:
+  - id: off_road_equipment_emissions
+    tags: [non_additive]
 
+# Refrigerants have emissions only. The workbook sets them against their 2019 level
+# ('Other' rows 23 and 29); the share is of the no-action series.
 - id: wa_hydrofluorocarbon_policies
   name: WA Hydrofluorocarbon Policies
-  description: >
-    Acts on refrigerants, which the inventory reports as its own sector with no activity
-    basis, so this attaches directly to net emissions.
+  description: Washington's laws on hydrofluorocarbons phase out the most 
+    climate-damaging refrigerants. The model lowers refrigerant emissions to 34%
+    below their 2019 level by 2030 and 85% below by 2050.
   type: simple.GenericAction
-  quantity: emissions
-  unit: Mt_co2e/a
+  quantity: fraction
+  unit: dimensionless
+  no_effect_value: 1.0
   group: state_federal
-  params:
-  - id: multiplier
-    value: -1
-    unit: dimensionless
-    is customizable: false
-    is_visible: false
   input_datasets:
-  - id: king-county/wedge_emission_reductions
-    column: emission_reduction
+  - id: king-county/wedge_remaining_shares
+    column: remaining_share
     filters:
     - dimension: action
       categories: [wa_hydrofluorocarbon_policies]
@@ -2466,26 +2538,23 @@ actions:
       flatten: true
     forecast_from: 2024
   input_dataset_processors: [LinearInterpolation]
-  output_nodes: [refrigerant_sector_emissions]
+  output_nodes:
+  - id: refrigerant_emissions
+    tags: [non_additive]
 
 - id: wa_climate_commitment_act_industrial
   name: WA Climate Commitment Act - Industrial
-  description: >
-    Acts on industrial process emissions, which the inventory groups under the built
-    environment.
+  description: Washington's Climate Commitment Act caps the emissions of large 
+    industrial facilities. The model lowers the county's industrial process 
+    emissions by 23% by 2030, and keeps them there.
   type: simple.GenericAction
-  quantity: emissions
-  unit: Mt_co2e/a
+  quantity: fraction
+  unit: dimensionless
+  no_effect_value: 1.0
   group: state_federal
-  params:
-  - id: multiplier
-    value: -1
-    unit: dimensionless
-    is customizable: false
-    is_visible: false
   input_datasets:
-  - id: king-county/wedge_emission_reductions
-    column: emission_reduction
+  - id: king-county/wedge_remaining_shares
+    column: remaining_share
     filters:
     - dimension: action
       categories: [wa_climate_commitment_act_industrial]
@@ -2494,48 +2563,78 @@ actions:
       flatten: true
     forecast_from: 2024
   input_dataset_processors: [LinearInterpolation]
-  output_nodes: [built_environment_emissions]
+  output_nodes:
+  - id: industrial_process_emissions
+    tags: [non_additive]
 
+# Two effects, both "no effect" at 0, so one action with two metrics turned into the
+# shares that remain by the `complement` tag, as for the Clean Fuel Standard. The
+# dataset's emission_process column belongs to the marine rows and is empty here.
 - id: aviation_industry
   name: Aviation industry
-  type: simple.GenericAction
-  quantity: emissions
-  unit: Mt_co2e/a
+  description: The aviation industry's 2050 plan (Air Transport Action Group) 
+    combines more efficient aircraft and operations with sustainable aviation 
+    fuel. The model lowers aviation fuel use by up to 19% and the emissions of 
+    each gallon by up to 38% by 2050, both rising steadily from 2024.
+  type: simple.AdditiveAction
   group: local_partner
-  params:
-  - id: multiplier
-    value: -1
-    unit: dimensionless
-    is customizable: false
-    is_visible: false
   input_datasets:
-  - id: king-county/wedge_emission_reductions
-    column: emission_reduction
+  - id: king-county/other_transportation_wedge_mechanisms
+    column: fuel_use_reduction
     filters:
     - dimension: action
       categories: [aviation_industry]
       flatten: true
     - dimension: policy_level
       flatten: true
+    - dimension: emission_process
+      flatten: true
     forecast_from: 2024
-  input_dataset_processors: [LinearInterpolation]
-  output_nodes: [transportation_emissions]
+  - id: king-county/other_transportation_wedge_mechanisms
+    column: fuel_emission_factor_reduction
+    filters:
+    - dimension: action
+      categories: [aviation_industry]
+      flatten: true
+    - dimension: policy_level
+      flatten: true
+    - dimension: emission_process
+      flatten: true
+    forecast_from: 2024
+  output_metrics:
+  - id: fuel_use_reduction
+    unit: dimensionless
+    quantity: fraction
+  - id: fuel_emission_factor_reduction
+    unit: dimensionless
+    quantity: fraction
+  output_nodes:
+  - id: aviation_fuel_consumption
+    metrics: [fuel_use_reduction]
+    tags: [complement, non_additive]
+  - id: aviation_fuel_emission_factor
+    metrics: [fuel_emission_factor_reduction]
+    tags: [complement, non_additive]
 
+# Marine and rail have emissions only. The workbook cuts each against a fixed base
+# year ('Transp' rows 1772-1795); the share is of the no-action series, per process.
+# Ferries have a node of their own.
 - id: regional_marine_rail_and_ferry
   name: Regional marine, rail and ferry transport
+  description: The Northwest Ports Clean Air Strategy aims to halve the 
+    emissions of ships and port railways by 2030 and nearly eliminate them by 
+    2050, and Washington State Ferries plans to electrify its fleet. The model 
+    lowers rail, ocean-going vessel and ferry emissions along those plans.
   type: simple.GenericAction
-  quantity: emissions
-  unit: Mt_co2e/a
+  quantity: fraction
+  unit: dimensionless
+  no_effect_value: 1.0
   group: local_partner
-  params:
-  - id: multiplier
-    value: -1
-    unit: dimensionless
-    is customizable: false
-    is_visible: false
+  input_dimensions: [emission_process]
+  output_dimensions: [emission_process]
   input_datasets:
-  - id: king-county/wedge_emission_reductions
-    column: emission_reduction
+  - id: king-county/other_transportation_wedge_mechanisms
+    column: remaining_share
     filters:
     - dimension: action
       categories: [regional_marine_rail_and_ferry]
@@ -2544,8 +2643,22 @@ actions:
       flatten: true
     forecast_from: 2024
   input_dataset_processors: [LinearInterpolation]
-  output_nodes: [transportation_emissions]
+  output_nodes:
+  - id: marine_and_rail_emissions
+    tags: [non_additive]
+    from_dimensions:
+    - id: emission_process
+      categories: [rail, maritime_ogv]
+  - id: ferry_emissions
+    tags: [non_additive]
+    from_dimensions:
+    - id: emission_process
+      categories: [ferries]
+      flatten: true
 
+# Switched off in the county's plan, so a zero curve here. With its switch On it is a
+# mechanism in the study instance king-county-switched-off-wedges.yaml, which
+# replaces this action.
 - id: zero_emission_appliance_standard
   name: Zero-emission appliance standard
   description: >
@@ -2573,6 +2686,9 @@ actions:
   input_dataset_processors: [LinearInterpolation]
   output_nodes: [built_environment_emissions]
 
+# Switched off in the county's plan, so a zero curve here. With its switch On it is a
+# mechanism in the study instance king-county-switched-off-wedges.yaml, which
+# replaces this action.
 - id: residential_point_of_sale
   name: Residential point of sale
   description: >
@@ -2687,19 +2803,18 @@ actions:
 
 - id: circular_economy_salvaged_lumber_and_reuse
   name: Circular Economy Salvaged Lumber and Reuse
+  description: Salvaging lumber and other construction materials for reuse 
+    keeps them out of the landfill. The model removes 3,060 short tons of 
+    construction materials a year from landfill from 2030.
   type: simple.GenericAction
-  quantity: emissions
-  unit: Mt_co2e/a
+  quantity: mass
+  unit: short_ton/a
   group: kc_scap
-  params:
-  - id: multiplier
-    value: -1
-    unit: dimensionless
-    is customizable: false
-    is_visible: false
+  input_dimensions: [material_type, waste_treatment]
+  output_dimensions: [material_type, waste_treatment]
   input_datasets:
-  - id: king-county/wedge_emission_reductions
-    column: emission_reduction
+  - id: king-county/waste_wedge_mechanisms
+    column: tonnage_change
     filters:
     - dimension: action
       categories: [circular_economy_salvaged_lumber_and_reuse]
@@ -2708,23 +2823,27 @@ actions:
       flatten: true
     forecast_from: 2024
   input_dataset_processors: [LinearInterpolation]
-  output_nodes: [solid_waste_emissions]
+  output_nodes: [waste_disposal]
 
+# Tonnes moved from landfill to compost ('Other' rows 128, 134, 247 and 253): the
+# landfill rows lose what the compost rows gain, so the transport of the moved
+# tonnage changes too. Stored carbon does not, as for salvaged lumber: see the note
+# above `waste_disposal_before_actions`.
 - id: wa_organics_management_law
   name: WA Organics Management Law (HB 1799 and HB 2301)
+  description: Washington's Organics Management Law aims to cut the food waste 
+    and yard trimmings sent to landfill by 75% from 2015 levels by 2030. The 
+    model moves that tonnage from landfill, where it produces methane, to 
+    composting.
   type: simple.GenericAction
-  quantity: emissions
-  unit: Mt_co2e/a
+  quantity: mass
+  unit: short_ton/a
   group: kc_scap
-  params:
-  - id: multiplier
-    value: -1
-    unit: dimensionless
-    is customizable: false
-    is_visible: false
+  input_dimensions: [material_type, waste_treatment]
+  output_dimensions: [material_type, waste_treatment]
   input_datasets:
-  - id: king-county/wedge_emission_reductions
-    column: emission_reduction
+  - id: king-county/waste_wedge_mechanisms
+    column: tonnage_change
     filters:
     - dimension: action
       categories: [wa_organics_management_law]
@@ -2733,7 +2852,7 @@ actions:
       flatten: true
     forecast_from: 2024
   input_dataset_processors: [LinearInterpolation]
-  output_nodes: [solid_waste_emissions]
+  output_nodes: [waste_disposal]
 
 - id: reduce_wastewater_methane_gas
   name: Reduce Wastewater Methane Gas

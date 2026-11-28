@@ -1,0 +1,316 @@
+# King County, with the three building wedges the county's workbook leaves switched off.
+#
+# Funded existing building retrofits, the zero-emission appliance standard and
+# residential point of sale are King County's own building wedges, and all three are
+# switched Off on the wedge workbook's Dashboard (G82-G84), so the published plan counts
+# them as zero (finding F6). This instance is for studying what they would do: it is the
+# king-county model, taken whole by `include`, with those three actions replaced by
+# mechanisms read from the workbook recalculated with the switches On
+# (paths-data models/king_county, extractor section 12e and recalc_wedge_workbook.py).
+# king-county itself is unchanged and stays the county's published plan.
+#
+# An include carries dimensions, nodes, actions and dataset metadata only, so the
+# header, emission sectors and goals, pages, scenarios and action groups below are
+# copies of king-county's and have to be kept in step with it by hand.
+
+id: king-county-switched-off-wedges
+default_language: en
+dataset_repo:
+  url: https://github.com/kausaltech/dvctest.git
+  # king-county's pin plus the 'Switched-off building wedge mechanisms' upload. Set to the
+  # commit that upload prints; until then the three actions have no data and the
+  # instance does not load.
+  commit: 5d2315db6655655412d3e92b0932ffb52b0aa116
+  dvc_remote: kausal-s3
+name: King County, with the switched-off building wedges
+owner: King County
+theme_identifier: us-kingcounty
+
+reference_year: 2007
+minimum_historical_year: 2007
+maximum_historical_year: 2023
+emission_forecast_from: 2024
+target_year: 2050
+model_end_year: 2050
+emission_unit: Mt_co2e/a
+
+# allow_override lets the three actions below replace the zero curves of the same ids in
+# king-county.yaml. Nothing else in this file shares an id with it.
+include:
+- file: king-county.yaml
+  allow_override: true
+
+emission_sectors:
+- id: net_emissions
+  name: Net emissions
+  is_outcome: true
+  goals:
+  - is_main_goal: true
+    linear_interpolation: true
+    values:
+    - year: 2007
+      value: 23.232
+    - year: 2025
+      value: 19.909824 # 14.3% reduction from 2007
+    - year: 2030
+      value: 11.616 # 50% reduction from 2007
+    - year: 2035
+      value: 8.712 # 62.5% reduction from 2007
+    - year: 2040
+      value: 5.808 # 75% reduction from 2007
+    - year: 2045
+      value: 3.4848 # 85% reduction from 2007
+    - year: 2050
+      value: 1.1616 # 95% reduction from 2007
+
+- id: built_environment_emissions
+  name: Built environment emissions
+  part_of: net_emissions
+
+- id: transportation_emissions
+  name: Transportation and other mobile source emissions
+  part_of: net_emissions
+
+- id: solid_waste_emissions
+  name: Solid waste and wastewater emissions
+  part_of: net_emissions
+
+- id: land_use_emissions
+  name: Land use emissions
+  part_of: net_emissions
+
+- id: refrigerant_sector_emissions
+  name: Refrigerant emissions
+  part_of: net_emissions
+
+- id: sequestration_emissions
+  name: Sequestration
+  part_of: net_emissions
+
+pages:
+- id: home
+  name: King County emission scenarios
+  path: /
+  type: emission
+  outcome_node: net_emissions
+  lead_title: King County greenhouse gas emissions, with the switched-off building wedges
+  lead_paragraph: >
+    The 2025 Strategic Climate Action Plan model, with three of the county's own building
+    policies that the plan's wedge analysis leaves switched off: funded retrofits of
+    existing buildings, a zero-emission appliance standard and residential point-of-sale
+    requirements.
+
+scenarios:
+- id: baseline
+  name: No action
+
+# As in king-county. The three wedges stay off here too: the workbook counts funded
+# retrofits among the federal and state wedges (F18), but its switch is off.
+- id: federal_and_state_action
+  name: Federal and state action only
+  all_actions_enabled: true
+  params:
+  - id: aviation_industry.enabled
+    value: false
+  - id: regional_marine_rail_and_ferry.enabled
+    value: false
+  - id: funded_existing_building_retrofits.enabled
+    value: false
+  - id: zero_emission_appliance_standard.enabled
+    value: false
+  - id: residential_point_of_sale.enabled
+    value: false
+  - id: vision_2050_scenario_2.enabled
+    value: false
+  - id: vision_2050_scenario_3.enabled
+    value: false
+  - id: advanced_clean_fleets.enabled
+    value: false
+  - id: circular_economy_salvaged_lumber_and_reuse.enabled
+    value: false
+  - id: wa_organics_management_law.enabled
+    value: false
+  - id: reduce_wastewater_methane_gas.enabled
+    value: false
+
+# The plan as published: king-county's default scenario, in which the three are zero.
+- id: published_plan
+  name: Strategic Climate Action Plan as published
+  all_actions_enabled: true
+  params:
+  - id: funded_existing_building_retrofits.enabled
+    value: false
+  - id: zero_emission_appliance_standard.enabled
+    value: false
+  - id: residential_point_of_sale.enabled
+    value: false
+
+- id: default
+  default: true
+  name: Strategic Climate Action Plan with the switched-off building wedges
+  all_actions_enabled: true
+
+action_groups:
+- id: state_federal
+  name: State and federal policy
+  color: '#4E79A7'
+- id: state_federal_local
+  name: State and federal policy with local implementation
+  color: '#76B7B2'
+- id: kc_scap
+  name: King County Strategic Climate Action Plan
+  color: '#E15759'
+- id: local_partner
+  name: Local partner action
+  color: '#F28E2B'
+
+# The same mechanism as king-county's building policies (wa_energy_code and the rest):
+# energy use after the policy over energy use before it, per consumer sector and
+# carrier, multiplying the four building consumption nodes. YAML anchors do not cross
+# files, so the output edges are written out here rather than taken from
+# &building_energy_use.
+actions:
+- id: funded_existing_building_retrofits
+  name: Funded existing building retrofits
+  description: King County's secured funding for retrofits of existing buildings
+    - multifamily electrification and efficiency, heat pump water heaters and
+    small community buildings - replaces natural gas with electricity in existing
+    buildings from 2026 to 2048, about 1.5 million therms of gas a year from 2030.
+  type: simple.GenericAction
+  quantity: fraction
+  unit: dimensionless
+  no_effect_value: 1.0
+  group: kc_scap
+  input_dimensions: [consumer_sector, energy_carrier]
+  output_dimensions: [consumer_sector, energy_carrier]
+  input_datasets:
+  - id: king-county/switched_off_building_wedge_mechanisms
+    column: relative_energy_use
+    filters:
+    - dimension: action
+      categories: [funded_existing_building_retrofits]
+      flatten: true
+    - dimension: policy_level
+      flatten: true
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: electricity_consumption
+    tags: [non_additive]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+      flatten: true
+  - id: natural_gas_consumption
+    tags: [non_additive]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [natural_gas]
+      flatten: true
+  - id: natural_gas_td_losses
+    tags: [non_additive]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [natural_gas]
+      flatten: true
+  - id: other_fuel_consumption
+    tags: [non_additive]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [fuel_oil, propane]
+
+- id: zero_emission_appliance_standard
+  name: Zero-emission appliance standard
+  description: From 2027 every new water heater and space heater in homes and
+    businesses is electric. As old appliances are replaced over about 15 years,
+    the natural gas, fuel oil and propane they used is replaced by electricity.
+  type: simple.GenericAction
+  quantity: fraction
+  unit: dimensionless
+  no_effect_value: 1.0
+  group: kc_scap
+  input_dimensions: [consumer_sector, energy_carrier]
+  output_dimensions: [consumer_sector, energy_carrier]
+  input_datasets:
+  - id: king-county/switched_off_building_wedge_mechanisms
+    column: relative_energy_use
+    filters:
+    - dimension: action
+      categories: [zero_emission_appliance_standard]
+      flatten: true
+    - dimension: policy_level
+      flatten: true
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: electricity_consumption
+    tags: [non_additive]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+      flatten: true
+  - id: natural_gas_consumption
+    tags: [non_additive]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [natural_gas]
+      flatten: true
+  - id: natural_gas_td_losses
+    tags: [non_additive]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [natural_gas]
+      flatten: true
+  - id: other_fuel_consumption
+    tags: [non_additive]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [fuel_oil, propane]
+
+- id: residential_point_of_sale
+  name: Residential point of sale
+  description: When a home is sold, its energy use is disclosed and it has to
+    meet a performance standard. The homes sold each year from 2028 use 22% less
+    electricity, natural gas, fuel oil and propane afterwards.
+  type: simple.GenericAction
+  quantity: fraction
+  unit: dimensionless
+  no_effect_value: 1.0
+  group: kc_scap
+  input_dimensions: [consumer_sector, energy_carrier]
+  output_dimensions: [consumer_sector, energy_carrier]
+  input_datasets:
+  - id: king-county/switched_off_building_wedge_mechanisms
+    column: relative_energy_use
+    filters:
+    - dimension: action
+      categories: [residential_point_of_sale]
+      flatten: true
+    - dimension: policy_level
+      flatten: true
+    forecast_from: 2024
+  input_dataset_processors: [LinearInterpolation]
+  output_nodes:
+  - id: electricity_consumption
+    tags: [non_additive]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [electricity]
+      flatten: true
+  - id: natural_gas_consumption
+    tags: [non_additive]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [natural_gas]
+      flatten: true
+  - id: natural_gas_td_losses
+    tags: [non_additive]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [natural_gas]
+      flatten: true
+  - id: other_fuel_consumption
+    tags: [non_additive]
+    from_dimensions:
+    - id: energy_carrier
+      categories: [fuel_oil, propane]
