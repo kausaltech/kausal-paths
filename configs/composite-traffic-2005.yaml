@@ -1,0 +1,69 @@
+id: composite-traffic-2005 # defines which instance is updated
+# Composite traffic, the replication: the decision analysis of Tuomisto & Tainio (2005), "An
+# economic way of reducing health, environmental, and other pressures of urban traffic", BMC
+# Public Health 5:123, for one working day in the Helsinki metropolitan area. Rounds 2 and 3 of
+# paths-data modules/composite-traffic/docs/plan.md: the article's Table 1 and Figure 5 from the
+# original 2005 values. The projection to 2050 is the instance composite-traffic, on the same
+# module.
+#
+# One year, 2005: the traffic is of 2000 and the prices of 2005, as in the article.
+default_language: en
+supported_languages: []
+dataset_repo:
+  url: https://github.com/kausaltech/dvctest.git
+  commit: b56444ba87a657129a12c86de97d4012231cbac8
+  dvc_remote: kausal-s3
+name_en: Composite traffic, the article of 2005
+owner: Kausal Ltd
+theme_identifier: default
+target_year: 2005
+model_end_year: 2005
+reference_year: 2005
+minimum_historical_year: 2005
+maximum_historical_year: 2005
+emission_unit: t/d
+features:
+  baseline_visible_in_graphs: true
+  show_explanations: true
+
+include:
+- file: modules/composite_traffic/dimensions.yaml
+  allow_override: false
+- file: modules/composite_traffic/model.yaml
+  allow_override: false
+- file: modules/composite_traffic/replication.yaml
+  allow_override: false
+
+params:
+- id: composite_traffic_coverage_level
+  label_en: Area covered by composite traffic
+  type: dimension_category
+  dimension: coverage_level
+  value: level_7
+  is_customizable: false
+  is_visible: false
+- id: composite_traffic_assumption_case
+  label_en: Input values
+  type: dimension_category
+  dimension: assumption_case
+  value: paper_2005
+  is_customizable: false
+  is_visible: false
+
+pages:
+- id: home
+  name_en: Composite traffic, the article of 2005
+  path: /
+  type: emission
+  outcome_node: composite_traffic_societal_cost_change_in_area
+
+scenarios:
+- id: default
+  default: true
+  name_en: Article 2005, whole metropolitan area
+
+- id: city_of_helsinki
+  name_en: Article 2005, city of Helsinki only
+  params:
+  - id: composite_traffic_coverage_level
+    value: level_4

@@ -168,4 +168,14 @@ dimensions:
   - id: paper_2005
     label_en: Article 2005, mean values
   - id: current_2025
-    label_en: Values of 2025, mean values
+    label_en: Values of 2025 and their trends, mean values
+
+- id: rollout_path
+  label_en: Rollout of composite traffic
+  categories:
+  - id: no_composite_traffic
+    label_en: No composite traffic
+  - id: article_strategy
+    label_en: From the centre to the whole area, as the article suggests
+  - id: helsinki_only
+    label_en: From the centre to the city of Helsinki

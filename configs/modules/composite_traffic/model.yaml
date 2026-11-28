@@ -29,10 +29,14 @@
 #   Table 1: accidents, emissions, PM deaths, driver salaries, vehicle costs, time cost,
 #            passenger cost per trip.  Figure 5: societal cost, subsidies, both by coverage.
 #
+# Every case of the trip aggregation is computed: the coverage level and the composite fraction
+# are dimensions throughout. Two further files pick from them: `replication.yaml`, the article's
+# figures for the area a parameter chooses (instance composite-traffic-2005), and `rollout.yaml`,
+# the years 2025-2050 along a rollout path (instance composite-traffic).
+#
 # What the including instance must provide: the dimensions in `dimensions.yaml`, and the global
-# parameters `composite_traffic_coverage_level` (a coverage_level category) and
-# `composite_traffic_assumption_case` (an assumption_case category). An include does not carry
-# `params:`.
+# parameter `composite_traffic_assumption_case` (an assumption_case category); `replication.yaml`
+# and `rollout.yaml` say what they need besides. An include does not carry `params:`.
 #
 # Data: `composite_traffic/*`, built by paths-data modules/composite-traffic/scripts/create_datasets.py.
 #
@@ -68,6 +72,10 @@ nodes:
 # vehicle-km, parking places, fleet and rush-hour flow by this factor, which assumes the pooling is
 # as efficient as at the 2000 volume; waiting times stay. Rush-hour congestion is computed
 # relative to the 0 % case, so the scale cancels there.
+#
+# The aggregation datasets are dated 2005, the replication's year; extend() carries them to the
+# model's last year, and the multiplication keeps the years the traffic volume has. Every case of
+# the aggregation is computed: coverage_level and composite_fraction are dimensions throughout.
 - id: composite_traffic_traffic_volume
   name_en: Car traffic relative to 2000
   description_en: |
@@ -89,112 +97,118 @@ nodes:
     Car and composite trips in the Helsinki metropolitan area on a working day, by zone of
     destination, trip length and period of the day. At each composite fraction, that share of
     the car trips is made by composite traffic instead.
-  type: generic.GenericNode
+  type: formula.FormulaNode
   quantity: number
   unit: trip/d
-  input_dimensions: [composite_fraction, travel_mode, city_zone, trip_length, day_period]
-  output_dimensions: [composite_fraction, travel_mode, city_zone, trip_length, day_period]
+  input_dimensions: [coverage_level, composite_fraction, travel_mode, city_zone, trip_length, day_period]
+  output_dimensions: [coverage_level, composite_fraction, travel_mode, city_zone, trip_length, day_period]
   input_datasets:
   - id: composite_traffic/trips
     column: trips
-    filters:
-    - column: coverage_level
-      ref: composite_traffic_coverage_level
+    tags: [data]
   input_nodes:
   - id: composite_traffic_traffic_volume
-    tags: [non_additive]
+    tags: [volume]
+  params:
+  - id: formula
+    value: extend(data) * volume
 
 - id: composite_traffic_vehicle_km
   name_en: Vehicle-kilometres
   description_en: |
     Kilometres driven by cars and composite vehicles in a day, by how the trips were made.
-  type: generic.GenericNode
+  type: formula.FormulaNode
   quantity: vehicle_mileage
   unit: vkm/d
-  input_dimensions: [composite_fraction, travel_type, vehicle_class, travel_mode, trip_length, day_period]
-  output_dimensions: [composite_fraction, travel_type, vehicle_class, travel_mode, trip_length, day_period]
+  input_dimensions: [coverage_level, composite_fraction, travel_type, vehicle_class, travel_mode, trip_length, day_period]
+  output_dimensions: [coverage_level, composite_fraction, travel_type, vehicle_class, travel_mode, trip_length, day_period]
   input_datasets:
   - id: composite_traffic/vehicle_km
     column: vehicle_km
-    filters:
-    - column: coverage_level
-      ref: composite_traffic_coverage_level
+    tags: [data]
   input_nodes:
   - id: composite_traffic_traffic_volume
-    tags: [non_additive]
+    tags: [volume]
+  params:
+  - id: formula
+    value: extend(data) * volume
 
 - id: composite_traffic_waiting_time
   name_en: Waiting time for a composite vehicle
   description_en: |
     How long a passenger waits for a composite vehicle beyond the time asked for, on average.
-  type: generic.GenericNode
+  type: formula.FormulaNode
   quantity: duration
   unit: min/trip
-  input_dimensions: [composite_fraction, travel_type, trip_length, day_period]
-  output_dimensions: [composite_fraction, travel_type, trip_length, day_period]
+  input_dimensions: [coverage_level, composite_fraction, travel_type, trip_length, day_period]
+  output_dimensions: [coverage_level, composite_fraction, travel_type, trip_length, day_period]
   input_datasets:
   - id: composite_traffic/waiting_times
     column: waiting_time
-    filters:
-    - column: coverage_level
-      ref: composite_traffic_coverage_level
+    tags: [data]
+  params:
+  - id: formula
+    value: extend(data)
 
 - id: composite_traffic_parking_places
   name_en: Parking places needed
   description_en: |
     Parking places that cars and composite vehicles need during the day, by zone.
-  type: generic.GenericNode
+  type: formula.FormulaNode
   quantity: number
   unit: pcs
-  input_dimensions: [composite_fraction, travel_mode, city_zone]
-  output_dimensions: [composite_fraction, travel_mode, city_zone]
+  input_dimensions: [coverage_level, composite_fraction, travel_mode, city_zone]
+  output_dimensions: [coverage_level, composite_fraction, travel_mode, city_zone]
   input_datasets:
   - id: composite_traffic/parking_places
     column: parking_places
-    filters:
-    - column: coverage_level
-      ref: composite_traffic_coverage_level
+    tags: [data]
   input_nodes:
   - id: composite_traffic_traffic_volume
-    tags: [non_additive]
+    tags: [volume]
+  params:
+  - id: formula
+    value: extend(data) * volume
 
 - id: composite_traffic_fleet
   name_en: Composite vehicles needed
   description_en: |
     The 8- and 4-seat vehicles that composite traffic needs for the daytime traffic.
-  type: generic.GenericNode
+  type: formula.FormulaNode
   quantity: number
   unit: vehicle
-  input_dimensions: [composite_fraction, vehicle_class]
-  output_dimensions: [composite_fraction, vehicle_class]
+  input_dimensions: [coverage_level, composite_fraction, vehicle_class]
+  output_dimensions: [coverage_level, composite_fraction, vehicle_class]
   input_datasets:
   - id: composite_traffic/composite_fleet
     column: vehicles
-    filters:
-    - column: coverage_level
-      ref: composite_traffic_coverage_level
+    tags: [data]
   input_nodes:
   - id: composite_traffic_traffic_volume
-    tags: [non_additive]
+    tags: [volume]
+  params:
+  - id: formula
+    value: extend(data) * volume
 
 - id: composite_traffic_rush_hour_traffic
   name_en: Rush-hour traffic on the busiest roads
   description_en: |
     Vehicles per hour on the 30 busiest road links between 8 and 9 in the morning.
-  type: generic.GenericNode
+  type: formula.FormulaNode
   quantity: traffic_volume
   unit: vehicle/h
-  input_dimensions: [composite_fraction, travel_type]
-  output_dimensions: [composite_fraction, travel_type]
+  input_dimensions: [coverage_level, composite_fraction, travel_type]
+  output_dimensions: [coverage_level, composite_fraction, travel_type]
   input_datasets:
   - id: composite_traffic/rush_hour_traffic
     column: link_intensity
-    filters:
-    - column: coverage_level
-      ref: composite_traffic_coverage_level
+    tags: [data]
   input_nodes:
   - id: composite_traffic_traffic_volume
-    tags: [non_additive]
+    tags: [volume]
+  params:
+  - id: formula
+    value: extend(data) * volume
 
 # ///// Traffic /////
 
@@ -205,12 +219,12 @@ nodes:
   type: formula.FormulaNode
   quantity: number
   unit: trip/d
-  input_dimensions: [composite_fraction, travel_mode, trip_length, day_period]
-  output_dimensions: [composite_fraction, travel_mode, trip_length, day_period]
+  input_dimensions: [coverage_level, composite_fraction, travel_mode, trip_length, day_period]
+  output_dimensions: [coverage_level, composite_fraction, travel_mode, trip_length, day_period]
   input_nodes:
   - id: composite_traffic_trips
     tags: [trips]
-    to_dimensions: [{id: composite_fraction}, {id: travel_mode}, {id: city_zone}, {id: trip_length}, {id: day_period}]
+    to_dimensions: [{id: coverage_level}, {id: composite_fraction}, {id: travel_mode}, {id: city_zone}, {id: trip_length}, {id: day_period}]
   params:
   - id: formula
     value: sum_dim(trips, city_zone)
@@ -223,8 +237,8 @@ nodes:
   type: formula.FormulaNode
   quantity: fraction
   unit: dimensionless
-  input_dimensions: [composite_fraction, travel_mode, trip_length, day_period]
-  output_dimensions: [composite_fraction, travel_mode, trip_length, day_period]
+  input_dimensions: [coverage_level, composite_fraction, travel_mode, trip_length, day_period]
+  output_dimensions: [coverage_level, composite_fraction, travel_mode, trip_length, day_period]
   input_nodes:
   - id: composite_traffic_trips_by_mode
     tags: [trips]
@@ -238,12 +252,13 @@ nodes:
   type: formula.FormulaNode
   quantity: vehicle_mileage
   unit: vkm/d
-  input_dimensions: [composite_fraction, vehicle_class, travel_mode, trip_length, day_period]
-  output_dimensions: [composite_fraction, vehicle_class, travel_mode, trip_length, day_period]
+  input_dimensions: [coverage_level, composite_fraction, vehicle_class, travel_mode, trip_length, day_period]
+  output_dimensions: [coverage_level, composite_fraction, vehicle_class, travel_mode, trip_length, day_period]
   input_nodes:
   - id: composite_traffic_vehicle_km
     tags: [vkm]
     to_dimensions:
+    - id: coverage_level
     - id: composite_fraction
     - id: travel_type
     - id: vehicle_class
@@ -259,8 +274,8 @@ nodes:
   type: formula.FormulaNode
   quantity: vehicle_mileage
   unit: vkm/d
-  input_dimensions: [composite_fraction, travel_mode, trip_length, day_period]
-  output_dimensions: [composite_fraction, travel_mode, trip_length, day_period]
+  input_dimensions: [coverage_level, composite_fraction, travel_mode, trip_length, day_period]
+  output_dimensions: [coverage_level, composite_fraction, travel_mode, trip_length, day_period]
   input_nodes:
   - id: composite_traffic_vehicle_km_by_class
     tags: [vkm]
@@ -273,8 +288,8 @@ nodes:
   type: formula.FormulaNode
   quantity: vehicle_mileage
   unit: Mvkm/d
-  input_dimensions: [composite_fraction]
-  output_dimensions: [composite_fraction]
+  input_dimensions: [coverage_level, composite_fraction]
+  output_dimensions: [coverage_level, composite_fraction]
   input_nodes:
   - id: composite_traffic_vehicle_km_by_mode
     tags: [vkm]
@@ -289,8 +304,8 @@ nodes:
   type: formula.FormulaNode
   quantity: fraction
   unit: '%'
-  input_dimensions: [composite_fraction]
-  output_dimensions: [composite_fraction]
+  input_dimensions: [coverage_level, composite_fraction]
+  output_dimensions: [coverage_level, composite_fraction]
   input_nodes:
   - id: composite_traffic_vehicle_km_total
     tags: [vkm]
@@ -305,8 +320,8 @@ nodes:
   type: formula.FormulaNode
   quantity: emissions
   unit: kg/d
-  input_dimensions: [composite_fraction, vehicle_class, travel_mode, trip_length, day_period]
-  output_dimensions: [composite_fraction, vehicle_class, travel_mode, trip_length, day_period]
+  input_dimensions: [coverage_level, composite_fraction, vehicle_class, travel_mode, trip_length, day_period]
+  output_dimensions: [coverage_level, composite_fraction, vehicle_class, travel_mode, trip_length, day_period]
   input_nodes:
   - id: composite_traffic_vehicle_km_by_class
     tags: [vkm]
@@ -326,8 +341,8 @@ nodes:
   type: formula.FormulaNode
   quantity: emissions
   unit: t/d
-  input_dimensions: [composite_fraction, vehicle_class, travel_mode, trip_length, day_period]
-  output_dimensions: [composite_fraction, vehicle_class, travel_mode, trip_length, day_period]
+  input_dimensions: [coverage_level, composite_fraction, vehicle_class, travel_mode, trip_length, day_period]
+  output_dimensions: [coverage_level, composite_fraction, vehicle_class, travel_mode, trip_length, day_period]
   input_nodes:
   - id: composite_traffic_vehicle_km_by_class
     tags: [vkm]
@@ -349,8 +364,8 @@ nodes:
   type: formula.FormulaNode
   quantity: emissions
   unit: kg/d
-  input_dimensions: [composite_fraction]
-  output_dimensions: [composite_fraction]
+  input_dimensions: [coverage_level, composite_fraction]
+  output_dimensions: [coverage_level, composite_fraction]
   input_nodes:
   - id: composite_traffic_pm_emissions
     tags: [pm]
@@ -363,8 +378,8 @@ nodes:
   type: formula.FormulaNode
   quantity: emissions
   unit: t/d
-  input_dimensions: [composite_fraction]
-  output_dimensions: [composite_fraction]
+  input_dimensions: [coverage_level, composite_fraction]
+  output_dimensions: [coverage_level, composite_fraction]
   input_nodes:
   - id: composite_traffic_co2_emissions
     tags: [co2]
@@ -380,8 +395,8 @@ nodes:
   type: formula.FormulaNode
   quantity: incidence
   unit: case/a
-  input_dimensions: [composite_fraction]
-  output_dimensions: [composite_fraction]
+  input_dimensions: [coverage_level, composite_fraction]
+  output_dimensions: [coverage_level, composite_fraction]
   input_nodes:
   - id: composite_traffic_pm_emissions_total
     tags: [pm]
@@ -406,8 +421,8 @@ nodes:
   type: formula.FormulaNode
   quantity: fraction
   unit: dimensionless
-  input_dimensions: [composite_fraction]
-  output_dimensions: [composite_fraction]
+  input_dimensions: [coverage_level, composite_fraction]
+  output_dimensions: [coverage_level, composite_fraction]
   input_nodes:
   - id: composite_traffic_vehicle_km_reduction
     tags: [reduction]
@@ -430,8 +445,8 @@ nodes:
   type: formula.FormulaNode
   quantity: incidence
   unit: case/a
-  input_dimensions: [composite_fraction, accident_type]
-  output_dimensions: [composite_fraction, accident_type]
+  input_dimensions: [coverage_level, composite_fraction, accident_type]
+  output_dimensions: [coverage_level, composite_fraction, accident_type]
   input_nodes:
   - id: composite_traffic_accident_factor
     tags: [factor]
@@ -460,8 +475,8 @@ nodes:
   type: formula.FormulaNode
   quantity: currency
   unit: EUR/d
-  input_dimensions: [composite_fraction, travel_mode, trip_length, day_period]
-  output_dimensions: [composite_fraction, travel_mode, trip_length, day_period]
+  input_dimensions: [coverage_level, composite_fraction, travel_mode, trip_length, day_period]
+  output_dimensions: [coverage_level, composite_fraction, travel_mode, trip_length, day_period]
   input_nodes:
   - id: composite_traffic_accident_factor
     tags: [factor]
@@ -521,8 +536,8 @@ nodes:
   type: formula.FormulaNode
   quantity: number
   unit: vehicle
-  input_dimensions: [composite_fraction, trip_length]
-  output_dimensions: [composite_fraction, trip_length]
+  input_dimensions: [coverage_level, composite_fraction, trip_length]
+  output_dimensions: [coverage_level, composite_fraction, trip_length]
   input_nodes:
   - id: composite_traffic_trips_by_mode
     tags: [trips]
@@ -544,8 +559,8 @@ nodes:
   type: formula.FormulaNode
   quantity: fraction
   unit: dimensionless
-  input_dimensions: [composite_fraction, trip_length]
-  output_dimensions: [composite_fraction, trip_length]
+  input_dimensions: [coverage_level, composite_fraction, trip_length]
+  output_dimensions: [coverage_level, composite_fraction, trip_length]
   input_nodes:
   - id: composite_traffic_trips_by_mode
     tags: [trips]
@@ -561,8 +576,8 @@ nodes:
   type: formula.FormulaNode
   quantity: currency
   unit: EUR/d
-  input_dimensions: [composite_fraction, trip_length]
-  output_dimensions: [composite_fraction, trip_length]
+  input_dimensions: [coverage_level, composite_fraction, trip_length]
+  output_dimensions: [coverage_level, composite_fraction, trip_length]
   input_nodes:
   - id: composite_traffic_fleet
     tags: [fleet]
@@ -576,6 +591,7 @@ nodes:
   output_nodes:
   - id: composite_traffic_daily_capital_cost
     to_dimensions:
+    - id: coverage_level
     - id: composite_fraction
     - id: trip_length
     - id: travel_mode
@@ -586,8 +602,8 @@ nodes:
   type: formula.FormulaNode
   quantity: currency
   unit: EUR/d
-  input_dimensions: [composite_fraction, trip_length]
-  output_dimensions: [composite_fraction, trip_length]
+  input_dimensions: [coverage_level, composite_fraction, trip_length]
+  output_dimensions: [coverage_level, composite_fraction, trip_length]
   input_nodes:
   - id: composite_traffic_cars_needed
     tags: [cars]
@@ -599,6 +615,7 @@ nodes:
   output_nodes:
   - id: composite_traffic_daily_capital_cost
     to_dimensions:
+    - id: coverage_level
     - id: composite_fraction
     - id: trip_length
     - id: travel_mode
@@ -609,8 +626,8 @@ nodes:
   type: generic.GenericNode
   quantity: currency
   unit: EUR/d
-  input_dimensions: [composite_fraction, trip_length, travel_mode]
-  output_dimensions: [composite_fraction, trip_length, travel_mode]
+  input_dimensions: [coverage_level, composite_fraction, trip_length, travel_mode]
+  output_dimensions: [coverage_level, composite_fraction, trip_length, travel_mode]
 
 - id: composite_traffic_vehicle_cost
   name_en: Vehicle costs by period of the day
@@ -619,8 +636,8 @@ nodes:
   type: formula.FormulaNode
   quantity: currency
   unit: EUR/d
-  input_dimensions: [composite_fraction, travel_mode, trip_length, day_period]
-  output_dimensions: [composite_fraction, travel_mode, trip_length, day_period]
+  input_dimensions: [coverage_level, composite_fraction, travel_mode, trip_length, day_period]
+  output_dimensions: [coverage_level, composite_fraction, travel_mode, trip_length, day_period]
   input_nodes:
   - id: composite_traffic_daily_capital_cost
     tags: [cost]
@@ -664,8 +681,8 @@ nodes:
   type: formula.FormulaNode
   quantity: currency
   unit: EUR/d
-  input_dimensions: [composite_fraction, travel_mode, trip_length, day_period]
-  output_dimensions: [composite_fraction, travel_mode, trip_length, day_period]
+  input_dimensions: [coverage_level, composite_fraction, travel_mode, trip_length, day_period]
+  output_dimensions: [coverage_level, composite_fraction, travel_mode, trip_length, day_period]
   input_nodes:
   - id: composite_traffic_vehicle_km_by_mode
     tags: [vkm]
@@ -710,8 +727,8 @@ nodes:
   type: formula.FormulaNode
   quantity: currency
   unit: EUR/d
-  input_dimensions: [composite_fraction, travel_mode, trip_length, day_period]
-  output_dimensions: [composite_fraction, travel_mode, trip_length, day_period]
+  input_dimensions: [coverage_level, composite_fraction, travel_mode, trip_length, day_period]
+  output_dimensions: [coverage_level, composite_fraction, travel_mode, trip_length, day_period]
   input_nodes:
   - id: composite_traffic_vehicle_km_by_class
     tags: [vkm]
@@ -731,8 +748,8 @@ nodes:
   type: formula.FormulaNode
   quantity: currency
   unit: EUR/d
-  input_dimensions: [composite_fraction, trip_length, day_period]
-  output_dimensions: [composite_fraction, trip_length, day_period]
+  input_dimensions: [coverage_level, composite_fraction, trip_length, day_period]
+  output_dimensions: [coverage_level, composite_fraction, trip_length, day_period]
   input_nodes:
   - id: composite_traffic_trips
     tags: [trips]
@@ -755,8 +772,8 @@ nodes:
   type: formula.FormulaNode
   quantity: fraction
   unit: dimensionless
-  input_dimensions: [composite_fraction, travel_mode, city_zone, trip_length]
-  output_dimensions: [composite_fraction, travel_mode, city_zone, trip_length]
+  input_dimensions: [coverage_level, composite_fraction, travel_mode, city_zone, trip_length]
+  output_dimensions: [coverage_level, composite_fraction, travel_mode, city_zone, trip_length]
   input_nodes:
   - id: composite_traffic_trips
     tags: [trips]
@@ -774,8 +791,8 @@ nodes:
   type: formula.FormulaNode
   quantity: currency
   unit: EUR/d
-  input_dimensions: [composite_fraction, travel_mode, trip_length]
-  output_dimensions: [composite_fraction, travel_mode, trip_length]
+  input_dimensions: [coverage_level, composite_fraction, travel_mode, trip_length]
+  output_dimensions: [coverage_level, composite_fraction, travel_mode, trip_length]
   input_nodes:
   - id: composite_traffic_parking_places
     tags: [places]
@@ -799,8 +816,8 @@ nodes:
   type: formula.FormulaNode
   quantity: currency
   unit: EUR/d
-  input_dimensions: [composite_fraction, travel_mode, trip_length, day_period]
-  output_dimensions: [composite_fraction, travel_mode, trip_length, day_period]
+  input_dimensions: [coverage_level, composite_fraction, travel_mode, trip_length, day_period]
+  output_dimensions: [coverage_level, composite_fraction, travel_mode, trip_length, day_period]
   input_nodes:
   - id: composite_traffic_daily_parking_land_cost
     tags: [cost]
@@ -844,8 +861,8 @@ nodes:
   type: formula.FormulaNode
   quantity: currency
   unit: EUR/d
-  input_dimensions: [composite_fraction, travel_mode, trip_length, day_period]
-  output_dimensions: [composite_fraction, travel_mode, trip_length, day_period]
+  input_dimensions: [coverage_level, composite_fraction, travel_mode, trip_length, day_period]
+  output_dimensions: [coverage_level, composite_fraction, travel_mode, trip_length, day_period]
   input_nodes:
   - id: composite_traffic_pm_emissions
     tags: [pm]
@@ -871,8 +888,8 @@ nodes:
   type: formula.FormulaNode
   quantity: fraction
   unit: '%'
-  input_dimensions: [composite_fraction]
-  output_dimensions: [composite_fraction]
+  input_dimensions: [coverage_level, composite_fraction]
+  output_dimensions: [coverage_level, composite_fraction]
   input_nodes:
   - id: composite_traffic_rush_hour_traffic
     tags: [flow]
@@ -888,8 +905,8 @@ nodes:
   type: formula.FormulaNode
   quantity: fraction
   unit: dimensionless
-  input_dimensions: [composite_fraction]
-  output_dimensions: [composite_fraction]
+  input_dimensions: [coverage_level, composite_fraction]
+  output_dimensions: [coverage_level, composite_fraction]
   input_nodes:
   - id: composite_traffic_rush_hour_flow_reduction
     tags: [reduction]
@@ -909,8 +926,8 @@ nodes:
   type: formula.FormulaNode
   quantity: currency
   unit: EUR/d
-  input_dimensions: [composite_fraction, trip_length, day_period]
-  output_dimensions: [composite_fraction, trip_length, day_period]
+  input_dimensions: [coverage_level, composite_fraction, trip_length, day_period]
+  output_dimensions: [coverage_level, composite_fraction, trip_length, day_period]
   input_nodes:
   - id: composite_traffic_waiting_time
     tags: [waiting]
@@ -936,8 +953,8 @@ nodes:
   type: formula.FormulaNode
   quantity: currency
   unit: EUR/d
-  input_dimensions: [composite_fraction, travel_mode, trip_length]
-  output_dimensions: [composite_fraction, travel_mode, trip_length]
+  input_dimensions: [coverage_level, composite_fraction, travel_mode, trip_length]
+  output_dimensions: [coverage_level, composite_fraction, travel_mode, trip_length]
   input_nodes:
   - id: composite_traffic_trips_by_mode
     tags: [trips]
@@ -969,8 +986,8 @@ nodes:
   type: formula.FormulaNode
   quantity: currency
   unit: EUR/d
-  input_dimensions: [composite_fraction, trip_length, day_period]
-  output_dimensions: [composite_fraction, trip_length, day_period]
+  input_dimensions: [coverage_level, composite_fraction, trip_length, day_period]
+  output_dimensions: [coverage_level, composite_fraction, trip_length, day_period]
   input_nodes:
   - id: composite_traffic_trips_by_mode
     tags: [trips]
@@ -994,11 +1011,12 @@ nodes:
   type: generic.GenericNode
   quantity: currency
   unit: EUR/d
-  input_dimensions: [composite_fraction, travel_mode, trip_length, day_period, cost_element]
-  output_dimensions: [composite_fraction, travel_mode, trip_length, day_period, cost_element]
+  input_dimensions: [coverage_level, composite_fraction, travel_mode, trip_length, day_period, cost_element]
+  output_dimensions: [coverage_level, composite_fraction, travel_mode, trip_length, day_period, cost_element]
   input_nodes:
   - id: composite_traffic_vehicle_cost
     to_dimensions:
+    - id: coverage_level
     - id: composite_fraction
     - id: travel_mode
     - id: trip_length
@@ -1007,6 +1025,7 @@ nodes:
       categories: [vehicle]
   - id: composite_traffic_driver_cost
     to_dimensions:
+    - id: coverage_level
     - id: composite_fraction
     - id: travel_mode
     - id: trip_length
@@ -1015,6 +1034,7 @@ nodes:
       categories: [driver]
   - id: composite_traffic_driving_cost
     to_dimensions:
+    - id: coverage_level
     - id: composite_fraction
     - id: travel_mode
     - id: trip_length
@@ -1023,6 +1043,7 @@ nodes:
       categories: [driving]
   - id: composite_traffic_parking_fees
     to_dimensions:
+    - id: coverage_level
     - id: composite_fraction
     - id: travel_mode
       categories: [car]
@@ -1032,6 +1053,7 @@ nodes:
       categories: [parking]
   - id: composite_traffic_parking_land_cost
     to_dimensions:
+    - id: coverage_level
     - id: composite_fraction
     - id: travel_mode
     - id: trip_length
@@ -1040,6 +1062,7 @@ nodes:
       categories: [parking_land]
   - id: composite_traffic_emission_cost
     to_dimensions:
+    - id: coverage_level
     - id: composite_fraction
     - id: travel_mode
     - id: trip_length
@@ -1048,6 +1071,7 @@ nodes:
       categories: [emissions]
   - id: composite_traffic_waiting_cost
     to_dimensions:
+    - id: coverage_level
     - id: composite_fraction
     - id: travel_mode
       categories: [composite]
@@ -1057,6 +1081,7 @@ nodes:
       categories: [time]
   - id: composite_traffic_delay_cost
     to_dimensions:
+    - id: coverage_level
     - id: composite_fraction
     - id: travel_mode
     - id: trip_length
@@ -1066,6 +1091,7 @@ nodes:
       categories: [time]
   - id: composite_traffic_accident_cost
     to_dimensions:
+    - id: coverage_level
     - id: composite_fraction
     - id: travel_mode
     - id: trip_length
@@ -1074,6 +1100,7 @@ nodes:
       categories: [accidents]
   - id: composite_traffic_ticket_income
     to_dimensions:
+    - id: coverage_level
     - id: composite_fraction
     - id: travel_mode
       categories: [composite]
@@ -1092,8 +1119,8 @@ nodes:
   type: formula.FormulaNode
   quantity: currency
   unit: EUR/d
-  input_dimensions: [composite_fraction, travel_mode, trip_length, day_period, stakeholder]
-  output_dimensions: [composite_fraction, travel_mode, trip_length, day_period, stakeholder]
+  input_dimensions: [coverage_level, composite_fraction, travel_mode, trip_length, day_period, stakeholder]
+  output_dimensions: [coverage_level, composite_fraction, travel_mode, trip_length, day_period, stakeholder]
   input_nodes:
   - id: composite_traffic_costs
     tags: [costs]
@@ -1119,8 +1146,8 @@ nodes:
   type: formula.FormulaNode
   quantity: currency
   unit: kEUR/d
-  input_dimensions: [composite_fraction, day_period]
-  output_dimensions: [composite_fraction, day_period]
+  input_dimensions: [coverage_level, composite_fraction, day_period]
+  output_dimensions: [coverage_level, composite_fraction, day_period]
   input_nodes:
   - id: composite_traffic_stakeholder_costs
     tags: [costs]
@@ -1134,11 +1161,10 @@ nodes:
     The societal cost of the traffic compared with no composite traffic (the article's
     Figure 5A). Negative is a saving.
   type: formula.FormulaNode
-  is_outcome: true  # the home page shows it
   quantity: currency
   unit: kEUR/d
-  input_dimensions: [composite_fraction, day_period]
-  output_dimensions: [composite_fraction, day_period]
+  input_dimensions: [coverage_level, composite_fraction, day_period]
+  output_dimensions: [coverage_level, composite_fraction, day_period]
   input_nodes:
   - id: composite_traffic_societal_cost
     tags: [cost]
@@ -1159,14 +1185,12 @@ nodes:
   type: generic.GenericNode
   quantity: unit_price
   unit: EUR/trip
-  input_dimensions: [composite_fraction, trip_length, day_period]
-  output_dimensions: [composite_fraction, trip_length, day_period]
+  input_dimensions: [coverage_level, composite_fraction, trip_length, day_period]
+  output_dimensions: [coverage_level, composite_fraction, trip_length, day_period]
   input_datasets:
   - id: composite_traffic/subsidy_per_trip
     column: subsidy_per_trip
     filters:
-    - column: coverage_level
-      ref: composite_traffic_coverage_level
     - column: assumption_case
       ref: composite_traffic_assumption_case
 
@@ -1178,8 +1202,8 @@ nodes:
   type: formula.FormulaNode
   quantity: currency
   unit: kEUR/d
-  input_dimensions: [composite_fraction, day_period]
-  output_dimensions: [composite_fraction, day_period]
+  input_dimensions: [coverage_level, composite_fraction, day_period]
+  output_dimensions: [coverage_level, composite_fraction, day_period]
   input_nodes:
   - id: composite_traffic_subsidy_per_trip
     tags: [subsidy]
@@ -1198,8 +1222,8 @@ nodes:
   type: formula.FormulaNode
   quantity: currency
   unit: kEUR/d
-  input_dimensions: [composite_fraction]
-  output_dimensions: [composite_fraction]
+  input_dimensions: [coverage_level, composite_fraction]
+  output_dimensions: [coverage_level, composite_fraction]
   input_nodes:
   - id: composite_traffic_societal_cost
     tags: [cost]
@@ -1221,8 +1245,8 @@ nodes:
   type: formula.FormulaNode
   quantity: currency
   unit: kEUR/d
-  input_dimensions: [composite_fraction]
-  output_dimensions: [composite_fraction]
+  input_dimensions: [coverage_level, composite_fraction]
+  output_dimensions: [coverage_level, composite_fraction]
   input_nodes:
   - id: composite_traffic_driver_cost
     tags: [cost]
@@ -1237,8 +1261,8 @@ nodes:
   type: formula.FormulaNode
   quantity: currency
   unit: kEUR/d
-  input_dimensions: [composite_fraction]
-  output_dimensions: [composite_fraction]
+  input_dimensions: [coverage_level, composite_fraction]
+  output_dimensions: [coverage_level, composite_fraction]
   input_nodes:
   - id: composite_traffic_daily_capital_cost
     tags: [capital]
@@ -1257,8 +1281,8 @@ nodes:
   type: formula.FormulaNode
   quantity: currency
   unit: kEUR/d
-  input_dimensions: [composite_fraction]
-  output_dimensions: [composite_fraction]
+  input_dimensions: [coverage_level, composite_fraction]
+  output_dimensions: [coverage_level, composite_fraction]
   input_nodes:
   - id: composite_traffic_costs
     tags: [costs]
@@ -1271,8 +1295,8 @@ nodes:
   type: formula.FormulaNode
   quantity: unit_price
   unit: EUR/trip
-  input_dimensions: [composite_fraction, travel_mode, trip_length]
-  output_dimensions: [composite_fraction, travel_mode, trip_length]
+  input_dimensions: [coverage_level, composite_fraction, travel_mode, trip_length]
+  output_dimensions: [coverage_level, composite_fraction, travel_mode, trip_length]
   input_nodes:
   - id: composite_traffic_stakeholder_costs
     tags: [costs]
@@ -1294,8 +1318,8 @@ nodes:
   type: formula.FormulaNode
   quantity: unit_price
   unit: EUR/trip
-  input_dimensions: [composite_fraction, travel_mode]
-  output_dimensions: [composite_fraction, travel_mode]
+  input_dimensions: [coverage_level, composite_fraction, travel_mode]
+  output_dimensions: [coverage_level, composite_fraction, travel_mode]
   input_nodes:
   - id: composite_traffic_passenger_daytime_cost_per_trip
     tags: [cost]

@@ -1,0 +1,60 @@
+# Composite traffic: the article's figures for one covered area, for the replication instance
+# composite-traffic-2005 (Rounds 2 and 3 of paths-data modules/composite-traffic/docs/plan.md).
+#
+# The model (`model.yaml`) computes every coverage level at once. These nodes pick the level the
+# global parameter `composite_traffic_coverage_level` names (a coverage_level category), which the
+# including instance must define.
+
+nodes:
+
+- id: composite_traffic_societal_cost_change_in_area
+  name_en: Change in the societal cost, without subsidies, in the area covered
+  description_en: |
+    The societal cost of the traffic compared with no composite traffic, when composite
+    traffic covers the area chosen (the article's Figure 5A). Negative is a saving.
+  type: formula.FormulaNode
+  is_outcome: true  # the home page shows it
+  quantity: currency
+  unit: kEUR/d
+  input_dimensions: [composite_fraction, day_period]
+  output_dimensions: [composite_fraction, day_period]
+  input_nodes:
+  - id: composite_traffic_societal_cost_change
+    tags: [change]
+  params:
+  - id: formula
+    value: select_category(change, coverage_level=composite_traffic_coverage_level)
+
+- id: composite_traffic_subsidies_in_area
+  name_en: Subsidies needed in the area covered
+  description_en: |
+    The subsidy paid on every composite trip to reach the composite fraction, when composite
+    traffic covers the area chosen (the article's Figure 5B).
+  type: formula.FormulaNode
+  quantity: currency
+  unit: kEUR/d
+  input_dimensions: [composite_fraction, day_period]
+  output_dimensions: [composite_fraction, day_period]
+  input_nodes:
+  - id: composite_traffic_subsidies
+    tags: [subsidies]
+  params:
+  - id: formula
+    value: select_category(subsidies, coverage_level=composite_traffic_coverage_level)
+
+- id: composite_traffic_daytime_cost_change_with_subsidies_in_area
+  name_en: Change in the daytime societal cost, with subsidies, in the area covered
+  description_en: |
+    The daytime societal cost including the subsidies, compared with no composite traffic, when
+    composite traffic covers the area chosen (the article's Figure 5C).
+  type: formula.FormulaNode
+  quantity: currency
+  unit: kEUR/d
+  input_dimensions: [composite_fraction]
+  output_dimensions: [composite_fraction]
+  input_nodes:
+  - id: composite_traffic_daytime_cost_change_with_subsidies
+    tags: [change]
+  params:
+  - id: formula
+    value: select_category(change, coverage_level=composite_traffic_coverage_level)

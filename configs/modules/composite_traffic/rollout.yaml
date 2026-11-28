@@ -1,0 +1,238 @@
+# Composite traffic over the years, 2025-2050 (Round 4 of paths-data
+# modules/composite-traffic/docs/plan.md), for the instance composite-traffic.
+#
+# The model (`model.yaml`) computes, for every year, all 7 x 13 cases of the trip aggregation
+# (coverage level x composite fraction). A rollout path says which case each year is: one
+# coverage level, and a composite fraction between two of the 13, split linearly. The producer
+# (paths-data scripts/create_datasets.py, ROLLOUT_PATHS) writes these weights by path and year;
+# without composite traffic all the weight is on the 0 % case. The action moves the weight from
+# the 0 % case to the path's, so the baseline has no composite traffic.
+#
+# Each result below is a case result weighted and summed over the cases. One fraction applies
+# to the whole day, since the accidents follow the vehicle-km of the whole day.
+#
+# What the including instance must provide besides model.yaml's: the global parameter
+# `composite_traffic_rollout_path` (a rollout_path category).
+
+datasets:
+- id: composite_traffic/rollout
+  is_editable: false
+
+actions:
+
+- id: composite_traffic_rollout
+  name_en: Introduce composite traffic
+  description_en: |
+    A central system pools the trips of car passengers going the same way at the same time into
+    eight-seat vehicles with a driver, ordered by phone. It starts where trips are densest and
+    expands. How far and how fast is chosen in the scenario settings.
+  type: formula.FormulaAction
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [coverage_level, composite_fraction]
+  output_dimensions: [coverage_level, composite_fraction]
+  input_datasets:
+  - id: composite_traffic/rollout
+    column: rollout_weight
+    tags: [weights]
+  params:
+  - id: formula
+    value: >-
+      select_category(weights, rollout_path=composite_traffic_rollout_path)
+      - select_category(weights, rollout_path='no_composite_traffic')
+  output_nodes:
+  - id: composite_traffic_case_weight
+
+nodes:
+
+- id: composite_traffic_case_weight
+  name_en: Weight of each case of composite traffic
+  description_en: |
+    Which covered area and which share of car trips taken over by composite traffic each year
+    is. Without composite traffic all of the weight is on no composite traffic.
+  type: generic.GenericNode
+  quantity: fraction
+  unit: dimensionless
+  input_dimensions: [coverage_level, composite_fraction]
+  output_dimensions: [coverage_level, composite_fraction]
+  input_datasets:
+  - id: composite_traffic/rollout
+    column: rollout_weight
+    filters:
+    - column: rollout_path
+      value: no_composite_traffic
+
+- id: composite_traffic_societal_cost_by_year
+  name_en: Societal cost of car and composite traffic
+  description_en: |
+    Every cost of a working day's car and composite traffic to society: vehicles, drivers,
+    energy, parking, emissions, time and accidents. Subsidies are not included, since they are
+    paid from one pocket to another.
+  type: formula.FormulaNode
+  is_outcome: true  # the home page shows it
+  quantity: currency
+  unit: kEUR/d
+  input_dimensions: [day_period]
+  output_dimensions: [day_period]
+  input_nodes:
+  - id: composite_traffic_societal_cost
+    tags: [cost]
+  - id: composite_traffic_case_weight
+    tags: [weight]
+  params:
+  - id: formula
+    value: sum_dim(sum_dim(cost * weight, coverage_level), composite_fraction)
+
+- id: composite_traffic_costs_by_element_by_year
+  name_en: Costs of car and composite traffic by element
+  type: formula.FormulaNode
+  quantity: currency
+  unit: kEUR/d
+  input_dimensions: [travel_mode, cost_element]
+  output_dimensions: [travel_mode, cost_element]
+  input_nodes:
+  - id: composite_traffic_costs
+    tags: [costs]
+  - id: composite_traffic_case_weight
+    tags: [weight]
+  params:
+  - id: formula
+    value: >-
+      sum_dim(sum_dim(sum_dim(sum_dim(costs * weight, coverage_level), composite_fraction), trip_length), day_period)
+
+- id: composite_traffic_subsidies_by_year
+  name_en: Subsidies needed
+  description_en: |
+    What it costs to make composite traffic cheaper than the car for as many car passengers as
+    the rollout reaches. A negative subsidy is a profit the operator could take.
+  type: formula.FormulaNode
+  quantity: currency
+  unit: kEUR/d
+  input_dimensions: [day_period]
+  output_dimensions: [day_period]
+  input_nodes:
+  - id: composite_traffic_subsidies
+    tags: [subsidies]
+  - id: composite_traffic_case_weight
+    tags: [weight]
+  params:
+  - id: formula
+    value: sum_dim(sum_dim(subsidies * weight, coverage_level), composite_fraction)
+
+- id: composite_traffic_trips_by_year
+  name_en: Trips by car and by composite traffic
+  type: formula.FormulaNode
+  quantity: number
+  unit: trip/d
+  input_dimensions: [travel_mode]
+  output_dimensions: [travel_mode]
+  input_nodes:
+  - id: composite_traffic_trips_by_mode
+    tags: [trips]
+  - id: composite_traffic_case_weight
+    tags: [weight]
+  params:
+  - id: formula
+    value: >-
+      sum_dim(sum_dim(sum_dim(sum_dim(trips * weight, coverage_level), composite_fraction), trip_length), day_period)
+
+- id: composite_traffic_co2_by_year
+  name_en: Carbon dioxide emissions of car and composite traffic
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: t/d
+  input_dimensions: []
+  output_dimensions: []
+  input_nodes:
+  - id: composite_traffic_co2_emissions_total
+    tags: [co2]
+  - id: composite_traffic_case_weight
+    tags: [weight]
+  params:
+  - id: formula
+    value: sum_dim(sum_dim(co2 * weight, coverage_level), composite_fraction)
+
+- id: composite_traffic_pm_by_year
+  name_en: Fine particle emissions of car and composite traffic
+  description_en: |
+    Primary PM2.5 from exhausts and from tyre, brake and road wear.
+  type: formula.FormulaNode
+  quantity: emissions
+  unit: kg/d
+  input_dimensions: []
+  output_dimensions: []
+  input_nodes:
+  - id: composite_traffic_pm_emissions_total
+    tags: [pm]
+  - id: composite_traffic_case_weight
+    tags: [weight]
+  params:
+  - id: formula
+    value: sum_dim(sum_dim(pm * weight, coverage_level), composite_fraction)
+
+- id: composite_traffic_pm_deaths_by_year
+  name_en: Deaths due to fine particles from car and composite traffic
+  type: formula.FormulaNode
+  quantity: incidence
+  unit: case/a
+  input_dimensions: []
+  output_dimensions: []
+  input_nodes:
+  - id: composite_traffic_pm_deaths
+    tags: [deaths]
+  - id: composite_traffic_case_weight
+    tags: [weight]
+  params:
+  - id: formula
+    value: sum_dim(sum_dim(deaths * weight, coverage_level), composite_fraction)
+
+- id: composite_traffic_accidents_by_year
+  name_en: Road traffic injuries and deaths
+  type: formula.FormulaNode
+  quantity: incidence
+  unit: case/a
+  input_dimensions: [accident_type]
+  output_dimensions: [accident_type]
+  input_nodes:
+  - id: composite_traffic_accidents
+    tags: [accidents]
+  - id: composite_traffic_case_weight
+    tags: [weight]
+  params:
+  - id: formula
+    value: sum_dim(sum_dim(accidents * weight, coverage_level), composite_fraction)
+
+- id: composite_traffic_fleet_by_year
+  name_en: Composite vehicles needed
+  type: formula.FormulaNode
+  quantity: number
+  unit: vehicle
+  input_dimensions: [vehicle_class]
+  output_dimensions: [vehicle_class]
+  input_nodes:
+  - id: composite_traffic_fleet
+    tags: [fleet]
+  - id: composite_traffic_case_weight
+    tags: [weight]
+  params:
+  - id: formula
+    value: sum_dim(sum_dim(fleet * weight, coverage_level), composite_fraction)
+
+- id: composite_traffic_parking_places_by_year
+  name_en: Parking places needed during the day
+  description_en: |
+    Composite vehicles keep moving, so the parking places that cars no longer need are freed for
+    other uses.
+  type: formula.FormulaNode
+  quantity: number
+  unit: pcs
+  input_dimensions: [travel_mode, city_zone]
+  output_dimensions: [travel_mode, city_zone]
+  input_nodes:
+  - id: composite_traffic_parking_places
+    tags: [places]
+  - id: composite_traffic_case_weight
+    tags: [weight]
+  params:
+  - id: formula
+    value: sum_dim(sum_dim(places * weight, coverage_level), composite_fraction)
